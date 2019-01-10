@@ -7,8 +7,8 @@ jobs:
     steps:
       - checkout
       - run: sudo chown -R circleci:circleci *
-      # - restore_cache:
-      #     key: tskit-{{ .Branch }}
+      - restore_cache:
+          key: tskit-{{ .Branch }}
       - run:
           name: Checkout submodules
           command: |
@@ -23,10 +23,10 @@ jobs:
             pip install --user --pre --upgrade tskit
             pip install --user git+https://github.com/tskit-dev/msprime
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
-      # - save_cache:
-      #     key: tskit-{{ .Branch }}
-      #     paths:
-      #       - "/home/circleci/.local"
+      - save_cache:
+          key: tskit-{{ .Branch }}
+          paths:
+            - "/home/circleci/.local"
       - run:
           name: Compile Python
           command: |
@@ -62,18 +62,17 @@ jobs:
             python setup.py bdist_wheel
             # TODO This doesn't seem to be installing, fails on bdist_wheel build.
             # pip install dist/*.tar.gz 
-      # - run:
-      #     name: Compile C
-      #     command: |
-      #       CFLAGS=--coverage meson c/ build-gcc && cd build-gcc && ninja
-      # - run:
-      #     name: Run C tests
-      #     command: |
-      #       export KASTORE_SOPATH=./build-gcc/libtskit.so
-      #       ./build-gcc/tests
-      #       ./build-gcc/dynamic_api_tests
-      #       ./build-gcc/malloc_tests
-      #       ./build-gcc/io_tests
+      - run:
+          name: Compile C
+          command: |
+            CFLAGS=--coverage meson c/ build-gcc && cd build-gcc && ninja
+      - run:
+          name: Run C tests
+          command: |
+            ./build-gcc/test_core
+            ./build-gcc/test_tables
+            ./build-gcc/test_trees
+            ./build-gcc/test_genotypes
       # - run:
       #     name: Valgrind for C tests.
       #     command: |
@@ -82,16 +81,12 @@ jobs:
       #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/dynamic_api_tests
       #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/malloc_tests
       #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/io_tests
-      # - run:
-      #     name: Run gcov & upload coverage.
-      #     command: |
-      #       gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
-      #       gcov -pb ./build-gcc/tests@exe/tskit.c.gcno \
-      #         ./build-gcc/malloc_tests@exe/tskit.c.gcno \
-      #         ./build-gcc/io_tests@exe/tskit.c.gcno \
-      #         ./build-gcc/dynamic_api_tests@exe/tskit.c.gcno \
-      #         ./build-gcc/tskit@sha/tskit.c.gcno 
-      #       codecov -X gcov -F C
+      - run:
+          name: Run gcov & upload coverage.
+          command: |
+            gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
+            gcov -pb ./build-gcc/tskit@sta/tsk_*.gcno
+            codecov -X gcov -F C
       # - run:
       #     name: Compile C tests under clang
       #     command: |
