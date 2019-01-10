@@ -1,8 +1,12 @@
 import sys
 import os.path
 import codecs
+import platform
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+
+
+IS_WINDOWS = platform.system() == "Windows"
 
 
 # Obscure magic required to allow numpy be used as a 'setup_requires'.
@@ -34,10 +38,19 @@ sources = ["_tskitmodule.c"] + [
     os.path.join(libdir, f) for f in tsk_source_files] + [
     os.path.join(kastore_dir, "kastore.c")]
 
+defines = []
+libraries = []
+if IS_WINDOWS:
+    # Needed for generating UUIDs
+    libraries.append("Advapi32")
+    defines.append(("WIN32", None))
+
 _tskit_module = Extension(
     '_tskit',
     sources=sources,
     extra_compile_args=["-std=c99"],
+    libraries=libraries,
+    define_macros=defines,
     # Enable asserts
     undef_macros=["NDEBUG"],
     include_dirs=[libdir, kastore_dir],
