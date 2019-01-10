@@ -173,7 +173,8 @@ class TestGetSchema(unittest.TestCase):
     """
     def test_file_equal(self):
         s1 = provenance.get_schema()
-        with open(os.path.join("tskit", "provenance.schema.json")) as f:
+        base = os.path.join(os.path.dirname(__file__), "..", "tskit")
+        with open(os.path.join(base, "provenance.schema.json")) as f:
             s2 = json.load(f)
         self.assertEqual(s1, s2)
 

@@ -22,6 +22,8 @@ import tests.tsutil as tsutil
 
 CURRENT_FILE_MAJOR = 12
 
+test_data_dir = os.path.join(os.path.dirname(__file__), "data")
+
 
 def single_locus_no_mutation_example():
     return msprime.simulate(10, random_seed=10)
@@ -172,22 +174,25 @@ class TestLoadLegacyExamples(TestFileFormat):
 
     def test_format_too_old_raised_for_hdf5(self):
         files = [
-            "tests/data/hdf5-formats/msprime-0.3.0_v2.0.hdf5",
-            "tests/data/hdf5-formats/msprime-0.4.0_v3.1.hdf5",
-            "tests/data/hdf5-formats/msprime-0.5.0_v10.0.hdf5"]
+            "msprime-0.3.0_v2.0.hdf5", "msprime-0.4.0_v3.1.hdf5",
+            "msprime-0.5.0_v10.0.hdf5"]
         for filename in files:
-            self.assertRaises(exceptions.VersionTooOldError, tskit.load, filename)
+            path = os.path.join(test_data_dir, "hdf5-formats", filename)
+            self.assertRaises(exceptions.VersionTooOldError, tskit.load, path)
 
     def test_msprime_v_0_5_0(self):
-        ts = tskit.load_legacy("tests/data/hdf5-formats/msprime-0.5.0_v10.0.hdf5")
+        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.5.0_v10.0.hdf5")
+        ts = tskit.load_legacy(path)
         self.verify_tree_sequence(ts)
 
     def test_msprime_v_0_4_0(self):
-        ts = tskit.load_legacy("tests/data/hdf5-formats/msprime-0.4.0_v3.1.hdf5")
+        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.4.0_v3.1.hdf5")
+        ts = tskit.load_legacy(path)
         self.verify_tree_sequence(ts)
 
     def test_msprime_v_0_3_0(self):
-        ts = tskit.load_legacy("tests/data/hdf5-formats/msprime-0.3.0_v2.0.hdf5")
+        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.3.0_v2.0.hdf5")
+        ts = tskit.load_legacy(path)
         self.verify_tree_sequence(ts)
 
 

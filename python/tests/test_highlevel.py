@@ -1340,7 +1340,8 @@ class TestTreeSequence(HighLevelTestCase):
         self.assertGreater(num_mutations, 0)
 
     def test_simplify_bugs(self):
-        prefix = "tests/data/simplify-bugs/"
+        prefix = os.path.join(
+            os.path.dirname(__file__), "data", "simplify-bugs")
         j = 1
         while True:
             nodes_file = os.path.join(prefix, "{:02d}-nodes.txt".format(j))
