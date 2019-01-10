@@ -14,12 +14,9 @@ import jsonschema
 import tskit.exceptions as exceptions
 import _tskit
 
-__version__ = "undefined"
-try:
-    from . import _version
-    __version__ = _version.version
-except ImportError:
-    pass
+from . import _version
+
+__version__ = _version.tskit_version
 
 
 # NOTE: the APIs here are all preliminary. We should have a class that encapsulates

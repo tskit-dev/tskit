@@ -20,7 +20,7 @@ import tskit
 import _tskit
 import msprime
 
-import tskit_tests.tsutil as tsutil
+import tests.tsutil as tsutil
 
 IS_PY2 = sys.version_info[0] < 3
 

@@ -29,9 +29,9 @@ import msprime
 
 import tskit
 import _tskit
-import tskit_tests as tests
-import tskit_tests.tsutil as tsutil
-import tskit_tests.simplify as simplify
+import tests as tests
+import tests.tsutil as tsutil
+import tests.simplify as simplify
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):

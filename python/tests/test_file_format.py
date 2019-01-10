@@ -17,7 +17,7 @@ import msprime
 
 import tskit
 import tskit.exceptions as exceptions
-import tskit_tests.tsutil as tsutil
+import tests.tsutil as tsutil
 
 
 CURRENT_FILE_MAJOR = 12

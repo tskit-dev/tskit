@@ -13,7 +13,7 @@ import numpy as np
 import msprime
 
 import tskit
-import tskit_tests.tsutil as tsutil
+import tests.tsutil as tsutil
 
 IS_PY2 = sys.version_info[0] < 3
 IS_WINDOWS = platform.system() == "Windows"

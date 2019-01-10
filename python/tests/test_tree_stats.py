@@ -15,7 +15,7 @@ import six
 import msprime
 
 import tskit
-import tskit_tests.tsutil as tsutil
+import tests.tsutil as tsutil
 
 
 def path_length(tr, x, y):

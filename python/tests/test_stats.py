@@ -12,8 +12,8 @@ import msprime
 
 import tskit
 import _tskit
-import tskit_tests.tsutil as tsutil
-import tskit_tests.test_wright_fisher as wf
+import tests.tsutil as tsutil
+import tests.test_wright_fisher as wf
 
 
 IS_PY2 = sys.version_info[0] < 3

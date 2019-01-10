@@ -13,8 +13,8 @@ import numpy.testing as nt
 import msprime
 
 import tskit
-import tskit_tests as tests
-import tskit_tests.tsutil as tsutil
+import tests as tests
+import tests.tsutil as tsutil
 
 
 class WrightFisherSimulator(object):
