@@ -1,0 +1,11 @@
+coverage:
+  status:
+    project:
+      python:
+        target: 95%
+        flags: python
+
+    patch:
+      python:
+        target: 90%
+        flags: python

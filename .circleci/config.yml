@@ -1,0 +1,110 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.6-stretch
+    working_directory: /home/circleci/tskit
+    steps:
+      - checkout
+      - run: sudo chown -R circleci:circleci *
+      # - restore_cache:
+      #     key: tskit-{{ .Branch }}
+      - run:
+          name: Checkout submodules
+          command: |
+            git submodule update --init --recursive --remote
+      - run:
+          name: Install dependencies and set path
+          command: |
+            sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen libgsl-dev
+            pip install --user -r python/requirements/development.txt
+            pip install meson --user
+            # tmp; until we have an msprime package install from here.
+            pip install --user --pre --upgrade tskit
+            pip install --user git+https://github.com/tskit-dev/msprime
+            echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+      # - save_cache:
+      #     key: tskit-{{ .Branch }}
+      #     paths:
+      #       - "/home/circleci/.local"
+      - run:
+          name: Compile Python
+          command: |
+            cd python 
+            # CFLAGS="--coverage -Wall -Wextra -Werror -Wno-unused-parameter" \
+            #   python setup.py build_ext --inplace
+            # TODO enable these flags later.
+            CFLAGS="--coverage" python setup.py build_ext --inplace
+      - run:
+          name: Lint Python
+          command: |
+            cd python
+            flake8 --max-line-length 89 tskit setup.py tests
+      - run:
+          name: Run Python tests 
+          command: |
+            PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
+              --cover-branches --cover-erase --cover-xml \
+              --cover-inclusive python/tests
+            python3 -m codecov -F python
+      - run:
+          name: Build Python package
+          command: |
+            cd python
+            rm -fR build
+            python setup.py sdist
+            python setup.py check
+            python -m venv venv
+            source venv/bin/activate 
+            pip install --upgrade setuptools pip wheel
+            python setup.py build_ext
+            python setup.py egg_info
+            python setup.py bdist_wheel
+            pip install dist/*.tar.gz 
+      # - run:
+      #     name: Compile C
+      #     command: |
+      #       CFLAGS=--coverage meson c/ build-gcc && cd build-gcc && ninja
+      # - run:
+      #     name: Run C tests
+      #     command: |
+      #       export KASTORE_SOPATH=./build-gcc/libtskit.so
+      #       ./build-gcc/tests
+      #       ./build-gcc/dynamic_api_tests
+      #       ./build-gcc/malloc_tests
+      #       ./build-gcc/io_tests
+      # - run:
+      #     name: Valgrind for C tests.
+      #     command: |
+      #       export KASTORE_SOPATH=./build-gcc/libtskit.so
+      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/tests
+      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/dynamic_api_tests
+      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/malloc_tests
+      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/io_tests
+      # - run:
+      #     name: Run gcov & upload coverage.
+      #     command: |
+      #       gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
+      #       gcov -pb ./build-gcc/tests@exe/tskit.c.gcno \
+      #         ./build-gcc/malloc_tests@exe/tskit.c.gcno \
+      #         ./build-gcc/io_tests@exe/tskit.c.gcno \
+      #         ./build-gcc/dynamic_api_tests@exe/tskit.c.gcno \
+      #         ./build-gcc/tskit@sha/tskit.c.gcno 
+      #       codecov -X gcov -F C
+      # - run:
+      #     name: Compile C tests under clang
+      #     command: |
+      #       CC=clang meson c/ build-clang && cd build-clang && ninja
+      # - run:
+      #     name: Run clang C tests
+      #     command: |
+      #       export KASTORE_SOPATH=./build-clang/libtskit.so
+      #       ./build-clang/tests
+      #       ./build-clang/dynamic_api_tests
+      #       ./build-clang/malloc_tests
+      #       ./build-clang/io_tests
+
+      # - run:
+      #     name: Build docs
+      #     command: |
+      #       cd docs && make
