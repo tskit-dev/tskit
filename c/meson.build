@@ -14,7 +14,9 @@ lib_sources = [
     'kastore/c/kastore.c', 'tsk_core.c', 'tsk_tables.c', 'tsk_trees.c', 
     'tsk_genotypes.c', 'tsk_stats.c', 'tsk_convert.c']
 
-add_global_arguments(['-I../kastore/c'], language: 'c')
+kastore_dir=join_paths(meson.source_root(), 'kastore/c')
+
+add_global_arguments(['-I' + kastore_dir], language: 'c')
 
 tskit_lib = static_library('tskit', 
     sources: lib_sources, dependencies: m_dep, c_args: extra_c_args)
