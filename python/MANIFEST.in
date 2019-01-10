@@ -1,0 +1,3 @@
+include lib/kastore/c/kastore.h
+include LICENSE
+include tskit/_version.py

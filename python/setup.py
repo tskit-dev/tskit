@@ -80,7 +80,7 @@ setup(
     packages=['tskit'],
     include_package_data=True,
     ext_modules=[_tskit_module],
-    install_requires=[numpy_ver], # FIXME!!
+    install_requires=[numpy_ver, "h5py", "svgwrite", "six", "jsonschema"],
     entry_points={
         'console_scripts': [
             'tskit=tskit.__main__:main',
@@ -93,5 +93,7 @@ setup(
     setup_requires=[numpy_ver],
     cmdclass={
         'build_ext': local_build_ext
-    }
+    },
+    license="MIT",
+    platforms=["POSIX", "Windows", "MacOS X"],
 )
