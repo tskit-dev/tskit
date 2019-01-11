@@ -20,7 +20,8 @@ jobs:
             pip install --user -r python/requirements/development.txt
             pip install meson --user
             # tmp; until we have an msprime package install from here.
-            pip install --user --pre --upgrade tskit
+            # 0.1.0 is broken, so force 0.1.0a1 for now.
+            pip install --user --pre tskit==0.1.0a1
             pip install --user git+https://github.com/tskit-dev/msprime
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
       - save_cache:
@@ -60,8 +61,7 @@ jobs:
             python setup.py build_ext
             python setup.py egg_info
             python setup.py bdist_wheel
-            # TODO This doesn't seem to be installing, fails on bdist_wheel build.
-            # pip install dist/*.tar.gz 
+            pip install dist/*.tar.gz 
       - run:
           name: Compile C
           command: |
