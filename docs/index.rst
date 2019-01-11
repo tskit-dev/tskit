@@ -1,9 +1,9 @@
-.. kastore documentation master file, created by
+.. tskit documentation master file, created by
    sphinx-quickstart on Fri Nov 30 14:44:35 2018.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to kastore's documentation!
+Welcome to tskit's documentation!
 ===================================
 
 .. toctree::

@@ -9,10 +9,10 @@ BUILDDIR      = _build
 
 DOXYGEN_XML=doxygen/xml
 
-all: #${DOXYGEN_XML}
+all: ${DOXYGEN_XML}
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-${DOXYGEN_XML}: ../c/kastore.h
+${DOXYGEN_XML}: ../c/tskit.h
 	cd doxygen && doxygen
 
 # Put it first so that "make" without argument is like "make help".

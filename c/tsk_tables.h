@@ -1,3 +1,7 @@
+/**
+ * @file tsk_tables.h
+ * @brief Tskit Tables API.
+ */
 #ifndef TSK_TABLES_H
 #define TSK_TABLES_H
 
@@ -99,6 +103,9 @@ typedef struct {
 /* Table definitions */
 /****************************************************************************/
 
+/**
+@brief The individual table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -116,6 +123,9 @@ typedef struct {
     tsk_tbl_size_t *metadata_offset;
 } tsk_individual_tbl_t;
 
+/**
+@brief The node table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -131,6 +141,9 @@ typedef struct {
     tsk_tbl_size_t *metadata_offset;
 } tsk_node_tbl_t;
 
+/**
+@brief The site table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -148,6 +161,9 @@ typedef struct {
     tsk_tbl_size_t *metadata_offset;
 } tsk_site_tbl_t;
 
+/**
+@brief The mutation table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -167,6 +183,9 @@ typedef struct {
     tsk_tbl_size_t *metadata_offset;
 } tsk_mutation_tbl_t;
 
+/**
+@brief The edge table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -177,6 +196,9 @@ typedef struct {
     tsk_id_t *child;
 } tsk_edge_tbl_t;
 
+/**
+@brief The migration table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -189,6 +211,9 @@ typedef struct {
     double *time;
 } tsk_migration_tbl_t;
 
+/**
+@brief The population table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -200,6 +225,9 @@ typedef struct {
     tsk_tbl_size_t *metadata_offset;
 } tsk_population_tbl_t;
 
+/**
+@brief The provenance table.
+*/
 typedef struct {
     tsk_tbl_size_t num_rows;
     tsk_tbl_size_t max_rows;
@@ -216,10 +244,16 @@ typedef struct {
     tsk_tbl_size_t *record_offset;
 } tsk_provenance_tbl_t;
 
+/**
+@brief The table collection.
+*/
 typedef struct {
+    /** @brief The sequence length defining the tree sequence's coordinate space */
     double sequence_length;
     char *file_uuid;
+    /** @brief The individual table */
     tsk_individual_tbl_t *individuals;
+    /* TODO document other public members */
     tsk_node_tbl_t *nodes;
     tsk_edge_tbl_t *edges;
     tsk_migration_tbl_t *migrations;
@@ -438,7 +472,32 @@ int tsk_provenance_tbl_get_row(tsk_provenance_tbl_t *self, size_t index, tsk_pro
 /* Table collection .*/
 /****************************************************************************/
 
+/**
+@brief Allocate a new table collection.
+
+@rst
+After allocation, each of the consituent tables is allocated with the default size increment.
+The sequence length is set to zero.
+@endrst
+
+@param self A pointer to an uninitialised tsk_tbl_collection_t object.
+@param flags Allocation time options. Currently unused.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_tbl_collection_alloc(tsk_tbl_collection_t *self, int flags);
+
+/**
+@brief Load a table collection from file.
+
+@rst
+Reads a table collection from the specified file.
+@endrst
+
+@param self A pointer to an uninitialised tsk_tbl_collection_t object.
+@param filename A NULL terminated string containing the filename.
+@param flags Load time options. Currently unused.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_tbl_collection_load(tsk_tbl_collection_t *self, const char *filename, int flags);
 int tsk_tbl_collection_dump(tsk_tbl_collection_t *tables, const char *filename, int flags);
 int tsk_tbl_collection_copy(tsk_tbl_collection_t *self, tsk_tbl_collection_t *dest);

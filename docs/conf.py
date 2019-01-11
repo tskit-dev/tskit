@@ -15,6 +15,24 @@
 import subprocess
 import os
 import sys
+
+# It's easier not to try to build the low-level module for the
+# documentation build on readthedocs, so we mock the module. Follows
+# the recommended pattern at
+# http://docs.readthedocs.org/en/latest/faq.html
+
+from unittest.mock import MagicMock
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+MOCK_MODULES = ["_tskit"]
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
+
 sys.path.insert(0, os.path.abspath('../python'))
 
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'

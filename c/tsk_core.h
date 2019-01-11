@@ -1,3 +1,7 @@
+/**
+ * @file tsk_core.h
+ * @brief Core utilities used in all of tskit.
+ */
 #ifndef __TSK_CORE_H__
 #define __TSK_CORE_H__
 
@@ -53,7 +57,6 @@
      TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
 
 /* Flags for dump tables */
-/* #define TSK_ALLOC_TABLES 1 */
 
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES 1
@@ -69,21 +72,51 @@
 #define TSK_FILE_FORMAT_VERSION_MAJOR 12
 #define TSK_FILE_FORMAT_VERSION_MINOR 0
 
-/* Error codes */
+/**
+@defgroup GENERAL_ERROR_GROUP General errors.
+@{
+*/
 
-/* General errrors */
+/**
+Generic error thrown when no other message can be generated.
+*/
 #define TSK_ERR_GENERIC                                             -1
+/**
+Memory could not be allocated.
+*/
 #define TSK_ERR_NO_MEMORY                                           -2
+/**
+An IO error occured.
+*/
 #define TSK_ERR_IO                                                  -3
 #define TSK_ERR_BAD_PARAM_VALUE                                     -4
 #define TSK_ERR_BUFFER_OVERFLOW                                     -5
 #define TSK_ERR_UNSUPPORTED_OPERATION                               -6
 #define TSK_ERR_GENERATE_UUID                                       -7
+/** @} */
 
-/* File format errors */
+/**
+@defgroup FILE_FORMAT_ERROR_GROUP File format errors.
+@{
+*/
+
+/**
+A file could not be read because it is in the wrong format
+*/
 #define TSK_ERR_FILE_FORMAT                                         -100
+/**
+The file is in tskit format, but the version is too old for the
+library to read. The file should be upgraded to the latest version
+using the ``tskit upgrade`` command line utility.
+*/
 #define TSK_ERR_FILE_VERSION_TOO_OLD                                -101
+/**
+The file is in tskit format, but the version is too new for the
+library to read. To read the file you must upgrade the version
+of tskit.
+*/
 #define TSK_ERR_FILE_VERSION_TOO_NEW                                -102
+/** @} */
 
 /* Out of bounds errors */
 #define TSK_ERR_BAD_OFFSET                                          -200
@@ -138,6 +171,7 @@
 #define TSK_ERR_ONLY_INFINITE_SITES                                 -800
 #define TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED                   -801
 #define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -802
+
 
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14
