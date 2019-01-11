@@ -14,11 +14,10 @@ Welcome to tskit's documentation!
    installation
    python-api
    c-api
+   data-model
+   provenance
    development
    changelogs
-   interchange
-   provenance
-   tutorial
 
 
 Indices and tables

@@ -4,6 +4,12 @@
 Python API
 ==========
 
+This page provides detailed documentation for the ``tskit`` Python API.
+
+************************
+Trees and tree sequences
+************************
+
 The :class:`.TreeSequence` class represents a sequence of correlated trees
 output by a simulation. The :class:`.Tree` class represents a single
 tree in this sequence.
@@ -12,6 +18,7 @@ and mutational information stored in a tree sequence returned from a simulation.
 There are also methods for loading data into these objects, either from the native
 format using :func:`tskit.load`, or from another sources
 using :func:`tskit.load_text` or :meth:`.TableCollection.tree_sequence`.
+
 
 +++++++++++++++++
 Top level-classes
@@ -49,7 +56,7 @@ Simple container classes
 ++++++++++++++++++++++++
 
 These classes are simple shallow containers representing the entities defined
-in the :ref:`sec_data_model`. These classes are not intended to be instantiated
+in the :ref:`sec_data_model_definitions`. These classes are not intended to be instantiated
 directly, but are the return types for the various iterators provided by the
 :class:`.TreeSequence` and :class:`.Tree` classes.
 
@@ -96,22 +103,11 @@ using the :ref:`Tables API <sec_tables_api>`.
 .. autofunction:: tskit.load_text
 
 
-**********************
-Calculating statistics
-**********************
-
-The ``tskit`` API provides methods for efficiently calculating
-population genetics statistics from a given :class:`.TreeSequence`.
-
-.. autoclass:: tskit.LdCalculator(tree_sequence)
-    :members:
-
-
 .. _sec_tables_api:
 
-***********
-Tables API
-***********
+******
+Tables
+******
 
 The :ref:`tables API <sec_binary_interchange>` provides an efficient way of working
 with and interchanging :ref:`tree sequence data <sec_data_model>`. Each table
@@ -442,12 +438,24 @@ Table functions
 
 .. autofunction:: tskit.unpack_bytes
 
+.. _sec_stats_api:
+
+**********
+Statistics
+**********
+
+The ``tskit`` API provides methods for efficiently calculating
+population genetics statistics from a given :class:`.TreeSequence`.
+
+.. autoclass:: tskit.LdCalculator(tree_sequence)
+    :members:
+
 
 .. _sec_provenance_api:
 
-**************
-Provenance API
-**************
+**********
+Provenance
+**********
 
 We provide some preliminary support for validating JSON documents against the
 :ref:`provenance schema <sec_provenance>`. Programmatic access to provenance
@@ -456,6 +464,4 @@ information is planned for future versions.
 .. autofunction:: tskit.validate_provenance
 
 .. autoexception:: tskit.ProvenanceValidationError
-
-
 

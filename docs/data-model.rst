@@ -1,29 +1,29 @@
-.. _sec_interchange:
+.. _sec_data_model:
 
-#########################
-Tree sequence interchange
-#########################
+##########
+Data model
+##########
 
 The correlated genealogical trees that describe the shared ancestry of a set of
-samples are stored concisely in ``msprime`` as a collection of
+samples are stored concisely in ``tskit`` as a collection of
 easy-to-understand tables. These are output by coalescent simulation in
 ``msprime`` or can be read in from another source. This page documents
 the structure of the tables, and the different methods of interchanging
-genealogical data to and from the msprime API. We begin by defining
+genealogical data to and from the tskit API. We begin by defining
 the basic concepts that we need and the structure of the tables in the
 `Data model`_ section. We then describe the tabular text formats that can
 be used as simple interchange mechanism for small amounts of data in the
 `Text file formats`_ section. The `Binary interchange`_ section then describes
 the efficient Python API for table interchange using numpy arrays. Finally,
-we describe the binary format used by msprime to efficiently
+we describe the binary format used by tskit to efficiently
 store tree sequences on disk in the `Tree sequence file format`_ section.
 
 
-.. _sec_data_model:
+.. _sec_data_model_definitions:
 
-**********
-Data model
-**********
+***********
+Definitions
+***********
 
 To begin, here are definitions of some key ideas encountered later.
 
@@ -156,7 +156,7 @@ term "genome" at times, for concreteness.
 Several properties naturally associated with individuals are in fact assigned
 to nodes in what follows: birth time and population. This is for two reasons:
 First, since coalescent simulations naturally lack a notion of polyploidy, earlier
-versions of ``msprime`` lacked the notion of an individual. Second, ancestral
+versions of ``tskit`` lacked the notion of an individual. Second, ancestral
 nodes are not naturally grouped together into individuals -- we know they must have
 existed, but have no way of inferring this grouping, so in fact many nodes in
 an empirically-derived tree sequence will not be associated with individuals,
@@ -405,7 +405,7 @@ helpful for inferring demographic history to record this history.
 Migrations are performed by individual ancestors, but most likely not by an
 individual whose genome is tracked as a ``node`` (as in a discrete-deme model they are
 unlikely to be both a migrant and a most recent common ancestor).  So,
-``msprime`` records when a segment of ancestry has moved between
+``tskit`` records when a segment of ancestry has moved between
 populations. This table is not required, even if different nodes come from
 different populations.
 
@@ -491,7 +491,7 @@ the library itself can use. All other information is considered to be
 tables.
 
 Arbitrary binary data can be stored in ``metadata`` columns, and the
-``msprime`` library makes no attempt to interpret this information. How the
+``tskit`` library makes no attempt to interpret this information. How the
 information held in this field is encoded is entirely the choice of client code.
 
 To ensure that metadata can be safely interchanged using the :ref:`sec_text_file_format`,
@@ -1046,7 +1046,7 @@ length. To encode such columns in the tables API, we store **two** columns:
 one contains the flattened array of data and another stores the **offsets**
 of each row into this flattened array. Consider an example::
 
-    >>> s = msprime.SiteTable()
+    >>> s = tskit.SiteTable()
     >>> s.add_row(0, "A")
     >>> s.add_row(0, "")
     >>> s.add_row(0, "TTT")
@@ -1231,7 +1231,7 @@ Legacy Versions
 ===============
 
 Tree sequence files written by older versions of tskit are not readable by
-newer versions of msprime. For major releases of tskit, ``tskit upgrade``
+newer versions of tskit. For major releases of tskit, ``tskit upgrade``
 will convert older tree sequence files to the latest version.
 
 File formats from version 11 onwards are based on
