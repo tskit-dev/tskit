@@ -11,7 +11,7 @@ import sys
 try:
     import svgwrite
     _svgwrite_imported = True
-except ImportError:
+except ImportError:  # pragma: no cover
     _svgwrite_imported = False
 
 IS_PY2 = sys.version_info[0] < 3

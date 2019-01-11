@@ -180,7 +180,7 @@ tsk_hapgen_get_haplotype(tsk_hapgen_t *self, tsk_id_t sample_index, char **haplo
 {
     int ret = 0;
 
-    if (sample_index >= (tsk_id_t) self->num_samples) {
+    if (sample_index < 0 || sample_index >= (tsk_id_t) self->num_samples) {
         ret = TSK_ERR_OUT_OF_BOUNDS;
         goto out;
     }

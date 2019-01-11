@@ -1484,6 +1484,25 @@ class TestTreeSequence(HighLevelTestCase):
             new_ts = tables.tree_sequence()
             self.assertEqual(new_ts.sequence_length, sequence_length)
 
+    def test_migrations(self):
+        ts = msprime.simulate(
+            population_configurations=[
+                msprime.PopulationConfiguration(10),
+                msprime.PopulationConfiguration(10)],
+            migration_matrix=[[0, 1], [1, 0]],
+            random_seed=2,
+            record_migrations=True)
+        self.assertGreater(ts.num_migrations, 0)
+        migrations = list(ts.migrations())
+        self.assertEqual(len(migrations), ts.num_migrations)
+        for migration in migrations:
+            self.assertIn(migration.source, [0, 1])
+            self.assertIn(migration.dest, [0, 1])
+            self.assertGreater(migration.time, 0)
+            self.assertEqual(migration.left, 0)
+            self.assertEqual(migration.right, 1)
+            self.assertTrue(0 <= migration.node < ts.num_nodes)
+
 
 class TestFileUuid(HighLevelTestCase):
     """
@@ -2045,3 +2064,95 @@ class TestNodeOrdering(HighLevelTestCase):
         self.assertTrue(found)
         for _ in range(self.num_random_permutations):
             self.verify_random_permutation(ts)
+
+
+class SimpleContainersMixin(object):
+    """
+    Tests for the SimpleContainer classes.
+    """
+    def test_equality(self):
+        c1, c2 = self.get_instances(2)
+        self.assertTrue(c1 == c1)
+        self.assertFalse(c1 == c2)
+        self.assertFalse(c1 != c1)
+        self.assertTrue(c1 != c2)
+        c3, = self.get_instances(1)
+        self.assertTrue(c1 == c3)
+        self.assertFalse(c1 != c3)
+
+    def test_repr(self):
+        c, = self.get_instances(1)
+        self.assertGreater(len(repr(c)), 0)
+
+
+class TestIndividualContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Individual(id_=j, flags=j, location=[j], nodes=[j], metadata=b"x" * j)
+            for j in range(n)]
+
+
+class TestNodeContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Node(
+                id_=j, flags=j, time=j, population=j, individual=j, metadata=b"x" * j)
+            for j in range(n)]
+
+
+class TestEdgeContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Edge(left=j, right=j, parent=j, child=j) for j in range(n)]
+
+
+class TestSiteContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Site(
+                id_=j, position=j, ancestral_state="A" * j,
+                mutations=TestMutationContainer().get_instances(j),
+                metadata=b"x" * j)
+            for j in range(n)]
+
+
+class TestMutationContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Mutation(
+                id_=j, site=j, node=j, derived_state="A" * j, parent=j,
+                metadata=b"x" * j)
+            for j in range(n)]
+
+
+class TestMigrationContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Migration(left=j, right=j, node=j, source=j, dest=j, time=j)
+            for j in range(n)]
+
+
+class TestPopulationContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [tskit.Population(id_=j, metadata="x" * j) for j in range(n)]
+
+
+class TestProvenanceContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Provenance(id_=j, timestamp="x" * j, record="y" * j) for j in range(n)]
+
+
+class TestEdgesetContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Edgeset(left=j, right=j, parent=j, children=j) for j in range(n)]
+
+
+class TestVariantContainer(unittest.TestCase, SimpleContainersMixin):
+    def get_instances(self, n):
+        return [
+            tskit.Variant(
+                site=TestSiteContainer().get_instances(1)[0],
+                alleles=["A" * j, "T"], genotypes=np.zeros(j, dtype=np.int8))
+            for j in range(n)]
