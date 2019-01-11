@@ -24,7 +24,7 @@ if read_the_docs_build:
 
 # -- Project information -----------------------------------------------------
 
-project = 'kastore'
+project = 'tskit'
 copyright = '2018, Tskit developers'
 author = 'Tskit developers'
 
@@ -32,6 +32,57 @@ author = 'Tskit developers'
 version = ''
 # The full version, including alpha/beta/rc tags
 release = ''
+
+###################################################################
+#
+# Monkey-patching sphinx to workaround really annoying bug in ivar
+# handling. See
+# https://stackoverflow.com/questions/31784830/sphinx-ivar-tag-goes-looking-for-cross-references
+#
+
+from docutils import nodes
+from sphinx.util.docfields import TypedField
+from sphinx import addnodes
+
+def patched_make_field(self, types, domain, items, env):
+    # type: (List, unicode, Tuple) -> nodes.field
+    def handle_item(fieldarg, content):
+        par = nodes.paragraph()
+        par += addnodes.literal_strong('', fieldarg)  # Patch: this line added
+        #par.extend(self.make_xrefs(self.rolename, domain, fieldarg,
+        #                           addnodes.literal_strong))
+        if fieldarg in types:
+            par += nodes.Text(' (')
+            # NOTE: using .pop() here to prevent a single type node to be
+            # inserted twice into the doctree, which leads to
+            # inconsistencies later when references are resolved
+            fieldtype = types.pop(fieldarg)
+            if len(fieldtype) == 1 and isinstance(fieldtype[0], nodes.Text):
+                typename = u''.join(n.astext() for n in fieldtype)
+                par.extend(self.make_xrefs(self.typerolename, domain, typename,
+                                           addnodes.literal_emphasis))
+            else:
+                par += fieldtype
+            par += nodes.Text(')')
+        par += nodes.Text(' -- ')
+        par += content
+        return par
+
+    fieldname = nodes.field_name('', self.label)
+    if len(items) == 1 and self.can_collapse:
+        fieldarg, content = items[0]
+        bodynode = handle_item(fieldarg, content)
+    else:
+        bodynode = self.list_type()
+        for fieldarg, content in items:
+            bodynode += nodes.list_item('', handle_item(fieldarg, content))
+    fieldbody = nodes.field_body('', bodynode)
+    return nodes.field('', fieldname, fieldbody)
+
+TypedField.make_field = patched_make_field
+
+###################################################################
+
 
 
 # -- General configuration ---------------------------------------------------
@@ -110,7 +161,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'kastoredoc'
+htmlhelp_basename = 'tskitdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -137,7 +188,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'kastore.tex', 'kastore Documentation',
+    (master_doc, 'tskit.tex', 'tskit Documentation',
      'Tskit developers', 'manual'),
 ]
 
@@ -147,7 +198,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'kastore', 'kastore Documentation',
+    (master_doc, 'tskit', 'tskit Documentation',
      [author], 1)
 ]
 
@@ -158,8 +209,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'kastore', 'kastore Documentation',
-     author, 'kastore', 'One line description of project.',
+    (master_doc, 'tskit', 'tskit Documentation',
+     author, 'tskit', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -195,8 +246,8 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 todo_include_todos = True
 
 # Breath extension lets us include doxygen C documentation.
-breathe_projects = {"kastore": "doxygen/xml" }
-breathe_default_project = "kastore"
+breathe_projects = {"tskit": "doxygen/xml" }
+breathe_default_project = "tskit"
 breathe_domain_by_extension = {"h": "c"}
 breathe_show_define_initializer = True
 

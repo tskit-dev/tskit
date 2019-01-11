@@ -9,7 +9,7 @@ BUILDDIR      = _build
 
 DOXYGEN_XML=doxygen/xml
 
-all: ${DOXYGEN_XML}
+all: #${DOXYGEN_XML}
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 ${DOXYGEN_XML}: ../c/kastore.h

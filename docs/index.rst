@@ -14,9 +14,11 @@ Welcome to kastore's documentation!
    installation
    python-api
    c-api
-   format
    development
    changelogs
+   interchange
+   provenance
+   tutorial
 
 
 Indices and tables
