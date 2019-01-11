@@ -1,3 +1,5 @@
 numpy
 six
+svgwrite
+jsonschema
 breathe
