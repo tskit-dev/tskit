@@ -1,3 +1,7 @@
+/**
+ * @file tskit.h
+ * @brief Tskit API.
+ */
 #ifndef __TSKIT_H__
 #define __TSKIT_H__
 

@@ -100,7 +100,7 @@ jobs:
       #       ./build-clang/malloc_tests
       #       ./build-clang/io_tests
 
-      # - run:
-      #     name: Build docs
-      #     command: |
-      #       cd docs && make
+      - run:
+          name: Build docs
+          command: |
+            cd docs && make
