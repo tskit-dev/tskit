@@ -1,0 +1,40 @@
+environment:
+  matrix:
+    # Disabling Py36 x64. Some weird problem with h5py. See github.com/tskit-dev/msprime/issues/678
+    # - PYTHON: "C:\\Miniconda36-x64"
+    # - PYTHON: "C:\\Miniconda37"
+    # Disabling Py37. See https://github.com/tskit-dev/msprime/issues/653
+    #- PYTHON: "C:\\Miniconda37-x64"
+    - PYTHON: "C:\\Miniconda36"
+
+install:
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+
+build: false
+
+# test_script:
+#   # We have symlinks in the repo, which need to be treated specially on Windows.
+#   - "git config core.symlinks true"
+#   - "git reset --hard"
+#   - "conda config --add channels conda-forge"
+#   - "conda install --yes --file=python/requirements/conda-minimal.txt"
+#   - "pip install kastore"  
+#   - "pip install PyVCF"  
+#   - "pip install newick"  
+#   - "pip install python_jsonschema_objects"
+
+# FIXME: giving up until we have an installable version of msprime from Conda.
+# It's too tricky to manage the GSL dependency otherwise.
+#
+#   # TODO: remove when we have an installable version of msprime 0.7.x
+#   - "pip install --pre tskit"
+#   - "conda install --yes gsl"
+#   - "SET MSP_CONDA_PREFIX=%PYTHON%"
+#   - "pip install --user git+https://github.com/tskit-dev/msprime"
+
+#   - "cd python"
+#   - "python setup.py build_ext --inplace"
+#   - "nosetests -vs"
+
+# after_test:
+#   - "python setup.py bdist_wheel"
