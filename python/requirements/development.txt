@@ -7,21 +7,12 @@ newick
 nose
 numpy
 six
-kastore>=0.2.2
+kastore
 jsonschema
 sphinx
 sphinx-argparse
 sphinx_rtd_theme
 svgwrite
-# Seems to be a problem with Python 3. svgwrite imports
-# pyparsing.
-pyparsing < 2.1
-
-# We need pysam and PyVCF for testing VCF output.
-# Pin pysam at 0.9 version as there are problems with building py33 version
-# on travis.
-pysam==0.9.1.4
+pyparsing 
+pysam
 PyVCF
-
-# We use JSON-schema to test out metadata handling.
-python_jsonschema_objects
