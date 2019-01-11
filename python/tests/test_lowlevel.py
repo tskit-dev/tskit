@@ -88,7 +88,7 @@ class LowLevelTestCase(unittest.TestCase):
                 self.assertGreaterEqual(num_children[j], 2)
 
     def get_example_tree_sequence(self):
-        ts = msprime.simulate(10, recombination_rate=0.1, random_seed=1)
+        ts = msprime.simulate(10, recombination_rate=0.1, mutation_rate=1, random_seed=1)
         return ts.ll_tree_sequence
 
     def get_example_tree_sequences(self):
@@ -288,8 +288,8 @@ class TestTreeSequence(LowLevelTestCase):
     def test_pairwise_diversity(self):
         for ts in self.get_example_tree_sequences():
             for bad_type in ["", None, {}]:
-                self.assertRaises(
-                    TypeError, ts.get_pairwise_diversity, bad_type)
+                self.assertRaises(TypeError, ts.get_pairwise_diversity, bad_type)
+                self.assertRaises(TypeError, ts.get_pairwise_diversity, [0, bad_type])
             self.assertRaises(
                 ValueError, ts.get_pairwise_diversity, [])
             self.assertRaises(
@@ -419,6 +419,121 @@ class TestTreeIterator(LowLevelTestCase):
         self.verify_iterator(_tskit.TreeIterator(tree))
 
 
+class TestVcfConverter(LowLevelTestCase):
+    """
+    Tests for the VcfConverter class.
+    """
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        self.assertRaises(ValueError, _tskit.VcfConverter, ts)
+
+    def test_constructor(self):
+        self.assertRaises(TypeError, _tskit.VcfConverter)
+        self.assertRaises(TypeError, _tskit.VcfConverter, None)
+        ts = self.get_example_tree_sequence()
+        self.assertRaises(TypeError, _tskit.VcfConverter, ts, ploidy="xyt")
+        self.assertRaises(ValueError, _tskit.VcfConverter, ts, ploidy=0)
+        self.assertRaises(TypeError, _tskit.VcfConverter, ts, contig_id=None)
+        self.assertRaises(ValueError, _tskit.VcfConverter, ts, contig_id="")
+
+    def test_iterator(self):
+        ts = self.get_example_tree_sequence()
+        self.verify_iterator(_tskit.VcfConverter(ts))
+
+
+class TestVariantGenerator(LowLevelTestCase):
+    """
+    Tests for the VariantGenerator class.
+    """
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        self.assertRaises(ValueError, _tskit.VariantGenerator, ts)
+
+    def test_constructor(self):
+        self.assertRaises(TypeError, _tskit.VariantGenerator)
+        self.assertRaises(TypeError, _tskit.VariantGenerator, None)
+        ts = self.get_example_tree_sequence()
+        self.assertRaises(ValueError, _tskit.VariantGenerator, ts, samples={})
+        self.assertRaises(
+            _tskit.LibraryError, _tskit.VariantGenerator, ts, samples=[-1, 2])
+
+    def test_iterator(self):
+        ts = self.get_example_tree_sequence()
+        self.verify_iterator(_tskit.VariantGenerator(ts))
+
+
+class TestHaplotypeGenerator(LowLevelTestCase):
+    """
+    Tests for the HaplotypeGenerator class.
+    """
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        self.assertRaises(ValueError, _tskit.HaplotypeGenerator, ts)
+
+    def test_constructor(self):
+        self.assertRaises(TypeError, _tskit.HaplotypeGenerator)
+        self.assertRaises(TypeError, _tskit.HaplotypeGenerator, None)
+
+    def test_bad_id(self):
+        ts = self.get_example_tree_sequence()
+        hg = _tskit.HaplotypeGenerator(ts)
+        n = ts.get_num_samples()
+        for bad_id in [-1, n, n + 1]:
+            with self.assertRaises(_tskit.LibraryError):
+                hg.get_haplotype(bad_id)
+
+
+class TestLdCalculator(LowLevelTestCase):
+    """
+    Tests for the LdCalculator class.
+    """
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        self.assertRaises(ValueError, _tskit.LdCalculator, ts)
+
+    def test_constructor(self):
+        self.assertRaises(TypeError, _tskit.LdCalculator)
+        self.assertRaises(TypeError, _tskit.LdCalculator, None)
+
+    def test_get_r2(self):
+        ts = self.get_example_tree_sequence()
+        calc = _tskit.LdCalculator(ts)
+        n = ts.get_num_sites()
+        for bad_id in [-1, n, n + 1]:
+            with self.assertRaises(_tskit.LibraryError):
+                calc.get_r2(0, bad_id)
+            with self.assertRaises(_tskit.LibraryError):
+                calc.get_r2(bad_id, 0)
+
+    def test_get_r2_array(self):
+        ts = self.get_example_tree_sequence()
+        calc = _tskit.LdCalculator(ts)
+
+        self.assertRaises(TypeError, calc.get_r2_array)
+        self.assertRaises(TypeError, calc.get_r2_array, None)
+        # Doesn't support buffer protocol, so raises typeerror
+        self.assertRaises(TypeError, calc.get_r2_array, None, 0)
+
+        n = ts.get_num_sites()
+        self.assertGreater(n, 2)
+        with self.assertRaises(BufferError):
+            calc.get_r2_array(bytes(100), 0)
+
+        buff = bytearray(1024)
+        with self.assertRaises(ValueError):
+            calc.get_r2_array(buff, 0, max_distance=-1)
+        with self.assertRaises(ValueError):
+            calc.get_r2_array(buff, 0, direction=1000)
+        # TODO this API is poor, we should explicitly catch these negative
+        # size errors.
+        for bad_max_mutations in [-2, -3, -2**32]:
+            with self.assertRaises(BufferError):
+                calc.get_r2_array(buff, 0, max_mutations=bad_max_mutations)
+        for bad_start_pos in [-1, n, n + 1]:
+            with self.assertRaises(_tskit.LibraryError):
+                calc.get_r2_array(buff, bad_start_pos)
+
+
 class TestTree(LowLevelTestCase):
     """
     Tests on the low-level sparse tree interface.
@@ -449,6 +564,31 @@ class TestTree(LowLevelTestCase):
                 self.assertRaises(ValueError, st.get_left_sample, 0)
                 self.assertRaises(ValueError, st.get_right_sample, 0)
                 self.assertRaises(ValueError, st.get_next_sample, 0)
+
+    def test_site_errors(self):
+        ts = self.get_example_tree_sequence()
+        for bad_index in [-1, ts.get_num_sites(), ts.get_num_sites() + 1]:
+            self.assertRaises(IndexError, ts.get_site, bad_index)
+
+    def test_mutation_errors(self):
+        ts = self.get_example_tree_sequence()
+        for bad_index in [-1, ts.get_num_mutations(), ts.get_num_mutations() + 1]:
+            self.assertRaises(IndexError, ts.get_mutation, bad_index)
+
+    def test_individual_errors(self):
+        ts = self.get_example_tree_sequence()
+        for bad_index in [-1, ts.get_num_individuals(), ts.get_num_individuals() + 1]:
+            self.assertRaises(IndexError, ts.get_individual, bad_index)
+
+    def test_population_errors(self):
+        ts = self.get_example_tree_sequence()
+        for bad_index in [-1, ts.get_num_populations(), ts.get_num_populations() + 1]:
+            self.assertRaises(IndexError, ts.get_population, bad_index)
+
+    def test_provenance_errors(self):
+        ts = self.get_example_tree_sequence()
+        for bad_index in [-1, ts.get_num_provenances(), ts.get_num_provenances() + 1]:
+            self.assertRaises(IndexError, ts.get_provenance, bad_index)
 
     def test_sites(self):
         for ts in self.get_example_tree_sequences():

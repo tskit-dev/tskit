@@ -195,9 +195,6 @@ handle_library_error(int err)
             case TSK_ERR_FILE_FORMAT:
                 PyErr_SetString(TskitFileFormatError, tsk_strerror(err));
                 break;
-            case TSK_ERR_OUT_OF_BOUNDS:
-                PyErr_SetString(PyExc_IndexError, tsk_strerror(err));
-                break;
             default:
                 PyErr_SetString(TskitLibraryError, tsk_strerror(err));
         }
@@ -6167,6 +6164,7 @@ TreeSequence_get_pairwise_diversity(TreeSequence *self, PyObject *args, PyObject
             &PyList_Type, &py_samples)) {
         goto out;
     }
+    /* TODO Change this to reading numpy array */
     if (parse_sample_ids(py_samples, self->tree_sequence, &num_samples, &samples) != 0) {
         goto out;
     }
@@ -7893,16 +7891,16 @@ HaplotypeGenerator_get_haplotype(HaplotypeGenerator *self, PyObject *args)
     int err;
     PyObject *ret = NULL;
     char *haplotype;
-    unsigned int sample_id;
+    int sample_id;
 
     if (HaplotypeGenerator_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTuple(args, "I", &sample_id)) {
+    if (!PyArg_ParseTuple(args, "i", &sample_id)) {
         goto out;
     }
     err = tsk_hapgen_get_haplotype(self->haplotype_generator,
-            (uint32_t) sample_id, &haplotype);
+            (tsk_id_t) sample_id, &haplotype);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -8203,6 +8201,9 @@ out:
     return ret;
 }
 
+/* TODO this implementation is brittle and cumbersome. Replace with something that
+ * returns a numpy array directly. Passing in the memory is a premature optimisation.
+ */
 static PyObject *
 LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
 {
