@@ -16,3 +16,4 @@ svgwrite
 pyparsing 
 pysam
 PyVCF
+python_jsonschema_objects

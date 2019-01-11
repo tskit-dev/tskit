@@ -14,7 +14,7 @@ import warnings
 import functools
 try:
     import concurrent.futures
-except ImportError:
+except ImportError:  # pragma: no cover
     # We're on Python2; any attempts to use futures are dealt with below.
     pass
 
@@ -338,6 +338,12 @@ class Variant(SimpleContainer):
         # Deprecated aliases to avoid breaking existing code.
         self.position = site.position
         self.index = site.id
+
+    def __eq__(self, other):
+        return (
+            self.site == other.site and
+            self.alleles == other.alleles and
+            np.array_equal(self.genotypes, other.genotypes))
 
 
 class Edgeset(SimpleContainer):
@@ -1168,82 +1174,6 @@ def load(path):
         return TreeSequence.load(path)
     except exceptions.FileFormatError as e:
         formats.raise_hdf5_format_error(path, e)
-
-
-def __load_tables(
-        nodes, edges, migrations=None, sites=None, mutations=None,
-        provenances=None, individuals=None, populations=None, sequence_length=0):
-    """
-    **This method is now deprecated. Please use TableCollection.tree_sequence()
-    instead**
-
-    Loads the tree sequence data from the specified table objects, and
-    returns the resulting :class:`.TreeSequence` object. These tables
-    must fulfil the properties required for an input tree sequence as
-    described in the :ref:`sec_valid_tree_sequence_requirements` section.
-
-    The ``sequence_length`` parameter determines the
-    :attr:`.TreeSequence.sequence_length` of the returned tree sequence. If it
-    is 0 or not specified, the value is taken to be the maximum right
-    coordinate of the input edges. This parameter is useful in degenerate
-    situations (such as when there are zero edges), but can usually be ignored.
-
-    :param NodeTable nodes: The :ref:`node table <sec_node_table_definition>`
-        (required).
-    :param EdgeTable edges: The :ref:`edge table <sec_edge_table_definition>`
-        (required).
-    :param MigrationTable migrations: The :ref:`migration table
-        <sec_migration_table_definition>` (optional).
-    :param SiteTable sites: The :ref:`site table <sec_site_table_definition>`
-        (optional; but if supplied, ``mutations`` must also be specified).
-    :param MutationTable mutations: The :ref:`mutation table
-        <sec_mutation_table_definition>` (optional; but if supplied, ``sites``
-        must also be specified).
-    :param ProvenanceTable provenances: The :ref:`provenance table
-        <sec_provenance_table_definition>` (optional).
-    :param IndividualTable individuals: The :ref:`individual table
-        <sec_individual_table_definition>` (optional).
-    :param PopulationTable populations: The :ref:`population table
-        <sec_population_table_definition>` (optional).
-    :param float sequence_length: The sequence length of the returned tree sequence. If
-        not supplied or zero this will be inferred from the set of edges.
-    :return: A :class:`.TreeSequence` consistent with the specified tables.
-    :rtype: TreeSequence
-    """
-    if sequence_length is None:
-        sequence_length = 0
-    if sequence_length == 0 and len(edges) > 0:
-        sequence_length = edges.right.max()
-    kwargs = {
-        "nodes": nodes.ll_table, "edges": edges.ll_table,
-        "sequence_length": sequence_length}
-    if migrations is not None:
-        kwargs["migrations"] = migrations.ll_table
-    else:
-        kwargs["migrations"] = _tskit.MigrationTable()
-    if sites is not None:
-        kwargs["sites"] = sites.ll_table
-    else:
-        kwargs["sites"] = _tskit.SiteTable()
-    if mutations is not None:
-        kwargs["mutations"] = mutations.ll_table
-    else:
-        kwargs["mutations"] = _tskit.MutationTable()
-    if provenances is not None:
-        kwargs["provenances"] = provenances.ll_table
-    else:
-        kwargs["provenances"] = _tskit.ProvenanceTable()
-    if individuals is not None:
-        kwargs["individuals"] = individuals.ll_table
-    else:
-        kwargs["individuals"] = _tskit.IndividualTable()
-    if populations is not None:
-        kwargs["populations"] = populations.ll_table
-    else:
-        kwargs["populations"] = _tskit.PopulationTable()
-
-    ll_tables = _tskit.TableCollection(**kwargs)
-    return TreeSequence.load_tables(tables.TableCollection(ll_tables=ll_tables))
 
 
 def parse_individuals(
@@ -2460,7 +2390,7 @@ class TreeSequence(object):
             return self._ll_tree_sequence.genealogical_nearest_neighbours(
                 focal, reference_sets)
         else:
-            if IS_PY2:
+            if IS_PY2:  # pragma: no cover
                 raise ValueError("Threads not supported on Python 2.")
             worker = functools.partial(
                 self._ll_tree_sequence.genealogical_nearest_neighbours,

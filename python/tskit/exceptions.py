@@ -24,7 +24,7 @@ try:
     VersionTooOldError.__doc__ = """
     The version of the file is too old and cannot be read by the library.
     """
-except AttributeError:
+except AttributeError:  # pragma: no cover
     # Python2 throws attribute error. Ignore.
     pass
 

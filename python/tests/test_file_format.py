@@ -379,6 +379,12 @@ class TestErrors(TestFileFormat):
         root.close()
         self.assertRaises(ValueError, tskit.load_legacy, self.temp_file)
 
+    def test_unknown_legacy_version(self):
+        root = h5py.File(self.temp_file, "w")
+        root.attrs['format_version'] = (1024, 0)  # Arbitrary unknown version
+        root.close()
+        self.assertRaises(ValueError, tskit.load_legacy, self.temp_file)
+
 
 class TestDumpFormat(TestFileFormat):
     """
