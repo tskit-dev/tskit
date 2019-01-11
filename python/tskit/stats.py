@@ -23,9 +23,6 @@ class LdCalculator(object):
     This class supports multithreaded access using the Python :mod:`threading`
     module. Separate instances of :class:`.LdCalculator` referencing the
     same tree sequence can operate in parallel in multiple threads.
-    See the :ref:`sec_tutorial_threads` section in the :ref:`sec_tutorial`
-    for an example of how use multiple threads to calculate LD values
-    efficiently.
 
     .. note:: This class does not currently support sites that have more than one
         mutation. Using it on such a tree sequence will raise a LibraryError with
