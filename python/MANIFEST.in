@@ -1,3 +1,4 @@
 include lib/kastore/c/kastore.h
+include lib/tsk*.h
 include LICENSE
 include tskit/_version.py
