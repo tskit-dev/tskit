@@ -1,18 +1,15 @@
 --------------------
-[0.1.0] - 2019-XX-XX
+[0.1.0] - 2019-01-11
 --------------------
 
-Initial release after separation from msprime 0.6.2.
+Initial release after separation from msprime 0.6.2. Code that reads tree sequence
+files and processes them should be able to work without changes.
 
 **Breaking changes**
 
 - Removal of the previously deprecated ``sort_tables``, ``simplify_tables``
   and ``load_tables`` functions. All code should change to using corresponding
   TableCollection methods.
-
-**New features**:
-
-**Bug fixes**:
 
 ----------------------
 [0.1.0a1] - 2019-01-19
