@@ -512,12 +512,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
     if "timestamp" in provenances_group:
         timestamp = provenances_group["timestamp"]
         timestamp_offset = provenances_group["timestamp_offset"]
-        if "record" in provenances_group:
-            record = provenances_group["record"]
-            record_offset = provenances_group["record_offset"]
-        else:
-            record = np.empty_like(timestamp)
-            record_offset = np.zeros_like(timestamp_offset)
+        record = provenances_group["record"]
+        record_offset = provenances_group["record_offset"]
         tables.provenances.set_columns(
             timestamp=timestamp,
             timestamp_offset=timestamp_offset,
