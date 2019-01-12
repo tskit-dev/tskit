@@ -15,18 +15,11 @@ test_single_tree_newick(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
-    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
-    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
     ret = tsk_tree_alloc(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1)
-
-    ret = tsk_convert_newick(&t, -1, 1, 0, buffer_size, newick);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-    ret = tsk_convert_newick(&t, 7, 1, 0, buffer_size, newick);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_convert_newick(&t, 0, 0, 0, buffer_size, newick);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -39,6 +32,47 @@ test_single_tree_newick(void)
     CU_ASSERT_STRING_EQUAL(newick, "(1:1,2:1);");
 
     ret = tsk_convert_newick(&t, 6, 0, 0, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_STRING_EQUAL(newick, "((1:1,2:1):2,(3:2,4:2):1);");
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_newick_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    size_t j, len;
+    size_t buffer_size = 1024;
+    char newick[buffer_size];
+
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+
+    ret = tsk_tree_alloc(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0)
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1)
+
+    ret = tsk_convert_newick(&t, -1, 1, 0, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_convert_newick(&t, 7, 1, 0, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_convert_newick(&t, 6, 0, 0, buffer_size, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_convert_newick(&t, 6, 0, 0, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    len = 1 + strlen(newick);
+    for (j = 0; j < len; j++) {
+        ret = tsk_convert_newick(&t, 6, 0, 0, j, newick);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BUFFER_OVERFLOW);
+    }
+    ret = tsk_convert_newick(&t, 6, 0, 0, len, newick);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_STRING_EQUAL(newick, "((1:1,2:1):2,(3:2,4:2):1);");
 
@@ -125,6 +159,7 @@ main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
         {"test_single_tree_newick", test_single_tree_newick},
+        {"test_single_tree_newick_errors", test_single_tree_newick_errors},
         {"test_single_tree_vcf", test_single_tree_vcf},
         {"test_single_tree_vcf_no_mutations", test_single_tree_vcf_no_mutations},
         {NULL, NULL},
