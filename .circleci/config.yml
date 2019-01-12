@@ -95,10 +95,19 @@ jobs:
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_trees
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
 
-      # - run:
-      #     name: Compile C tests under clang
-      #     command: |
-      #       CC=clang meson c/ build-clang && cd build-clang && ninja
+      - run:
+          name: Compile C tests under clang
+          command: |
+            CC=clang meson c/ build-clang && cd build-clang && ninja
+
+      - run:
+          name: Run clang-compiled C tests
+          command: |
+            ./build-clang/test_core
+            ./build-clang/test_tables
+            ./build-clang/test_trees
+            ./build-clang/test_genotypes
+
       # - run:
       #     name: Run clang C tests
       #     command: |
