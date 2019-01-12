@@ -7,13 +7,6 @@
 
 #include "tsk_convert.h"
 
-/* If we want the tskit library version embedded in the output, we need to
- * define it at compile time. */
-/* TODO need to refine this a bit for embedded applications. */
-#ifndef TSK_LIBRARY_VERSION_STR
-#define TSK_LIBRARY_VERSION_STR "undefined"
-#endif
-
 /* ======================================================== *
  * Newick output.
  * ======================================================== */
@@ -185,7 +178,7 @@ tsk_vcf_converter_make_header(tsk_vcf_converter_t *self, const char *contig_id)
     int ret = TSK_ERR_GENERIC;
     const char *header_prefix_template =
         "##fileformat=VCFv4.2\n"
-        "##source=msprime " TSK_LIBRARY_VERSION_STR "\n"
+        "##source=tskit X.Y.Z\n"
         "##FILTER=<ID=PASS,Description=\"All filters passed\">\n"
         "##contig=<ID=%s,length=%lu>\n"
         "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"

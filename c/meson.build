@@ -37,3 +37,11 @@ executable('test_trees',
 executable('test_genotypes', 
     sources: ['test_genotypes.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
+executable('test_convert', 
+    sources: ['test_convert.c'], 
+    link_with: [tskit_lib, test_lib], c_args: extra_c_args)
+
+# TMP: until we've ported all the tests, keep this compilable.
+#gsl_dep = dependency('gsl')
+#executable('old_tests', sources: ['old_tests.c'], link_with: tskit_lib, 
+#    dependencies: [cunit_dep, gsl_dep])

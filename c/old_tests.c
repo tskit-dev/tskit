@@ -1546,61 +1546,7 @@ verify_vcf_converter(tsk_treeseq_t *ts, unsigned int ploidy)
     tsk_vcf_converter_free(&vc);
 }
 
-static void
-test_vcf(void)
-{
-    int ret;
-    unsigned int ploidy;
-    tsk_vcf_converter_t *vc = malloc(sizeof(tsk_vcf_converter_t));
-    tsk_treeseq_t *ts = get_example_tree_sequence(10, 0, 100, 100.0, 1.0, 1.0,
-            0, NULL, 0);
 
-    CU_ASSERT_FATAL(ts != NULL);
-    CU_ASSERT_FATAL(vc != NULL);
-
-    ret = tsk_vcf_converter_alloc(vc, ts, 0, "1");
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_vcf_converter_alloc(vc, ts, 3, "1");
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_vcf_converter_alloc(vc, ts, 11, "1");
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-
-    for (ploidy = 1; ploidy < 3; ploidy++) {
-        verify_vcf_converter(ts, ploidy);
-    }
-
-    free(vc);
-    tsk_treeseq_free(ts);
-    free(ts);
-}
-
-static void
-test_vcf_no_mutations(void)
-{
-    int ret;
-    char *str = NULL;
-    tsk_vcf_converter_t *vc = malloc(sizeof(tsk_vcf_converter_t));
-    tsk_treeseq_t *ts = get_example_tree_sequence(100, 0, 1, 1.0, 0.0, 0.0, 0, NULL,
-            0);
-
-    CU_ASSERT_FATAL(ts != NULL);
-    CU_ASSERT_FATAL(vc != NULL);
-    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_mutations(ts), 0);
-
-    ret = tsk_vcf_converter_alloc(vc, ts, 1, "1");
-    CU_ASSERT_FATAL(ret ==  0);
-    tsk_vcf_converter_print_state(vc, _devnull);
-    ret = tsk_vcf_converter_get_header(vc, &str);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_NSTRING_EQUAL("##", str, 2);
-    ret = tsk_vcf_converter_next(vc, &str);
-    CU_ASSERT_EQUAL(ret, 0);
-    tsk_vcf_converter_free(vc);
-
-    free(vc);
-    tsk_treeseq_free(ts);
-    free(ts);
-}
 
 static void
 test_node_metadata(void)
@@ -1846,48 +1792,6 @@ verify_empty_tree_sequence(tsk_treeseq_t *ts, double sequence_length)
     verify_hapgen(ts);
     verify_vargen(ts);
     verify_vcf_converter(ts, 1);
-}
-static void
-test_single_tree_newick(void)
-{
-    /* int ret; */
-    /* tsk_treeseq_t ts; */
-    /* tsk_tree_t t; */
-    /* size_t buffer_size = 1024; */
-    /* char newick[buffer_size]; */
-
-    /* tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, */
-    /*         NULL, NULL, NULL, NULL, NULL); */
-    /* CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4); */
-    /* CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1); */
-
-    /* ret = tsk_tree_alloc(&t, &ts, 0); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, 0) */
-    /* ret = tsk_tree_first(&t); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, 1) */
-
-
-    /* ret = tsk_tree_get_newick(&t, -1, 1, 0, buffer_size, newick); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS); */
-    /* ret = tsk_tree_get_newick(&t, 7, 1, 0, buffer_size, newick); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS); */
-
-    /* ret = tsk_tree_get_newick(&t, 0, 0, 0, buffer_size, newick); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, 0); */
-    /* /1* Seems odd, but this is what a single node newick tree looks like. */
-    /*  * Newick parsers seems to accept it in any case *1/ */
-    /* CU_ASSERT_STRING_EQUAL(newick, "1;"); */
-
-    /* ret = tsk_tree_get_newick(&t, 4, 0, 0, buffer_size, newick); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, 0); */
-    /* CU_ASSERT_STRING_EQUAL(newick, "(1:1,2:1);"); */
-
-    /* ret = tsk_tree_get_newick(&t, 6, 0, 0, buffer_size, newick); */
-    /* CU_ASSERT_EQUAL_FATAL(ret, 0); */
-    /* CU_ASSERT_STRING_EQUAL(newick, "((1:1,2:1):2,(3:2,4:2):1);"); */
-
-    /* tsk_tree_free(&t); */
-    /* tsk_treeseq_free(&ts); */
 }
 
 
@@ -3073,12 +2977,7 @@ main(int argc, char **argv)
     CU_pTest test;
     CU_pSuite suite;
     CU_TestInfo tests[] = {
-        {"test_vcf", test_vcf},
-        {"test_vcf_no_mutations", test_vcf_no_mutations},
         {"test_node_metadata", test_node_metadata},
-
-        {"test_single_tree_newick", test_single_tree_newick},
-
 
         {"test_diff_iter_from_examples", test_diff_iter_from_examples},
         {"test_tree_iter_from_examples", test_tree_iter_from_examples},

@@ -79,6 +79,7 @@ jobs:
             ./build-gcc/test_tables
             ./build-gcc/test_trees
             ./build-gcc/test_genotypes
+            ./build-gcc/test_convert
 
       - run:
           name: Run gcov & upload coverage.
@@ -94,6 +95,7 @@ jobs:
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_tables
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_trees
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_convert
 
       - run:
           name: Compile C tests under clang
@@ -107,15 +109,7 @@ jobs:
             ./build-clang/test_tables
             ./build-clang/test_trees
             ./build-clang/test_genotypes
-
-      # - run:
-      #     name: Run clang C tests
-      #     command: |
-      #       export KASTORE_SOPATH=./build-clang/libtskit.so
-      #       ./build-clang/tests
-      #       ./build-clang/dynamic_api_tests
-      #       ./build-clang/malloc_tests
-      #       ./build-clang/io_tests
+            ./build-clang/test_convert
 
       - run:
           name: Build docs
