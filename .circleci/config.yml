@@ -28,6 +28,7 @@ jobs:
           key: tskit-{{ .Branch }}
           paths:
             - "/home/circleci/.local"
+
       - run:
           name: Compile Python
           command: |
@@ -36,11 +37,13 @@ jobs:
             #   python setup.py build_ext --inplace
             # TODO enable these flags later.
             CFLAGS="--coverage" python setup.py build_ext --inplace
+
       - run:
           name: Lint Python
           command: |
             cd python
             flake8 --max-line-length 89 tskit setup.py tests
+
       - run:
           name: Run Python tests 
           command: |
@@ -48,6 +51,7 @@ jobs:
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
             python3 -m codecov -F python
+
       - run:
           name: Build Python package
           command: |
@@ -62,10 +66,12 @@ jobs:
             python setup.py egg_info
             python setup.py bdist_wheel
             pip install dist/*.tar.gz 
+
       - run:
           name: Compile C
           command: |
             CFLAGS=--coverage meson c/ build-gcc && cd build-gcc && ninja
+
       - run:
           name: Run C tests
           command: |
@@ -73,20 +79,22 @@ jobs:
             ./build-gcc/test_tables
             ./build-gcc/test_trees
             ./build-gcc/test_genotypes
-      # - run:
-      #     name: Valgrind for C tests.
-      #     command: |
-      #       export KASTORE_SOPATH=./build-gcc/libtskit.so
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/tests
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/dynamic_api_tests
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/malloc_tests
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/io_tests
+
       - run:
           name: Run gcov & upload coverage.
           command: |
             gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
             gcov -pb ./build-gcc/tskit@sta/tsk_*.gcno
             codecov -X gcov -F C
+
+      - run:
+          name: Valgrind for C tests.
+          command: |
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_core
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_tables
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_trees
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
+
       # - run:
       #     name: Compile C tests under clang
       #     command: |
