@@ -178,7 +178,7 @@ tsk_vcf_converter_make_header(tsk_vcf_converter_t *self, const char *contig_id)
     int ret = TSK_ERR_GENERIC;
     const char *header_prefix_template =
         "##fileformat=VCFv4.2\n"
-        "##source=tskit X.Y.Z\n"
+        "##source=tskit %d.%d.%d\n"
         "##FILTER=<ID=PASS,Description=\"All filters passed\">\n"
         "##contig=<ID=%s,length=%lu>\n"
         "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
@@ -189,7 +189,9 @@ tsk_vcf_converter_make_header(tsk_vcf_converter_t *self, const char *contig_id)
     uint32_t j;
     int written;
 
-    written = snprintf(NULL, 0, header_prefix_template, contig_id, self->contig_length);
+    written = snprintf(NULL, 0, header_prefix_template,
+            TSK_VERSION_MAJOR, TSK_VERSION_MINOR, TSK_VERSION_PATCH,
+            contig_id, self->contig_length);
     if (written < 0) {
         ret = TSK_ERR_IO;
         goto out;
@@ -201,6 +203,7 @@ tsk_vcf_converter_make_header(tsk_vcf_converter_t *self, const char *contig_id)
         goto out;
     }
     written = snprintf(header_prefix, buffer_size, header_prefix_template,
+            TSK_VERSION_MAJOR, TSK_VERSION_MINOR, TSK_VERSION_PATCH,
             contig_id, self->contig_length);
     if (written < 0) {
         ret = TSK_ERR_IO;

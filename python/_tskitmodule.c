@@ -8338,9 +8338,17 @@ tskit_get_kastore_version(PyObject *self)
     return Py_BuildValue("iii", KAS_VERSION_MAJOR, KAS_VERSION_MINOR, KAS_VERSION_PATCH);
 }
 
+static PyObject *
+tskit_get_tskit_version(PyObject *self)
+{
+    return Py_BuildValue("iii", TSK_VERSION_MAJOR, TSK_VERSION_MINOR, TSK_VERSION_PATCH);
+}
+
 static PyMethodDef tskit_methods[] = {
     {"get_kastore_version", (PyCFunction) tskit_get_kastore_version, METH_NOARGS,
             "Returns the version of kastore we have built in." },
+    {"get_tskit_version", (PyCFunction) tskit_get_tskit_version, METH_NOARGS,
+            "Returns the version of the tskit C API we have built in." },
     {NULL}        /* Sentinel */
 };
 
