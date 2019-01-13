@@ -37,6 +37,12 @@ Basic structures
 Tables API
 **********
 
+This is an example of using the tables API to define a simple
+haploid Wright-Fisher simulator.
+
+.. literalinclude:: ../c/examples/haploid_wright_fisher.c
+    :language: c
+
 ----------------
 Table collection
 ----------------
