@@ -68,9 +68,14 @@ jobs:
             pip install dist/*.tar.gz 
 
       - run:
-          name: Compile C
+          name: Compile C with gcc
           command: |
             CFLAGS=--coverage meson c/ build-gcc && cd build-gcc && ninja
+
+      - run:
+          name: Compile C with clang
+          command: |
+            CC=clang meson c/ build-clang && cd build-clang && ninja
 
       - run:
           name: Run C tests
@@ -80,6 +85,7 @@ jobs:
             ./build-gcc/test_trees
             ./build-gcc/test_genotypes
             ./build-gcc/test_convert
+            ./build-gcc/test_stats
 
       - run:
           name: Run gcov & upload coverage.
@@ -96,11 +102,7 @@ jobs:
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_trees
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_convert
-
-      - run:
-          name: Compile C tests under clang
-          command: |
-            CC=clang meson c/ build-clang && cd build-clang && ninja
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_stats
 
       - run:
           name: Run clang-compiled C tests
@@ -110,6 +112,7 @@ jobs:
             ./build-clang/test_trees
             ./build-clang/test_genotypes
             ./build-clang/test_convert
+            ./build-clang/test_stats
 
       - run:
           name: Build docs
