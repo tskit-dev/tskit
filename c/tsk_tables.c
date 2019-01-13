@@ -5166,7 +5166,6 @@ tsk_tbl_collection_alloc(tsk_tbl_collection_t *self, int flags)
     self->migrations = calloc(1, sizeof(*self->migrations));
     self->sites = calloc(1, sizeof(*self->sites));
     self->mutations = calloc(1, sizeof(*self->mutations));
-    self->mutations = calloc(1, sizeof(*self->mutations));
     self->populations = calloc(1, sizeof(*self->populations));
     self->provenances = calloc(1, sizeof(*self->provenances));
     if (self->individuals == NULL || self->nodes == NULL

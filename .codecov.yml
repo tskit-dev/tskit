@@ -4,8 +4,6 @@ coverage:
       python:
         target: 95%
         flags: python
-
-    patch:
-      python:
+      c:
         target: 90%
-        flags: python
+        flags: c

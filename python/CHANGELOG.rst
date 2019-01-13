@@ -1,4 +1,14 @@
 --------------------
+[0.1.2] - 2019-XX-XX
+--------------------
+
+Bugfix release.
+
+**Bugfixes**
+
+- Fix memory leak in table collection. https://github.com/tskit-dev/tskit/issues/76
+
+--------------------
 [0.1.1] - 2019-01-11
 --------------------
 
@@ -16,6 +26,8 @@ files and processes them should be able to work without changes.
 - Removal of the previously deprecated ``sort_tables``, ``simplify_tables``
   and ``load_tables`` functions. All code should change to using corresponding
   TableCollection methods.
+
+- Rename ``SparseTree`` class to ``Tree``.
 
 ----------------------
 [0.1.0a1] - 2019-01-19

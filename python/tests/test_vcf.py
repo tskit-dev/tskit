@@ -12,7 +12,8 @@ import unittest
 
 import msprime
 import vcf
-import tskit
+
+import _tskit
 
 # Pysam is not available on windows, so we don't make it mandatory here.
 _pysam_imported = False
@@ -73,14 +74,10 @@ def write_vcf(tree_sequence, output, ploidy, contig_id):
     if len(positions) > 0:
         contig_length = max(positions[-1], contig_length)
     print("##fileformat=VCFv4.2", file=output)
-    print("##source=tskit {}".format(tskit.__version__), file=output)
-    print(
-        '##FILTER=<ID=PASS,Description="All filters passed">',
-        file=output)
+    print("##source=tskit {}.{}.{}".format(*_tskit.get_tskit_version()), file=output)
+    print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
     print("##contig=<ID={},length={}>".format(contig_id, contig_length), file=output)
-    print(
-        '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
-        file=output)
+    print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output)
     print(
         "#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO",
         "FORMAT", sep="\t", end="", file=output)
@@ -100,7 +97,6 @@ def write_vcf(tree_sequence, output, ploidy, contig_id):
         print(file=output)
 
 
-@unittest.skip("Skipping until version headers sorted out")
 class TestEquality(unittest.TestCase):
     """
     Tests if the VCF file produced by the low level code is the

@@ -37,3 +37,18 @@ executable('test_trees',
 executable('test_genotypes', 
     sources: ['test_genotypes.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
+executable('test_convert', 
+    sources: ['test_convert.c'], 
+    link_with: [tskit_lib, test_lib], c_args: extra_c_args)
+executable('test_stats', 
+    sources: ['test_stats.c'], 
+    link_with: [tskit_lib, test_lib], c_args: extra_c_args)
+
+# The development CLI. Don't use extra C args because argtable code won't pass
+executable('main', 
+    sources: ['main.c', 'argtable3.c'], link_with: [tskit_lib], c_args:['-Dlint'])
+
+# TMP: until we've ported all the tests, keep this compilable.
+#gsl_dep = dependency('gsl')
+#executable('old_tests', sources: ['old_tests.c'], link_with: tskit_lib, 
+#    dependencies: [cunit_dep, gsl_dep])

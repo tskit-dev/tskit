@@ -80,7 +80,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
     mutation_index = 0;
     j = 0;
     for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
-        CU_ASSERT_EQUAL(j, tree.index);
+        CU_ASSERT_EQUAL(j, (tsk_id_t) tree.index);
         tsk_tree_print_state(&tree, _devnull);
         /* tsk_tree_print_state(&tree, stdout); */
         for (u = 0; u < (tsk_id_t) num_nodes; u++) {
@@ -91,10 +91,10 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
         ret = tsk_tree_get_sites(&tree, &sites, &tree_sites_length);
         CU_ASSERT_EQUAL(ret, 0);
         for (k = 0; k < tree_sites_length; k++) {
-            CU_ASSERT_EQUAL(sites[k].id, site_index);
+            CU_ASSERT_EQUAL(sites[k].id, (tsk_id_t) site_index);
             for (l = 0; l < sites[k].mutations_length; l++) {
-                CU_ASSERT_EQUAL(sites[k].mutations[l].id, mutation_index);
-                CU_ASSERT_EQUAL(sites[k].mutations[l].site, site_index);
+                CU_ASSERT_EQUAL(sites[k].mutations[l].id, (tsk_id_t) mutation_index);
+                CU_ASSERT_EQUAL(sites[k].mutations[l].site, (tsk_id_t) site_index);
                 mutation_index++;
             }
             site_index++;
@@ -373,8 +373,8 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         CU_ASSERT_EQUAL_FATAL(ret, 1);
         ret = tsk_vargen_next(&subset_vargen, &subset_variant);
         CU_ASSERT_EQUAL_FATAL(ret, 1);
-        CU_ASSERT_EQUAL(variant->site->id, j)
-        CU_ASSERT_EQUAL(subset_variant->site->id, j)
+        CU_ASSERT_EQUAL(variant->site->id, (tsk_id_t) j)
+        CU_ASSERT_EQUAL(subset_variant->site->id, (tsk_id_t) j)
         CU_ASSERT_EQUAL(variant->site->position, subset_variant->site->position);
         for (k = 0; k < num_samples; k++) {
             CU_ASSERT_FATAL(sample_index_map[samples[k]] < (tsk_id_t) ts->num_samples);
@@ -425,7 +425,7 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     for (j = 0; j < num_samples; j++) {
         ret = tsk_treeseq_get_node(ts, (size_t) samples[j], &n1);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL(node_map[samples[j]], j);
+        CU_ASSERT_EQUAL(node_map[samples[j]], (tsk_id_t) j);
         ret = tsk_treeseq_get_node(subset, (size_t) node_map[samples[j]], &n2);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL_FATAL(n1.population, n2.population);
@@ -746,7 +746,7 @@ verify_sample_sets_for_tree(tsk_tree_t *tree)
                     sample_index = list_next[sample_index];
                 }
             }
-            CU_ASSERT_EQUAL_FATAL(j, num_samples);
+            CU_ASSERT_EQUAL_FATAL(j, (int) num_samples);
         }
     }
     free(stack);
@@ -4187,7 +4187,7 @@ main(int argc, char **argv)
         {"test_empty_tree_sequence", test_empty_tree_sequence},
         {"test_zero_edges", test_zero_edges},
 
-        {NULL},
+        {NULL, NULL},
     };
 
     return test_main(tests, argc, argv);

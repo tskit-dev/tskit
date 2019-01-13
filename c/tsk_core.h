@@ -32,6 +32,27 @@
 #define TSK_DBL_DECIMAL_DIG (DBL_DIG + 3)
 #endif
 
+/**
+@defgroup API_VERSION_GROUP API version macros.
+@{
+*/
+/**
+The library major version. Incremented when breaking changes to the API or ABI are
+introduced. This includes any changes to the signatures of functions and the
+sizes and types of externally visible structs.
+*/
+#define TSK_VERSION_MAJOR   0
+/**
+The library major version. Incremented when non-breaking backward-compatible changes
+to the API or ABI are introduced, i.e., the addition of a new function.
+*/
+#define TSK_VERSION_MINOR   99
+/**
+The library patch version. Incremented when any changes not relevant to the
+to the API or ABI are introduced, i.e., internal refactors of bugfixes.
+*/
+#define TSK_VERSION_PATCH   0
+/** @} */
 
 /* Node flags */
 #define TSK_NODE_IS_SAMPLE 1u

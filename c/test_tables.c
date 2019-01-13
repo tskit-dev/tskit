@@ -400,7 +400,7 @@ test_node_table(void)
     tsk_node_tbl_t table;
     tsk_node_t node;
     uint32_t num_rows = 100;
-    uint32_t j;
+    tsk_id_t j;
     uint32_t *flags;
     tsk_id_t *population;
     double *time;
@@ -419,24 +419,24 @@ test_node_table(void)
     tsk_node_tbl_print_state(&table, _devnull);
     tsk_node_tbl_dump_text(&table, _devnull);
 
-    for (j = 0; j < num_rows; j++) {
-        ret = tsk_node_tbl_add_row(&table, j, j, (tsk_id_t) j, (tsk_id_t) j,
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret = tsk_node_tbl_add_row(&table, (unsigned int) j, j, j, j,
                 test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret, j);
-        CU_ASSERT_EQUAL(table.flags[j], j);
+        CU_ASSERT_EQUAL(table.flags[j], (unsigned int) j);
         CU_ASSERT_EQUAL(table.time[j], j);
         CU_ASSERT_EQUAL(table.population[j], j);
         CU_ASSERT_EQUAL(table.individual[j], j);
-        CU_ASSERT_EQUAL(table.num_rows, j + 1);
-        CU_ASSERT_EQUAL(table.metadata_length, (j + 1) * test_metadata_length);
+        CU_ASSERT_EQUAL(table.num_rows, (tsk_tbl_size_t) j + 1);
+        CU_ASSERT_EQUAL(table.metadata_length, (tsk_tbl_size_t) (j + 1) * test_metadata_length);
         CU_ASSERT_EQUAL(table.metadata_offset[j + 1], table.metadata_length);
         /* check the metadata */
         memcpy(metadata_copy, table.metadata + table.metadata_offset[j], test_metadata_length);
         CU_ASSERT_NSTRING_EQUAL(metadata_copy, test_metadata, test_metadata_length);
-        ret = tsk_node_tbl_get_row(&table, j, &node);
+        ret = tsk_node_tbl_get_row(&table, (tsk_tbl_size_t) j, &node);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL(node.id, j);
-        CU_ASSERT_EQUAL(node.flags, j);
+        CU_ASSERT_EQUAL(node.flags, (tsk_tbl_size_t) j);
         CU_ASSERT_EQUAL(node.time, j);
         CU_ASSERT_EQUAL(node.population, j);
         CU_ASSERT_EQUAL(node.individual, j);
@@ -470,8 +470,8 @@ test_node_table(void)
     CU_ASSERT_FATAL(metadata != NULL);
     metadata_offset = malloc((num_rows + 1) * sizeof(tsk_tbl_size_t));
     CU_ASSERT_FATAL(metadata_offset != NULL);
-    for (j = 0; j < num_rows + 1; j++) {
-        metadata_offset[j] = j;
+    for (j = 0; j < (tsk_id_t) num_rows + 1; j++) {
+        metadata_offset[j] = (tsk_tbl_size_t) j;
     }
     ret = tsk_node_tbl_set_columns(&table, num_rows, flags, time, population,
             individual, metadata, metadata_offset);
@@ -614,7 +614,7 @@ test_edge_table(void)
         CU_ASSERT_EQUAL(table.right[j], j);
         CU_ASSERT_EQUAL(table.parent[j], j);
         CU_ASSERT_EQUAL(table.child[j], j);
-        CU_ASSERT_EQUAL(table.num_rows, j + 1);
+        CU_ASSERT_EQUAL(table.num_rows, (tsk_tbl_size_t) j + 1);
         ret = tsk_edge_tbl_get_row(&table, (tsk_tbl_size_t) j, &edge);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL(edge.id, j);
@@ -952,7 +952,7 @@ test_mutation_table(void)
         CU_ASSERT_EQUAL(table.parent[j], j);
         CU_ASSERT_EQUAL(table.derived_state_offset[j], len);
         CU_ASSERT_EQUAL(table.metadata_offset[j], len);
-        CU_ASSERT_EQUAL(table.num_rows, j + 1);
+        CU_ASSERT_EQUAL(table.num_rows, (tsk_tbl_size_t) j + 1);
         len += k;
         CU_ASSERT_EQUAL(table.derived_state_offset[j + 1], len);
         CU_ASSERT_EQUAL(table.derived_state_length, len);
@@ -1187,7 +1187,7 @@ test_migration_table(void)
         CU_ASSERT_EQUAL(table.source[j], j);
         CU_ASSERT_EQUAL(table.dest[j], j);
         CU_ASSERT_EQUAL(table.time[j], j);
-        CU_ASSERT_EQUAL(table.num_rows, j + 1);
+        CU_ASSERT_EQUAL(table.num_rows, (tsk_tbl_size_t) j + 1);
 
         ret = tsk_migration_tbl_get_row(&table, (tsk_tbl_size_t) j, &migration);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1337,7 +1337,7 @@ test_individual_table(void)
         ret = tsk_individual_tbl_add_row(&table, (uint32_t) j, test_location,
                 (size_t) spatial_dimension, test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret, j);
-        CU_ASSERT_EQUAL(table.flags[j], j);
+        CU_ASSERT_EQUAL(table.flags[j], (uint32_t) j);
         for (k = 0; k < spatial_dimension; k++) {
             test_location[k] = (double) k;
             CU_ASSERT_EQUAL(table.location[spatial_dimension * (size_t) j + k],
@@ -1353,7 +1353,7 @@ test_individual_table(void)
         ret = tsk_individual_tbl_get_row(&table, (tsk_tbl_size_t) j, &individual);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL(individual.id, j);
-        CU_ASSERT_EQUAL(individual.flags, j);
+        CU_ASSERT_EQUAL(individual.flags, (uint32_t) j);
         CU_ASSERT_EQUAL(individual.location_length, spatial_dimension);
         CU_ASSERT_NSTRING_EQUAL(individual.location, test_location,
                 spatial_dimension * sizeof(double));
@@ -1559,7 +1559,7 @@ test_population_table(void)
         ret = tsk_population_tbl_add_row(&table, c, k);
         CU_ASSERT_EQUAL_FATAL(ret, j);
         CU_ASSERT_EQUAL(table.metadata_offset[j], len);
-        CU_ASSERT_EQUAL(table.num_rows, j + 1);
+        CU_ASSERT_EQUAL(table.num_rows, (tsk_tbl_size_t) j + 1);
         len += k;
         CU_ASSERT_EQUAL(table.metadata_offset[j + 1], len);
         CU_ASSERT_EQUAL(table.metadata_length, len);
@@ -1670,7 +1670,7 @@ test_provenance_table(void)
     for (j = 0; j < num_rows; j++) {
         ret = tsk_provenance_tbl_add_row(&table, test_timestamp, test_timestamp_length,
                 test_record, test_record_length);
-        CU_ASSERT_EQUAL_FATAL(ret, j);
+        CU_ASSERT_EQUAL_FATAL(ret, (int) j);
         CU_ASSERT_EQUAL(table.timestamp_length, (j + 1) * test_timestamp_length);
         CU_ASSERT_EQUAL(table.timestamp_offset[j + 1], table.timestamp_length);
         CU_ASSERT_EQUAL(table.record_length, (j + 1) * test_record_length);
@@ -1686,7 +1686,7 @@ test_provenance_table(void)
 
         ret = tsk_provenance_tbl_get_row(&table, j, &provenance);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL(provenance.id, j);
+        CU_ASSERT_EQUAL(provenance.id, (tsk_id_t) j);
         CU_ASSERT_EQUAL(provenance.timestamp_length, test_timestamp_length);
         CU_ASSERT_NSTRING_EQUAL(provenance.timestamp, test_timestamp,
                 test_timestamp_length);
@@ -1850,7 +1850,7 @@ main(int argc, char **argv)
         {"test_load_tsk_node_tbl_errors", test_load_tsk_node_tbl_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
-        {NULL},
+        {NULL, NULL},
     };
 
     return test_main(tests, argc, argv);

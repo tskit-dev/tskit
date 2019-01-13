@@ -60,7 +60,7 @@ main(int argc, char **argv)
         {"test_strerror", test_strerror},
         {"test_strerror_kastore", test_strerror_kastore},
         {"test_generate_uuid", test_generate_uuid},
-        {NULL},
+        {NULL, NULL},
     };
 
     return test_main(tests, argc, argv);

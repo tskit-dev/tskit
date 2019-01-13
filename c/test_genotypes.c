@@ -432,10 +432,10 @@ test_single_tree_vargen_many_alleles(void)
                 CU_ASSERT_EQUAL_FATAL(ret, 1);
                 CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "Y", 1);
                 for (k = 1; k < (tsk_id_t) var->num_alleles; k++) {
-                    CU_ASSERT_EQUAL(k - 1, var->allele_lengths[k]);
+                    CU_ASSERT_EQUAL(k - 1, (tsk_id_t) var->allele_lengths[k]);
                     CU_ASSERT_NSTRING_EQUAL(var->alleles[k], alleles, var->allele_lengths[k]);
                 }
-                CU_ASSERT_EQUAL(var->num_alleles, j + 2);
+                CU_ASSERT_EQUAL(var->num_alleles, (tsk_tbl_size_t) j + 2);
             }
             ret = tsk_vargen_free(&vargen);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -571,7 +571,7 @@ main(int argc, char **argv)
         {"test_single_tree_vargen_subsample", test_single_tree_vargen_subsample},
         {"test_single_tree_vargen_many_alleles", test_single_tree_vargen_many_alleles},
         {"test_single_tree_inconsistent_mutations", test_single_tree_inconsistent_mutations},
-        {NULL},
+        {NULL, NULL},
     };
 
     return test_main(tests, argc, argv);

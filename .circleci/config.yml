@@ -19,6 +19,7 @@ jobs:
             sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen libgsl-dev
             pip install --user -r python/requirements/development.txt
             pip install meson --user
+            pip install twine --user
             # tmp; until we have an msprime package install from here.
             # 0.1.0 is broken, so force 0.1.0a1 for now.
             pip install --user --pre tskit==0.1.0a1
@@ -28,19 +29,20 @@ jobs:
           key: tskit-{{ .Branch }}
           paths:
             - "/home/circleci/.local"
+
       - run:
           name: Compile Python
           command: |
             cd python 
-            # CFLAGS="--coverage -Wall -Wextra -Werror -Wno-unused-parameter" \
-            #   python setup.py build_ext --inplace
-            # TODO enable these flags later.
-            CFLAGS="--coverage" python setup.py build_ext --inplace
+            CFLAGS="--coverage -Wall -Wextra -Werror -Wno-unused-parameter -Wno-missing-field-initializers" \
+              python setup.py build_ext --inplace
+
       - run:
           name: Lint Python
           command: |
             cd python
             flake8 --max-line-length 89 tskit setup.py tests
+
       - run:
           name: Run Python tests 
           command: |
@@ -48,6 +50,7 @@ jobs:
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
             python3 -m codecov -F python
+
       - run:
           name: Build Python package
           command: |
@@ -55,6 +58,7 @@ jobs:
             rm -fR build
             python setup.py sdist
             python setup.py check
+            python -m twine check dist/*.tar.gz
             python -m venv venv
             source venv/bin/activate 
             pip install --upgrade setuptools pip wheel
@@ -62,10 +66,17 @@ jobs:
             python setup.py egg_info
             python setup.py bdist_wheel
             pip install dist/*.tar.gz 
+
       - run:
-          name: Compile C
+          name: Compile C with gcc
           command: |
             CFLAGS=--coverage meson c/ build-gcc && cd build-gcc && ninja
+
+      - run:
+          name: Compile C with clang
+          command: |
+            CC=clang meson c/ build-clang && cd build-clang && ninja
+
       - run:
           name: Run C tests
           command: |
@@ -73,32 +84,35 @@ jobs:
             ./build-gcc/test_tables
             ./build-gcc/test_trees
             ./build-gcc/test_genotypes
-      # - run:
-      #     name: Valgrind for C tests.
-      #     command: |
-      #       export KASTORE_SOPATH=./build-gcc/libtskit.so
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/tests
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/dynamic_api_tests
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/malloc_tests
-      #       valgrind --leak-check=full --error-exitcode=1 ./build-gcc/io_tests
+            ./build-gcc/test_convert
+            ./build-gcc/test_stats
+
       - run:
           name: Run gcov & upload coverage.
           command: |
             gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
             gcov -pb ./build-gcc/tskit@sta/tsk_*.gcno
             codecov -X gcov -F C
-      # - run:
-      #     name: Compile C tests under clang
-      #     command: |
-      #       CC=clang meson c/ build-clang && cd build-clang && ninja
-      # - run:
-      #     name: Run clang C tests
-      #     command: |
-      #       export KASTORE_SOPATH=./build-clang/libtskit.so
-      #       ./build-clang/tests
-      #       ./build-clang/dynamic_api_tests
-      #       ./build-clang/malloc_tests
-      #       ./build-clang/io_tests
+
+      - run:
+          name: Valgrind for C tests.
+          command: |
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_core
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_tables
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_trees
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_convert
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_stats
+
+      - run:
+          name: Run clang-compiled C tests
+          command: |
+            ./build-clang/test_core
+            ./build-clang/test_tables
+            ./build-clang/test_trees
+            ./build-clang/test_genotypes
+            ./build-clang/test_convert
+            ./build-clang/test_stats
 
       - run:
           name: Build docs
