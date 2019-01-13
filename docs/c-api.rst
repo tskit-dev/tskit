@@ -7,16 +7,126 @@ C API
 .. warning::
         **This section is under construction, incomplete and experiemental!!**
 
+****************
+Basic structures
+****************
+
+.. doxygenstruct:: tsk_individual_t
+    :members:
+
+
+.. todo:: Need to document the members in these structs.
+
+.. doxygenstruct:: tsk_node_t
+    :members:
+.. doxygenstruct:: tsk_edge_t
+    :members:
+.. doxygenstruct:: tsk_migration_t
+    :members:
+.. doxygenstruct:: tsk_site_t
+    :members:
+.. doxygenstruct:: tsk_mutation_t
+    :members:
+.. doxygenstruct:: tsk_population_t
+    :members:
+.. doxygenstruct:: tsk_provenance_t
+    :members:
+
+
 **********
 Tables API
 **********
 
+----------------
+Table collection
+----------------
+
 .. doxygenstruct:: tsk_tbl_collection_t
     :members:
 
-.. doxygenfunction:: tsk_tbl_collection_alloc
+.. doxygengroup:: TABLE_COLLECTION_API_GROUP
+    :content-only:
 
-.. doxygenfunction:: tsk_tbl_collection_load
+----------------
+Individual table
+----------------
+
+.. doxygenstruct:: tsk_individual_tbl_t
+    :members:
+
+.. doxygengroup:: INDIVIDUAL_TABLE_API_GROUP
+    :content-only:
+
+----------
+Node table
+----------
+
+.. doxygenstruct:: tsk_node_tbl_t
+    :members:
+
+.. doxygengroup:: NODE_TABLE_API_GROUP
+    :content-only:
+
+----------
+Edge table
+----------
+
+.. doxygenstruct:: tsk_edge_tbl_t
+    :members:
+
+.. doxygengroup:: EDGE_TABLE_API_GROUP
+    :content-only:
+
+---------------
+Migration table
+---------------
+
+.. doxygenstruct:: tsk_migration_tbl_t
+    :members:
+
+.. doxygengroup:: MIGRATION_TABLE_API_GROUP
+    :content-only:
+
+----------
+Site table
+----------
+
+.. doxygenstruct:: tsk_site_tbl_t
+    :members:
+
+.. doxygengroup:: SITE_TABLE_API_GROUP
+    :content-only:
+
+--------------
+Mutation table
+--------------
+
+.. doxygenstruct:: tsk_mutation_tbl_t
+    :members:
+
+.. doxygengroup:: MUTATION_TABLE_API_GROUP
+    :content-only:
+
+----------------
+Population table
+----------------
+
+.. doxygenstruct:: tsk_population_tbl_t
+    :members:
+
+.. doxygengroup:: POPULATION_TABLE_API_GROUP
+    :content-only:
+
+----------------
+Provenance table
+----------------
+
+.. doxygenstruct:: tsk_provenance_tbl_t
+    :members:
+
+.. doxygengroup:: PROVENANCE_TABLE_API_GROUP
+    :content-only:
+
 
 **************
 Tree sequences
@@ -33,6 +143,13 @@ Tree sequences
 *********
 Constants
 *********
+
+-----------
+API Version
+-----------
+
+.. doxygengroup:: API_VERSION_GROUP
+    :content-only:
 
 .. _sec_c_api_error_codes:
 
