@@ -5,6 +5,22 @@
 #include <stdlib.h>
 #include <float.h>
 
+static tsk_tbl_size_t
+get_max_site_mutations(tsk_treeseq_t *ts)
+{
+    int ret;
+    size_t j;
+    tsk_tbl_size_t max_mutations = 0;
+    tsk_site_t site;
+
+    for (j = 0; j < tsk_treeseq_get_num_sites(ts); j++) {
+        ret = tsk_treeseq_get_site(ts, j, &site);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        max_mutations = TSK_MAX(max_mutations, site.mutations_length);
+    }
+    return max_mutations;
+}
+
 static bool
 multi_mutations_exist(tsk_treeseq_t *ts, size_t start, size_t end)
 {
@@ -187,7 +203,110 @@ verify_ld(tsk_treeseq_t *ts)
 }
 
 static void
-test_single_tree(void)
+verify_pairwise_diversity(tsk_treeseq_t *ts)
+{
+    int ret;
+    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_id_t *samples;
+    uint32_t j;
+    double pi;
+    tsk_tbl_size_t max_site_mutations = get_max_site_mutations(ts);
+
+    ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, 0, &pi);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, 1, &pi);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, num_samples + 1, &pi);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    ret = tsk_treeseq_get_samples(ts, &samples);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 2; j < num_samples; j++) {
+        ret = tsk_treeseq_get_pairwise_diversity(ts, samples, j, &pi);
+        if (max_site_mutations <= 1) {
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            CU_ASSERT_TRUE_FATAL(pi >= 0);
+        } else {
+            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
+        }
+    }
+}
+
+/* FIXME: this test is weak and should check the return value somehow.
+ * We should also have simplest and single tree tests along with separate
+ * tests for the error conditions. This should be done as part of the general
+ * stats framework.
+ */
+static void
+verify_genealogical_nearest_neighbours(tsk_treeseq_t *ts)
+{
+    int ret;
+    tsk_id_t *samples;
+    tsk_id_t *sample_sets[2];
+    size_t sample_set_size[2];
+    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    double *A = malloc(2 * num_samples * sizeof(double));
+    CU_ASSERT_FATAL(A != NULL);
+
+    ret = tsk_treeseq_get_samples(ts, &samples);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    sample_sets[0] = samples;
+    sample_set_size[0] = num_samples / 2;
+    sample_sets[1] = samples + sample_set_size[0];
+    sample_set_size[1] = num_samples - sample_set_size[0];
+
+    ret = tsk_treeseq_genealogical_nearest_neighbours(ts,
+        samples, num_samples, sample_sets, sample_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    free(A);
+}
+
+/* FIXME: this test is weak and should check the return value somehow.
+ * We should also have simplest and single tree tests along with separate
+ * tests for the error conditions. This should be done as part of the general
+ * stats framework.
+ */
+static void
+verify_mean_descendants(tsk_treeseq_t *ts)
+{
+    int ret;
+    tsk_id_t *samples;
+    tsk_id_t *sample_sets[2];
+    size_t sample_set_size[2];
+    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    double *C = malloc(2 * tsk_treeseq_get_num_nodes(ts) * sizeof(double));
+    CU_ASSERT_FATAL(C != NULL);
+
+    ret = tsk_treeseq_get_samples(ts, &samples);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    sample_sets[0] = samples;
+    sample_set_size[0] = num_samples / 2;
+    sample_sets[1] = samples + sample_set_size[0];
+    sample_set_size[1] = num_samples - sample_set_size[0];
+
+    ret = tsk_treeseq_mean_descendants(ts, sample_sets, sample_set_size, 2, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Check some error conditions */
+    ret = tsk_treeseq_mean_descendants(ts, sample_sets, sample_set_size, 0, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    samples[0] = -1;
+    ret = tsk_treeseq_mean_descendants(ts, sample_sets, sample_set_size, 2, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    samples[0] = (tsk_id_t) tsk_treeseq_get_num_nodes(ts) + 1;
+    ret = tsk_treeseq_mean_descendants(ts, sample_sets, sample_set_size, 2, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    free(C);
+}
+
+
+static void
+test_single_tree_ld(void)
 {
     tsk_treeseq_t ts;
 
@@ -198,7 +317,40 @@ test_single_tree(void)
 }
 
 static void
-test_paper_example(void)
+test_single_tree_pairwise_diversity(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+    verify_pairwise_diversity(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_mean_descendants(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+    verify_mean_descendants(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_genealogical_nearest_neighbours(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+    verify_genealogical_nearest_neighbours(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_ld(void)
 {
     tsk_treeseq_t ts;
 
@@ -209,7 +361,40 @@ test_paper_example(void)
 }
 
 static void
-test_nonbinary_example(void)
+test_paper_ex_pairwise_diversity(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_pairwise_diversity(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_mean_descendants(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_mean_descendants(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_genealogical_nearest_neighbours(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_genealogical_nearest_neighbours(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_nonbinary_ex_ld(void)
 {
     tsk_treeseq_t ts;
 
@@ -219,13 +404,62 @@ test_nonbinary_example(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_nonbinary_ex_pairwise_diversity(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
+            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+    verify_pairwise_diversity(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_nonbinary_ex_mean_descendants(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
+            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+    verify_mean_descendants(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_nonbinary_ex_genealogical_nearest_neighbours(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
+            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+    verify_genealogical_nearest_neighbours(&ts);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
-        {"test_single_tree", test_single_tree},
-        {"test_paper_example", test_paper_example},
-        {"test_nonbinary_example", test_nonbinary_example},
+        {"test_single_tree_ld", test_single_tree_ld},
+        {"test_single_tree_pairwise_diversity", test_single_tree_pairwise_diversity},
+        {"test_single_tree_mean_descendants", test_single_tree_mean_descendants},
+        {"test_single_tree_genealogical_nearest_neighbours",
+            test_single_tree_genealogical_nearest_neighbours},
+
+        {"test_paper_ex_ld", test_paper_ex_ld},
+        {"test_paper_ex_pairwise_diversity", test_paper_ex_pairwise_diversity},
+        {"test_paper_ex_mean_descendants", test_paper_ex_mean_descendants},
+        {"test_paper_ex_genealogical_nearest_neighbours",
+            test_paper_ex_genealogical_nearest_neighbours},
+
+        {"test_nonbinary_ex_ld", test_nonbinary_ex_ld},
+        {"test_nonbinary_ex_pairwise_diversity", test_nonbinary_ex_pairwise_diversity},
+        {"test_nonbinary_ex_mean_descendants", test_nonbinary_ex_mean_descendants},
+        {"test_nonbinary_ex_genealogical_nearest_neighbours",
+            test_nonbinary_ex_genealogical_nearest_neighbours},
+
+
         {NULL, NULL},
     };
     return test_main(tests, argc, argv);
