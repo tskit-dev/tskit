@@ -633,7 +633,7 @@ table_read_offset_array(PyObject *input, size_t *num_rows, size_t length, bool c
         }
         *num_rows -= 1;
     }
-    if (shape[0] != *num_rows + 1) {
+    if (shape[0] != (npy_intp) (*num_rows + 1)) {
         PyErr_SetString(PyExc_ValueError, "offset columns must have n + 1 rows.");
         goto out;
     }
@@ -6613,7 +6613,7 @@ static int
 Tree_check_bounds(Tree *self, int node)
 {
     int ret = 0;
-    if (node < 0 || node >= self->tree->num_nodes) {
+    if (node < 0 || node >= (int) self->tree->num_nodes) {
         PyErr_SetString(PyExc_ValueError, "Node index out of bounds");
         ret = -1;
     }
@@ -6651,7 +6651,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
     TreeSequence *tree_sequence = NULL;
     tsk_id_t *tracked_samples = NULL;
     int flags = 0;
-    uint32_t j, num_tracked_samples, num_nodes;
+    size_t j, num_tracked_samples, num_nodes;
     PyObject *item;
 
     self->tree = NULL;
@@ -6687,7 +6687,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
             goto out;
         }
         tracked_samples[j] = (tsk_id_t) PyLong_AsLong(item);
-        if (tracked_samples[j] >= num_nodes) {
+        if (tracked_samples[j] < 0 || tracked_samples[j] >= (tsk_id_t) num_nodes) {
             PyErr_SetString(PyExc_ValueError, "samples must be valid nodes");
             goto out;
         }
@@ -8248,7 +8248,7 @@ LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
     buffer_acquired = 1;
     if (max_mutations == -1) {
         max_mutations = buffer.len / sizeof(double);
-    } else if (max_mutations * sizeof(double) > buffer.len) {
+    } else if (max_mutations * sizeof(double) > (size_t) buffer.len) {
         PyErr_SetString(PyExc_BufferError,
             "dest buffer is too small for the results");
         goto out;
