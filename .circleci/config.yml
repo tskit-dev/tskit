@@ -19,6 +19,7 @@ jobs:
             sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen libgsl-dev
             pip install --user -r python/requirements/development.txt
             pip install meson --user
+            pip install twine --user
             # tmp; until we have an msprime package install from here.
             # 0.1.0 is broken, so force 0.1.0a1 for now.
             pip install --user --pre tskit==0.1.0a1
@@ -57,6 +58,7 @@ jobs:
             rm -fR build
             python setup.py sdist
             python setup.py check
+            python -m twine check dist/*.tar.gz
             python -m venv venv
             source venv/bin/activate 
             pip install --upgrade setuptools pip wheel
