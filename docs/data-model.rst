@@ -59,9 +59,9 @@ individual
 sample
     The focal nodes of a tree sequence, usually thought of as those that we
     have obtained data from. The specification of these affects various
-    methods: (1) :meth:`TreeSequence.variants` and
-    :meth:`TreeSequence.haplotypes` will output the genotypes of the samples,
-    and :meth:`SparseTree.roots` only return roots ancestral to at least one
+    methods: (1) :meth:`.TreeSequence.variants` and
+    :meth:`.TreeSequence.haplotypes` will output the genotypes of the samples,
+    and :attr:`.Tree.roots` only return roots ancestral to at least one
     sample. (See the :ref:`node table definitions <sec_node_table_definition>`
     for information on how the sample
     status a node is encoded in the ``flags`` column.)

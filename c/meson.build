@@ -48,6 +48,13 @@ executable('test_stats',
 executable('main', 
     sources: ['main.c', 'argtable3.c'], link_with: [tskit_lib], c_args:['-Dlint'])
 
+
+# Example programs.
+gsl_dep = dependency('gsl')
+executable('haploid_wright_fisher', 
+    sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib],
+    dependencies: [gsl_dep])
+
 # TMP: until we've ported all the tests, keep this compilable.
 #gsl_dep = dependency('gsl')
 #executable('old_tests', sources: ['old_tests.c'], link_with: tskit_lib, 
