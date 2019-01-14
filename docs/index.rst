@@ -17,6 +17,7 @@ Welcome to tskit's documentation!
    data-model
    provenance
    development
+   tutorial
    changelogs
 
 
