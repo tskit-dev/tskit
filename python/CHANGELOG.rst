@@ -1,4 +1,14 @@
 --------------------
+[0.1.3] - 2019-01-14
+--------------------
+
+Bugfix release.
+
+**Bugfixes**
+
+- Fix missing provenance schema: https://github.com/tskit-dev/tskit/issues/81
+
+--------------------
 [0.1.2] - 2019-01-14
 --------------------
 
