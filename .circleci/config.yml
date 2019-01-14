@@ -20,10 +20,8 @@ jobs:
             pip install --user -r python/requirements/development.txt
             pip install meson --user
             pip install twine --user
-            # tmp; until we have an msprime package install from here.
-            # 0.1.0 is broken, so force 0.1.0a1 for now.
-            pip install --user --pre tskit==0.1.0a1
-            pip install --user git+https://github.com/tskit-dev/msprime
+            # TODO add msprime to the development.txt when we have a stable 0.7.0 release.
+            pip install --user --pre msprime
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
       - save_cache:
           key: tskit-{{ .Branch }}
