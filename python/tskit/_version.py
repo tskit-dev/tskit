@@ -1,2 +1,2 @@
 # Definitive location for the version number.
-tskit_version = "0.1.1"
+tskit_version = "0.1.2"

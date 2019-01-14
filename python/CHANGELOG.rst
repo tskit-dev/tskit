@@ -1,5 +1,5 @@
 --------------------
-[0.1.2] - 2019-XX-XX
+[0.1.2] - 2019-01-14
 --------------------
 
 Bugfix release.
@@ -30,13 +30,13 @@ files and processes them should be able to work without changes.
 - Rename ``SparseTree`` class to ``Tree``.
 
 ----------------------
-[0.1.0a1] - 2019-01-19
+[1.1.0a1] - 2019-01-10
 ----------------------
 
 Initial alpha version posted to PyPI for bootstrapping.
 
 --------------------
-[0.0.0] - 2019-01-19
+[0.0.0] - 2019-01-10
 --------------------
 
 Initial extraction of tskit code from msprime. Relicense to MIT.
