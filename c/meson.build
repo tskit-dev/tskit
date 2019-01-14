@@ -23,30 +23,31 @@ tskit_lib = static_library('tskit',
 
 # We don't specify extra C args here as CUnit won't pass the checks.
 test_lib = static_library('testlib', 
-    sources: ['testlib.c'], dependencies: cunit_dep)
+    sources: ['tests/testlib.c'], dependencies: cunit_dep)
 
 executable('test_core', 
-    sources: ['test_core.c'], 
+    sources: ['tests/test_core.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
 executable('test_tables', 
-    sources: ['test_tables.c'], 
+    sources: ['tests/test_tables.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
 executable('test_trees', 
-    sources: ['test_trees.c'], 
+    sources: ['tests/test_trees.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
 executable('test_genotypes', 
-    sources: ['test_genotypes.c'], 
+    sources: ['tests/test_genotypes.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
 executable('test_convert', 
-    sources: ['test_convert.c'], 
+    sources: ['tests/test_convert.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
 executable('test_stats', 
-    sources: ['test_stats.c'], 
+    sources: ['tests/test_stats.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
 
 # The development CLI. Don't use extra C args because argtable code won't pass
-executable('main', 
-    sources: ['main.c', 'argtable3.c'], link_with: [tskit_lib], c_args:['-Dlint'])
+executable('dev-cli', 
+    sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'], 
+    link_with: [tskit_lib], c_args:['-Dlint'])
 
 
 # Example programs.
@@ -56,6 +57,6 @@ executable('haploid_wright_fisher',
     dependencies: [gsl_dep])
 
 # TMP: until we've ported all the tests, keep this compilable.
-#gsl_dep = dependency('gsl')
-#executable('old_tests', sources: ['old_tests.c'], link_with: tskit_lib, 
-#    dependencies: [cunit_dep, gsl_dep])
+# gsl_dep = dependency('gsl')
+# executable('old_tests', sources: ['tests/old_tests.c'], link_with: tskit_lib, 
+#     dependencies: [cunit_dep, gsl_dep])
