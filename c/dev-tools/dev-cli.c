@@ -116,10 +116,10 @@ static void
 print_ld_matrix(tsk_treeseq_t *ts)
 {
     int ret;
-    size_t num_sites = tsk_treeseq_get_num_sites(ts);
+    tsk_size_t num_sites = tsk_treeseq_get_num_sites(ts);
     tsk_site_t sA, sB;
     double *r2 = malloc(num_sites * sizeof(double));
-    size_t j, k, num_r2_values;
+    tsk_size_t j, k, num_r2_values;
     tsk_ld_calc_t ld_calc;
 
     if (r2 == NULL) {

@@ -23,8 +23,8 @@ extern "C" {
 @brief The tree sequence object.
 */
 typedef struct {
-    size_t num_trees;
-    size_t num_samples;
+    tsk_size_t num_trees;
+    tsk_size_t num_samples;
     tsk_id_t *samples;
     /* If a node is a sample, map to its index in the samples list */
     tsk_id_t *sample_index_map;
@@ -46,7 +46,7 @@ typedef struct {
 
 typedef struct {
     tsk_treeseq_t *tree_sequence;
-    size_t num_nodes;
+    tsk_size_t num_nodes;
     int flags;
     tsk_id_t *samples;
     /* The left-most root in the forest. Roots are sibs and all roots are found
@@ -61,7 +61,7 @@ typedef struct {
     tsk_id_t *left_sib;        /* sibling to right of node u */
     tsk_id_t *right_sib;       /* sibling to the left of node u */
     bool *above_sample;
-    size_t index;
+    tsk_id_t index; 
     /* These are involved in the optional sample tracking; num_samples counts
      * all samples below a give node, and num_tracked_samples counts those
      * from a specific subset. */
@@ -144,39 +144,39 @@ int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_tbl_collection_t *tables);
 int tsk_treeseq_free(tsk_treeseq_t *self);
 void tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out);
 
-size_t tsk_treeseq_get_num_nodes(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_edges(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_migrations(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_sites(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_mutations(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_provenances(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_populations(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_individuals(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_trees(tsk_treeseq_t *self);
-size_t tsk_treeseq_get_num_samples(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_nodes(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_edges(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_migrations(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_sites(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_mutations(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_provenances(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_populations(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_individuals(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_trees(tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_num_samples(tsk_treeseq_t *self);
 char * tsk_treeseq_get_file_uuid(tsk_treeseq_t *self);
 double tsk_treeseq_get_sequence_length(tsk_treeseq_t *self);
 bool tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u);
 
-int tsk_treeseq_get_node(tsk_treeseq_t *self, size_t index, tsk_node_t *node);
-int tsk_treeseq_get_edge(tsk_treeseq_t *self, size_t index, tsk_edge_t *edge);
-int tsk_treeseq_get_migration(tsk_treeseq_t *self, size_t index,
+int tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node);
+int tsk_treeseq_get_edge(tsk_treeseq_t *self, tsk_id_t index, tsk_edge_t *edge);
+int tsk_treeseq_get_migration(tsk_treeseq_t *self, tsk_id_t index,
         tsk_migration_t *migration);
-int tsk_treeseq_get_site(tsk_treeseq_t *self, size_t index, tsk_site_t *site);
-int tsk_treeseq_get_mutation(tsk_treeseq_t *self, size_t index,
+int tsk_treeseq_get_site(tsk_treeseq_t *self, tsk_id_t index, tsk_site_t *site);
+int tsk_treeseq_get_mutation(tsk_treeseq_t *self, tsk_id_t index,
         tsk_mutation_t *mutation);
-int tsk_treeseq_get_provenance(tsk_treeseq_t *self, size_t index,
+int tsk_treeseq_get_provenance(tsk_treeseq_t *self, tsk_id_t index,
         tsk_provenance_t *provenance);
-int tsk_treeseq_get_population(tsk_treeseq_t *self, size_t index,
+int tsk_treeseq_get_population(tsk_treeseq_t *self, tsk_id_t index,
         tsk_population_t *population);
-int tsk_treeseq_get_individual(tsk_treeseq_t *self, size_t index,
+int tsk_treeseq_get_individual(tsk_treeseq_t *self, tsk_id_t index,
         tsk_individual_t *individual);
 int tsk_treeseq_get_samples(tsk_treeseq_t *self, tsk_id_t **samples);
 int tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self,
         tsk_id_t **sample_index_map);
 
 int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples,
-        size_t num_samples, int flags, tsk_treeseq_t *output,
+        tsk_size_t num_samples, int flags, tsk_treeseq_t *output,
         tsk_id_t *node_map);
 /* TODO do these belong in trees or stats? They should probably be in stats.
  * Keep them here for now until we figure out the correct interface.

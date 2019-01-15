@@ -124,7 +124,7 @@ get_tree_list(tsk_treeseq_t *ts)
     trees = malloc(num_trees * sizeof(tsk_tree_t));
     CU_ASSERT_FATAL(trees != NULL);
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
-        CU_ASSERT_FATAL(t.index < num_trees);
+        CU_ASSERT_FATAL(t.index < (tsk_id_t) num_trees);
         ret = tsk_tree_alloc(&trees[t.index], ts, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = tsk_tree_copy(&trees[t.index], &t);
@@ -147,8 +147,8 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
 {
     int ret;
     tsk_tree_t *trees, t;
-    size_t j;
-    size_t num_trees = tsk_treeseq_get_num_trees(ts);
+    tsk_id_t j;
+    tsk_id_t num_trees = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
 
     trees = get_tree_list(ts);
     ret = tsk_tree_alloc(&t, ts, 0);
@@ -264,7 +264,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     /* Free the trees. */
     ret = tsk_tree_free(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    for (j = 0; j < tsk_treeseq_get_num_trees(ts); j++) {
+    for (j = 0; j < (tsk_id_t) tsk_treeseq_get_num_trees(ts); j++) {
         ret = tsk_tree_free(&trees[j]);
     }
     free(trees);
@@ -436,7 +436,7 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     }
     /* Check that node mappings are correct */
     for (j = 0; j < tsk_treeseq_get_num_nodes(ts); j++) {
-        ret = tsk_treeseq_get_node(ts, j, &n1);
+        ret = tsk_treeseq_get_node(ts, (tsk_id_t) j, &n1);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         if (node_map[j] != TSK_NULL) {
             ret = tsk_treeseq_get_node(subset, (size_t) node_map[j], &n2);
@@ -518,9 +518,9 @@ static void
 verify_simplify(tsk_treeseq_t *ts)
 {
     int ret;
-    size_t n = tsk_treeseq_get_num_samples(ts);
-    size_t num_samples[] = {0, 1, 2, 3, n / 2, n - 1, n};
-    size_t j;
+    tsk_size_t n = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t num_samples[] = {0, 1, 2, 3, n / 2, n - 1, n};
+    tsk_size_t j;
     tsk_id_t *sample;
     tsk_id_t *node_map = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
     tsk_treeseq_t subset;
@@ -559,9 +559,9 @@ out:
 }
 
 typedef struct {
-    uint32_t tree_index;
+    tsk_id_t tree_index;
     tsk_id_t node;
-    uint32_t count;
+    tsk_size_t count;
 } sample_count_test_t;
 
 static void
@@ -2604,11 +2604,11 @@ test_single_tree_good_mutations(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), num_mutations);
 
     for (j = 0; j < num_sites; j++) {
-        ret = tsk_treeseq_get_site(&ts, j, other_sites + j);
+        ret = tsk_treeseq_get_site(&ts, (tsk_id_t) j, other_sites + j);
         CU_ASSERT_EQUAL(ret, 0);
     }
     for (j = 0; j < num_mutations; j++) {
-        ret = tsk_treeseq_get_mutation(&ts, j, other_mutations + j);
+        ret = tsk_treeseq_get_mutation(&ts, (tsk_id_t) j, other_mutations + j);
         CU_ASSERT_EQUAL(ret, 0);
     }
     CU_ASSERT_EQUAL(other_sites[0].position, 0.1);
@@ -3725,7 +3725,7 @@ test_tree_errors(void)
         ret = tsk_tree_get_num_tracked_samples(&t, u, NULL);
         CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
         /* Also check tree sequence methods */
-        ret = tsk_treeseq_get_node(&ts, (tsk_size_t) u, &node);
+        ret = tsk_treeseq_get_node(&ts, (tsk_id_t) u, &node);
         CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
         CU_ASSERT(!tsk_treeseq_is_sample(&ts, u));
         CU_ASSERT(!tsk_tree_is_sample(&t, u));

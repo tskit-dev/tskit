@@ -329,7 +329,7 @@ tsk_vcf_converter_convert_positions(tsk_vcf_converter_t *self, tsk_treeseq_t *tr
     size_t j;
 
     for (j = 0; j < self->num_sites; j++) {
-        ret = tsk_treeseq_get_site(tree_sequence, j, &site);
+        ret = tsk_treeseq_get_site(tree_sequence, (tsk_id_t) j, &site);
         if (ret != 0) {
             goto out;
         }

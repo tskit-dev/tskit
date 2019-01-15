@@ -148,7 +148,7 @@ tsk_hapgen_alloc(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
     }
     /* For each site set the ancestral type */
     for (k = 0; k < self->num_sites; k++) {
-        ret = tsk_treeseq_get_site(self->tree_sequence, k, &site);
+        ret = tsk_treeseq_get_site(self->tree_sequence, (tsk_id_t) k, &site);
         if (ret != 0) {
             goto out;
         }

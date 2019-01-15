@@ -92,8 +92,7 @@ tsk_treeseq_free(tsk_treeseq_t *self)
 static int
 tsk_treeseq_init_sites(tsk_treeseq_t *self)
 {
-    size_t j;
-    tsk_size_t k;
+    tsk_id_t j, k;
     int ret = 0;
     size_t offset = 0;
     const tsk_size_t num_mutations = self->tables->mutations->num_rows;
@@ -112,18 +111,18 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
         goto out;
     }
 
-    for (k = 0; k < num_mutations; k++) {
+    for (k = 0; k < (tsk_id_t) num_mutations; k++) {
         ret = tsk_treeseq_get_mutation(self, k, self->site_mutations_mem + k);
         if (ret != 0) {
             goto out;
         }
     }
     k = 0;
-    for (j = 0; j < num_sites; j++) {
+    for (j = 0; j < (tsk_id_t) num_sites; j++) {
         self->site_mutations[j] = self->site_mutations_mem + offset;
         self->site_mutations_length[j] = 0;
         /* Go through all mutations for this site */
-        while (k < num_mutations && mutation_site[k] == (tsk_id_t) j) {
+        while (k < (tsk_id_t) num_mutations && mutation_site[k] == j) {
             self->site_mutations_length[j]++;
             offset++;
             k++;
@@ -448,61 +447,61 @@ tsk_treeseq_get_file_uuid(tsk_treeseq_t *self)
     return self->tables->file_uuid;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_samples(tsk_treeseq_t *self)
 {
     return self->num_samples;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_nodes(tsk_treeseq_t *self)
 {
     return self->tables->nodes->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_edges(tsk_treeseq_t *self)
 {
     return self->tables->edges->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_migrations(tsk_treeseq_t *self)
 {
     return self->tables->migrations->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_sites(tsk_treeseq_t *self)
 {
     return self->tables->sites->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_mutations(tsk_treeseq_t *self)
 {
     return self->tables->mutations->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_populations(tsk_treeseq_t *self)
 {
     return self->tables->populations->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_individuals(tsk_treeseq_t *self)
 {
     return self->tables->individuals->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_provenances(tsk_treeseq_t *self)
 {
     return self->tables->provenances->num_rows;
 }
 
-size_t
+tsk_size_t
 tsk_treeseq_get_num_trees(tsk_treeseq_t *self)
 {
     return self->num_trees;
@@ -923,31 +922,31 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_node(tsk_treeseq_t *self, size_t index, tsk_node_t *node)
+tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node)
 {
     return tsk_node_tbl_get_row(self->tables->nodes, index, node);
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_edge(tsk_treeseq_t *self, size_t index, tsk_edge_t *edge)
+tsk_treeseq_get_edge(tsk_treeseq_t *self, tsk_id_t index, tsk_edge_t *edge)
 {
     return tsk_edge_tbl_get_row(self->tables->edges, index, edge);
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_migration(tsk_treeseq_t *self, size_t index, tsk_migration_t *migration)
+tsk_treeseq_get_migration(tsk_treeseq_t *self, tsk_id_t index, tsk_migration_t *migration)
 {
     return tsk_migration_tbl_get_row(self->tables->migrations, index, migration);
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_mutation(tsk_treeseq_t *self, size_t index, tsk_mutation_t *mutation)
+tsk_treeseq_get_mutation(tsk_treeseq_t *self, tsk_id_t index, tsk_mutation_t *mutation)
 {
     return tsk_mutation_tbl_get_row(self->tables->mutations, index, mutation);
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_site(tsk_treeseq_t *self, size_t index, tsk_site_t *site)
+tsk_treeseq_get_site(tsk_treeseq_t *self, tsk_id_t index, tsk_site_t *site)
 {
     int ret = 0;
 
@@ -962,7 +961,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_individual(tsk_treeseq_t *self, size_t index, tsk_individual_t *individual)
+tsk_treeseq_get_individual(tsk_treeseq_t *self, tsk_id_t index, tsk_individual_t *individual)
 {
     int ret = 0;
 
@@ -977,14 +976,14 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_population(tsk_treeseq_t *self, size_t index,
+tsk_treeseq_get_population(tsk_treeseq_t *self, tsk_id_t index,
         tsk_population_t *population)
 {
     return tsk_population_tbl_get_row(self->tables->populations, index, population);
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_get_provenance(tsk_treeseq_t *self, size_t index, tsk_provenance_t *provenance)
+tsk_treeseq_get_provenance(tsk_treeseq_t *self, tsk_id_t index, tsk_provenance_t *provenance)
 {
    return tsk_provenance_tbl_get_row(self->tables->provenances, index, provenance);
 }
@@ -1004,7 +1003,7 @@ tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self, tsk_id_t **sample_index_ma
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, size_t num_samples,
+tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samples,
         int flags, tsk_treeseq_t *output, tsk_id_t *node_map)
 {
     int ret = 0;
@@ -1036,16 +1035,16 @@ static int TSK_WARN_UNUSED
 tsk_tree_clear(tsk_tree_t *self)
 {
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t u;
-    const size_t N = self->num_nodes;
-    const size_t num_samples = self->tree_sequence->num_samples;
+    const tsk_size_t N = self->num_nodes;
+    const tsk_size_t num_samples = self->tree_sequence->num_samples;
     const bool sample_counts = !!(self->flags & TSK_SAMPLE_COUNTS);
     const bool sample_lists = !!(self->flags & TSK_SAMPLE_LISTS);
 
     self->left = 0;
     self->right = 0;
-    self->index = (size_t) -1;
+    self->index = -1;
     /* TODO we should profile this method to see if just doing a single loop over
      * the nodes would be more efficient than multiple memsets.
      */
@@ -1103,8 +1102,8 @@ int TSK_WARN_UNUSED
 tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, int flags)
 {
     int ret = TSK_ERR_NO_MEMORY;
-    size_t num_samples;
-    size_t num_nodes;
+    tsk_size_t num_samples;
+    tsk_size_t num_nodes;
 
     memset(self, 0, sizeof(tsk_tree_t));
     if (tree_sequence == NULL) {
@@ -1919,7 +1918,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
     }
 
     self->direction = direction;
-    self->index = (size_t) ((int64_t) self->index + direction);
+    self->index = self->index + direction;
     if (direction == TSK_DIR_FORWARD) {
         self->left = x;
         self->right = sequence_length;
@@ -1972,7 +1971,7 @@ tsk_tree_first(tsk_tree_t *self)
         if (ret != 0) {
             goto out;
         }
-        self->index = (size_t) -1;
+        self->index = -1;
         self->left_index = 0;
         self->right_index = 0;
         self->direction = TSK_DIR_FORWARD;
@@ -2009,7 +2008,7 @@ tsk_tree_last(tsk_tree_t *self)
         if (ret != 0) {
             goto out;
         }
-        self->index = tsk_treeseq_get_num_trees(ts);
+        self->index = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
         self->left_index = (tsk_id_t) tables->edges->num_rows - 1;
         self->right_index = (tsk_id_t) tables->edges->num_rows - 1;
         self->direction = TSK_DIR_REVERSE;
@@ -2031,7 +2030,7 @@ tsk_tree_next(tsk_tree_t *self)
     int ret = 0;
     tsk_treeseq_t *ts = self->tree_sequence;
     const tsk_tbl_collection_t *tables = ts->tables;
-    size_t num_trees = tsk_treeseq_get_num_trees(ts);
+    tsk_id_t num_trees = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
 
     if (self->index < num_trees - 1) {
         ret = tsk_tree_advance(self, TSK_DIR_FORWARD,

@@ -2050,7 +2050,7 @@ IndividualTable_get_row(IndividualTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_individual_tbl_get_row(self->table, (size_t) row_id, &individual);
+    err = tsk_individual_tbl_get_row(self->table, (tsk_id_t) row_id, &individual);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2130,7 +2130,7 @@ IndividualTable_truncate(IndividualTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_individual_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_individual_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2464,7 +2464,7 @@ NodeTable_get_row(NodeTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_node_tbl_get_row(self->table, (size_t) row_id, &node);
+    err = tsk_node_tbl_get_row(self->table, (tsk_id_t) row_id, &node);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2544,7 +2544,7 @@ NodeTable_truncate(NodeTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_node_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_node_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2878,7 +2878,7 @@ EdgeTable_get_row(EdgeTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_edge_tbl_get_row(self->table, (size_t) row_id, &edge);
+    err = tsk_edge_tbl_get_row(self->table, (tsk_id_t) row_id, &edge);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2958,7 +2958,7 @@ EdgeTable_truncate(EdgeTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_edge_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_edge_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3266,7 +3266,7 @@ MigrationTable_get_row(MigrationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_migration_tbl_get_row(self->table, (size_t) row_id, &migration);
+    err = tsk_migration_tbl_get_row(self->table, (tsk_id_t) row_id, &migration);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3346,7 +3346,7 @@ MigrationTable_truncate(MigrationTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_migration_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_migration_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3688,7 +3688,7 @@ SiteTable_get_row(SiteTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_site_tbl_get_row(self->table, (size_t) row_id, &site);
+    err = tsk_site_tbl_get_row(self->table, (tsk_id_t) row_id, &site);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3768,7 +3768,7 @@ SiteTable_truncate(SiteTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_site_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_site_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4113,7 +4113,7 @@ MutationTable_get_row(MutationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_mutation_tbl_get_row(self->table, (size_t) row_id, &mutation);
+    err = tsk_mutation_tbl_get_row(self->table, (tsk_id_t) row_id, &mutation);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4193,7 +4193,7 @@ MutationTable_truncate(MutationTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_mutation_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_mutation_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4561,7 +4561,7 @@ PopulationTable_get_row(PopulationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_population_tbl_get_row(self->table, (size_t) row_id, &population);
+    err = tsk_population_tbl_get_row(self->table, (tsk_id_t) row_id, &population);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4641,7 +4641,7 @@ PopulationTable_truncate(PopulationTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_population_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_population_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4920,7 +4920,7 @@ ProvenanceTable_get_row(ProvenanceTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_provenance_tbl_get_row(self->table, (size_t) row_id, &provenance);
+    err = tsk_provenance_tbl_get_row(self->table, (tsk_id_t) row_id, &provenance);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5000,7 +5000,7 @@ ProvenanceTable_truncate(ProvenanceTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_provenance_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_provenance_tbl_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -8218,7 +8218,7 @@ LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
     Py_ssize_t max_mutations = -1;
     double max_distance = DBL_MAX;
     int direction = TSK_DIR_FORWARD;
-    size_t num_r2_values = 0;
+    tsk_size_t num_r2_values = 0;
     int buffer_acquired = 0;
 
     if (LdCalculator_check_state(self) != 0) {
@@ -8256,8 +8256,8 @@ LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
 
     Py_BEGIN_ALLOW_THREADS
     err = tsk_ld_calc_get_r2_array(
-        self->ld_calc, (size_t) source_index, direction,
-        (size_t) max_mutations, max_distance,
+        self->ld_calc, (tsk_id_t) source_index, direction,
+        (tsk_size_t) max_mutations, max_distance,
         (double *) buffer.buf, &num_r2_values);
     Py_END_ALLOW_THREADS
     if (err != 0) {

@@ -401,11 +401,11 @@ The table is allocated with the default size increment.
 int tsk_individual_tbl_alloc(tsk_individual_tbl_t *self, int flags);
 
 
-int tsk_individual_tbl_set_max_rows_increment(tsk_individual_tbl_t *self, size_t max_rows_increment);
+int tsk_individual_tbl_set_max_rows_increment(tsk_individual_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_individual_tbl_set_max_metadata_length_increment(tsk_individual_tbl_t *self,
-        size_t max_metadata_length_increment);
+        tsk_size_t max_metadata_length_increment);
 int tsk_individual_tbl_set_max_location_length_increment(tsk_individual_tbl_t *self,
-        size_t max_location_length_increment);
+        tsk_size_t max_location_length_increment);
 
 /**
 @brief Adds a row to this individual table.
@@ -432,22 +432,22 @@ of the columns in this table.
     or a negative value on failure.
 */
 tsk_id_t tsk_individual_tbl_add_row(tsk_individual_tbl_t *self, uint32_t flags,
-        double *location, size_t location_length,
-        const char *metadata, size_t metadata_length);
-int tsk_individual_tbl_set_columns(tsk_individual_tbl_t *self, size_t num_rows, uint32_t *flags,
+        double *location, tsk_size_t location_length,
+        const char *metadata, tsk_size_t metadata_length);
+int tsk_individual_tbl_set_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, uint32_t *flags,
         double *location, tsk_size_t *location_length,
         const char *metadata, tsk_size_t *metadata_length);
-int tsk_individual_tbl_append_columns(tsk_individual_tbl_t *self, size_t num_rows, uint32_t *flags,
+int tsk_individual_tbl_append_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, uint32_t *flags,
         double *location, tsk_size_t *location_length,
         const char *metadata, tsk_size_t *metadata_length);
 int tsk_individual_tbl_clear(tsk_individual_tbl_t *self);
-int tsk_individual_tbl_truncate(tsk_individual_tbl_t *self, size_t num_rows);
+int tsk_individual_tbl_truncate(tsk_individual_tbl_t *self, tsk_size_t num_rows);
 int tsk_individual_tbl_free(tsk_individual_tbl_t *self);
 int tsk_individual_tbl_dump_text(tsk_individual_tbl_t *self, FILE *out);
 int tsk_individual_tbl_copy(tsk_individual_tbl_t *self, tsk_individual_tbl_t *dest);
 void tsk_individual_tbl_print_state(tsk_individual_tbl_t *self, FILE *out);
 bool tsk_individual_tbl_equals(tsk_individual_tbl_t *self, tsk_individual_tbl_t *other);
-int tsk_individual_tbl_get_row(tsk_individual_tbl_t *self, size_t index,
+int tsk_individual_tbl_get_row(tsk_individual_tbl_t *self, tsk_id_t index,
         tsk_individual_t *row);
 
 /** @} */
@@ -457,28 +457,28 @@ int tsk_individual_tbl_get_row(tsk_individual_tbl_t *self, size_t index,
 @{
 */
 int tsk_node_tbl_alloc(tsk_node_tbl_t *self, int flags);
-int tsk_node_tbl_set_max_rows_increment(tsk_node_tbl_t *self, size_t max_rows_increment);
+int tsk_node_tbl_set_max_rows_increment(tsk_node_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_node_tbl_set_max_metadata_length_increment(tsk_node_tbl_t *self,
-        size_t max_metadata_length_increment);
+        tsk_size_t max_metadata_length_increment);
 tsk_id_t tsk_node_tbl_add_row(tsk_node_tbl_t *self, uint32_t flags, double time,
         tsk_id_t population, tsk_id_t individual,
-        const char *metadata, size_t metadata_length);
-int tsk_node_tbl_set_columns(tsk_node_tbl_t *self, size_t num_rows,
+        const char *metadata, tsk_size_t metadata_length);
+int tsk_node_tbl_set_columns(tsk_node_tbl_t *self, tsk_size_t num_rows,
         uint32_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual,
         const char *metadata, tsk_size_t *metadata_length);
-int tsk_node_tbl_append_columns(tsk_node_tbl_t *self, size_t num_rows,
+int tsk_node_tbl_append_columns(tsk_node_tbl_t *self, tsk_size_t num_rows,
         uint32_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual,
         const char *metadata, tsk_size_t *metadata_length);
 int tsk_node_tbl_clear(tsk_node_tbl_t *self);
-int tsk_node_tbl_truncate(tsk_node_tbl_t *self, size_t num_rows);
+int tsk_node_tbl_truncate(tsk_node_tbl_t *self, tsk_size_t num_rows);
 int tsk_node_tbl_free(tsk_node_tbl_t *self);
 int tsk_node_tbl_dump_text(tsk_node_tbl_t *self, FILE *out);
 int tsk_node_tbl_copy(tsk_node_tbl_t *self, tsk_node_tbl_t *dest);
 void tsk_node_tbl_print_state(tsk_node_tbl_t *self, FILE *out);
 bool tsk_node_tbl_equals(tsk_node_tbl_t *self, tsk_node_tbl_t *other);
-int tsk_node_tbl_get_row(tsk_node_tbl_t *self, size_t index, tsk_node_t *row);
+int tsk_node_tbl_get_row(tsk_node_tbl_t *self, tsk_id_t index, tsk_node_t *row);
 
 /** @} */
 
@@ -487,21 +487,21 @@ int tsk_node_tbl_get_row(tsk_node_tbl_t *self, size_t index, tsk_node_t *row);
 @{
 */
 int tsk_edge_tbl_alloc(tsk_edge_tbl_t *self, int flags);
-int tsk_edge_tbl_set_max_rows_increment(tsk_edge_tbl_t *self, size_t max_rows_increment);
+int tsk_edge_tbl_set_max_rows_increment(tsk_edge_tbl_t *self, tsk_size_t max_rows_increment);
 tsk_id_t tsk_edge_tbl_add_row(tsk_edge_tbl_t *self, double left, double right, tsk_id_t parent,
         tsk_id_t child);
-int tsk_edge_tbl_set_columns(tsk_edge_tbl_t *self, size_t num_rows, double *left,
+int tsk_edge_tbl_set_columns(tsk_edge_tbl_t *self, tsk_size_t num_rows, double *left,
         double *right, tsk_id_t *parent, tsk_id_t *child);
-int tsk_edge_tbl_append_columns(tsk_edge_tbl_t *self, size_t num_rows, double *left,
+int tsk_edge_tbl_append_columns(tsk_edge_tbl_t *self, tsk_size_t num_rows, double *left,
         double *right, tsk_id_t *parent, tsk_id_t *child);
 int tsk_edge_tbl_clear(tsk_edge_tbl_t *self);
-int tsk_edge_tbl_truncate(tsk_edge_tbl_t *self, size_t num_rows);
+int tsk_edge_tbl_truncate(tsk_edge_tbl_t *self, tsk_size_t num_rows);
 int tsk_edge_tbl_free(tsk_edge_tbl_t *self);
 int tsk_edge_tbl_dump_text(tsk_edge_tbl_t *self, FILE *out);
 int tsk_edge_tbl_copy(tsk_edge_tbl_t *self, tsk_edge_tbl_t *dest);
 void tsk_edge_tbl_print_state(tsk_edge_tbl_t *self, FILE *out);
 bool tsk_edge_tbl_equals(tsk_edge_tbl_t *self, tsk_edge_tbl_t *other);
-int tsk_edge_tbl_get_row(tsk_edge_tbl_t *self, size_t index, tsk_edge_t *row);
+int tsk_edge_tbl_get_row(tsk_edge_tbl_t *self, tsk_id_t index, tsk_edge_t *row);
 
 /** @} */
 
@@ -510,28 +510,28 @@ int tsk_edge_tbl_get_row(tsk_edge_tbl_t *self, size_t index, tsk_edge_t *row);
 @{
 */
 int tsk_site_tbl_alloc(tsk_site_tbl_t *self, int flags);
-int tsk_site_tbl_set_max_rows_increment(tsk_site_tbl_t *self, size_t max_rows_increment);
+int tsk_site_tbl_set_max_rows_increment(tsk_site_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_site_tbl_set_max_metadata_length_increment(tsk_site_tbl_t *self,
-        size_t max_metadata_length_increment);
+        tsk_size_t max_metadata_length_increment);
 int tsk_site_tbl_set_max_ancestral_state_length_increment(tsk_site_tbl_t *self,
-        size_t max_ancestral_state_length_increment);
+        tsk_size_t max_ancestral_state_length_increment);
 tsk_id_t tsk_site_tbl_add_row(tsk_site_tbl_t *self, double position,
         const char *ancestral_state, tsk_size_t ancestral_state_length,
         const char *metadata, tsk_size_t metadata_length);
-int tsk_site_tbl_set_columns(tsk_site_tbl_t *self, size_t num_rows, double *position,
+int tsk_site_tbl_set_columns(tsk_site_tbl_t *self, tsk_size_t num_rows, double *position,
         const char *ancestral_state, tsk_size_t *ancestral_state_length,
         const char *metadata, tsk_size_t *metadata_length);
-int tsk_site_tbl_append_columns(tsk_site_tbl_t *self, size_t num_rows, double *position,
+int tsk_site_tbl_append_columns(tsk_site_tbl_t *self, tsk_size_t num_rows, double *position,
         const char *ancestral_state, tsk_size_t *ancestral_state_length,
         const char *metadata, tsk_size_t *metadata_length);
 bool tsk_site_tbl_equals(tsk_site_tbl_t *self, tsk_site_tbl_t *other);
 int tsk_site_tbl_clear(tsk_site_tbl_t *self);
-int tsk_site_tbl_truncate(tsk_site_tbl_t *self, size_t num_rows);
+int tsk_site_tbl_truncate(tsk_site_tbl_t *self, tsk_size_t num_rows);
 int tsk_site_tbl_copy(tsk_site_tbl_t *self, tsk_site_tbl_t *dest);
 int tsk_site_tbl_free(tsk_site_tbl_t *self);
 int tsk_site_tbl_dump_text(tsk_site_tbl_t *self, FILE *out);
 void tsk_site_tbl_print_state(tsk_site_tbl_t *self, FILE *out);
-int tsk_site_tbl_get_row(tsk_site_tbl_t *self, size_t index, tsk_site_t *row);
+int tsk_site_tbl_get_row(tsk_site_tbl_t *self, tsk_id_t index, tsk_site_t *row);
 
 /** @} */
 
@@ -541,31 +541,31 @@ int tsk_site_tbl_get_row(tsk_site_tbl_t *self, size_t index, tsk_site_t *row);
 */
 void tsk_mutation_tbl_print_state(tsk_mutation_tbl_t *self, FILE *out);
 int tsk_mutation_tbl_alloc(tsk_mutation_tbl_t *self, int flags);
-int tsk_mutation_tbl_set_max_rows_increment(tsk_mutation_tbl_t *self, size_t max_rows_increment);
+int tsk_mutation_tbl_set_max_rows_increment(tsk_mutation_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_mutation_tbl_set_max_metadata_length_increment(tsk_mutation_tbl_t *self,
-        size_t max_metadata_length_increment);
+        tsk_size_t max_metadata_length_increment);
 int tsk_mutation_tbl_set_max_derived_state_length_increment(tsk_mutation_tbl_t *self,
-        size_t max_derived_state_length_increment);
+        tsk_size_t max_derived_state_length_increment);
 tsk_id_t tsk_mutation_tbl_add_row(tsk_mutation_tbl_t *self, tsk_id_t site,
         tsk_id_t node, tsk_id_t parent,
         const char *derived_state, tsk_size_t derived_state_length,
         const char *metadata, tsk_size_t metadata_length);
-int tsk_mutation_tbl_set_columns(tsk_mutation_tbl_t *self, size_t num_rows,
+int tsk_mutation_tbl_set_columns(tsk_mutation_tbl_t *self, tsk_size_t num_rows,
         tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent,
         const char *derived_state, tsk_size_t *derived_state_length,
         const char *metadata, tsk_size_t *metadata_length);
-int tsk_mutation_tbl_append_columns(tsk_mutation_tbl_t *self, size_t num_rows,
+int tsk_mutation_tbl_append_columns(tsk_mutation_tbl_t *self, tsk_size_t num_rows,
         tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent,
         const char *derived_state, tsk_size_t *derived_state_length,
         const char *metadata, tsk_size_t *metadata_length);
 bool tsk_mutation_tbl_equals(tsk_mutation_tbl_t *self, tsk_mutation_tbl_t *other);
 int tsk_mutation_tbl_clear(tsk_mutation_tbl_t *self);
-int tsk_mutation_tbl_truncate(tsk_mutation_tbl_t *self, size_t num_rows);
+int tsk_mutation_tbl_truncate(tsk_mutation_tbl_t *self, tsk_size_t num_rows);
 int tsk_mutation_tbl_copy(tsk_mutation_tbl_t *self, tsk_mutation_tbl_t *dest);
 int tsk_mutation_tbl_free(tsk_mutation_tbl_t *self);
 int tsk_mutation_tbl_dump_text(tsk_mutation_tbl_t *self, FILE *out);
 void tsk_mutation_tbl_print_state(tsk_mutation_tbl_t *self, FILE *out);
-int tsk_mutation_tbl_get_row(tsk_mutation_tbl_t *self, size_t index, tsk_mutation_t *row);
+int tsk_mutation_tbl_get_row(tsk_mutation_tbl_t *self, tsk_id_t index, tsk_mutation_t *row);
 
 /** @} */
 
@@ -574,24 +574,24 @@ int tsk_mutation_tbl_get_row(tsk_mutation_tbl_t *self, size_t index, tsk_mutatio
 @{
 */
 int tsk_migration_tbl_alloc(tsk_migration_tbl_t *self, int flags);
-int tsk_migration_tbl_set_max_rows_increment(tsk_migration_tbl_t *self, size_t max_rows_increment);
+int tsk_migration_tbl_set_max_rows_increment(tsk_migration_tbl_t *self, tsk_size_t max_rows_increment);
 tsk_id_t tsk_migration_tbl_add_row(tsk_migration_tbl_t *self, double left,
         double right, tsk_id_t node, tsk_id_t source,
         tsk_id_t dest, double time);
-int tsk_migration_tbl_set_columns(tsk_migration_tbl_t *self, size_t num_rows,
+int tsk_migration_tbl_set_columns(tsk_migration_tbl_t *self, tsk_size_t num_rows,
         double *left, double *right, tsk_id_t *node, tsk_id_t *source,
         tsk_id_t *dest, double *time);
-int tsk_migration_tbl_append_columns(tsk_migration_tbl_t *self, size_t num_rows,
+int tsk_migration_tbl_append_columns(tsk_migration_tbl_t *self, tsk_size_t num_rows,
         double *left, double *right, tsk_id_t *node, tsk_id_t *source,
         tsk_id_t *dest, double *time);
 int tsk_migration_tbl_clear(tsk_migration_tbl_t *self);
-int tsk_migration_tbl_truncate(tsk_migration_tbl_t *self, size_t num_rows);
+int tsk_migration_tbl_truncate(tsk_migration_tbl_t *self, tsk_size_t num_rows);
 int tsk_migration_tbl_free(tsk_migration_tbl_t *self);
 int tsk_migration_tbl_copy(tsk_migration_tbl_t *self, tsk_migration_tbl_t *dest);
 int tsk_migration_tbl_dump_text(tsk_migration_tbl_t *self, FILE *out);
 void tsk_migration_tbl_print_state(tsk_migration_tbl_t *self, FILE *out);
 bool tsk_migration_tbl_equals(tsk_migration_tbl_t *self, tsk_migration_tbl_t *other);
-int tsk_migration_tbl_get_row(tsk_migration_tbl_t *self, size_t index, tsk_migration_t *row);
+int tsk_migration_tbl_get_row(tsk_migration_tbl_t *self, tsk_id_t index, tsk_migration_t *row);
 
 /** @} */
 
@@ -600,23 +600,23 @@ int tsk_migration_tbl_get_row(tsk_migration_tbl_t *self, size_t index, tsk_migra
 @{
 */
 int tsk_population_tbl_alloc(tsk_population_tbl_t *self, int flags);
-int tsk_population_tbl_set_max_rows_increment(tsk_population_tbl_t *self, size_t max_rows_increment);
+int tsk_population_tbl_set_max_rows_increment(tsk_population_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_population_tbl_set_max_metadata_length_increment(tsk_population_tbl_t *self,
-        size_t max_metadata_length_increment);
+        tsk_size_t max_metadata_length_increment);
 tsk_id_t tsk_population_tbl_add_row(tsk_population_tbl_t *self,
-        const char *metadata, size_t metadata_length);
-int tsk_population_tbl_set_columns(tsk_population_tbl_t *self, size_t num_rows,
+        const char *metadata, tsk_size_t metadata_length);
+int tsk_population_tbl_set_columns(tsk_population_tbl_t *self, tsk_size_t num_rows,
         const char *metadata, tsk_size_t *metadata_offset);
-int tsk_population_tbl_append_columns(tsk_population_tbl_t *self, size_t num_rows,
+int tsk_population_tbl_append_columns(tsk_population_tbl_t *self, tsk_size_t num_rows,
         const char *metadata, tsk_size_t *metadata_offset);
 int tsk_population_tbl_clear(tsk_population_tbl_t *self);
-int tsk_population_tbl_truncate(tsk_population_tbl_t *self, size_t num_rows);
+int tsk_population_tbl_truncate(tsk_population_tbl_t *self, tsk_size_t num_rows);
 int tsk_population_tbl_copy(tsk_population_tbl_t *self, tsk_population_tbl_t *dest);
 int tsk_population_tbl_free(tsk_population_tbl_t *self);
 void tsk_population_tbl_print_state(tsk_population_tbl_t *self, FILE *out);
 int tsk_population_tbl_dump_text(tsk_population_tbl_t *self, FILE *out);
 bool tsk_population_tbl_equals(tsk_population_tbl_t *self, tsk_population_tbl_t *other);
-int tsk_population_tbl_get_row(tsk_population_tbl_t *self, size_t index, tsk_population_t *row);
+int tsk_population_tbl_get_row(tsk_population_tbl_t *self, tsk_id_t index, tsk_population_t *row);
 
 /** @} */
 
@@ -625,28 +625,28 @@ int tsk_population_tbl_get_row(tsk_population_tbl_t *self, size_t index, tsk_pop
 @{
 */
 int tsk_provenance_tbl_alloc(tsk_provenance_tbl_t *self, int flags);
-int tsk_provenance_tbl_set_max_rows_increment(tsk_provenance_tbl_t *self, size_t max_rows_increment);
+int tsk_provenance_tbl_set_max_rows_increment(tsk_provenance_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_provenance_tbl_set_max_timestamp_length_increment(tsk_provenance_tbl_t *self,
-        size_t max_timestamp_length_increment);
+        tsk_size_t max_timestamp_length_increment);
 int tsk_provenance_tbl_set_max_record_length_increment(tsk_provenance_tbl_t *self,
-        size_t max_record_length_increment);
+        tsk_size_t max_record_length_increment);
 tsk_id_t tsk_provenance_tbl_add_row(tsk_provenance_tbl_t *self,
-        const char *timestamp, size_t timestamp_length,
-        const char *record, size_t record_length);
-int tsk_provenance_tbl_set_columns(tsk_provenance_tbl_t *self, size_t num_rows,
+        const char *timestamp, tsk_size_t timestamp_length,
+        const char *record, tsk_size_t record_length);
+int tsk_provenance_tbl_set_columns(tsk_provenance_tbl_t *self, tsk_size_t num_rows,
        char *timestamp, tsk_size_t *timestamp_offset,
        char *record, tsk_size_t *record_offset);
-int tsk_provenance_tbl_append_columns(tsk_provenance_tbl_t *self, size_t num_rows,
+int tsk_provenance_tbl_append_columns(tsk_provenance_tbl_t *self, tsk_size_t num_rows,
         char *timestamp, tsk_size_t *timestamp_offset,
         char *record, tsk_size_t *record_offset);
 int tsk_provenance_tbl_clear(tsk_provenance_tbl_t *self);
-int tsk_provenance_tbl_truncate(tsk_provenance_tbl_t *self, size_t num_rows);
+int tsk_provenance_tbl_truncate(tsk_provenance_tbl_t *self, tsk_size_t num_rows);
 int tsk_provenance_tbl_copy(tsk_provenance_tbl_t *self, tsk_provenance_tbl_t *dest);
 int tsk_provenance_tbl_free(tsk_provenance_tbl_t *self);
 int tsk_provenance_tbl_dump_text(tsk_provenance_tbl_t *self, FILE *out);
 void tsk_provenance_tbl_print_state(tsk_provenance_tbl_t *self, FILE *out);
 bool tsk_provenance_tbl_equals(tsk_provenance_tbl_t *self, tsk_provenance_tbl_t *other);
-int tsk_provenance_tbl_get_row(tsk_provenance_tbl_t *self, size_t index, tsk_provenance_t *row);
+int tsk_provenance_tbl_get_row(tsk_provenance_tbl_t *self, tsk_id_t index, tsk_provenance_t *row);
 
 /** @} */
 
@@ -695,8 +695,8 @@ bool tsk_tbl_collection_is_indexed(tsk_tbl_collection_t *self);
 int tsk_tbl_collection_drop_indexes(tsk_tbl_collection_t *self);
 int tsk_tbl_collection_build_indexes(tsk_tbl_collection_t *self, int flags);
 int tsk_tbl_collection_simplify(tsk_tbl_collection_t *self,
-        tsk_id_t *samples, size_t num_samples, int flags, tsk_id_t *node_map);
-int tsk_tbl_collection_sort(tsk_tbl_collection_t *self, size_t edge_start, int flags);
+        tsk_id_t *samples, tsk_size_t num_samples, int flags, tsk_id_t *node_map);
+int tsk_tbl_collection_sort(tsk_tbl_collection_t *self, tsk_size_t edge_start, int flags);
 int tsk_tbl_collection_deduplicate_sites(tsk_tbl_collection_t *tables, int flags);
 int tsk_tbl_collection_compute_mutation_parents(tsk_tbl_collection_t *self, int flags);
 bool tsk_tbl_collection_equals(tsk_tbl_collection_t *self, tsk_tbl_collection_t *other);
