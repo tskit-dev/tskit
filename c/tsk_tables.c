@@ -419,15 +419,14 @@ int
 tsk_individual_tbl_truncate(tsk_individual_tbl_t *self, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = (tsk_size_t) num_rows;
 
-    if (n > self->num_rows) {
+    if (num_rows > self->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    self->num_rows = n;
-    self->location_length = self->location_offset[n];
-    self->metadata_length = self->metadata_offset[n];
+    self->num_rows = num_rows;
+    self->location_length = self->location_offset[num_rows];
+    self->metadata_length = self->metadata_offset[num_rows];
 out:
     return ret;
 }
@@ -843,14 +842,13 @@ int
 tsk_node_tbl_truncate(tsk_node_tbl_t *self, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = num_rows;
 
-    if (n > self->num_rows) {
+    if (num_rows > self->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    self->num_rows = n;
-    self->metadata_length = self->metadata_offset[n];
+    self->num_rows = num_rows;
+    self->metadata_length = self->metadata_offset[num_rows];
 out:
     return ret;
 }
@@ -1139,13 +1137,12 @@ int
 tsk_edge_tbl_truncate(tsk_edge_tbl_t *self, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = num_rows;
 
-    if (n > self->num_rows) {
+    if (num_rows > self->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    self->num_rows = n;
+    self->num_rows = num_rows;
 out:
     return ret;
 }
@@ -1563,14 +1560,14 @@ int
 tsk_site_tbl_truncate(tsk_site_tbl_t *self, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = (tsk_size_t) num_rows;
-    if (n > self->num_rows) {
+
+    if (num_rows > self->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    self->num_rows = n;
-    self->ancestral_state_length = self->ancestral_state_offset[n];
-    self->metadata_length = self->metadata_offset[n];
+    self->num_rows = num_rows;
+    self->ancestral_state_length = self->ancestral_state_offset[num_rows];
+    self->metadata_length = self->metadata_offset[num_rows];
 out:
     return ret;
 }
@@ -2032,15 +2029,14 @@ int
 tsk_mutation_tbl_truncate(tsk_mutation_tbl_t *mutations, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = num_rows;
 
-    if (n > mutations->num_rows) {
+    if (num_rows > mutations->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    mutations->num_rows = n;
-    mutations->derived_state_length = mutations->derived_state_offset[n];
-    mutations->metadata_length = mutations->metadata_offset[n];
+    mutations->num_rows = num_rows;
+    mutations->derived_state_length = mutations->derived_state_offset[num_rows];
+    mutations->metadata_length = mutations->metadata_offset[num_rows];
 out:
     return ret;
 }
@@ -2657,14 +2653,13 @@ int
 tsk_population_tbl_truncate(tsk_population_tbl_t *self, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = (tsk_size_t) num_rows;
 
-    if (n > self->num_rows) {
+    if (num_rows > self->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    self->num_rows = n;
-    self->metadata_length = self->metadata_offset[n];
+    self->num_rows = num_rows;
+    self->metadata_length = self->metadata_offset[num_rows];
 out:
     return ret;
 }
@@ -3054,15 +3049,14 @@ int
 tsk_provenance_tbl_truncate(tsk_provenance_tbl_t *self, tsk_size_t num_rows)
 {
     int ret = 0;
-    tsk_size_t n = (tsk_size_t) num_rows;
 
-    if (n > self->num_rows) {
+    if (num_rows > self->num_rows) {
         ret = TSK_ERR_BAD_TABLE_POSITION;
         goto out;
     }
-    self->num_rows = n;
-    self->timestamp_length = self->timestamp_offset[n];
-    self->record_length = self->record_offset[n];
+    self->num_rows = num_rows;
+    self->timestamp_length = self->timestamp_offset[num_rows];
+    self->record_length = self->record_offset[num_rows];
 out:
     return ret;
 }
