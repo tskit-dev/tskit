@@ -2003,7 +2003,7 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
         location_length = (tsk_size_t) shape[0];
         location_data = PyArray_DATA(location_array);
     }
-    err = tsk_individual_tbl_add_row(self->table, (uint32_t) flags,
+    err = tsk_individual_tbl_add_row(self->table, (tsk_flags_t) flags,
             location_data, location_length, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
@@ -2419,7 +2419,7 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_node_tbl_add_row(self->table, (uint32_t) flags, time,
+    err = tsk_node_tbl_add_row(self->table, (tsk_flags_t) flags, time,
             (tsk_id_t) population, individual, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
@@ -5388,7 +5388,7 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     PyArrayObject *node_map_array = NULL;
     npy_intp *shape, dims;
     size_t num_samples;
-    int flags = 0;
+    tsk_flags_t options = 0;
     int filter_sites = true;
     int filter_individuals = false;
     int filter_populations = false;
@@ -5410,16 +5410,16 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     shape = PyArray_DIMS(samples_array);
     num_samples = shape[0];
     if (filter_sites) {
-        flags |= TSK_FILTER_SITES;
+        options |= TSK_FILTER_SITES;
     }
     if (filter_individuals) {
-        flags |= TSK_FILTER_INDIVIDUALS;
+        options |= TSK_FILTER_INDIVIDUALS;
     }
     if (filter_populations) {
-        flags |= TSK_FILTER_POPULATIONS;
+        options |= TSK_FILTER_POPULATIONS;
     }
     if (reduce_to_site_topology) {
-        flags |= TSK_REDUCE_TO_SITE_TOPOLOGY;
+        options |= TSK_REDUCE_TO_SITE_TOPOLOGY;
     }
 
     /* Allocate a new array to hold the node map. */
@@ -5429,7 +5429,7 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     err = tsk_tbl_collection_simplify(self->tables,
-            PyArray_DATA(samples_array), num_samples, flags,
+            PyArray_DATA(samples_array), num_samples, options,
             PyArray_DATA(node_map_array));
     if (err != 0) {
         handle_library_error(err);
@@ -5449,14 +5449,12 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     int err;
     PyObject *ret = NULL;
     Py_ssize_t edge_start = 0;
-    int flags = 0;
-
     static char *kwlist[] = {"edge_start", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &edge_start)) {
         goto out;
     }
-    err = tsk_tbl_collection_sort(self->tables, (size_t) edge_start, flags);
+    err = tsk_tbl_collection_sort(self->tables, (size_t) edge_start, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5645,7 +5643,6 @@ TreeSequence_dump(TreeSequence *self, PyObject *args, PyObject *kwds)
     int err;
     char *path;
     PyObject *ret = NULL;
-    int flags = 0;
     static char *kwlist[] = {"path", NULL};
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
@@ -5654,7 +5651,7 @@ TreeSequence_dump(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &path)) {
         goto out;
     }
-    err = tsk_treeseq_dump(self->tree_sequence, path, flags);
+    err = tsk_treeseq_dump(self->tree_sequence, path, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5672,7 +5669,7 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     TableCollection *tables = NULL;
     static char *kwlist[] = {"tables", NULL};
     /* TODO add an interface to turn this on and off. */
-    int flags = TSK_BUILD_INDEXES;
+    tsk_flags_t options = TSK_BUILD_INDEXES;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!", kwlist,
             &TableCollectionType, &tables)) {
@@ -5682,7 +5679,7 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_alloc(self->tree_sequence, tables->tables, flags);
+    err = tsk_treeseq_alloc(self->tree_sequence, tables->tables, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5722,7 +5719,6 @@ TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     int err;
     char *path;
-    int flags = 0;
     PyObject *ret = NULL;
     static char *kwlist[] = {"path", NULL};
 
@@ -5733,7 +5729,7 @@ TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_load(self->tree_sequence, path, flags);
+    err = tsk_treeseq_load(self->tree_sequence, path, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6645,19 +6641,19 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "flags", "tracked_samples",
+    static char *kwlist[] = {"tree_sequence", "options", "tracked_samples",
         NULL};
     PyObject *py_tracked_samples = NULL;
     TreeSequence *tree_sequence = NULL;
     tsk_id_t *tracked_samples = NULL;
-    int flags = 0;
+    unsigned int options = 0;
     size_t j, num_tracked_samples, num_nodes;
     PyObject *item;
 
     self->tree = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|iO!", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|IO!", kwlist,
             &TreeSequenceType, &tree_sequence,
-            &flags, &PyList_Type, &py_tracked_samples)) {
+            &options, &PyList_Type, &py_tracked_samples)) {
         goto out;
     }
     self->tree_sequence = tree_sequence;
@@ -6668,7 +6664,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
     num_nodes = tsk_treeseq_get_num_nodes(tree_sequence->tree_sequence);
     num_tracked_samples = 0;
     if (py_tracked_samples != NULL) {
-        if (!(flags & TSK_SAMPLE_COUNTS)) {
+        if (!(options & TSK_SAMPLE_COUNTS)) {
             PyErr_SetString(PyExc_ValueError,
                 "Cannot specified tracked_samples without count_samples flag");
             goto out;
@@ -6697,13 +6693,12 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_tree_alloc(self->tree, tree_sequence->tree_sequence,
-           flags);
+    err = tsk_tree_alloc(self->tree, tree_sequence->tree_sequence, (tsk_flags_t) options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    if (!!(flags & TSK_SAMPLE_COUNTS)) {
+    if (!!(options & TSK_SAMPLE_COUNTS)) {
         err = tsk_tree_set_tracked_samples(self->tree, num_tracked_samples,
                 tracked_samples);
         if (err != 0) {
@@ -6831,14 +6826,14 @@ out:
 }
 
 static PyObject *
-Tree_get_flags(Tree *self)
+Tree_get_options(Tree *self)
 {
     PyObject *ret = NULL;
 
     if (Tree_check_tree(self) != 0) {
         goto out;
     }
-    ret = Py_BuildValue("i", self->tree->flags);
+    ret = Py_BuildValue("i", self->tree->options);
 out:
     return ret;
 }
@@ -7271,8 +7266,8 @@ static PyMethodDef Tree_methods[] = {
             "Returns the right-most coordinate (exclusive)." },
     {"get_sites", (PyCFunction) Tree_get_sites, METH_NOARGS,
             "Returns the list of sites on this tree." },
-    {"get_flags", (PyCFunction) Tree_get_flags, METH_NOARGS,
-            "Returns the value of the flags variable." },
+    {"get_options", (PyCFunction) Tree_get_options, METH_NOARGS,
+            "Returns the value of the options variable." },
     {"get_num_sites", (PyCFunction) Tree_get_num_sites, METH_NOARGS,
             "Returns the number of sites on this tree." },
     {"is_sample", (PyCFunction) Tree_is_sample, METH_VARARGS,

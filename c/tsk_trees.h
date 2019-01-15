@@ -47,7 +47,7 @@ typedef struct {
 typedef struct {
     tsk_treeseq_t *tree_sequence;
     tsk_size_t num_nodes;
-    int flags;
+    tsk_flags_t options;
     tsk_id_t *samples;
     /* The left-most root in the forest. Roots are sibs and all roots are found
      * via left_sib and right_sib */
@@ -120,10 +120,10 @@ structures that facilitate efficient tree iteratation and other operations.
 
 @param self A pointer to an uninitialised tsk_treeseq_t object.
 @param tables A pointer to a tsk_tbl_collection_t object.
-@param flags Allocation time options.
+@param options Allocation time options.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_tbl_collection_t *tables, int flags);
+int tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_tbl_collection_t *tables, tsk_flags_t options);
 
 /**
 @brief Load a tree sequence from file.
@@ -134,12 +134,12 @@ Reads a tree sequence from the specified file.
 
 @param self A pointer to an uninitialised tsk_treeseq_t object.
 @param filename A NULL terminated string containing the filename.
-@param flags Load time options. Currently unused.
+@param options Load time options. Currently unused.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, int flags);
+int tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
 
-int tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, int flags);
+int tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
 int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_tbl_collection_t *tables);
 int tsk_treeseq_free(tsk_treeseq_t *self);
 void tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out);
@@ -176,7 +176,7 @@ int tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self,
         tsk_id_t **sample_index_map);
 
 int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples,
-        tsk_size_t num_samples, int flags, tsk_treeseq_t *output,
+        tsk_size_t num_samples, tsk_flags_t options, tsk_treeseq_t *output,
         tsk_id_t *node_map);
 /* TODO do these belong in trees or stats? They should probably be in stats.
  * Keep them here for now until we figure out the correct interface.
@@ -186,10 +186,10 @@ int tsk_treeseq_get_pairwise_diversity(tsk_treeseq_t *self,
 int tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
         tsk_id_t *focal, size_t num_focal,
         tsk_id_t **reference_sets, size_t *reference_set_size, size_t num_reference_sets,
-        int flags, double *ret_array);
+        tsk_flags_t options, double *ret_array);
 int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
         tsk_id_t **reference_sets, size_t *reference_set_size, size_t num_reference_sets,
-        int flags, double *ret_array);
+        tsk_flags_t options, double *ret_array);
 
 
 /****************************************************************************/
@@ -197,7 +197,7 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
 /****************************************************************************/
 
 int tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence,
-        int flags);
+        tsk_flags_t options);
 int tsk_tree_free(tsk_tree_t *self);
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);

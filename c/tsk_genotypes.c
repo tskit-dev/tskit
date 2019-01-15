@@ -218,10 +218,10 @@ out:
 
 int
 tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_id_t *samples, size_t num_samples, int flags)
+        tsk_id_t *samples, size_t num_samples, tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
-    int tree_flags;
+    tsk_flags_t tree_options;
     size_t j, num_nodes, num_samples_alloc;
     tsk_size_t max_alleles = 4;
 
@@ -260,8 +260,8 @@ tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     }
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->tree_sequence = tree_sequence;
-    self->flags = flags;
-    if (self->flags & TSK_16_BIT_GENOTYPES) {
+    self->options = options;
+    if (self->options & TSK_16_BIT_GENOTYPES) {
         self->variant.genotypes.u16 = malloc(
             num_samples_alloc * sizeof(*self->variant.genotypes.u16));
     } else {
@@ -280,11 +280,11 @@ tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     }
     /* When a list of samples is given, we use the traversal based algorithm
      * and turn off the sample list tracking in the tree */
-    tree_flags = 0;
+    tree_options = 0;
     if (self->samples == NULL) {
-        tree_flags = TSK_SAMPLE_LISTS;
+        tree_options = TSK_SAMPLE_LISTS;
     }
-    ret = tsk_tree_alloc(&self->tree, tree_sequence, tree_flags);
+    ret = tsk_tree_alloc(&self->tree, tree_sequence, tree_options);
     if (ret != 0) {
         goto out;
     }
@@ -319,7 +319,7 @@ tsk_vargen_expand_alleles(tsk_vargen_t *self)
     void *p;
     tsk_size_t hard_limit = UINT8_MAX;
 
-    if (self->flags & TSK_16_BIT_GENOTYPES) {
+    if (self->options & TSK_16_BIT_GENOTYPES) {
         hard_limit = UINT16_MAX;
     }
     if (var->max_alleles == hard_limit) {
@@ -505,7 +505,7 @@ tsk_vargen_update_site(tsk_vargen_t *self)
     tsk_variant_t *var = &self->variant;
     tsk_site_t *site = var->site;
     tsk_mutation_t mutation;
-    bool genotypes16 = !!(self->flags & TSK_16_BIT_GENOTYPES);
+    bool genotypes16 = !!(self->options & TSK_16_BIT_GENOTYPES);
     bool by_traversal = self->samples != NULL;
     int (*update_genotypes)(tsk_vargen_t *, tsk_id_t, tsk_size_t);
 

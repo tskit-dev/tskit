@@ -392,7 +392,7 @@ test_single_tree_vargen_many_alleles(void)
     tsk_variant_t *var;
     tsk_size_t num_alleles = 257;
     tsk_id_t j, k, l;
-    int flags;
+    tsk_flags_t options;
     char alleles[num_alleles];
     tsk_tbl_collection_t tables;
 
@@ -416,11 +416,11 @@ test_single_tree_vargen_many_alleles(void)
         ret = tsk_treeseq_alloc(&ts, &tables, TSK_BUILD_INDEXES);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         for (l = 0; l < 2; l++) {
-            flags = 0;
+            options = 0;
             if (l == 1) {
-                flags = TSK_16_BIT_GENOTYPES;
+                options = TSK_16_BIT_GENOTYPES;
             }
-            ret = tsk_vargen_alloc(&vargen, &ts, NULL, 0, flags);
+            ret = tsk_vargen_alloc(&vargen, &ts, NULL, 0, options);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             tsk_vargen_print_state(&vargen, _devnull);
             ret = tsk_vargen_next(&vargen, &var);
@@ -527,7 +527,7 @@ test_single_tree_inconsistent_mutations(void)
     tsk_variant_t *var;
     tsk_vargen_t vargen;
     tsk_hapgen_t hapgen;
-    int flags[] = {0, TSK_16_BIT_GENOTYPES};
+    tsk_flags_t options[] = {0, TSK_16_BIT_GENOTYPES};
     tsk_id_t all_samples[] = {0, 1, 2, 3};
     tsk_id_t *samples[] = {NULL, all_samples};
     size_t num_samples = 4;
@@ -542,8 +542,8 @@ test_single_tree_inconsistent_mutations(void)
     ret = tsk_hapgen_free(&hapgen);
 
     for (s = 0; s < 2; s++) {
-        for (f = 0; f < sizeof(flags) / sizeof(*flags); f++) {
-            ret = tsk_vargen_alloc(&vargen, &ts, samples[s], num_samples, flags[f]);
+        for (f = 0; f < sizeof(options) / sizeof(*options); f++) {
+            ret = tsk_vargen_alloc(&vargen, &ts, samples[s], num_samples, options[f]);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             ret = tsk_vargen_next(&vargen, &var);
             CU_ASSERT_EQUAL_FATAL(ret, 1);

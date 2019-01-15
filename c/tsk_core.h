@@ -84,7 +84,7 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 
 /* Generic debug flag shared across all calls. Uses
  * the top bit to avoid clashes with other flags. */
-#define TSK_DEBUG                       (1 << 31)
+#define TSK_DEBUG                       (1u << 31)
 
 #define TSK_LOAD_EXTENDED_CHECKS  1
 

@@ -38,6 +38,16 @@ Sizes in tskit are defined by the ``tsk_size_t`` type.
 */
 typedef uint32_t tsk_size_t;
 
+/**
+@brief Container for bitwise flags.
+
+@rst
+Bitwise flags are used in tskit as a column type and also as a way to 
+specify options to API functions. 
+@endrst
+*/
+typedef uint32_t tsk_flags_t;
+
 /****************************************************************************/
 /* Definitions for the basic objects */
 /****************************************************************************/
@@ -54,7 +64,7 @@ typedef struct {
     /** @brief The non-negative ID value corresponding to table row. */
     tsk_id_t id;
     /** @brief The bitwise flags. */
-    uint32_t flags;
+    tsk_flags_t flags;
     /** @brief The spatial location. The number of dimensions is defined by
      * ``location_length``. */
     double *location;
@@ -78,7 +88,7 @@ a node and its properties.
 */
 typedef struct {
     tsk_id_t id;
-    uint32_t flags;
+    tsk_flags_t flags;
     double time;
     tsk_id_t population;
     tsk_id_t individual;
@@ -211,7 +221,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
-    uint32_t *flags;
+    tsk_flags_t *flags;
     double *location;
     tsk_size_t *location_offset;
     char *metadata;
@@ -228,7 +238,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
-    uint32_t *flags;
+    tsk_flags_t *flags;
     double *time;
     tsk_id_t *population;
     tsk_id_t *individual;
@@ -395,10 +405,10 @@ The table is allocated with the default size increment.
 @endrst
 
 @param self A pointer to an uninitialised tsk_individual_tbl_t object.
-@param flags Allocation time options. Currently unused.
+@param options Allocation time options. Currently unused.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_individual_tbl_alloc(tsk_individual_tbl_t *self, int flags);
+int tsk_individual_tbl_alloc(tsk_individual_tbl_t *self, tsk_flags_t options);
 
 
 int tsk_individual_tbl_set_max_rows_increment(tsk_individual_tbl_t *self, tsk_size_t max_rows_increment);
@@ -431,13 +441,13 @@ of the columns in this table.
 @return Return the ID of the newly added individual on success,
     or a negative value on failure.
 */
-tsk_id_t tsk_individual_tbl_add_row(tsk_individual_tbl_t *self, uint32_t flags,
+tsk_id_t tsk_individual_tbl_add_row(tsk_individual_tbl_t *self, tsk_flags_t flags,
         double *location, tsk_size_t location_length,
         const char *metadata, tsk_size_t metadata_length);
-int tsk_individual_tbl_set_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, uint32_t *flags,
+int tsk_individual_tbl_set_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, tsk_flags_t *flags,
         double *location, tsk_size_t *location_length,
         const char *metadata, tsk_size_t *metadata_length);
-int tsk_individual_tbl_append_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, uint32_t *flags,
+int tsk_individual_tbl_append_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, tsk_flags_t *flags,
         double *location, tsk_size_t *location_length,
         const char *metadata, tsk_size_t *metadata_length);
 int tsk_individual_tbl_clear(tsk_individual_tbl_t *self);
@@ -456,19 +466,19 @@ int tsk_individual_tbl_get_row(tsk_individual_tbl_t *self, tsk_id_t index,
 @defgroup NODE_TABLE_API_GROUP Node table API.
 @{
 */
-int tsk_node_tbl_alloc(tsk_node_tbl_t *self, int flags);
+int tsk_node_tbl_alloc(tsk_node_tbl_t *self, tsk_flags_t options);
 int tsk_node_tbl_set_max_rows_increment(tsk_node_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_node_tbl_set_max_metadata_length_increment(tsk_node_tbl_t *self,
         tsk_size_t max_metadata_length_increment);
-tsk_id_t tsk_node_tbl_add_row(tsk_node_tbl_t *self, uint32_t flags, double time,
+tsk_id_t tsk_node_tbl_add_row(tsk_node_tbl_t *self, tsk_flags_t flags, double time,
         tsk_id_t population, tsk_id_t individual,
         const char *metadata, tsk_size_t metadata_length);
 int tsk_node_tbl_set_columns(tsk_node_tbl_t *self, tsk_size_t num_rows,
-        uint32_t *flags, double *time,
+        tsk_flags_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual,
         const char *metadata, tsk_size_t *metadata_length);
 int tsk_node_tbl_append_columns(tsk_node_tbl_t *self, tsk_size_t num_rows,
-        uint32_t *flags, double *time,
+        tsk_flags_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual,
         const char *metadata, tsk_size_t *metadata_length);
 int tsk_node_tbl_clear(tsk_node_tbl_t *self);
@@ -486,7 +496,7 @@ int tsk_node_tbl_get_row(tsk_node_tbl_t *self, tsk_id_t index, tsk_node_t *row);
 @defgroup EDGE_TABLE_API_GROUP Edge table API.
 @{
 */
-int tsk_edge_tbl_alloc(tsk_edge_tbl_t *self, int flags);
+int tsk_edge_tbl_alloc(tsk_edge_tbl_t *self, tsk_flags_t options);
 int tsk_edge_tbl_set_max_rows_increment(tsk_edge_tbl_t *self, tsk_size_t max_rows_increment);
 tsk_id_t tsk_edge_tbl_add_row(tsk_edge_tbl_t *self, double left, double right, tsk_id_t parent,
         tsk_id_t child);
@@ -509,7 +519,7 @@ int tsk_edge_tbl_get_row(tsk_edge_tbl_t *self, tsk_id_t index, tsk_edge_t *row);
 @defgroup SITE_TABLE_API_GROUP Site table API.
 @{
 */
-int tsk_site_tbl_alloc(tsk_site_tbl_t *self, int flags);
+int tsk_site_tbl_alloc(tsk_site_tbl_t *self, tsk_flags_t options);
 int tsk_site_tbl_set_max_rows_increment(tsk_site_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_site_tbl_set_max_metadata_length_increment(tsk_site_tbl_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -540,7 +550,7 @@ int tsk_site_tbl_get_row(tsk_site_tbl_t *self, tsk_id_t index, tsk_site_t *row);
 @{
 */
 void tsk_mutation_tbl_print_state(tsk_mutation_tbl_t *self, FILE *out);
-int tsk_mutation_tbl_alloc(tsk_mutation_tbl_t *self, int flags);
+int tsk_mutation_tbl_alloc(tsk_mutation_tbl_t *self, tsk_flags_t options);
 int tsk_mutation_tbl_set_max_rows_increment(tsk_mutation_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_mutation_tbl_set_max_metadata_length_increment(tsk_mutation_tbl_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -573,7 +583,7 @@ int tsk_mutation_tbl_get_row(tsk_mutation_tbl_t *self, tsk_id_t index, tsk_mutat
 @defgroup MIGRATION_TABLE_API_GROUP Migration table API.
 @{
 */
-int tsk_migration_tbl_alloc(tsk_migration_tbl_t *self, int flags);
+int tsk_migration_tbl_alloc(tsk_migration_tbl_t *self, tsk_flags_t options);
 int tsk_migration_tbl_set_max_rows_increment(tsk_migration_tbl_t *self, tsk_size_t max_rows_increment);
 tsk_id_t tsk_migration_tbl_add_row(tsk_migration_tbl_t *self, double left,
         double right, tsk_id_t node, tsk_id_t source,
@@ -599,7 +609,7 @@ int tsk_migration_tbl_get_row(tsk_migration_tbl_t *self, tsk_id_t index, tsk_mig
 @defgroup POPULATION_TABLE_API_GROUP Population table API.
 @{
 */
-int tsk_population_tbl_alloc(tsk_population_tbl_t *self, int flags);
+int tsk_population_tbl_alloc(tsk_population_tbl_t *self, tsk_flags_t options);
 int tsk_population_tbl_set_max_rows_increment(tsk_population_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_population_tbl_set_max_metadata_length_increment(tsk_population_tbl_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -624,7 +634,7 @@ int tsk_population_tbl_get_row(tsk_population_tbl_t *self, tsk_id_t index, tsk_p
 @defgroup PROVENANCE_TABLE_API_GROUP Provenance table API.
 @{
 */
-int tsk_provenance_tbl_alloc(tsk_provenance_tbl_t *self, int flags);
+int tsk_provenance_tbl_alloc(tsk_provenance_tbl_t *self, tsk_flags_t options);
 int tsk_provenance_tbl_set_max_rows_increment(tsk_provenance_tbl_t *self, tsk_size_t max_rows_increment);
 int tsk_provenance_tbl_set_max_timestamp_length_increment(tsk_provenance_tbl_t *self,
         tsk_size_t max_timestamp_length_increment);
@@ -668,10 +678,10 @@ The sequence length is set to zero.
 @endrst
 
 @param self A pointer to an uninitialised tsk_tbl_collection_t object.
-@param flags Allocation time options. Currently unused.
+@param options Allocation time options. Currently unused.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_tbl_collection_alloc(tsk_tbl_collection_t *self, int flags);
+int tsk_tbl_collection_alloc(tsk_tbl_collection_t *self, tsk_flags_t options);
 
 /**
 @brief Load a table collection from file.
@@ -682,30 +692,33 @@ Reads a table collection from the specified file.
 
 @param self A pointer to an uninitialised tsk_tbl_collection_t object.
 @param filename A NULL terminated string containing the filename.
-@param flags Load time options. Currently unused.
+@param options Load time options. Currently unused.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_tbl_collection_load(tsk_tbl_collection_t *self, const char *filename, int flags);
-int tsk_tbl_collection_dump(tsk_tbl_collection_t *tables, const char *filename, int flags);
+int tsk_tbl_collection_load(tsk_tbl_collection_t *self, const char *filename, 
+    tsk_flags_t options);
+int tsk_tbl_collection_dump(tsk_tbl_collection_t *tables, const char *filename, 
+    tsk_flags_t options);
 int tsk_tbl_collection_copy(tsk_tbl_collection_t *self, tsk_tbl_collection_t *dest);
 int tsk_tbl_collection_print_state(tsk_tbl_collection_t *self, FILE *out);
 int tsk_tbl_collection_free(tsk_tbl_collection_t *self);
 
 bool tsk_tbl_collection_is_indexed(tsk_tbl_collection_t *self);
 int tsk_tbl_collection_drop_indexes(tsk_tbl_collection_t *self);
-int tsk_tbl_collection_build_indexes(tsk_tbl_collection_t *self, int flags);
+int tsk_tbl_collection_build_indexes(tsk_tbl_collection_t *self, tsk_flags_t options);
 int tsk_tbl_collection_simplify(tsk_tbl_collection_t *self,
-        tsk_id_t *samples, tsk_size_t num_samples, int flags, tsk_id_t *node_map);
-int tsk_tbl_collection_sort(tsk_tbl_collection_t *self, tsk_size_t edge_start, int flags);
-int tsk_tbl_collection_deduplicate_sites(tsk_tbl_collection_t *tables, int flags);
-int tsk_tbl_collection_compute_mutation_parents(tsk_tbl_collection_t *self, int flags);
+    tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
+int tsk_tbl_collection_sort(tsk_tbl_collection_t *self, tsk_size_t edge_start, 
+    tsk_flags_t options);
+int tsk_tbl_collection_deduplicate_sites(tsk_tbl_collection_t *tables, tsk_flags_t options);
+int tsk_tbl_collection_compute_mutation_parents(tsk_tbl_collection_t *self, tsk_flags_t options);
 bool tsk_tbl_collection_equals(tsk_tbl_collection_t *self, tsk_tbl_collection_t *other);
 int tsk_tbl_collection_record_position(tsk_tbl_collection_t *self,
         tsk_tbl_collection_position_t *position);
 int tsk_tbl_collection_reset_position(tsk_tbl_collection_t *self,
         tsk_tbl_collection_position_t *position);
 int tsk_tbl_collection_clear(tsk_tbl_collection_t *self);
-int tsk_tbl_collection_check_integrity(tsk_tbl_collection_t *self, int flags);
+int tsk_tbl_collection_check_integrity(tsk_tbl_collection_t *self, tsk_flags_t options);
 
 /** @} */
 

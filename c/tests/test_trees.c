@@ -524,7 +524,7 @@ verify_simplify(tsk_treeseq_t *ts)
     tsk_id_t *sample;
     tsk_id_t *node_map = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
     tsk_treeseq_t subset;
-    int flags = TSK_FILTER_SITES;
+    tsk_flags_t options = TSK_FILTER_SITES;
 
     CU_ASSERT_FATAL(node_map != NULL);
     ret = tsk_treeseq_get_samples(ts, &sample);
@@ -538,7 +538,7 @@ verify_simplify(tsk_treeseq_t *ts)
 
     for (j = 0; j < sizeof(num_samples) / sizeof(*num_samples); j++) {
         if (num_samples[j] <= n) {
-            ret = tsk_treeseq_simplify(ts, sample, num_samples[j], flags, &subset,
+            ret = tsk_treeseq_simplify(ts, sample, num_samples[j], options, &subset,
                     node_map);
             /* printf("ret = %s\n", tsk_strerror(ret)); */
             CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1105,7 +1105,7 @@ test_simplest_root_mutations(void)
         "0    2     1";
     tsk_hapgen_t hapgen;
     char *haplotype;
-    int flags = 0;
+    tsk_flags_t options = 0;
     tsk_id_t sample_ids[] = {0, 1};
     tsk_treeseq_t ts, simplified;
 
@@ -1127,7 +1127,7 @@ test_simplest_root_mutations(void)
     }
     tsk_hapgen_free(&hapgen);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, flags, &simplified, NULL);
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, options, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&simplified), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&simplified), 1.0);
@@ -1746,7 +1746,7 @@ test_simplest_bad_individuals(void)
         "0  1   4   3\n";
     tsk_treeseq_t ts;
     tsk_tbl_collection_t tables;
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
     int ret;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
@@ -1812,7 +1812,7 @@ test_simplest_bad_edges(void)
     tsk_treeseq_t ts;
     tsk_tbl_collection_t tables;
     int ret;
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2155,7 +2155,7 @@ test_simplest_overlapping_parents(void)
     tsk_tbl_collection_t tables;
     tsk_tree_t tree;
     int ret;
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2204,7 +2204,7 @@ test_simplest_contradictory_children(void)
     tsk_tbl_collection_t tables;
     tsk_tree_t tree;
     int ret;
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2551,7 +2551,7 @@ test_single_tree_bad_records(void)
     int ret = 0;
     tsk_treeseq_t ts;
     tsk_tbl_collection_t tables;
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2660,7 +2660,7 @@ test_single_tree_bad_mutations(void)
         "2   2  1  -1\n";
     tsk_treeseq_t ts;
     tsk_tbl_collection_t tables;
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3441,7 +3441,7 @@ test_tsk_treeseq_bad_records(void)
         6, 5, 4, 4, 5, 6, TSK_NULL, TSK_NULL, TSK_NULL,
         7, 5, 4, 4, 5, 7, TSK_NULL, TSK_NULL, TSK_NULL,
     };
-    int load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_tbl_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);

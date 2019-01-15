@@ -19,7 +19,7 @@
 
 typedef struct {
     size_t precision;
-    int flags;
+    tsk_flags_t options;
     char *newick;
     tsk_tree_t *tree;
 } tsk_newick_converter_t;
@@ -120,13 +120,13 @@ out:
 
 static int
 tsk_newick_converter_alloc(tsk_newick_converter_t *self, tsk_tree_t *tree,
-        size_t precision, int flags)
+        size_t precision, tsk_flags_t options)
 {
     int ret = 0;
 
     memset(self, 0, sizeof(tsk_newick_converter_t));
     self->precision = precision;
-    self->flags = flags;
+    self->options = options;
     self->tree = tree;
     return ret;
 }
@@ -138,13 +138,13 @@ tsk_newick_converter_free(tsk_newick_converter_t *TSK_UNUSED(self))
 }
 
 int
-tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision, int flags,
-        size_t buffer_size, char *buffer)
+tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision,
+        tsk_flags_t options, size_t buffer_size, char *buffer)
 {
     int ret = 0;
     tsk_newick_converter_t nc;
 
-    ret = tsk_newick_converter_alloc(&nc, tree, precision, flags);
+    ret = tsk_newick_converter_alloc(&nc, tree, precision, options);
     if (ret != 0) {
         goto out;
     }

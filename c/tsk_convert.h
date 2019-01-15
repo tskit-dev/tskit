@@ -35,8 +35,8 @@ int tsk_vcf_converter_free(tsk_vcf_converter_t *self);
 void tsk_vcf_converter_print_state(tsk_vcf_converter_t *self, FILE *out);
 
 
-int tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision, int flags,
-        size_t buffer_size, char *buffer);
+int tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision,
+        tsk_flags_t options, size_t buffer_size, char *buffer);
 
 #ifdef __cplusplus
 }
