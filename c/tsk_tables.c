@@ -274,8 +274,8 @@ tsk_individual_tbl_copy(tsk_individual_tbl_t *self, tsk_individual_tbl_t *dest)
 
 int TSK_WARN_UNUSED
 tsk_individual_tbl_set_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, uint32_t *flags,
-        double *location, uint32_t *location_offset,
-        const char *metadata, uint32_t *metadata_offset)
+        double *location, tsk_size_t *location_offset,
+        const char *metadata, tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -291,7 +291,8 @@ out:
 
 int
 tsk_individual_tbl_append_columns(tsk_individual_tbl_t *self, tsk_size_t num_rows, uint32_t *flags,
-        double *location, uint32_t *location_offset, const char *metadata, uint32_t *metadata_offset)
+        double *location, tsk_size_t *location_offset,
+        const char *metadata, tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length, location_length;
@@ -710,7 +711,7 @@ tsk_node_tbl_copy(tsk_node_tbl_t *self, tsk_node_tbl_t *dest)
 int TSK_WARN_UNUSED
 tsk_node_tbl_set_columns(tsk_node_tbl_t *self, tsk_size_t num_rows, uint32_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual, const char *metadata,
-        uint32_t *metadata_offset)
+        tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -727,7 +728,7 @@ out:
 int
 tsk_node_tbl_append_columns(tsk_node_tbl_t *self, tsk_size_t num_rows, uint32_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual, const char *metadata,
-        uint32_t *metadata_offset)
+        tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length;
@@ -1269,12 +1270,12 @@ tsk_site_tbl_expand_main_columns(tsk_site_tbl_t *self, tsk_size_t additional_row
             goto out;
         }
         ret = expand_column((void **) &self->ancestral_state_offset, new_size + 1,
-                sizeof(uint32_t));
+                sizeof(tsk_size_t));
         if (ret != 0) {
             goto out;
         }
         ret = expand_column((void **) &self->metadata_offset, new_size + 1,
-                sizeof(uint32_t));
+                sizeof(tsk_size_t));
         if (ret != 0) {
             goto out;
         }
@@ -2555,7 +2556,7 @@ tsk_population_tbl_copy(tsk_population_tbl_t *self, tsk_population_tbl_t *dest)
 
 int
 tsk_population_tbl_set_columns(tsk_population_tbl_t *self, tsk_size_t num_rows,
-        const char *metadata, uint32_t *metadata_offset)
+        const char *metadata, tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -2570,7 +2571,7 @@ out:
 
 int
 tsk_population_tbl_append_columns(tsk_population_tbl_t *self, tsk_size_t num_rows,
-        const char *metadata, uint32_t *metadata_offset)
+        const char *metadata, tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length;
@@ -2921,8 +2922,8 @@ tsk_provenance_tbl_copy(tsk_provenance_tbl_t *self, tsk_provenance_tbl_t *dest)
 
 int
 tsk_provenance_tbl_set_columns(tsk_provenance_tbl_t *self, tsk_size_t num_rows,
-        char *timestamp, uint32_t *timestamp_offset,
-        char *record, uint32_t *record_offset)
+        char *timestamp, tsk_size_t *timestamp_offset,
+        char *record, tsk_size_t *record_offset)
 {
     int ret;
 
@@ -2938,8 +2939,8 @@ out:
 
 int
 tsk_provenance_tbl_append_columns(tsk_provenance_tbl_t *self, tsk_size_t num_rows,
-        char *timestamp, uint32_t *timestamp_offset,
-        char *record, uint32_t *record_offset)
+        char *timestamp, tsk_size_t *timestamp_offset,
+        char *record, tsk_size_t *record_offset)
 {
     int ret;
     tsk_size_t j, timestamp_length, record_length;
