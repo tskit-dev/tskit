@@ -17,7 +17,25 @@ extern "C" {
 
 #include "tsk_core.h"
 
+/**
+@brief Tskit Object IDs.
+
+@rst
+All objects in tskit are referred to by integer IDs corresponding to the 
+row they occupy in the relevant table. The ``tsk_id_t`` type should be used
+when manipulating these ID values. The reserved value ``TSK_NULL`` (-1) defines
+missing data. 
+@endrst
+*/
 typedef int32_t tsk_id_t;
+
+/**
+@brief Tskit sizes.
+
+@rst
+Sizes in tskit are defined by the ``tsk_size_t`` type. 
+@endrst
+*/
 typedef uint32_t tsk_size_t;
 
 /****************************************************************************/

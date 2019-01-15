@@ -58,7 +58,7 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 #define TSK_NODE_IS_SAMPLE 1u
 
 /* The null ID */
-#define TSK_NULL (-1)
+#define TSK_NULL ((tsk_id_t) -1)
 
 /* Flags for simplify() */
 #define TSK_FILTER_SITES                 (1 << 0)

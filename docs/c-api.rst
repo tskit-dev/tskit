@@ -7,13 +7,15 @@ C API
 .. warning::
         **This section is under construction, incomplete and experiemental!!**
 
-****************
-Basic structures
-****************
+***********
+Basic Types
+***********
+
+.. doxygentypedef:: tsk_id_t
+.. doxygentypedef:: tsk_size_t
 
 .. doxygenstruct:: tsk_individual_t
     :members:
-
 
 .. todo:: Need to document the members in these structs.
 
