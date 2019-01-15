@@ -23,9 +23,9 @@ typedef struct {
 typedef struct {
     tsk_site_t *site;
     const char **alleles;
-    tsk_tbl_size_t *allele_lengths;
-    tsk_tbl_size_t num_alleles;
-    tsk_tbl_size_t max_alleles;
+    tsk_size_t *allele_lengths;
+    tsk_size_t num_alleles;
+    tsk_size_t max_alleles;
     union {
         uint8_t *u8;
         uint16_t *u16;

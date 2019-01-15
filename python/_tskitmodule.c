@@ -1973,7 +1973,7 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     PyObject *py_location = Py_None;
     PyArrayObject *location_array = NULL;
     double *location_data = NULL;
-    tsk_tbl_size_t location_length = 0;
+    tsk_size_t location_length = 0;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
     npy_intp *shape;
@@ -2000,7 +2000,7 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
         shape = PyArray_DIMS(location_array);
-        location_length = (tsk_tbl_size_t) shape[0];
+        location_length = (tsk_size_t) shape[0];
         location_data = PyArray_DATA(location_array);
     }
     err = tsk_individual_tbl_add_row(self->table, (uint32_t) flags,

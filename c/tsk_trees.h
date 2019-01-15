@@ -31,15 +31,15 @@ typedef struct {
     /* Map individuals to the list of nodes that reference them */
     tsk_id_t *individual_nodes_mem;
     tsk_id_t **individual_nodes;
-    tsk_tbl_size_t *individual_nodes_length;
+    tsk_size_t *individual_nodes_length;
     /* For each tree, a list of sites on that tree */
     tsk_site_t *tree_sites_mem;
     tsk_site_t **tree_sites;
-    tsk_tbl_size_t *tree_sites_length;
+    tsk_size_t *tree_sites_length;
     /* For each site, a list of mutations at that site */
     tsk_mutation_t *site_mutations_mem;
     tsk_mutation_t **site_mutations;
-    tsk_tbl_size_t *site_mutations_length;
+    tsk_size_t *site_mutations_length;
     /* The underlying tables */
     tsk_tbl_collection_t *tables;
 } tsk_treeseq_t;
@@ -81,7 +81,7 @@ typedef struct {
     tsk_id_t *stack2;
     /* The sites on this tree */
     tsk_site_t *sites;
-    tsk_tbl_size_t sites_length;
+    tsk_size_t sites_length;
     /* Counters needed for next() and prev() transformations. */
     int direction;
     tsk_id_t left_index;
@@ -216,7 +216,7 @@ int tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
 int tsk_tree_get_num_samples(tsk_tree_t *self, tsk_id_t u, size_t *num_samples);
 int tsk_tree_get_num_tracked_samples(tsk_tree_t *self, tsk_id_t u,
         size_t *num_tracked_samples);
-int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_tbl_size_t *sites_length);
+int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_length);
 
 void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /* Method for positioning the tree in the sequence. */

@@ -18,7 +18,7 @@ extern "C" {
 #include "tsk_core.h"
 
 typedef int32_t tsk_id_t;
-typedef uint32_t tsk_tbl_size_t;
+typedef uint32_t tsk_size_t;
 
 /****************************************************************************/
 /* Definitions for the basic objects */
@@ -41,13 +41,13 @@ typedef struct {
      * ``location_length``. */
     double *location;
     /** @brief The number of spatial dimensions. */
-    tsk_tbl_size_t location_length;
+    tsk_size_t location_length;
     /** @brief The metadata. */
     const char *metadata;
     /** @brief The size of the metadata in bytes. */
-    tsk_tbl_size_t metadata_length;
+    tsk_size_t metadata_length;
     tsk_id_t *nodes;
-    tsk_tbl_size_t nodes_length;
+    tsk_size_t nodes_length;
 } tsk_individual_t;
 
 /**
@@ -65,7 +65,7 @@ typedef struct {
     tsk_id_t population;
     tsk_id_t individual;
     const char *metadata;
-    tsk_tbl_size_t metadata_length;
+    tsk_size_t metadata_length;
 } tsk_node_t;
 
 /**
@@ -98,9 +98,9 @@ typedef struct {
     tsk_id_t node;
     tsk_id_t parent;
     const char *derived_state;
-    tsk_tbl_size_t derived_state_length;
+    tsk_size_t derived_state_length;
     const char *metadata;
-    tsk_tbl_size_t metadata_length;
+    tsk_size_t metadata_length;
 } tsk_mutation_t;
 
 /**
@@ -115,11 +115,11 @@ typedef struct {
     tsk_id_t id;
     double position;
     const char *ancestral_state;
-    tsk_tbl_size_t ancestral_state_length;
+    tsk_size_t ancestral_state_length;
     const char *metadata;
-    tsk_tbl_size_t metadata_length;
+    tsk_size_t metadata_length;
     tsk_mutation_t *mutations;
-    tsk_tbl_size_t mutations_length;
+    tsk_size_t mutations_length;
 } tsk_site_t;
 
 /**
@@ -151,7 +151,7 @@ a population and its properties.
 typedef struct {
     tsk_id_t id;
     const char *metadata;
-    tsk_tbl_size_t metadata_length;
+    tsk_size_t metadata_length;
 } tsk_population_t;
 
 /**
@@ -166,9 +166,9 @@ for more information on how provenance records should be structured.
 typedef struct {
     tsk_id_t id;
     const char *timestamp;
-    tsk_tbl_size_t timestamp_length;
+    tsk_size_t timestamp_length;
     const char *record;
-    tsk_tbl_size_t record_length;
+    tsk_size_t record_length;
 } tsk_provenance_t;
 
 /****************************************************************************/
@@ -184,89 +184,89 @@ of the columns in this table.
 @endrst
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
-    tsk_tbl_size_t location_length;
-    tsk_tbl_size_t max_location_length;
-    tsk_tbl_size_t max_location_length_increment;
-    tsk_tbl_size_t metadata_length;
-    tsk_tbl_size_t max_metadata_length;
-    tsk_tbl_size_t max_metadata_length_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
+    tsk_size_t location_length;
+    tsk_size_t max_location_length;
+    tsk_size_t max_location_length_increment;
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     uint32_t *flags;
     double *location;
-    tsk_tbl_size_t *location_offset;
+    tsk_size_t *location_offset;
     char *metadata;
-    tsk_tbl_size_t *metadata_offset;
+    tsk_size_t *metadata_offset;
 } tsk_individual_tbl_t;
 
 /**
 @brief The node table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
-    tsk_tbl_size_t metadata_length;
-    tsk_tbl_size_t max_metadata_length;
-    tsk_tbl_size_t max_metadata_length_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     uint32_t *flags;
     double *time;
     tsk_id_t *population;
     tsk_id_t *individual;
     char *metadata;
-    tsk_tbl_size_t *metadata_offset;
+    tsk_size_t *metadata_offset;
 } tsk_node_tbl_t;
 
 /**
 @brief The site table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
-    tsk_tbl_size_t ancestral_state_length;
-    tsk_tbl_size_t max_ancestral_state_length;
-    tsk_tbl_size_t max_ancestral_state_length_increment;
-    tsk_tbl_size_t metadata_length;
-    tsk_tbl_size_t max_metadata_length;
-    tsk_tbl_size_t max_metadata_length_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
+    tsk_size_t ancestral_state_length;
+    tsk_size_t max_ancestral_state_length;
+    tsk_size_t max_ancestral_state_length_increment;
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     double *position;
     char *ancestral_state;
-    tsk_tbl_size_t *ancestral_state_offset;
+    tsk_size_t *ancestral_state_offset;
     char *metadata;
-    tsk_tbl_size_t *metadata_offset;
+    tsk_size_t *metadata_offset;
 } tsk_site_tbl_t;
 
 /**
 @brief The mutation table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
-    tsk_tbl_size_t derived_state_length;
-    tsk_tbl_size_t max_derived_state_length;
-    tsk_tbl_size_t max_derived_state_length_increment;
-    tsk_tbl_size_t metadata_length;
-    tsk_tbl_size_t max_metadata_length;
-    tsk_tbl_size_t max_metadata_length_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
+    tsk_size_t derived_state_length;
+    tsk_size_t max_derived_state_length;
+    tsk_size_t max_derived_state_length_increment;
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     tsk_id_t *node;
     tsk_id_t *site;
     tsk_id_t *parent;
     char *derived_state;
-    tsk_tbl_size_t *derived_state_offset;
+    tsk_size_t *derived_state_offset;
     char *metadata;
-    tsk_tbl_size_t *metadata_offset;
+    tsk_size_t *metadata_offset;
 } tsk_mutation_tbl_t;
 
 /**
 @brief The edge table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
     double *left;
     double *right;
     tsk_id_t *parent;
@@ -277,9 +277,9 @@ typedef struct {
 @brief The migration table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
     tsk_id_t *source;
     tsk_id_t *dest;
     tsk_id_t *node;
@@ -292,33 +292,33 @@ typedef struct {
 @brief The population table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
-    tsk_tbl_size_t metadata_length;
-    tsk_tbl_size_t max_metadata_length;
-    tsk_tbl_size_t max_metadata_length_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     char *metadata;
-    tsk_tbl_size_t *metadata_offset;
+    tsk_size_t *metadata_offset;
 } tsk_population_tbl_t;
 
 /**
 @brief The provenance table.
 */
 typedef struct {
-    tsk_tbl_size_t num_rows;
-    tsk_tbl_size_t max_rows;
-    tsk_tbl_size_t max_rows_increment;
-    tsk_tbl_size_t timestamp_length;
-    tsk_tbl_size_t max_timestamp_length;
-    tsk_tbl_size_t max_timestamp_length_increment;
-    tsk_tbl_size_t record_length;
-    tsk_tbl_size_t max_record_length;
-    tsk_tbl_size_t max_record_length_increment;
+    tsk_size_t num_rows;
+    tsk_size_t max_rows;
+    tsk_size_t max_rows_increment;
+    tsk_size_t timestamp_length;
+    tsk_size_t max_timestamp_length;
+    tsk_size_t max_timestamp_length_increment;
+    tsk_size_t record_length;
+    tsk_size_t max_record_length;
+    tsk_size_t max_record_length_increment;
     char *timestamp;
-    tsk_tbl_size_t *timestamp_offset;
+    tsk_size_t *timestamp_offset;
     char *record;
-    tsk_tbl_size_t *record_offset;
+    tsk_size_t *record_offset;
 } tsk_provenance_tbl_t;
 
 /**
@@ -348,14 +348,14 @@ typedef struct {
 } tsk_tbl_collection_t;
 
 typedef struct {
-    tsk_tbl_size_t individuals;
-    tsk_tbl_size_t nodes;
-    tsk_tbl_size_t edges;
-    tsk_tbl_size_t migrations;
-    tsk_tbl_size_t sites;
-    tsk_tbl_size_t mutations;
-    tsk_tbl_size_t populations;
-    tsk_tbl_size_t provenances;
+    tsk_size_t individuals;
+    tsk_size_t nodes;
+    tsk_size_t edges;
+    tsk_size_t migrations;
+    tsk_size_t sites;
+    tsk_size_t mutations;
+    tsk_size_t populations;
+    tsk_size_t provenances;
     /* TODO add reserved space for future tables. */
 } tsk_tbl_collection_position_t;
 
@@ -417,11 +417,11 @@ tsk_id_t tsk_individual_tbl_add_row(tsk_individual_tbl_t *self, uint32_t flags,
         double *location, size_t location_length,
         const char *metadata, size_t metadata_length);
 int tsk_individual_tbl_set_columns(tsk_individual_tbl_t *self, size_t num_rows, uint32_t *flags,
-        double *location, tsk_tbl_size_t *location_length,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        double *location, tsk_size_t *location_length,
+        const char *metadata, tsk_size_t *metadata_length);
 int tsk_individual_tbl_append_columns(tsk_individual_tbl_t *self, size_t num_rows, uint32_t *flags,
-        double *location, tsk_tbl_size_t *location_length,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        double *location, tsk_size_t *location_length,
+        const char *metadata, tsk_size_t *metadata_length);
 int tsk_individual_tbl_clear(tsk_individual_tbl_t *self);
 int tsk_individual_tbl_truncate(tsk_individual_tbl_t *self, size_t num_rows);
 int tsk_individual_tbl_free(tsk_individual_tbl_t *self);
@@ -448,11 +448,11 @@ tsk_id_t tsk_node_tbl_add_row(tsk_node_tbl_t *self, uint32_t flags, double time,
 int tsk_node_tbl_set_columns(tsk_node_tbl_t *self, size_t num_rows,
         uint32_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        const char *metadata, tsk_size_t *metadata_length);
 int tsk_node_tbl_append_columns(tsk_node_tbl_t *self, size_t num_rows,
         uint32_t *flags, double *time,
         tsk_id_t *population, tsk_id_t *individual,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        const char *metadata, tsk_size_t *metadata_length);
 int tsk_node_tbl_clear(tsk_node_tbl_t *self);
 int tsk_node_tbl_truncate(tsk_node_tbl_t *self, size_t num_rows);
 int tsk_node_tbl_free(tsk_node_tbl_t *self);
@@ -498,14 +498,14 @@ int tsk_site_tbl_set_max_metadata_length_increment(tsk_site_tbl_t *self,
 int tsk_site_tbl_set_max_ancestral_state_length_increment(tsk_site_tbl_t *self,
         size_t max_ancestral_state_length_increment);
 tsk_id_t tsk_site_tbl_add_row(tsk_site_tbl_t *self, double position,
-        const char *ancestral_state, tsk_tbl_size_t ancestral_state_length,
-        const char *metadata, tsk_tbl_size_t metadata_length);
+        const char *ancestral_state, tsk_size_t ancestral_state_length,
+        const char *metadata, tsk_size_t metadata_length);
 int tsk_site_tbl_set_columns(tsk_site_tbl_t *self, size_t num_rows, double *position,
-        const char *ancestral_state, tsk_tbl_size_t *ancestral_state_length,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        const char *ancestral_state, tsk_size_t *ancestral_state_length,
+        const char *metadata, tsk_size_t *metadata_length);
 int tsk_site_tbl_append_columns(tsk_site_tbl_t *self, size_t num_rows, double *position,
-        const char *ancestral_state, tsk_tbl_size_t *ancestral_state_length,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        const char *ancestral_state, tsk_size_t *ancestral_state_length,
+        const char *metadata, tsk_size_t *metadata_length);
 bool tsk_site_tbl_equals(tsk_site_tbl_t *self, tsk_site_tbl_t *other);
 int tsk_site_tbl_clear(tsk_site_tbl_t *self);
 int tsk_site_tbl_truncate(tsk_site_tbl_t *self, size_t num_rows);
@@ -530,16 +530,16 @@ int tsk_mutation_tbl_set_max_derived_state_length_increment(tsk_mutation_tbl_t *
         size_t max_derived_state_length_increment);
 tsk_id_t tsk_mutation_tbl_add_row(tsk_mutation_tbl_t *self, tsk_id_t site,
         tsk_id_t node, tsk_id_t parent,
-        const char *derived_state, tsk_tbl_size_t derived_state_length,
-        const char *metadata, tsk_tbl_size_t metadata_length);
+        const char *derived_state, tsk_size_t derived_state_length,
+        const char *metadata, tsk_size_t metadata_length);
 int tsk_mutation_tbl_set_columns(tsk_mutation_tbl_t *self, size_t num_rows,
         tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent,
-        const char *derived_state, tsk_tbl_size_t *derived_state_length,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        const char *derived_state, tsk_size_t *derived_state_length,
+        const char *metadata, tsk_size_t *metadata_length);
 int tsk_mutation_tbl_append_columns(tsk_mutation_tbl_t *self, size_t num_rows,
         tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent,
-        const char *derived_state, tsk_tbl_size_t *derived_state_length,
-        const char *metadata, tsk_tbl_size_t *metadata_length);
+        const char *derived_state, tsk_size_t *derived_state_length,
+        const char *metadata, tsk_size_t *metadata_length);
 bool tsk_mutation_tbl_equals(tsk_mutation_tbl_t *self, tsk_mutation_tbl_t *other);
 int tsk_mutation_tbl_clear(tsk_mutation_tbl_t *self);
 int tsk_mutation_tbl_truncate(tsk_mutation_tbl_t *self, size_t num_rows);
@@ -588,9 +588,9 @@ int tsk_population_tbl_set_max_metadata_length_increment(tsk_population_tbl_t *s
 tsk_id_t tsk_population_tbl_add_row(tsk_population_tbl_t *self,
         const char *metadata, size_t metadata_length);
 int tsk_population_tbl_set_columns(tsk_population_tbl_t *self, size_t num_rows,
-        const char *metadata, tsk_tbl_size_t *metadata_offset);
+        const char *metadata, tsk_size_t *metadata_offset);
 int tsk_population_tbl_append_columns(tsk_population_tbl_t *self, size_t num_rows,
-        const char *metadata, tsk_tbl_size_t *metadata_offset);
+        const char *metadata, tsk_size_t *metadata_offset);
 int tsk_population_tbl_clear(tsk_population_tbl_t *self);
 int tsk_population_tbl_truncate(tsk_population_tbl_t *self, size_t num_rows);
 int tsk_population_tbl_copy(tsk_population_tbl_t *self, tsk_population_tbl_t *dest);
@@ -616,11 +616,11 @@ tsk_id_t tsk_provenance_tbl_add_row(tsk_provenance_tbl_t *self,
         const char *timestamp, size_t timestamp_length,
         const char *record, size_t record_length);
 int tsk_provenance_tbl_set_columns(tsk_provenance_tbl_t *self, size_t num_rows,
-       char *timestamp, tsk_tbl_size_t *timestamp_offset,
-       char *record, tsk_tbl_size_t *record_offset);
+       char *timestamp, tsk_size_t *timestamp_offset,
+       char *record, tsk_size_t *record_offset);
 int tsk_provenance_tbl_append_columns(tsk_provenance_tbl_t *self, size_t num_rows,
-        char *timestamp, tsk_tbl_size_t *timestamp_offset,
-        char *record, tsk_tbl_size_t *record_offset);
+        char *timestamp, tsk_size_t *timestamp_offset,
+        char *record, tsk_size_t *record_offset);
 int tsk_provenance_tbl_clear(tsk_provenance_tbl_t *self);
 int tsk_provenance_tbl_truncate(tsk_provenance_tbl_t *self, size_t num_rows);
 int tsk_provenance_tbl_copy(tsk_provenance_tbl_t *self, tsk_provenance_tbl_t *dest);

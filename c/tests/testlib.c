@@ -479,7 +479,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
     int ret;
     tsk_tbl_collection_t tables;
     tsk_id_t max_population_id;
-    tsk_tbl_size_t j;
+    tsk_size_t j;
 
     CU_ASSERT_FATAL(ts != NULL);
     CU_ASSERT_FATAL(nodes != NULL);
@@ -507,7 +507,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
         max_population_id = TSK_MAX(max_population_id, tables.nodes->population[j]);
     }
     if (max_population_id >= 0) {
-        for (j = 0; j <= (tsk_tbl_size_t) max_population_id; j++) {
+        for (j = 0; j <= (tsk_size_t) max_population_id; j++) {
             ret = tsk_population_tbl_add_row(tables.populations, NULL, 0);
             CU_ASSERT_EQUAL_FATAL(ret, j);
         }

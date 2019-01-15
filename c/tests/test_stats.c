@@ -5,12 +5,12 @@
 #include <stdlib.h>
 #include <float.h>
 
-static tsk_tbl_size_t
+static tsk_size_t
 get_max_site_mutations(tsk_treeseq_t *ts)
 {
     int ret;
     size_t j;
-    tsk_tbl_size_t max_mutations = 0;
+    tsk_size_t max_mutations = 0;
     tsk_site_t site;
 
     for (j = 0; j < tsk_treeseq_get_num_sites(ts); j++) {
@@ -210,7 +210,7 @@ verify_pairwise_diversity(tsk_treeseq_t *ts)
     tsk_id_t *samples;
     uint32_t j;
     double pi;
-    tsk_tbl_size_t max_site_mutations = get_max_site_mutations(ts);
+    tsk_size_t max_site_mutations = get_max_site_mutations(ts);
 
     ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, 0, &pi);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);

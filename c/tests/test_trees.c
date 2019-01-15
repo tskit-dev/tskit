@@ -65,7 +65,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
     int ret;
     tsk_id_t u, j, v;
     uint32_t mutation_index, site_index;
-    tsk_tbl_size_t k, l, tree_sites_length;
+    tsk_size_t k, l, tree_sites_length;
     tsk_site_t *sites = NULL;
     tsk_tree_t tree;
     size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
@@ -408,7 +408,7 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     tsk_node_t n1, n2;
     tsk_tree_t full_tree, subset_tree;
     tsk_site_t *tree_sites;
-    tsk_tbl_size_t tree_sites_length;
+    tsk_size_t tree_sites_length;
     uint32_t j, k;
     tsk_id_t u, mrca1, mrca2;
     size_t total_sites;
@@ -3725,7 +3725,7 @@ test_tree_errors(void)
         ret = tsk_tree_get_num_tracked_samples(&t, u, NULL);
         CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
         /* Also check tree sequence methods */
-        ret = tsk_treeseq_get_node(&ts, (tsk_tbl_size_t) u, &node);
+        ret = tsk_treeseq_get_node(&ts, (tsk_size_t) u, &node);
         CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
         CU_ASSERT(!tsk_treeseq_is_sample(&ts, u));
         CU_ASSERT(!tsk_tree_is_sample(&t, u));

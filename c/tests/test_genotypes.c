@@ -390,7 +390,7 @@ test_single_tree_vargen_many_alleles(void)
     tsk_treeseq_t ts;
     tsk_vargen_t vargen;
     tsk_variant_t *var;
-    tsk_tbl_size_t num_alleles = 257;
+    tsk_size_t num_alleles = 257;
     tsk_id_t j, k, l;
     int flags;
     char alleles[num_alleles];
@@ -411,7 +411,7 @@ test_single_tree_vargen_many_alleles(void)
     for (j = 0; j < (tsk_id_t) num_alleles; j++) {
         /* When j = 0 we get a parent of -1, which is the NULL_NODE */
         ret = tsk_mutation_tbl_add_row(tables.mutations, 0, 0, j - 1, alleles,
-                (tsk_tbl_size_t) j, NULL, 0);
+                (tsk_size_t) j, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         ret = tsk_treeseq_alloc(&ts, &tables, TSK_BUILD_INDEXES);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -435,7 +435,7 @@ test_single_tree_vargen_many_alleles(void)
                     CU_ASSERT_EQUAL(k - 1, (tsk_id_t) var->allele_lengths[k]);
                     CU_ASSERT_NSTRING_EQUAL(var->alleles[k], alleles, var->allele_lengths[k]);
                 }
-                CU_ASSERT_EQUAL(var->num_alleles, (tsk_tbl_size_t) j + 2);
+                CU_ASSERT_EQUAL(var->num_alleles, (tsk_size_t) j + 2);
             }
             ret = tsk_vargen_free(&vargen);
             CU_ASSERT_EQUAL_FATAL(ret, 0);

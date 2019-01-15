@@ -15,7 +15,7 @@ static void
 tsk_treeseq_check_state(tsk_treeseq_t *self)
 {
     size_t j;
-    tsk_tbl_size_t k, l;
+    tsk_size_t k, l;
     tsk_site_t site;
     tsk_id_t site_id = 0;
 
@@ -35,7 +35,7 @@ void
 tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out)
 {
     size_t j;
-    tsk_tbl_size_t k, l, m;
+    tsk_size_t k, l, m;
     tsk_site_t site;
 
     fprintf(out, "tree_sequence state\n");
@@ -93,15 +93,15 @@ static int
 tsk_treeseq_init_sites(tsk_treeseq_t *self)
 {
     size_t j;
-    tsk_tbl_size_t k;
+    tsk_size_t k;
     int ret = 0;
     size_t offset = 0;
-    const tsk_tbl_size_t num_mutations = self->tables->mutations->num_rows;
-    const tsk_tbl_size_t num_sites = self->tables->sites->num_rows;
+    const tsk_size_t num_mutations = self->tables->mutations->num_rows;
+    const tsk_size_t num_sites = self->tables->sites->num_rows;
     const tsk_id_t *restrict mutation_site = self->tables->mutations->site;
 
     self->site_mutations_mem = malloc(num_mutations * sizeof(tsk_mutation_t));
-    self->site_mutations_length = malloc(num_sites * sizeof(tsk_tbl_size_t));
+    self->site_mutations_length = malloc(num_sites * sizeof(tsk_size_t));
     self->site_mutations = malloc(num_sites * sizeof(tsk_mutation_t *));
     self->tree_sites_mem = malloc(num_sites * sizeof(tsk_site_t));
     if (self->site_mutations_mem == NULL
@@ -143,16 +143,16 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
     int ret = 0;
     tsk_id_t node;
     tsk_id_t ind;
-    tsk_tbl_size_t offset = 0;
-    tsk_tbl_size_t total_node_refs = 0;
-    tsk_tbl_size_t *node_count = NULL;
+    tsk_size_t offset = 0;
+    tsk_size_t total_node_refs = 0;
+    tsk_size_t *node_count = NULL;
     tsk_id_t *node_array;
     const size_t num_inds = self->tables->individuals->num_rows;
     const size_t num_nodes = self->tables->nodes->num_rows;
     const tsk_id_t *restrict node_individual = self->tables->nodes->individual;
 
     // First find number of nodes per individual
-    self->individual_nodes_length = calloc(TSK_MAX(1, num_inds), sizeof(tsk_tbl_size_t));
+    self->individual_nodes_length = calloc(TSK_MAX(1, num_inds), sizeof(tsk_size_t));
     node_count = calloc(TSK_MAX(1, num_inds), sizeof(size_t));
 
     if (self->individual_nodes_length == NULL || node_count == NULL) {
@@ -238,13 +238,13 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     }
     assert(self->num_trees > 0);
 
-    self->tree_sites_length = malloc(self->num_trees * sizeof(tsk_tbl_size_t));
+    self->tree_sites_length = malloc(self->num_trees * sizeof(tsk_size_t));
     self->tree_sites = malloc(self->num_trees * sizeof(tsk_site_t *));
     if (self->tree_sites == NULL || self->tree_sites_length == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(self->tree_sites_length, 0, self->num_trees * sizeof(tsk_tbl_size_t));
+    memset(self->tree_sites_length, 0, self->num_trees * sizeof(tsk_size_t));
     memset(self->tree_sites, 0, self->num_trees * sizeof(tsk_site_t *));
 
     tree_left = 0;
@@ -529,7 +529,7 @@ tsk_treeseq_get_pairwise_diversity(tsk_treeseq_t *self,
     tsk_tree_t *tree = NULL;
     double result, denom, n, count;
     tsk_site_t *sites;
-    tsk_tbl_size_t j, k, num_sites;
+    tsk_size_t j, k, num_sites;
 
     if (num_samples < 2 || num_samples > self->num_samples) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
@@ -1536,7 +1536,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_tbl_size_t *sites_length)
+tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_length)
 {
     *sites = self->sites;
     *sites_length = self->sites_length;
