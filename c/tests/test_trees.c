@@ -49,7 +49,7 @@ verify_individual_nodes(tsk_treeseq_t *ts)
     size_t j;
 
     for (k = 0; k < (tsk_id_t) num_individuals; k++) {
-        ret = tsk_treeseq_get_individual(ts, (size_t) k, &individual);
+        ret = tsk_treeseq_get_individual(ts, k, &individual);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         for (j = 0; j < individual.nodes_length; j++) {
             CU_ASSERT_FATAL(individual.nodes[j] < (tsk_id_t) num_nodes);
@@ -423,10 +423,10 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
 
     /* Check the sample properties */
     for (j = 0; j < num_samples; j++) {
-        ret = tsk_treeseq_get_node(ts, (size_t) samples[j], &n1);
+        ret = tsk_treeseq_get_node(ts, samples[j], &n1);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL(node_map[samples[j]], (tsk_id_t) j);
-        ret = tsk_treeseq_get_node(subset, (size_t) node_map[samples[j]], &n2);
+        ret = tsk_treeseq_get_node(subset, node_map[samples[j]], &n2);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL_FATAL(n1.population, n2.population);
         CU_ASSERT_EQUAL_FATAL(n1.time, n2.time);
@@ -439,7 +439,7 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         ret = tsk_treeseq_get_node(ts, (tsk_id_t) j, &n1);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         if (node_map[j] != TSK_NULL) {
-            ret = tsk_treeseq_get_node(subset, (size_t) node_map[j], &n2);
+            ret = tsk_treeseq_get_node(subset, node_map[j], &n2);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             CU_ASSERT_EQUAL_FATAL(n1.population, n2.population);
             CU_ASSERT_EQUAL_FATAL(n1.time, n2.time);

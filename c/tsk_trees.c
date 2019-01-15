@@ -1525,7 +1525,7 @@ tsk_tree_get_time(tsk_tree_t *self, tsk_id_t u, double *t)
     int ret = 0;
     tsk_node_t node;
 
-    ret = tsk_treeseq_get_node(self->tree_sequence, (size_t) u, &node);
+    ret = tsk_treeseq_get_node(self->tree_sequence, u, &node);
     if (ret != 0) {
         goto out;
     }

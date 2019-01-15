@@ -1334,10 +1334,10 @@ test_individual_table(void)
     tsk_individual_tbl_print_state(&table, _devnull);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
-        ret = tsk_individual_tbl_add_row(&table, (uint32_t) j, test_location,
-                (size_t) spatial_dimension, test_metadata, test_metadata_length);
+        ret = tsk_individual_tbl_add_row(&table, (tsk_flags_t) j, test_location,
+                spatial_dimension, test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret, j);
-        CU_ASSERT_EQUAL(table.flags[j], (uint32_t) j);
+        CU_ASSERT_EQUAL(table.flags[j], (tsk_flags_t) j);
         for (k = 0; k < spatial_dimension; k++) {
             test_location[k] = (double) k;
             CU_ASSERT_EQUAL(table.location[spatial_dimension * (size_t) j + k],
