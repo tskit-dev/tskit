@@ -12,7 +12,7 @@ jobs:
       - run:
           name: Checkout submodules
           command: |
-            git submodule update --init --recursive --remote
+            git submodule update --init --recursive 
       - run:
           name: Install dependencies and set path
           command: |
