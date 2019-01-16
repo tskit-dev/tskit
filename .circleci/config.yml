@@ -12,7 +12,7 @@ jobs:
       - run:
           name: Checkout submodules
           command: |
-            git submodule update --init --recursive --remote
+            git submodule update --init --recursive 
       - run:
           name: Install dependencies and set path
           command: |
@@ -48,6 +48,7 @@ jobs:
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
             python3 -m codecov -F python
+            rm .coverage
 
       - run:
           name: Build Python package
@@ -78,18 +79,22 @@ jobs:
       - run:
           name: Run C tests
           command: |
-            ./build-gcc/test_core
-            ./build-gcc/test_tables
-            ./build-gcc/test_trees
-            ./build-gcc/test_genotypes
-            ./build-gcc/test_convert
-            ./build-gcc/test_stats
+            cd build-gcc && ninja test
 
       - run:
           name: Run gcov & upload coverage.
           command: |
             gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
-            gcov -pb ./build-gcc/tskit@sta/tsk_*.gcno
+            cd build-gcc
+            # TODO should be able to do this with 'find', but it's tricky and opaque.
+            gcov -pb tskit@sta/tsk_core.c.gcno ../c/tsk_core.c
+            gcov -pb tskit@sta/tsk_tables.c.gcno ../c/tsk_tables.c
+            gcov -pb tskit@sta/tsk_trees.c.gcno ../c/tsk_trees.c
+            gcov -pb tskit@sta/tsk_genotypes.c.gcno ../c/tsk_genotypes.c
+            gcov -pb tskit@sta/tsk_core.c.gcno ../c/tsk_core.c
+            gcov -pb tskit@sta/tsk_convert.c.gcno ../c/tsk_convert.c
+            gcov -pb tskit@sta/tsk_stats.c.gcno ../c/tsk_stats.c
+            cd ..
             codecov -X gcov -F C
 
       - run:
@@ -105,12 +110,7 @@ jobs:
       - run:
           name: Run clang-compiled C tests
           command: |
-            ./build-clang/test_core
-            ./build-clang/test_tables
-            ./build-clang/test_trees
-            ./build-clang/test_genotypes
-            ./build-clang/test_convert
-            ./build-clang/test_stats
+            cd build-clang && ninja test
 
       - run:
           name: Build docs
