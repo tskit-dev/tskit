@@ -410,6 +410,8 @@ tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t TSK_UNUS
     int ret = 0;
     tsk_table_collection_t tables;
 
+    /* Need to make sure that we're zero'd out in case of error */
+    memset(self, 0, sizeof(*self));
     ret = tsk_table_collection_load(&tables, filename, 0);
     if (ret != 0) {
         goto out;

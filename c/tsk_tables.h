@@ -350,7 +350,7 @@ typedef struct {
 } tsk_provenance_table_t;
 
 /**
-@brief The table collection.
+@brief A collection of tables defining the data for a tree sequence.
 */
 typedef struct {
     /** @brief The sequence length defining the tree sequence's coordinate space */
@@ -358,13 +358,19 @@ typedef struct {
     char *file_uuid;
     /** @brief The individual table */
     tsk_individual_table_t *individuals;
-    /* TODO document other public members */
+    /** @brief The node table */
     tsk_node_table_t *nodes;
+    /** @brief The edge table */
     tsk_edge_table_t *edges;
+    /** @brief The migration table */
     tsk_migration_table_t *migrations;
+    /** @brief The site table */
     tsk_site_table_t *sites;
+    /** @brief The mutation table */
     tsk_mutation_table_t *mutations;
+    /** @brief The population table */
     tsk_population_table_t *populations;
+    /** @brief The provenance table */
     tsk_provenance_table_t *provenances;
     struct {
         tsk_id_t *edge_insertion_order;
@@ -405,13 +411,15 @@ The table is allocated with the default size increment.
 @endrst
 
 @param self A pointer to an uninitialised tsk_individual_table_t object.
-@param options Allocation time options. Currently unused.
+@param options Allocation time options. Currently unused; should be 
+    set to zero to ensure compatability with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_individual_table_alloc(tsk_individual_table_t *self, tsk_flags_t options);
 
 
-int tsk_individual_table_set_max_rows_increment(tsk_individual_table_t *self, tsk_size_t max_rows_increment);
+int tsk_individual_table_set_max_rows_increment(tsk_individual_table_t *self, 
+        tsk_size_t max_rows_increment);
 int tsk_individual_table_set_max_metadata_length_increment(tsk_individual_table_t *self,
         tsk_size_t max_metadata_length_increment);
 int tsk_individual_table_set_max_location_length_increment(tsk_individual_table_t *self,
@@ -675,10 +683,15 @@ int tsk_provenance_table_get_row(tsk_provenance_table_t *self, tsk_id_t index, t
 @rst
 After allocation, each of the consituent tables is allocated with the default size increment.
 The sequence length is set to zero.
+
+Once this function in called for a particular instance (irrespective of whether an 
+error errors) :c:func:`tsk_table_collection_free` **must** be called on the instance to 
+ensure that memory is not leaked. 
 @endrst
 
 @param self A pointer to an uninitialised tsk_table_collection_t object.
-@param options Allocation time options. Currently unused.
+@param options Allocation time options. Currently unused; should be 
+    set to zero to ensure compatability with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_alloc(tsk_table_collection_t *self, tsk_flags_t options);
@@ -687,21 +700,30 @@ int tsk_table_collection_alloc(tsk_table_collection_t *self, tsk_flags_t options
 @brief Load a table collection from file.
 
 @rst
-Reads a table collection from the specified file.
+Allocates a new table collection and loads the data from the specified file.
 @endrst
 
 @param self A pointer to an uninitialised tsk_table_collection_t object.
 @param filename A NULL terminated string containing the filename.
-@param options Load time options. Currently unused.
+@param options Allocation time options. Currently unused; should be 
+    set to zero to ensure compatability with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_load(tsk_table_collection_t *self, const char *filename, 
     tsk_flags_t options);
+
+/**
+@brief Free the memory used by a tsk_table_collection_t object.
+
+@param self A pointer to an initialised tsk_table_collection_t object.
+@return Always returns 0.
+*/
+int tsk_table_collection_free(tsk_table_collection_t *self);
+
 int tsk_table_collection_dump(tsk_table_collection_t *tables, const char *filename, 
     tsk_flags_t options);
 int tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *dest);
 int tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out);
-int tsk_table_collection_free(tsk_table_collection_t *self);
 
 bool tsk_table_collection_is_indexed(tsk_table_collection_t *self);
 int tsk_table_collection_drop_indexes(tsk_table_collection_t *self);

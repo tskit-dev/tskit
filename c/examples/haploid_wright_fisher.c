@@ -1,7 +1,5 @@
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <err.h>
 
 #include <gsl/gsl_rng.h>
