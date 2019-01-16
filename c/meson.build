@@ -25,24 +25,36 @@ tskit_lib = static_library('tskit',
 test_lib = static_library('testlib', 
     sources: ['tests/testlib.c'], dependencies: cunit_dep)
 
-executable('test_core', 
+test_core = executable('test_core', 
     sources: ['tests/test_core.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
-executable('test_tables', 
+test('core', test_core)
+
+test_tables = executable('test_tables', 
     sources: ['tests/test_tables.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
-executable('test_trees', 
+test('tables', test_tables)
+
+test_trees = executable('test_trees', 
     sources: ['tests/test_trees.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
-executable('test_genotypes', 
+test('trees', test_trees)
+
+test_genotypes = executable('test_genotypes', 
     sources: ['tests/test_genotypes.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
-executable('test_convert', 
+test('genotypes', test_genotypes)
+
+test_convert = executable('test_convert', 
     sources: ['tests/test_convert.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
-executable('test_stats', 
+test('convert', test_convert)
+     
+test_stats = executable('test_stats', 
     sources: ['tests/test_stats.c'], 
     link_with: [tskit_lib, test_lib], c_args: extra_c_args)
+test('stats', test_stats)
+
 
 # The development CLI. Don't use extra C args because argtable code won't pass
 executable('dev-cli', 
@@ -50,7 +62,7 @@ executable('dev-cli',
     link_with: [tskit_lib], c_args:['-Dlint'])
 
 
-# Example programs.
+# Example programs. TODO make this optional to avoid falling over without GSL
 gsl_dep = dependency('gsl')
 executable('haploid_wright_fisher', 
     sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib],

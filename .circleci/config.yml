@@ -78,12 +78,7 @@ jobs:
       - run:
           name: Run C tests
           command: |
-            ./build-gcc/test_core
-            ./build-gcc/test_tables
-            ./build-gcc/test_trees
-            ./build-gcc/test_genotypes
-            ./build-gcc/test_convert
-            ./build-gcc/test_stats
+            cd build-gcc && ninja test
 
       - run:
           name: Run gcov & upload coverage.
@@ -105,12 +100,7 @@ jobs:
       - run:
           name: Run clang-compiled C tests
           command: |
-            ./build-clang/test_core
-            ./build-clang/test_tables
-            ./build-clang/test_trees
-            ./build-clang/test_genotypes
-            ./build-clang/test_convert
-            ./build-clang/test_stats
+            cd build-clang && ninja test
 
       - run:
           name: Build docs
