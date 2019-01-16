@@ -51,14 +51,14 @@ to the API or ABI are introduced, i.e., the addition of a new function.
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 */
-#define TSK_VERSION_PATCH   0
+#define TSK_VERSION_PATCH   1
 /** @} */
 
 /* Node flags */
 #define TSK_NODE_IS_SAMPLE 1u
 
 /* The null ID */
-#define TSK_NULL (-1)
+#define TSK_NULL ((tsk_id_t) -1)
 
 /* Flags for simplify() */
 #define TSK_FILTER_SITES                 (1 << 0)
@@ -84,7 +84,7 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 
 /* Generic debug flag shared across all calls. Uses
  * the top bit to avoid clashes with other flags. */
-#define TSK_DEBUG                       (1 << 31)
+#define TSK_DEBUG                       (1u << 31)
 
 #define TSK_LOAD_EXTENDED_CHECKS  1
 

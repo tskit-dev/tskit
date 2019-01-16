@@ -23,9 +23,9 @@ typedef struct {
 typedef struct {
     tsk_site_t *site;
     const char **alleles;
-    tsk_tbl_size_t *allele_lengths;
-    tsk_tbl_size_t num_alleles;
-    tsk_tbl_size_t max_alleles;
+    tsk_size_t *allele_lengths;
+    tsk_size_t num_alleles;
+    tsk_size_t max_alleles;
     union {
         uint8_t *u8;
         uint16_t *u16;
@@ -41,7 +41,7 @@ typedef struct {
     size_t tree_site_index;
     int finished;
     tsk_tree_t tree;
-    int flags;
+    tsk_flags_t options;
     tsk_variant_t variant;
 } tsk_vargen_t;
 
@@ -53,7 +53,7 @@ int tsk_hapgen_free(tsk_hapgen_t *self);
 void tsk_hapgen_print_state(tsk_hapgen_t *self, FILE *out);
 
 int tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_id_t *samples, size_t num_samples, int flags);
+        tsk_id_t *samples, size_t num_samples, tsk_flags_t options);
 int tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant);
 int tsk_vargen_free(tsk_vargen_t *self);
 void tsk_vargen_print_state(tsk_vargen_t *self, FILE *out);

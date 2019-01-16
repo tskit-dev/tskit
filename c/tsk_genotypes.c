@@ -59,7 +59,7 @@ tsk_hapgen_apply_tree_site(tsk_hapgen_t *self, tsk_site_t *site)
     const tsk_id_t *restrict list_right = self->tree.right_sample;
     const tsk_id_t *restrict list_next = self->tree.next_sample;
     tsk_id_t node, index, stop;
-    tsk_tbl_size_t j;
+    tsk_size_t j;
     const char *derived_state;
 
     for (j = 0; j < site->mutations_length; j++) {
@@ -92,8 +92,8 @@ static int
 tsk_hapgen_generate_all_haplotypes(tsk_hapgen_t *self)
 {
     int ret = 0;
-    tsk_tbl_size_t j;
-    tsk_tbl_size_t num_sites = 0;
+    tsk_size_t j;
+    tsk_size_t num_sites = 0;
     tsk_site_t *sites = NULL;
     tsk_tree_t *t = &self->tree;
 
@@ -148,7 +148,7 @@ tsk_hapgen_alloc(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
     }
     /* For each site set the ancestral type */
     for (k = 0; k < self->num_sites; k++) {
-        ret = tsk_treeseq_get_site(self->tree_sequence, k, &site);
+        ret = tsk_treeseq_get_site(self->tree_sequence, (tsk_id_t) k, &site);
         if (ret != 0) {
             goto out;
         }
@@ -218,12 +218,12 @@ out:
 
 int
 tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_id_t *samples, size_t num_samples, int flags)
+        tsk_id_t *samples, size_t num_samples, tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
-    int tree_flags;
+    tsk_flags_t tree_options;
     size_t j, num_nodes, num_samples_alloc;
-    tsk_tbl_size_t max_alleles = 4;
+    tsk_size_t max_alleles = 4;
 
     assert(tree_sequence != NULL);
     memset(self, 0, sizeof(tsk_vargen_t));
@@ -260,8 +260,8 @@ tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     }
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->tree_sequence = tree_sequence;
-    self->flags = flags;
-    if (self->flags & TSK_16_BIT_GENOTYPES) {
+    self->options = options;
+    if (self->options & TSK_16_BIT_GENOTYPES) {
         self->variant.genotypes.u16 = malloc(
             num_samples_alloc * sizeof(*self->variant.genotypes.u16));
     } else {
@@ -280,11 +280,11 @@ tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     }
     /* When a list of samples is given, we use the traversal based algorithm
      * and turn off the sample list tracking in the tree */
-    tree_flags = 0;
+    tree_options = 0;
     if (self->samples == NULL) {
-        tree_flags = TSK_SAMPLE_LISTS;
+        tree_options = TSK_SAMPLE_LISTS;
     }
-    ret = tsk_tree_alloc(&self->tree, tree_sequence, tree_flags);
+    ret = tsk_tree_alloc(&self->tree, tree_sequence, tree_options);
     if (ret != 0) {
         goto out;
     }
@@ -317,9 +317,9 @@ tsk_vargen_expand_alleles(tsk_vargen_t *self)
     int ret = 0;
     tsk_variant_t *var = &self->variant;
     void *p;
-    tsk_tbl_size_t hard_limit = UINT8_MAX;
+    tsk_size_t hard_limit = UINT8_MAX;
 
-    if (self->flags & TSK_16_BIT_GENOTYPES) {
+    if (self->options & TSK_16_BIT_GENOTYPES) {
         hard_limit = UINT16_MAX;
     }
     if (var->max_alleles == hard_limit) {
@@ -350,7 +350,7 @@ out:
  * same reason.
  */
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u8_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_tbl_size_t derived)
+tsk_vargen_update_genotypes_u8_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
     uint8_t *restrict genotypes = self->variant.genotypes.u8;
     const tsk_id_t *restrict list_left = self->tree.left_sample;
@@ -381,7 +381,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u16_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_tbl_size_t derived)
+tsk_vargen_update_genotypes_u16_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
     uint16_t *restrict genotypes = self->variant.genotypes.u16;
     const tsk_id_t *restrict list_left = self->tree.left_sample;
@@ -417,10 +417,10 @@ out:
  * and so we use a visit function to avoid duplicating code.
  */
 
-typedef int (*visit_func_t)(tsk_vargen_t *, tsk_id_t, tsk_tbl_size_t);
+typedef int (*visit_func_t)(tsk_vargen_t *, tsk_id_t, tsk_size_t);
 
 static int TSK_WARN_UNUSED
-tsk_vargen_traverse(tsk_vargen_t *self, tsk_id_t node, tsk_tbl_size_t derived, visit_func_t visit)
+tsk_vargen_traverse(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived, visit_func_t visit)
 {
     int ret = 0;
     tsk_id_t * restrict stack = self->tree.stack1;
@@ -452,7 +452,7 @@ out:
 }
 
 static int
-tsk_vargen_visit_u8(tsk_vargen_t *self, tsk_id_t sample_index, tsk_tbl_size_t derived)
+tsk_vargen_visit_u8(tsk_vargen_t *self, tsk_id_t sample_index, tsk_size_t derived)
 {
     int ret = 0;
     uint8_t *restrict genotypes = self->variant.genotypes.u8;
@@ -469,7 +469,7 @@ out:
 }
 
 static int
-tsk_vargen_visit_u16(tsk_vargen_t *self, tsk_id_t sample_index, tsk_tbl_size_t derived)
+tsk_vargen_visit_u16(tsk_vargen_t *self, tsk_id_t sample_index, tsk_size_t derived)
 {
     int ret = 0;
     uint16_t *restrict genotypes = self->variant.genotypes.u16;
@@ -486,13 +486,13 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u8_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_tbl_size_t derived)
+tsk_vargen_update_genotypes_u8_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
     return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_u8);
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u16_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_tbl_size_t derived)
+tsk_vargen_update_genotypes_u16_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
     return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_u16);
 }
@@ -501,13 +501,13 @@ static int
 tsk_vargen_update_site(tsk_vargen_t *self)
 {
     int ret = 0;
-    tsk_tbl_size_t j, derived;
+    tsk_size_t j, derived;
     tsk_variant_t *var = &self->variant;
     tsk_site_t *site = var->site;
     tsk_mutation_t mutation;
-    bool genotypes16 = !!(self->flags & TSK_16_BIT_GENOTYPES);
+    bool genotypes16 = !!(self->options & TSK_16_BIT_GENOTYPES);
     bool by_traversal = self->samples != NULL;
-    int (*update_genotypes)(tsk_vargen_t *, tsk_id_t, tsk_tbl_size_t);
+    int (*update_genotypes)(tsk_vargen_t *, tsk_id_t, tsk_size_t);
 
     /* For now we use a traversal method to find genotypes when we have a
      * specified set of samples, but we should provide the option to do it

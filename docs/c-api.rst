@@ -7,13 +7,15 @@ C API
 .. warning::
         **This section is under construction, incomplete and experiemental!!**
 
-****************
-Basic structures
-****************
+***********
+Basic Types
+***********
+
+.. doxygentypedef:: tsk_id_t
+.. doxygentypedef:: tsk_size_t
 
 .. doxygenstruct:: tsk_individual_t
     :members:
-
 
 .. todo:: Need to document the members in these structs.
 
@@ -47,7 +49,7 @@ haploid Wright-Fisher simulator.
 Table collection
 ----------------
 
-.. doxygenstruct:: tsk_tbl_collection_t
+.. doxygenstruct:: tsk_table_collection_t
     :members:
 
 .. doxygengroup:: TABLE_COLLECTION_API_GROUP
@@ -57,7 +59,7 @@ Table collection
 Individual table
 ----------------
 
-.. doxygenstruct:: tsk_individual_tbl_t
+.. doxygenstruct:: tsk_individual_table_t
     :members:
 
 .. doxygengroup:: INDIVIDUAL_TABLE_API_GROUP
@@ -67,7 +69,7 @@ Individual table
 Node table
 ----------
 
-.. doxygenstruct:: tsk_node_tbl_t
+.. doxygenstruct:: tsk_node_table_t
     :members:
 
 .. doxygengroup:: NODE_TABLE_API_GROUP
@@ -77,7 +79,7 @@ Node table
 Edge table
 ----------
 
-.. doxygenstruct:: tsk_edge_tbl_t
+.. doxygenstruct:: tsk_edge_table_t
     :members:
 
 .. doxygengroup:: EDGE_TABLE_API_GROUP
@@ -87,7 +89,7 @@ Edge table
 Migration table
 ---------------
 
-.. doxygenstruct:: tsk_migration_tbl_t
+.. doxygenstruct:: tsk_migration_table_t
     :members:
 
 .. doxygengroup:: MIGRATION_TABLE_API_GROUP
@@ -97,7 +99,7 @@ Migration table
 Site table
 ----------
 
-.. doxygenstruct:: tsk_site_tbl_t
+.. doxygenstruct:: tsk_site_table_t
     :members:
 
 .. doxygengroup:: SITE_TABLE_API_GROUP
@@ -107,7 +109,7 @@ Site table
 Mutation table
 --------------
 
-.. doxygenstruct:: tsk_mutation_tbl_t
+.. doxygenstruct:: tsk_mutation_table_t
     :members:
 
 .. doxygengroup:: MUTATION_TABLE_API_GROUP
@@ -117,7 +119,7 @@ Mutation table
 Population table
 ----------------
 
-.. doxygenstruct:: tsk_population_tbl_t
+.. doxygenstruct:: tsk_population_table_t
     :members:
 
 .. doxygengroup:: POPULATION_TABLE_API_GROUP
@@ -127,7 +129,7 @@ Population table
 Provenance table
 ----------------
 
-.. doxygenstruct:: tsk_provenance_tbl_t
+.. doxygenstruct:: tsk_provenance_table_t
     :members:
 
 .. doxygengroup:: PROVENANCE_TABLE_API_GROUP

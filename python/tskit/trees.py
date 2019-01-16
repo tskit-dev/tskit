@@ -906,7 +906,7 @@ class Tree(object):
                     yield v
 
     def _sample_generator(self, u):
-        if self._ll_tree.get_flags() & _tskit.SAMPLE_LISTS:
+        if self._ll_tree.get_options() & _tskit.SAMPLE_LISTS:
             samples = self.tree_sequence.samples()
             index = self.left_sample(u)
             if index != NULL:
@@ -1009,7 +1009,7 @@ class Tree(object):
         roots = [u]
         if u is None:
             roots = self.roots
-        if not (self._ll_tree.get_flags() & _tskit.SAMPLE_COUNTS):
+        if not (self._ll_tree.get_options() & _tskit.SAMPLE_COUNTS):
             raise RuntimeError(
                 "The get_num_tracked_samples method is only supported "
                 "when sample_counts=True.")
@@ -2225,14 +2225,14 @@ class TreeSequence(object):
             sample_counts = leaf_counts
         if leaf_lists is not None:
             sample_lists = leaf_lists
-        flags = 0
+        options = 0
         if sample_counts:
-            flags |= _tskit.SAMPLE_COUNTS
+            options |= _tskit.SAMPLE_COUNTS
         elif tracked_samples is not None:
             raise ValueError("Cannot set tracked_samples without sample_counts")
         if sample_lists:
-            flags |= _tskit.SAMPLE_LISTS
-        kwargs = {"flags": flags}
+            options |= _tskit.SAMPLE_LISTS
+        kwargs = {"options": options}
         if tracked_samples is not None:
             # TODO remove this when we allow numpy arrays in the low-level API.
             kwargs["tracked_samples"] = list(tracked_samples)

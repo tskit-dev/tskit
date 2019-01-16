@@ -19,7 +19,7 @@
 
 typedef struct {
     size_t precision;
-    int flags;
+    tsk_flags_t options;
     char *newick;
     tsk_tree_t *tree;
 } tsk_newick_converter_t;
@@ -120,13 +120,13 @@ out:
 
 static int
 tsk_newick_converter_alloc(tsk_newick_converter_t *self, tsk_tree_t *tree,
-        size_t precision, int flags)
+        size_t precision, tsk_flags_t options)
 {
     int ret = 0;
 
     memset(self, 0, sizeof(tsk_newick_converter_t));
     self->precision = precision;
-    self->flags = flags;
+    self->options = options;
     self->tree = tree;
     return ret;
 }
@@ -138,13 +138,13 @@ tsk_newick_converter_free(tsk_newick_converter_t *TSK_UNUSED(self))
 }
 
 int
-tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision, int flags,
-        size_t buffer_size, char *buffer)
+tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision,
+        tsk_flags_t options, size_t buffer_size, char *buffer)
 {
     int ret = 0;
     tsk_newick_converter_t nc;
 
-    ret = tsk_newick_converter_alloc(&nc, tree, precision, flags);
+    ret = tsk_newick_converter_alloc(&nc, tree, precision, options);
     if (ret != 0) {
         goto out;
     }
@@ -329,7 +329,7 @@ tsk_vcf_converter_convert_positions(tsk_vcf_converter_t *self, tsk_treeseq_t *tr
     size_t j;
 
     for (j = 0; j < self->num_sites; j++) {
-        ret = tsk_treeseq_get_site(tree_sequence, j, &site);
+        ret = tsk_treeseq_get_site(tree_sequence, (tsk_id_t) j, &site);
         if (ret != 0) {
             goto out;
         }

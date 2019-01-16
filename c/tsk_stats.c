@@ -91,7 +91,7 @@ tsk_ld_calc_free(tsk_ld_calc_t *self)
  * interval.
  */
 static int TSK_WARN_UNUSED
-tsk_ld_calc_position_trees(tsk_ld_calc_t *self, size_t site_index)
+tsk_ld_calc_position_trees(tsk_ld_calc_t *self, tsk_id_t site_index)
 {
     int ret = TSK_ERR_GENERIC;
     tsk_site_t mut;
@@ -140,7 +140,7 @@ static double
 tsk_ld_calc_overlap_within_tree(tsk_ld_calc_t *self, tsk_site_t sA, tsk_site_t sB)
 {
     const tsk_tree_t *t = self->inner_tree;
-    const tsk_node_tbl_t *nodes = self->tree_sequence->tables->nodes;
+    const tsk_node_table_t *nodes = self->tree_sequence->tables->nodes;
     tsk_id_t u, v, nAB;
 
     assert(sA.mutations_length == 1);
@@ -173,9 +173,9 @@ tsk_ld_calc_set_tracked_samples(tsk_ld_calc_t *self, tsk_site_t sA)
 }
 
 static int TSK_WARN_UNUSED
-tsk_ld_calc_get_r2_array_forward(tsk_ld_calc_t *self, size_t source_index,
-        size_t max_sites, double max_distance, double *r2,
-        size_t *num_r2_values)
+tsk_ld_calc_get_r2_array_forward(tsk_ld_calc_t *self, tsk_id_t source_index,
+        tsk_size_t max_sites, double max_distance, double *r2,
+        tsk_size_t *num_r2_values)
 {
     int ret = TSK_ERR_GENERIC;
     tsk_site_t sA, sB;
@@ -183,7 +183,7 @@ tsk_ld_calc_get_r2_array_forward(tsk_ld_calc_t *self, size_t source_index,
     int tracked_samples_set = 0;
     tsk_tree_t *tA, *tB;
     double n = (double) tsk_treeseq_get_num_samples(self->tree_sequence);
-    size_t j;
+    tsk_id_t j;
     double nAB;
 
     tA = self->outer_tree;
@@ -199,8 +199,8 @@ tsk_ld_calc_get_r2_array_forward(tsk_ld_calc_t *self, size_t source_index,
     fA = ((double) tA->num_samples[sA.mutations[0].node]) / n;
     assert(fA > 0);
     tB->mark = 1;
-    for (j = 0; j < max_sites; j++) {
-        if (source_index + j + 1 >= self->num_sites) {
+    for (j = 0; j < (tsk_id_t) max_sites; j++) {
+        if (source_index + j + 1 >= (tsk_id_t) self->num_sites) {
             break;
         }
         ret = tsk_treeseq_get_site(self->tree_sequence, (source_index + j + 1), &sB);
@@ -254,16 +254,16 @@ tsk_ld_calc_get_r2_array_forward(tsk_ld_calc_t *self, size_t source_index,
         }
         assert(ret == 1);
     }
-    *num_r2_values = j;
+    *num_r2_values = (tsk_size_t) j;
     ret = 0;
 out:
     return ret;
 }
 
 static int TSK_WARN_UNUSED
-tsk_ld_calc_get_r2_array_reverse(tsk_ld_calc_t *self, size_t source_index,
-        size_t max_sites, double max_distance, double *r2,
-        size_t *num_r2_values)
+tsk_ld_calc_get_r2_array_reverse(tsk_ld_calc_t *self, tsk_id_t source_index,
+        tsk_size_t max_sites, double max_distance, double *r2,
+        tsk_size_t *num_r2_values)
 {
     int ret = TSK_ERR_GENERIC;
     tsk_site_t sA, sB;
@@ -271,9 +271,8 @@ tsk_ld_calc_get_r2_array_reverse(tsk_ld_calc_t *self, size_t source_index,
     int tracked_samples_set = 0;
     tsk_tree_t *tA, *tB;
     double n = (double) tsk_treeseq_get_num_samples(self->tree_sequence);
-    size_t j;
     double nAB;
-    int64_t site_index;
+    tsk_id_t j, site_index;
 
     tA = self->outer_tree;
     tB = self->inner_tree;
@@ -288,12 +287,12 @@ tsk_ld_calc_get_r2_array_reverse(tsk_ld_calc_t *self, size_t source_index,
     fA = ((double) tA->num_samples[sA.mutations[0].node]) / n;
     assert(fA > 0);
     tB->mark = 1;
-    for (j = 0; j < max_sites; j++) {
-        site_index = ((int64_t) source_index) - ((int64_t) j) - 1;
+    for (j = 0; j < (tsk_id_t) max_sites; j++) {
+        site_index = source_index - j - 1;
         if (site_index < 0) {
             break;
         }
-        ret = tsk_treeseq_get_site(self->tree_sequence, (size_t) site_index, &sB);
+        ret = tsk_treeseq_get_site(self->tree_sequence, site_index, &sB);
         if (ret != 0) {
             goto out;
         }
@@ -344,20 +343,20 @@ tsk_ld_calc_get_r2_array_reverse(tsk_ld_calc_t *self, size_t source_index,
         }
         assert(ret == 1);
     }
-    *num_r2_values = j;
+    *num_r2_values = (tsk_size_t) j;
     ret = 0;
 out:
     return ret;
 }
 
 int TSK_WARN_UNUSED
-tsk_ld_calc_get_r2_array(tsk_ld_calc_t *self, size_t a, int direction,
-        size_t max_sites, double max_distance, double *r2,
-        size_t *num_r2_values)
+tsk_ld_calc_get_r2_array(tsk_ld_calc_t *self, tsk_id_t a, int direction,
+        tsk_size_t max_sites, double max_distance,
+        double *r2, tsk_size_t *num_r2_values)
 {
     int ret = TSK_ERR_GENERIC;
 
-    if (a >= self->num_sites) {
+    if (a < 0 || a >= (tsk_id_t) self->num_sites) {
         ret = TSK_ERR_OUT_OF_BOUNDS;
         goto out;
     }
@@ -379,7 +378,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_ld_calc_get_r2(tsk_ld_calc_t *self, size_t a, size_t b, double *r2)
+tsk_ld_calc_get_r2(tsk_ld_calc_t *self, tsk_id_t a, tsk_id_t b, double *r2)
 {
     int ret = TSK_ERR_GENERIC;
     tsk_site_t sA, sB;
@@ -387,9 +386,11 @@ tsk_ld_calc_get_r2(tsk_ld_calc_t *self, size_t a, size_t b, double *r2)
     tsk_tree_t *tA, *tB;
     double n = (double) tsk_treeseq_get_num_samples(self->tree_sequence);
     double nAB;
-    size_t tmp;
+    tsk_id_t tmp;
 
-    if (a >= self->num_sites || b >= self->num_sites) {
+    if (a < 0 || b < 0
+            || a >= (tsk_id_t) self->num_sites
+            || b >= (tsk_id_t) self->num_sites) {
         ret = TSK_ERR_OUT_OF_BOUNDS;
         goto out;
     }

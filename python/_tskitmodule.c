@@ -55,7 +55,7 @@ static PyObject *TskitVersionTooNewError;
  */
 typedef struct {
     PyObject_HEAD
-    tsk_tbl_collection_t *tables;
+    tsk_table_collection_t *tables;
 } LightweightTableCollection;
 
 /* The XTable classes each have 'lock' attribute, which is used to
@@ -68,7 +68,7 @@ typedef struct {
 
 typedef struct _TableCollection {
     PyObject_HEAD
-    tsk_tbl_collection_t *tables;
+    tsk_table_collection_t *tables;
 } TableCollection;
 
  /* The table pointer in each of the Table classes either points to locally
@@ -79,56 +79,56 @@ typedef struct _TableCollection {
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_individual_tbl_t *table;
+    tsk_individual_table_t *table;
     TableCollection *tables;
 } IndividualTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_node_tbl_t *table;
+    tsk_node_table_t *table;
     TableCollection *tables;
 } NodeTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_edge_tbl_t *table;
+    tsk_edge_table_t *table;
     TableCollection *tables;
 } EdgeTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_site_tbl_t *table;
+    tsk_site_table_t *table;
     TableCollection *tables;
 } SiteTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_mutation_tbl_t *table;
+    tsk_mutation_table_t *table;
     TableCollection *tables;
 } MutationTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_migration_tbl_t *table;
+    tsk_migration_table_t *table;
     TableCollection *tables;
 } MigrationTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_population_tbl_t *table;
+    tsk_population_table_t *table;
     TableCollection *tables;
 } PopulationTable;
 
 typedef struct {
     PyObject_HEAD
     bool locked;
-    tsk_provenance_tbl_t *table;
+    tsk_provenance_table_t *table;
     TableCollection *tables;
 } ProvenanceTable;
 
@@ -651,7 +651,7 @@ out:
 }
 
 static int
-parse_individual_table_dict(tsk_individual_tbl_t *table, PyObject *dict, bool clear_table)
+parse_individual_table_dict(tsk_individual_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -738,13 +738,13 @@ parse_individual_table_dict(tsk_individual_tbl_t *table, PyObject *dict, bool cl
     }
 
     if (clear_table) {
-        err = tsk_individual_tbl_clear(table);
+        err = tsk_individual_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_individual_tbl_append_columns(table, num_rows,
+    err = tsk_individual_table_append_columns(table, num_rows,
             PyArray_DATA(flags_array),
             location_data, location_offset_data,
             metadata_data, metadata_offset_data);
@@ -763,7 +763,7 @@ out:
 }
 
 static int
-parse_node_table_dict(tsk_node_tbl_t *table, PyObject *dict, bool clear_table)
+parse_node_table_dict(tsk_node_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -856,13 +856,13 @@ parse_node_table_dict(tsk_node_tbl_t *table, PyObject *dict, bool clear_table)
         metadata_offset_data = PyArray_DATA(metadata_offset_array);
     }
     if (clear_table) {
-        err = tsk_node_tbl_clear(table);
+        err = tsk_node_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_node_tbl_append_columns(table, num_rows,
+    err = tsk_node_table_append_columns(table, num_rows,
             PyArray_DATA(flags_array), PyArray_DATA(time_array), population_data,
             individual_data, metadata_data, metadata_offset_data);
     if (err != 0) {
@@ -881,7 +881,7 @@ out:
 }
 
 static int
-parse_edge_table_dict(tsk_edge_tbl_t *table, PyObject *dict, bool clear_table)
+parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
 {
     int ret = -1;
     int err;
@@ -932,13 +932,13 @@ parse_edge_table_dict(tsk_edge_tbl_t *table, PyObject *dict, bool clear_table)
     }
 
     if (clear_table) {
-        err = tsk_edge_tbl_clear(table);
+        err = tsk_edge_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_edge_tbl_append_columns(table, num_rows,
+    err = tsk_edge_table_append_columns(table, num_rows,
             PyArray_DATA(left_array), PyArray_DATA(right_array),
             PyArray_DATA(parent_array), PyArray_DATA(child_array));
     if (err != 0) {
@@ -955,7 +955,7 @@ out:
 }
 
 static int
-parse_migration_table_dict(tsk_migration_tbl_t *table, PyObject *dict, bool clear_table)
+parse_migration_table_dict(tsk_migration_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -1026,13 +1026,13 @@ parse_migration_table_dict(tsk_migration_tbl_t *table, PyObject *dict, bool clea
     }
 
     if (clear_table) {
-        err = tsk_migration_tbl_clear(table);
+        err = tsk_migration_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_migration_tbl_append_columns(table, num_rows,
+    err = tsk_migration_table_append_columns(table, num_rows,
         PyArray_DATA(left_array), PyArray_DATA(right_array), PyArray_DATA(node_array),
         PyArray_DATA(source_array), PyArray_DATA(dest_array), PyArray_DATA(time_array));
     if (err != 0) {
@@ -1051,7 +1051,7 @@ out:
 }
 
 static int
-parse_site_table_dict(tsk_site_tbl_t *table, PyObject *dict, bool clear_table)
+parse_site_table_dict(tsk_site_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -1131,13 +1131,13 @@ parse_site_table_dict(tsk_site_tbl_t *table, PyObject *dict, bool clear_table)
     }
 
     if (clear_table) {
-        err = tsk_site_tbl_clear(table);
+        err = tsk_site_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_site_tbl_append_columns(table, num_rows,
+    err = tsk_site_table_append_columns(table, num_rows,
         PyArray_DATA(position_array), PyArray_DATA(ancestral_state_array),
         PyArray_DATA(ancestral_state_offset_array), metadata_data, metadata_offset_data);
     if (err != 0) {
@@ -1155,7 +1155,7 @@ out:
 }
 
 static int
-parse_mutation_table_dict(tsk_mutation_tbl_t *table, PyObject *dict, bool clear_table)
+parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -1262,13 +1262,13 @@ parse_mutation_table_dict(tsk_mutation_tbl_t *table, PyObject *dict, bool clear_
     }
 
     if (clear_table) {
-        err = tsk_mutation_tbl_clear(table);
+        err = tsk_mutation_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_mutation_tbl_append_columns(table, num_rows,
+    err = tsk_mutation_table_append_columns(table, num_rows,
             PyArray_DATA(site_array), PyArray_DATA(node_array),
             parent_data, PyArray_DATA(derived_state_array),
             PyArray_DATA(derived_state_offset_array),
@@ -1290,7 +1290,7 @@ out:
 }
 
 static int
-parse_population_table_dict(tsk_population_tbl_t *table, PyObject *dict, bool clear_table)
+parse_population_table_dict(tsk_population_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -1323,13 +1323,13 @@ parse_population_table_dict(tsk_population_tbl_t *table, PyObject *dict, bool cl
     }
 
     if (clear_table) {
-        err = tsk_population_tbl_clear(table);
+        err = tsk_population_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_population_tbl_append_columns(table, num_rows,
+    err = tsk_population_table_append_columns(table, num_rows,
             PyArray_DATA(metadata_array), PyArray_DATA(metadata_offset_array));
     if (err != 0) {
         handle_library_error(err);
@@ -1343,7 +1343,7 @@ out:
 }
 
 static int
-parse_provenance_table_dict(tsk_provenance_tbl_t *table, PyObject *dict, bool clear_table)
+parse_provenance_table_dict(tsk_provenance_table_t *table, PyObject *dict, bool clear_table)
 {
     int err;
     int ret = -1;
@@ -1397,13 +1397,13 @@ parse_provenance_table_dict(tsk_provenance_tbl_t *table, PyObject *dict, bool cl
     }
 
     if (clear_table) {
-        err = tsk_provenance_tbl_clear(table);
+        err = tsk_provenance_table_clear(table);
         if (err != 0) {
             handle_library_error(err);
             goto out;
         }
     }
-    err = tsk_provenance_tbl_append_columns(table, num_rows,
+    err = tsk_provenance_table_append_columns(table, num_rows,
             PyArray_DATA(timestamp_array), PyArray_DATA(timestamp_offset_array),
             PyArray_DATA(record_array), PyArray_DATA(record_offset_array));
     if (err != 0) {
@@ -1420,7 +1420,7 @@ out:
 }
 
 static int
-parse_table_collection_dict(tsk_tbl_collection_t *tables, PyObject *tables_dict)
+parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dict)
 {
     int ret = -1;
     PyObject *value = NULL;
@@ -1545,7 +1545,7 @@ out:
 }
 
 static int
-write_table_arrays(tsk_tbl_collection_t *tables, PyObject *dict)
+write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
 {
     struct table_col {
         const char *name;
@@ -1723,7 +1723,7 @@ out:
 
 /* Returns a dictionary encoding of the specified table collection */
 static PyObject*
-dump_tables_dict(tsk_tbl_collection_t *tables)
+dump_tables_dict(tsk_table_collection_t *tables)
 {
     PyObject *ret = NULL;
     PyObject *dict = NULL;
@@ -1776,7 +1776,7 @@ static void
 LightweightTableCollection_dealloc(LightweightTableCollection* self)
 {
     if (self->tables != NULL) {
-        tsk_tbl_collection_free(self->tables);
+        tsk_table_collection_free(self->tables);
         PyMem_Free(self->tables);
         self->tables = NULL;
     }
@@ -1800,7 +1800,7 @@ LightweightTableCollection_init(LightweightTableCollection *self, PyObject *args
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_tbl_collection_alloc(self->tables, 0);
+    err = tsk_table_collection_alloc(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -1922,7 +1922,7 @@ IndividualTable_dealloc(IndividualTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_individual_tbl_free(self->table);
+        tsk_individual_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -1947,17 +1947,17 @@ IndividualTable_init(IndividualTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_individual_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_individual_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_individual_tbl_alloc(self->table, 0);
+    err = tsk_individual_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_individual_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_individual_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -1973,7 +1973,7 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     PyObject *py_location = Py_None;
     PyArrayObject *location_array = NULL;
     double *location_data = NULL;
-    tsk_tbl_size_t location_length = 0;
+    tsk_size_t location_length = 0;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
     npy_intp *shape;
@@ -2000,10 +2000,10 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
         shape = PyArray_DIMS(location_array);
-        location_length = (tsk_tbl_size_t) shape[0];
+        location_length = (tsk_size_t) shape[0];
         location_data = PyArray_DATA(location_array);
     }
-    err = tsk_individual_tbl_add_row(self->table, (uint32_t) flags,
+    err = tsk_individual_table_add_row(self->table, (tsk_flags_t) flags,
             location_data, location_length, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
@@ -2031,7 +2031,7 @@ IndividualTable_equals(IndividualTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &IndividualTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_individual_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_individual_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -2050,7 +2050,7 @@ IndividualTable_get_row(IndividualTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_individual_tbl_get_row(self->table, (size_t) row_id, &individual);
+    err = tsk_individual_table_get_row(self->table, (tsk_id_t) row_id, &individual);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2103,7 +2103,7 @@ IndividualTable_clear(IndividualTable *self)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_individual_tbl_clear(self->table);
+    err = tsk_individual_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2130,7 +2130,7 @@ IndividualTable_truncate(IndividualTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_individual_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_individual_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2351,7 +2351,7 @@ NodeTable_dealloc(NodeTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_node_tbl_free(self->table);
+        tsk_node_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -2377,17 +2377,17 @@ NodeTable_init(NodeTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_node_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_node_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_node_tbl_alloc(self->table, 0);
+    err = tsk_node_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_node_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_node_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -2419,7 +2419,7 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_node_tbl_add_row(self->table, (uint32_t) flags, time,
+    err = tsk_node_table_add_row(self->table, (tsk_flags_t) flags, time,
             (tsk_id_t) population, individual, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
@@ -2445,7 +2445,7 @@ NodeTable_equals(NodeTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &NodeTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_node_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_node_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -2464,7 +2464,7 @@ NodeTable_get_row(NodeTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_node_tbl_get_row(self->table, (size_t) row_id, &node);
+    err = tsk_node_table_get_row(self->table, (tsk_id_t) row_id, &node);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2517,7 +2517,7 @@ NodeTable_clear(NodeTable *self)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_node_tbl_clear(self->table);
+    err = tsk_node_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2544,7 +2544,7 @@ NodeTable_truncate(NodeTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_node_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_node_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2777,7 +2777,7 @@ EdgeTable_dealloc(EdgeTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_edge_tbl_free(self->table);
+        tsk_edge_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -2800,17 +2800,17 @@ EdgeTable_init(EdgeTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_edge_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_edge_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_edge_tbl_alloc(self->table, 0);
+    err = tsk_edge_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_edge_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_edge_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -2834,7 +2834,7 @@ EdgeTable_add_row(EdgeTable *self, PyObject *args, PyObject *kwds)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_edge_tbl_add_row(self->table, left, right, parent, child);
+    err = tsk_edge_table_add_row(self->table, left, right, parent, child);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -2859,7 +2859,7 @@ EdgeTable_equals(EdgeTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &EdgeTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_edge_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_edge_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -2878,7 +2878,7 @@ EdgeTable_get_row(EdgeTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_edge_tbl_get_row(self->table, (size_t) row_id, &edge);
+    err = tsk_edge_table_get_row(self->table, (tsk_id_t) row_id, &edge);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2931,7 +2931,7 @@ EdgeTable_clear(EdgeTable *self)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_edge_tbl_clear(self->table);
+    err = tsk_edge_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2958,7 +2958,7 @@ EdgeTable_truncate(EdgeTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_edge_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_edge_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3165,7 +3165,7 @@ MigrationTable_dealloc(MigrationTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_migration_tbl_free(self->table);
+        tsk_migration_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -3189,17 +3189,17 @@ MigrationTable_init(MigrationTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_migration_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_migration_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_migration_tbl_alloc(self->table, 0);
+    err = tsk_migration_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_migration_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_migration_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -3221,7 +3221,7 @@ MigrationTable_add_row(MigrationTable *self, PyObject *args, PyObject *kwds)
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_migration_tbl_add_row(self->table, left, right, node,
+    err = tsk_migration_table_add_row(self->table, left, right, node,
             source, dest, time);
     if (err < 0) {
         handle_library_error(err);
@@ -3247,7 +3247,7 @@ MigrationTable_equals(MigrationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &MigrationTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_migration_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_migration_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -3266,7 +3266,7 @@ MigrationTable_get_row(MigrationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_migration_tbl_get_row(self->table, (size_t) row_id, &migration);
+    err = tsk_migration_table_get_row(self->table, (tsk_id_t) row_id, &migration);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3319,7 +3319,7 @@ MigrationTable_clear(MigrationTable *self)
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_migration_tbl_clear(self->table);
+    err = tsk_migration_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3346,7 +3346,7 @@ MigrationTable_truncate(MigrationTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_migration_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_migration_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3579,7 +3579,7 @@ SiteTable_dealloc(SiteTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_site_tbl_free(self->table);
+        tsk_site_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -3602,17 +3602,17 @@ SiteTable_init(SiteTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_site_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_site_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_site_tbl_alloc(self->table, 0);
+    err = tsk_site_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_site_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_site_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -3643,7 +3643,7 @@ SiteTable_add_row(SiteTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_site_tbl_add_row(self->table, position, ancestral_state,
+    err = tsk_site_table_add_row(self->table, position, ancestral_state,
             ancestral_state_length, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
@@ -3669,7 +3669,7 @@ SiteTable_equals(SiteTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &SiteTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_site_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_site_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -3688,7 +3688,7 @@ SiteTable_get_row(SiteTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_site_tbl_get_row(self->table, (size_t) row_id, &site);
+    err = tsk_site_table_get_row(self->table, (tsk_id_t) row_id, &site);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3741,7 +3741,7 @@ SiteTable_clear(SiteTable *self)
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_site_tbl_clear(self->table);
+    err = tsk_site_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3768,7 +3768,7 @@ SiteTable_truncate(SiteTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_site_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_site_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3999,7 +3999,7 @@ MutationTable_dealloc(MutationTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_mutation_tbl_free(self->table);
+        tsk_mutation_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -4022,17 +4022,17 @@ MutationTable_init(MutationTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_mutation_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_mutation_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_mutation_tbl_alloc(self->table, 0);
+    err = tsk_mutation_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_mutation_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_mutation_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -4066,7 +4066,7 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_mutation_tbl_add_row(self->table, (tsk_id_t) site,
+    err = tsk_mutation_table_add_row(self->table, (tsk_id_t) site,
             (tsk_id_t) node, (tsk_id_t) parent,
             derived_state, derived_state_length,
             metadata, metadata_length);
@@ -4094,7 +4094,7 @@ MutationTable_equals(MutationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &MutationTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_mutation_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_mutation_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -4113,7 +4113,7 @@ MutationTable_get_row(MutationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_mutation_tbl_get_row(self->table, (size_t) row_id, &mutation);
+    err = tsk_mutation_table_get_row(self->table, (tsk_id_t) row_id, &mutation);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4166,7 +4166,7 @@ MutationTable_clear(MutationTable *self)
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_mutation_tbl_clear(self->table);
+    err = tsk_mutation_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4193,7 +4193,7 @@ MutationTable_truncate(MutationTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_mutation_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_mutation_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4454,7 +4454,7 @@ PopulationTable_dealloc(PopulationTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_population_tbl_free(self->table);
+        tsk_population_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -4479,17 +4479,17 @@ PopulationTable_init(PopulationTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_population_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_population_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_population_tbl_alloc(self->table, 0);
+    err = tsk_population_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_population_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_population_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -4517,7 +4517,7 @@ PopulationTable_add_row(PopulationTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_population_tbl_add_row(self->table, metadata, metadata_length);
+    err = tsk_population_table_add_row(self->table, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -4542,7 +4542,7 @@ PopulationTable_equals(PopulationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &PopulationTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_population_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_population_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -4561,7 +4561,7 @@ PopulationTable_get_row(PopulationTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_population_tbl_get_row(self->table, (size_t) row_id, &population);
+    err = tsk_population_table_get_row(self->table, (tsk_id_t) row_id, &population);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4614,7 +4614,7 @@ PopulationTable_clear(PopulationTable *self)
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_population_tbl_clear(self->table);
+    err = tsk_population_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4641,7 +4641,7 @@ PopulationTable_truncate(PopulationTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_population_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_population_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4816,7 +4816,7 @@ ProvenanceTable_dealloc(ProvenanceTable* self)
     if (self->tables != NULL) {
         Py_DECREF(self->tables);
     } else if (self->table != NULL) {
-        tsk_provenance_tbl_free(self->table);
+        tsk_provenance_table_free(self->table);
         PyMem_Free(self->table);
         self->table = NULL;
     }
@@ -4841,18 +4841,18 @@ ProvenanceTable_init(ProvenanceTable *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_rows_increment must be positive");
         goto out;
     }
-    self->table = PyMem_Malloc(sizeof(tsk_provenance_tbl_t));
+    self->table = PyMem_Malloc(sizeof(tsk_provenance_table_t));
     if (self->table == NULL) {
         PyErr_NoMemory();
         goto out;
     }
 
-    err = tsk_provenance_tbl_alloc(self->table, 0);
+    err = tsk_provenance_table_alloc(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    tsk_provenance_tbl_set_max_rows_increment(self->table, max_rows_increment);
+    tsk_provenance_table_set_max_rows_increment(self->table, max_rows_increment);
     ret = 0;
 out:
     return ret;
@@ -4875,7 +4875,7 @@ ProvenanceTable_add_row(ProvenanceTable *self, PyObject *args, PyObject *kwds)
     if (ProvenanceTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_provenance_tbl_add_row(self->table,
+    err = tsk_provenance_table_add_row(self->table,
             timestamp, timestamp_length, record, record_length);
     if (err < 0) {
         handle_library_error(err);
@@ -4901,7 +4901,7 @@ ProvenanceTable_equals(ProvenanceTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &ProvenanceTableType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_provenance_tbl_equals(self->table, other->table));
+    ret = Py_BuildValue("i", tsk_provenance_table_equals(self->table, other->table));
 out:
     return ret;
 }
@@ -4920,7 +4920,7 @@ ProvenanceTable_get_row(ProvenanceTable *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
         goto out;
     }
-    err = tsk_provenance_tbl_get_row(self->table, (size_t) row_id, &provenance);
+    err = tsk_provenance_table_get_row(self->table, (tsk_id_t) row_id, &provenance);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4973,7 +4973,7 @@ ProvenanceTable_clear(ProvenanceTable *self)
     if (ProvenanceTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_provenance_tbl_clear(self->table);
+    err = tsk_provenance_table_clear(self->table);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5000,7 +5000,7 @@ ProvenanceTable_truncate(ProvenanceTable *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "num_rows out of bounds");
         goto out;
     }
-    err = tsk_provenance_tbl_truncate(self->table, (size_t) num_rows);
+    err = tsk_provenance_table_truncate(self->table, (tsk_size_t) num_rows);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5186,7 +5186,7 @@ static void
 TableCollection_dealloc(TableCollection* self)
 {
     if (self->tables != NULL) {
-        tsk_tbl_collection_free(self->tables);
+        tsk_table_collection_free(self->tables);
         PyMem_Free(self->tables);
         self->tables = NULL;
     }
@@ -5206,11 +5206,11 @@ TableCollection_init(TableCollection *self, PyObject *args, PyObject *kwds)
         goto out;
     }
 
-    self->tables = PyMem_Malloc(sizeof(tsk_tbl_collection_t));
+    self->tables = PyMem_Malloc(sizeof(tsk_table_collection_t));
     if (self->tables == NULL) {
         PyErr_NoMemory();
     }
-    err = tsk_tbl_collection_alloc(self->tables, 0);
+    err = tsk_table_collection_alloc(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5388,7 +5388,7 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     PyArrayObject *node_map_array = NULL;
     npy_intp *shape, dims;
     size_t num_samples;
-    int flags = 0;
+    tsk_flags_t options = 0;
     int filter_sites = true;
     int filter_individuals = false;
     int filter_populations = false;
@@ -5410,16 +5410,16 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     shape = PyArray_DIMS(samples_array);
     num_samples = shape[0];
     if (filter_sites) {
-        flags |= TSK_FILTER_SITES;
+        options |= TSK_FILTER_SITES;
     }
     if (filter_individuals) {
-        flags |= TSK_FILTER_INDIVIDUALS;
+        options |= TSK_FILTER_INDIVIDUALS;
     }
     if (filter_populations) {
-        flags |= TSK_FILTER_POPULATIONS;
+        options |= TSK_FILTER_POPULATIONS;
     }
     if (reduce_to_site_topology) {
-        flags |= TSK_REDUCE_TO_SITE_TOPOLOGY;
+        options |= TSK_REDUCE_TO_SITE_TOPOLOGY;
     }
 
     /* Allocate a new array to hold the node map. */
@@ -5428,8 +5428,8 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     if (node_map_array == NULL) {
         goto out;
     }
-    err = tsk_tbl_collection_simplify(self->tables,
-            PyArray_DATA(samples_array), num_samples, flags,
+    err = tsk_table_collection_simplify(self->tables,
+            PyArray_DATA(samples_array), num_samples, options,
             PyArray_DATA(node_map_array));
     if (err != 0) {
         handle_library_error(err);
@@ -5449,14 +5449,12 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     int err;
     PyObject *ret = NULL;
     Py_ssize_t edge_start = 0;
-    int flags = 0;
-
     static char *kwlist[] = {"edge_start", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &edge_start)) {
         goto out;
     }
-    err = tsk_tbl_collection_sort(self->tables, (size_t) edge_start, flags);
+    err = tsk_table_collection_sort(self->tables, (size_t) edge_start, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5472,7 +5470,7 @@ TableCollection_compute_mutation_parents(TableCollection *self)
     int err;
     PyObject *ret = NULL;
 
-    err = tsk_tbl_collection_compute_mutation_parents(self->tables, 0);
+    err = tsk_table_collection_compute_mutation_parents(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5488,7 +5486,7 @@ TableCollection_deduplicate_sites(TableCollection *self)
     int err;
     PyObject *ret = NULL;
 
-    err = tsk_tbl_collection_deduplicate_sites(self->tables, 0);
+    err = tsk_table_collection_deduplicate_sites(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5510,7 +5508,7 @@ TableCollection_equals(TableCollection *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "O!", &TableCollectionType, &other)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_tbl_collection_equals(self->tables, other->tables));
+    ret = Py_BuildValue("i", tsk_table_collection_equals(self->tables, other->tables));
 out:
     return ret;
 }
@@ -5645,7 +5643,6 @@ TreeSequence_dump(TreeSequence *self, PyObject *args, PyObject *kwds)
     int err;
     char *path;
     PyObject *ret = NULL;
-    int flags = 0;
     static char *kwlist[] = {"path", NULL};
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
@@ -5654,7 +5651,7 @@ TreeSequence_dump(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &path)) {
         goto out;
     }
-    err = tsk_treeseq_dump(self->tree_sequence, path, flags);
+    err = tsk_treeseq_dump(self->tree_sequence, path, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5672,7 +5669,7 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     TableCollection *tables = NULL;
     static char *kwlist[] = {"tables", NULL};
     /* TODO add an interface to turn this on and off. */
-    int flags = TSK_BUILD_INDEXES;
+    tsk_flags_t options = TSK_BUILD_INDEXES;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!", kwlist,
             &TableCollectionType, &tables)) {
@@ -5682,7 +5679,7 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_alloc(self->tree_sequence, tables->tables, flags);
+    err = tsk_treeseq_alloc(self->tree_sequence, tables->tables, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5722,7 +5719,6 @@ TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     int err;
     char *path;
-    int flags = 0;
     PyObject *ret = NULL;
     static char *kwlist[] = {"path", NULL};
 
@@ -5733,7 +5729,7 @@ TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_load(self->tree_sequence, path, flags);
+    err = tsk_treeseq_load(self->tree_sequence, path, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6645,19 +6641,19 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "flags", "tracked_samples",
+    static char *kwlist[] = {"tree_sequence", "options", "tracked_samples",
         NULL};
     PyObject *py_tracked_samples = NULL;
     TreeSequence *tree_sequence = NULL;
     tsk_id_t *tracked_samples = NULL;
-    int flags = 0;
+    unsigned int options = 0;
     size_t j, num_tracked_samples, num_nodes;
     PyObject *item;
 
     self->tree = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|iO!", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|IO!", kwlist,
             &TreeSequenceType, &tree_sequence,
-            &flags, &PyList_Type, &py_tracked_samples)) {
+            &options, &PyList_Type, &py_tracked_samples)) {
         goto out;
     }
     self->tree_sequence = tree_sequence;
@@ -6668,7 +6664,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
     num_nodes = tsk_treeseq_get_num_nodes(tree_sequence->tree_sequence);
     num_tracked_samples = 0;
     if (py_tracked_samples != NULL) {
-        if (!(flags & TSK_SAMPLE_COUNTS)) {
+        if (!(options & TSK_SAMPLE_COUNTS)) {
             PyErr_SetString(PyExc_ValueError,
                 "Cannot specified tracked_samples without count_samples flag");
             goto out;
@@ -6697,13 +6693,12 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_tree_alloc(self->tree, tree_sequence->tree_sequence,
-           flags);
+    err = tsk_tree_alloc(self->tree, tree_sequence->tree_sequence, (tsk_flags_t) options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    if (!!(flags & TSK_SAMPLE_COUNTS)) {
+    if (!!(options & TSK_SAMPLE_COUNTS)) {
         err = tsk_tree_set_tracked_samples(self->tree, num_tracked_samples,
                 tracked_samples);
         if (err != 0) {
@@ -6831,14 +6826,14 @@ out:
 }
 
 static PyObject *
-Tree_get_flags(Tree *self)
+Tree_get_options(Tree *self)
 {
     PyObject *ret = NULL;
 
     if (Tree_check_tree(self) != 0) {
         goto out;
     }
-    ret = Py_BuildValue("i", self->tree->flags);
+    ret = Py_BuildValue("i", self->tree->options);
 out:
     return ret;
 }
@@ -7271,8 +7266,8 @@ static PyMethodDef Tree_methods[] = {
             "Returns the right-most coordinate (exclusive)." },
     {"get_sites", (PyCFunction) Tree_get_sites, METH_NOARGS,
             "Returns the list of sites on this tree." },
-    {"get_flags", (PyCFunction) Tree_get_flags, METH_NOARGS,
-            "Returns the value of the flags variable." },
+    {"get_options", (PyCFunction) Tree_get_options, METH_NOARGS,
+            "Returns the value of the options variable." },
     {"get_num_sites", (PyCFunction) Tree_get_num_sites, METH_NOARGS,
             "Returns the number of sites on this tree." },
     {"is_sample", (PyCFunction) Tree_is_sample, METH_VARARGS,
@@ -8218,7 +8213,7 @@ LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
     Py_ssize_t max_mutations = -1;
     double max_distance = DBL_MAX;
     int direction = TSK_DIR_FORWARD;
-    size_t num_r2_values = 0;
+    tsk_size_t num_r2_values = 0;
     int buffer_acquired = 0;
 
     if (LdCalculator_check_state(self) != 0) {
@@ -8256,8 +8251,8 @@ LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
 
     Py_BEGIN_ALLOW_THREADS
     err = tsk_ld_calc_get_r2_array(
-        self->ld_calc, (size_t) source_index, direction,
-        (size_t) max_mutations, max_distance,
+        self->ld_calc, (tsk_id_t) source_index, direction,
+        (tsk_size_t) max_mutations, max_distance,
         (double *) buffer.buf, &num_r2_values);
     Py_END_ALLOW_THREADS
     if (err != 0) {
