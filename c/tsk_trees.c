@@ -44,7 +44,7 @@ tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out)
     for (j = 0; j < self->num_samples; j++) {
         fprintf(out, "\t%d\n", (int) self->samples[j]);
     }
-    tsk_tbl_collection_print_state(self->tables, out);
+    tsk_table_collection_print_state(self->tables, out);
     fprintf(out, "tree_sites = \n");
     for (j = 0; j < self->num_trees; j++) {
         fprintf(out, "tree %d\t%d sites\n", (int) j, self->tree_sites_length[j]);
@@ -72,7 +72,7 @@ int
 tsk_treeseq_free(tsk_treeseq_t *self)
 {
     if (self->tables != NULL) {
-        tsk_tbl_collection_free(self->tables);
+        tsk_table_collection_free(self->tables);
     }
     tsk_safe_free(self->tables);
     tsk_safe_free(self->samples);
@@ -328,7 +328,7 @@ out:
  *   tables directly, but don't free it at the end.
  */
 int TSK_WARN_UNUSED
-tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_tbl_collection_t *tables, tsk_flags_t options)
+tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -342,25 +342,25 @@ tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_tbl_collection_t *tables, tsk_flags_t
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_tbl_collection_alloc(self->tables, 0);
+    ret = tsk_table_collection_alloc(self->tables, 0);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_tbl_collection_copy(tables, self->tables);
+    ret = tsk_table_collection_copy(tables, self->tables);
     if (ret != 0) {
         goto out;
     }
     if (!!(options & TSK_BUILD_INDEXES)) {
-        ret = tsk_tbl_collection_build_indexes(self->tables, 0);
+        ret = tsk_table_collection_build_indexes(self->tables, 0);
         if (ret != 0) {
             goto out;
         }
     }
-    ret = tsk_tbl_collection_check_integrity(self->tables, TSK_CHECK_ALL);
+    ret = tsk_table_collection_check_integrity(self->tables, TSK_CHECK_ALL);
     if (ret != 0) {
         goto out;
     }
-    assert(tsk_tbl_collection_is_indexed(self->tables));
+    assert(tsk_table_collection_is_indexed(self->tables));
 
     /* This is a hack to workaround the fact we're copying the tables here.
      * In general, we don't want the file_uuid to be copied, as this should
@@ -399,18 +399,18 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_tbl_collection_t *tables)
+tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables)
 {
-    return tsk_tbl_collection_copy(self->tables, tables);
+    return tsk_table_collection_copy(self->tables, tables);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
-    tsk_tbl_collection_t tables;
+    tsk_table_collection_t tables;
 
-    ret = tsk_tbl_collection_load(&tables, filename, 0);
+    ret = tsk_table_collection_load(&tables, filename, 0);
     if (ret != 0) {
         goto out;
     }
@@ -423,14 +423,14 @@ tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t TSK_UNUS
         goto out;
     }
 out:
-    tsk_tbl_collection_free(&tables);
+    tsk_table_collection_free(&tables);
     return ret;
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
 {
-    return tsk_tbl_collection_dump(self->tables, filename, options);
+    return tsk_table_collection_dump(self->tables, filename, options);
 }
 
 /* Simple attribute getters */
@@ -924,25 +924,25 @@ out:
 int TSK_WARN_UNUSED
 tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node)
 {
-    return tsk_node_tbl_get_row(self->tables->nodes, index, node);
+    return tsk_node_table_get_row(self->tables->nodes, index, node);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_edge(tsk_treeseq_t *self, tsk_id_t index, tsk_edge_t *edge)
 {
-    return tsk_edge_tbl_get_row(self->tables->edges, index, edge);
+    return tsk_edge_table_get_row(self->tables->edges, index, edge);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_migration(tsk_treeseq_t *self, tsk_id_t index, tsk_migration_t *migration)
 {
-    return tsk_migration_tbl_get_row(self->tables->migrations, index, migration);
+    return tsk_migration_table_get_row(self->tables->migrations, index, migration);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_mutation(tsk_treeseq_t *self, tsk_id_t index, tsk_mutation_t *mutation)
 {
-    return tsk_mutation_tbl_get_row(self->tables->mutations, index, mutation);
+    return tsk_mutation_table_get_row(self->tables->mutations, index, mutation);
 }
 
 int TSK_WARN_UNUSED
@@ -950,7 +950,7 @@ tsk_treeseq_get_site(tsk_treeseq_t *self, tsk_id_t index, tsk_site_t *site)
 {
     int ret = 0;
 
-    ret = tsk_site_tbl_get_row(self->tables->sites, index, site);
+    ret = tsk_site_table_get_row(self->tables->sites, index, site);
     if (ret != 0) {
         goto out;
     }
@@ -965,7 +965,7 @@ tsk_treeseq_get_individual(tsk_treeseq_t *self, tsk_id_t index, tsk_individual_t
 {
     int ret = 0;
 
-    ret = tsk_individual_tbl_get_row(self->tables->individuals, index, individual);
+    ret = tsk_individual_table_get_row(self->tables->individuals, index, individual);
     if (ret != 0) {
         goto out;
     }
@@ -979,13 +979,13 @@ int TSK_WARN_UNUSED
 tsk_treeseq_get_population(tsk_treeseq_t *self, tsk_id_t index,
         tsk_population_t *population)
 {
-    return tsk_population_tbl_get_row(self->tables->populations, index, population);
+    return tsk_population_table_get_row(self->tables->populations, index, population);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_provenance(tsk_treeseq_t *self, tsk_id_t index, tsk_provenance_t *provenance)
 {
-   return tsk_provenance_tbl_get_row(self->tables->provenances, index, provenance);
+   return tsk_provenance_table_get_row(self->tables->provenances, index, provenance);
 }
 
 int TSK_WARN_UNUSED
@@ -1007,9 +1007,9 @@ tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samp
         tsk_flags_t options, tsk_treeseq_t *output, tsk_id_t *node_map)
 {
     int ret = 0;
-    tsk_tbl_collection_t tables;
+    tsk_table_collection_t tables;
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_table_collection_alloc(&tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -1017,13 +1017,13 @@ tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_tbl_collection_simplify(&tables, samples, num_samples, options, node_map);
+    ret = tsk_table_collection_simplify(&tables, samples, num_samples, options, node_map);
     if (ret != 0) {
         goto out;
     }
     ret = tsk_treeseq_alloc(output, &tables, TSK_BUILD_INDEXES);
 out:
-    tsk_tbl_collection_free(&tables);
+    tsk_table_collection_free(&tables);
     return ret;
 }
 
@@ -1753,7 +1753,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
     tsk_id_t in = *in_index + direction_change;
     tsk_id_t out = *out_index + direction_change;
     tsk_id_t k, p, c, u, v, root, lsib, rsib, lroot, rroot;
-    tsk_tbl_collection_t *tables = self->tree_sequence->tables;
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
     const double sequence_length = tables->sequence_length;
     const tsk_id_t num_edges = (tsk_id_t) tables->edges->num_rows;
     const tsk_id_t * restrict edge_parent = tables->edges->parent;
@@ -1954,7 +1954,7 @@ int TSK_WARN_UNUSED
 tsk_tree_first(tsk_tree_t *self)
 {
     int ret = 1;
-    tsk_tbl_collection_t *tables = self->tree_sequence->tables;
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
 
     self->left = 0;
     self->index = 0;
@@ -1991,7 +1991,7 @@ tsk_tree_last(tsk_tree_t *self)
 {
     int ret = 1;
     tsk_treeseq_t *ts = self->tree_sequence;
-    const tsk_tbl_collection_t *tables = ts->tables;
+    const tsk_table_collection_t *tables = ts->tables;
 
     self->left = 0;
     self->right = tables->sequence_length;
@@ -2029,7 +2029,7 @@ tsk_tree_next(tsk_tree_t *self)
 {
     int ret = 0;
     tsk_treeseq_t *ts = self->tree_sequence;
-    const tsk_tbl_collection_t *tables = ts->tables;
+    const tsk_table_collection_t *tables = ts->tables;
     tsk_id_t num_trees = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
 
     if (self->index < num_trees - 1) {
@@ -2045,7 +2045,7 @@ int TSK_WARN_UNUSED
 tsk_tree_prev(tsk_tree_t *self)
 {
     int ret = 0;
-    const tsk_tbl_collection_t *tables = self->tree_sequence->tables;
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
 
     if (self->index > 0) {
         ret = tsk_tree_advance(self, TSK_DIR_REVERSE,
@@ -2119,7 +2119,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     tsk_edge_list_t *in_tail = NULL;
     tsk_edge_list_t *w = NULL;
     size_t num_trees = tsk_treeseq_get_num_trees(s);
-    const tsk_edge_tbl_t *edges = s->tables->edges;
+    const tsk_edge_table_t *edges = s->tables->edges;
     const tsk_id_t *insertion_order = s->tables->indexes.edge_insertion_order;
     const tsk_id_t *removal_order = s->tables->indexes.edge_removal_order;
 

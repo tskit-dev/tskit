@@ -19,13 +19,13 @@ void tsk_treeseq_from_text(tsk_treeseq_t *ts,
         const char *sites, const char *mutations,
         const char *individuals, const char *provenance);
 
-void parse_nodes(const char *text, tsk_node_tbl_t *node_table);
-void parse_edges(const char *text, tsk_edge_tbl_t *edge_table);
-void parse_sites(const char *text, tsk_site_tbl_t *site_table);
-void parse_mutations(const char *text, tsk_mutation_tbl_t *mutation_table);
-void parse_individuals(const char *text, tsk_individual_tbl_t *individual_table);
+void parse_nodes(const char *text, tsk_node_table_t *node_table);
+void parse_edges(const char *text, tsk_edge_table_t *edge_table);
+void parse_sites(const char *text, tsk_site_table_t *site_table);
+void parse_mutations(const char *text, tsk_mutation_table_t *mutation_table);
+void parse_individuals(const char *text, tsk_individual_table_t *individual_table);
 
-void unsort_edges(tsk_edge_tbl_t *edges, size_t start);
+void unsort_edges(tsk_edge_table_t *edges, size_t start);
 
 extern const char *single_tree_ex_nodes;
 extern const char *single_tree_ex_edges;

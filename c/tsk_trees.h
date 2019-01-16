@@ -41,7 +41,7 @@ typedef struct {
     tsk_mutation_t **site_mutations;
     tsk_size_t *site_mutations_length;
     /* The underlying tables */
-    tsk_tbl_collection_t *tables;
+    tsk_table_collection_t *tables;
 } tsk_treeseq_t;
 
 typedef struct {
@@ -119,11 +119,11 @@ structures that facilitate efficient tree iteratation and other operations.
 @endrst
 
 @param self A pointer to an uninitialised tsk_treeseq_t object.
-@param tables A pointer to a tsk_tbl_collection_t object.
+@param tables A pointer to a tsk_table_collection_t object.
 @param options Allocation time options.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_tbl_collection_t *tables, tsk_flags_t options);
+int tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
 
 /**
 @brief Load a tree sequence from file.
@@ -140,7 +140,7 @@ Reads a tree sequence from the specified file.
 int tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
 
 int tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
-int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_tbl_collection_t *tables);
+int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables);
 int tsk_treeseq_free(tsk_treeseq_t *self);
 void tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out);
 

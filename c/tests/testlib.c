@@ -206,7 +206,7 @@ const char *internal_sample_ex_mutations =
  */
 
 void
-parse_nodes(const char *text, tsk_node_tbl_t *node_table)
+parse_nodes(const char *text, tsk_node_table_t *node_table)
 {
     int ret;
     size_t c, k;
@@ -253,14 +253,14 @@ parse_nodes(const char *text, tsk_node_tbl_t *node_table)
         } else {
             name = p;
         }
-        ret = tsk_node_tbl_add_row(node_table, flags, time, population,
+        ret = tsk_node_table_add_row(node_table, flags, time, population,
                 individual, name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
 
 void
-parse_edges(const char *text, tsk_edge_tbl_t *edge_table)
+parse_edges(const char *text, tsk_edge_table_t *edge_table)
 {
     int ret;
     size_t c, k;
@@ -313,7 +313,7 @@ parse_edges(const char *text, tsk_edge_tbl_t *edge_table)
         for (k = 0; k < num_children; k++) {
             CU_ASSERT_FATAL(q != NULL);
             child = atoi(q);
-            ret = tsk_edge_tbl_add_row(edge_table, left, right, parent, child);
+            ret = tsk_edge_table_add_row(edge_table, left, right, parent, child);
             CU_ASSERT_FATAL(ret >= 0);
             q = strtok(NULL, ",");
         }
@@ -322,7 +322,7 @@ parse_edges(const char *text, tsk_edge_tbl_t *edge_table)
 }
 
 void
-parse_sites(const char *text, tsk_site_tbl_t *site_table)
+parse_sites(const char *text, tsk_site_table_t *site_table)
 {
     int ret;
     size_t c, k;
@@ -353,14 +353,14 @@ parse_sites(const char *text, tsk_site_tbl_t *site_table)
         p = strtok(NULL, whitespace);
         CU_ASSERT_FATAL(p != NULL);
         strncpy(ancestral_state, p, MAX_LINE);
-        ret = tsk_site_tbl_add_row(site_table, position, ancestral_state,
+        ret = tsk_site_table_add_row(site_table, position, ancestral_state,
                 strlen(ancestral_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
 
 void
-parse_mutations(const char *text, tsk_mutation_tbl_t *mutation_table)
+parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
 {
     int ret;
     size_t c, k;
@@ -399,14 +399,14 @@ parse_mutations(const char *text, tsk_mutation_tbl_t *mutation_table)
         if (p != NULL) {
             parent = atoi(p);
         }
-        ret = tsk_mutation_tbl_add_row(mutation_table, site, node, parent,
+        ret = tsk_mutation_table_add_row(mutation_table, site, node, parent,
                 derived_state, strlen(derived_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
 
 void
-parse_individuals(const char *text, tsk_individual_tbl_t *individual_table)
+parse_individuals(const char *text, tsk_individual_table_t *individual_table)
 {
     int ret;
     size_t c, k;
@@ -464,7 +464,7 @@ parse_individuals(const char *text, tsk_individual_tbl_t *individual_table)
         } else {
             name = p;
         }
-        ret = tsk_individual_tbl_add_row(individual_table, flags, location, location_len,
+        ret = tsk_individual_table_add_row(individual_table, flags, location, location_len,
                 name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
@@ -477,7 +477,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
         const char *individuals, const char *provenance)
 {
     int ret;
-    tsk_tbl_collection_t tables;
+    tsk_table_collection_t tables;
     tsk_id_t max_population_id;
     tsk_size_t j;
 
@@ -487,7 +487,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
     /* Not supporting provenance here for now */
     CU_ASSERT_FATAL(provenance == NULL);
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_table_collection_alloc(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = sequence_length;
     parse_nodes(nodes, tables.nodes);
@@ -508,7 +508,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
     }
     if (max_population_id >= 0) {
         for (j = 0; j <= (tsk_size_t) max_population_id; j++) {
-            ret = tsk_population_tbl_add_row(tables.populations, NULL, 0);
+            ret = tsk_population_table_add_row(tables.populations, NULL, 0);
             CU_ASSERT_EQUAL_FATAL(ret, j);
         }
     }
@@ -517,11 +517,11 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
     /* tsk_treeseq_print_state(ts, stdout); */
     /* printf("ret = %s\n", tsk_strerror(ret)); */
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_tbl_collection_free(&tables);
+    tsk_table_collection_free(&tables);
 }
 
 void
-unsort_edges(tsk_edge_tbl_t *edges, size_t start)
+unsort_edges(tsk_edge_table_t *edges, size_t start)
 {
     size_t j, k;
     size_t n = edges->num_rows - start;

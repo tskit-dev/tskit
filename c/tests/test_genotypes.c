@@ -394,23 +394,23 @@ test_single_tree_vargen_many_alleles(void)
     tsk_id_t j, k, l;
     tsk_flags_t options;
     char alleles[num_alleles];
-    tsk_tbl_collection_t tables;
+    tsk_table_collection_t tables;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
             NULL, NULL, NULL, NULL);
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_table_collection_alloc(&tables, 0);
     CU_ASSERT_FATAL(ret == 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables);
     CU_ASSERT_FATAL(ret == 0);
     tsk_treeseq_free(&ts);
     memset(alleles, 'X', (size_t) num_alleles);
-    ret = tsk_site_tbl_add_row(tables.sites, 0, "Y", 1, NULL, 0);
+    ret = tsk_site_table_add_row(tables.sites, 0, "Y", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
 
     /* Add j mutations over a single node. */
     for (j = 0; j < (tsk_id_t) num_alleles; j++) {
         /* When j = 0 we get a parent of -1, which is the NULL_NODE */
-        ret = tsk_mutation_tbl_add_row(tables.mutations, 0, 0, j - 1, alleles,
+        ret = tsk_mutation_table_add_row(tables.mutations, 0, 0, j - 1, alleles,
                 (tsk_size_t) j, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         ret = tsk_treeseq_alloc(&ts, &tables, TSK_BUILD_INDEXES);
@@ -442,7 +442,7 @@ test_single_tree_vargen_many_alleles(void)
         }
         tsk_treeseq_free(&ts);
     }
-    tsk_tbl_collection_free(&tables);
+    tsk_table_collection_free(&tables);
 }
 
 static void
