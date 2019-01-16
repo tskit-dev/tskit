@@ -1180,12 +1180,12 @@ tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out)
     int ret = TSK_ERR_IO;
     int err;
 
-    err = fprintf(out, "left\tright\tparent\tchild\n");
+    err = fprintf(out, "id\tleft\tright\tparent\tchild\n");
     if (err < 0) {
         goto out;
     }
     for (j = 0; j < self->num_rows; j++) {
-        err = fprintf(out, "%.3f\t%.3f\t%d\t%d\n", self->left[j], self->right[j],
+        err = fprintf(out, "%d\t%.3f\t%.3f\t%d\t%d\n", j, self->left[j], self->right[j],
                 self->parent[j], self->child[j]);
         if (err < 0) {
             goto out;

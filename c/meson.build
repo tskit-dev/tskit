@@ -64,6 +64,10 @@ executable('dev-cli',
 
 # Example programs. TODO make this optional to avoid falling over without GSL
 gsl_dep = dependency('gsl')
+executable('api_structure', 
+    sources: ['examples/api_structure.c'], link_with: [tskit_lib])
+executable('error_handling', 
+    sources: ['examples/error_handling.c'], link_with: [tskit_lib])
 executable('haploid_wright_fisher', 
     sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib],
     dependencies: [gsl_dep])
