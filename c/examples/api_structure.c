@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <err.h>
 
-#include "tsk_tables.h"
+#include <tskit/tables.h>
 
 #define check_tsk_error(val) if (val < 0) {\
     errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));\

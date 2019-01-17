@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <err.h>
 
-#include "tsk_trees.h"
+#include <tskit.h>
 
 int
 main(int argc, char **argv)

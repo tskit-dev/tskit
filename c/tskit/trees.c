@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "tsk_trees.h"
+#include <tskit/trees.h>
 
 
 /* ======================================================== *

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "tsk_genotypes.h"
+#include <tskit/genotypes.h>
 
 
 /* ======================================================== *

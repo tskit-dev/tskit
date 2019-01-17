@@ -27,15 +27,15 @@ class local_build_ext(build_ext):
 libdir = "lib"
 kastore_dir = os.path.join(libdir, "kastore", "c")
 tsk_source_files = [
-    "tsk_core.c",
-    "tsk_tables.c",
-    "tsk_trees.c",
-    "tsk_genotypes.c",
-    "tsk_stats.c",
-    "tsk_convert.c",
+    "core.c",
+    "tables.c",
+    "trees.c",
+    "genotypes.c",
+    "stats.c",
+    "convert.c",
 ]
 sources = ["_tskitmodule.c"] + [
-    os.path.join(libdir, f) for f in tsk_source_files] + [
+    os.path.join(libdir, "tskit", f) for f in tsk_source_files] + [
     os.path.join(kastore_dir, "kastore.c")]
 
 defines = []

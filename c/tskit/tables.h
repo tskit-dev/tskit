@@ -15,7 +15,7 @@ extern "C" {
 
 #include <kastore.h>
 
-#include "tsk_core.h"
+#include <tskit/core.h>
 
 /**
 @brief Tskit Object IDs.

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "tsk_convert.h"
+#include <tskit/convert.h>
 
 /* ======================================================== *
  * Newick output.

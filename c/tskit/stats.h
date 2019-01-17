@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "tsk_trees.h"
+#include <tskit/trees.h>
 
 typedef struct {
     tsk_tree_t *outer_tree;

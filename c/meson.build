@@ -11,13 +11,22 @@ extra_c_args = [
     '-Wcast-qual', '-Wwrite-strings', '-Wnested-externs',
     '-fshort-enums', '-fno-common']
 lib_sources = [
-    'kastore/c/kastore.c', 'tsk_core.c', 'tsk_tables.c', 'tsk_trees.c', 
-    'tsk_genotypes.c', 'tsk_stats.c', 'tsk_convert.c']
+    'kastore/c/kastore.c', 'tskit/core.c', 'tskit/tables.c', 'tskit/trees.c', 
+    'tskit/genotypes.c', 'tskit/stats.c', 'tskit/convert.c']
+lib_headers = [
+    'tskit.h', 'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h', 
+    'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h']
 
 kastore_dir=join_paths(meson.source_root(), 'kastore/c')
 
 add_global_arguments(['-I' + kastore_dir], language: 'c')
 
+# Shared library install target.
+shared_library('tskit', 
+    sources: lib_sources, dependencies: m_dep, c_args: extra_c_args, install: true)
+install_headers(lib_headers, subdir: 'tskit') 
+
+# Development, test and example targets.
 tskit_lib = static_library('tskit', 
     sources: lib_sources, dependencies: m_dep, c_args: extra_c_args)
 

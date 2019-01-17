@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <float.h>
 
-#include "tsk_tables.h"
+#include <tskit/tables.h>
 
 /* This is a flag for tsk_table_collection_alloc used by tsk_table_collection_load to
  * avoid allocating the table columns. It's defined internally for now as it's

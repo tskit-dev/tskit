@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include <kastore.h>
-#include "tsk_core.h"
+#include <tskit/core.h>
 
 #define UUID_NUM_BYTES 16
 

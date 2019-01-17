@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#include "tsk_tables.h"
+#include <tskit/tables.h>
 
 
 #define TSK_SAMPLE_COUNTS  (1 << 0)

@@ -1,5 +1,5 @@
 #include "testlib.h"
-#include "tsk_genotypes.h"
+#include <tskit/genotypes.h>
 
 #include <unistd.h>
 #include <stdlib.h>
