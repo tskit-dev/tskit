@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "tsk_genotypes.h"
+#include <tskit/genotypes.h>
 
 /* TODO do we really need to expose this or would a simpler function be
  * more appropriate? Depends on how we use it at the Python level probably. */

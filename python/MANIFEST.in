@@ -1,5 +1,6 @@
 include lib/kastore/c/kastore.h
-include lib/tsk*.h
+include lib/tskit.h
+include lib/tskit/*.h
 include LICENSE
 include tskit/_version.py
 include tskit/provenance.schema.json

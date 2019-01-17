@@ -1,5 +1,5 @@
 /**
- * @file tsk_trees.h
+ * @file trees.h
  * @brief Tskit core tree sequence operations.
  */
 #ifndef TSK_TREES_H
@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#include "tsk_tables.h"
+#include <tskit/tables.h>
 
 
 #define TSK_SAMPLE_COUNTS  (1 << 0)

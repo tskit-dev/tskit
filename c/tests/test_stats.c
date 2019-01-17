@@ -1,5 +1,5 @@
 #include "testlib.h"
-#include "tsk_stats.h"
+#include <tskit/stats.h>
 
 #include <unistd.h>
 #include <stdlib.h>

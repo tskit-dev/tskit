@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include <CUnit/Basic.h>
-#include "tsk_trees.h"
+#include <tskit/trees.h>
 
 /* Global variables used in the test suite */
 

@@ -1,5 +1,5 @@
 /**
- * @file tsk_tables.h
+ * @file tables.h
  * @brief Tskit Tables API.
  */
 #ifndef TSK_TABLES_H
@@ -15,7 +15,7 @@ extern "C" {
 
 #include <kastore.h>
 
-#include "tsk_core.h"
+#include <tskit/core.h>
 
 /**
 @brief Tskit Object IDs.

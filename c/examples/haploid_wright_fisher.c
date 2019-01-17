@@ -4,7 +4,7 @@
 
 #include <gsl/gsl_rng.h>
 
-#include "tsk_tables.h"
+#include <tskit/tables.h>
 
 
 #define check_error(val) if (val < 0) {\

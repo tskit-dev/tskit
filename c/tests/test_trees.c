@@ -1,6 +1,6 @@
 #include "testlib.h"
-#include "tsk_trees.h"
-#include "tsk_genotypes.h"
+#include <tskit/trees.h>
+#include <tskit/genotypes.h>
 
 #include <unistd.h>
 #include <stdlib.h>

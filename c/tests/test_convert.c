@@ -1,5 +1,5 @@
 #include "testlib.h"
-#include "tsk_convert.h"
+#include <tskit/convert.h>
 
 #include <unistd.h>
 #include <stdlib.h>

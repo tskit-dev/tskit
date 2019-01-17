@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include "tsk_stats.h"
+#include <tskit/stats.h>
 
 static void
 tsk_ld_calc_check_state(tsk_ld_calc_t *self)

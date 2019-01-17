@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "tsk_trees.h"
+#include <tskit/trees.h>
 
 #define TSK_16_BIT_GENOTYPES    1
 

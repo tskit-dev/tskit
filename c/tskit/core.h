@@ -1,5 +1,5 @@
 /**
- * @file tsk_core.h
+ * @file core.h
  * @brief Core utilities used in all of tskit.
  */
 #ifndef __TSK_CORE_H__
