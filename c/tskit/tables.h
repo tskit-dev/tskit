@@ -1,5 +1,5 @@
 /**
- * @file tsk_tables.h
+ * @file tables.h
  * @brief Tskit Tables API.
  */
 #ifndef TSK_TABLES_H

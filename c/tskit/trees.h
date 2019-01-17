@@ -1,5 +1,5 @@
 /**
- * @file tsk_trees.h
+ * @file trees.h
  * @brief Tskit core tree sequence operations.
  */
 #ifndef TSK_TREES_H
