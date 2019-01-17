@@ -5,5 +5,5 @@ coverage:
         target: 95%
         flags: python
       c:
-        target: 90%
+        target: 85%
         flags: c
