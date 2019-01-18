@@ -100,7 +100,7 @@ main(int argc, char **argv)
             std::cout << "usage: N T simplify-interval output-file seed\n";
             exit(EXIT_FAILURE);
         }
-    tsk_table_collection_alloc(tables.get(), 0);
+    tsk_table_collection_init(tables.get(), 0);
     auto rng = make_rng(std::atoi(argv[5]));
     simulate(tables, std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]),
              rng.get());
