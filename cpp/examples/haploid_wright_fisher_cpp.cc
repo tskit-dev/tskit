@@ -29,14 +29,13 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
          gsl_rng *rng)
 {
     // TODO: unique_ptrs for the buffers
-    tsk_id_t *buffer[2], *parents, *children, child, left_parent, right_parent;
+    //tsk_id_t *buffer[2], *parents, *children,
+    tsk_id_t child, left_parent, right_parent;
     double breakpoint;
     int ret, j, t, b;
 
-    buffer[0] = new tsk_id_t [N * sizeof(tsk_id_t)]; /* TODO change to 1 malloc and check value */
-    buffer[1] = new tsk_id_t[N * sizeof(tsk_id_t)];
-    b = 0;
-    parents = buffer[b];
+    std::unique_ptr<tsk_id_t[]> parents(new tsk_id_t[N]),
+        children(new tsk_id_t[N]);
 
     tables->sequence_length = 1.0;
     for (j = 0; j < N; j++)
@@ -48,7 +47,6 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
         }
     for (t = T - 1; t >= 0; t--)
         {
-            children = buffer[(b + 1) % 2];
             for (j = 0; j < N; j++)
                 {
                     child = tsk_node_table_add_row(
@@ -61,8 +59,8 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
                         {
                             breakpoint = gsl_rng_uniform(rng);
                         }
-                    while (breakpoint
-                           == 0); /* tiny proba of breakpoint being 0 */
+                    /* tiny proba of breakpoint being 0 */
+                    while (breakpoint == 0);
                     ret = tsk_edge_table_add_row(tables->edges, 0, breakpoint,
                                                  left_parent, child);
                     check_error(ret);
@@ -71,15 +69,14 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
                     check_error(ret);
                     children[j] = child;
                 }
-            parents = children;
-            b = (b + 1) % 2;
+            children.swap(parents);
             if (t % simplify_interval == 0)
                 {
                     ret = tsk_table_collection_sort(
                         tables, 0, 0); /* FIXME; should take position. */
                     check_error(ret);
-                    ret = tsk_table_collection_simplify(tables, parents, N, 0,
-                                                        NULL);
+                    ret = tsk_table_collection_simplify(tables, parents.get(),
+                                                        N, 0, NULL);
                     check_error(ret);
                     for (j = 0; j < N; j++)
                         {
@@ -87,8 +84,6 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
                         }
                 }
         }
-    delete [] buffer[0];
-    delete [] buffer[1];
 }
 
 int
