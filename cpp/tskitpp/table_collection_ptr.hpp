@@ -31,7 +31,7 @@ namespace tskit
     copy(const table_collection_ptr& self, tsk_flags_t options)
     {
         auto rv = make_table_collection_ptr();
-        int res = tsk_table_collection_copy(self.get(), rv.get());
+        int res = tsk_table_collection_copy(self.get(), rv.get(), options);
         if (res == -1)
             {
                 throw std::runtime_error(
