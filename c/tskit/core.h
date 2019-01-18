@@ -199,10 +199,21 @@ of tskit.
 
 int tsk_set_kas_error(int err);
 bool tsk_is_kas_error(int err);
-const char * tsk_strerror(int err);
-void __tsk_safe_free(void **ptr);
 
+/**
+@brief Return a description of the specified error.
+
+The memory for the returned string is handled by the library and should
+not be freed by client code.
+
+@param err A tskit error code.
+@return A description of the error.
+*/
+const char * tsk_strerror(int err);
+
+void __tsk_safe_free(void **ptr);
 #define tsk_safe_free(pointer) __tsk_safe_free((void **) &(pointer))
+
 #define TSK_MAX(a,b) ((a) > (b) ? (a) : (b))
 #define TSK_MIN(a,b) ((a) < (b) ? (a) : (b))
 

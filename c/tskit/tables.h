@@ -53,7 +53,7 @@ typedef uint32_t tsk_flags_t;
 /****************************************************************************/
 
 /**
-@brief A single individual.
+@brief A single individual representing defined by a row in the individual table.
 
 @rst
 See the :ref:`data model <sec_data_model_definitions>` section for the definition of
@@ -61,18 +61,18 @@ an individual and its properties.
 @endrst
 */
 typedef struct {
-    /** @brief The non-negative ID value corresponding to table row. */
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
-    /** @brief The bitwise flags. */
+    /** @brief Bitwise flags. */
     tsk_flags_t flags;
-    /** @brief The spatial location. The number of dimensions is defined by
+    /** @brief Spatial location. The number of dimensions is defined by
      * ``location_length``. */
     double *location;
-    /** @brief The number of spatial dimensions. */
+    /** @brief Number of spatial dimensions. */
     tsk_size_t location_length;
-    /** @brief The metadata. */
+    /** @brief Metadata. */
     const char *metadata;
-    /** @brief The size of the metadata in bytes. */
+    /** @brief Size of the metadata in bytes. */
     tsk_size_t metadata_length;
     tsk_id_t *nodes;
     tsk_size_t nodes_length;
@@ -87,6 +87,7 @@ a node and its properties.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     tsk_flags_t flags;
     double time;
@@ -105,6 +106,7 @@ an edge and its properties.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     tsk_id_t parent;
     tsk_id_t child;
@@ -121,6 +123,7 @@ a mutation and its properties.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     tsk_id_t site;
     tsk_id_t node;
@@ -140,6 +143,7 @@ a site and its properties.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     double position;
     const char *ancestral_state;
@@ -159,6 +163,7 @@ a migration and its properties.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     tsk_id_t source;
     tsk_id_t dest;
@@ -177,6 +182,7 @@ a population and its properties.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     const char *metadata;
     tsk_size_t metadata_length;
@@ -192,6 +198,7 @@ for more information on how provenance records should be structured.
 @endrst
 */
 typedef struct {
+    /** @brief Non-negative ID value corresponding to table row. */
     tsk_id_t id;
     const char *timestamp;
     tsk_size_t timestamp_length;
@@ -207,24 +214,32 @@ typedef struct {
 @brief The individual table.
 
 @rst
-See the :ref:`data model <sec_individual_table_definition>` section for details
-of the columns in this table.
+See the individual :ref:`table definition <sec_individual_table_definition>` for 
+details of the columns in this table.
 @endrst
 */
 typedef struct {
+    /** @brief The number of rows in this table. */
     tsk_size_t num_rows;
     tsk_size_t max_rows;
     tsk_size_t max_rows_increment;
+    /** @brief The total length of the location column. */
     tsk_size_t location_length;
     tsk_size_t max_location_length;
     tsk_size_t max_location_length_increment;
+    /** @brief The total length of the metadata column. */
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    /** @brief The flags column. */
     tsk_flags_t *flags;
+    /** @brief The location column. */
     double *location;
+    /** @brief The location_offset column. */
     tsk_size_t *location_offset;
+    /** @brief The metadata column. */
     char *metadata;
+    /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
 } tsk_individual_table_t;
 
@@ -404,10 +419,12 @@ typedef struct {
 */
 
 /**
-@brief Allocate a new individual table.
+@brief Initialises the table by allocating the internal memory.
 
 @rst
-The table is allocated with the default size increment.
+This must be called before any operations are performed on the table.
+See the :ref:`sec_c_api_overview_structure` for details on how objects
+are initialised and freed.
 @endrst
 
 @param self A pointer to an uninitialised tsk_individual_table_t object.
@@ -417,13 +434,13 @@ The table is allocated with the default size increment.
 */
 int tsk_individual_table_alloc(tsk_individual_table_t *self, tsk_flags_t options);
 
+/**
+@brief Free the internal memory for the specified table.
 
-int tsk_individual_table_set_max_rows_increment(tsk_individual_table_t *self, 
-        tsk_size_t max_rows_increment);
-int tsk_individual_table_set_max_metadata_length_increment(tsk_individual_table_t *self,
-        tsk_size_t max_metadata_length_increment);
-int tsk_individual_table_set_max_location_length_increment(tsk_individual_table_t *self,
-        tsk_size_t max_location_length_increment);
+@param self A pointer to an initialised tsk_individual_table_t object.
+@return Always returns 0.
+*/
+int tsk_individual_table_free(tsk_individual_table_t *self);
 
 /**
 @brief Adds a row to this individual table.
@@ -432,7 +449,7 @@ int tsk_individual_table_set_max_location_length_increment(tsk_individual_table_
 Add a new individual with the specified ``flags``, ``location`` and ``metadata``
 to the table. Copies of the ``location`` and ``metadata`` parameters are taken
 immediately.
-See the :ref:`data model <sec_individual_table_definition>` section for details
+See the :ref:`table definition <sec_individual_table_definition>` for details
 of the columns in this table.
 @endrst
 
@@ -452,23 +469,91 @@ of the columns in this table.
 tsk_id_t tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
         double *location, tsk_size_t location_length,
         const char *metadata, tsk_size_t metadata_length);
-int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows, tsk_flags_t *flags,
-        double *location, tsk_size_t *location_length,
-        const char *metadata, tsk_size_t *metadata_length);
-int tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num_rows, tsk_flags_t *flags,
-        double *location, tsk_size_t *location_length,
-        const char *metadata, tsk_size_t *metadata_length);
+
+/**
+@brief Clears this table, setting the number of rows to zero.
+
+@rst
+No memory is freed as a result of this operation; please use use 
+:c:func:`tsk_individual_table_free` to free the table's internal resources.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_individual_table_clear(tsk_individual_table_t *self);
+
+/**
+@brief Truncates this tables so that only the first num_rows are retained.
+
+@param self A pointer to a tsk_individual_table_t object.
+@param num_rows The number of rows to retain in the table.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_individual_table_truncate(tsk_individual_table_t *self, tsk_size_t num_rows);
-int tsk_individual_table_free(tsk_individual_table_t *self);
-int tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out);
-int tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest);
-void tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out);
+
+/**
+@brief Returns true if the data in the specified table is identical to the data
+       in this table.
+
+@param self A pointer to a tsk_individual_table_t object.
+@param other A pointer to a tsk_individual_table_t object.
+@return Return true if the specified table is equal to this table.
+*/
 bool tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_table_t *other);
+
+/**
+@brief Get the row at the specified index.
+
+@rst
+Updates the specified individual struct to reflect the values in the specified row.
+Pointers to memory within this struct are handled by the table and should **not**
+be freed by client code. These pointers are guaranteed to be valid until the 
+next operation that modifies the table (e.g., by adding a new row), but not afterwards. 
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param index The requested table row.
+@param row A pointer to a tsk_individual_t struct that is updated to reflect the 
+    values in the specified row.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_individual_table_get_row(tsk_individual_table_t *self, tsk_id_t index,
         tsk_individual_t *row);
 
+/**
+@brief Print out the state of this table to the specified stream. 
+
+This method is intended for debugging purposes and should not be used 
+in production code. The format of the output should **not** be depended 
+on and may change arbitrarily between versions.
+
+@param self A pointer to a tsk_individual_table_t object.
+@param out The stream to write the summary to.
+*/
+void tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out);
+
 /** @} */
+
+/* Undocumented methods */
+
+int tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest);
+int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows, 
+        tsk_flags_t *flags,
+        double *location, tsk_size_t *location_length,
+        const char *metadata, tsk_size_t *metadata_length);
+int tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num_rows, 
+        tsk_flags_t *flags,
+        double *location, tsk_size_t *location_length,
+        const char *metadata, tsk_size_t *metadata_length);
+int tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out);
+int tsk_individual_table_set_max_rows_increment(tsk_individual_table_t *self, 
+        tsk_size_t max_rows_increment);
+int tsk_individual_table_set_max_metadata_length_increment(tsk_individual_table_t *self,
+        tsk_size_t max_metadata_length_increment);
+int tsk_individual_table_set_max_location_length_increment(tsk_individual_table_t *self,
+        tsk_size_t max_location_length_increment);
+
 
 /**
 @defgroup NODE_TABLE_API_GROUP Node table API.

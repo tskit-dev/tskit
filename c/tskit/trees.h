@@ -111,6 +111,11 @@ typedef struct {
 /****************************************************************************/
 
 /**
+@defgroup TREESEQ_API_GROUP Tree sequence API
+@{
+*/
+
+/**
 @brief Allocate a new tree sequence from a table collection.
 
 @rst
@@ -143,6 +148,8 @@ int tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t opti
 int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables);
 int tsk_treeseq_free(tsk_treeseq_t *self);
 void tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out);
+
+/** @} */
 
 tsk_size_t tsk_treeseq_get_num_nodes(tsk_treeseq_t *self);
 tsk_size_t tsk_treeseq_get_num_edges(tsk_treeseq_t *self);
@@ -196,9 +203,18 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
 /* Tree */
 /****************************************************************************/
 
+
+/**
+@defgroup TREE_API_GROUP Tree sequence API
+@{
+*/
+
 int tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence,
         tsk_flags_t options);
 int tsk_tree_free(tsk_tree_t *self);
+
+/** @} */
+
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);
 int tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source);

@@ -73,6 +73,9 @@ and tree :ref:`functionality <sec_c_api_tree_sequences>` is defined in
 For convenience, there is also a ``tskit.h`` header file that includes all
 of the functionality in ``tskit``.
 
+
+.. _sec_c_api_overview_structure:
+
 -------------
 API structure
 -------------
@@ -157,13 +160,8 @@ Basic Types
 .. doxygentypedef:: tsk_size_t
 .. doxygentypedef:: tsk_flags_t
 
-.. doxygenstruct:: tsk_individual_t
-    :members:
 
-.. todo:: Need to document the members in these structs.
 
-.. doxygenstruct:: tsk_node_t
-    :members:
 .. doxygenstruct:: tsk_edge_t
     :members:
 .. doxygenstruct:: tsk_migration_t
@@ -186,19 +184,9 @@ Tables API
 
 The tables API section of ``tskit`` is defined in ``tsk_tables.h``.
 
--------
-Example
--------
-
-This is an example of using the tables API to define a simple
-haploid Wright-Fisher simulator.
-
-.. literalinclude:: ../c/examples/haploid_wright_fisher.c
-    :language: c
-
-----------------
-Table collection
-----------------
+-----------------
+Table collections
+-----------------
 
 .. doxygenstruct:: tsk_table_collection_t
     :members:
@@ -206,25 +194,31 @@ Table collection
 .. doxygengroup:: TABLE_COLLECTION_API_GROUP
     :content-only:
 
-----------------
-Individual table
-----------------
+-----------
+Individuals
+-----------
+
+.. doxygenstruct:: tsk_individual_t
+    :members:
 
 .. doxygenstruct:: tsk_individual_table_t
     :members:
 
 .. doxygengroup:: INDIVIDUAL_TABLE_API_GROUP
-    :content-only:
+   :content-only:
 
-----------
-Node table
-----------
+-----
+Nodes
+-----
+
+.. doxygenstruct:: tsk_node_t
+    :members:
 
 .. doxygenstruct:: tsk_node_table_t
     :members:
 
 .. doxygengroup:: NODE_TABLE_API_GROUP
-    :content-only:
+   :content-only:
 
 ----------
 Edge table
@@ -296,9 +290,18 @@ Tree sequences
 .. doxygenstruct:: tsk_treeseq_t
     :members:
 
-.. doxygenfunction:: tsk_treeseq_alloc
+.. doxygengroup:: TREESEQ_API_GROUP
+    :content-only:
 
-.. doxygenfunction:: tsk_treeseq_load
+*****
+Trees
+*****
+
+.. doxygenstruct:: tsk_tree_t
+    :members:
+
+.. doxygengroup:: TREE_API_GROUP
+    :content-only:
 
 ***********************
 Miscellaneous functions
@@ -335,3 +338,17 @@ File format errors
 
 
 .. todo:: Add in groups for rest of the error types and document.
+
+
+
+
+********
+Examples
+********
+
+This is an example of using the tables API to define a simple
+haploid Wright-Fisher simulator.
+
+.. literalinclude:: ../c/examples/haploid_wright_fisher.c
+    :language: c
+
