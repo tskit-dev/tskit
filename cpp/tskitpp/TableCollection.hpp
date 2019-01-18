@@ -50,6 +50,24 @@ namespace tskit
 
         ~TableCollection() { tsk_table_collection_free(tables.get()); }
     };
+
+    // The option below is functionally identical to the above,
+    // but requires a 'create` function.  Probably shouldn't 
+    // be CamelCase??
+    using TableCollectionPtr
+        = std::unique_ptr<tsk_table_collection_t,
+                          void (*)(tsk_table_collection_t*)>;
+
+    TableCollectionPtr
+    make_TableCollectionPtr()
+    {
+        return TableCollectionPtr(new tsk_table_collection_t{},
+                                  [](tsk_table_collection_t* tables) {
+                                      tsk_table_collection_free(tables);
+                                      delete tables;
+                                  });
+    }
+
 } // namespace tskit
 
 #endif
