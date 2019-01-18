@@ -119,7 +119,7 @@ out:
 }
 
 static int
-tsk_newick_converter_alloc(tsk_newick_converter_t *self, tsk_tree_t *tree,
+tsk_newick_converter_init(tsk_newick_converter_t *self, tsk_tree_t *tree,
         size_t precision, tsk_flags_t options)
 {
     int ret = 0;
@@ -144,7 +144,7 @@ tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision,
     int ret = 0;
     tsk_newick_converter_t nc;
 
-    ret = tsk_newick_converter_alloc(&nc, tree, precision, options);
+    ret = tsk_newick_converter_init(&nc, tree, precision, options);
     if (ret != 0) {
         goto out;
     }
@@ -380,7 +380,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_vcf_converter_alloc(tsk_vcf_converter_t *self,
+tsk_vcf_converter_init(tsk_vcf_converter_t *self,
         tsk_treeseq_t *tree_sequence, unsigned int ploidy, const char *contig_id)
 {
     int ret = -1;
@@ -399,7 +399,7 @@ tsk_vcf_converter_alloc(tsk_vcf_converter_t *self,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_vargen_alloc(self->vargen, tree_sequence, NULL, 0, 0);
+    ret = tsk_vargen_init(self->vargen, tree_sequence, NULL, 0, 0);
     if (ret != 0) {
         goto out;
     }

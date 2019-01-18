@@ -114,7 +114,7 @@ out:
 }
 
 int
-tsk_hapgen_alloc(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
+tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
 {
     int ret = 0;
     size_t j, k;
@@ -131,7 +131,7 @@ tsk_hapgen_alloc(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_tree_alloc(&self->tree, tree_sequence, TSK_SAMPLE_LISTS);
+    ret = tsk_tree_init(&self->tree, tree_sequence, TSK_SAMPLE_LISTS);
     if (ret != 0) {
         goto out;
     }
@@ -217,7 +217,7 @@ out:
 }
 
 int
-tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
+tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
         tsk_id_t *samples, size_t num_samples, tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
@@ -284,7 +284,7 @@ tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     if (self->samples == NULL) {
         tree_options = TSK_SAMPLE_LISTS;
     }
-    ret = tsk_tree_alloc(&self->tree, tree_sequence, tree_options);
+    ret = tsk_tree_init(&self->tree, tree_sequence, tree_options);
     if (ret != 0) {
         goto out;
     }

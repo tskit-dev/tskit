@@ -101,17 +101,18 @@ In this convention, a class is defined by a struct ``class_name_t`` (e.g.
 ``edge_table_t``) and its methods all have the form ``class_name_method_name``
 whose first argument is always a pointer to an instance of the class (e.g.,
 ``edge_table_add_row`` above).
-Each class has an allocator and deallocator, called ``class_name_alloc``
-and ``class_name_free``, respectively. The allocator method must
+Each class has an initialise and free method, called ``class_name_init``
+and ``class_name_free``, respectively. The init method must
 be called to ensure that the object is correctly initialised (except
-for :c:func:`tsk_table_collection_load` and :c:func:`tsk_treeseq_load`
-which call the allocator internally for convenience). The deallocator
+for functions such as for :c:func:`tsk_table_collection_load`
+and :c:func:`tsk_table_collection_copy` which automatically initialise
+the object by default for convenience). The free
 method must always be called to avoid leaking memory, even in the
-case of an error occuring in the allocator. If ``class_name_alloc`` has
+case of an error occuring during intialisation. If ``class_name_init`` has
 been called, we say the object has been "initialised"; if not,
 it is "uninitialised".
 
-It is important to note that the allocator methods only allocate *internal* memory;
+It is important to note that the init methods only allocate *internal* memory;
 the memory for the instance itself must be allocated either on the
 heap or the stack:
 
@@ -119,12 +120,12 @@ heap or the stack:
 
     // Instance allocated on the stack
     tsk_node_table_t nodes;
-    tsk_node_table_alloc(&nodes, 0);
+    tsk_node_table_init(&nodes, 0);
     tsk_node_table_free(&nodes);
 
     // Instance allocated on the heap
     tsk_edge_table_t *edges = malloc(sizeof(tsk_edge_table_t));
-    tsk_edge_table_alloc(edges, 0);
+    tsk_edge_table_init(edges, 0);
     tsk_edge_table_free(edges);
     free(edges);
 

@@ -75,7 +75,7 @@ main(int argc, char **argv)
     if (argc != 5) {
         errx(EXIT_FAILURE, "usage: N T simplify-interval output-file");
     }
-    ret = tsk_table_collection_alloc(&tables, 0);
+    ret = tsk_table_collection_init(&tables, 0);
     check_tsk_error(ret);
     simulate(&tables, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), rng);
     ret = tsk_table_collection_dump(&tables, argv[4], 0);

@@ -1800,7 +1800,7 @@ LightweightTableCollection_init(LightweightTableCollection *self, PyObject *args
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_table_collection_alloc(self->tables, 0);
+    err = tsk_table_collection_init(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -1952,7 +1952,7 @@ IndividualTable_init(IndividualTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_individual_table_alloc(self->table, 0);
+    err = tsk_individual_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2382,7 +2382,7 @@ NodeTable_init(NodeTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_node_table_alloc(self->table, 0);
+    err = tsk_node_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2805,7 +2805,7 @@ EdgeTable_init(EdgeTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_edge_table_alloc(self->table, 0);
+    err = tsk_edge_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3194,7 +3194,7 @@ MigrationTable_init(MigrationTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_migration_table_alloc(self->table, 0);
+    err = tsk_migration_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3607,7 +3607,7 @@ SiteTable_init(SiteTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_site_table_alloc(self->table, 0);
+    err = tsk_site_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4027,7 +4027,7 @@ MutationTable_init(MutationTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_mutation_table_alloc(self->table, 0);
+    err = tsk_mutation_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4484,7 +4484,7 @@ PopulationTable_init(PopulationTable *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_population_table_alloc(self->table, 0);
+    err = tsk_population_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4847,7 +4847,7 @@ ProvenanceTable_init(ProvenanceTable *self, PyObject *args, PyObject *kwds)
         goto out;
     }
 
-    err = tsk_provenance_table_alloc(self->table, 0);
+    err = tsk_provenance_table_init(self->table, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5210,7 +5210,7 @@ TableCollection_init(TableCollection *self, PyObject *args, PyObject *kwds)
     if (self->tables == NULL) {
         PyErr_NoMemory();
     }
-    err = tsk_table_collection_alloc(self->tables, 0);
+    err = tsk_table_collection_init(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5679,7 +5679,7 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_alloc(self->tree_sequence, tables->tables, options);
+    err = tsk_treeseq_init(self->tree_sequence, tables->tables, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6444,7 +6444,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_vargen_alloc(vg, self->tree_sequence, NULL, 0, 0);
+    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6693,7 +6693,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_tree_alloc(self->tree, tree_sequence->tree_sequence, (tsk_flags_t) options);
+    err = tsk_tree_init(self->tree, tree_sequence->tree_sequence, (tsk_flags_t) options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -7401,7 +7401,7 @@ TreeDiffIterator_init(TreeDiffIterator *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     memset(self->tree_diff_iterator, 0, sizeof(tsk_diff_iter_t));
-    err = tsk_diff_iter_alloc(self->tree_diff_iterator,
+    err = tsk_diff_iter_init(self->tree_diff_iterator,
             self->tree_sequence->tree_sequence);
     if (err != 0) {
         handle_library_error(err);
@@ -7714,7 +7714,7 @@ VcfConverter_init(VcfConverter *self, PyObject *args, PyObject *kwds)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_vcf_converter_alloc(self->tsk_vcf_converter,
+    err = tsk_vcf_converter_init(self->tsk_vcf_converter,
             self->tree_sequence->tree_sequence, ploidy, contig_id);
     if (err != 0) {
         handle_library_error(err);
@@ -7869,7 +7869,7 @@ HaplotypeGenerator_init(HaplotypeGenerator *self, PyObject *args, PyObject *kwds
         goto out;
     }
     memset(self->haplotype_generator, 0, sizeof(tsk_hapgen_t));
-    err = tsk_hapgen_alloc(self->haplotype_generator,
+    err = tsk_hapgen_init(self->haplotype_generator,
             self->tree_sequence->tree_sequence);
     if (err != 0) {
         handle_library_error(err);
@@ -8026,7 +8026,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
     /* Note: the vargen currently takes a copy of the samples list. If we wanted
      * to avoid this we would INCREF the samples array above and keep a reference
      * to in the object struct */
-    err = tsk_vargen_alloc(self->variant_generator,
+    err = tsk_vargen_init(self->variant_generator,
             self->tree_sequence->tree_sequence, samples, num_samples, 0);
     if (err != 0) {
         handle_library_error(err);
@@ -8160,7 +8160,7 @@ LdCalculator_init(LdCalculator *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     memset(self->ld_calc, 0, sizeof(tsk_ld_calc_t));
-    err = tsk_ld_calc_alloc(self->ld_calc, self->tree_sequence->tree_sequence);
+    err = tsk_ld_calc_init(self->ld_calc, self->tree_sequence->tree_sequence);
     if (err != 0) {
         handle_library_error(err);
         goto out;

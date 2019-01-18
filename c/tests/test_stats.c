@@ -58,7 +58,7 @@ verify_ld(tsk_treeseq_t *ts)
     CU_ASSERT_FATAL(sites != NULL);
     CU_ASSERT_FATAL(num_site_mutations != NULL);
 
-    ret = tsk_ld_calc_alloc(&ld_calc, ts);
+    ret = tsk_ld_calc_init(&ld_calc, ts);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_ld_calc_print_state(&ld_calc, _devnull);
 

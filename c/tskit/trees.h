@@ -128,7 +128,7 @@ structures that facilitate efficient tree iteratation and other operations.
 @param options Allocation time options.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
+int tsk_treeseq_init(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
 
 /**
 @brief Load a tree sequence from file.
@@ -209,7 +209,7 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
 @{
 */
 
-int tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options);
+int tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options);
 int tsk_tree_free(tsk_tree_t *self);
 
 tsk_id_t tsk_tree_get_index(tsk_tree_t *self);
@@ -247,7 +247,7 @@ int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_l
 /* Diff iterator */
 /****************************************************************************/
 
-int tsk_diff_iter_alloc(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence);
+int tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence);
 int tsk_diff_iter_free(tsk_diff_iter_t *self);
 int tsk_diff_iter_next(tsk_diff_iter_t *self,
         double *left, double *right,

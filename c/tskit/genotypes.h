@@ -45,14 +45,14 @@ typedef struct {
     tsk_variant_t variant;
 } tsk_vargen_t;
 
-int tsk_hapgen_alloc(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence);
+int tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence);
 /* FIXME this is inconsistent with the tables API which uses size_t for
  * IDs in functions. Not clear which is better */
 int tsk_hapgen_get_haplotype(tsk_hapgen_t *self, tsk_id_t j, char **haplotype);
 int tsk_hapgen_free(tsk_hapgen_t *self);
 void tsk_hapgen_print_state(tsk_hapgen_t *self, FILE *out);
 
-int tsk_vargen_alloc(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
+int tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
         tsk_id_t *samples, size_t num_samples, tsk_flags_t options);
 int tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant);
 int tsk_vargen_free(tsk_vargen_t *self);

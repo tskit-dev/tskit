@@ -432,7 +432,7 @@ are initialised and freed.
     set to zero to ensure compatability with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_individual_table_alloc(tsk_individual_table_t *self, tsk_flags_t options);
+int tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t options);
 
 /**
 @brief Free the internal memory for the specified table.
@@ -559,7 +559,7 @@ int tsk_individual_table_set_max_location_length_increment(tsk_individual_table_
 @defgroup NODE_TABLE_API_GROUP Node table API.
 @{
 */
-int tsk_node_table_alloc(tsk_node_table_t *self, tsk_flags_t options);
+int tsk_node_table_init(tsk_node_table_t *self, tsk_flags_t options);
 int tsk_node_table_set_max_rows_increment(tsk_node_table_t *self, tsk_size_t max_rows_increment);
 int tsk_node_table_set_max_metadata_length_increment(tsk_node_table_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -589,7 +589,7 @@ int tsk_node_table_get_row(tsk_node_table_t *self, tsk_id_t index, tsk_node_t *r
 @defgroup EDGE_TABLE_API_GROUP Edge table API.
 @{
 */
-int tsk_edge_table_alloc(tsk_edge_table_t *self, tsk_flags_t options);
+int tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options);
 int tsk_edge_table_set_max_rows_increment(tsk_edge_table_t *self, tsk_size_t max_rows_increment);
 tsk_id_t tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double right, tsk_id_t parent,
         tsk_id_t child);
@@ -612,7 +612,7 @@ int tsk_edge_table_get_row(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *r
 @defgroup SITE_TABLE_API_GROUP Site table API.
 @{
 */
-int tsk_site_table_alloc(tsk_site_table_t *self, tsk_flags_t options);
+int tsk_site_table_init(tsk_site_table_t *self, tsk_flags_t options);
 int tsk_site_table_set_max_rows_increment(tsk_site_table_t *self, tsk_size_t max_rows_increment);
 int tsk_site_table_set_max_metadata_length_increment(tsk_site_table_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -643,7 +643,7 @@ int tsk_site_table_get_row(tsk_site_table_t *self, tsk_id_t index, tsk_site_t *r
 @{
 */
 void tsk_mutation_table_print_state(tsk_mutation_table_t *self, FILE *out);
-int tsk_mutation_table_alloc(tsk_mutation_table_t *self, tsk_flags_t options);
+int tsk_mutation_table_init(tsk_mutation_table_t *self, tsk_flags_t options);
 int tsk_mutation_table_set_max_rows_increment(tsk_mutation_table_t *self, tsk_size_t max_rows_increment);
 int tsk_mutation_table_set_max_metadata_length_increment(tsk_mutation_table_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -676,7 +676,7 @@ int tsk_mutation_table_get_row(tsk_mutation_table_t *self, tsk_id_t index, tsk_m
 @defgroup MIGRATION_TABLE_API_GROUP Migration table API.
 @{
 */
-int tsk_migration_table_alloc(tsk_migration_table_t *self, tsk_flags_t options);
+int tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t options);
 int tsk_migration_table_set_max_rows_increment(tsk_migration_table_t *self, tsk_size_t max_rows_increment);
 tsk_id_t tsk_migration_table_add_row(tsk_migration_table_t *self, double left,
         double right, tsk_id_t node, tsk_id_t source,
@@ -702,7 +702,7 @@ int tsk_migration_table_get_row(tsk_migration_table_t *self, tsk_id_t index, tsk
 @defgroup POPULATION_TABLE_API_GROUP Population table API.
 @{
 */
-int tsk_population_table_alloc(tsk_population_table_t *self, tsk_flags_t options);
+int tsk_population_table_init(tsk_population_table_t *self, tsk_flags_t options);
 int tsk_population_table_set_max_rows_increment(tsk_population_table_t *self, tsk_size_t max_rows_increment);
 int tsk_population_table_set_max_metadata_length_increment(tsk_population_table_t *self,
         tsk_size_t max_metadata_length_increment);
@@ -727,7 +727,7 @@ int tsk_population_table_get_row(tsk_population_table_t *self, tsk_id_t index, t
 @defgroup PROVENANCE_TABLE_API_GROUP Provenance table API.
 @{
 */
-int tsk_provenance_table_alloc(tsk_provenance_table_t *self, tsk_flags_t options);
+int tsk_provenance_table_init(tsk_provenance_table_t *self, tsk_flags_t options);
 int tsk_provenance_table_set_max_rows_increment(tsk_provenance_table_t *self, tsk_size_t max_rows_increment);
 int tsk_provenance_table_set_max_timestamp_length_increment(tsk_provenance_table_t *self,
         tsk_size_t max_timestamp_length_increment);
@@ -779,7 +779,7 @@ ensure that memory is not leaked.
     set to zero to ensure compatability with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_table_collection_alloc(tsk_table_collection_t *self, tsk_flags_t options);
+int tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options);
 
 /**
 @brief Load a table collection from file.

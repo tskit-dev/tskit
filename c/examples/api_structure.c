@@ -13,7 +13,7 @@ main(int argc, char **argv)
     int j, ret;
     tsk_edge_table_t edges;
 
-    ret = tsk_edge_table_alloc(&edges, 0);
+    ret = tsk_edge_table_init(&edges, 0);
     check_tsk_error(ret);
     for (j = 0; j < 5; j++) {
         ret = tsk_edge_table_add_row(&edges, 0, 1, j + 1, j);

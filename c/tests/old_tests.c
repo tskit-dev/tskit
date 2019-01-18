@@ -522,7 +522,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
     /* Not supporting provenance here for now */
     CU_ASSERT_FATAL(provenance == NULL);
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = sequence_length;
     parse_nodes(nodes, tables.nodes);
@@ -548,7 +548,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
         }
     }
 
-    ret = tsk_treeseq_alloc(ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
     /* printf("ret = %s\n", tsk_strerror(ret)); */
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -594,7 +594,7 @@ unsort_edges(tsk_edge_tbl_t *edges, size_t start)
     size_t j, k;
     size_t n = edges->num_rows - start;
     tsk_edge_t *buff = malloc(n * sizeof(tsk_edge_t));
-    gsl_rng *rng = gsl_rng_alloc(gsl_rng_default);
+    gsl_rng *rng = gsl_rng_init(gsl_rng_default);
 
     CU_ASSERT_FATAL(edges != NULL);
     CU_ASSERT_FATAL(rng != NULL);
@@ -701,7 +701,7 @@ add_individuals(tsk_treeseq_t *ts)
     }
     ret = tsk_treeseq_free(ts);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_alloc(ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_tbl_collection_free(&tables);
 }
@@ -782,13 +782,13 @@ get_tree_list(tsk_treeseq_t *ts)
     size_t num_trees;
 
     num_trees = tsk_treeseq_get_num_trees(ts);
-    ret = tsk_tree_alloc(&t, ts, 0);
+    ret = tsk_tree_init(&t, ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     trees = malloc(num_trees * sizeof(tsk_tree_t));
     CU_ASSERT_FATAL(trees != NULL);
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
         CU_ASSERT_FATAL(t.index < num_trees);
-        ret = tsk_tree_alloc(&trees[t.index], ts, 0);
+        ret = tsk_tree_init(&trees[t.index], ts, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = tsk_tree_copy(&trees[t.index], &t);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -813,7 +813,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     size_t num_trees = tsk_treeseq_get_num_trees(ts);
 
     trees = get_tree_list(ts);
-    ret = tsk_tree_alloc(&t, ts, 0);
+    ret = tsk_tree_init(&t, ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Single forward pass */
@@ -958,7 +958,7 @@ verify_hapgen(tsk_treeseq_t *ts)
         }
     }
 
-    ret = tsk_hapgen_alloc(&hapgen, ts);
+    ret = tsk_hapgen_init(&hapgen, ts);
     if (single_char) {
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         tsk_hapgen_print_state(&hapgen, _devnull);
@@ -996,7 +996,7 @@ verify_vargen(tsk_treeseq_t *ts)
 
     for (s = 0; s < 2; s++) {
         for (f = 0; f < sizeof(flags) / sizeof(*flags); f++) {
-            ret = tsk_vargen_alloc(&vargen, ts, samples[s], num_samples, flags[f]);
+            ret = tsk_vargen_init(&vargen, ts, samples[s], num_samples, flags[f]);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             tsk_vargen_print_state(&vargen, _devnull);
             j = 0;
@@ -1202,9 +1202,9 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     /* tsk_treeseq_print_state(ts, stdout); */
     /* tsk_treeseq_print_state(subset, stdout); */
 
-    ret = tsk_vargen_alloc(&vargen, ts, NULL, 0, 0);
+    ret = tsk_vargen_init(&vargen, ts, NULL, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_vargen_alloc(&subset_vargen, subset, NULL, 0, 0);
+    ret = tsk_vargen_init(&subset_vargen, subset, NULL, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(m, tsk_treeseq_get_num_sites(subset));
     tsk_treeseq_get_samples(ts, &all_samples);
@@ -1297,9 +1297,9 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(subset), 1);
     }
     /* Check the pairwise MRCAs */
-    ret = tsk_tree_alloc(&full_tree, ts, 0);
+    ret = tsk_tree_init(&full_tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_tree_alloc(&subset_tree, subset, 0);
+    ret = tsk_tree_init(&subset_tree, subset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_first(&full_tree);
     CU_ASSERT_EQUAL(ret, 1);
@@ -1515,7 +1515,7 @@ verify_vcf_converter(tsk_treeseq_t *ts, unsigned int ploidy)
     tsk_vcf_converter_t vc;
     unsigned int num_variants;
 
-    ret = tsk_vcf_converter_alloc(&vc, ts, ploidy, "chr1234");
+    ret = tsk_vcf_converter_init(&vc, ts, ploidy, "chr1234");
     CU_ASSERT_FATAL(ret ==  0);
     tsk_vcf_converter_print_state(&vc, _devnull);
     ret = tsk_vcf_converter_get_header(&vc, &str);
@@ -1582,7 +1582,7 @@ verify_trees_consistent(tsk_treeseq_t *ts)
     size_t num_trees;
     tsk_tree_t tree;
 
-    ret = tsk_tree_alloc(&tree, ts, 0);
+    ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
 
     num_trees = 0;
@@ -1616,7 +1616,7 @@ verify_ld(tsk_treeseq_t *ts)
     CU_ASSERT_FATAL(sites != NULL);
     CU_ASSERT_FATAL(num_site_mutations != NULL);
 
-    ret = tsk_ld_calc_alloc(&ld_calc, ts);
+    ret = tsk_ld_calc_init(&ld_calc, ts);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_ld_calc_print_state(&ld_calc, _devnull);
 
@@ -1851,7 +1851,7 @@ verify_sample_sets(tsk_treeseq_t *ts)
     int ret;
     tsk_tree_t t;
 
-    ret = tsk_tree_alloc(&t, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+    ret = tsk_tree_init(&t, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
@@ -1878,7 +1878,7 @@ verify_tree_equals(tsk_treeseq_t *ts)
         TSK_SAMPLE_LISTS | TSK_SAMPLE_COUNTS};
 
     trees = get_tree_list(ts);
-    ret = tsk_tree_alloc(&t, other_ts, 0);
+    ret = tsk_tree_init(&t, other_ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     for (j = 0; j < tsk_treeseq_get_num_trees(ts); j++) {
         ret = tsk_tree_equal(&t, &trees[j]);
@@ -1896,7 +1896,7 @@ verify_tree_equals(tsk_treeseq_t *ts)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < sizeof(flags) / sizeof(int); j++) {
-        ret = tsk_tree_alloc(&t, ts, flags[j]);
+        ret = tsk_tree_init(&t, ts, flags[j]);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         for (ret = tsk_tree_first(&t); ret == 1;
                 ret = tsk_tree_next(&t)) {
@@ -2199,7 +2199,7 @@ verify_newick(tsk_treeseq_t *ts)
 
     /* CU_ASSERT_FATAL(newick != NULL); */
 
-    /* ret = tsk_tree_alloc(&t, ts, 0); */
+    /* ret = tsk_tree_init(&t, ts, 0); */
     /* CU_ASSERT_EQUAL_FATAL(ret, 0); */
     /* ret = tsk_tree_first(&t); */
     /* CU_ASSERT_FATAL(ret == 1); */
@@ -2386,9 +2386,9 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
         verify_populations_equal(&pop1, &pop2);
     }
 
-    ret = tsk_tree_alloc(&t1, ts1, 0);
+    ret = tsk_tree_init(&t1, ts1, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_tree_alloc(&t2, ts2, 0);
+    ret = tsk_tree_init(&t2, ts2, 0);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_first(&t1);
     CU_ASSERT_EQUAL(ret, 1);
@@ -2414,11 +2414,11 @@ test_save_empty_kas(void)
     double sequence_length = 1234.00;
     tsk_tbl_collection_t tables;
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = sequence_length;
 
-    ret = tsk_treeseq_alloc(&ts1, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts1, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_dump(&ts1, _tmp_file_name, 0);
@@ -2484,7 +2484,7 @@ test_save_kas_tables(void)
 
     for (j = 0; examples[j] != NULL; j++) {
         ts1 = examples[j];
-        ret = tsk_tbl_collection_alloc(&t1, 0);
+        ret = tsk_tbl_collection_init(&t1, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = tsk_treeseq_copy_tables(ts1, &t1);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2492,7 +2492,7 @@ test_save_kas_tables(void)
         for (k = 0; k < sizeof(dump_flags) / sizeof(int); k++) {
             ret = tsk_tbl_collection_dump(&t1, _tmp_file_name, dump_flags[k]);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
-            ret = tsk_tbl_collection_alloc(&t2, 0);
+            ret = tsk_tbl_collection_init(&t2, 0);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             ret = tsk_tbl_collection_load(&t2, _tmp_file_name, 0);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2521,7 +2521,7 @@ test_sort_tables(void)
     int load_flags = TSK_BUILD_INDEXES;
     tsk_id_t tmp_node;
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(examples != NULL);
 
@@ -2547,14 +2547,14 @@ test_sort_tables(void)
         for (k = 0; k < 3; k++) {
             start = starts[k];
             unsort_edges(tables.edges, start);
-            ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+            ret = tsk_treeseq_init(&ts2, &tables, load_flags);
             CU_ASSERT_NOT_EQUAL_FATAL(ret, 0);
             tsk_treeseq_free(&ts2);
 
             ret = tsk_tbl_collection_sort(&tables, 0, 0);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-            ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+            ret = tsk_treeseq_init(&ts2, &tables, load_flags);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             verify_tree_sequences_equal(ts1, &ts2, true, true, false);
             tsk_treeseq_free(&ts2);
@@ -2563,7 +2563,7 @@ test_sort_tables(void)
         /* A start value of num_tables.edges should have no effect */
         ret = tsk_tbl_collection_sort(&tables, tables.edges->num_rows, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+        ret = tsk_treeseq_init(&ts2, &tables, load_flags);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         verify_tree_sequences_equal(ts1, &ts2, true, true, false);
         tsk_treeseq_free(&ts2);
@@ -2571,14 +2571,14 @@ test_sort_tables(void)
         if (tables.sites->num_rows > 1) {
             /* Check site sorting */
             unsort_sites(tables.sites, tables.mutations);
-            ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+            ret = tsk_treeseq_init(&ts2, &tables, load_flags);
             CU_ASSERT_NOT_EQUAL(ret, 0);
             tsk_treeseq_free(&ts2);
 
             ret = tsk_tbl_collection_sort(&tables, 0, 0);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-            ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+            ret = tsk_treeseq_init(&ts2, &tables, load_flags);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             verify_tree_sequences_equal(ts1, &ts2, true, true, false);
             tsk_treeseq_free(&ts2);
@@ -2632,7 +2632,7 @@ test_dump_tables(void)
     size_t j;
     int load_flags = TSK_BUILD_INDEXES;
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(examples != NULL);
 
@@ -2644,7 +2644,7 @@ test_dump_tables(void)
 
         ret = tsk_treeseq_copy_tables(ts1, &tables);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+        ret = tsk_treeseq_init(&ts2, &tables, load_flags);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         verify_tree_sequences_equal(ts1, &ts2, true, true, true);
         tsk_treeseq_print_state(&ts2, _devnull);
@@ -2666,7 +2666,7 @@ test_dump_tables_kas(void)
     tsk_tbl_collection_t tables;
     int load_flags = TSK_BUILD_INDEXES;
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     examples = get_example_tree_sequences(1);
@@ -2675,7 +2675,7 @@ test_dump_tables_kas(void)
         CU_ASSERT_FATAL(ts1 != NULL);
         ret = tsk_treeseq_copy_tables(ts1, &tables);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_treeseq_alloc(&ts2, &tables, load_flags);
+        ret = tsk_treeseq_init(&ts2, &tables, load_flags);
         ret = tsk_treeseq_dump(&ts2, _tmp_file_name, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = tsk_treeseq_load(&ts3, _tmp_file_name, TSK_LOAD_EXTENDED_CHECKS);
@@ -2700,7 +2700,7 @@ test_tsk_tbl_collection_simplify_errors(void)
     tsk_id_t samples[] = {0, 1};
 
 
-    ret = tsk_tbl_collection_alloc(&tables, 0);
+    ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
@@ -2739,9 +2739,9 @@ test_tsk_tbl_collection_position_errors(void)
     CU_ASSERT_FATAL(examples != NULL);
     for (j = 0; examples[j] != NULL; j++) {
         // set-up
-        ret = tsk_tbl_collection_alloc(&t1, 0);
+        ret = tsk_tbl_collection_init(&t1, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_tbl_collection_alloc(&t2, 0);
+        ret = tsk_tbl_collection_init(&t2, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = tsk_treeseq_copy_tables(examples[j], &t1);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2837,11 +2837,11 @@ test_tsk_tbl_collection_position(void)
     CU_ASSERT_FATAL(examples != NULL);
 
     for (j = 0; examples[j] != NULL; j++) {
-        ret = tsk_tbl_collection_alloc(&t1, 0);
+        ret = tsk_tbl_collection_init(&t1, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_tbl_collection_alloc(&t2, 0);
+        ret = tsk_tbl_collection_init(&t2, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_tbl_collection_alloc(&t3, 0);
+        ret = tsk_tbl_collection_init(&t3, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
 
         ret = tsk_treeseq_copy_tables(examples[j], &t1);

@@ -234,7 +234,7 @@ tsk_individual_table_set_max_location_length_increment(tsk_individual_table_t *s
 }
 
 int
-tsk_individual_table_alloc(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -679,7 +679,7 @@ tsk_node_table_set_max_metadata_length_increment(tsk_node_table_t *self,
 }
 
 int
-tsk_node_table_alloc(tsk_node_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_node_table_init(tsk_node_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -1044,7 +1044,7 @@ tsk_edge_table_set_max_rows_increment(tsk_edge_table_t *self, tsk_size_t max_row
 }
 
 int
-tsk_edge_table_alloc(tsk_edge_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -1359,7 +1359,7 @@ tsk_site_table_set_max_ancestral_state_length_increment(tsk_site_table_t *self,
 }
 
 int
-tsk_site_table_alloc(tsk_site_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_site_table_init(tsk_site_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -1812,7 +1812,7 @@ tsk_mutation_table_set_max_derived_state_length_increment(tsk_mutation_table_t *
 }
 
 int
-tsk_mutation_table_alloc(tsk_mutation_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_mutation_table_init(tsk_mutation_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -2227,7 +2227,7 @@ tsk_migration_table_set_max_rows_increment(tsk_migration_table_t *self, tsk_size
 }
 
 int
-tsk_migration_table_alloc(tsk_migration_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -2523,7 +2523,7 @@ tsk_population_table_set_max_metadata_length_increment(tsk_population_table_t *s
 }
 
 int
-tsk_population_table_alloc(tsk_population_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_population_table_init(tsk_population_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -2880,7 +2880,7 @@ tsk_provenance_table_set_max_record_length_increment(tsk_provenance_table_t *sel
 }
 
 int
-tsk_provenance_table_alloc(tsk_provenance_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_provenance_table_init(tsk_provenance_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
@@ -3281,7 +3281,7 @@ cmp_edge(const void *a, const void *b) {
 }
 
 static int
-table_sorter_alloc(table_sorter_t *self, tsk_table_collection_t *tables,
+table_sorter_init(table_sorter_t *self, tsk_table_collection_t *tables,
         tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
@@ -3356,7 +3356,7 @@ table_sorter_sort_sites(table_sorter_t *self)
     tsk_size_t num_sites = self->sites->num_rows;
     tsk_site_t *sorted_sites = malloc(num_sites * sizeof(*sorted_sites));
 
-    ret = tsk_site_table_alloc(&copy, 0);
+    ret = tsk_site_table_init(&copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -3407,7 +3407,7 @@ table_sorter_sort_mutations(table_sorter_t *self)
     tsk_mutation_t *sorted_mutations = malloc(num_mutations * sizeof(*sorted_mutations));
     tsk_id_t *mutation_id_map = malloc(num_mutations * sizeof(*mutation_id_map));
 
-    ret = tsk_mutation_table_alloc(&copy, 0);
+    ret = tsk_mutation_table_init(&copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -3612,7 +3612,7 @@ segment_overlapper_free(segment_overlapper_t *self)
  * array must have space for num_segments + 1 elements!
  */
 static int TSK_WARN_UNUSED
-segment_overlapper_init(segment_overlapper_t *self, simplify_segment_t *segments,
+segment_overlapper_start(segment_overlapper_t *self, simplify_segment_t *segments,
         size_t num_segments)
 {
     int ret = 0;
@@ -4195,7 +4195,7 @@ out:
 }
 
 static int
-simplifier_alloc(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
+simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
         tsk_table_collection_t *tables, tsk_flags_t options)
 {
     int ret = 0;
@@ -4223,7 +4223,7 @@ simplifier_alloc(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
         goto out;
     }
 
-    ret = tsk_table_collection_alloc(&self->input_tables, 0);
+    ret = tsk_table_collection_init(&self->input_tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -4241,11 +4241,11 @@ simplifier_alloc(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
     memcpy(self->samples, samples, num_samples * sizeof(tsk_id_t));
 
     /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size */
-    ret = tsk_blkalloc_alloc(&self->segment_heap, 8192);
+    ret = tsk_blkalloc_init(&self->segment_heap, 8192);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_blkalloc_alloc(&self->interval_list_heap, 8192);
+    ret = tsk_blkalloc_init(&self->interval_list_heap, 8192);
     if (ret != 0) {
         goto out;
     }
@@ -4369,7 +4369,7 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
         self->ancestor_map_tail[input_id] = NULL;
     }
 
-    ret = segment_overlapper_init(&self->segment_overlapper,
+    ret = segment_overlapper_start(&self->segment_overlapper,
             self->segment_queue, self->segment_queue_size);
     if (ret != 0) {
         goto out;
@@ -5150,7 +5150,7 @@ tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
 }
 
 int
-tsk_table_collection_alloc(tsk_table_collection_t *self, tsk_flags_t options)
+tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     memset(self, 0, sizeof(*self));
@@ -5171,35 +5171,35 @@ tsk_table_collection_alloc(tsk_table_collection_t *self, tsk_flags_t options)
     }
     if (! (options & TSK_NO_ALLOC_TABLES)) {
         /* Allocate all the tables with their default increments */
-        ret = tsk_node_table_alloc(self->nodes, 0);
+        ret = tsk_node_table_init(self->nodes, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_edge_table_alloc(self->edges, 0);
+        ret = tsk_edge_table_init(self->edges, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_migration_table_alloc(self->migrations, 0);
+        ret = tsk_migration_table_init(self->migrations, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_site_table_alloc(self->sites, 0);
+        ret = tsk_site_table_init(self->sites, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_mutation_table_alloc(self->mutations, 0);
+        ret = tsk_mutation_table_init(self->mutations, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_individual_table_alloc(self->individuals, 0);
+        ret = tsk_individual_table_init(self->individuals, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_population_table_alloc(self->populations, 0);
+        ret = tsk_population_table_init(self->populations, 0);
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_provenance_table_alloc(self->provenances, 0);
+        ret = tsk_provenance_table_init(self->provenances, 0);
         if (ret != 0) {
             goto out;
         }
@@ -5571,7 +5571,7 @@ tsk_table_collection_load(tsk_table_collection_t *self, const char *filename, ts
 {
     int ret = 0;
 
-    ret = tsk_table_collection_alloc(self, TSK_NO_ALLOC_TABLES);
+    ret = tsk_table_collection_init(self, TSK_NO_ALLOC_TABLES);
     if (ret != 0) {
         goto out;
     }
@@ -5723,7 +5723,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
     int ret = 0;
     simplifier_t simplifier;
 
-    ret = simplifier_alloc(&simplifier, samples, (size_t) num_samples, self, options);
+    ret = simplifier_init(&simplifier, samples, (size_t) num_samples, self, options);
     if (ret != 0) {
         goto out;
     }
@@ -5748,7 +5748,7 @@ tsk_table_collection_sort(tsk_table_collection_t *self, tsk_size_t edge_start,
     int ret = 0;
     table_sorter_t sorter;
 
-    ret = table_sorter_alloc(&sorter, self, options);
+    ret = table_sorter_init(&sorter, self, options);
     if (ret != 0) {
         goto out;
     }
@@ -5778,7 +5778,7 @@ tsk_table_collection_deduplicate_sites(tsk_table_collection_t *self, tsk_flags_t
     tsk_site_t row, last_row;
 
     /* Must allocate the site table first for tsk_site_table_free to be safe */
-    ret = tsk_site_table_alloc(&copy, 0);
+    ret = tsk_site_table_init(&copy, 0);
     if (ret != 0) {
         goto out;
     }

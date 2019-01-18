@@ -238,7 +238,7 @@ typedef struct {
 
 extern void tsk_blkalloc_print_state(tsk_blkalloc_t *self, FILE *out);
 extern int tsk_blkalloc_reset(tsk_blkalloc_t *self);
-extern int tsk_blkalloc_alloc(tsk_blkalloc_t *self, size_t chunk_size);
+extern int tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size);
 extern void * tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size);
 extern void tsk_blkalloc_free(tsk_blkalloc_t *self);
 

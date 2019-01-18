@@ -16,7 +16,7 @@ test_single_tree_newick(void)
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
 
-    ret = tsk_tree_alloc(&t, &ts, 0);
+    ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1)
@@ -53,7 +53,7 @@ test_single_tree_newick_errors(void)
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
 
-    ret = tsk_tree_alloc(&t, &ts, 0);
+    ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1)
@@ -88,7 +88,7 @@ verify_vcf_converter(tsk_treeseq_t *ts, unsigned int ploidy)
     tsk_vcf_converter_t vc;
     unsigned int num_variants;
 
-    ret = tsk_vcf_converter_alloc(&vc, ts, ploidy, "chr1234");
+    ret = tsk_vcf_converter_init(&vc, ts, ploidy, "chr1234");
     CU_ASSERT_FATAL(ret ==  0);
     tsk_vcf_converter_print_state(&vc, _devnull);
     ret = tsk_vcf_converter_get_header(&vc, &str);
@@ -115,11 +115,11 @@ test_single_tree_vcf(void)
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
 
-    ret = tsk_vcf_converter_alloc(&vc, &ts, 0, "1");
+    ret = tsk_vcf_converter_init(&vc, &ts, 0, "1");
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_vcf_converter_alloc(&vc, &ts, 3, "1");
+    ret = tsk_vcf_converter_init(&vc, &ts, 3, "1");
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_vcf_converter_alloc(&vc, &ts, 11, "1");
+    ret = tsk_vcf_converter_init(&vc, &ts, 11, "1");
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     for (ploidy = 1; ploidy < 3; ploidy++) {
@@ -141,7 +141,7 @@ test_single_tree_vcf_no_mutations(void)
             NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_sites(&ts), 0);
 
-    ret = tsk_vcf_converter_alloc(&vc, &ts, 1, "1");
+    ret = tsk_vcf_converter_init(&vc, &ts, 1, "1");
     CU_ASSERT_FATAL(ret ==  0);
     tsk_vcf_converter_print_state(&vc, _devnull);
     ret = tsk_vcf_converter_get_header(&vc, &str);

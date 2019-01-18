@@ -346,7 +346,7 @@ tsk_blkalloc_reset(tsk_blkalloc_t *self)
 }
 
 int TSK_WARN_UNUSED
-tsk_blkalloc_alloc(tsk_blkalloc_t *self, size_t chunk_size)
+tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
 {
     int ret = 0;
 

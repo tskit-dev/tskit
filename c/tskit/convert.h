@@ -27,7 +27,7 @@ typedef struct {
     tsk_vargen_t *vargen;
 } tsk_vcf_converter_t;
 
-int tsk_vcf_converter_alloc(tsk_vcf_converter_t *self,
+int tsk_vcf_converter_init(tsk_vcf_converter_t *self,
         tsk_treeseq_t *tree_sequence, unsigned int ploidy, const char *chrom);
 int tsk_vcf_converter_get_header(tsk_vcf_converter_t *self, char **header);
 int tsk_vcf_converter_next(tsk_vcf_converter_t *self, char **record);

@@ -328,7 +328,7 @@ out:
  *   tables directly, but don't free it at the end.
  */
 int TSK_WARN_UNUSED
-tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options)
+tsk_treeseq_init(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -342,7 +342,7 @@ tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_table_collection_alloc(self->tables, 0);
+    ret = tsk_table_collection_init(self->tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -420,7 +420,7 @@ tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t TSK_UNUS
      * a new table here but could load directly into the main table instead.
      * See notes on the owned reference for treeseq_alloc above.
      */
-    ret = tsk_treeseq_alloc(self, &tables, 0);
+    ret = tsk_treeseq_init(self, &tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -542,7 +542,7 @@ tsk_treeseq_get_pairwise_diversity(tsk_treeseq_t *self,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_tree_alloc(tree, self, TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_init(tree, self, TSK_SAMPLE_COUNTS);
     if (ret != 0) {
         goto out;
     }
@@ -1011,7 +1011,7 @@ tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samp
     int ret = 0;
     tsk_table_collection_t tables;
 
-    ret = tsk_table_collection_alloc(&tables, 0);
+    ret = tsk_table_collection_init(&tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -1023,7 +1023,7 @@ tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_treeseq_alloc(output, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(output, &tables, TSK_BUILD_INDEXES);
 out:
     tsk_table_collection_free(&tables);
     return ret;
@@ -1101,7 +1101,7 @@ tsk_tree_clear(tsk_tree_t *self)
 }
 
 int TSK_WARN_UNUSED
-tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options)
+tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
     tsk_size_t num_samples;
@@ -2070,7 +2070,7 @@ tsk_tree_prev(tsk_tree_t *self)
  * ======================================================== */
 
 int TSK_WARN_UNUSED
-tsk_diff_iter_alloc(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence)
+tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence)
 {
     int ret = 0;
 
