@@ -4,10 +4,9 @@
 #include <iostream>
 #include <sstream>
 #include <memory>
-#include <functional>
 #include <tskitpp/table_collection_ptr.hpp>
 
-using GSLrng = std::unique_ptr<gsl_rng, std::function<void(gsl_rng *)>>;
+using GSLrng = std::unique_ptr<gsl_rng, void(*)(gsl_rng *)>;
 
 GSLrng
 make_rng(unsigned seed)
