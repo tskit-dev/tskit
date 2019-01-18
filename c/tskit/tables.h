@@ -489,21 +489,21 @@ typedef struct {
     double sequence_length;
     char *file_uuid;
     /** @brief The individual table */
-    tsk_individual_table_t *individuals;
+    tsk_individual_table_t individuals;
     /** @brief The node table */
-    tsk_node_table_t *nodes;
+    tsk_node_table_t nodes;
     /** @brief The edge table */
-    tsk_edge_table_t *edges;
+    tsk_edge_table_t edges;
     /** @brief The migration table */
-    tsk_migration_table_t *migrations;
+    tsk_migration_table_t migrations;
     /** @brief The site table */
-    tsk_site_table_t *sites;
+    tsk_site_table_t sites;
     /** @brief The mutation table */
-    tsk_mutation_table_t *mutations;
+    tsk_mutation_table_t mutations;
     /** @brief The population table */
-    tsk_population_table_t *populations;
+    tsk_population_table_t populations;
     /** @brief The provenance table */
-    tsk_provenance_table_t *provenances;
+    tsk_provenance_table_t provenances;
     struct {
         tsk_id_t *edge_insertion_order;
         tsk_id_t *edge_removal_order;

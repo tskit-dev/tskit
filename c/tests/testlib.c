@@ -490,25 +490,25 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = sequence_length;
-    parse_nodes(nodes, tables.nodes);
-    parse_edges(edges, tables.edges);
+    parse_nodes(nodes, &tables.nodes);
+    parse_edges(edges, &tables.edges);
     if (sites != NULL) {
-        parse_sites(sites, tables.sites);
+        parse_sites(sites, &tables.sites);
     }
     if (mutations != NULL) {
-        parse_mutations(mutations, tables.mutations);
+        parse_mutations(mutations, &tables.mutations);
     }
     if (individuals != NULL) {
-        parse_individuals(individuals, tables.individuals);
+        parse_individuals(individuals, &tables.individuals);
     }
     /* We need to add in populations if they are referenced */
     max_population_id = -1;
-    for (j = 0; j < tables.nodes->num_rows; j++) {
-        max_population_id = TSK_MAX(max_population_id, tables.nodes->population[j]);
+    for (j = 0; j < tables.nodes.num_rows; j++) {
+        max_population_id = TSK_MAX(max_population_id, tables.nodes.population[j]);
     }
     if (max_population_id >= 0) {
         for (j = 0; j <= (tsk_size_t) max_population_id; j++) {
-            ret = tsk_population_table_add_row(tables.populations, NULL, 0);
+            ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
             CU_ASSERT_EQUAL_FATAL(ret, j);
         }
     }
