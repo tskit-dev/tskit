@@ -8,10 +8,10 @@
 
 #include <tskit/tables.h>
 
-/* This is a flag for tsk_table_collection_alloc used by tsk_table_collection_load to
+/* This is a flag for tsk_table_collection_init used by tsk_table_collection_load to
  * avoid allocating the table columns. It's defined internally for now as it's
  * not clear how this would be useful outside of tskit. */
-#define TSK_NO_ALLOC_TABLES (1 << 30)
+#define TSK_NO_INIT_TABLES (1 << 30)
 
 #define DEFAULT_SIZE_INCREMENT 1024
 #define TABLE_SEP "-----------------------------------------\n"
@@ -266,10 +266,21 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest)
+tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest,
+        tsk_flags_t options)
 {
-    return tsk_individual_table_set_columns(dest, self->num_rows, self->flags,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_individual_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_individual_table_set_columns(dest, self->num_rows, self->flags,
             self->location, self->location_offset, self->metadata, self->metadata_offset);
+out:
+    return ret;
 }
 
 int TSK_WARN_UNUSED
@@ -704,11 +715,21 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_node_table_copy(tsk_node_table_t *self, tsk_node_table_t *dest)
+tsk_node_table_copy(tsk_node_table_t *self, tsk_node_table_t *dest, tsk_flags_t options)
 {
-    return tsk_node_table_set_columns(dest, self->num_rows, self->flags,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_node_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_node_table_set_columns(dest, self->num_rows, self->flags,
             self->time, self->population, self->individual,
             self->metadata, self->metadata_offset);
+out:
+    return ret;
 }
 
 int TSK_WARN_UNUSED
@@ -1083,10 +1104,20 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest)
+tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t options)
 {
-    return tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_edge_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
             self->parent, self->child);
+out:
+    return ret;
 }
 
 int
@@ -1505,11 +1536,21 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_site_table_copy(tsk_site_table_t *self, tsk_site_table_t *dest)
+tsk_site_table_copy(tsk_site_table_t *self, tsk_site_table_t *dest, tsk_flags_t options)
 {
-    return tsk_site_table_set_columns(dest, self->num_rows, self->position,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_site_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_site_table_set_columns(dest, self->num_rows, self->position,
             self->ancestral_state, self->ancestral_state_offset,
             self->metadata, self->metadata_offset);
+out:
+    return ret;
 }
 
 int
@@ -1970,12 +2011,23 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_mutation_table_copy(tsk_mutation_table_t *self, tsk_mutation_table_t *dest)
+tsk_mutation_table_copy(tsk_mutation_table_t *self, tsk_mutation_table_t *dest,
+        tsk_flags_t options)
 {
-    return tsk_mutation_table_set_columns(dest, self->num_rows,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_mutation_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_mutation_table_set_columns(dest, self->num_rows,
             self->site, self->node, self->parent,
             self->derived_state, self->derived_state_offset,
             self->metadata, self->metadata_offset);
+out:
+    return ret;
 }
 
 int
@@ -2273,11 +2325,22 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_migration_table_copy(tsk_migration_table_t *self, tsk_migration_table_t *dest)
+tsk_migration_table_copy(tsk_migration_table_t *self, tsk_migration_table_t *dest,
+        tsk_flags_t options)
 {
-    return tsk_migration_table_set_columns(dest, self->num_rows,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_migration_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_migration_table_set_columns(dest, self->num_rows,
             self->left, self->right, self->node,
             self->source, self->dest, self->time);
+out:
+    return ret;
 }
 
 int
@@ -2548,10 +2611,21 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_population_table_copy(tsk_population_table_t *self, tsk_population_table_t *dest)
+tsk_population_table_copy(tsk_population_table_t *self, tsk_population_table_t *dest,
+        tsk_flags_t options)
 {
-    return tsk_population_table_set_columns(dest, self->num_rows,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_population_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_population_table_set_columns(dest, self->num_rows,
             self->metadata, self->metadata_offset);
+out:
+    return ret;
 }
 
 int
@@ -2912,11 +2986,22 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_provenance_table_copy(tsk_provenance_table_t *self, tsk_provenance_table_t *dest)
+tsk_provenance_table_copy(tsk_provenance_table_t *self, tsk_provenance_table_t *dest,
+        tsk_flags_t options)
 {
-    return tsk_provenance_table_set_columns(dest, self->num_rows,
+    int ret = 0;
+
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_provenance_table_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_provenance_table_set_columns(dest, self->num_rows,
             self->timestamp, self->timestamp_offset,
             self->record, self->record_offset);
+out:
+    return ret;
 }
 
 int
@@ -3356,11 +3441,7 @@ table_sorter_sort_sites(table_sorter_t *self)
     tsk_size_t num_sites = self->sites->num_rows;
     tsk_site_t *sorted_sites = malloc(num_sites * sizeof(*sorted_sites));
 
-    ret = tsk_site_table_init(&copy, 0);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_site_table_copy(self->sites, &copy);
+    ret = tsk_site_table_copy(self->sites, &copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -3407,11 +3488,7 @@ table_sorter_sort_mutations(table_sorter_t *self)
     tsk_mutation_t *sorted_mutations = malloc(num_mutations * sizeof(*sorted_mutations));
     tsk_id_t *mutation_id_map = malloc(num_mutations * sizeof(*mutation_id_map));
 
-    ret = tsk_mutation_table_init(&copy, 0);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_mutation_table_copy(self->mutations, &copy);
+    ret = tsk_mutation_table_copy(self->mutations, &copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -4223,11 +4300,7 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
         goto out;
     }
 
-    ret = tsk_table_collection_init(&self->input_tables, 0);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_table_collection_copy(self->tables, &self->input_tables);
+    ret = tsk_table_collection_copy(self->tables, &self->input_tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -4707,7 +4780,8 @@ simplifier_finalise_references(simplifier_t *self)
         }
     }
 
-    ret = tsk_provenance_table_copy(self->input_tables.provenances, self->tables->provenances);
+    ret = tsk_provenance_table_copy(self->input_tables.provenances,
+            self->tables->provenances, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
@@ -5169,7 +5243,7 @@ tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    if (! (options & TSK_NO_ALLOC_TABLES)) {
+    if (! (options & TSK_NO_INIT_TABLES)) {
         /* Allocate all the tables with their default increments */
         ret = tsk_node_table_init(self->nodes, 0);
         if (ret != 0) {
@@ -5291,44 +5365,47 @@ tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collection_t
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *dest)
+tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *dest,
+        tsk_flags_t options)
 {
     int ret = 0;
     size_t index_size;
 
-    if (dest == NULL) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
+    if (! (options & TSK_NO_INIT)) {
+        ret = tsk_table_collection_init(dest, 0);
+        if (ret != 0) {
+            goto out;
+        }
     }
-    ret = tsk_node_table_copy(self->nodes, dest->nodes);
+    ret = tsk_node_table_copy(self->nodes, dest->nodes, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_copy(self->edges, dest->edges);
+    ret = tsk_edge_table_copy(self->edges, dest->edges, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_migration_table_copy(self->migrations, dest->migrations);
+    ret = tsk_migration_table_copy(self->migrations, dest->migrations, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_site_table_copy(self->sites, dest->sites);
+    ret = tsk_site_table_copy(self->sites, dest->sites, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_mutation_table_copy(self->mutations, dest->mutations);
+    ret = tsk_mutation_table_copy(self->mutations, dest->mutations, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_individual_table_copy(self->individuals, dest->individuals);
+    ret = tsk_individual_table_copy(self->individuals, dest->individuals, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_population_table_copy(self->populations, dest->populations);
+    ret = tsk_population_table_copy(self->populations, dest->populations, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_provenance_table_copy(self->provenances, dest->provenances);
+    ret = tsk_provenance_table_copy(self->provenances, dest->provenances, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
@@ -5567,11 +5644,12 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self)
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_load(tsk_table_collection_t *self, const char *filename, tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_load(tsk_table_collection_t *self, const char *filename,
+        tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
-    ret = tsk_table_collection_init(self, TSK_NO_ALLOC_TABLES);
+    ret = tsk_table_collection_init(self, TSK_NO_INIT_TABLES);
     if (ret != 0) {
         goto out;
     }
@@ -5778,7 +5856,7 @@ tsk_table_collection_deduplicate_sites(tsk_table_collection_t *self, tsk_flags_t
     tsk_site_t row, last_row;
 
     /* Must allocate the site table first for tsk_site_table_free to be safe */
-    ret = tsk_site_table_init(&copy, 0);
+    ret = tsk_site_table_copy(self->sites, &copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -5790,10 +5868,6 @@ tsk_table_collection_deduplicate_sites(tsk_table_collection_t *self, tsk_flags_t
         goto out;
     }
 
-    ret = tsk_site_table_copy(self->sites, &copy);
-    if (ret != 0) {
-        goto out;
-    }
     site_id_map = malloc(copy.num_rows * sizeof(*site_id_map));
     if (site_id_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;

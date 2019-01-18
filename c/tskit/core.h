@@ -60,33 +60,6 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 /* The null ID */
 #define TSK_NULL ((tsk_id_t) -1)
 
-/* Flags for simplify() */
-#define TSK_FILTER_SITES                 (1 << 0)
-#define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 1)
-#define TSK_FILTER_POPULATIONS           (1 << 2)
-#define TSK_FILTER_INDIVIDUALS           (1 << 3)
-
-/* Flags for check_integrity */
-#define TSK_CHECK_OFFSETS                (1 << 0)
-#define TSK_CHECK_EDGE_ORDERING          (1 << 1)
-#define TSK_CHECK_SITE_ORDERING          (1 << 2)
-#define TSK_CHECK_SITE_DUPLICATES        (1 << 3)
-#define TSK_CHECK_MUTATION_ORDERING      (1 << 4)
-#define TSK_CHECK_INDEXES                (1 << 5)
-#define TSK_CHECK_ALL                    \
-    (TSK_CHECK_OFFSETS | TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING | \
-     TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
-
-/* Flags for dump tables */
-
-/* Flags for load tables */
-#define TSK_BUILD_INDEXES 1
-
-/* Generic debug flag shared across all calls. Uses
- * the top bit to avoid clashes with other flags. */
-#define TSK_DEBUG                       (1u << 31)
-
-#define TSK_LOAD_EXTENDED_CHECKS  1
 
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11

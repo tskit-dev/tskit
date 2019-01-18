@@ -145,7 +145,8 @@ Reads a tree sequence from the specified file.
 int tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
 
 int tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
-int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables);
+int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables,
+        tsk_flags_t options);
 int tsk_treeseq_free(tsk_treeseq_t *self);
 void tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out);
 

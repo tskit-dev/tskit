@@ -410,6 +410,41 @@ typedef struct {
 
 
 /****************************************************************************/
+/* Common function options */
+/****************************************************************************/
+
+#define TSK_NO_INIT                     (1 << 0)
+
+
+/* Flags for simplify() */
+#define TSK_FILTER_SITES                 (1 << 0)
+#define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 1)
+#define TSK_FILTER_POPULATIONS           (1 << 2)
+#define TSK_FILTER_INDIVIDUALS           (1 << 3)
+
+/* Flags for check_integrity */
+#define TSK_CHECK_OFFSETS                (1 << 0)
+#define TSK_CHECK_EDGE_ORDERING          (1 << 1)
+#define TSK_CHECK_SITE_ORDERING          (1 << 2)
+#define TSK_CHECK_SITE_DUPLICATES        (1 << 3)
+#define TSK_CHECK_MUTATION_ORDERING      (1 << 4)
+#define TSK_CHECK_INDEXES                (1 << 5)
+#define TSK_CHECK_ALL                    \
+    (TSK_CHECK_OFFSETS | TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING | \
+     TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
+
+/* Flags for dump tables */
+
+/* Flags for load tables */
+#define TSK_BUILD_INDEXES 1
+
+/* Generic debug flag shared across all calls. Uses
+ * the top bit to avoid clashes with other flags. */
+#define TSK_DEBUG                       (1u << 31)
+
+#define TSK_LOAD_EXTENDED_CHECKS  1
+
+/****************************************************************************/
 /* Function signatures */
 /****************************************************************************/
 
@@ -533,11 +568,13 @@ on and may change arbitrarily between versions.
 */
 void tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out);
 
+int tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest, 
+    tsk_flags_t options);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest);
 int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows, 
         tsk_flags_t *flags,
         double *location, tsk_size_t *location_length,
@@ -578,7 +615,7 @@ int tsk_node_table_clear(tsk_node_table_t *self);
 int tsk_node_table_truncate(tsk_node_table_t *self, tsk_size_t num_rows);
 int tsk_node_table_free(tsk_node_table_t *self);
 int tsk_node_table_dump_text(tsk_node_table_t *self, FILE *out);
-int tsk_node_table_copy(tsk_node_table_t *self, tsk_node_table_t *dest);
+int tsk_node_table_copy(tsk_node_table_t *self, tsk_node_table_t *dest, tsk_flags_t options);
 void tsk_node_table_print_state(tsk_node_table_t *self, FILE *out);
 bool tsk_node_table_equals(tsk_node_table_t *self, tsk_node_table_t *other);
 int tsk_node_table_get_row(tsk_node_table_t *self, tsk_id_t index, tsk_node_t *row);
@@ -601,7 +638,7 @@ int tsk_edge_table_clear(tsk_edge_table_t *self);
 int tsk_edge_table_truncate(tsk_edge_table_t *self, tsk_size_t num_rows);
 int tsk_edge_table_free(tsk_edge_table_t *self);
 int tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out);
-int tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest);
+int tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t options);
 void tsk_edge_table_print_state(tsk_edge_table_t *self, FILE *out);
 bool tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other);
 int tsk_edge_table_get_row(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row);
@@ -630,7 +667,7 @@ int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows, d
 bool tsk_site_table_equals(tsk_site_table_t *self, tsk_site_table_t *other);
 int tsk_site_table_clear(tsk_site_table_t *self);
 int tsk_site_table_truncate(tsk_site_table_t *self, tsk_size_t num_rows);
-int tsk_site_table_copy(tsk_site_table_t *self, tsk_site_table_t *dest);
+int tsk_site_table_copy(tsk_site_table_t *self, tsk_site_table_t *dest, tsk_flags_t options);
 int tsk_site_table_free(tsk_site_table_t *self);
 int tsk_site_table_dump_text(tsk_site_table_t *self, FILE *out);
 void tsk_site_table_print_state(tsk_site_table_t *self, FILE *out);
@@ -664,7 +701,7 @@ int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num
 bool tsk_mutation_table_equals(tsk_mutation_table_t *self, tsk_mutation_table_t *other);
 int tsk_mutation_table_clear(tsk_mutation_table_t *self);
 int tsk_mutation_table_truncate(tsk_mutation_table_t *self, tsk_size_t num_rows);
-int tsk_mutation_table_copy(tsk_mutation_table_t *self, tsk_mutation_table_t *dest);
+int tsk_mutation_table_copy(tsk_mutation_table_t *self, tsk_mutation_table_t *dest, tsk_flags_t options);
 int tsk_mutation_table_free(tsk_mutation_table_t *self);
 int tsk_mutation_table_dump_text(tsk_mutation_table_t *self, FILE *out);
 void tsk_mutation_table_print_state(tsk_mutation_table_t *self, FILE *out);
@@ -690,7 +727,7 @@ int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t n
 int tsk_migration_table_clear(tsk_migration_table_t *self);
 int tsk_migration_table_truncate(tsk_migration_table_t *self, tsk_size_t num_rows);
 int tsk_migration_table_free(tsk_migration_table_t *self);
-int tsk_migration_table_copy(tsk_migration_table_t *self, tsk_migration_table_t *dest);
+int tsk_migration_table_copy(tsk_migration_table_t *self, tsk_migration_table_t *dest, tsk_flags_t options);
 int tsk_migration_table_dump_text(tsk_migration_table_t *self, FILE *out);
 void tsk_migration_table_print_state(tsk_migration_table_t *self, FILE *out);
 bool tsk_migration_table_equals(tsk_migration_table_t *self, tsk_migration_table_t *other);
@@ -714,7 +751,7 @@ int tsk_population_table_append_columns(tsk_population_table_t *self, tsk_size_t
         const char *metadata, tsk_size_t *metadata_offset);
 int tsk_population_table_clear(tsk_population_table_t *self);
 int tsk_population_table_truncate(tsk_population_table_t *self, tsk_size_t num_rows);
-int tsk_population_table_copy(tsk_population_table_t *self, tsk_population_table_t *dest);
+int tsk_population_table_copy(tsk_population_table_t *self, tsk_population_table_t *dest, tsk_flags_t options);
 int tsk_population_table_free(tsk_population_table_t *self);
 void tsk_population_table_print_state(tsk_population_table_t *self, FILE *out);
 int tsk_population_table_dump_text(tsk_population_table_t *self, FILE *out);
@@ -744,7 +781,7 @@ int tsk_provenance_table_append_columns(tsk_provenance_table_t *self, tsk_size_t
         char *record, tsk_size_t *record_offset);
 int tsk_provenance_table_clear(tsk_provenance_table_t *self);
 int tsk_provenance_table_truncate(tsk_provenance_table_t *self, tsk_size_t num_rows);
-int tsk_provenance_table_copy(tsk_provenance_table_t *self, tsk_provenance_table_t *dest);
+int tsk_provenance_table_copy(tsk_provenance_table_t *self, tsk_provenance_table_t *dest, tsk_flags_t options);
 int tsk_provenance_table_free(tsk_provenance_table_t *self);
 int tsk_provenance_table_dump_text(tsk_provenance_table_t *self, FILE *out);
 void tsk_provenance_table_print_state(tsk_provenance_table_t *self, FILE *out);
@@ -807,7 +844,7 @@ int tsk_table_collection_free(tsk_table_collection_t *self);
 
 int tsk_table_collection_dump(tsk_table_collection_t *tables, const char *filename, 
     tsk_flags_t options);
-int tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *dest);
+int tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *dest, tsk_flags_t options);
 int tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out);
 
 bool tsk_table_collection_is_indexed(tsk_table_collection_t *self);

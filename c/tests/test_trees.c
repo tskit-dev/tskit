@@ -19,9 +19,7 @@ verify_compute_mutation_parents(tsk_treeseq_t *ts)
     tsk_table_collection_t tables;
 
     CU_ASSERT_FATAL(parent != NULL);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(ts, &tables);
+    ret = tsk_treeseq_copy_tables(ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     memcpy(parent, tables.mutations->parent, size);
     /* tsk_table_collection_print_state(&tables, stdout); */
@@ -1355,9 +1353,7 @@ test_simplest_holey_tsk_treeseq_mutation_parents(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 6);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 3);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1553,9 +1549,7 @@ test_simplest_initial_gap_tsk_treeseq_mutation_parents(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 6);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 2);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1650,9 +1644,7 @@ test_simplest_final_gap_tsk_treeseq_mutation_parents(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 6);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 2);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3073,9 +3065,7 @@ test_single_tree_simplify(void)
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
             single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
     verify_simplify(&ts);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
@@ -3084,35 +3074,35 @@ test_single_tree_simplify(void)
     CU_ASSERT_EQUAL(tables.edges->num_rows, 2);
 
     /* Make sure we detect unsorted edges */
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     unsort_edges(tables.edges, 0);
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_CHILD);
 
     /* detect bad parents */
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.edges->parent[0] = -1;
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_PARENT);
 
     /* detect bad children */
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.edges->child[0] = -1;
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_CHILD);
 
     /* detect loops */
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.edges->child[0] = tables.edges->parent[0];
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
 
     /* Test the interface for NULL inputs */
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_simplify(&tables, NULL, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);

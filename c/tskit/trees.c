@@ -342,11 +342,7 @@ tsk_treeseq_init(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_table_collection_init(self->tables, 0);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_table_collection_copy(tables, self->tables);
+    ret = tsk_table_collection_copy(tables, self->tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -399,9 +395,10 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables)
+tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables,
+        tsk_flags_t options)
 {
-    return tsk_table_collection_copy(self->tables, tables);
+    return tsk_table_collection_copy(self->tables, tables, options);
 }
 
 int TSK_WARN_UNUSED
@@ -1011,11 +1008,7 @@ tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samp
     int ret = 0;
     tsk_table_collection_t tables;
 
-    ret = tsk_table_collection_init(&tables, 0);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_treeseq_copy_tables(self, &tables);
+    ret = tsk_treeseq_copy_tables(self, &tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -1286,6 +1279,10 @@ out:
     return ret;
 }
 
+/* TODO The semantics of this function are weird and not the same other copy
+ * methods. We should be copying *into* the other object and also have an
+ * options method to turn off automatic init.
+ */
 int TSK_WARN_UNUSED
 tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source)
 {

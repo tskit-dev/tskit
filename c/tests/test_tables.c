@@ -1793,9 +1793,7 @@ test_simplify_tables_drops_indexes(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables))
@@ -1816,9 +1814,7 @@ test_sort_tables_drops_indexes(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &tables);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables))
