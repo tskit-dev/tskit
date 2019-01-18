@@ -5207,7 +5207,7 @@ out:
     return ret;
 }
 
-int
+void
 tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
 {
     fprintf(out, "Table collection state\n");
@@ -5220,10 +5220,9 @@ tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
     tsk_mutation_table_print_state(self->mutations, out);
     tsk_population_table_print_state(self->populations, out);
     tsk_provenance_table_print_state(self->provenances, out);
-    return 0;
 }
 
-int
+int TSK_WARN_UNUSED
 tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;

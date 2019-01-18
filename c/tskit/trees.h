@@ -116,7 +116,7 @@ typedef struct {
 */
 
 /**
-@brief Allocate a new tree sequence from a table collection.
+@brief Initialise a tree sequence from a table collection.
 
 @rst
 A tree sequence is a read-only view of a table collection with extra

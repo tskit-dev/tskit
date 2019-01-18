@@ -161,22 +161,6 @@ Basic Types
 .. doxygentypedef:: tsk_size_t
 .. doxygentypedef:: tsk_flags_t
 
-
-
-.. doxygenstruct:: tsk_edge_t
-    :members:
-.. doxygenstruct:: tsk_migration_t
-    :members:
-.. doxygenstruct:: tsk_site_t
-    :members:
-.. doxygenstruct:: tsk_mutation_t
-    :members:
-.. doxygenstruct:: tsk_population_t
-    :members:
-.. doxygenstruct:: tsk_provenance_t
-    :members:
-
-
 .. _sec_c_api_tables_api:
 
 **********
@@ -228,9 +212,12 @@ Nodes
 .. doxygengroup:: NODE_TABLE_API_GROUP
    :content-only:
 
-----------
-Edge table
-----------
+-----
+Edges
+-----
+
+.. doxygenstruct:: tsk_edge_t
+    :members:
 
 .. doxygenstruct:: tsk_edge_table_t
     :members:
@@ -238,9 +225,12 @@ Edge table
 .. doxygengroup:: EDGE_TABLE_API_GROUP
     :content-only:
 
----------------
-Migration table
----------------
+----------
+Migrations
+----------
+
+.. doxygenstruct:: tsk_migration_t
+    :members:
 
 .. doxygenstruct:: tsk_migration_table_t
     :members:
@@ -248,9 +238,12 @@ Migration table
 .. doxygengroup:: MIGRATION_TABLE_API_GROUP
     :content-only:
 
-----------
-Site table
-----------
+-----
+Sites
+-----
+
+.. doxygenstruct:: tsk_site_t
+    :members:
 
 .. doxygenstruct:: tsk_site_table_t
     :members:
@@ -258,9 +251,12 @@ Site table
 .. doxygengroup:: SITE_TABLE_API_GROUP
     :content-only:
 
---------------
-Mutation table
---------------
+---------
+Mutations
+---------
+
+.. doxygenstruct:: tsk_mutation_t
+    :members:
 
 .. doxygenstruct:: tsk_mutation_table_t
     :members:
@@ -268,9 +264,12 @@ Mutation table
 .. doxygengroup:: MUTATION_TABLE_API_GROUP
     :content-only:
 
-----------------
-Population table
-----------------
+-----------
+Populations
+-----------
+
+.. doxygenstruct:: tsk_population_t
+    :members:
 
 .. doxygenstruct:: tsk_population_table_t
     :members:
@@ -278,9 +277,12 @@ Population table
 .. doxygengroup:: POPULATION_TABLE_API_GROUP
     :content-only:
 
-----------------
-Provenance table
-----------------
+-----------
+Provenances
+-----------
+
+.. doxygenstruct:: tsk_provenance_t
+    :members:
 
 .. doxygenstruct:: tsk_provenance_table_t
     :members:
