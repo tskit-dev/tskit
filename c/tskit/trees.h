@@ -111,7 +111,12 @@ typedef struct {
 /****************************************************************************/
 
 /**
-@brief Allocate a new tree sequence from a table collection.
+@defgroup TREESEQ_API_GROUP Tree sequence API
+@{
+*/
+
+/**
+@brief Initialise a tree sequence from a table collection.
 
 @rst
 A tree sequence is a read-only view of a table collection with extra
@@ -123,7 +128,7 @@ structures that facilitate efficient tree iteratation and other operations.
 @param options Allocation time options.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_treeseq_alloc(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
+int tsk_treeseq_init(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
 
 /**
 @brief Load a tree sequence from file.
@@ -140,9 +145,12 @@ Reads a tree sequence from the specified file.
 int tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
 
 int tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
-int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables);
+int tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables,
+        tsk_flags_t options);
 int tsk_treeseq_free(tsk_treeseq_t *self);
 void tsk_treeseq_print_state(tsk_treeseq_t *self, FILE *out);
+
+/** @} */
 
 tsk_size_t tsk_treeseq_get_num_nodes(tsk_treeseq_t *self);
 tsk_size_t tsk_treeseq_get_num_edges(tsk_treeseq_t *self);
@@ -196,9 +204,26 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
 /* Tree */
 /****************************************************************************/
 
-int tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_flags_t options);
+
+/**
+@defgroup TREE_API_GROUP Tree sequence API
+@{
+*/
+
+int tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options);
 int tsk_tree_free(tsk_tree_t *self);
+
+tsk_id_t tsk_tree_get_index(tsk_tree_t *self);
+tsk_size_t tsk_tree_get_num_roots(tsk_tree_t *self);
+
+int tsk_tree_first(tsk_tree_t *self);
+int tsk_tree_last(tsk_tree_t *self);
+int tsk_tree_next(tsk_tree_t *self);
+int tsk_tree_prev(tsk_tree_t *self);
+
+void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
+/** @} */
+
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);
 int tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source);
@@ -209,7 +234,7 @@ int tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,
         tsk_tree_t *other, tsk_id_t node);
 int tsk_tree_get_root(tsk_tree_t *self, tsk_id_t *root);
 bool tsk_tree_is_sample(tsk_tree_t *self, tsk_id_t u);
-size_t tsk_tree_get_num_roots(tsk_tree_t *self);
+
 int tsk_tree_get_parent(tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_time(tsk_tree_t *self, tsk_id_t u, double *t);
 int tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
@@ -218,18 +243,12 @@ int tsk_tree_get_num_tracked_samples(tsk_tree_t *self, tsk_id_t u,
         size_t *num_tracked_samples);
 int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_length);
 
-void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
-/* Method for positioning the tree in the sequence. */
-int tsk_tree_first(tsk_tree_t *self);
-int tsk_tree_last(tsk_tree_t *self);
-int tsk_tree_next(tsk_tree_t *self);
-int tsk_tree_prev(tsk_tree_t *self);
 
 /****************************************************************************/
 /* Diff iterator */
 /****************************************************************************/
 
-int tsk_diff_iter_alloc(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence);
+int tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence);
 int tsk_diff_iter_free(tsk_diff_iter_t *self);
 int tsk_diff_iter_next(tsk_diff_iter_t *self,
         double *left, double *right,

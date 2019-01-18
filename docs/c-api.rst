@@ -73,6 +73,9 @@ and tree :ref:`functionality <sec_c_api_tree_sequences>` is defined in
 For convenience, there is also a ``tskit.h`` header file that includes all
 of the functionality in ``tskit``.
 
+
+.. _sec_c_api_overview_structure:
+
 -------------
 API structure
 -------------
@@ -98,17 +101,18 @@ In this convention, a class is defined by a struct ``class_name_t`` (e.g.
 ``edge_table_t``) and its methods all have the form ``class_name_method_name``
 whose first argument is always a pointer to an instance of the class (e.g.,
 ``edge_table_add_row`` above).
-Each class has an allocator and deallocator, called ``class_name_alloc``
-and ``class_name_free``, respectively. The allocator method must
+Each class has an initialise and free method, called ``class_name_init``
+and ``class_name_free``, respectively. The init method must
 be called to ensure that the object is correctly initialised (except
-for :c:func:`tsk_table_collection_load` and :c:func:`tsk_treeseq_load`
-which call the allocator internally for convenience). The deallocator
+for functions such as for :c:func:`tsk_table_collection_load`
+and :c:func:`tsk_table_collection_copy` which automatically initialise
+the object by default for convenience). The free
 method must always be called to avoid leaking memory, even in the
-case of an error occuring in the allocator. If ``class_name_alloc`` has
+case of an error occuring during intialisation. If ``class_name_init`` has
 been called, we say the object has been "initialised"; if not,
 it is "uninitialised".
 
-It is important to note that the allocator methods only allocate *internal* memory;
+It is important to note that the init methods only allocate *internal* memory;
 the memory for the instance itself must be allocated either on the
 heap or the stack:
 
@@ -116,12 +120,12 @@ heap or the stack:
 
     // Instance allocated on the stack
     tsk_node_table_t nodes;
-    tsk_node_table_alloc(&nodes, 0);
+    tsk_node_table_init(&nodes, 0);
     tsk_node_table_free(&nodes);
 
     // Instance allocated on the heap
     tsk_edge_table_t *edges = malloc(sizeof(tsk_edge_table_t));
-    tsk_edge_table_alloc(edges, 0);
+    tsk_edge_table_init(edges, 0);
     tsk_edge_table_free(edges);
     free(edges);
 
@@ -157,27 +161,6 @@ Basic Types
 .. doxygentypedef:: tsk_size_t
 .. doxygentypedef:: tsk_flags_t
 
-.. doxygenstruct:: tsk_individual_t
-    :members:
-
-.. todo:: Need to document the members in these structs.
-
-.. doxygenstruct:: tsk_node_t
-    :members:
-.. doxygenstruct:: tsk_edge_t
-    :members:
-.. doxygenstruct:: tsk_migration_t
-    :members:
-.. doxygenstruct:: tsk_site_t
-    :members:
-.. doxygenstruct:: tsk_mutation_t
-    :members:
-.. doxygenstruct:: tsk_population_t
-    :members:
-.. doxygenstruct:: tsk_provenance_t
-    :members:
-
-
 .. _sec_c_api_tables_api:
 
 **********
@@ -186,19 +169,16 @@ Tables API
 
 The tables API section of ``tskit`` is defined in ``tsk_tables.h``.
 
--------
-Example
--------
+--------------
+Common options
+--------------
 
-This is an example of using the tables API to define a simple
-haploid Wright-Fisher simulator.
+.. doxygengroup:: TABLES_API_FUNCTION_OPTIONS
+   :content-only:
 
-.. literalinclude:: ../c/examples/haploid_wright_fisher.c
-    :language: c
-
-----------------
-Table collection
-----------------
+-----------------
+Table collections
+-----------------
 
 .. doxygenstruct:: tsk_table_collection_t
     :members:
@@ -206,29 +186,38 @@ Table collection
 .. doxygengroup:: TABLE_COLLECTION_API_GROUP
     :content-only:
 
-----------------
-Individual table
-----------------
+-----------
+Individuals
+-----------
+
+.. doxygenstruct:: tsk_individual_t
+    :members:
 
 .. doxygenstruct:: tsk_individual_table_t
     :members:
 
 .. doxygengroup:: INDIVIDUAL_TABLE_API_GROUP
-    :content-only:
+   :content-only:
 
-----------
-Node table
-----------
+-----
+Nodes
+-----
+
+.. doxygenstruct:: tsk_node_t
+    :members:
 
 .. doxygenstruct:: tsk_node_table_t
     :members:
 
 .. doxygengroup:: NODE_TABLE_API_GROUP
-    :content-only:
+   :content-only:
 
-----------
-Edge table
-----------
+-----
+Edges
+-----
+
+.. doxygenstruct:: tsk_edge_t
+    :members:
 
 .. doxygenstruct:: tsk_edge_table_t
     :members:
@@ -236,9 +225,12 @@ Edge table
 .. doxygengroup:: EDGE_TABLE_API_GROUP
     :content-only:
 
----------------
-Migration table
----------------
+----------
+Migrations
+----------
+
+.. doxygenstruct:: tsk_migration_t
+    :members:
 
 .. doxygenstruct:: tsk_migration_table_t
     :members:
@@ -246,9 +238,12 @@ Migration table
 .. doxygengroup:: MIGRATION_TABLE_API_GROUP
     :content-only:
 
-----------
-Site table
-----------
+-----
+Sites
+-----
+
+.. doxygenstruct:: tsk_site_t
+    :members:
 
 .. doxygenstruct:: tsk_site_table_t
     :members:
@@ -256,9 +251,12 @@ Site table
 .. doxygengroup:: SITE_TABLE_API_GROUP
     :content-only:
 
---------------
-Mutation table
---------------
+---------
+Mutations
+---------
+
+.. doxygenstruct:: tsk_mutation_t
+    :members:
 
 .. doxygenstruct:: tsk_mutation_table_t
     :members:
@@ -266,9 +264,12 @@ Mutation table
 .. doxygengroup:: MUTATION_TABLE_API_GROUP
     :content-only:
 
-----------------
-Population table
-----------------
+-----------
+Populations
+-----------
+
+.. doxygenstruct:: tsk_population_t
+    :members:
 
 .. doxygenstruct:: tsk_population_table_t
     :members:
@@ -276,9 +277,12 @@ Population table
 .. doxygengroup:: POPULATION_TABLE_API_GROUP
     :content-only:
 
-----------------
-Provenance table
-----------------
+-----------
+Provenances
+-----------
+
+.. doxygenstruct:: tsk_provenance_t
+    :members:
 
 .. doxygenstruct:: tsk_provenance_table_t
     :members:
@@ -296,9 +300,18 @@ Tree sequences
 .. doxygenstruct:: tsk_treeseq_t
     :members:
 
-.. doxygenfunction:: tsk_treeseq_alloc
+.. doxygengroup:: TREESEQ_API_GROUP
+    :content-only:
 
-.. doxygenfunction:: tsk_treeseq_load
+*****
+Trees
+*****
+
+.. doxygenstruct:: tsk_tree_t
+    :members:
+
+.. doxygengroup:: TREE_API_GROUP
+    :content-only:
 
 ***********************
 Miscellaneous functions
@@ -335,3 +348,28 @@ File format errors
 
 
 .. todo:: Add in groups for rest of the error types and document.
+
+
+
+
+********
+Examples
+********
+
+------------------------
+Basic forwards simulator
+------------------------
+
+This is an example of using the tables API to define a simple
+haploid Wright-Fisher simulator.
+
+.. literalinclude:: ../c/examples/haploid_wright_fisher.c
+    :language: c
+
+--------------
+Tree iteration
+--------------
+
+.. literalinclude:: ../c/examples/tree_iteration.c
+    :language: c
+

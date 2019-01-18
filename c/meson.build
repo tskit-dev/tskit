@@ -83,6 +83,8 @@ executable('api_structure',
     sources: ['examples/api_structure.c'], link_with: [tskit_lib])
 executable('error_handling', 
     sources: ['examples/error_handling.c'], link_with: [tskit_lib])
+executable('tree_iteration', 
+    sources: ['examples/tree_iteration.c'], link_with: [tskit_lib])
 
 gsl_dep = dependency('gsl', required: false)
 if gsl_dep.found()

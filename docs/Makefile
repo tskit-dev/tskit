@@ -12,7 +12,7 @@ DOXYGEN_XML=doxygen/xml
 all: ${DOXYGEN_XML}
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-${DOXYGEN_XML}: ../c/*.h
+${DOXYGEN_XML}: ../c/tskit/*.h
 	cd doxygen && doxygen
 
 # Put it first so that "make" without argument is like "make help".

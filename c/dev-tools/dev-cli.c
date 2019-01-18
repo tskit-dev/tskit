@@ -62,7 +62,7 @@ print_variants(tsk_treeseq_t *ts)
     tsk_variant_t* var;
 
     printf("variants (%d) \n", (int) tsk_treeseq_get_num_sites(ts));
-    ret = tsk_vargen_alloc(&vg, ts, NULL, 0, 0);
+    ret = tsk_vargen_init(&vg, ts, NULL, 0, 0);
     if (ret != 0) {
         fatal_library_error(ret, "tsk_vargen_alloc");
     }
@@ -98,7 +98,7 @@ print_haplotypes(tsk_treeseq_t *ts)
     char *haplotype;
 
     printf("haplotypes \n");
-    ret = tsk_hapgen_alloc(&hg, ts);
+    ret = tsk_hapgen_init(&hg, ts);
     if (ret != 0) {
         fatal_library_error(ret, "tsk_hapgen_alloc");
     }
@@ -125,7 +125,7 @@ print_ld_matrix(tsk_treeseq_t *ts)
     if (r2 == NULL) {
         fatal_error("no memory");
     }
-    ret = tsk_ld_calc_alloc(&ld_calc, ts);
+    ret = tsk_ld_calc_init(&ld_calc, ts);
     printf("alloc: ret = %d\n", ret);
     if (ret != 0) {
         fatal_library_error(ret, "tsk_ld_calc_alloc");
@@ -188,7 +188,7 @@ print_vcf(tsk_treeseq_t *ts, unsigned int ploidy, const char *chrom, int verbose
     char *header = NULL;
     tsk_vcf_converter_t vc;
 
-    ret = tsk_vcf_converter_alloc(&vc, ts, ploidy, chrom);
+    ret = tsk_vcf_converter_init(&vc, ts, ploidy, chrom);
     if (ret != 0) {
         fatal_library_error(ret, "vcf alloc");
     }
@@ -224,7 +224,7 @@ print_newick_trees(tsk_treeseq_t *ts)
         fatal_error("No memory\n");
     }
 
-    ret = tsk_tree_alloc(&tree, ts, 0);
+    ret = tsk_tree_init(&tree, ts, 0);
     if (ret != 0) {
         fatal_error("ERROR: %d: %s\n", ret, tsk_strerror(ret));
     }
@@ -254,7 +254,7 @@ print_tree_sequence(tsk_treeseq_t *ts, int verbose)
         printf("========================\n");
         printf("trees\n");
         printf("========================\n");
-        ret = tsk_tree_alloc(&tree, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+        ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
         if (ret != 0) {
             fatal_error("ERROR: %d: %s\n", ret, tsk_strerror(ret));
         }
