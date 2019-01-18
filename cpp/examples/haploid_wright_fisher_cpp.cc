@@ -30,7 +30,7 @@ check_error(int val)
 }
 
 void
-simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
+simulate(tskit::table_collection_ptr &tables, int N, int T, int simplify_interval,
          gsl_rng *rng)
 {
     // TODO: unique_ptrs for the buffers
@@ -78,9 +78,9 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
             if (t % simplify_interval == 0)
                 {
                     ret = tsk_table_collection_sort(
-                        tables, 0, 0); /* FIXME; should take position. */
+                        tables.get(), 0, 0); /* FIXME; should take position. */
                     check_error(ret);
-                    ret = tsk_table_collection_simplify(tables, parents.get(),
+                    ret = tsk_table_collection_simplify(tables.get(), parents.get(),
                                                         N, 0, NULL);
                     check_error(ret);
                     for (j = 0; j < N; j++)
@@ -103,7 +103,7 @@ main(int argc, char **argv)
         }
     tsk_table_collection_alloc(tables.get(), 0);
     auto rng = make_rng(std::atoi(argv[5]));
-    simulate(tables.get(), std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]),
+    simulate(tables, std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]),
              rng.get());
     tsk_table_collection_dump(tables.get(), argv[4], 0);
 
