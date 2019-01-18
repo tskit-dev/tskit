@@ -1,9 +1,8 @@
-#include <cstdio>
-#include <cstdlib>
-#include <err.h>
-
 #include <gsl/gsl_rng.h>
 
+#include <stdexcept>
+#include <iostream>
+#include <sstream>
 #include <memory>
 #include <functional>
 #include <tskitpp/TableCollection.hpp>
@@ -18,11 +17,16 @@ make_rng(unsigned seed)
     return rv;
 }
 
-#define check_error(val)                                                      \
-    if (val < 0)                                                              \
-        {                                                                     \
-            errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));   \
+void
+check_error(int val)
+{
+    if (val < 0)
+        {
+            std::ostringstream o;
+            o << tsk_strerror(val);
+            throw std::runtime_error(o.str());
         }
+}
 
 void
 simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
@@ -90,16 +94,17 @@ int
 main(int argc, char **argv)
 {
     tskit::TableCollection tables;
-    auto rng = make_rng(42);
 
-    if (argc != 5)
+    if (argc != 6)
         {
-            errx(EXIT_FAILURE, "usage: N T simplify-interval output-file");
+            std::cout << "usage: N T simplify-interval output-file seed\n";
+            exit(EXIT_FAILURE);
         }
     tsk_table_collection_alloc(tables.get(), 0);
-    simulate(tables.get(), atoi(argv[1]), atoi(argv[2]), atoi(argv[3]),
+    auto rng = make_rng(std::atoi(argv[5]));
+    simulate(tables.get(), std::atoi(argv[1]), std::atoi(argv[2]), std::atoi(argv[3]),
              rng.get());
-    tsk_table_collection_dump(tables.get(), "tmp.trees", 0);
+    tsk_table_collection_dump(tables.get(), argv[4], 0);
 
     return 0;
 }
