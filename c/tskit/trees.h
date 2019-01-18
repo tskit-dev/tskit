@@ -209,10 +209,18 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
 @{
 */
 
-int tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_flags_t options);
+int tsk_tree_alloc(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options);
 int tsk_tree_free(tsk_tree_t *self);
 
+tsk_id_t tsk_tree_get_index(tsk_tree_t *self);
+tsk_size_t tsk_tree_get_num_roots(tsk_tree_t *self);
+
+int tsk_tree_first(tsk_tree_t *self);
+int tsk_tree_last(tsk_tree_t *self);
+int tsk_tree_next(tsk_tree_t *self);
+int tsk_tree_prev(tsk_tree_t *self);
+
+void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /** @} */
 
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
@@ -225,7 +233,7 @@ int tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,
         tsk_tree_t *other, tsk_id_t node);
 int tsk_tree_get_root(tsk_tree_t *self, tsk_id_t *root);
 bool tsk_tree_is_sample(tsk_tree_t *self, tsk_id_t u);
-size_t tsk_tree_get_num_roots(tsk_tree_t *self);
+
 int tsk_tree_get_parent(tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_time(tsk_tree_t *self, tsk_id_t u, double *t);
 int tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
@@ -234,12 +242,6 @@ int tsk_tree_get_num_tracked_samples(tsk_tree_t *self, tsk_id_t u,
         size_t *num_tracked_samples);
 int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_length);
 
-void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
-/* Method for positioning the tree in the sequence. */
-int tsk_tree_first(tsk_tree_t *self);
-int tsk_tree_last(tsk_tree_t *self);
-int tsk_tree_next(tsk_tree_t *self);
-int tsk_tree_prev(tsk_tree_t *self);
 
 /****************************************************************************/
 /* Diff iterator */

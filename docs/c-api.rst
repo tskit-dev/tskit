@@ -346,9 +346,20 @@ File format errors
 Examples
 ********
 
+------------------------
+Basic forwards simulator
+------------------------
+
 This is an example of using the tables API to define a simple
 haploid Wright-Fisher simulator.
 
 .. literalinclude:: ../c/examples/haploid_wright_fisher.c
+    :language: c
+
+--------------
+Tree iteration
+--------------
+
+.. literalinclude:: ../c/examples/tree_iteration.c
     :language: c
 

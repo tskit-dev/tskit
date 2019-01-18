@@ -1494,10 +1494,10 @@ tsk_tree_is_sample(tsk_tree_t *self, tsk_id_t u)
     return tsk_treeseq_is_sample(self->tree_sequence, u);
 }
 
-size_t
+tsk_size_t
 tsk_tree_get_num_roots(tsk_tree_t *self)
 {
-    size_t num_roots = 0;
+    tsk_size_t num_roots = 0;
     tsk_id_t u = self->left_root;
 
     while (u != TSK_NULL) {
@@ -1506,6 +1506,13 @@ tsk_tree_get_num_roots(tsk_tree_t *self)
     }
     return num_roots;
 }
+
+tsk_id_t
+tsk_tree_get_index(tsk_tree_t *self)
+{
+    return self->index;
+}
+
 
 int TSK_WARN_UNUSED
 tsk_tree_get_parent(tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent)
