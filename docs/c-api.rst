@@ -185,6 +185,13 @@ Tables API
 
 The tables API section of ``tskit`` is defined in ``tsk_tables.h``.
 
+--------------
+Common options
+--------------
+
+.. doxygengroup:: TABLES_API_FUNCTION_OPTIONS
+   :content-only:
+
 -----------------
 Table collections
 -----------------

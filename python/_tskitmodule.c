@@ -5704,7 +5704,7 @@ TreeSequence_dump_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    err = tsk_treeseq_copy_tables(self->tree_sequence, tables->tables);
+    err = tsk_treeseq_copy_tables(self->tree_sequence, tables->tables, TSK_NO_INIT);
     if (err != 0) {
         handle_library_error(err);
         goto out;

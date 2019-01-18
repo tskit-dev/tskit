@@ -413,7 +413,22 @@ typedef struct {
 /* Common function options */
 /****************************************************************************/
 
-#define TSK_NO_INIT                     (1 << 0)
+/**
+@defgroup TABLES_API_FUNCTION_OPTIONS Common function options in tables API
+@{
+*/
+
+/* Start the commmon options at the top of the space; this way we can start
+ * options for individual functions at the bottom without worrying about 
+ * clashing with the common options */
+
+/** @brief Turn on debugging output. Not supported by all functions. */
+#define TSK_DEBUG                       (1u << 31)
+
+/** @brief Do not initialise the parameter object. */
+#define TSK_NO_INIT                     (1u << 30)
+
+/**@} */
 
 
 /* Flags for simplify() */
@@ -438,11 +453,6 @@ typedef struct {
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES 1
 
-/* Generic debug flag shared across all calls. Uses
- * the top bit to avoid clashes with other flags. */
-#define TSK_DEBUG                       (1u << 31)
-
-#define TSK_LOAD_EXTENDED_CHECKS  1
 
 /****************************************************************************/
 /* Function signatures */
@@ -509,7 +519,7 @@ tsk_id_t tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t 
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
-No memory is freed as a result of this operation; please use use 
+No memory is freed as a result of this operation; please use 
 :c:func:`tsk_individual_table_free` to free the table's internal resources.
 @endrst
 
@@ -536,6 +546,25 @@ int tsk_individual_table_truncate(tsk_individual_table_t *self, tsk_size_t num_r
 @return Return true if the specified table is equal to this table.
 */
 bool tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_table_t *other);
+
+/**
+@brief Copies the state of this table into the specified destintation.
+
+@rst
+By default the method initialises the speicified destinitation table. If the 
+destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
+be supplied to avoid leaking memory.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param dest A pointer to a tsk_individual_table_t object. If the TSK_NO_INIT option 
+    is specified, this must be an initialised individual table. If not, it must
+    be an uninitialised individual table.
+@param options Bitwise option flags.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest, 
+    tsk_flags_t options);
 
 /**
 @brief Get the row at the specified index.
@@ -567,9 +596,6 @@ on and may change arbitrarily between versions.
 @param out The stream to write the summary to.
 */
 void tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out);
-
-int tsk_individual_table_copy(tsk_individual_table_t *self, tsk_individual_table_t *dest, 
-    tsk_flags_t options);
 
 /** @} */
 
