@@ -37,7 +37,7 @@ simulate(tskit::table_collection_ptr &tables, int N, int T, int simplify_interva
     //tsk_id_t *buffer[2], *parents, *children,
     tsk_id_t child, left_parent, right_parent;
     double breakpoint;
-    int ret, j, t, b;
+    int ret, j, t;
 
     std::unique_ptr<tsk_id_t[]> parents(new tsk_id_t[N]),
         children(new tsk_id_t[N]);
