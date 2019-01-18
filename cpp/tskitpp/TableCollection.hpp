@@ -19,7 +19,7 @@ namespace tskit
 
     TODO: need to mention how to copy
     */
-    struct table_collection
+    struct TableCollection
     {
         /** @brief Smart pointer holding the tsk_table_collection_t */
         std::unique_ptr<tsk_table_collection_t> tables;
@@ -27,7 +27,7 @@ namespace tskit
         /** @brief Constructor
         TODO: should this be initalized or not?
         */
-        table_collection() : tables(new tsk_table_collection_t{}) {}
+        TableCollection() : tables(new tsk_table_collection_t{}) {}
 
         inline tsk_table_collection_t* operator->() { return tables.get(); }
 
@@ -48,7 +48,7 @@ namespace tskit
             return tables.get();
         }
 
-        ~table_collection() { tsk_table_collection_free(tables.get()); }
+        ~TableCollection() { tsk_table_collection_free(tables.get()); }
     };
 } // namespace tskit
 
