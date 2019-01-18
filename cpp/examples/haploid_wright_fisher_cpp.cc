@@ -5,7 +5,7 @@
 #include <sstream>
 #include <memory>
 #include <functional>
-#include <tskitpp/TableCollection.hpp>
+#include <tskitpp/table_collection_ptr.hpp>
 
 using GSLrng = std::unique_ptr<gsl_rng, std::function<void(gsl_rng *)>>;
 
@@ -93,7 +93,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval,
 int
 main(int argc, char **argv)
 {
-    tskit::TableCollection tables;
+    auto tables = tskit::make_table_collection_ptr();
 
     if (argc != 6)
         {
