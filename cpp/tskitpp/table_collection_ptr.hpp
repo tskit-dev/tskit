@@ -27,6 +27,18 @@ namespace tskit
                                     });
     }
 
+    table_collection_ptr
+    copy(const table_collection_ptr& self, tsk_flags_t options)
+    {
+        auto rv = make_table_collection_ptr();
+        int res = tsk_table_collection_copy(self.get(), rv.get());
+        if (res == -1)
+            {
+                throw std::runtime_error(
+                    "failure to copy table_collection_ptr");
+            }
+        return rv;
+    }
 } // namespace tskit
 
 #endif
