@@ -14,6 +14,7 @@ make_rng(unsigned seed)
 {
     GSLrng rv(gsl_rng_alloc(gsl_rng_mt19937),
               [](gsl_rng *r) { gsl_rng_free(r); });
+    gsl_rng_set(rv.get(), seed);
     return rv;
 }
 
