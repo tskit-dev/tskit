@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <memory>
+#include <cassert>
 
 #include <tskit/tables.h>
 
@@ -44,7 +45,7 @@ class NodeTable
         }
 
         template<typename deleter>
-        explicit NodeTable(std::unique_ptr<tsk_node_table_t,deleter> & the_table) : table(the_table.release()), malloced_locally(false)
+        explicit NodeTable(std::unique_ptr<tsk_node_table_t,deleter> & the_table) : table(the_table.release()), malloced_locally(true)
         {
         }
 
@@ -52,7 +53,7 @@ class NodeTable
         {
             if (malloced_locally && table != NULL) {
                 tsk_node_table_free(table);
-                free(table);
+                delete table;
             }
         }
 
@@ -106,10 +107,17 @@ class TableCollection
         }
 };
 
+using node_table_ptr = std::unique_ptr<tsk_node_table_t,void(*)(tsk_node_table_t*)>;
 
 int
 main()
 {
+    node_table_ptr temp(new tsk_node_table_t{},
+                        [](tsk_node_table_t *nt) { delete nt; });
+    int ret = tsk_node_table_init(temp.get(), 0);
+    check_error(ret);
+    NodeTable nodes(temp);
+    assert(temp.get() == nullptr);
     //NodeTable nodes;
 
     //nodes.add_row(0, 1.0);
