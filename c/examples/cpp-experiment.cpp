@@ -110,11 +110,11 @@ class TableCollection
 int
 main()
 {
-    NodeTable nodes;
+    //NodeTable nodes;
 
-    nodes.add_row(0, 1.0);
-    nodes.add_row(0, 2.0);
-    std::cout << "Straight table: num_rows = " << nodes.get_num_rows() << endl;
+    //nodes.add_row(0, 1.0);
+    //nodes.add_row(0, 2.0);
+    //std::cout << "Straight table: num_rows = " << nodes.get_num_rows() << endl;
 
     TableCollection tables = TableCollection(10);
     std::cout << "Sequence length = " << tables.get_sequence_length() << endl;
