@@ -25,7 +25,7 @@ class NodeTable
 
     private:
         tsk_node_table_t *table;
-        bool malloced_locally = true;
+        const bool malloced_locally;
 
         tsk_node_table_t* allocate(tsk_node_table_t * the_table)
         {
