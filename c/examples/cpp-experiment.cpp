@@ -37,13 +37,9 @@ class NodeTable
         //    check_error(ret);
         //}
 
-        NodeTable(tsk_node_table_t *the_table)
+        explicit NodeTable(tsk_node_table_t *the_table) : table(the_table), malloced_locally(false)
         {
-            /* FIXME: leaking memory here because the standard constructor has already been
-             * called. Must be a way to dealing with this though. */
-            table = the_table;
             std::cout << "table constructor" << endl;
-            malloced_locally = false;
         }
 
         ~NodeTable()
