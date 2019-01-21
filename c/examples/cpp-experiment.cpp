@@ -26,16 +26,16 @@ class NodeTable
         bool malloced_locally = true;
 
     public:
-        NodeTable()
-        {
-            table = (tsk_node_table_t *) malloc(sizeof(*table));
-            if (table == NULL) {
-                throw std::runtime_error("Out of memory");
-            }
-            malloced_locally = true;
-            int ret = tsk_node_table_init(table, 0);
-            check_error(ret);
-        }
+        //NodeTable()
+        //{
+        //    table = (tsk_node_table_t *) malloc(sizeof(*table));
+        //    if (table == NULL) {
+        //        throw std::runtime_error("Out of memory");
+        //    }
+        //    malloced_locally = true;
+        //    int ret = tsk_node_table_init(table, 0);
+        //    check_error(ret);
+        //}
 
         NodeTable(tsk_node_table_t *the_table)
         {
