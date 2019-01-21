@@ -37,6 +37,8 @@ class NodeTable
                 throw std::runtime_error("Out of memory");
             }
             int ret = tsk_node_table_init(t.get(), 0);
+            // NOTE: check error is dangerous here.  If you don't
+            // use a smart pointer above, you will get a leak.
             check_error(ret);
             return t.release();
         }
