@@ -44,17 +44,6 @@ class NodeTable
         }
 
     public:
-        //NodeTable()
-        //{
-        //    table = (tsk_node_table_t *) malloc(sizeof(*table));
-        //    if (table == NULL) {
-        //        throw std::runtime_error("Out of memory");
-        //    }
-        //    malloced_locally = true;
-        //    int ret = tsk_node_table_init(table, 0);
-        //    check_error(ret);
-        //}
-
         explicit NodeTable(tsk_node_table_t *the_table) : table(allocate(the_table)), malloced_locally(the_table != table)
         {
             std::cout << "table constructor" << endl;
