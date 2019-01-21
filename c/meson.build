@@ -88,6 +88,9 @@ if not meson.is_subproject()
     executable('tree_iteration', 
         sources: ['examples/tree_iteration.c'], link_with: [tskit_lib], dependencies: lib_deps)
 
+    executable('cpp-experiment', 
+        sources: ['examples/cpp-experiment.cpp'], link_with: [tskit_lib], language: 'cpp')
+
     gsl_dep = dependency('gsl', required: false)
     if gsl_dep.found()
         executable('haploid_wright_fisher', 
