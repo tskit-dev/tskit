@@ -402,13 +402,13 @@ test_single_tree_vargen_many_alleles(void)
     CU_ASSERT_FATAL(ret == 0);
     tsk_treeseq_free(&ts);
     memset(alleles, 'X', (size_t) num_alleles);
-    ret = tsk_site_table_add_row(tables.sites, 0, "Y", 1, NULL, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0, "Y", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
 
     /* Add j mutations over a single node. */
     for (j = 0; j < (tsk_id_t) num_alleles; j++) {
         /* When j = 0 we get a parent of -1, which is the NULL_NODE */
-        ret = tsk_mutation_table_add_row(tables.mutations, 0, 0, j - 1, alleles,
+        ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, j - 1, alleles,
                 (tsk_size_t) j, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);

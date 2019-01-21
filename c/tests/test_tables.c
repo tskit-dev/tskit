@@ -206,10 +206,10 @@ test_dump_unindexed(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 1;
-    parse_nodes(single_tree_ex_nodes, tables.nodes);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes->num_rows, 7);
-    parse_edges(single_tree_ex_edges, tables.edges);
-    CU_ASSERT_EQUAL_FATAL(tables.edges->num_rows, 6);
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
+    parse_edges(single_tree_ex_edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
     CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables));
     ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -218,8 +218,8 @@ test_dump_unindexed(void)
     ret = tsk_table_collection_load(&loaded, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&loaded));
-    CU_ASSERT_TRUE(tsk_node_table_equals(tables.nodes, loaded.nodes));
-    CU_ASSERT_TRUE(tsk_edge_table_equals(tables.edges, loaded.edges));
+    CU_ASSERT_TRUE(tsk_node_table_equals(&tables.nodes, &loaded.nodes));
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&tables.edges, &loaded.edges));
 
     tsk_table_collection_free(&loaded);
     tsk_table_collection_free(&tables);
@@ -269,20 +269,20 @@ test_table_collection_simplify_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
-    ret = tsk_site_table_add_row(tables.sites, 0, "A", 1, NULL, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_site_table_add_row(tables.sites, 0, "A", 1, NULL, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_simplify(&tables, samples, 0, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SITE_POSITION);
 
     /* Out of order positions */
-    tables.sites->position[0] = 0.5;
+    tables.sites.position[0] = 0.5;
     ret = tsk_table_collection_simplify(&tables, samples, 0, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_SITES);
 
     /* Position out of bounds */
-    tables.sites->position[0] = 1.5;
+    tables.sites.position[0] = 1.5;
     ret = tsk_table_collection_simplify(&tables, samples, 0, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
 

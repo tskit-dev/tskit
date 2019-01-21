@@ -1444,7 +1444,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_individual_table_dict(tables->individuals, value, true) != 0) {
+    if (parse_individual_table_dict(&tables->individuals, value, true) != 0) {
         goto out;
     }
 
@@ -1457,7 +1457,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_node_table_dict(tables->nodes, value, true) != 0) {
+    if (parse_node_table_dict(&tables->nodes, value, true) != 0) {
         goto out;
     }
 
@@ -1470,7 +1470,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_edge_table_dict(tables->edges, value, true) != 0) {
+    if (parse_edge_table_dict(&tables->edges, value, true) != 0) {
         goto out;
     }
 
@@ -1483,7 +1483,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_migration_table_dict(tables->migrations, value, true) != 0) {
+    if (parse_migration_table_dict(&tables->migrations, value, true) != 0) {
         goto out;
     }
 
@@ -1496,7 +1496,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_site_table_dict(tables->sites, value, true) != 0) {
+    if (parse_site_table_dict(&tables->sites, value, true) != 0) {
         goto out;
     }
 
@@ -1509,7 +1509,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_mutation_table_dict(tables->mutations, value, true) != 0) {
+    if (parse_mutation_table_dict(&tables->mutations, value, true) != 0) {
         goto out;
     }
 
@@ -1522,7 +1522,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_population_table_dict(tables->populations, value, true) != 0) {
+    if (parse_population_table_dict(&tables->populations, value, true) != 0) {
         goto out;
     }
 
@@ -1535,7 +1535,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
-    if (parse_provenance_table_dict(tables->provenances, value, true) != 0) {
+    if (parse_provenance_table_dict(&tables->provenances, value, true) != 0) {
         goto out;
     }
 
@@ -1565,117 +1565,117 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
 
     struct table_col individual_cols[] = {
         {"flags",
-            (void *) tables->individuals->flags, tables->individuals->num_rows, NPY_UINT32},
+            (void *) tables->individuals.flags, tables->individuals.num_rows, NPY_UINT32},
         {"location",
-            (void *) tables->individuals->location, tables->individuals->location_length,
+            (void *) tables->individuals.location, tables->individuals.location_length,
             NPY_FLOAT64},
         {"location_offset",
-            (void *) tables->individuals->location_offset, tables->individuals->num_rows + 1,
+            (void *) tables->individuals.location_offset, tables->individuals.num_rows + 1,
             NPY_UINT32},
         {"metadata",
-            (void *) tables->individuals->metadata, tables->individuals->metadata_length,
+            (void *) tables->individuals.metadata, tables->individuals.metadata_length,
             NPY_INT8},
         {"metadata_offset",
-            (void *) tables->individuals->metadata_offset, tables->individuals->num_rows + 1,
+            (void *) tables->individuals.metadata_offset, tables->individuals.num_rows + 1,
             NPY_UINT32},
         {NULL},
     };
 
     struct table_col node_cols[] = {
         {"time",
-            (void *) tables->nodes->time, tables->nodes->num_rows, NPY_FLOAT64},
+            (void *) tables->nodes.time, tables->nodes.num_rows, NPY_FLOAT64},
         {"flags",
-            (void *) tables->nodes->flags, tables->nodes->num_rows, NPY_UINT32},
+            (void *) tables->nodes.flags, tables->nodes.num_rows, NPY_UINT32},
         {"population",
-            (void *) tables->nodes->population, tables->nodes->num_rows, NPY_INT32},
+            (void *) tables->nodes.population, tables->nodes.num_rows, NPY_INT32},
         {"individual",
-            (void *) tables->nodes->individual, tables->nodes->num_rows, NPY_INT32},
+            (void *) tables->nodes.individual, tables->nodes.num_rows, NPY_INT32},
         {"metadata",
-            (void *) tables->nodes->metadata, tables->nodes->metadata_length, NPY_INT8},
+            (void *) tables->nodes.metadata, tables->nodes.metadata_length, NPY_INT8},
         {"metadata_offset",
-            (void *) tables->nodes->metadata_offset, tables->nodes->num_rows + 1, NPY_UINT32},
+            (void *) tables->nodes.metadata_offset, tables->nodes.num_rows + 1, NPY_UINT32},
         {NULL},
     };
 
     struct table_col edge_cols[] = {
-        {"left", (void *) tables->edges->left, tables->edges->num_rows, NPY_FLOAT64},
-        {"right", (void *) tables->edges->right, tables->edges->num_rows, NPY_FLOAT64},
-        {"parent", (void *) tables->edges->parent, tables->edges->num_rows, NPY_INT32},
-        {"child", (void *) tables->edges->child, tables->edges->num_rows, NPY_INT32},
+        {"left", (void *) tables->edges.left, tables->edges.num_rows, NPY_FLOAT64},
+        {"right", (void *) tables->edges.right, tables->edges.num_rows, NPY_FLOAT64},
+        {"parent", (void *) tables->edges.parent, tables->edges.num_rows, NPY_INT32},
+        {"child", (void *) tables->edges.child, tables->edges.num_rows, NPY_INT32},
         {NULL},
     };
 
     struct table_col migration_cols[] = {
         {"left",
-            (void *) tables->migrations->left, tables->migrations->num_rows,  NPY_FLOAT64},
+            (void *) tables->migrations.left, tables->migrations.num_rows,  NPY_FLOAT64},
         {"right",
-            (void *) tables->migrations->right, tables->migrations->num_rows,  NPY_FLOAT64},
+            (void *) tables->migrations.right, tables->migrations.num_rows,  NPY_FLOAT64},
         {"node",
-            (void *) tables->migrations->node, tables->migrations->num_rows,  NPY_INT32},
+            (void *) tables->migrations.node, tables->migrations.num_rows,  NPY_INT32},
         {"source",
-            (void *) tables->migrations->source, tables->migrations->num_rows,  NPY_INT32},
+            (void *) tables->migrations.source, tables->migrations.num_rows,  NPY_INT32},
         {"dest",
-            (void *) tables->migrations->dest, tables->migrations->num_rows,  NPY_INT32},
+            (void *) tables->migrations.dest, tables->migrations.num_rows,  NPY_INT32},
         {"time",
-            (void *) tables->migrations->time, tables->migrations->num_rows,  NPY_FLOAT64},
+            (void *) tables->migrations.time, tables->migrations.num_rows,  NPY_FLOAT64},
         {NULL},
     };
 
     struct table_col site_cols[] = {
         {"position",
-            (void *) tables->sites->position, tables->sites->num_rows, NPY_FLOAT64},
+            (void *) tables->sites.position, tables->sites.num_rows, NPY_FLOAT64},
         {"ancestral_state",
-            (void *) tables->sites->ancestral_state, tables->sites->ancestral_state_length,
+            (void *) tables->sites.ancestral_state, tables->sites.ancestral_state_length,
             NPY_INT8},
         {"ancestral_state_offset",
-            (void *) tables->sites->ancestral_state_offset, tables->sites->num_rows + 1,
+            (void *) tables->sites.ancestral_state_offset, tables->sites.num_rows + 1,
             NPY_UINT32},
         {"metadata",
-            (void *) tables->sites->metadata, tables->sites->metadata_length, NPY_INT8},
+            (void *) tables->sites.metadata, tables->sites.metadata_length, NPY_INT8},
         {"metadata_offset",
-            (void *) tables->sites->metadata_offset, tables->sites->num_rows + 1, NPY_UINT32},
+            (void *) tables->sites.metadata_offset, tables->sites.num_rows + 1, NPY_UINT32},
         {NULL},
     };
 
     struct table_col mutation_cols[] = {
         {"site",
-            (void *) tables->mutations->site, tables->mutations->num_rows, NPY_INT32},
+            (void *) tables->mutations.site, tables->mutations.num_rows, NPY_INT32},
         {"node",
-            (void *) tables->mutations->node, tables->mutations->num_rows, NPY_INT32},
+            (void *) tables->mutations.node, tables->mutations.num_rows, NPY_INT32},
         {"parent",
-            (void *) tables->mutations->parent, tables->mutations->num_rows, NPY_INT32},
+            (void *) tables->mutations.parent, tables->mutations.num_rows, NPY_INT32},
         {"derived_state",
-            (void *) tables->mutations->derived_state,
-            tables->mutations->derived_state_length, NPY_INT8},
+            (void *) tables->mutations.derived_state,
+            tables->mutations.derived_state_length, NPY_INT8},
         {"derived_state_offset",
-            (void *) tables->mutations->derived_state_offset,
-            tables->mutations->num_rows + 1, NPY_UINT32},
+            (void *) tables->mutations.derived_state_offset,
+            tables->mutations.num_rows + 1, NPY_UINT32},
         {"metadata",
-            (void *) tables->mutations->metadata,
-            tables->mutations->metadata_length, NPY_INT8},
+            (void *) tables->mutations.metadata,
+            tables->mutations.metadata_length, NPY_INT8},
         {"metadata_offset",
-            (void *) tables->mutations->metadata_offset,
-            tables->mutations->num_rows + 1, NPY_UINT32},
+            (void *) tables->mutations.metadata_offset,
+            tables->mutations.num_rows + 1, NPY_UINT32},
         {NULL},
     };
 
     struct table_col population_cols[] = {
-        {"metadata", (void *) tables->populations->metadata,
-            tables->populations->metadata_length, NPY_INT8},
-        {"metadata_offset", (void *) tables->populations->metadata_offset,
-            tables->populations->num_rows+ 1, NPY_UINT32},
+        {"metadata", (void *) tables->populations.metadata,
+            tables->populations.metadata_length, NPY_INT8},
+        {"metadata_offset", (void *) tables->populations.metadata_offset,
+            tables->populations.num_rows+ 1, NPY_UINT32},
         {NULL},
     };
 
     struct table_col provenance_cols[] = {
-        {"timestamp", (void *) tables->provenances->timestamp,
-            tables->provenances->timestamp_length, NPY_INT8},
-        {"timestamp_offset", (void *) tables->provenances->timestamp_offset,
-            tables->provenances->num_rows+ 1, NPY_UINT32},
-        {"record", (void *) tables->provenances->record,
-            tables->provenances->record_length, NPY_INT8},
-        {"record_offset", (void *) tables->provenances->record_offset,
-            tables->provenances->num_rows + 1, NPY_UINT32},
+        {"timestamp", (void *) tables->provenances.timestamp,
+            tables->provenances.timestamp_length, NPY_INT8},
+        {"timestamp_offset", (void *) tables->provenances.timestamp_offset,
+            tables->provenances.num_rows+ 1, NPY_UINT32},
+        {"record", (void *) tables->provenances.record,
+            tables->provenances.record_length, NPY_INT8},
+        {"record_offset", (void *) tables->provenances.record_offset,
+            tables->provenances.num_rows + 1, NPY_UINT32},
         {NULL},
     };
 
@@ -5239,7 +5239,7 @@ TableCollection_get_individuals(TableCollection *self, void *closure)
     if (individuals == NULL) {
         goto out;
     }
-    individuals->table = self->tables->individuals;
+    individuals->table = &self->tables->individuals;
     individuals->locked = false;
     individuals->tables = self;
     Py_INCREF(self);
@@ -5256,7 +5256,7 @@ TableCollection_get_nodes(TableCollection *self, void *closure)
     if (nodes == NULL) {
         goto out;
     }
-    nodes->table = self->tables->nodes;
+    nodes->table = &self->tables->nodes;
     nodes->locked = false;
     nodes->tables = self;
     Py_INCREF(self);
@@ -5273,7 +5273,7 @@ TableCollection_get_edges(TableCollection *self, void *closure)
     if (edges == NULL) {
         goto out;
     }
-    edges->table = self->tables->edges;
+    edges->table = &self->tables->edges;
     edges->locked = false;
     edges->tables = self;
     Py_INCREF(self);
@@ -5290,7 +5290,7 @@ TableCollection_get_migrations(TableCollection *self, void *closure)
     if (migrations == NULL) {
         goto out;
     }
-    migrations->table = self->tables->migrations;
+    migrations->table = &self->tables->migrations;
     migrations->locked = false;
     migrations->tables = self;
     Py_INCREF(self);
@@ -5307,7 +5307,7 @@ TableCollection_get_sites(TableCollection *self, void *closure)
     if (sites == NULL) {
         goto out;
     }
-    sites->table = self->tables->sites;
+    sites->table = &self->tables->sites;
     sites->locked = false;
     sites->tables = self;
     Py_INCREF(self);
@@ -5324,7 +5324,7 @@ TableCollection_get_mutations(TableCollection *self, void *closure)
     if (mutations == NULL) {
         goto out;
     }
-    mutations->table = self->tables->mutations;
+    mutations->table = &self->tables->mutations;
     mutations->locked = false;
     mutations->tables = self;
     Py_INCREF(self);
@@ -5341,7 +5341,7 @@ TableCollection_get_populations(TableCollection *self, void *closure)
     if (populations == NULL) {
         goto out;
     }
-    populations->table = self->tables->populations;
+    populations->table = &self->tables->populations;
     populations->locked = false;
     populations->tables = self;
     Py_INCREF(self);
@@ -5358,7 +5358,7 @@ TableCollection_get_provenances(TableCollection *self, void *closure)
     if (provenances == NULL) {
         goto out;
     }
-    provenances->table = self->tables->provenances;
+    provenances->table = &self->tables->provenances;
     provenances->locked = false;
     provenances->tables = self;
     Py_INCREF(self);
@@ -5423,7 +5423,7 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     }
 
     /* Allocate a new array to hold the node map. */
-    dims = self->tables->nodes->num_rows;
+    dims = self->tables->nodes.num_rows;
     node_map_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
     if (node_map_array == NULL) {
         goto out;

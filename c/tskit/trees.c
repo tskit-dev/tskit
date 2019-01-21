@@ -95,9 +95,9 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     tsk_id_t j, k;
     int ret = 0;
     size_t offset = 0;
-    const tsk_size_t num_mutations = self->tables->mutations->num_rows;
-    const tsk_size_t num_sites = self->tables->sites->num_rows;
-    const tsk_id_t *restrict mutation_site = self->tables->mutations->site;
+    const tsk_size_t num_mutations = self->tables->mutations.num_rows;
+    const tsk_size_t num_sites = self->tables->sites.num_rows;
+    const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
 
     self->site_mutations_mem = malloc(num_mutations * sizeof(tsk_mutation_t));
     self->site_mutations_length = malloc(num_sites * sizeof(tsk_size_t));
@@ -146,9 +146,9 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
     tsk_size_t total_node_refs = 0;
     tsk_size_t *node_count = NULL;
     tsk_id_t *node_array;
-    const size_t num_inds = self->tables->individuals->num_rows;
-    const size_t num_nodes = self->tables->nodes->num_rows;
-    const tsk_id_t *restrict node_individual = self->tables->nodes->individual;
+    const size_t num_inds = self->tables->individuals.num_rows;
+    const size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_id_t *restrict node_individual = self->tables->nodes.individual;
 
     // First find number of nodes per individual
     self->individual_nodes_length = calloc(TSK_MAX(1, num_inds), sizeof(tsk_size_t));
@@ -204,13 +204,13 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     tsk_id_t site;
     double tree_left, tree_right;
     const double sequence_length = self->tables->sequence_length;
-    const tsk_id_t num_sites = (tsk_id_t) self->tables->sites->num_rows;
-    const size_t num_edges = self->tables->edges->num_rows;
-    const double * restrict site_position = self->tables->sites->position;
+    const tsk_id_t num_sites = (tsk_id_t) self->tables->sites.num_rows;
+    const size_t num_edges = self->tables->edges.num_rows;
+    const double * restrict site_position = self->tables->sites.position;
     const tsk_id_t * restrict I = self->tables->indexes.edge_insertion_order;
     const tsk_id_t * restrict O = self->tables->indexes.edge_removal_order;
-    const double * restrict edge_right = self->tables->edges->right;
-    const double * restrict edge_left = self->tables->edges->left;
+    const double * restrict edge_right = self->tables->edges.right;
+    const double * restrict edge_left = self->tables->edges.left;
 
     tree_left = 0;
     tree_right = sequence_length;
@@ -285,8 +285,8 @@ static int
 tsk_treeseq_init_nodes(tsk_treeseq_t *self)
 {
     size_t j, k;
-    size_t num_nodes = self->tables->nodes->num_rows;
-    const uint32_t *restrict node_flags = self->tables->nodes->flags;
+    size_t num_nodes = self->tables->nodes.num_rows;
+    const uint32_t *restrict node_flags = self->tables->nodes.flags;
     int ret = 0;
 
     /* Determine the sample size */
@@ -455,49 +455,49 @@ tsk_treeseq_get_num_samples(tsk_treeseq_t *self)
 tsk_size_t
 tsk_treeseq_get_num_nodes(tsk_treeseq_t *self)
 {
-    return self->tables->nodes->num_rows;
+    return self->tables->nodes.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_edges(tsk_treeseq_t *self)
 {
-    return self->tables->edges->num_rows;
+    return self->tables->edges.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_migrations(tsk_treeseq_t *self)
 {
-    return self->tables->migrations->num_rows;
+    return self->tables->migrations.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_sites(tsk_treeseq_t *self)
 {
-    return self->tables->sites->num_rows;
+    return self->tables->sites.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_mutations(tsk_treeseq_t *self)
 {
-    return self->tables->mutations->num_rows;
+    return self->tables->mutations.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_populations(tsk_treeseq_t *self)
 {
-    return self->tables->populations->num_rows;
+    return self->tables->populations.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_individuals(tsk_treeseq_t *self)
 {
-    return self->tables->individuals->num_rows;
+    return self->tables->individuals.num_rows;
 }
 
 tsk_size_t
 tsk_treeseq_get_num_provenances(tsk_treeseq_t *self)
 {
-    return self->tables->provenances->num_rows;
+    return self->tables->provenances.num_rows;
 }
 
 tsk_size_t
@@ -511,8 +511,8 @@ tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u)
 {
     bool ret = false;
 
-    if (u >= 0 && u < (tsk_id_t) self->tables->nodes->num_rows) {
-        ret = !!(self->tables->nodes->flags[u] & TSK_NODE_IS_SAMPLE);
+    if (u >= 0 && u < (tsk_id_t) self->tables->nodes.num_rows) {
+        ret = !!(self->tables->nodes.flags[u] & TSK_NODE_IS_SAMPLE);
     }
     return ret;
 }
@@ -593,14 +593,14 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
     int16_t k, focal_reference_set;
     /* We use the K'th element of the array for the total. */
     const int16_t K = (int16_t) (num_reference_sets + 1);
-    size_t num_nodes = self->tables->nodes->num_rows;
-    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges->num_rows;
+    size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
-    const double *restrict edge_left = self->tables->edges->left;
-    const double *restrict edge_right = self->tables->edges->right;
-    const tsk_id_t *restrict edge_parent = self->tables->edges->parent;
-    const tsk_id_t *restrict edge_child = self->tables->edges->child;
+    const double *restrict edge_left = self->tables->edges.left;
+    const double *restrict edge_right = self->tables->edges.right;
+    const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t tj, tk, h;
     double left, right, *A_row, scale, tree_length;
@@ -769,14 +769,14 @@ tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
     int32_t k;
     /* We use the K'th element of the array for the total. */
     const int32_t K = (int32_t) (num_reference_sets + 1);
-    size_t num_nodes = self->tables->nodes->num_rows;
-    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges->num_rows;
+    size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
-    const double *restrict edge_left = self->tables->edges->left;
-    const double *restrict edge_right = self->tables->edges->right;
-    const tsk_id_t *restrict edge_parent = self->tables->edges->parent;
-    const tsk_id_t *restrict edge_child = self->tables->edges->child;
+    const double *restrict edge_left = self->tables->edges.left;
+    const double *restrict edge_right = self->tables->edges.right;
+    const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t tj, tk, h;
     double left, right, length, *restrict C_row;
@@ -923,25 +923,25 @@ out:
 int TSK_WARN_UNUSED
 tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node)
 {
-    return tsk_node_table_get_row(self->tables->nodes, index, node);
+    return tsk_node_table_get_row(&self->tables->nodes, index, node);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_edge(tsk_treeseq_t *self, tsk_id_t index, tsk_edge_t *edge)
 {
-    return tsk_edge_table_get_row(self->tables->edges, index, edge);
+    return tsk_edge_table_get_row(&self->tables->edges, index, edge);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_migration(tsk_treeseq_t *self, tsk_id_t index, tsk_migration_t *migration)
 {
-    return tsk_migration_table_get_row(self->tables->migrations, index, migration);
+    return tsk_migration_table_get_row(&self->tables->migrations, index, migration);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_mutation(tsk_treeseq_t *self, tsk_id_t index, tsk_mutation_t *mutation)
 {
-    return tsk_mutation_table_get_row(self->tables->mutations, index, mutation);
+    return tsk_mutation_table_get_row(&self->tables->mutations, index, mutation);
 }
 
 int TSK_WARN_UNUSED
@@ -949,7 +949,7 @@ tsk_treeseq_get_site(tsk_treeseq_t *self, tsk_id_t index, tsk_site_t *site)
 {
     int ret = 0;
 
-    ret = tsk_site_table_get_row(self->tables->sites, index, site);
+    ret = tsk_site_table_get_row(&self->tables->sites, index, site);
     if (ret != 0) {
         goto out;
     }
@@ -964,7 +964,7 @@ tsk_treeseq_get_individual(tsk_treeseq_t *self, tsk_id_t index, tsk_individual_t
 {
     int ret = 0;
 
-    ret = tsk_individual_table_get_row(self->tables->individuals, index, individual);
+    ret = tsk_individual_table_get_row(&self->tables->individuals, index, individual);
     if (ret != 0) {
         goto out;
     }
@@ -978,13 +978,13 @@ int TSK_WARN_UNUSED
 tsk_treeseq_get_population(tsk_treeseq_t *self, tsk_id_t index,
         tsk_population_t *population)
 {
-    return tsk_population_table_get_row(self->tables->populations, index, population);
+    return tsk_population_table_get_row(&self->tables->populations, index, population);
 }
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_provenance(tsk_treeseq_t *self, tsk_id_t index, tsk_provenance_t *provenance)
 {
-   return tsk_provenance_table_get_row(self->tables->provenances, index, provenance);
+   return tsk_provenance_table_get_row(&self->tables->provenances, index, provenance);
 }
 
 int TSK_WARN_UNUSED
@@ -1105,7 +1105,7 @@ tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t option
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
-    num_nodes = tree_sequence->tables->nodes->num_rows;
+    num_nodes = tree_sequence->tables->nodes.num_rows;
     num_samples = tree_sequence->num_samples;
     self->num_nodes = num_nodes;
     self->tree_sequence = tree_sequence;
@@ -1761,10 +1761,10 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
     tsk_id_t k, p, c, u, v, root, lsib, rsib, lroot, rroot;
     tsk_table_collection_t *tables = self->tree_sequence->tables;
     const double sequence_length = tables->sequence_length;
-    const tsk_id_t num_edges = (tsk_id_t) tables->edges->num_rows;
-    const tsk_id_t * restrict edge_parent = tables->edges->parent;
-    const tsk_id_t * restrict edge_child = tables->edges->child;
-    const uint32_t * restrict node_flags = tables->nodes->flags;
+    const tsk_id_t num_edges = (tsk_id_t) tables->edges.num_rows;
+    const tsk_id_t * restrict edge_parent = tables->edges.parent;
+    const tsk_id_t * restrict edge_child = tables->edges.child;
+    const uint32_t * restrict node_flags = tables->nodes.flags;
     double x;
     bool above_sample;
 
@@ -1947,7 +1947,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
     assert(self->left < self->right);
     *out_index = out;
     *in_index = in;
-    if (tables->sites->num_rows > 0) {
+    if (tables->sites.num_rows > 0) {
         self->sites = self->tree_sequence->tree_sites[self->index];
         self->sites_length = self->tree_sequence->tree_sites_length[self->index];
     }
@@ -1968,7 +1968,7 @@ tsk_tree_first(tsk_tree_t *self)
     self->sites = self->tree_sequence->tree_sites[0];
     self->sites_length = self->tree_sequence->tree_sites_length[0];
 
-    if (tables->edges->num_rows > 0) {
+    if (tables->edges.num_rows > 0) {
         /* TODO this is redundant if this is the first usage of the tree. We
          * should add a state machine here so we know what state the tree is
          * in and can take the appropriate actions.
@@ -1984,8 +1984,8 @@ tsk_tree_first(tsk_tree_t *self)
         self->right = 0;
 
         ret = tsk_tree_advance(self, TSK_DIR_FORWARD,
-                tables->edges->right, tables->indexes.edge_removal_order,
-                &self->right_index, tables->edges->left,
+                tables->edges.right, tables->indexes.edge_removal_order,
+                &self->right_index, tables->edges.left,
                 tables->indexes.edge_insertion_order, &self->left_index);
     }
 out:
@@ -2005,7 +2005,7 @@ tsk_tree_last(tsk_tree_t *self)
     self->sites = ts->tree_sites[0];
     self->sites_length = ts->tree_sites_length[0];
 
-    if (tables->edges->num_rows > 0) {
+    if (tables->edges.num_rows > 0) {
         /* TODO this is redundant if this is the first usage of the tree. We
          * should add a state machine here so we know what state the tree is
          * in and can take the appropriate actions.
@@ -2015,15 +2015,15 @@ tsk_tree_last(tsk_tree_t *self)
             goto out;
         }
         self->index = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
-        self->left_index = (tsk_id_t) tables->edges->num_rows - 1;
-        self->right_index = (tsk_id_t) tables->edges->num_rows - 1;
+        self->left_index = (tsk_id_t) tables->edges.num_rows - 1;
+        self->right_index = (tsk_id_t) tables->edges.num_rows - 1;
         self->direction = TSK_DIR_REVERSE;
         self->left = tables->sequence_length;
         self->right = 0;
 
         ret = tsk_tree_advance(self, TSK_DIR_REVERSE,
-                tables->edges->left, tables->indexes.edge_insertion_order,
-                &self->left_index, tables->edges->right,
+                tables->edges.left, tables->indexes.edge_insertion_order,
+                &self->left_index, tables->edges.right,
                 tables->indexes.edge_removal_order, &self->right_index);
     }
 out:
@@ -2040,8 +2040,8 @@ tsk_tree_next(tsk_tree_t *self)
 
     if (self->index < num_trees - 1) {
         ret = tsk_tree_advance(self, TSK_DIR_FORWARD,
-                tables->edges->right, tables->indexes.edge_removal_order,
-                &self->right_index, tables->edges->left,
+                tables->edges.right, tables->indexes.edge_removal_order,
+                &self->right_index, tables->edges.left,
                 tables->indexes.edge_insertion_order, &self->left_index);
     }
     return ret;
@@ -2055,8 +2055,8 @@ tsk_tree_prev(tsk_tree_t *self)
 
     if (self->index > 0) {
         ret = tsk_tree_advance(self, TSK_DIR_REVERSE,
-                tables->edges->left, tables->indexes.edge_insertion_order,
-                &self->left_index, tables->edges->right,
+                tables->edges.left, tables->indexes.edge_insertion_order,
+                &self->left_index, tables->edges.right,
                 tables->indexes.edge_removal_order, &self->right_index);
     }
     return ret;
@@ -2125,7 +2125,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     tsk_edge_list_t *in_tail = NULL;
     tsk_edge_list_t *w = NULL;
     size_t num_trees = tsk_treeseq_get_num_trees(s);
-    const tsk_edge_table_t *edges = s->tables->edges;
+    const tsk_edge_table_t *edges = &s->tables->edges;
     const tsk_id_t *insertion_order = s->tables->indexes.edge_insertion_order;
     const tsk_id_t *removal_order = s->tables->indexes.edge_removal_order;
 

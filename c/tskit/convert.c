@@ -31,7 +31,7 @@ tsk_newick_converter_run(tsk_newick_converter_t *self, tsk_id_t root,
     int ret = TSK_ERR_GENERIC;
     tsk_tree_t *tree = self->tree;
     tsk_id_t *stack = self->tree->stack1;
-    const double *time = self->tree->tree_sequence->tables->nodes->time;
+    const double *time = self->tree->tree_sequence->tables->nodes.time;
     int stack_top = 0;
     int label;
     size_t s = 0;
