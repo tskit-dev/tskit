@@ -81,16 +81,15 @@ class TableCollection
     public:
         NodeTable nodes;
 
-        explicit TableCollection(double sequence_length)
+        explicit TableCollection(double sequence_length) : tables(new tsk_table_collection_t{}),
+                 nodes(&tables->nodes)
         {
-            tables = (tsk_table_collection_t *) malloc(sizeof(*tables));
-            if (tables == NULL) {
+            if (tables == nullptr) {
                 throw std::runtime_error("Out of memory");
             }
             int ret = tsk_table_collection_init(tables, 0);
             check_error(ret);
             tables->sequence_length = sequence_length;
-            nodes = NodeTable(&tables->nodes);
         }
 
         ~TableCollection()
