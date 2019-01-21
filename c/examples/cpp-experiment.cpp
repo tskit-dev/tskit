@@ -27,6 +27,20 @@ class NodeTable
         tsk_node_table_t *table;
         bool malloced_locally = true;
 
+        tsk_node_table_t* allocate(tsk_node_table_t * the_table)
+        {
+            if (the_table != nullptr){ return the_table; }
+
+            using node_table_ptr = std::unique_ptr<tsk_node_table_t,void(*)(tsk_node_table_t*)>;
+            node_table_ptr t(new tsk_node_table_t{},[](tsk_node_table_t* nt){delete nt;});
+            if (t.get() == NULL) {
+                throw std::runtime_error("Out of memory");
+            }
+            int ret = tsk_node_table_init(t.get(), 0);
+            check_error(ret);
+            return t.release();
+        }
+
     public:
         //NodeTable()
         //{
@@ -39,14 +53,9 @@ class NodeTable
         //    check_error(ret);
         //}
 
-        explicit NodeTable(tsk_node_table_t *the_table) : table(the_table), malloced_locally(false)
+        explicit NodeTable(tsk_node_table_t *the_table) : table(allocate(the_table)), malloced_locally(the_table != table)
         {
             std::cout << "table constructor" << endl;
-        }
-
-        template<typename deleter>
-        explicit NodeTable(std::unique_ptr<tsk_node_table_t,deleter> & the_table) : table(the_table.release()), malloced_locally(true)
-        {
         }
 
         ~NodeTable()
@@ -107,22 +116,14 @@ class TableCollection
         }
 };
 
-using node_table_ptr = std::unique_ptr<tsk_node_table_t,void(*)(tsk_node_table_t*)>;
 
 int
 main()
 {
-    node_table_ptr temp(new tsk_node_table_t{},
-                        [](tsk_node_table_t *nt) { delete nt; });
-    int ret = tsk_node_table_init(temp.get(), 0);
-    check_error(ret);
-    NodeTable nodes(temp);
-    assert(temp.get() == nullptr);
-    //NodeTable nodes;
-
-    //nodes.add_row(0, 1.0);
-    //nodes.add_row(0, 2.0);
-    //std::cout << "Straight table: num_rows = " << nodes.get_num_rows() << endl;
+    NodeTable nodes(nullptr);
+    nodes.add_row(0, 1.0);
+    nodes.add_row(0, 2.0);
+    std::cout << "Straight table: num_rows = " << nodes.get_num_rows() << endl;
 
     TableCollection tables = TableCollection(10);
     std::cout << "Sequence length = " << tables.get_sequence_length() << endl;
