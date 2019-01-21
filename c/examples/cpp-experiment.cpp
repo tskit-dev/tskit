@@ -81,7 +81,7 @@ class TableCollection
     public:
         NodeTable nodes;
 
-        TableCollection(double sequence_length)
+        explicit TableCollection(double sequence_length)
         {
             tables = (tsk_table_collection_t *) malloc(sizeof(*tables));
             if (tables == NULL) {
