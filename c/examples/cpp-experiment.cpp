@@ -77,27 +77,29 @@ class TableCollection
 {
 
     private:
-        tsk_table_collection_t *tables;
+        std::unique_ptr<tsk_table_collection_t, void(*)(tsk_table_collection_t*)> tables;
 
     public:
         NodeTable nodes;
 
-        explicit TableCollection(double sequence_length) : tables(new tsk_table_collection_t{}),
+        explicit TableCollection(double sequence_length) : tables(new tsk_table_collection_t{},[](tsk_table_collection_t *t){delete t;}),
                  nodes(&tables->nodes)
         {
             if (tables == nullptr) {
                 throw std::runtime_error("Out of memory");
             }
-            int ret = tsk_table_collection_init(tables, 0);
+            int ret = tsk_table_collection_init(tables.get(), 0);
+            // NOTE: without the smart pointer, this is a memory leak 
+            // waiting to happen.  The destructor is NOT called 
+            // if there is an exception from a constructor.
             check_error(ret);
             tables->sequence_length = sequence_length;
         }
 
         ~TableCollection()
         {
-            if (tables != NULL) {
-                tsk_table_collection_free(tables);
-                free(tables);
+            if (tables != nullptr) {
+                tsk_table_collection_free(tables.get());
             }
         }
 
@@ -116,7 +118,7 @@ main()
     nodes.add_row(0, 2.0);
     std::cout << "Straight table: num_rows = " << nodes.get_num_rows() << endl;
 
-    TableCollection tables = TableCollection(10);
+    TableCollection tables(10);
     std::cout << "Sequence length = " << tables.get_sequence_length() << endl;
     tables.nodes.add_row(0, 1.0);
     tables.nodes.add_row(0, 2.0);
