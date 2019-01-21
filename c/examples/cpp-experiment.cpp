@@ -42,6 +42,11 @@ class NodeTable
             std::cout << "table constructor" << endl;
         }
 
+        template<typename deleter>
+        explicit NodeTable(std::unique_ptr<tsk_node_table_t,deleter> & the_table) : table(the_table.release()), malloced_locally(false)
+        {
+        }
+
         ~NodeTable()
         {
             if (malloced_locally && table != NULL) {
