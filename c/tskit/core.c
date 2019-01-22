@@ -107,7 +107,7 @@ tsk_strerror_internal(int err)
             ret = "Generic error; please file a bug report";
             break;
         case TSK_ERR_NO_MEMORY:
-            ret = "Out of memory.";
+            ret = "Out of memory";
             break;
         case TSK_ERR_IO:
             if (errno != 0) {
@@ -120,7 +120,7 @@ tsk_strerror_internal(int err)
             ret = "Bad parameter value provided";
             break;
         case TSK_ERR_BUFFER_OVERFLOW:
-            ret = "Supplied buffer is too small.";
+            ret = "Supplied buffer is too small";
             break;
         case TSK_ERR_UNSUPPORTED_OPERATION:
             ret = "Operation cannot be performed in current configuration";
@@ -139,12 +139,12 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_FILE_VERSION_TOO_NEW:
             ret = "tskit file version is too new for this instance. "
-                "Please upgrade tskit to the latest version.";
+                "Please upgrade tskit to the latest version";
             break;
 
         /* Out of bounds errors */
         case TSK_ERR_BAD_OFFSET:
-            ret = "Bad offset provided in input array.";
+            ret = "Bad offset provided in input array";
             break;
         case TSK_ERR_OUT_OF_BOUNDS:
             ret = "Object reference out of bounds";
@@ -176,10 +176,10 @@ tsk_strerror_internal(int err)
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:
-            ret = "Edge in parent is null.";
+            ret = "Edge in parent is null";
             break;
         case TSK_ERR_NULL_CHILD:
-            ret = "Edge in parent is null.";
+            ret = "Edge in parent is null";
             break;
         case TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME:
             ret = "Edges must be listed in (time[parent], child, left) order;"
@@ -203,25 +203,25 @@ tsk_strerror_internal(int err)
             ret = "Bad edge interval where right <= left";
             break;
         case TSK_ERR_DUPLICATE_EDGES:
-            ret = "Duplicate edges provided.";
+            ret = "Duplicate edges provided";
             break;
         case TSK_ERR_RIGHT_GREATER_SEQ_LENGTH:
-            ret = "Right coordinate > sequence length.";
+            ret = "Right coordinate > sequence length";
             break;
         case TSK_ERR_LEFT_LESS_ZERO:
             ret = "Left coordinate must be >= 0";
             break;
         case TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN:
             ret = "Bad edges: contradictory children for a given parent over "
-                "an interval.";
+                "an interval";
             break;
 
         /* Site errors */
         case TSK_ERR_UNSORTED_SITES:
-            ret = "Sites must be provided in strictly increasing position order.";
+            ret = "Sites must be provided in strictly increasing position order";
             break;
         case TSK_ERR_DUPLICATE_SITE_POSITION:
-            ret = "Duplicate site positions.";
+            ret = "Duplicate site positions";
             break;
         case TSK_ERR_BAD_SITE_POSITION:
             ret = "Sites positions must be between 0 and sequence_length";
@@ -229,22 +229,22 @@ tsk_strerror_internal(int err)
 
         /* Mutation errors */
         case TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE:
-            ret = "Specified parent mutation is at a different site.";
+            ret = "Specified parent mutation is at a different site";
             break;
         case TSK_ERR_MUTATION_PARENT_EQUAL:
-            ret = "Parent mutation refers to itself.";
+            ret = "Parent mutation refers to itself";
             break;
         case TSK_ERR_MUTATION_PARENT_AFTER_CHILD:
-            ret = "Parent mutation ID must be < current ID.";
+            ret = "Parent mutation ID must be < current ID";
             break;
         case TSK_ERR_TOO_MANY_ALLELES:
-            ret = "Cannot have more than 255 alleles.";
+            ret = "Cannot have more than 255 alleles";
             break;
         case TSK_ERR_INCONSISTENT_MUTATIONS:
-            ret = "Inconsistent mutations: state already equal to derived state.";
+            ret = "Inconsistent mutations: state already equal to derived state";
             break;
         case TSK_ERR_NON_SINGLE_CHAR_MUTATION:
-            ret = "Only single char mutations supported.";
+            ret = "Only single char mutations supported";
             break;
         case TSK_ERR_UNSORTED_MUTATIONS:
             ret = "Mutations must be provided in non-decreasing site order";
@@ -252,32 +252,32 @@ tsk_strerror_internal(int err)
 
         /* Sample errors */
         case TSK_ERR_DUPLICATE_SAMPLE:
-            ret = "Duplicate value provided in tracked leaf list.";
+            ret = "Duplicate value provided in tracked leaf list";
             break;
         case TSK_ERR_BAD_SAMPLES:
-            ret = "Bad sample configuration provided.";
+            ret = "Bad sample configuration provided";
             break;
 
         /* Table errors */
         case TSK_ERR_BAD_TABLE_POSITION:
-            ret = "Bad table position provided to truncate/reset.";
+            ret = "Bad table position provided to truncate/reset";
             break;
         case TSK_ERR_BAD_SEQUENCE_LENGTH:
-            ret = "Sequence length must be > 0.";
+            ret = "Sequence length must be > 0";
             break;
         case TSK_ERR_TABLES_NOT_INDEXED:
-            ret = "Table collection must be indexed.";
+            ret = "Table collection must be indexed";
             break;
 
         /* Limitations */
         case TSK_ERR_ONLY_INFINITE_SITES:
-            ret = "Only infinite sites mutations are supported for this operation.";
+            ret = "Only infinite sites mutations are supported for this operation";
             break;
         case TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED:
-            ret = "Migrations not currently supported by simplify.";
+            ret = "Migrations not currently supported by simplify";
             break;
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
-            ret = "Only binary mutations are supported for this operation.";
+            ret = "Only binary mutations are supported for this operation";
             break;
     }
 out:

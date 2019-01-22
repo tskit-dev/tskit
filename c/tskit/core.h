@@ -5,6 +5,10 @@
 #ifndef __TSK_CORE_H__
 #define __TSK_CORE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 #ifdef __GNUC__
@@ -219,5 +223,9 @@ size_t tsk_search_sorted(const double *array, size_t size, double value);
 
 #define TSK_UUID_SIZE 36
 int tsk_generate_uuid(char *dest, int flags);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
