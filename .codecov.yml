@@ -1,9 +1,9 @@
 coverage:
   status:
     project:
-      python:
+      python-tests:
         target: 95%
-        flags: python
-      c:
+        flags: python-tests
+      c-tests:
         target: 85%
-        flags: c
+        flags: c-tests
