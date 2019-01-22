@@ -25,7 +25,7 @@ class NodeTable
 
     private:
         tsk_node_table_t *table;
-        const bool malloced_locally;
+        const bool allocated_locally;
 
         tsk_node_table_t* allocate(tsk_node_table_t * the_table)
         {
@@ -44,14 +44,14 @@ class NodeTable
         }
 
     public:
-        explicit NodeTable(tsk_node_table_t *the_table) : table(allocate(the_table)), malloced_locally(the_table != table)
+        explicit NodeTable(tsk_node_table_t *the_table) : table(allocate(the_table)), allocated_locally(the_table != table)
         {
             std::cout << "table constructor" << endl;
         }
 
         ~NodeTable()
         {
-            if (malloced_locally && table != NULL) {
+            if (allocated_locally && table != NULL) {
                 tsk_node_table_free(table);
                 delete table;
             }
