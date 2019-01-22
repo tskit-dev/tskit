@@ -1806,6 +1806,23 @@ test_simplify_tables_drops_indexes(void)
 }
 
 static void
+test_simplify_empty_tables(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    ret = tsk_table_collection_simplify(&tables, NULL, 0, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 0);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_sort_tables_drops_indexes(void)
 {
     int ret;
@@ -1958,6 +1975,7 @@ main(int argc, char **argv)
         {"test_table_collection_simplify_errors", test_table_collection_simplify_errors},
         {"test_load_tsk_node_table_errors", test_load_tsk_node_table_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
+        {"test_simplify_empty_tables", test_simplify_empty_tables},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
         {"test_sort_tables_errors", test_sort_tables_errors},

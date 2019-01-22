@@ -2021,9 +2021,14 @@ at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
-@param samples An array of ``num_samples`` distinct and valid node IDs. These nodes will be
-    marked as samples in the output.
-@param num_samples The number of node IDs in the input samples array.
+@param samples Either NULL or an array of num_samples distinct and valid node IDs. 
+    If non-null the nodes in this array will be marked as samples in the output.
+    If NULL, the num_samples parameter is ignored and the samples in the output 
+    will be the same as the samples in the input. This is equivalent to populating 
+    the samples array with all of the sample nodes in the input in increasing
+    order of ID.
+@param num_samples The number of node IDs in the input samples array. Ignored
+    if the samples array is NULL.
 @param options Simplify options. Currently unused; should be 
     set to zero to ensure compatibility with later versions of tskit.
 @param node_map If not NULL, this array will be filled to define the mapping 

@@ -3073,6 +3073,12 @@ test_single_tree_simplify(void)
     CU_ASSERT_EQUAL(tables.nodes.num_rows, 3);
     CU_ASSERT_EQUAL(tables.edges.num_rows, 2);
 
+    /* Zero samples gives us the empty table collection */
+    ret = tsk_table_collection_simplify(&tables, samples, 0, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tables.nodes.num_rows, 0);
+    CU_ASSERT_EQUAL(tables.edges.num_rows, 0);
+
     /* Make sure we detect unsorted edges */
     ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3101,14 +3107,60 @@ test_single_tree_simplify(void)
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
 
-    /* Test the interface for NULL inputs */
-    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_simplify(&tables, NULL, 2, 0, NULL);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-
     tsk_treeseq_free(&ts);
     tsk_table_collection_free(&tables);
+}
+
+static void
+test_single_tree_simplify_no_sample_nodes(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t1, t2;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* We zero out the sample column in t1, and run simplify. We should
+     * get back the same table */
+
+    memset(t1.nodes.flags, 0, sizeof(*t1.nodes.flags) * t1.nodes.num_rows);
+
+    ret = tsk_table_collection_simplify(&t1, samples, 4, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_simplify_null_samples(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t1, t2;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_simplify(&t1, NULL, 0, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+    tsk_treeseq_free(&ts);
 }
 
 static void
@@ -4143,6 +4195,8 @@ main(int argc, char **argv)
         {"test_single_nonbinary_tree_iter", test_single_nonbinary_tree_iter},
         {"test_single_tree_iter_times", test_single_tree_iter_times},
         {"test_single_tree_simplify", test_single_tree_simplify},
+        {"test_single_tree_simplify_no_sample_nodes", test_single_tree_simplify_no_sample_nodes},
+        {"test_single_tree_simplify_null_samples", test_single_tree_simplify_null_samples},
         {"test_single_tree_compute_mutation_parents", test_single_tree_compute_mutation_parents},
 
         /* Multi tree tests */

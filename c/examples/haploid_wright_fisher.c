@@ -23,7 +23,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
     tables->sequence_length = 1.0;
     parents = buffer;
     for (j = 0; j < N; j++) {
-        parents[j] = tsk_node_table_add_row(&tables->nodes, TSK_NODE_IS_SAMPLE, T,
+        parents[j] = tsk_node_table_add_row(&tables->nodes, 0, T,
                 TSK_NULL, TSK_NULL, NULL, 0);
         check_tsk_error(parents[j]);
     }
@@ -34,7 +34,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
         b = (b + 1) % 2;
         children = buffer + (b * N);
         for (j = 0; j < N; j++) {
-            child = tsk_node_table_add_row(&tables->nodes, TSK_NODE_IS_SAMPLE, t,
+            child = tsk_node_table_add_row(&tables->nodes, 0, t,
                     TSK_NULL, TSK_NULL, NULL, 0);
             check_tsk_error(child);
             left_parent = parents[gsl_rng_uniform_int(rng, N)];

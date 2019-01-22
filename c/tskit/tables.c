@@ -4248,10 +4248,6 @@ simplifier_init_samples(simplifier_t *self, tsk_id_t *samples)
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-        if (!(self->input_tables.nodes.flags[self->samples[j]] & TSK_NODE_IS_SAMPLE)) {
-            ret = TSK_ERR_BAD_SAMPLES;
-            goto out;
-        }
         if (self->is_sample[samples[j]]) {
             ret = TSK_ERR_DUPLICATE_SAMPLE;
             goto out;
@@ -5740,6 +5736,25 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
 {
     int ret = 0;
     simplifier_t simplifier;
+    tsk_id_t *local_samples = NULL;
+    tsk_id_t u;
+
+    if (samples == NULL) {
+        /* Avoid issue with mallocing zero bytes */
+        local_samples = malloc((1 + self->nodes.num_rows) * sizeof(*local_samples));
+        if (local_samples == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        num_samples = 0;
+        for (u = 0; u < (tsk_id_t) self->nodes.num_rows; u++) {
+            if (!!(self->nodes.flags[u] & TSK_NODE_IS_SAMPLE)) {
+                local_samples[num_samples] = u;
+                num_samples++;
+            }
+        }
+        samples = local_samples;
+    }
 
     ret = simplifier_init(&simplifier, samples, (size_t) num_samples, self, options);
     if (ret != 0) {
@@ -5756,6 +5771,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
     ret = tsk_table_collection_drop_indexes(self);
 out:
     simplifier_free(&simplifier);
+    tsk_safe_free(local_samples);
     return ret;
 }
 
