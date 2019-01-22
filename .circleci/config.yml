@@ -49,7 +49,6 @@ jobs:
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
             python3 -m codecov -F python
-            rm .coverage
 
       - run:
           name: Build Python package
@@ -70,13 +69,13 @@ jobs:
       - run:
           name: Compile C with gcc
           command: |
-            CFLAGS=--coverage meson build-gcc c 
+            meson build-gcc c -D b_coverage=true
             ninja -C build-gcc
 
       - run:
           name: Compile C with clang
           command: |
-            CC=clang meson build-clang c 
+            CC=clang CXX=clang++ meson build-clang c 
             ninja -C build-clang 
 
       - run:
@@ -109,6 +108,7 @@ jobs:
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_convert
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_stats
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_minimal_cpp
 
       - run:
           name: Run clang-compiled C tests
