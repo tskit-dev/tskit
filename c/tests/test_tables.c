@@ -1840,6 +1840,7 @@ test_copy_table_collection(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 2);
     tsk_table_collection_copy(&tables,&tables_copy,0);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, tables_copy.nodes.num_rows);
+    tsk_table_collection_free(&tables);
 }
 
 int
