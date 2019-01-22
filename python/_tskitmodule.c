@@ -5449,12 +5449,15 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     int err;
     PyObject *ret = NULL;
     Py_ssize_t edge_start = 0;
+    tsk_table_collection_position_t start;
     static char *kwlist[] = {"edge_start", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &edge_start)) {
         goto out;
     }
-    err = tsk_table_collection_sort(self->tables, (size_t) edge_start, 0);
+    memset(&start, 0, sizeof(start));
+    start.edges = edge_start;
+    err = tsk_table_collection_sort(self->tables, &start, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;

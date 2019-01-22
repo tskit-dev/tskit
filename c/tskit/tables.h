@@ -1932,7 +1932,7 @@ int tsk_table_collection_drop_indexes(tsk_table_collection_t *self);
 int tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_simplify(tsk_table_collection_t *self,
     tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
-int tsk_table_collection_sort(tsk_table_collection_t *self, tsk_size_t edge_start, 
+int tsk_table_collection_sort(tsk_table_collection_t *self, tsk_table_collection_position_t *start,
     tsk_flags_t options);
 int tsk_table_collection_deduplicate_sites(tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(tsk_table_collection_t *self, tsk_flags_t options);

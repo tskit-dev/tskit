@@ -5764,12 +5764,16 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_sort(tsk_table_collection_t *self, tsk_size_t edge_start,
+tsk_table_collection_sort(tsk_table_collection_t *self, tsk_table_collection_position_t *start,
         tsk_flags_t options)
 {
     int ret = 0;
     table_sorter_t sorter;
+    size_t edge_start = 0;
 
+    if (start != NULL) {
+        edge_start = (size_t) start->edges;
+    }
     ret = table_sorter_init(&sorter, self, options);
     if (ret != 0) {
         goto out;
