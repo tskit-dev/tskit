@@ -103,7 +103,7 @@ class TableCollection
             }
         }
 
-        double get_sequence_length()
+        double get_sequence_length() const
         {
             return tables->sequence_length;
         }
