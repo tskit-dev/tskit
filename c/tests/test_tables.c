@@ -1841,6 +1841,7 @@ test_copy_table_collection(void)
     tsk_table_collection_copy(&tables,&tables_copy,0);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, tables_copy.nodes.num_rows);
     tsk_table_collection_free(&tables);
+    tsk_table_collection_free(&tables_copy);
 }
 
 int
