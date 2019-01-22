@@ -94,8 +94,22 @@ class NodeTable
         {
             return table->num_rows;
         }
+
+        bool is_equal(const NodeTable & rhs) const
+        // Convenience function allowing operator==
+        // to be implemented without "friend" status.
+        {
+            return tsk_node_table_equals(this->table, rhs.table);
+        }
         /* Etc */
 };
+
+// NOTE: this will work when placed into namespace tskit 
+// due to "argument-depdendent lookup", or ADL
+inline bool operator==(const NodeTable & lhs, const NodeTable & rhs)
+{
+    return lhs.is_equal(rhs);
+}
 
 class TableCollection
 {
@@ -156,7 +170,17 @@ class TableCollection
         {
             return tables->sequence_length;
         }
+
+        bool is_equal(const TableCollection & other) const
+        {
+            return tsk_table_collection_equals(this->tables.get(), other.tables.get());
+        }
 };
+
+inline bool operator==(const TableCollection & lhs, const TableCollection & rhs)
+{
+    return lhs.is_equal(rhs);
+}
 
 
 int
@@ -168,7 +192,7 @@ main()
     std::cout << "Straight table: num_rows = " << nodes.get_num_rows() << endl;
 
     auto nodes_copy(nodes);
-    assert(nodes.get_num_rows() == nodes_copy.get_num_rows());
+    assert(nodes == nodes_copy);
 
     TableCollection tables(10);
     std::cout << "Sequence length = " << tables.get_sequence_length() << endl;
@@ -181,6 +205,7 @@ main()
     auto tables_copy(tables);
     std::cout << "Sequence length of copy = " << tables_copy.get_sequence_length() << endl;
     std::cout << "Via table collection: num_rows in copy = " << tables_copy.nodes.get_num_rows() << endl;
+    assert(tables == tables_copy);
 
     return 0;
 
