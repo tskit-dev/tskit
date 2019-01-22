@@ -84,7 +84,7 @@ class TableCollection
         {
             ptr temp(new tsk_table_collection_t{},[](tsk_table_collection_t * t){delete t;});
             if(temp == nullptr) { throw std::runtime_error("Out of memory"); }
-            int ret = tsk_table_collection_copy(tables.get(), temp.get(), 0);
+            int ret = tsk_table_collection_copy(other_tables.get(), temp.get(), 0);
             check_error(ret);
             return temp;
         }
