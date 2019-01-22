@@ -46,7 +46,7 @@ class NodeTable
     public:
         explicit NodeTable(tsk_node_table_t *the_table) : table(allocate(the_table)), allocated_locally(the_table != table)
         {
-            std::cout << "table constructor" << endl;
+            std::cout << "table constructor " << endl;
         }
 
         ~NodeTable()
@@ -77,7 +77,17 @@ class TableCollection
 {
 
     private:
-        std::unique_ptr<tsk_table_collection_t, void(*)(tsk_table_collection_t*)> tables;
+        using ptr = std::unique_ptr<tsk_table_collection_t, void(*)(tsk_table_collection_t*)>;
+        ptr tables;
+
+        ptr copy_table_collection(const ptr & other_tables)
+        {
+            ptr temp(new tsk_table_collection_t{},[](tsk_table_collection_t * t){delete t;});
+            if(temp == nullptr) { throw std::runtime_error("Out of memory"); }
+            int ret = tsk_table_collection_copy(tables.get(), temp.get(), 0);
+            check_error(ret);
+            return temp;
+        }
 
     public:
         NodeTable nodes;
@@ -94,6 +104,21 @@ class TableCollection
             // if there is an exception from a constructor.
             check_error(ret);
             tables->sequence_length = sequence_length;
+        }
+
+        // NOTE: copy constructor for illustration purposes.
+        // Opinions vary on what it means to copy something
+        // implemented with unique_ptr--not so unique, right?
+        // But, it is a reasonable operation.
+        TableCollection(const TableCollection & other) : 
+            tables(copy_table_collection(other.tables)),
+            nodes(&tables->nodes)
+        {
+            std::cout << "copy constructor " << '\n';
+            if(tsk_table_collection_equals(tables.get(), other.tables.get()) == 0)
+            {
+                throw std::runtime_error("failure to copy table collection");
+            }
         }
 
         ~TableCollection()
@@ -124,6 +149,11 @@ main()
     tables.nodes.add_row(0, 2.0);
     tables.nodes.add_row(0, 3.0);
     std::cout << "Via table collection: num_rows = " << tables.nodes.get_num_rows() << endl;
+
+    // Copy construction
+    auto tables_copy(tables);
+    std::cout << "Sequence length of copy = " << tables_copy.get_sequence_length() << endl;
+    std::cout << "Via table collection: num_rows in copy = " << tables_copy.nodes.get_num_rows() << endl;
 
     return 0;
 
