@@ -4279,10 +4279,6 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
     size_t num_nodes_alloc;
 
     memset(self, 0, sizeof(simplifier_t));
-    if (samples == NULL || tables == NULL) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
     self->num_samples = num_samples;
     self->options = options;
     self->tables = tables;

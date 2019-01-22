@@ -720,12 +720,14 @@ tables valid, and thus ready to be loaded into a tree sequence.
 This section is best skipped unless you are writing a program that records
 tables directly.
 
+.. _sec_table_simplification:
+
 Simplification
 --------------
 
 Simplification of a tree sequence is in fact a transformation method applied
-to the underlying tables: the method :meth:`TreeSequence.simplify` calls
-:meth:`TableCollection.simplify` on the tables, and loads a new tree sequence.
+to the underlying tables: the method :meth:`.TreeSequence.simplify` calls
+:meth:`.TableCollection.simplify` on the tables, and loads a new tree sequence.
 The main purpose of this method is to remove redundant information,
 only retaining the minimal tree sequence necessary to describe the genealogical
 history of the ``samples`` provided.
@@ -735,16 +737,18 @@ Furthermore, ``simplify`` is guaranteed to:
 - preserve relative ordering of any rows in the Site and Mutation tables
   that are not discarded.
 
-The :meth:`TableCollection.simplify` method can be applied to a collection of
+The :meth:`.TableCollection.simplify` method can be applied to a collection of
 tables that does not have the ``mutations.parent`` entries filled in, as long
 as all other validity requirements are satisfied.
+
+.. _sec_table_sorting:
 
 Sorting
 -------
 
 The validity requirements for a set of tables to be loaded into a tree sequence
 listed in :ref:`sec_table_definitions` are of two sorts: logical consistency,
-and sortedness. The :meth:`TableCollection.sort` method can be used to make
+and sortedness. The :meth:`.TableCollection.sort` method can be used to make
 completely valid a set of tables that satisfies all requirements other than
 sortedness.
 
@@ -755,7 +759,7 @@ be sorted. The method has two additional properties:
 - it preserves relative ordering between sites at the same position, and
 - it preserves relative ordering between mutations at the same site.
 
-:meth:`TableCollection.sort` does not check the validity of the `parent`
+:meth:`.TableCollection.sort` does not check the validity of the `parent`
 property of the mutation table. However, because the method preserves mutation
 order among mutations at the same site, if mutations are already sorted so that
 each mutation comes after its parent (e.g., if they are ordered by time of
@@ -766,7 +770,7 @@ are not specified.
 Removing duplicate sites
 ------------------------
 
-The :meth:`TableCollection.deduplicate_sites` method can be used to save a tree
+The :meth:`.TableCollection.deduplicate_sites` method can be used to save a tree
 sequence recording method the bother of checking to see if a given site already
 exists in the site table. If there is more than one site with the same
 position, all but the first is removed, and all mutations referring to the
@@ -782,7 +786,7 @@ of the mutation table would be easily inferred from the tree at that mutation's
 site. If mutations are entered into the mutation table ordered by time of
 appearance, then this sortedness allows us to infer the parent of each mutation
 even for mutations occurring on the same branch. The
-:meth:`TableCollection.compute_mutation_parents` method will take advantage
+:meth:`.TableCollection.compute_mutation_parents` method will take advantage
 of this fact to compute the ``parent`` column of a mutation table, if all
 other information is valid.
 

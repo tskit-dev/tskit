@@ -11,6 +11,10 @@ Refinements to the C API as we move towards 1.0.0. Changes:
 - Add ``tsk_flags_t`` typedef and consistently use this as the type used to
   encode bitwise flags. To avoid confusion, functions now have an ``options``
   parameter.
+- Rename ``tsk_table_collection_position_t`` to ``tsk_bookmark_t``.
+- Rename ``tsk_table_collection_reset_position`` to ``tsk_table_collection_truncate``
+  and ``tsk_table_collection_record_position`` to ``tsk_table_collection_record_num_rows``.
+- Generalise ``tsk_table_collection_sort`` to take a bookmark as start argument.
 
 ---------------------
 [0.99.0] - 2019-01-14

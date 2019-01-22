@@ -1988,6 +1988,8 @@ and ``provenance``) are ignored and can be set to arbitrary values.
 .. warning:: The current implementation only supports specifying a start 
     position for the ``edge`` table. Specifying a non-zero ``migration``,
     ``site`` or ``mutation`` start position results in an error.
+
+See the :ref:`table sorting <sec_table_sorting>` section for more details.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -2001,6 +2003,33 @@ and ``provenance``) are ignored and can be set to arbitrary values.
 int tsk_table_collection_sort(tsk_table_collection_t *self, tsk_bookmark_t *start, 
     tsk_flags_t options);
 
+/**
+@brief Simplify the tables to remove redundant information.
+
+@rst
+Simplification transforms the tables to remove redundancy and canonicalise 
+tree sequence data. See the :ref:`simplification <sec_table_simplification>` section for 
+more details.
+
+A mapping from the node IDs in the table before simplification to their equivalent 
+values after simplification can be obtained via the ``node_map`` argument. If this 
+is non NULL, ``node_map[u]`` will contain the new ID for node ``u`` after simplification,
+or ``TSK_NULL`` if the node has been removed. Thus, ``node_map`` must be an array of 
+at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
+
+.. todo:: Document options.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param samples An array of ``num_samples`` distinct and valid node IDs. These nodes will be
+    marked as samples in the output.
+@param num_samples The number of node IDs in the input samples array.
+@param options Simplify options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
+@param node_map If not NULL, this array will be filled to define the mapping 
+    between nodes IDs in the table collection before and after simplification. 
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_table_collection_simplify(tsk_table_collection_t *self,
     tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
 
