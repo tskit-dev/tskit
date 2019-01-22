@@ -1826,6 +1826,22 @@ test_sort_tables_drops_indexes(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_copy_table_collection(void)
+{
+    int ret;
+    tsk_table_collection_t tables, tables_copy;
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 1,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 2);
+    tsk_table_collection_copy(&tables,&tables_copy,0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, tables_copy.nodes.num_rows);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1846,6 +1862,7 @@ main(int argc, char **argv)
         {"test_load_tsk_node_table_errors", test_load_tsk_node_table_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
+        {"test_copy_table_collection", test_copy_table_collection},
         {NULL, NULL},
     };
 
