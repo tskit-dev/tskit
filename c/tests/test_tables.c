@@ -1861,16 +1861,79 @@ test_copy_table_collection(void)
 }
 
 static void
-test_sort_tables_unsupported(void)
+test_sort_tables_errors(void)
 {
     int ret;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
+    tsk_table_collection_position_t pos;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    /* Everything 0 should be fine */
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Everything is sorted already */
+    pos.edges = tables.edges.num_rows;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    pos.edges = (tsk_size_t) -1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+
+    pos.edges = tables.edges.num_rows + 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+
+    /* Individual, node, population and provenance positions are ignored */
+    memset(&pos, 0, sizeof(pos));
+    pos.individuals = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.nodes = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.populations = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.provenances = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Setting migrations, sites or mutations gives a BAD_PARAM. See
+     * github.com/tskit-dev/tskit/issues/101 */
+    memset(&pos, 0, sizeof(pos));
+    pos.migrations = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.sites = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.mutations = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    /* Migrations are not supported */
+    tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.num_rows, 1);
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -1897,7 +1960,7 @@ main(int argc, char **argv)
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
-        {"test_sort_tables_unsupported", test_sort_tables_unsupported},
+        {"test_sort_tables_errors", test_sort_tables_errors},
         {NULL, NULL},
     };
 

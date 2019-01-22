@@ -3372,8 +3372,8 @@ table_sorter_init(table_sorter_t *self, tsk_table_collection_t *tables,
     int ret = 0;
 
     memset(self, 0, sizeof(table_sorter_t));
-    if (tables == NULL) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
+    if (tables->migrations.num_rows != 0) {
+        ret = TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED;
         goto out;
     }
     ret = tsk_table_collection_check_integrity(tables, TSK_CHECK_OFFSETS);
@@ -3396,12 +3396,12 @@ out:
 }
 
 static int
-table_sorter_sort_edges(table_sorter_t *self, size_t start)
+table_sorter_sort_edges(table_sorter_t *self, tsk_size_t start)
 {
     int ret = 0;
     edge_sort_t *e;
-    size_t j, k;
-    size_t n = self->edges->num_rows - start;
+    tsk_size_t j, k;
+    tsk_size_t n = self->edges->num_rows - start;
     edge_sort_t *sorted_edges = malloc(n * sizeof(*sorted_edges));
 
     if (sorted_edges == NULL) {
@@ -3544,7 +3544,7 @@ out:
 }
 
 static int
-table_sorter_run(table_sorter_t *self, size_t edge_start)
+table_sorter_run(table_sorter_t *self, tsk_size_t edge_start)
 {
     int ret = 0;
 
@@ -5769,16 +5769,29 @@ tsk_table_collection_sort(tsk_table_collection_t *self, tsk_table_collection_pos
 {
     int ret = 0;
     table_sorter_t sorter;
-    size_t edge_start = 0;
+    tsk_size_t edge_start = 0;
 
-    if (start != NULL) {
-        edge_start = (size_t) start->edges;
-    }
+    /* Must init the sorter before we check errors */
     ret = table_sorter_init(&sorter, self, options);
     if (ret != 0) {
         goto out;
     }
-    ret = table_sorter_run(&sorter, (size_t) edge_start);
+    if (start != NULL) {
+        if (start->edges > self->edges.num_rows) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
+            goto out;
+        }
+        edge_start = start->edges;
+
+        /* For now, if migrations, sites or mutations are non-zero we get an error.
+         * This should be fixed: https://github.com/tskit-dev/tskit/issues/101
+         */
+        if (start->migrations != 0 || start->sites != 0 || start->mutations != 0) {
+            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
+            goto out;
+        }
+    }
+    ret = table_sorter_run(&sorter, edge_start);
     if (ret != 0) {
         goto out;
     }
@@ -6046,7 +6059,6 @@ tsk_table_collection_clear(tsk_table_collection_t *self)
     memset(&start, 0, sizeof(start));
     return tsk_table_collection_reset_position(self, &start);
 }
-
 
 static int
 cmp_edge_cl(const void *a, const void *b) {
