@@ -66,7 +66,7 @@ class NodeTable
             return ret;
         }
 
-        tsk_size_t get_num_rows(void)
+        tsk_size_t get_num_rows(void) const
         {
             return table->num_rows;
         }
