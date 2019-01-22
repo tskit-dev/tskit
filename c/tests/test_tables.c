@@ -1830,18 +1830,34 @@ static void
 test_copy_table_collection(void)
 {
     int ret;
+    tsk_treeseq_t ts;
     tsk_table_collection_t tables, tables_copy;
-    ret = tsk_table_collection_init(&tables, 0);
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL,
+            paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0,
-            TSK_NULL, TSK_NULL, NULL, 0);
-    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 1,
-            TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 2);
-    tsk_table_collection_copy(&tables,&tables_copy,0);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, tables_copy.nodes.num_rows);
+
+    /* Add some migrations, population and provenance */
+    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 2, 3, 4, 5);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(&tables.migrations, 1, 2, 3, 4, 5, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_population_table_add_row(&tables.populations, "metadata", 8);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_population_table_add_row(&tables.populations, "other", 5);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_provenance_table_add_row(&tables.provenances, "time", 4, "record", 6);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_provenance_table_add_row(&tables.provenances, "time ", 5, "record ", 7);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    tsk_table_collection_copy(&tables, &tables_copy, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &tables_copy));
+
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&tables_copy);
+    tsk_treeseq_free(&ts);
 }
 
 int
