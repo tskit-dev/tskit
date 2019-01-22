@@ -1,7 +1,7 @@
-project('tskit', 'c', default_options: ['c_std=c99'])
+project('tskit', ['c', 'cpp'], default_options: ['c_std=c99', 'cpp_std=c++11'])
 
 kastore_dir=join_paths(meson.source_root(), 'kastore/c')
-add_global_arguments(['-I' + kastore_dir], language: 'c')
+add_global_arguments(['-I' + kastore_dir], language: ['c', 'cpp'])
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required: false)
@@ -72,6 +72,9 @@ if cunit_dep.found()
     test('stats', test_stats)
 endif
 
+test_minimal_cpp = executable('test_minimal_cpp', 
+    sources: ['tests/test_minimal_cpp.cpp'], link_with: [tskit_lib])
+test('minimal_cpp', test_minimal_cpp)
 
 # The development CLI. Don't use extra C args because argtable code won't pass
 executable('dev-cli', 
