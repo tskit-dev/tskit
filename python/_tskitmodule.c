@@ -5449,7 +5449,7 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     int err;
     PyObject *ret = NULL;
     Py_ssize_t edge_start = 0;
-    tsk_table_collection_position_t start;
+    tsk_bookmark_t start;
     static char *kwlist[] = {"edge_start", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &edge_start)) {

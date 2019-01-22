@@ -183,6 +183,9 @@ Table collections
 .. doxygenstruct:: tsk_table_collection_t
     :members:
 
+.. doxygenstruct:: tsk_bookmark_t
+    :members:
+
 .. doxygengroup:: TABLE_COLLECTION_API_GROUP
     :content-only:
 

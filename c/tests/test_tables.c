@@ -1866,7 +1866,7 @@ test_sort_tables_errors(void)
     int ret;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
-    tsk_table_collection_position_t pos;
+    tsk_bookmark_t pos;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);

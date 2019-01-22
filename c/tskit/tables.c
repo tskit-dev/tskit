@@ -5764,7 +5764,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_sort(tsk_table_collection_t *self, tsk_table_collection_position_t *start,
+tsk_table_collection_sort(tsk_table_collection_t *self, tsk_bookmark_t *start,
         tsk_flags_t options)
 {
     int ret = 0;
@@ -5986,12 +5986,9 @@ out:
     return ret;
 }
 
-/* Record the current "end" position of a table collection,
- * which is the current number of rows in each table.
- */
 int
-tsk_table_collection_record_position(tsk_table_collection_t *self,
-        tsk_table_collection_position_t *position)
+tsk_table_collection_record_num_rows(tsk_table_collection_t *self,
+        tsk_bookmark_t *position)
 {
     position->individuals = self->individuals.num_rows;
     position->nodes = self->nodes.num_rows;
@@ -6004,10 +6001,9 @@ tsk_table_collection_record_position(tsk_table_collection_t *self,
     return 0;
 }
 
-/* Reset to the previously recorded position. */
 int TSK_WARN_UNUSED
-tsk_table_collection_reset_position(tsk_table_collection_t *tables,
-        tsk_table_collection_position_t *position)
+tsk_table_collection_truncate(tsk_table_collection_t *tables,
+        tsk_bookmark_t *position)
 {
     int ret = 0;
 
@@ -6054,10 +6050,10 @@ out:
 int TSK_WARN_UNUSED
 tsk_table_collection_clear(tsk_table_collection_t *self)
 {
-    tsk_table_collection_position_t start;
+    tsk_bookmark_t start;
 
     memset(&start, 0, sizeof(start));
-    return tsk_table_collection_reset_position(self, &start);
+    return tsk_table_collection_truncate(self, &start);
 }
 
 static int
