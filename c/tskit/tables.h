@@ -556,12 +556,11 @@ typedef struct {
 
 /**@} */
 
-
 /* Flags for simplify() */
 #define TSK_FILTER_SITES                 (1 << 0)
-#define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 1)
-#define TSK_FILTER_POPULATIONS           (1 << 2)
-#define TSK_FILTER_INDIVIDUALS           (1 << 3)
+#define TSK_FILTER_POPULATIONS           (1 << 1)
+#define TSK_FILTER_INDIVIDUALS           (1 << 2)
+#define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 3)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_OFFSETS                (1 << 0)
@@ -677,7 +676,7 @@ bool tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_ta
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -834,7 +833,7 @@ bool tsk_node_table_equals(tsk_node_table_t *self, tsk_node_table_t *other);
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -982,7 +981,7 @@ bool tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other);
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1129,7 +1128,7 @@ bool tsk_migration_table_equals(tsk_migration_table_t *self, tsk_migration_table
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1280,7 +1279,7 @@ bool tsk_site_table_equals(tsk_site_table_t *self, tsk_site_table_t *other);
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1437,7 +1436,7 @@ bool tsk_mutation_table_equals(tsk_mutation_table_t *self, tsk_mutation_table_t 
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1595,7 +1594,7 @@ bool tsk_population_table_equals(tsk_population_table_t *self, tsk_population_ta
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1745,7 +1744,7 @@ bool tsk_provenance_table_equals(tsk_provenance_table_t *self, tsk_provenance_ta
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1874,7 +1873,7 @@ bool tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collect
 @brief Copies the state of this table collection into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -2003,6 +2002,7 @@ See the :ref:`table sorting <sec_table_sorting>` section for more details.
 int tsk_table_collection_sort(tsk_table_collection_t *self, tsk_bookmark_t *start, 
     tsk_flags_t options);
 
+
 /**
 @brief Simplify the tables to remove redundant information.
 
@@ -2017,7 +2017,30 @@ is non NULL, ``node_map[u]`` will contain the new ID for node ``u`` after simpli
 or ``TSK_NULL`` if the node has been removed. Thus, ``node_map`` must be an array of 
 at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
 
-.. todo:: Document options.
+**Options**:
+
+Options can be specified by providing one or more of the specified bitwise
+flags:
+
+TSK_FILTER_SITES
+    Remove sites from the output if there are no mutations that reference them.
+TSK_FILTER_POPULATIONS
+    Remove populations from the output if there are no nodes or migrations that 
+    reference them.
+TSK_FILTER_INDIVIDUALS
+    Remove individuals from the output if there are no nodes that reference them.
+TSK_REDUCE_TO_SITE_TOPOLOGY
+    Reduce the topological information in the tables to the minimum necessary to
+    represent the trees that contain sites. If there are zero sites this will 
+    result in an zero output edges. When the number of sites is greater than zero, 
+    every tree in the output tree sequence will contain at least one site. 
+    For a given site, the topology of the tree containing that site will be 
+    identical (up to node ID remapping) to the topology of the corresponding tree 
+    in the input.
+
+.. note:: Migrations are currently not supported by simplify, and an error will
+    be raised if we attempt call simplify on a table collection with greater
+    than zero migrations. See `<https://github.com/tskit-dev/tskit/issues/20>`_
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -2029,8 +2052,8 @@ at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
     order of ID.
 @param num_samples The number of node IDs in the input samples array. Ignored
     if the samples array is NULL.
-@param options Simplify options. Currently unused; should be 
-    set to zero to ensure compatibility with later versions of tskit.
+@param options Simplify options; see above for the available bitwise flags.
+    For the default behaviour, a value of 0 should be provided.
 @param node_map If not NULL, this array will be filled to define the mapping 
     between nodes IDs in the table collection before and after simplification. 
 @return Return 0 on success or a negative value on failure.
