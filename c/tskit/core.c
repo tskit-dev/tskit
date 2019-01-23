@@ -100,7 +100,7 @@ tsk_strerror_internal(int err)
     switch (err) {
         case 0:
             ret = "Normal exit condition. This is not an error!";
-            goto out;
+            break;
 
         /* General errors */
         case TSK_ERR_GENERIC:
@@ -286,7 +286,6 @@ tsk_strerror_internal(int err)
             ret = "Only binary mutations are supported for this operation";
             break;
     }
-out:
     return ret;
 }
 
@@ -306,7 +305,7 @@ tsk_is_kas_error(int err)
 const char *
 tsk_strerror(int err)
 {
-    if (tsk_is_kas_error(err)) {
+    if (err != 0 && tsk_is_kas_error(err)) {
         err ^= (1 << TSK_KAS_ERR_BIT);
         return kas_strerror(err);
     } else {

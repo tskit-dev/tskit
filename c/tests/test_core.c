@@ -15,6 +15,8 @@ test_strerror(void)
         CU_ASSERT_FATAL(msg != NULL);
         CU_ASSERT(strlen(msg) > 0);
     }
+    CU_ASSERT_STRING_EQUAL(tsk_strerror(0),
+            "Normal exit condition. This is not an error!");
 }
 
 static void

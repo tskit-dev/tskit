@@ -574,10 +574,11 @@ typedef struct {
      TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
 
 /* Flags for dump tables */
+#define TSK_NO_BUILD_INDEXES            (1 << 0)
 
 /* Flags for load tables */
-#define TSK_BUILD_INDEXES 1
-
+#define TSK_BUILD_INDEXES               (1 << 0)
+ 
 
 /****************************************************************************/
 /* Function signatures */
@@ -679,6 +680,8 @@ bool tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_ta
 By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
+
+Indexes that are present are also copied to the destination table.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -1863,6 +1866,12 @@ int tsk_table_collection_clear(tsk_table_collection_t *self);
 @brief Returns true if the data in the specified table collection is identical to the data
        in this table.
 
+@rst
+Returns true if the data in all of the table columns are byte-by-byte equal
+and the sequence lengths of the two table collections are equal. Indexes are not considered
+when determining equality, since they are derived from the basic data.
+@endrst
+
 @param self A pointer to a tsk_table_collection_t object.
 @param other A pointer to a tsk_table_collection_t object.
 @return Return true if the specified table collection is equal to this table.
@@ -1904,16 +1913,39 @@ void tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out);
 @brief Load a table collection from file.
 
 @rst
-Allocates a new table collection and loads the data from the specified file.
-Note that :c:macro:`TSK_NO_INIT_TABLES` is **not** supported by this 
-function and passing in an initialised table collection will result in a 
-memory leak.
+Loads the data from the specified file into this table collection.
+By default, the table collection is also initialised.
+If the :c:macro:`TSK_NO_INIT` option is set, the table collection is 
+not initialised, allowing an already initialised table collection to 
+be overwritten with the data from a file.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_INIT
+    Do not initialise this :c:type:`tsk_table_collection_t` before loading.
+
+**Examples**
+
+.. code-block:: c
+    
+    int ret;
+    tsk_table_collection_t tables;
+    ret = tsk_table_collection_load(&tables, "data.trees", 0);
+    if (ret != 0) {
+        fprintf(stderr, "Load error:%s\n", tsk_strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+    
 @endrst
 
-@param self A pointer to an uninitialised tsk_table_collection_t object.
+@param self A pointer to an uninitialised tsk_table_collection_t object
+    if the TSK_NO_INIT option is not set (default), or an initialised
+    tsk_table_collection_t otherwise.
 @param filename A NULL terminated string containing the filename.
-@param options Load time options. Currently unused; should be 
-    set to zero to ensure compatibility with later versions of tskit.
+@param options Bitwise options. See above for details.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_load(tsk_table_collection_t *self, const char *filename, 
@@ -1921,6 +1953,44 @@ int tsk_table_collection_load(tsk_table_collection_t *self, const char *filename
 
 /**
 @brief Write a table collection to file.
+
+@rst
+Writes the data from this table collection to the specified file.
+Usually we expect that data written to a file will be in a form that 
+can be read directly and used to create a tree sequence; that is, we 
+assume that by default the tables are :ref:`sorted <sec_table_sorting>` 
+and should be :ref:`indexed <sec_table_indexing>`. Following these
+assumptions, if the tables are not already indexed, we index the tables
+before writing to file to save the cost of building these indexes at 
+load time. This behaviour requires that the tables are sorted. 
+If this automatic indexing is not desired, it can be disabled using 
+the :c:macro:`TSK_NO_BUILD_INDEXES` option.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_BUILD_INDEXES
+    Do not build indexes for this table before writing to file. This is useful
+    if you wish to write unsorted tables to file, as building the indexes 
+    will raise an error if the table is unsorted.
+
+**Examples**
+
+.. code-block:: c
+    
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    error_check(ret);
+    tables.sequence_length = 1.0;
+    // Write out the empty tree sequence
+    ret = tsk_table_collection_dump(&tables, "empty.trees", 0);
+    error_check(ret);
+    
+@endrst
 
 @param self A pointer to an initialised tsk_table_collection_t object.
 @param filename A NULL terminated string containing the filename.
@@ -2019,7 +2089,7 @@ at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
 
 **Options**:
 
-Options can be specified by providing one or more of the specified bitwise
+Options can be specified by providing one or more of the following bitwise
 flags:
 
 TSK_FILTER_SITES
@@ -2061,13 +2131,45 @@ TSK_REDUCE_TO_SITE_TOPOLOGY
 int tsk_table_collection_simplify(tsk_table_collection_t *self,
     tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
 
+/**
+@brief Returns true if this table collection is indexed.
+
+@param self A pointer to a tsk_table_collection_t object.
+@return Return true if there is an index present for this table collection.
+*/
+bool tsk_table_collection_is_indexed(tsk_table_collection_t *self);
+
+/**
+@brief Deletes the indexes for this table collection.
+
+@rst
+Unconditionally drop the indexes that may be present for this table collection. It 
+is not an error to call this method on an unindexed table collection.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@return Always returns 0.
+*/
+int tsk_table_collection_drop_indexes(tsk_table_collection_t *self);
+
+/**
+@brief Builds indexes for this table collection.
+
+@rst
+Builds the tree traversal :ref:`indexes <sec_table_indexing>` for this table collection.
+Any existing index is first dropped using :c:func:`tsk_table_collection_drop_indexes`.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t options);
 /** @} */
 
 /* Undocumented methods */
 
-bool tsk_table_collection_is_indexed(tsk_table_collection_t *self);
-int tsk_table_collection_drop_indexes(tsk_table_collection_t *self);
-int tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_deduplicate_sites(tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options);

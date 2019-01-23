@@ -402,7 +402,8 @@ tsk_treeseq_copy_tables(tsk_treeseq_t *self, tsk_table_collection_t *tables,
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t TSK_UNUSED(options))
+tsk_treeseq_load(tsk_treeseq_t *self, const char *filename,
+        tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_table_collection_t tables;

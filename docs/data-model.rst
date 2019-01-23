@@ -767,6 +767,16 @@ appearance), then this property is preserved, even if the `parent` properties
 are not specified.
 
 
+.. _sec_table_indexing:
+
+Indexing
+--------
+
+To efficiently iterate over the trees in a tree sequence, ``tskit`` uses
+indexes built on the edges. To create a tree sequence from a table collection
+the tables must be indexed.
+
+
 Removing duplicate sites
 ------------------------
 
