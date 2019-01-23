@@ -210,14 +210,14 @@ test_dump_unindexed(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
     parse_edges(single_tree_ex_edges, &tables.edges);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
     ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables));
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
 
     ret = tsk_table_collection_load(&loaded, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&loaded));
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&loaded, 0));
     CU_ASSERT_TRUE(tsk_node_table_equals(&tables.nodes, &loaded.nodes));
     CU_ASSERT_TRUE(tsk_edge_table_equals(&tables.edges, &loaded.edges));
 
@@ -420,10 +420,10 @@ test_node_table(void)
     tsk_node_table_dump_text(&table, _devnull);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
-        ret = tsk_node_table_add_row(&table, (unsigned int) j, j, j, j,
+        ret = tsk_node_table_add_row(&table, (tsk_flags_t) j, j, j, j,
                 test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret, j);
-        CU_ASSERT_EQUAL(table.flags[j], (unsigned int) j);
+        CU_ASSERT_EQUAL(table.flags[j], (tsk_flags_t) j);
         CU_ASSERT_EQUAL(table.time[j], j);
         CU_ASSERT_EQUAL(table.population[j], j);
         CU_ASSERT_EQUAL(table.individual[j], j);
@@ -1796,13 +1796,30 @@ test_simplify_tables_drops_indexes(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0))
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplify_empty_tables(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    ret = tsk_table_collection_simplify(&tables, NULL, 0, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 0);
+
+    tsk_table_collection_free(&tables);
 }
 
 static void
@@ -1817,10 +1834,10 @@ test_sort_tables_drops_indexes(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables))
-    ret = tsk_table_collection_sort(&tables, 0, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0))
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -1860,6 +1877,203 @@ test_copy_table_collection(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_sort_tables_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_bookmark_t pos;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    /* Everything 0 should be fine */
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Everything is sorted already */
+    pos.edges = tables.edges.num_rows;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    pos.edges = (tsk_size_t) -1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+
+    pos.edges = tables.edges.num_rows + 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+
+    /* Individual, node, population and provenance positions are ignored */
+    memset(&pos, 0, sizeof(pos));
+    pos.individuals = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.nodes = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.populations = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.provenances = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Setting migrations, sites or mutations gives a BAD_PARAM. See
+     * github.com/tskit-dev/tskit/issues/101 */
+    memset(&pos, 0, sizeof(pos));
+    pos.migrations = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.sites = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    memset(&pos, 0, sizeof(pos));
+    pos.mutations = 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    /* Migrations are not supported */
+    tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.num_rows, 1);
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_dump_load_empty(void)
+{
+    int ret;
+    tsk_table_collection_t t1, t2;
+
+    ret = tsk_table_collection_init(&t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    t1.sequence_length = 1.0;
+    ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+}
+
+static void
+test_dump_load_unsorted(void)
+{
+    int ret;
+    tsk_table_collection_t t1, t2;
+    /* tsk_treeseq_t ts; */
+
+    ret = tsk_table_collection_init(&t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    t1.sequence_length = 1.0;
+
+    ret = tsk_node_table_add_row(&t1.nodes, TSK_NODE_IS_SAMPLE, 0,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(&t1.nodes, TSK_NODE_IS_SAMPLE, 0,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_node_table_add_row(&t1.nodes, TSK_NODE_IS_SAMPLE, 0,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    ret = tsk_node_table_add_row(&t1.nodes, TSK_NODE_IS_SAMPLE, 1,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
+    ret = tsk_node_table_add_row(&t1.nodes, TSK_NODE_IS_SAMPLE, 2,
+            TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 4);
+
+    ret = tsk_edge_table_add_row(&t1.edges, 0, 1, 3, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&t1.edges, 0, 1, 4, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_edge_table_add_row(&t1.edges, 0, 1, 3, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    ret = tsk_edge_table_add_row(&t1.edges, 0, 1, 4, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
+
+    /* Verify that it's unsorted */
+    ret = tsk_table_collection_check_integrity(&t1,
+        TSK_CHECK_OFFSETS|TSK_CHECK_EDGE_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+
+    /* Indexing should fail */
+    ret = tsk_table_collection_build_index(&t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
+
+    /* Trying to dump without first sorting should also fail */
+    ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+
+    ret = tsk_table_collection_dump(&t1, _tmp_file_name, TSK_NO_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t2, 0));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+}
+
+static void
+test_load_reindex(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_dump(&ts, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_drop_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
+
+    ret = tsk_table_collection_drop_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Dump the unindexed version */
+    ret = tsk_table_collection_dump(&tables, _tmp_file_name, TSK_NO_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1879,8 +2093,13 @@ main(int argc, char **argv)
         {"test_table_collection_simplify_errors", test_table_collection_simplify_errors},
         {"test_load_tsk_node_table_errors", test_load_tsk_node_table_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
+        {"test_simplify_empty_tables", test_simplify_empty_tables},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
+        {"test_sort_tables_errors", test_sort_tables_errors},
+        {"test_dump_load_empty", test_dump_load_empty},
+        {"test_dump_load_unsorted", test_dump_load_unsorted},
+        {"test_load_reindex", test_load_reindex},
         {NULL, NULL},
     };
 

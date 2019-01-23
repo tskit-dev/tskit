@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <err.h>
 
 #include <gsl/gsl_rng.h>
@@ -16,6 +17,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
     double breakpoint;
     int ret, j, t, b;
 
+    assert(simplify_interval != 0); // leads to division by zero
     buffer = malloc(2 * N * sizeof(tsk_id_t));
     if (buffer == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
@@ -23,7 +25,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
     tables->sequence_length = 1.0;
     parents = buffer;
     for (j = 0; j < N; j++) {
-        parents[j] = tsk_node_table_add_row(&tables->nodes, TSK_NODE_IS_SAMPLE, T,
+        parents[j] = tsk_node_table_add_row(&tables->nodes, 0, T,
                 TSK_NULL, TSK_NULL, NULL, 0);
         check_tsk_error(parents[j]);
     }
@@ -34,7 +36,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
         b = (b + 1) % 2;
         children = buffer + (b * N);
         for (j = 0; j < N; j++) {
-            child = tsk_node_table_add_row(&tables->nodes, TSK_NODE_IS_SAMPLE, t,
+            child = tsk_node_table_add_row(&tables->nodes, 0, t,
                     TSK_NULL, TSK_NULL, NULL, 0);
             check_tsk_error(child);
             left_parent = parents[gsl_rng_uniform_int(rng, N)];
@@ -48,7 +50,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
             check_tsk_error(ret);
             children[j] = child;
         }
-        if (simplify_interval != 0 && t % simplify_interval == 0) {
+        if (t % simplify_interval == 0) {
             printf("Simplify at generation %d: (%d nodes %d edges)", t,
                     tables->nodes.num_rows, tables->edges.num_rows);
             ret = tsk_table_collection_sort(tables, 0, 0); /* FIXME; should take position. */

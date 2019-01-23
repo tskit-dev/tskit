@@ -1134,6 +1134,42 @@ class TestSimplifyExamples(TopologyTestCase):
             nodes_before=nodes_before, edges_before=edges_before,
             nodes_after=nodes_after, edges_after=edges_after)
 
+    def test_single_binary_tree_no_sample_nodes(self):
+        #
+        # 2        4
+        #         / \
+        # 1      3   \
+        #       / \   \
+        # 0   (0)(1)  (2)
+        nodes_before = """\
+        id      is_sample   time
+        0       0           0
+        1       0           0
+        2       0           0
+        3       0           1
+        4       0           2
+        """
+        edges_before = """\
+        left    right   parent  child
+        0       1       3       0,1
+        0       1       4       2,3
+        """
+        # We sample 0 and 2, so we get
+        nodes_after = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           2
+        """
+        edges_after = """\
+        left    right   parent  child
+        0       1       2       0,1
+        """
+        self.verify_simplify(
+            samples=[0, 2],
+            nodes_before=nodes_before, edges_before=edges_before,
+            nodes_after=nodes_after, edges_after=edges_after)
+
     def test_single_binary_tree_internal_sample(self):
         #
         # 2        4
@@ -2597,6 +2633,23 @@ class TestSimplify(unittest.TestCase):
                 self.assertTrue(all(node_map == lib_node_map))
         return new_ts, node_map
 
+    def verify_no_samples(self, ts):
+        """
+        Zero out the flags column and verify that we get back the correct
+        tree sequence when we run simplify.
+        """
+        t1 = ts.dump_tables()
+        t1.nodes.set_columns(
+            flags=np.zeros_like(t1.nodes.flags),
+            time=t1.nodes.time,
+            population=t1.nodes.population,
+            metadata=t1.nodes.metadata,
+            metadata_offset=t1.nodes.metadata_offset)
+        t1.simplify(samples=ts.samples())
+        t2 = ts.dump_tables()
+        t2.simplify()
+        self.assertEqual(t1, t2)
+
     def verify_single_childified(self, ts):
         """
         Modify the specified tree sequence so that it has lots of unary
@@ -2641,6 +2694,7 @@ class TestSimplify(unittest.TestCase):
 
     def test_single_tree(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
+        self.verify_no_samples(ts)
         self.verify_single_childified(ts)
         self.verify_multiroot_internal_samples(ts)
 
@@ -2655,12 +2709,14 @@ class TestSimplify(unittest.TestCase):
             10, recombination_rate=1, mutation_rate=10, random_seed=self.random_seed)
         self.assertGreater(ts.num_trees, 2)
         self.assertGreater(ts.num_sites, 2)
+        self.verify_no_samples(ts)
         self.do_simplify(ts)
         self.verify_single_childified(ts)
 
     def test_many_trees(self):
         ts = msprime.simulate(5, recombination_rate=4, random_seed=self.random_seed)
         self.assertGreater(ts.num_trees, 2)
+        self.verify_no_samples(ts)
         self.verify_single_childified(ts)
         self.verify_multiroot_internal_samples(ts)
 
@@ -2684,6 +2740,7 @@ class TestSimplify(unittest.TestCase):
         self.assertEqual(node_map[5], 1)
         self.assertEqual(tss.num_nodes, 3)
         self.assertEqual(tss.num_edges, 2)
+        self.verify_no_samples(ts)
 
     def test_small_tree_linear_samples(self):
         ts = tskit.load_text(

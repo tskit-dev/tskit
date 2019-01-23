@@ -183,6 +183,9 @@ Table collections
 .. doxygenstruct:: tsk_table_collection_t
     :members:
 
+.. doxygenstruct:: tsk_bookmark_t
+    :members:
+
 .. doxygengroup:: TABLE_COLLECTION_API_GROUP
     :content-only:
 
@@ -297,6 +300,8 @@ Provenances
 Tree sequences
 **************
 
+.. warning:: This part of the API is more preliminary and may be subject to change.
+
 .. doxygenstruct:: tsk_treeseq_t
     :members:
 
@@ -306,6 +311,8 @@ Tree sequences
 *****
 Trees
 *****
+
+.. warning:: This part of the API is more preliminary and may be subject to change.
 
 .. doxygenstruct:: tsk_tree_t
     :members:

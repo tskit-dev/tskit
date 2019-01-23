@@ -510,20 +510,29 @@ typedef struct {
         bool malloced_locally;
     } indexes;
     kastore_t *store;
-    /* TODO Add in reserved space for future tables. */
 } tsk_table_collection_t;
 
+/**
+@brief A bookmark recording the position of all the tables in a table collection.
+*/
 typedef struct {
+    /** @brief The position in the individual table. */
     tsk_size_t individuals;
+    /** @brief The position in the node table. */
     tsk_size_t nodes;
+    /** @brief The position in the edge table. */
     tsk_size_t edges;
+    /** @brief The position in the migration table. */
     tsk_size_t migrations;
+    /** @brief The position in the site table. */
     tsk_size_t sites;
+    /** @brief The position in the mutation table. */
     tsk_size_t mutations;
+    /** @brief The position in the population table. */
     tsk_size_t populations;
+    /** @brief The position in the provenance table. */
     tsk_size_t provenances;
-    /* TODO add reserved space for future tables. */
-} tsk_table_collection_position_t;
+} tsk_bookmark_t;
 
 
 /****************************************************************************/
@@ -547,12 +556,11 @@ typedef struct {
 
 /**@} */
 
-
 /* Flags for simplify() */
 #define TSK_FILTER_SITES                 (1 << 0)
-#define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 1)
-#define TSK_FILTER_POPULATIONS           (1 << 2)
-#define TSK_FILTER_INDIVIDUALS           (1 << 3)
+#define TSK_FILTER_POPULATIONS           (1 << 1)
+#define TSK_FILTER_INDIVIDUALS           (1 << 2)
+#define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 3)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_OFFSETS                (1 << 0)
@@ -566,10 +574,11 @@ typedef struct {
      TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
 
 /* Flags for dump tables */
+#define TSK_NO_BUILD_INDEXES            (1 << 0)
 
 /* Flags for load tables */
-#define TSK_BUILD_INDEXES 1
-
+#define TSK_BUILD_INDEXES               (1 << 0)
+ 
 
 /****************************************************************************/
 /* Function signatures */
@@ -591,7 +600,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_individual_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t options);
@@ -646,7 +655,7 @@ No memory is freed as a result of this operation; please use
 int tsk_individual_table_clear(tsk_individual_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_individual_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -668,9 +677,11 @@ bool tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_ta
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
+
+Indexes that are present are also copied to the destination table.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -751,7 +762,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_node_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_node_table_init(tsk_node_table_t *self, tsk_flags_t options);
@@ -803,7 +814,7 @@ No memory is freed as a result of this operation; please use
 int tsk_node_table_clear(tsk_node_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_node_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -825,7 +836,7 @@ bool tsk_node_table_equals(tsk_node_table_t *self, tsk_node_table_t *other);
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -904,7 +915,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_edge_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options);
@@ -951,7 +962,7 @@ No memory is freed as a result of this operation; please use
 int tsk_edge_table_clear(tsk_edge_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_edge_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -973,7 +984,7 @@ bool tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other);
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1047,7 +1058,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_migration_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t options);
@@ -1098,7 +1109,7 @@ No memory is freed as a result of this operation; please use
 int tsk_migration_table_clear(tsk_migration_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_migration_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -1120,7 +1131,7 @@ bool tsk_migration_table_equals(tsk_migration_table_t *self, tsk_migration_table
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1198,7 +1209,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_site_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_site_table_init(tsk_site_table_t *self, tsk_flags_t options);
@@ -1249,7 +1260,7 @@ No memory is freed as a result of this operation; please use
 int tsk_site_table_clear(tsk_site_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_site_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -1271,7 +1282,7 @@ bool tsk_site_table_equals(tsk_site_table_t *self, tsk_site_table_t *other);
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1352,7 +1363,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_mutation_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_mutation_table_init(tsk_mutation_table_t *self, tsk_flags_t options);
@@ -1406,7 +1417,7 @@ No memory is freed as a result of this operation; please use
 int tsk_mutation_table_clear(tsk_mutation_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_mutation_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -1428,7 +1439,7 @@ bool tsk_mutation_table_equals(tsk_mutation_table_t *self, tsk_mutation_table_t 
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1518,7 +1529,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_population_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_population_table_init(tsk_population_table_t *self, tsk_flags_t options);
@@ -1564,7 +1575,7 @@ No memory is freed as a result of this operation; please use
 int tsk_population_table_clear(tsk_population_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_population_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -1586,7 +1597,7 @@ bool tsk_population_table_equals(tsk_population_table_t *self, tsk_population_ta
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1663,7 +1674,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_provenance_table_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_provenance_table_init(tsk_provenance_table_t *self, tsk_flags_t options);
@@ -1714,7 +1725,7 @@ No memory is freed as a result of this operation; please use
 int tsk_provenance_table_clear(tsk_provenance_table_t *self);
 
 /**
-@brief Truncates this tables so that only the first num_rows are retained.
+@brief Truncates this table so that only the first num_rows are retained.
 
 @param self A pointer to a tsk_provenance_table_t object.
 @param num_rows The number of rows to retain in the table.
@@ -1736,7 +1747,7 @@ bool tsk_provenance_table_equals(tsk_provenance_table_t *self, tsk_provenance_ta
 @brief Copies the state of this table into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1825,7 +1836,7 @@ are initialised and freed.
 
 @param self A pointer to an uninitialised tsk_table_collection_t object.
 @param options Allocation time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options);
@@ -1855,6 +1866,12 @@ int tsk_table_collection_clear(tsk_table_collection_t *self);
 @brief Returns true if the data in the specified table collection is identical to the data
        in this table.
 
+@rst
+Returns true if the data in all of the table columns are byte-by-byte equal
+and the sequence lengths of the two table collections are equal. Indexes are not considered
+when determining equality, since they are derived from the basic data.
+@endrst
+
 @param self A pointer to a tsk_table_collection_t object.
 @param other A pointer to a tsk_table_collection_t object.
 @return Return true if the specified table collection is equal to this table.
@@ -1865,7 +1882,7 @@ bool tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collect
 @brief Copies the state of this table collection into the specified destination.
 
 @rst
-By default the method initialises the specified destinitation table. If the 
+By default the method initialises the specified destination table. If the 
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should 
 be supplied to avoid leaking memory.
 @endrst
@@ -1896,50 +1913,274 @@ void tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out);
 @brief Load a table collection from file.
 
 @rst
-Allocates a new table collection and loads the data from the specified file.
-Note that :c:macro:`TSK_NO_INIT_TABLES` is **not** supported by this 
-function and passing in an initialised table collection will result in a 
-memory leak.
+Loads the data from the specified file into this table collection.
+By default, the table collection is also initialised.
+If the :c:macro:`TSK_NO_INIT` option is set, the table collection is 
+not initialised, allowing an already initialised table collection to 
+be overwritten with the data from a file.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_INIT
+    Do not initialise this :c:type:`tsk_table_collection_t` before loading.
+
+**Examples**
+
+.. code-block:: c
+    
+    int ret;
+    tsk_table_collection_t tables;
+    ret = tsk_table_collection_load(&tables, "data.trees", 0);
+    if (ret != 0) {
+        fprintf(stderr, "Load error:%s\n", tsk_strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+    
 @endrst
 
-@param self A pointer to an uninitialised tsk_table_collection_t object.
+@param self A pointer to an uninitialised tsk_table_collection_t object
+    if the TSK_NO_INIT option is not set (default), or an initialised
+    tsk_table_collection_t otherwise.
 @param filename A NULL terminated string containing the filename.
-@param options Load time options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+@param options Bitwise options. See above for details.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_load(tsk_table_collection_t *self, const char *filename, 
     tsk_flags_t options);
+
 /**
 @brief Write a table collection to file.
+
+@rst
+Writes the data from this table collection to the specified file.
+Usually we expect that data written to a file will be in a form that 
+can be read directly and used to create a tree sequence; that is, we 
+assume that by default the tables are :ref:`sorted <sec_table_sorting>` 
+and should be :ref:`indexed <sec_table_indexing>`. Following these
+assumptions, if the tables are not already indexed, we index the tables
+before writing to file to save the cost of building these indexes at 
+load time. This behaviour requires that the tables are sorted. 
+If this automatic indexing is not desired, it can be disabled using 
+the :c:macro:`TSK_NO_BUILD_INDEXES` option.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_BUILD_INDEXES
+    Do not build indexes for this table before writing to file. This is useful
+    if you wish to write unsorted tables to file, as building the indexes 
+    will raise an error if the table is unsorted.
+
+**Examples**
+
+.. code-block:: c
+    
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    error_check(ret);
+    tables.sequence_length = 1.0;
+    // Write out the empty tree sequence
+    ret = tsk_table_collection_dump(&tables, "empty.trees", 0);
+    error_check(ret);
+    
+@endrst
 
 @param self A pointer to an initialised tsk_table_collection_t object.
 @param filename A NULL terminated string containing the filename.
 @param options Write options. Currently unused; should be 
-    set to zero to ensure compatability with later versions of tskit.
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename, 
     tsk_flags_t options);
 
+/**
+@brief Record the number of rows in each table in the specified tsk_bookmark_t object.
+
+@param self A pointer to an initialised tsk_table_collection_t object.
+@param bookmark A pointer to a tsk_bookmark_t which is updated to contain the number of 
+    rows in all tables.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_record_num_rows(tsk_table_collection_t *self,
+    tsk_bookmark_t *bookmark);
+
+/**
+@brief Truncates the tables in this table collection according to the specified bookmark.
+
+@rst
+Truncate the tables in this collection so that each one has the number 
+of rows specified in the parameter :c:type:`tsk_bookmark_t`. Use the 
+:c:func:`tsk_table_collection_record_num_rows` function to record the 
+number rows for each table in a table collection at a particular time.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param bookmark The number of rows to retain in each table.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_truncate(tsk_table_collection_t *self, tsk_bookmark_t *bookmark);
+
+
+/**
+@brief Sorts the tables in this collection.
+
+@rst
+Some of the tables in a table collection must satisfy specific sortedness requirements 
+in order to define a :ref:`valid tree sequence <sec_valid_tree_sequence_requirements>`.
+This method sorts the ``edge``, ``site`` and ``mutation`` tables such that 
+these requirements are guaranteed to be fulfilled. The ``individual``, 
+``node``, ``population`` and ``provenance`` tables do not have any sortedness 
+requirements, and are therefore ignored by this method.
+
+.. note:: The current implementation **may** sort in such a way that exceeds 
+    these requirements, but this behaviour should not be relied upon and later 
+    versions may weaken the level of sortedness. However, the method does **guarantee**
+    that the resulting tables describes a valid tree sequence.
+
+.. warning:: Sorting migrations is currently not supported and an error will be raised
+    if a table collection containing a non-empty migration table is specified.
+
+The specified :c:type:`tsk_bookmark_t` allows us to specify a start position 
+for sorting in each of the tables; rows before this value are assumed to already be 
+in sorted order and this information is used to make sorting more efficient. 
+Positions in tables that are not sorted (``individual``, ``node``, ``population`` 
+and ``provenance``) are ignored and can be set to arbitrary values.
+
+.. warning:: The current implementation only supports specifying a start 
+    position for the ``edge`` table. Specifying a non-zero ``migration``,
+    ``site`` or ``mutation`` start position results in an error.
+
+The table collection will always be unindexed after sort successfully completes.
+
+See the :ref:`table sorting <sec_table_sorting>` section for more details.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param start The position to begin sorting in each table; all rows less than this
+    position must fulfill the tree sequence sortedness requirements. If this is 
+    NULL, sort all rows.
+@param options Sort options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_sort(tsk_table_collection_t *self, tsk_bookmark_t *start, 
+    tsk_flags_t options);
+
+
+/**
+@brief Simplify the tables to remove redundant information.
+
+@rst
+Simplification transforms the tables to remove redundancy and canonicalise 
+tree sequence data. See the :ref:`simplification <sec_table_simplification>` section for 
+more details.
+
+A mapping from the node IDs in the table before simplification to their equivalent 
+values after simplification can be obtained via the ``node_map`` argument. If this 
+is non NULL, ``node_map[u]`` will contain the new ID for node ``u`` after simplification,
+or ``TSK_NULL`` if the node has been removed. Thus, ``node_map`` must be an array of 
+at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
+
+**Options**:
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_FILTER_SITES
+    Remove sites from the output if there are no mutations that reference them.
+TSK_FILTER_POPULATIONS
+    Remove populations from the output if there are no nodes or migrations that 
+    reference them.
+TSK_FILTER_INDIVIDUALS
+    Remove individuals from the output if there are no nodes that reference them.
+TSK_REDUCE_TO_SITE_TOPOLOGY
+    Reduce the topological information in the tables to the minimum necessary to
+    represent the trees that contain sites. If there are zero sites this will 
+    result in an zero output edges. When the number of sites is greater than zero, 
+    every tree in the output tree sequence will contain at least one site. 
+    For a given site, the topology of the tree containing that site will be 
+    identical (up to node ID remapping) to the topology of the corresponding tree 
+    in the input.
+
+.. note:: Migrations are currently not supported by simplify, and an error will
+    be raised if we attempt call simplify on a table collection with greater
+    than zero migrations. See `<https://github.com/tskit-dev/tskit/issues/20>`_
+
+The table collection will always be unindexed after simplify successfully 
+completes.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param samples Either NULL or an array of num_samples distinct and valid node IDs. 
+    If non-null the nodes in this array will be marked as samples in the output.
+    If NULL, the num_samples parameter is ignored and the samples in the output 
+    will be the same as the samples in the input. This is equivalent to populating 
+    the samples array with all of the sample nodes in the input in increasing
+    order of ID.
+@param num_samples The number of node IDs in the input samples array. Ignored
+    if the samples array is NULL.
+@param options Simplify options; see above for the available bitwise flags.
+    For the default behaviour, a value of 0 should be provided.
+@param node_map If not NULL, this array will be filled to define the mapping 
+    between nodes IDs in the table collection before and after simplification. 
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_simplify(tsk_table_collection_t *self,
+    tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
+
+/**
+@brief Returns true if this table collection is indexed.
+
+@param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return true if there is an index present for this table collection.
+*/
+bool tsk_table_collection_has_index(tsk_table_collection_t *self, tsk_flags_t options);
+
+/**
+@brief Deletes the indexes for this table collection.
+
+@rst
+Unconditionally drop the indexes that may be present for this table collection. It 
+is not an error to call this method on an unindexed table collection.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
+@return Always returns 0.
+*/
+int tsk_table_collection_drop_index(tsk_table_collection_t *self, tsk_flags_t options);
+
+/**
+@brief Builds indexes for this table collection.
+
+@rst
+Builds the tree traversal :ref:`indexes <sec_table_indexing>` for this table collection.
+Any existing index is first dropped using :c:func:`tsk_table_collection_drop_indexes`.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t options);
 /** @} */
 
 /* Undocumented methods */
 
-
-bool tsk_table_collection_is_indexed(tsk_table_collection_t *self);
-int tsk_table_collection_drop_indexes(tsk_table_collection_t *self);
-int tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t options);
-int tsk_table_collection_simplify(tsk_table_collection_t *self,
-    tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
-int tsk_table_collection_sort(tsk_table_collection_t *self, tsk_size_t edge_start, 
-    tsk_flags_t options);
 int tsk_table_collection_deduplicate_sites(tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(tsk_table_collection_t *self, tsk_flags_t options);
-int tsk_table_collection_record_position(tsk_table_collection_t *self,
-        tsk_table_collection_position_t *position);
-int tsk_table_collection_reset_position(tsk_table_collection_t *self,
-        tsk_table_collection_position_t *position);
 int tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options);
 
 /** @} */

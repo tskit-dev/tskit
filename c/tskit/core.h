@@ -168,8 +168,9 @@ of tskit.
 /* Limitations */
 #define TSK_ERR_ONLY_INFINITE_SITES                                 -800
 #define TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED                   -801
-#define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -802
-
+#define TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED                       -802
+#define TSK_ERR_SORT_OFFSET_NOT_SUPPORTED                           -803
+#define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -804
 
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14

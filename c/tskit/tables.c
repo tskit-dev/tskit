@@ -3372,8 +3372,8 @@ table_sorter_init(table_sorter_t *self, tsk_table_collection_t *tables,
     int ret = 0;
 
     memset(self, 0, sizeof(table_sorter_t));
-    if (tables == NULL) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
+    if (tables->migrations.num_rows != 0) {
+        ret = TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED;
         goto out;
     }
     ret = tsk_table_collection_check_integrity(tables, TSK_CHECK_OFFSETS);
@@ -3396,12 +3396,12 @@ out:
 }
 
 static int
-table_sorter_sort_edges(table_sorter_t *self, size_t start)
+table_sorter_sort_edges(table_sorter_t *self, tsk_size_t start)
 {
     int ret = 0;
     edge_sort_t *e;
-    size_t j, k;
-    size_t n = self->edges->num_rows - start;
+    tsk_size_t j, k;
+    tsk_size_t n = self->edges->num_rows - start;
     edge_sort_t *sorted_edges = malloc(n * sizeof(*sorted_edges));
 
     if (sorted_edges == NULL) {
@@ -3544,7 +3544,7 @@ out:
 }
 
 static int
-table_sorter_run(table_sorter_t *self, size_t edge_start)
+table_sorter_run(table_sorter_t *self, tsk_size_t edge_start)
 {
     int ret = 0;
 
@@ -4248,10 +4248,6 @@ simplifier_init_samples(simplifier_t *self, tsk_id_t *samples)
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-        if (!(self->input_tables.nodes.flags[self->samples[j]] & TSK_NODE_IS_SAMPLE)) {
-            ret = TSK_ERR_BAD_SAMPLES;
-            goto out;
-        }
         if (self->is_sample[samples[j]]) {
             ret = TSK_ERR_DUPLICATE_SAMPLE;
             goto out;
@@ -4279,10 +4275,6 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
     size_t num_nodes_alloc;
 
     memset(self, 0, sizeof(simplifier_t));
-    if (samples == NULL || tables == NULL) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
     self->num_samples = num_samples;
     self->options = options;
     self->tables = tables;
@@ -5172,7 +5164,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
     }
 
     if (!!(options & TSK_CHECK_INDEXES)) {
-        if (!tsk_table_collection_is_indexed(self)) {
+        if (!tsk_table_collection_has_index(self, 0)) {
             ret = TSK_ERR_TABLES_NOT_INDEXED;
             goto out;
         }
@@ -5354,8 +5346,8 @@ tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *
         goto out;
     }
     dest->sequence_length = self->sequence_length;
-    if (tsk_table_collection_is_indexed(self)) {
-        tsk_table_collection_drop_indexes(dest);
+    if (tsk_table_collection_has_index(self, 0)) {
+        tsk_table_collection_drop_index(dest, 0);
         index_size = self->edges.num_rows * sizeof(tsk_id_t);
         dest->indexes.edge_insertion_order = malloc(index_size);
         dest->indexes.edge_removal_order = malloc(index_size);
@@ -5375,14 +5367,14 @@ out:
 }
 
 bool
-tsk_table_collection_is_indexed(tsk_table_collection_t *self)
+tsk_table_collection_has_index(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     return self->indexes.edge_insertion_order != NULL
         && self->indexes.edge_removal_order != NULL;
 }
 
 int
-tsk_table_collection_drop_indexes(tsk_table_collection_t *self)
+tsk_table_collection_drop_index(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     if (self->indexes.malloced_locally) {
         tsk_safe_free(self->indexes.edge_insertion_order);
@@ -5394,7 +5386,7 @@ tsk_table_collection_drop_indexes(tsk_table_collection_t *self)
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = TSK_ERR_GENERIC;
     size_t j;
@@ -5402,25 +5394,24 @@ tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t TSK
     index_sort_t *sort_buff = NULL;
     tsk_id_t parent;
 
-    tsk_table_collection_drop_indexes(self);
-    self->indexes.malloced_locally = true;
-    self->indexes.edge_insertion_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
-    self->indexes.edge_removal_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
-    if (self->indexes.edge_insertion_order == NULL
-            || self->indexes.edge_removal_order == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+    /* For build indexes to make sense we must have referential integrity and
+     * sorted edges */
+    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_EDGE_ORDERING);
+    if (ret != 0) {
         goto out;
     }
 
-    /* Alloc the sort buffer */
+    tsk_table_collection_drop_index(self, 0);
+    self->indexes.malloced_locally = true;
+    self->indexes.edge_insertion_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
+    self->indexes.edge_removal_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
     sort_buff = malloc(self->edges.num_rows * sizeof(index_sort_t));
-    if (sort_buff == NULL) {
+    if (self->indexes.edge_insertion_order == NULL
+            || self->indexes.edge_removal_order == NULL
+            || sort_buff == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    /* TODO we should probably drop these checks and call check_integrity instead.
-     * Do this when we're providing the Python API for build_indexes, so that
-     * we can test it properly. */
 
     /* sort by left and increasing time to give us the order in which
      * records should be inserted */
@@ -5428,14 +5419,6 @@ tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t TSK
         sort_buff[j].index = (tsk_id_t ) j;
         sort_buff[j].first = self->edges.left[j];
         parent = self->edges.parent[j];
-        if (parent == TSK_NULL) {
-            ret = TSK_ERR_NULL_PARENT;
-            goto out;
-        }
-        if (parent < 0 || parent >= (tsk_id_t) self->nodes.num_rows) {
-            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
-            goto out;
-        }
         sort_buff[j].second = time[parent];
         sort_buff[j].third = parent;
         sort_buff[j].fourth = self->edges.child[j];
@@ -5450,14 +5433,6 @@ tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t TSK
         sort_buff[j].index = (tsk_id_t ) j;
         sort_buff[j].first = self->edges.right[j];
         parent = self->edges.parent[j];
-        if (parent == TSK_NULL) {
-            ret = TSK_ERR_NULL_PARENT;
-            goto out;
-        }
-        if (parent < 0 || parent >= (tsk_id_t) self->nodes.num_rows) {
-            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
-            goto out;
-        }
         sort_buff[j].second = -time[parent];
         sort_buff[j].third = -parent;
         sort_buff[j].fourth = -self->edges.child[j];
@@ -5468,9 +5443,7 @@ tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t TSK
     }
     ret = 0;
 out:
-    if (sort_buff != NULL) {
-        free(sort_buff);
-    }
+    tsk_safe_free(sort_buff);
     return ret;
 }
 
@@ -5561,38 +5534,72 @@ tsk_table_collection_dump_indexes(tsk_table_collection_t *self, kastore_t *store
         {"indexes/edge_removal_order", NULL, self->edges.num_rows, KAS_INT32},
     };
 
-    if (! tsk_table_collection_is_indexed(self)) {
-        ret = tsk_table_collection_build_indexes(self, 0);
-        if (ret != 0) {
-            goto out;
-        }
+    if (tsk_table_collection_has_index(self, 0)) {
+        write_cols[0].array = self->indexes.edge_insertion_order;
+        write_cols[1].array = self->indexes.edge_removal_order;
+        ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
     }
-    write_cols[0].array = self->indexes.edge_insertion_order;
-    write_cols[1].array = self->indexes.edge_removal_order;
-    ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
-out:
     return ret;
+}
+
+/*
+ * Returns true if the specified store has the specified key.
+ * TODO remove when kastore_contains() is implemented:
+ * https://github.com/tskit-dev/kastore/issues/76
+ */
+static bool
+has_key(kastore_t *store, const char *key)
+{
+    void *dest;
+    size_t len;
+    int type;
+
+    return kastore_gets(store, key, &dest, &len, &type) == 0;
 }
 
 static int TSK_WARN_UNUSED
 tsk_table_collection_load_indexes(tsk_table_collection_t *self)
 {
+    int ret = 0;
+    const char *insertion_order = "indexes/edge_insertion_order";
+    const char *removal_order =  "indexes/edge_removal_order";
     read_table_col_t read_cols[] = {
-        {"indexes/edge_insertion_order", (void **) &self->indexes.edge_insertion_order,
+        {insertion_order, (void **) &self->indexes.edge_insertion_order,
             &self->edges.num_rows, 0, KAS_INT32},
-        {"indexes/edge_removal_order", (void **) &self->indexes.edge_removal_order,
+        {removal_order, (void **) &self->indexes.edge_removal_order,
             &self->edges.num_rows, 0, KAS_INT32},
     };
-    self->indexes.malloced_locally = false;
-    return read_table_cols(self->store, read_cols, sizeof(read_cols) / sizeof(*read_cols));
+
+    if ((! has_key(self->store, insertion_order))
+                && (! has_key(self->store, removal_order))) {
+        /* If neither key is present the table is unindexed. */
+        self->indexes.malloced_locally = true;
+        self->indexes.edge_insertion_order = NULL;
+        self->indexes.edge_removal_order = NULL;
+    } else {
+        /* If one or the other key is present it's an error which will be
+         * handled by read_table_cols. */
+        self->indexes.malloced_locally = false;
+        ret = read_table_cols(self->store, read_cols,
+                sizeof(read_cols) / sizeof(*read_cols));
+    }
+    return ret;
 }
 
 int TSK_WARN_UNUSED
 tsk_table_collection_load(tsk_table_collection_t *self, const char *filename,
-        tsk_flags_t TSK_UNUSED(options))
+        tsk_flags_t options)
 {
     int ret = 0;
 
+    /* The semantics are slightly different here for load because we're using
+     * direct pointers into the kastore memory for columns. From a client
+     * perspective, however, this has the same effect so long as they are
+     * not relying on the table column pointers persisting (which they
+     * shouldn't). */
+    if (!!(options & TSK_NO_INIT)) {
+        tsk_table_collection_free(self);
+    }
     ret = tsk_table_collection_init(self, TSK_NO_INIT_TABLES);
     if (ret != 0) {
         goto out;
@@ -5680,7 +5687,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename, tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
+        tsk_flags_t options)
 {
     int ret = 0;
     kastore_t store;
@@ -5690,6 +5698,16 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename, ts
         ret = tsk_set_kas_error(ret);
         goto out;
     }
+    /* By default we build indexes, if they are needed. Note that this will fail if
+     * the tables aren't sorted. */
+    if ((!(options & TSK_NO_BUILD_INDEXES))
+            && (! tsk_table_collection_has_index(self, 0))) {
+        ret = tsk_table_collection_build_index(self, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
     ret = tsk_table_collection_write_format_data(self, &store);
     if (ret != 0) {
         goto out;
@@ -5744,6 +5762,25 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
 {
     int ret = 0;
     simplifier_t simplifier;
+    tsk_id_t *local_samples = NULL;
+    tsk_id_t u;
+
+    if (samples == NULL) {
+        /* Avoid issue with mallocing zero bytes */
+        local_samples = malloc((1 + self->nodes.num_rows) * sizeof(*local_samples));
+        if (local_samples == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        num_samples = 0;
+        for (u = 0; u < (tsk_id_t) self->nodes.num_rows; u++) {
+            if (!!(self->nodes.flags[u] & TSK_NODE_IS_SAMPLE)) {
+                local_samples[num_samples] = u;
+                num_samples++;
+            }
+        }
+        samples = local_samples;
+    }
 
     ret = simplifier_init(&simplifier, samples, (size_t) num_samples, self, options);
     if (ret != 0) {
@@ -5757,29 +5794,47 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
         simplifier_print_state(&simplifier, stdout);
     }
     /* The indexes are invalidated now so drop them */
-    ret = tsk_table_collection_drop_indexes(self);
+    ret = tsk_table_collection_drop_index(self, 0);
 out:
     simplifier_free(&simplifier);
+    tsk_safe_free(local_samples);
     return ret;
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_sort(tsk_table_collection_t *self, tsk_size_t edge_start,
+tsk_table_collection_sort(tsk_table_collection_t *self, tsk_bookmark_t *start,
         tsk_flags_t options)
 {
     int ret = 0;
     table_sorter_t sorter;
+    tsk_size_t edge_start = 0;
 
+    /* Must init the sorter before we check errors */
     ret = table_sorter_init(&sorter, self, options);
     if (ret != 0) {
         goto out;
     }
-    ret = table_sorter_run(&sorter, (size_t) edge_start);
+    if (start != NULL) {
+        if (start->edges > self->edges.num_rows) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
+            goto out;
+        }
+        edge_start = start->edges;
+
+        /* For now, if migrations, sites or mutations are non-zero we get an error.
+         * This should be fixed: https://github.com/tskit-dev/tskit/issues/101
+         */
+        if (start->migrations != 0 || start->sites != 0 || start->mutations != 0) {
+            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
+            goto out;
+        }
+    }
+    ret = table_sorter_run(&sorter, edge_start);
     if (ret != 0) {
         goto out;
     }
     /* The indexes are invalidated now so drop them */
-    ret = tsk_table_collection_drop_indexes(self);
+    ret = tsk_table_collection_drop_index(self, 0);
 out:
     table_sorter_free(&sorter);
     return ret;
@@ -5969,12 +6024,9 @@ out:
     return ret;
 }
 
-/* Record the current "end" position of a table collection,
- * which is the current number of rows in each table.
- */
 int
-tsk_table_collection_record_position(tsk_table_collection_t *self,
-        tsk_table_collection_position_t *position)
+tsk_table_collection_record_num_rows(tsk_table_collection_t *self,
+        tsk_bookmark_t *position)
 {
     position->individuals = self->individuals.num_rows;
     position->nodes = self->nodes.num_rows;
@@ -5987,14 +6039,13 @@ tsk_table_collection_record_position(tsk_table_collection_t *self,
     return 0;
 }
 
-/* Reset to the previously recorded position. */
 int TSK_WARN_UNUSED
-tsk_table_collection_reset_position(tsk_table_collection_t *tables,
-        tsk_table_collection_position_t *position)
+tsk_table_collection_truncate(tsk_table_collection_t *tables,
+        tsk_bookmark_t *position)
 {
     int ret = 0;
 
-    ret = tsk_table_collection_drop_indexes(tables);
+    ret = tsk_table_collection_drop_index(tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -6037,12 +6088,11 @@ out:
 int TSK_WARN_UNUSED
 tsk_table_collection_clear(tsk_table_collection_t *self)
 {
-    tsk_table_collection_position_t start;
+    tsk_bookmark_t start;
 
     memset(&start, 0, sizeof(start));
-    return tsk_table_collection_reset_position(self, &start);
+    return tsk_table_collection_truncate(self, &start);
 }
-
 
 static int
 cmp_edge_cl(const void *a, const void *b) {
