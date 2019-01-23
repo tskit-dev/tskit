@@ -5164,7 +5164,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
     }
 
     if (!!(options & TSK_CHECK_INDEXES)) {
-        if (!tsk_table_collection_is_indexed(self)) {
+        if (!tsk_table_collection_has_index(self, 0)) {
             ret = TSK_ERR_TABLES_NOT_INDEXED;
             goto out;
         }
@@ -5346,8 +5346,8 @@ tsk_table_collection_copy(tsk_table_collection_t *self, tsk_table_collection_t *
         goto out;
     }
     dest->sequence_length = self->sequence_length;
-    if (tsk_table_collection_is_indexed(self)) {
-        tsk_table_collection_drop_indexes(dest);
+    if (tsk_table_collection_has_index(self, 0)) {
+        tsk_table_collection_drop_index(dest, 0);
         index_size = self->edges.num_rows * sizeof(tsk_id_t);
         dest->indexes.edge_insertion_order = malloc(index_size);
         dest->indexes.edge_removal_order = malloc(index_size);
@@ -5367,14 +5367,14 @@ out:
 }
 
 bool
-tsk_table_collection_is_indexed(tsk_table_collection_t *self)
+tsk_table_collection_has_index(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     return self->indexes.edge_insertion_order != NULL
         && self->indexes.edge_removal_order != NULL;
 }
 
 int
-tsk_table_collection_drop_indexes(tsk_table_collection_t *self)
+tsk_table_collection_drop_index(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     if (self->indexes.malloced_locally) {
         tsk_safe_free(self->indexes.edge_insertion_order);
@@ -5386,8 +5386,7 @@ tsk_table_collection_drop_indexes(tsk_table_collection_t *self)
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_build_indexes(tsk_table_collection_t *self,
-        tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = TSK_ERR_GENERIC;
     size_t j;
@@ -5402,7 +5401,7 @@ tsk_table_collection_build_indexes(tsk_table_collection_t *self,
         goto out;
     }
 
-    tsk_table_collection_drop_indexes(self);
+    tsk_table_collection_drop_index(self, 0);
     self->indexes.malloced_locally = true;
     self->indexes.edge_insertion_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
     self->indexes.edge_removal_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
@@ -5535,7 +5534,7 @@ tsk_table_collection_dump_indexes(tsk_table_collection_t *self, kastore_t *store
         {"indexes/edge_removal_order", NULL, self->edges.num_rows, KAS_INT32},
     };
 
-    if (tsk_table_collection_is_indexed(self)) {
+    if (tsk_table_collection_has_index(self, 0)) {
         write_cols[0].array = self->indexes.edge_insertion_order;
         write_cols[1].array = self->indexes.edge_removal_order;
         ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
@@ -5702,8 +5701,8 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
     /* By default we build indexes, if they are needed. Note that this will fail if
      * the tables aren't sorted. */
     if ((!(options & TSK_NO_BUILD_INDEXES))
-            && (! tsk_table_collection_is_indexed(self))) {
-        ret = tsk_table_collection_build_indexes(self, 0);
+            && (! tsk_table_collection_has_index(self, 0))) {
+        ret = tsk_table_collection_build_index(self, 0);
         if (ret != 0) {
             goto out;
         }
@@ -5795,7 +5794,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
         simplifier_print_state(&simplifier, stdout);
     }
     /* The indexes are invalidated now so drop them */
-    ret = tsk_table_collection_drop_indexes(self);
+    ret = tsk_table_collection_drop_index(self, 0);
 out:
     simplifier_free(&simplifier);
     tsk_safe_free(local_samples);
@@ -5835,7 +5834,7 @@ tsk_table_collection_sort(tsk_table_collection_t *self, tsk_bookmark_t *start,
         goto out;
     }
     /* The indexes are invalidated now so drop them */
-    ret = tsk_table_collection_drop_indexes(self);
+    ret = tsk_table_collection_drop_index(self, 0);
 out:
     table_sorter_free(&sorter);
     return ret;
@@ -6046,7 +6045,7 @@ tsk_table_collection_truncate(tsk_table_collection_t *tables,
 {
     int ret = 0;
 
-    ret = tsk_table_collection_drop_indexes(tables);
+    ret = tsk_table_collection_drop_index(tables, 0);
     if (ret != 0) {
         goto out;
     }

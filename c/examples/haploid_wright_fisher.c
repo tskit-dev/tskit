@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <err.h>
 
 #include <gsl/gsl_rng.h>
@@ -16,6 +17,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
     double breakpoint;
     int ret, j, t, b;
 
+    assert(simplify_interval != 0); // leads to division by zero
     buffer = malloc(2 * N * sizeof(tsk_id_t));
     if (buffer == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
@@ -48,7 +50,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
             check_tsk_error(ret);
             children[j] = child;
         }
-        if (simplify_interval != 0 && t % simplify_interval == 0) {
+        if (t % simplify_interval == 0) {
             printf("Simplify at generation %d: (%d nodes %d edges)", t,
                     tables->nodes.num_rows, tables->edges.num_rows);
             ret = tsk_table_collection_sort(tables, 0, 0); /* FIXME; should take position. */

@@ -347,7 +347,7 @@ tsk_treeseq_init(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_
         goto out;
     }
     if (!!(options & TSK_BUILD_INDEXES)) {
-        ret = tsk_table_collection_build_indexes(self->tables, 0);
+        ret = tsk_table_collection_build_index(self->tables, 0);
         if (ret != 0) {
             goto out;
         }
@@ -356,7 +356,7 @@ tsk_treeseq_init(tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_
     if (ret != 0) {
         goto out;
     }
-    assert(tsk_table_collection_is_indexed(self->tables));
+    assert(tsk_table_collection_has_index(self->tables, 0));
 
     /* This is a hack to workaround the fact we're copying the tables here.
      * In general, we don't want the file_uuid to be copied, as this should

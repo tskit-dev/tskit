@@ -2058,6 +2058,8 @@ and ``provenance``) are ignored and can be set to arbitrary values.
     position for the ``edge`` table. Specifying a non-zero ``migration``,
     ``site`` or ``mutation`` start position results in an error.
 
+The table collection will always be unindexed after sort successfully completes.
+
 See the :ref:`table sorting <sec_table_sorting>` section for more details.
 @endrst
 
@@ -2111,6 +2113,9 @@ TSK_REDUCE_TO_SITE_TOPOLOGY
 .. note:: Migrations are currently not supported by simplify, and an error will
     be raised if we attempt call simplify on a table collection with greater
     than zero migrations. See `<https://github.com/tskit-dev/tskit/issues/20>`_
+
+The table collection will always be unindexed after simplify successfully 
+completes.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -2135,9 +2140,11 @@ int tsk_table_collection_simplify(tsk_table_collection_t *self,
 @brief Returns true if this table collection is indexed.
 
 @param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return true if there is an index present for this table collection.
 */
-bool tsk_table_collection_is_indexed(tsk_table_collection_t *self);
+bool tsk_table_collection_has_index(tsk_table_collection_t *self, tsk_flags_t options);
 
 /**
 @brief Deletes the indexes for this table collection.
@@ -2148,9 +2155,11 @@ is not an error to call this method on an unindexed table collection.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. Currently unused; should be 
+    set to zero to ensure compatibility with later versions of tskit.
 @return Always returns 0.
 */
-int tsk_table_collection_drop_indexes(tsk_table_collection_t *self);
+int tsk_table_collection_drop_index(tsk_table_collection_t *self, tsk_flags_t options);
 
 /**
 @brief Builds indexes for this table collection.
@@ -2165,7 +2174,7 @@ Any existing index is first dropped using :c:func:`tsk_table_collection_drop_ind
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_table_collection_build_indexes(tsk_table_collection_t *self, tsk_flags_t options);
+int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t options);
 /** @} */
 
 /* Undocumented methods */

@@ -1993,7 +1993,7 @@ test_simplest_bad_indexes(void)
 
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLES_NOT_INDEXED);
-    ret = tsk_table_collection_build_indexes(&tables, 0);
+    ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_ALL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2010,7 +2010,7 @@ test_simplest_bad_indexes(void)
         tables.indexes.edge_removal_order[0] = 0;
     }
 
-    ret = tsk_table_collection_drop_indexes(&tables);
+    ret = tsk_table_collection_drop_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLES_NOT_INDEXED);
@@ -3195,7 +3195,7 @@ test_single_tree_compute_mutation_parents(void)
     CU_ASSERT_EQUAL_FATAL(tables.mutations.num_rows, 6);
     tables.sequence_length = 1.0;
 
-    ret = tsk_table_collection_build_indexes(&tables, 0);
+    ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check to make sure we have legal mutations */

@@ -210,14 +210,14 @@ test_dump_unindexed(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
     parse_edges(single_tree_ex_edges, &tables.edges);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
     ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables));
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
 
     ret = tsk_table_collection_load(&loaded, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&loaded));
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&loaded, 0));
     CU_ASSERT_TRUE(tsk_node_table_equals(&tables.nodes, &loaded.nodes));
     CU_ASSERT_TRUE(tsk_edge_table_equals(&tables.edges, &loaded.edges));
 
@@ -1796,10 +1796,10 @@ test_simplify_tables_drops_indexes(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0))
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -1834,10 +1834,10 @@ test_sort_tables_drops_indexes(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
     ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables))
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0))
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -2017,9 +2017,9 @@ test_dump_load_unsorted(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 
     /* Indexing should fail */
-    ret = tsk_table_collection_build_indexes(&t1, 0);
+    ret = tsk_table_collection_build_index(&t1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&t1));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
 
     /* Trying to dump without first sorting should also fail */
     ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
@@ -2027,12 +2027,12 @@ test_dump_load_unsorted(void)
 
     ret = tsk_table_collection_dump(&t1, _tmp_file_name, TSK_NO_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&t1));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
     ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&t1));
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&t2));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t2, 0));
 
     tsk_table_collection_free(&t1);
     tsk_table_collection_free(&t2);
@@ -2051,24 +2051,24 @@ test_load_reindex(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_drop_indexes(&tables);
+    ret = tsk_table_collection_drop_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables));
-    ret = tsk_table_collection_build_indexes(&tables, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
+    ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables));
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
 
-    ret = tsk_table_collection_drop_indexes(&tables);
+    ret = tsk_table_collection_drop_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Dump the unindexed version */
     ret = tsk_table_collection_dump(&tables, _tmp_file_name, TSK_NO_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_load(&tables, _tmp_file_name, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_is_indexed(&tables));
-    ret = tsk_table_collection_build_indexes(&tables, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
+    ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_is_indexed(&tables));
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
