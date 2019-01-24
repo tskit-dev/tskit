@@ -1,5 +1,5 @@
 ---------------------
-[0.99.1] - 2019-XX-XX
+[0.99.1] - 2019-01-24
 ---------------------
 
 Refinements to the C API as we move towards 1.0.0. Changes:
@@ -19,6 +19,7 @@ Refinements to the C API as we move towards 1.0.0. Changes:
   currently be marked as samples. (https://github.com/tskit-dev/tskit/issues/72)
 - Allow ``tsk_table_collection_simplify`` to take a NULL samples argument to
   specify "all samples in the current tables".
+- Add support for building as a meson subproject.
 
 ---------------------
 [0.99.0] - 2019-01-14
