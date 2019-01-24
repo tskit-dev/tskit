@@ -25,7 +25,7 @@ class local_build_ext(build_ext):
 
 
 libdir = "lib"
-kastore_dir = os.path.join(libdir, "kastore", "c")
+kastore_dir = os.path.join(libdir, "subprojects", "kastore")
 tsk_source_files = [
     "core.c",
     "tables.c",
