@@ -4,75 +4,33 @@
 C API
 =====
 
-.. warning::
-        **This section is under construction, incomplete and experiemental!!**
+This is the documentation for the ``tskit`` C API, a low-level library
+for manipulating and processing :ref:`tree sequence data <sec_data_model>`.
+The library is written using the C99 standard and is fully thread safe.
+Tskit uses `kastore <https://kastore.readthedocs.io/>`_ to define a
+simple storage format for the tree sequence data.
+
+To see the API in action, please see :ref:`sec_c_api_examples` section.
 
 ********
 Overview
 ********
 
-The ``tskit`` C API is a low-level library for manipulating and processing
-:ref:`tree sequence data <sec_data_model>`.
+--------------------
+Do I need the C API?
+--------------------
 
-For high level operations
-and operations that are not performance sensitive, the :ref:`sec_python_api`
-is much more useful. The Python code uses this C API under the hood and
-so there's often no real performance penalty for using Python, and Python
-is *much* more convenient than C. This C API is useful in the following
-situtations:
+The ``tskit`` C API is generally useful in the following situations:
 
-- You want to use the ``tskit`` API in a larger C/C++ application;
-- You need to do lots of tree traversals/loops etc to analyse some data.
+- You want to use the ``tskit`` API in a larger C/C++ application (e.g.,
+  in order to output data in the ``.trees`` format);
+- You need to perform lots of tree traversals/loops etc to analyse some
+  data that is in tree sequence form.
 
-The library is written using the C99 standard and is fully thread safe.
-
----------------------------
-Using tskit in your project
----------------------------
-
-Tskit is intended to be embedded directly into applications that use it.
-That is, rather than linking against a shared ``tskit`` library, applications
-compile and embed their own copy of ``tskit``. As ``tskit`` is quite small, consisting
-of only a handful of C files, this is much more convenient and avoids many
-of the headaches caused by shared libraries.
-
-The simplest way to include ``tskit`` in your C/C++ project is to
-use git submodule.
-
-.. todo:: Set up an example project repo on GitHub and go through
-    the steps of getting the submodule set up properly.
-
-
-If you don't use git (or prefer not to use submodules), then you can simply
-copy the ``tskit`` and ``kastore`` source files into your own repository.
-Please ensure that the files you use correspond to a **released version**
-of the API by checking out the appropriate tag on git.
-
-We may distribute ``tskit`` as a shared library in the future, however.
-
------------------
-Code organisation
------------------
-
-Tskit is organised in a modular way, allowing users to pick and choose which
-parts of the library that they compile into their application. The functionality
-defined in each header file corresponds to one C file, giving fine-grained access
-to the functionality that is required for different applications.
-
-Core functionality such as error handling required by all of ``tskit`` is
-defined in ``tsk_core.[c,h]``. Client code should not need to include ``tsk_core.h``
-as it is included in all other ``tskit`` headers.
-
-The :ref:`sec_c_api_tables_api` is defined in ``tsk_tables.[c,h]``. Tree sequence
-and tree :ref:`functionality <sec_c_api_tree_sequences>` is defined in
-``tsk_trees.[c,h]``.
-
-.. todo:: When the remaining types have been finalised and documented add the
-    descriptions in here.
-
-For convenience, there is also a ``tskit.h`` header file that includes all
-of the functionality in ``tskit``.
-
+For high level operations that are not performance sensitive, the :ref:`sec_python_api`
+is generally more useful. Python is *much* more convenient that C,
+and since the ``tskit`` Python module is essentially a wrapper for this
+C library, there's often no real performance penalty for using it.
 
 .. _sec_c_api_overview_structure:
 
@@ -80,7 +38,7 @@ of the functionality in ``tskit``.
 API structure
 -------------
 
-Tskit uses a set of conventions to provide pseudo object oriented API. Each
+Tskit uses a set of conventions to provide a pseudo object oriented API. Each
 'object' is represented by a C struct and has a set of 'methods'. This is
 most easily explained by an example:
 
@@ -109,8 +67,9 @@ and :c:func:`tsk_table_collection_copy` which automatically initialise
 the object by default for convenience). The free
 method must always be called to avoid leaking memory, even in the
 case of an error occuring during intialisation. If ``class_name_init`` has
-been called, we say the object has been "initialised"; if not,
-it is "uninitialised".
+been called succesfully, we say the object has been "initialised"; if not,
+it is "uninitialised". After ``class_name_free`` has been called,
+the object is again uninitialised.
 
 It is important to note that the init methods only allocate *internal* memory;
 the memory for the instance itself must be allocated either on the
@@ -134,24 +93,86 @@ heap or the stack:
 Error handling
 --------------
 
-Every function in ``tskit`` (except for trivial accessor methods) returns
+C does not have a mechanism for propagating exceptions, and great care
+must be taken to ensure that errors are correctly and safely handled.
+The convention adopted in ``tskit`` is that
+every function (except for trivial accessor methods) returns
 an integer. If this return value is negative an error has occured which
-must be handled.
+must be handled. A description of the error that occured can be obtained
+using the :c:func:`tsk_strerror` function. The following example illustrates
+the key conventions around error handling in ``tskit``:
 
 .. literalinclude:: ../c/examples/error_handling.c
     :language: c
 
 In this example we load a tree sequence from file and print out a summary
 of the number of nodes and edges it contains. After calling
-:c:func:`tsk_treeseq_load` we check it's return value ``ret`` to see
-if an error occured. If an error happens we with an error message produced with
-:c:func:`tsk_strerror`. Note that in this example we call
-``tsk_treeseq_free`` whether or not an error occurs: in general,
-once ``X_alloc`` (or ``load`` here) is called ``X_free`` must also
+:c:func:`tsk_treeseq_load` we check the return value ``ret`` to see
+if an error occured. If an error has occured we exit with an error
+message produced by :c:func:`tsk_strerror`. Note that in this example we call
+:c:func:`tsk_treeseq_free` whether or not an error occurs: in general,
+once a function that initialises an object (e.g., ``X_init``, ``X_copy``
+or ``X_load``) is called, then ``X_free`` must
 be called to ensure that memory is not leaked.
 
-Most functions in ``tskit`` can return an error status, and we
-**strongly** recommend that every return value is checked.
+Most functions in ``tskit`` return an error status; we recommend that **every**
+return value is checked.
+
+---------------------------
+Using tskit in your project
+---------------------------
+
+Tskit is built as a standard C library and so there are many different ways
+in which it can be included in downstream projects. It is possible to
+install ``tskit`` onto a system (i.e., installing a shared library and
+header files to a standard locations on Unix) and linking against it,
+but there are many different ways in which this can go wrong. In the
+interest of simplicity and improving the end-user experience we recommend
+embedding ``tskit`` directly into your applications.
+
+There are many different build systems and approaches to compiling
+code, and so it's not possible to give definitive documentation on
+how ``tskit`` should be included in downstream projects. Please
+see the `build examples <https://github.com/tskit-dev/tskit-build-examples>`_
+repo for some examples of how to incorporate ``tskit`` into
+different project structures and build systems.
+
+Tskit uses the `meson <https://mesonbuild.com>`_ build system internally,
+and supports being used a `meson subproject <https://mesonbuild.com/Subprojects.html>`_.
+We show an `example <https://github.com/tskit-dev/tskit-build-examples/tree/master/meson>`_
+in which this is combined with
+`git submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_ to neatly
+abstract many details of cross platform C development.
+
+Some users may choose to check the source for ``tskit`` (and ``kastore``)
+directly into their source control repositories. If you wish to do this,
+the code is in the ``c`` subdirectory of the
+`tskit <https://github.com/tskit-dev/tskit/tree/master/c>`_ and
+`kastore <https://github.com/tskit-dev/kastore/tree/master/c>`__ repos.
+The following header files should be placed in the search path:
+``kastore.h``, ``tskit.h``, and ``tskit/*.h``.
+The C files ``kastore.c`` and ``tskit*.c`` should be compiled.
+For those who wish to minimise the size of their compiled binaries,
+``tskit`` is quite modular, and C files can be omitted if not needed.
+For example, if you are just using the :ref:`sec_c_api_tables_api` then
+only the files ``tskit/core.[c,h]`` and ``tskit/tables.[c,h]`` are
+needed.
+
+However you include ``tskit`` in your project, however, please
+ensure that it is a **released version**. Released versions are
+tagged on GitHub using the convention ``C_{VERSION}``. The code
+can either be downloaded from GitHub on the `releases page
+<https://github.com/tskit-dev/tskit/releases>`_ or checked out
+using git. For example, to check out the ``C_0.99.0`` release::
+
+    $ git clone https://github.com/tskit-dev/tskit.git
+    $ cd tskit
+    $ git checkout C_0.99.0
+
+Git submodules may also be considered---see the
+`example <https://github.com/tskit-dev/tskit-build-examples/tree/master/meson>`_
+for how to set these up and to check out at a specific release.
+
 
 ***********
 Basic Types
@@ -161,20 +182,20 @@ Basic Types
 .. doxygentypedef:: tsk_size_t
 .. doxygentypedef:: tsk_flags_t
 
+**************
+Common options
+**************
+
+.. doxygengroup:: TABLES_API_FUNCTION_OPTIONS
+   :content-only:
+
 .. _sec_c_api_tables_api:
 
 **********
 Tables API
 **********
 
-The tables API section of ``tskit`` is defined in ``tsk_tables.h``.
-
---------------
-Common options
---------------
-
-.. doxygengroup:: TABLES_API_FUNCTION_OPTIONS
-   :content-only:
+The tables API section of ``tskit`` is defined in the ``tskit/tables.h`` header.
 
 -----------------
 Table collections
@@ -358,6 +379,7 @@ File format errors
 
 
 
+.. _sec_c_api_examples:
 
 ********
 Examples
@@ -368,7 +390,13 @@ Basic forwards simulator
 ------------------------
 
 This is an example of using the tables API to define a simple
-haploid Wright-Fisher simulator.
+haploid Wright-Fisher simulator. Because this simple example
+repeatedly sorts the edge data, it is quite inefficient and
+should not be used as the basis of a large-scale simulator.
+
+.. todo::
+    Give a pointer to an example that caches and flushes edge data efficiently.
+    Probably using the C++ API?
 
 .. literalinclude:: ../c/examples/haploid_wright_fisher.c
     :language: c
