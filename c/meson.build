@@ -21,18 +21,20 @@ lib_headers = [
     'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h', 
     'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h']
 
-
-# Shared library install target.
-shared_library('tskit', 
-    sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true)
-install_headers('tskit.h')
-install_headers(lib_headers, subdir: 'tskit') 
-
-# Static library for building tests and examples.
+# Subprojects use the static library for simplicity.
+inc = include_directories(['.', 'tskit'])
 tskit_lib = static_library('tskit', 
-    sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args)
+    sources: lib_sources, dependencies: lib_deps)
+tskit_dep = declare_dependency(include_directories:inc, link_with: tskit_lib)
 
 if not meson.is_subproject()
+
+    # Shared library install target.
+    shared_library('tskit', 
+        sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true)
+    install_headers('tskit.h')
+    install_headers(lib_headers, subdir: 'tskit') 
+
     cunit_dep = dependency('cunit')
     # We don't specify extra C args here as CUnit won't pass the checks.
     test_lib = static_library('testlib', 

@@ -116,14 +116,17 @@ jobs:
             ninja -C build-clang test
 
       - run:
-          name: Install shared library
+          name: Test building with meson subproject
+          command: |
+            meson build-subproject c/tests/meson-subproject
+            ninja -C build-subproject
+            ./build-subproject/example
+
+      - run:
+          name: Install shared library and hand-compile program.
           command: |
             meson build-install c --prefix=/usr
             sudo ninja -C build-install install
-
-      - run:
-          name: Hand-compile some example programs
-          command: |
             clang c/examples/api_structure.c -o api_structure -ltskit
             ./api_structure
 
