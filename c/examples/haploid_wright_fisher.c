@@ -53,7 +53,9 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval, gs
         if (t % simplify_interval == 0) {
             printf("Simplify at generation %d: (%d nodes %d edges)", t,
                     tables->nodes.num_rows, tables->edges.num_rows);
-            ret = tsk_table_collection_sort(tables, 0, 0); /* FIXME; should take position. */
+            /* Note: Edges must be sorted for simplify to work, and we use a brute force
+             * approach of sorting each time here for simplicity. This is inefficient. */
+            ret = tsk_table_collection_sort(tables, NULL, 0);
             check_tsk_error(ret);
             ret = tsk_table_collection_simplify(tables, children, N, 0, NULL);
             check_tsk_error(ret);
