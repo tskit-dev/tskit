@@ -14,27 +14,38 @@ extra_c_args = [
     '-Wcast-qual', '-Wwrite-strings', '-Wnested-externs',
     '-fshort-enums', '-fno-common']
 
-lib_sources = [
+c_lib_sources = [
     'tskit/core.c', 'tskit/tables.c', 'tskit/trees.c', 
     'tskit/genotypes.c', 'tskit/stats.c', 'tskit/convert.c']
-lib_headers = [
+c_lib_headers = [
     'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h', 
     'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h']
 
+cpp_lib_sources = ['tskitpp/tables.cpp']
+cpp_lib_headers = ['tskitpp/tables.hpp']
+
 # Subprojects use the static library for simplicity.
-inc = include_directories(['.', 'tskit'])
+c_inc = include_directories(['.', 'tskit'])
 tskit_lib = static_library('tskit', 
-    sources: lib_sources, dependencies: lib_deps)
-tskit_dep = declare_dependency(include_directories:inc, link_with: tskit_lib)
+    sources: c_lib_sources, dependencies: lib_deps)
+tskit_dep = declare_dependency(include_directories:c_inc, link_with: tskit_lib)
+
+cpp_inc = include_directories(['.', 'tskit', 'tskitpp'])
+tskitpp_lib = static_library('tskitpp', 
+    sources: cpp_lib_sources, dependencies: lib_deps)
+tskitpp_dep = declare_dependency(include_directories:cpp_inc, link_with: [tskit_lib, tskitpp_lib])
 
 if not meson.is_subproject()
 
     # Shared library install target.
     shared_library('tskit', 
-        sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true)
+        sources: c_lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true)
     install_headers('tskit.h')
-    install_headers(lib_headers, subdir: 'tskit') 
+    install_headers(c_lib_headers, subdir: 'tskit') 
 
+    #
+    # C library tests
+    # 
     cunit_dep = dependency('cunit')
     # We don't specify extra C args here as CUnit won't pass the checks.
     test_lib = static_library('testlib', 
@@ -75,21 +86,28 @@ if not meson.is_subproject()
         dependencies: kastore_dep)
     test('minimal_cpp', test_minimal_cpp)
 
+    #
+    # C++ library tests
+    # 
+    test_cpp_tables = executable('test_cpp_tables', 
+        sources: ['tests/test_cpp_tables.cpp'], link_with: [tskit_lib, tskitpp_lib],
+        dependencies: kastore_dep)
+    test('cpp_tables', test_cpp_tables)
+
     # The development CLI. Don't use extra C args because argtable code won't pass
     executable('dev-cli', 
         sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'], 
         link_with: [tskit_lib], c_args:['-Dlint'], dependencies: kastore_dep)
 
-    # Example programs. 
+    #
+    # Example programs
+    # 
     executable('api_structure', 
         sources: ['examples/api_structure.c'], link_with: [tskit_lib], dependencies: lib_deps)
     executable('error_handling', 
         sources: ['examples/error_handling.c'], link_with: [tskit_lib], dependencies: lib_deps)
     executable('tree_iteration', 
         sources: ['examples/tree_iteration.c'], link_with: [tskit_lib], dependencies: lib_deps)
-
-    executable('cpp-experiment', 
-        sources: ['examples/cpp-experiment.cpp'], link_with: [tskit_lib], language: 'cpp')
 
     gsl_dep = dependency('gsl', required: false)
     if gsl_dep.found()
