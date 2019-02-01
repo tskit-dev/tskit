@@ -36,6 +36,7 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #ifdef __GNUC__
 	#define TSK_WARN_UNUSED __attribute__ ((warn_unused_result))
