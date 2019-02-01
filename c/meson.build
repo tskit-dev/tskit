@@ -21,7 +21,7 @@ c_lib_headers = [
     'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h', 
     'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h']
 
-cpp_lib_sources = ['tskitpp/tables.cpp', 'tskitpp/NodeTable.cpp', 'tskitpp/util.cpp',
+cpp_lib_sources = ['tskitpp/NodeTable.cpp', 'tskitpp/util.cpp',
     'tskitpp/TableCollection.cpp']
 cpp_lib_headers = ['tskitpp/tables.hpp', 'tskitpp/NodeTable.hpp', 'tskitpp/util.hpp',
     'tskitpp/TableCollection.hpp']
