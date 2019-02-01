@@ -1,14 +1,27 @@
 environment:
   matrix:
     # Disabling Py36 x64. Some weird problem with h5py. See github.com/tskit-dev/msprime/issues/678
-    # - PYTHON: "C:\\Miniconda36-x64"
-    # - PYTHON: "C:\\Miniconda37"
     # Disabling Py37. See https://github.com/tskit-dev/msprime/issues/653
-    #- PYTHON: "C:\\Miniconda37-x64"
-    - PYTHON: "C:\\Miniconda36"
+    - PYTHON: "C:\\Miniconda36-x64"
+    # JK: Disabling all of these because conda doesn't seem top be working properly.
+    # When we're on the other versions we always go back to Python36.
+    # - PYTHON: "C:\\Miniconda37"
+    # - PYTHON: "C:\\Miniconda37-x64"
+    # - PYTHON: "C:\\Miniconda36"
+
+init:
+  - cmd: ECHO Using %PYTHON%
 
 install:
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - cmd: SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+  - cmd: git submodule update --init --recursive
+  # We have symlinks in the repo, which need to be treated specially on Windows.
+  - cmd: git config core.symlinks true
+  - cmd: git reset --hard
+  - cmd: conda config --add channels conda-forge
+  - cmd: conda install --yes --file=python\requirements\conda-minimal.txt
+  - cmd: conda info -a
+
     
 # NOTE attempted to get meson to work here and it was almost working except
 # for linking against the Advapi32 for the random bytes extension. Might be
@@ -19,11 +32,7 @@ install:
   # - cmd: set PATH=%cd%;C:\ninja-build;%PATH%
   # - cmd: pip install meson
 
-build_script:
-  - cmd: git submodule update --init --recursive
-  # # We have symlinks in the repo, which need to be treated specially on Windows.
-  - cmd: git config core.symlinks true
-  - cmd: git reset --hard
+# build_script:
   # - cmd: meson builddir c 
   # - cmd: cd builddir
   # - cmd: meson configure
@@ -33,10 +42,10 @@ build_script:
 # test_script:
   # - cmd: ninja -C builddir test
 
+build_script:
+  - cmd: cd python"
+  - cmd: python setup.py build_ext --inplace
 
-# test_script:
-#   - "conda config --add channels conda-forge"
-#   - "conda install --yes --file=python/requirements/conda-minimal.txt"
 #   - "pip install kastore"  
 #   - "pip install PyVCF"  
 #   - "pip install newick"  
@@ -50,10 +59,7 @@ build_script:
 #   - "conda install --yes gsl"
 #   - "SET MSP_CONDA_PREFIX=%PYTHON%"
 #   - "pip install --user git+https://github.com/tskit-dev/msprime"
+  # - "nosetests -vs"
 
-#   - "cd python"
-#   - "python setup.py build_ext --inplace"
-#   - "nosetests -vs"
-
-# after_test:
-#   - "python setup.py bdist_wheel"
+after_test:
+  - cmd: python setup.py bdist_wheel
