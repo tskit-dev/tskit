@@ -1,4 +1,18 @@
 --------------------
+[0.1.4] - 2019-02-01
+--------------------
+
+Minor feature update. Using the C API 0.99.1.
+
+**New features**
+
+- Add interface for setting TableCollection.sequence_length:
+  https://github.com/tskit-dev/tskit/issues/107
+- Add support for building and dropping TableCollection indexes:
+  https://github.com/tskit-dev/tskit/issues/108
+
+
+--------------------
 [0.1.3] - 2019-01-14
 --------------------
 

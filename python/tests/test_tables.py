@@ -1536,6 +1536,89 @@ class TestTableCollection(unittest.TestCase):
         tables = tskit.TableCollection(sequence_length=1)
         self.assertIsNone(tables.file_uuid, None)
 
+    def test_empty_indexes(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        self.assertFalse(tables.has_index())
+        tables.build_index()
+        self.assertTrue(tables.has_index())
+        tables.drop_index()
+        self.assertFalse(tables.has_index())
+
+    def test_index_unsorted(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=0, time=1)
+        tables.nodes.add_row(flags=0, time=2)
+        tables.edges.add_row(0, 1, 3, 0)
+        tables.edges.add_row(0, 1, 3, 1)
+        tables.edges.add_row(0, 1, 4, 3)
+        tables.edges.add_row(0, 1, 4, 2)
+
+        self.assertFalse(tables.has_index())
+        with self.assertRaises(tskit.LibraryError):
+            tables.build_index()
+        self.assertFalse(tables.has_index())
+        tables.sort()
+        tables.build_index()
+        self.assertTrue(tables.has_index())
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.tables, tables)
+
+    def test_index_from_ts(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tables = ts.dump_tables()
+        self.assertTrue(tables.has_index())
+        tables.drop_index()
+        self.assertFalse(tables.has_index())
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.tables, tables)
+        self.assertFalse(tables.has_index())
+
+    def test_set_sequence_length_errors(self):
+        tables = tskit.TableCollection(1)
+        with self.assertRaises(AttributeError):
+            del tables.sequence_length
+        for bad_value in ["asdf", None, []]:
+            with self.assertRaises(TypeError):
+                tables.sequence_length = bad_value
+
+    def test_set_sequence_length(self):
+        tables = tskit.TableCollection(1)
+        for value in [-1, 100, 2**32, 1e-6]:
+            tables.sequence_length = value
+            self.assertEqual(tables.sequence_length, value)
+
+    def test_bad_sequence_length(self):
+        tables = msprime.simulate(10, random_seed=1).dump_tables()
+        self.assertEqual(tables.sequence_length, 1)
+        for value in [-1, 0, -0.99, 0.9999]:
+            tables.sequence_length = value
+            with self.assertRaises(tskit.LibraryError):
+                tables.tree_sequence()
+            with self.assertRaises(tskit.LibraryError):
+                tables.sort()
+            with self.assertRaises(tskit.LibraryError):
+                tables.build_index()
+            with self.assertRaises(tskit.LibraryError):
+                tables.compute_mutation_parents()
+            with self.assertRaises(tskit.LibraryError):
+                tables.simplify()
+            self.assertEqual(tables.sequence_length, value)
+
+    def test_sequence_length_longer_than_edges(self):
+        tables = msprime.simulate(10, random_seed=1).dump_tables()
+        tables.sequence_length = 2
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.sequence_length, 2)
+        self.assertEqual(ts.num_trees, 2)
+        trees = ts.trees()
+        tree = next(trees)
+        self.assertGreater(len(tree.parent_dict), 0)
+        tree = next(trees)
+        self.assertEqual(len(tree.parent_dict), 0)
+
 
 class TestTableCollectionPickle(unittest.TestCase):
     """
