@@ -156,6 +156,21 @@ class TestTableCollection(LowLevelTestCase):
             for table in tables:
                 self.assertGreater(len(str(table)), 0)
 
+    def test_set_sequence_length_errors(self):
+        tables = _tskit.TableCollection(1)
+        with self.assertRaises(TypeError):
+            del tables.sequence_length
+        for bad_value in ["sdf", None, []]:
+            with self.assertRaises(TypeError):
+                tables.sequence_length = bad_value
+
+    def test_set_sequence_length(self):
+        tables = _tskit.TableCollection(1)
+        self.assertEqual(tables.sequence_length, 1)
+        for value in [-1, 1e6, 1e-22, 1000, 2**32, -10000]:
+            tables.sequence_length = value
+            self.assertEqual(tables.sequence_length, value)
+
 
 class TestTreeSequence(LowLevelTestCase):
     """

@@ -1576,6 +1576,49 @@ class TestTableCollection(unittest.TestCase):
         self.assertEqual(ts.tables, tables)
         self.assertFalse(tables.has_index())
 
+    def test_set_sequence_length_errors(self):
+        tables = tskit.TableCollection(1)
+        with self.assertRaises(AttributeError):
+            del tables.sequence_length
+        for bad_value in ["asdf", None, []]:
+            with self.assertRaises(TypeError):
+                tables.sequence_length = bad_value
+
+    def test_set_sequence_length(self):
+        tables = tskit.TableCollection(1)
+        for value in [-1, 100, 2**32, 1e-6]:
+            tables.sequence_length = value
+            self.assertEqual(tables.sequence_length, value)
+
+    def test_bad_sequence_length(self):
+        tables = msprime.simulate(10, random_seed=1).dump_tables()
+        self.assertEqual(tables.sequence_length, 1)
+        for value in [-1, 0, -0.99, 0.9999]:
+            tables.sequence_length = value
+            with self.assertRaises(tskit.LibraryError):
+                tables.tree_sequence()
+            with self.assertRaises(tskit.LibraryError):
+                tables.sort()
+            with self.assertRaises(tskit.LibraryError):
+                tables.build_index()
+            with self.assertRaises(tskit.LibraryError):
+                tables.compute_mutation_parents()
+            with self.assertRaises(tskit.LibraryError):
+                tables.simplify()
+            self.assertEqual(tables.sequence_length, value)
+
+    def test_sequence_length_longer_than_edges(self):
+        tables = msprime.simulate(10, random_seed=1).dump_tables()
+        tables.sequence_length = 2
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.sequence_length, 2)
+        self.assertEqual(ts.num_trees, 2)
+        trees = ts.trees()
+        tree = next(trees)
+        self.assertGreater(len(tree.parent_dict), 0)
+        tree = next(trees)
+        self.assertEqual(len(tree.parent_dict), 0)
+
 
 class TestTableCollectionPickle(unittest.TestCase):
     """

@@ -5372,6 +5372,25 @@ TableCollection_get_sequence_length(TableCollection *self, void *closure)
     return Py_BuildValue("f", self->tables->sequence_length);
 }
 
+static int
+TableCollection_set_sequence_length(TableCollection *self, PyObject *value, void *closure)
+{
+    int ret = -1;
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the sequence_length attribute");
+        goto out;
+    }
+    if (! PyNumber_Check(value)) {
+        PyErr_SetString(PyExc_TypeError, "sequence_length must be a number");
+        goto out;
+    }
+    self->tables->sequence_length = PyFloat_AsDouble(value);
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyObject *
 TableCollection_get_file_uuid(TableCollection *self, void *closure)
 {
@@ -5564,8 +5583,9 @@ static PyGetSetDef TableCollection_getsetters[] = {
     {"mutations", (getter) TableCollection_get_mutations, NULL, "The mutation table."},
     {"populations", (getter) TableCollection_get_populations, NULL, "The population table."},
     {"provenances", (getter) TableCollection_get_provenances, NULL, "The provenance table."},
-    {"sequence_length", (getter) TableCollection_get_sequence_length, NULL,
-        "The sequence length."},
+    {"sequence_length",
+        (getter) TableCollection_get_sequence_length,
+        (setter) TableCollection_set_sequence_length, "The sequence length."},
     {"file_uuid", (getter) TableCollection_get_file_uuid, NULL,
         "The UUID of the corresponding file."},
     {NULL}  /* Sentinel */

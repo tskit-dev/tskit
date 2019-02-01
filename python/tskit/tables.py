@@ -1517,6 +1517,10 @@ class TableCollection(object):
     def sequence_length(self):
         return self.ll_tables.sequence_length
 
+    @sequence_length.setter
+    def sequence_length(self, sequence_length):
+        self.ll_tables.sequence_length = sequence_length
+
     @property
     def file_uuid(self):
         return self.ll_tables.file_uuid
