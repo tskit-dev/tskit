@@ -1536,6 +1536,46 @@ class TestTableCollection(unittest.TestCase):
         tables = tskit.TableCollection(sequence_length=1)
         self.assertIsNone(tables.file_uuid, None)
 
+    def test_empty_indexes(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        self.assertFalse(tables.has_index())
+        tables.build_index()
+        self.assertTrue(tables.has_index())
+        tables.drop_index()
+        self.assertFalse(tables.has_index())
+
+    def test_index_unsorted(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=0, time=1)
+        tables.nodes.add_row(flags=0, time=2)
+        tables.edges.add_row(0, 1, 3, 0)
+        tables.edges.add_row(0, 1, 3, 1)
+        tables.edges.add_row(0, 1, 4, 3)
+        tables.edges.add_row(0, 1, 4, 2)
+
+        self.assertFalse(tables.has_index())
+        with self.assertRaises(tskit.LibraryError):
+            tables.build_index()
+        self.assertFalse(tables.has_index())
+        tables.sort()
+        tables.build_index()
+        self.assertTrue(tables.has_index())
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.tables, tables)
+
+    def test_index_from_ts(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tables = ts.dump_tables()
+        self.assertTrue(tables.has_index())
+        tables.drop_index()
+        self.assertFalse(tables.has_index())
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.tables, tables)
+        self.assertFalse(tables.has_index())
+
 
 class TestTableCollectionPickle(unittest.TestCase):
     """

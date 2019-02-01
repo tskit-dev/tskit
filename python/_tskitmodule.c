@@ -5499,6 +5499,45 @@ out:
     return ret;
 }
 
+static PyObject *
+TableCollection_build_index(TableCollection *self)
+{
+    int err;
+    PyObject *ret = NULL;
+
+    err = tsk_table_collection_build_index(self->tables, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_drop_index(TableCollection *self)
+{
+    int err;
+    PyObject *ret = NULL;
+
+    err = tsk_table_collection_drop_index(self->tables, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_has_index(TableCollection *self)
+{
+    bool has_index = tsk_table_collection_has_index(self->tables, 0);
+    return Py_BuildValue("i", (int) has_index);
+}
+
 /* Forward declaration */
 static PyTypeObject TableCollectionType;
 
@@ -5534,15 +5573,21 @@ static PyGetSetDef TableCollection_getsetters[] = {
 
 static PyMethodDef TableCollection_methods[] = {
     {"simplify", (PyCFunction) TableCollection_simplify, METH_VARARGS|METH_KEYWORDS,
-            "Simplifies for a given sample subset." },
+        "Simplifies for a given sample subset." },
     {"sort", (PyCFunction) TableCollection_sort, METH_VARARGS|METH_KEYWORDS,
-            "Sorts the tables to satisfy tree sequence requirements." },
+        "Sorts the tables to satisfy tree sequence requirements." },
     {"equals", (PyCFunction) TableCollection_equals, METH_VARARGS,
-            "Returns True if the parameter table collection is equal to this one." },
+        "Returns True if the parameter table collection is equal to this one." },
     {"compute_mutation_parents", (PyCFunction) TableCollection_compute_mutation_parents,
         METH_NOARGS, "Computes the mutation parents for a the tables." },
     {"deduplicate_sites", (PyCFunction) TableCollection_deduplicate_sites,
         METH_NOARGS, "Removes sites with duplicate positions." },
+    {"build_index", (PyCFunction) TableCollection_build_index,
+        METH_NOARGS, "Builds an index on the table collection." },
+    {"drop_index", (PyCFunction) TableCollection_drop_index,
+        METH_NOARGS, "Drops indexes." },
+    {"has_index", (PyCFunction) TableCollection_has_index,
+        METH_NOARGS, "Returns True if the TableCollection is indexed." },
     {NULL}  /* Sentinel */
 };
 

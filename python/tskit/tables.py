@@ -1751,6 +1751,26 @@ class TableCollection(object):
         self.ll_tables.deduplicate_sites()
         # TODO add provenance
 
+    def has_index(self):
+        """
+        Returns True if this TableCollection is indexed.
+        """
+        return bool(self.ll_tables.has_index())
+
+    def build_index(self):
+        """
+        Builds an index on this TableCollection. Any existing indexes are automatically
+        dropped.
+        """
+        self.ll_tables.build_index()
+
+    def drop_index(self):
+        """
+        Drops an indexes present on this table collection. If the table are not currently
+        indexed this method has no effect.
+        """
+        self.ll_tables.drop_index()
+
 
 # Pickle support. See copyreg registration for this function below.
 def _table_collection_pickle(tables):
