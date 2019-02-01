@@ -44,12 +44,6 @@ namespace tskit
         tsk_node_table_t*
         copy_construct_details(const NodeTableImpl& other)
         {
-            if (other.allocated_locally == false)
-                {
-                    // non-owning, so we share the pointer
-                    // to data
-                    return other.table;
-                }
             node_table_ptr t(make_empty_table());
             int ret = tsk_node_table_copy(other.table, t.get(), 0);
             util::check_error(ret);
@@ -63,7 +57,7 @@ namespace tskit
 
         NodeTableImpl(const NodeTableImpl& other)
             : table(copy_construct_details(other)),
-              allocated_locally(other.allocated_locally)
+              allocated_locally(true)
         {
         }
 
