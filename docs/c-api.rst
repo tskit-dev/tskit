@@ -163,11 +163,11 @@ ensure that it is a **released version**. Released versions are
 tagged on GitHub using the convention ``C_{VERSION}``. The code
 can either be downloaded from GitHub on the `releases page
 <https://github.com/tskit-dev/tskit/releases>`_ or checked out
-using git. For example, to check out the ``C_0.99.0`` release::
+using git. For example, to check out the ``C_0.99.1`` release::
 
     $ git clone https://github.com/tskit-dev/tskit.git
     $ cd tskit
-    $ git checkout C_0.99.0
+    $ git checkout C_0.99.1
 
 Git submodules may also be considered---see the
 `example <https://github.com/tskit-dev/tskit-build-examples/tree/master/meson>`_
