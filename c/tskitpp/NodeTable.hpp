@@ -10,8 +10,8 @@ namespace tskit
     class NodeTable
     {
       private:
-        class NodeTableImpl;
-        std::unique_ptr<NodeTableImpl> pimpl;
+        class Impl;
+        std::unique_ptr<Impl> pimpl;
 
       public:
         explicit NodeTable(tsk_node_table_t* the_table);

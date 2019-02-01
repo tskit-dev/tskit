@@ -9,8 +9,8 @@ namespace tskit
     class TableCollection
     {
       private:
-        class TableCollectionImpl;
-        std::unique_ptr<TableCollectionImpl> pimpl;
+        class Impl;
+        std::unique_ptr<Impl> pimpl;
 
       public:
         NodeTable nodes;

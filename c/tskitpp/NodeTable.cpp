@@ -5,7 +5,7 @@
 namespace tskit
 {
 
-    class NodeTable::NodeTableImpl
+    class NodeTable::Impl
     {
       public:
         tsk_node_table_t* table;
@@ -42,7 +42,7 @@ namespace tskit
         }
 
         tsk_node_table_t*
-        copy_construct_details(const NodeTableImpl& other)
+        copy_construct_details(const Impl& other)
         {
             node_table_ptr t(make_empty_table());
             int ret = tsk_node_table_copy(other.table, t.get(), 0);
@@ -50,18 +50,18 @@ namespace tskit
             return t.release();
         }
 
-        NodeTableImpl(tsk_node_table_t* the_table)
+        Impl(tsk_node_table_t* the_table)
             : table(allocate(the_table)), allocated_locally(the_table != table)
         {
         }
 
-        NodeTableImpl(const NodeTableImpl& other)
+        Impl(const Impl& other)
             : table(copy_construct_details(other)),
               allocated_locally(true)
         {
         }
 
-        ~NodeTableImpl()
+        ~Impl()
         {
             if (allocated_locally && table != NULL)
                 {
@@ -72,12 +72,12 @@ namespace tskit
     };
 
     NodeTable::NodeTable(tsk_node_table_t* the_table)
-        : pimpl(new NodeTableImpl(the_table))
+        : pimpl(new Impl(the_table))
     {
     }
 
     NodeTable::NodeTable(const NodeTable& other)
-        : pimpl(new NodeTableImpl(*other.pimpl))
+        : pimpl(new Impl(*other.pimpl))
     {
     }
 

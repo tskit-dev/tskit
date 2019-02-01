@@ -4,14 +4,14 @@
 
 namespace tskit
 {
-    class TableCollection::TableCollectionImpl
+    class TableCollection::Impl
     {
       public:
         using ptr = std::unique_ptr<tsk_table_collection_t,
                                     void (*)(tsk_table_collection_t*)>;
         ptr tables;
 
-        TableCollectionImpl(const double sequence_length)
+        Impl(const double sequence_length)
             : tables(new tsk_table_collection_t{},
                      [](tsk_table_collection_t* t) { delete t; })
         {
@@ -23,7 +23,7 @@ namespace tskit
             tables->sequence_length = sequence_length;
         }
 
-        TableCollectionImpl(const TableCollectionImpl& other)
+        Impl(const Impl& other)
             : tables(copy_table_collection(other.tables))
         {
             if (tsk_table_collection_equals(tables.get(), other.tables.get())
@@ -49,7 +49,7 @@ namespace tskit
             return temp;
         }
 
-        ~TableCollectionImpl()
+        ~Impl()
         {
             if (tables != nullptr)
                 {
@@ -59,7 +59,7 @@ namespace tskit
     };
 
     TableCollection::TableCollection(double sequence_length)
-        : pimpl(new TableCollectionImpl(sequence_length)),
+        : pimpl(new Impl(sequence_length)),
           nodes(&pimpl->tables->nodes)
     {
     }
@@ -69,7 +69,7 @@ namespace tskit
     // implemented with unique_ptr--not so unique, right?
     // But, it is a reasonable operation.
     TableCollection::TableCollection(const TableCollection& other)
-        : pimpl(new TableCollectionImpl(*other.pimpl.get())),
+        : pimpl(new Impl(*other.pimpl.get())),
           nodes(&pimpl->tables->nodes)
     {
     }
