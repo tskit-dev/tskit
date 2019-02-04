@@ -1,7 +1,8 @@
 #include <sstream>
 #include <iostream>
 
-#include <tskitpp.hpp>
+#include <tskitpp/tables.hpp>
+#include <cassert>
 
 using namespace std;
 
