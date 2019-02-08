@@ -2065,14 +2065,14 @@ tsk_tree_next(tsk_tree_t *self)
     tsk_id_t num_trees = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
 
     if (self->index == -1) {
-        /* As a convenience, we allow next() to be called on a init'ed tree
-         * which as the same effect as first() */
         ret = tsk_tree_first(self);
     } else if (self->index < num_trees - 1) {
         ret = tsk_tree_advance(self, TSK_DIR_FORWARD,
                 tables->edges.right, tables->indexes.edge_removal_order,
                 &self->right_index, tables->edges.left,
                 tables->indexes.edge_insertion_order, &self->left_index);
+    } else {
+        ret = tsk_tree_clear(self);
     }
     return ret;
 }
@@ -2084,14 +2084,14 @@ tsk_tree_prev(tsk_tree_t *self)
     const tsk_table_collection_t *tables = self->tree_sequence->tables;
 
     if (self->index == -1) {
-        /* As a convenience, we allow prev() to be called on a init'ed tree
-         * which as the same effect as last() */
         ret = tsk_tree_last(self);
     } else if (self->index > 0) {
         ret = tsk_tree_advance(self, TSK_DIR_REVERSE,
                 tables->edges.left, tables->indexes.edge_insertion_order,
                 &self->left_index, tables->edges.right,
                 tables->indexes.edge_removal_order, &self->right_index);
+    } else {
+        ret = tsk_tree_clear(self);
     }
     return ret;
 }

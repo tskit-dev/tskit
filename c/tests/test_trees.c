@@ -98,6 +98,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(ts), num_trees);
 
+    CU_ASSERT_EQUAL(tree.index, -1);
     site_index = 0;
     mutation_index = 0;
     j = 0;
@@ -126,9 +127,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(site_index, num_sites);
     CU_ASSERT_EQUAL(mutation_index, num_mutations);
-
-    ret = tsk_tree_next(&tree);
-    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tree.index, -1);
 
     tsk_tree_free(&tree);
 }
@@ -208,7 +207,6 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(j, num_trees);
-    j--;
     while ((ret = tsk_tree_prev(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j - 1, t.index);
         ret = tsk_tree_equal(&t, &trees[t.index]);
@@ -217,15 +215,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(j, 0);
-    CU_ASSERT_EQUAL_FATAL(t.index, 0);
-    /* Calling prev should return 0 and have no effect. */
-    for (j = 0; j < 10; j++) {
-        ret = tsk_tree_prev(&t);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL_FATAL(t.index, 0);
-        ret = tsk_tree_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-    }
+    CU_ASSERT_EQUAL_FATAL(t.index, -1);
 
     /* Full reverse then forward */
     j = num_trees;
@@ -237,7 +227,6 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(j, 0);
-    j++;
     while ((ret = tsk_tree_next(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j, t.index);
         ret = tsk_tree_equal(&t, &trees[t.index]);
@@ -246,15 +235,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(j, num_trees);
-    CU_ASSERT_EQUAL_FATAL(t.index, num_trees - 1);
-    /* Calling next should return 0 and have no effect. */
-    for (j = 0; j < 10; j++) {
-        ret = tsk_tree_next(&t);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL_FATAL(t.index, num_trees - 1);
-        ret = tsk_tree_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-    }
+    CU_ASSERT_EQUAL_FATAL(t.index, -1);
 
     /* Do a zigzagging traversal */
     ret = tsk_tree_first(&t);
@@ -375,8 +356,6 @@ verify_tree_diffs(tsk_treeseq_t *ts)
     }
     CU_ASSERT_EQUAL(num_trees, tsk_treeseq_get_num_trees(ts));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_tree_next(&tree);
-    CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_diff_iter_free(&iter);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_free(&tree);

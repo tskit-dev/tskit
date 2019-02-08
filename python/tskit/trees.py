@@ -432,6 +432,12 @@ class Tree(object):
         """
         return self._tree_sequence
 
+    def first(self):
+        self._ll_tree.first()
+
+    def next(self):
+        return bool(self._ll_tree.next())
+
     def get_branch_length(self, u):
         # Deprecated alias for branch_length
         return self.branch_length(u)
@@ -2260,9 +2266,8 @@ class TreeSequence(object):
             # TODO remove this when we allow numpy arrays in the low-level API.
             kwargs["tracked_samples"] = list(tracked_samples)
         ll_tree = _tskit.Tree(self._ll_tree_sequence, **kwargs)
-        iterator = _tskit.TreeIterator(ll_tree)
         tree = Tree(ll_tree, self)
-        for _ in iterator:
+        while tree.next():
             yield tree
 
     def haplotypes(self):
