@@ -792,17 +792,38 @@ class TestTree(LowLevelTestCase):
                         point = t.find(".")
                         self.assertEqual(precision, len(t) - point - 1)
 
-    @unittest.skip("Correct initialisation for sparse tree.")
+    def test_cleared_tree(self):
+        ts = self.get_example_tree_sequence()
+        samples = ts.get_samples()
+
+        def check_tree(tree):
+            self.assertEqual(tree.get_index(), -1)
+            self.assertEqual(tree.get_left_root(), samples[0])
+            self.assertEqual(tree.get_mrca(0, 1), _tskit.NULL)
+            for u in range(ts.get_num_nodes()):
+                self.assertEqual(tree.get_parent(u), _tskit.NULL)
+                self.assertEqual(tree.get_left_child(u), _tskit.NULL)
+                self.assertEqual(tree.get_right_child(u), _tskit.NULL)
+
+        tree = _tskit.Tree(ts)
+        check_tree(tree)
+        while tree.next():
+            pass
+        check_tree(tree)
+        while tree.prev():
+            pass
+        check_tree(tree)
+
     def test_newick_interface(self):
-        ts = self.get_tree_sequence(num_loci=10, num_samples=10)
+        ts = self.get_example_tree_sequence()
         st = _tskit.Tree(ts)
         # TODO this will break when we correctly handle multiple roots.
-        self.assertEqual(st.get_newick(), b"1;")
+        self.assertEqual(st.get_newick(0), b"1;")
         for bad_type in [None, "", [], {}]:
             self.assertRaises(TypeError, st.get_newick, precision=bad_type)
             self.assertRaises(TypeError, st.get_newick, ts, time_scale=bad_type)
         while st.next():
-            newick = st.get_newick()
+            newick = st.get_newick(st.get_left_root())
             self.assertTrue(newick.endswith(b";"))
 
     def test_index(self):
