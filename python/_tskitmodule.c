@@ -7358,6 +7358,23 @@ out:
     return ret;
 }
 
+/* Forward declaration */
+static PyTypeObject TreeType;
+
+static PyObject *
+Tree_equals(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    Tree *other = NULL;
+
+    if (!PyArg_ParseTuple(args, "O!", &TreeType, &other)) {
+        goto out;
+    }
+    ret = Py_BuildValue("i", tsk_tree_equals(self->tree, other->tree));
+out:
+    return ret;
+}
+
 static PyMemberDef Tree_members[] = {
     {NULL}  /* Sentinel */
 };
@@ -7425,6 +7442,8 @@ static PyMethodDef Tree_methods[] = {
     {"get_newick", (PyCFunction) Tree_get_newick,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the newick representation of this tree." },
+    {"equals", (PyCFunction) Tree_equals, METH_VARARGS,
+            "Returns True if this tree is equal to the parameter tree." },
     {NULL}  /* Sentinel */
 };
 

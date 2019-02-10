@@ -1155,10 +1155,8 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
             self.assertEqual(list(t.samples(0)), [0])
 
-        # This is a bit weird as we don't seem to actually execute the
-        # method until it is iterated.
         self.assertRaises(
-            ValueError, list, ts.trees(sample_counts=False, tracked_samples=[0]))
+            ValueError, ts.trees, sample_counts=False, tracked_samples=[0])
 
     def test_get_pairwise_diversity(self):
         for ts in get_example_tree_sequences():
@@ -1524,6 +1522,43 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertEqual(migration.left, 0)
             self.assertEqual(migration.right, 1)
             self.assertTrue(0 <= migration.node < ts.num_nodes)
+
+    def test_get_item(self):
+        for ts in get_example_tree_sequences():
+            tree1 = ts[-1]
+            self.assertEqual(tree1.index, len(ts) - 1)
+            with self.assertRaises(IndexError):
+                ts[len(ts)]
+            with self.assertRaises(IndexError):
+                ts[len(ts) + 1]
+            with self.assertRaises(IndexError):
+                ts[-len(ts) - 1]
+
+            for index, tree1 in enumerate(ts.trees()):
+                self.assertEqual(index, tree1.index)
+                tree2 = ts[index]
+                self.assertIsNot(tree1, tree2)
+                self.assertEqual(tree1, tree2)
+                self.assertEqual(tree1.parent_dict, tree2.parent_dict)
+
+    def test_list(self):
+        for ts in get_example_tree_sequences():
+            tree_list = list(ts)
+            self.assertEqual(len(tree_list), len(ts))
+            self.assertEqual(len(tree_list), ts.num_trees)
+            self.assertEqual(len(set(map(id, tree_list))), len(ts))
+            for index, tree in enumerate(tree_list):
+                self.assertEqual(index, tree.index)
+
+    def test_reversed_trees(self):
+        for ts in get_example_tree_sequences():
+            index = len(ts) - 1
+            for tree in reversed(ts.trees()):
+                self.assertEqual(tree.index, index)
+                t2 = ts[index]
+                self.assertEqual(tree.interval, t2.interval)
+                self.assertEqual(tree.parent_dict, t2.parent_dict)
+                index -= 1
 
 
 class TestFileUuid(HighLevelTestCase):

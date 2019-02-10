@@ -418,9 +418,23 @@ class Tree(object):
     obtained as part of a :class:`.TreeSequence` using the
     :meth:`.trees` method.
     """
-    def __init__(self, ll_tree, tree_sequence):
-        self._ll_tree = ll_tree
+    def __init__(
+            self, tree_sequence,
+            tracked_samples=None, sample_counts=True, sample_lists=False):
+        options = 0
+        if sample_counts:
+            options |= _tskit.SAMPLE_COUNTS
+        elif tracked_samples is not None:
+            raise ValueError("Cannot set tracked_samples without sample_counts")
+        if sample_lists:
+            options |= _tskit.SAMPLE_LISTS
+        kwargs = {"options": options}
+        if tracked_samples is not None:
+            # TODO remove this when we allow numpy arrays in the low-level API.
+            kwargs["tracked_samples"] = list(tracked_samples)
+
         self._tree_sequence = tree_sequence
+        self._ll_tree = _tskit.Tree(tree_sequence.ll_tree_sequence, **kwargs)
 
     @property
     def tree_sequence(self):
@@ -432,11 +446,39 @@ class Tree(object):
         """
         return self._tree_sequence
 
+    def __eq__(self, other):
+        ret = False
+        if type(other) is type(self):
+            ret = bool(self._ll_tree.equals(other._ll_tree))
+        return ret
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def first(self):
+        self._ll_tree.first()
+
+    def last(self):
         self._ll_tree.first()
 
     def next(self):
         return bool(self._ll_tree.next())
+
+    def prev(self):
+        return bool(self._ll_tree.prev())
+
+    def seek(self, index=None, position=None):
+        # TODO push this into the C API.
+        if index is not None:
+            self.first()
+            while self.index != index:
+                self.next()
+        elif position is not None:
+            self.first()
+            while position < self.interval[0]:
+                self.next()
+        else:
+            raise ValueError("Must specify one of index or position")
 
     def get_branch_length(self, u):
         # Deprecated alias for branch_length
@@ -1634,6 +1676,32 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
     return tc.tree_sequence()
 
 
+class TreeIterator(object):
+    """
+    Simple class providing forward and backward iteration over a tree sequence.
+    """
+    def __init__(self, tree):
+        self.tree = tree
+        self.more_trees = True
+        self.forward = True
+
+    def __iter__(self):
+        return self
+
+    def __reversed__(self):
+        self.forward = False
+        return self
+
+    def __next__(self):
+        if self.forward:
+            self.more_trees = self.more_trees and self.tree.next()
+        else:
+            self.more_trees = self.more_trees and self.tree.prev()
+        if not self.more_trees:
+            raise StopIteration()
+        return self.tree
+
+
 class TreeSequence(object):
     """
     A single tree sequence, as defined by the :ref:`data model <sec_data_model>`.
@@ -1662,6 +1730,23 @@ class TreeSequence(object):
 
     def get_ll_tree_sequence(self):
         return self._ll_tree_sequence
+
+    # Sequence magic methods. We don't implement the __iter__ or __reversed__
+    # methods via efficient iterators because we want the semantics of
+    # list(ts) to make sense. This only works if each tree is a different
+    # object.
+
+    def __len__(self):
+        return self.num_trees
+
+    def __getitem__(self, index):
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("Index out of bounds")
+        tree = Tree(self)
+        tree.seek(index=index)
+        return tree
 
     @classmethod
     def load(cls, path):
@@ -2254,21 +2339,10 @@ class TreeSequence(object):
             sample_counts = leaf_counts
         if leaf_lists is not None:
             sample_lists = leaf_lists
-        options = 0
-        if sample_counts:
-            options |= _tskit.SAMPLE_COUNTS
-        elif tracked_samples is not None:
-            raise ValueError("Cannot set tracked_samples without sample_counts")
-        if sample_lists:
-            options |= _tskit.SAMPLE_LISTS
-        kwargs = {"options": options}
-        if tracked_samples is not None:
-            # TODO remove this when we allow numpy arrays in the low-level API.
-            kwargs["tracked_samples"] = list(tracked_samples)
-        ll_tree = _tskit.Tree(self._ll_tree_sequence, **kwargs)
-        tree = Tree(ll_tree, self)
-        while tree.next():
-            yield tree
+        tree = Tree(
+            self, tracked_samples=tracked_samples, sample_counts=sample_counts,
+            sample_lists=sample_lists)
+        return TreeIterator(tree)
 
     def haplotypes(self):
         """

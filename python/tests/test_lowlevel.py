@@ -904,6 +904,29 @@ class TestTree(LowLevelTestCase):
                     u = t.get_right_sib(u)
                 self.assertEqual(sorted(samples), list(range(ts.get_num_samples())))
 
+    def test_equality(self):
+        last_ts = None
+        for ts in self.get_example_tree_sequences():
+            t1 = _tskit.Tree(ts)
+            t2 = _tskit.Tree(ts)
+            self.assertTrue(t1.equals(t2))
+            self.assertTrue(t2.equals(t1))
+            while True:
+                self.assertTrue(t1.equals(t2))
+                self.assertTrue(t2.equals(t1))
+                n1 = t1.next()
+                self.assertFalse(t1.equals(t2))
+                self.assertFalse(t2.equals(t1))
+                n2 = t2.next()
+                self.assertEqual(n1, n2)
+                if not n1:
+                    break
+            if last_ts is not None:
+                t2 = _tskit.Tree(last_ts)
+                self.assertFalse(t1.equals(t2))
+                self.assertFalse(t2.equals(t1))
+            last_ts = ts
+
 
 class TestModuleFunctions(unittest.TestCase):
     """
