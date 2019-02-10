@@ -48,7 +48,7 @@ jobs:
             PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
-            python3 -m codecov -F python-tests
+            python3 -m codecov -F python_tests
 
       - run:
           name: Build Python package
@@ -97,7 +97,7 @@ jobs:
             gcov -pb tskit@sta/tskit_convert.c.gcno ../c/tskit/convert.c
             gcov -pb tskit@sta/tskit_stats.c.gcno ../c/tskit/stats.c
             cd ..
-            codecov -X gcov -F c-tests
+            codecov -X gcov -F c_tests
 
       - run:
           name: Valgrind for C tests.
