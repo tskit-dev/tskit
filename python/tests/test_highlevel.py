@@ -1999,6 +1999,106 @@ class TestTree(HighLevelTestCase):
             self.assertEqual(t1.get_mrca(*pair), t1.mrca(*pair))
             self.assertEqual(t1.get_tmrca(*pair), t1.tmrca(*pair))
 
+    def test_seek_index(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)
+        N = ts.num_trees
+        self.assertGreater(ts.num_trees, 3)
+        tree = tskit.Tree(ts)
+        for index in [0, N // 2, N - 1, 1]:
+            fresh_tree = tskit.Tree(ts)
+            self.assertEqual(fresh_tree.index, -1)
+            fresh_tree.seek_index(index)
+            tree.seek_index(index)
+            self.assertEqual(fresh_tree.index, index)
+            self.assertEqual(tree.index, index)
+
+        tree = tskit.Tree(ts)
+        for index in [-1,  -2, -N + 2, -N + 1, -N]:
+            fresh_tree = tskit.Tree(ts)
+            self.assertEqual(fresh_tree.index, -1)
+            fresh_tree.seek_index(index)
+            tree.seek_index(index)
+            self.assertEqual(fresh_tree.index, index + N)
+            self.assertEqual(tree.index, index + N)
+        self.assertRaises(IndexError, tree.seek_index, N)
+        self.assertRaises(IndexError, tree.seek_index, N + 1)
+        self.assertRaises(IndexError, tree.seek_index, -N - 1)
+        self.assertRaises(IndexError, tree.seek_index, -N - 2)
+
+    def test_first_last(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=2, random_seed=42)
+        self.assertGreater(ts.num_trees, 3)
+        tree = tskit.Tree(ts)
+        tree.first()
+        self.assertEqual(tree.index, 0)
+        tree = tskit.Tree(ts)
+        tree.last()
+        self.assertEqual(tree.index, ts.num_trees - 1)
+        tree = tskit.Tree(ts)
+        for _ in range(3):
+            tree.last()
+            self.assertEqual(tree.index, ts.num_trees - 1)
+            tree.first()
+            self.assertEqual(tree.index, 0)
+
+    def test_eq_different_tree_sequence(self):
+        ts = msprime.simulate(4, recombination_rate=1, length=2, random_seed=42)
+        copy = ts.tables.tree_sequence()
+        for tree1, tree2 in zip(list(ts), list(copy)):
+            self.assertNotEqual(tree1, tree2)
+
+    def test_next_prev(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        for index, tree in enumerate(list(ts)):
+            self.assertEqual(tree.index, index)
+            j = index
+            while tree.next():
+                j += 1
+                self.assertEqual(tree.index, j)
+            self.assertEqual(tree.index, -1)
+            self.assertEqual(j + 1, ts.num_trees)
+        for index, tree in enumerate(list(ts)):
+            self.assertEqual(tree.index, index)
+            j = index
+            while tree.prev():
+                j -= 1
+                self.assertEqual(tree.index, j)
+            self.assertEqual(tree.index, -1)
+            self.assertEqual(j, 0)
+
+    def verify_empty_tree(self, tree):
+        ts = tree.tree_sequence
+        self.assertEqual(tree.index, -1)
+        self.assertEqual(tree.parent_dict, {})
+        for u in range(ts.num_nodes):
+            self.assertEqual(tree.parent(u), tskit.NULL)
+            self.assertEqual(tree.left_child(u), tskit.NULL)
+            self.assertEqual(tree.right_child(u), tskit.NULL)
+            if not ts.node(u).is_sample():
+                self.assertEqual(tree.left_sib(u), tskit.NULL)
+                self.assertEqual(tree.right_sib(u), tskit.NULL)
+        # Samples should have left-sib right-sibs set
+        samples = ts.samples()
+        self.assertEqual(tree.left_root, samples[0])
+        for j in range(ts.num_samples):
+            if j > 0:
+                self.assertEqual(tree.left_sib(samples[j]), samples[j - 1])
+            if j < ts.num_samples - 1:
+                self.assertEqual(tree.right_sib(samples[j]), samples[j + 1])
+
+    def test_empty_tree(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        tree = tskit.Tree(ts)
+        self.verify_empty_tree(tree)
+        while tree.next():
+            pass
+        self.verify_empty_tree(tree)
+        while tree.prev():
+            pass
+        self.verify_empty_tree(tree)
+
 
 class TestNodeOrdering(HighLevelTestCase):
     """

@@ -456,10 +456,13 @@ class Tree(object):
         return not self.__eq__(other)
 
     def first(self):
+        """
+        Seeks to the first tree in the sequence.
+        """
         self._ll_tree.first()
 
     def last(self):
-        self._ll_tree.first()
+        self._ll_tree.last()
 
     def next(self):
         return bool(self._ll_tree.next())
@@ -467,18 +470,48 @@ class Tree(object):
     def prev(self):
         return bool(self._ll_tree.prev())
 
-    def seek(self, index=None, position=None):
-        # TODO push this into the C API.
-        if index is not None:
-            self.first()
-            while self.index != index:
-                self.next()
-        elif position is not None:
-            self.first()
-            while position < self.interval[0]:
-                self.next()
-        else:
-            raise ValueError("Must specify one of index or position")
+    def seek_index(self, index):
+        """
+        Sets the state to represent the tree at the specified
+        index in the parent tree sequence. Negative indexes following the
+        standard Python conventions are allowed, i.e., ``index=-1`` will
+        seek to the last tree in the sequence.
+
+        :param int index: The tree index to seek to.
+        :raises IndexError: If an index outside the acceptable range is provided.
+        """
+        num_trees = self.tree_sequence.num_trees
+        if index < 0:
+            index += num_trees
+        if index < 0 or index >= num_trees:
+            raise IndexError("Index out of bounds")
+        # This should be implemented in C efficiently using the indexes.
+        # No point in complicating the current implementation by trying
+        # to seek from the correct direction.
+        self.first()
+        while self.index != index:
+            self.next()
+
+    def seek_position(self, position):
+        """
+        Sets the state to represent the tree that covers the specified
+        position in the parent tree sequence. After a successful return
+        of this method, we always have ``tree.interval[0]`` <= ``position``
+        < ``tree.interval[1]``.
+
+        :param float position: The position along the sequence length to
+            seek to.
+        :raises ValueError: If 0 < position or position >=
+            :attr:`.TreeSequence.sequence_length`.
+        """
+        if position < 0 or position >= self.tree_sequence.sequence_length:
+            raise ValueError("Position out of bounds")
+        # This should be implemented in C efficiently using the indexes.
+        # No point in complicating the current implementation by trying
+        # to seek from the correct direction.
+        self.first()
+        while self.interval[0] < position:
+            self.next()
 
     def get_branch_length(self, u):
         # Deprecated alias for branch_length
@@ -1740,12 +1773,8 @@ class TreeSequence(object):
         return self.num_trees
 
     def __getitem__(self, index):
-        if index < 0:
-            index += len(self)
-        if index < 0 or index >= len(self):
-            raise IndexError("Index out of bounds")
         tree = Tree(self)
-        tree.seek(index=index)
+        tree.seek_index(index=index)
         return tree
 
     @classmethod
