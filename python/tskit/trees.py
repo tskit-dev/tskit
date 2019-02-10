@@ -401,22 +401,42 @@ def add_deprecated_mutation_attrs(site, mutation):
 
 class Tree(object):
     """
-    A Tree is a single tree in a :class:`.TreeSequence`. The Tree
-    implementation differs from most tree implementations by using **integer
-    node IDs** to refer to nodes rather than objects. Thus, when we wish to
-    find the parent of the node with ID '0', we use ``tree.parent(0)``, which
-    returns another integer. If '0' does not have a parent in the current tree
-    (e.g., if it is a root), then the special value :const:`.NULL`
-    (:math:`-1`) is returned. The children of a node are found using the
-    :meth:`.children` method. To obtain information about a particular node,
-    one may either use ``tree.tree_sequence.node(u)`` to obtain the
-    corresponding :class:`Node` instance, or use the :meth:`.time` or
-    :meth:`.population` shorthands. Tree traversals in various orders
-    is possible using the :meth:`.Tree.nodes` iterator.
+    A single tree in a :class:`.TreeSequence`. Please see the
+    :ref:`sec_tutorial_moving_along_a_tree_sequence` section for information
+    on how efficiently access trees sequentially or obtain a list
+    of individual trees in a tree sequence.
 
-    Trees are not intended to be instantiated directly, and are
-    obtained as part of a :class:`.TreeSequence` using the
-    :meth:`.trees` method.
+    The ``sample_counts`` and ``sample_lists`` parameters control the
+    features that are enabled for this tree. If ``sample_counts``
+    is True, then it is possible to count the number of samples underneath
+    a particular node in constant time using the :meth:`.num_samples`
+    method. If ``sample_lists`` is True a more efficient algorithm is
+    used in the :meth:`.Tree.samples` method.
+
+    The ``tracked_samples`` parameter can be used to efficiently count the
+    number of samples in a given set that exist in a particular subtree
+    using the :meth:`.Tree.num_tracked_samples` method. It is an
+    error to use the ``tracked_samples`` parameter when the ``sample_counts``
+    flag is False.
+
+    The tree is initially in a "null" or "cleared" state, in which it does
+    not represent the state of any of the trees in the tree sequence. The
+    null tree has an ``index`` value of -1 and no edges; each sample in the
+    parent tree sequence is a root in this tree. To update a tree to represent
+    the state of a given tree in the tree sequence, you must use one of the
+    "seeking" methods (e.g., :meth:`.first`, :meth:`.last`, :meth:`.seek_index`
+    or :meth:`.seek_position`). The :meth:`.clear` method can be used to return
+    the tree to this null state at any time.
+
+    :param TreeSequence tree_sequence: The parent tree sequence.
+    :param list tracked_samples: The list of samples to be tracked and
+        counted using the :meth:`.Tree.num_tracked_samples` method.
+    :param bool sample_counts: If True, support constant time sample counts
+        via the :meth:`.Tree.num_samples` and
+        :meth:`.Tree.num_tracked_samples` methods.
+    :param bool sample_lists: If True, provide more efficient access
+        to the samples beneath a give node using the
+        :meth:`.Tree.samples` method.
     """
     def __init__(
             self, tree_sequence,
@@ -457,18 +477,70 @@ class Tree(object):
 
     def first(self):
         """
-        Seeks to the first tree in the sequence.
+        Seeks to the first tree in the sequence. This can be called whether
+        the tree is in the null state or not.
         """
         self._ll_tree.first()
 
     def last(self):
+        """
+        Seeks to the last tree in the sequence. This can be called whether
+        the tree is in the null state or not.
+        """
         self._ll_tree.last()
 
     def next(self):
+        """
+        Seeks to the next tree in the sequence. If the tree is in the initial
+        null state we seek to the first tree (equivalent to calling :meth:`.first`).
+        Calling ``next`` on the last tree in the sequence results in the tree
+        being cleared back into the null initial state (equivalent to calling
+        :meth:`clear`). The return value of the function indicates whether the
+        tree is in a non-null state, and can be used to loop over the trees::
+
+            # Iterate over the trees from left-to-right
+            tree = tskit.Tree(tree_sequence)
+            while tree.next()
+                # Do something with the tree.
+                print(tree.index)
+            # tree is now back in the null state.
+
+        :return: True if the tree has been transformed into one of the trees
+            in the sequence; False if the tree has been transformed into the
+            null state.
+        :rtype: bool
+        """
         return bool(self._ll_tree.next())
 
     def prev(self):
+        """
+        Seeks to the previous tree in the sequence. If the tree is in the initial
+        null state we seek to the last tree (equivalent to calling :meth:`.last`).
+        Calling ``prev`` on the first tree in the sequence results in the tree
+        being cleared back into the null initial state (equivalent to calling
+        :meth:`clear`). The return value of the function indicates whether the
+        tree is in a non-null state, and can be used to loop over the trees::
+
+            # Iterate over the trees from right-to-left
+            tree = tskit.Tree(tree_sequence)
+            while tree.prev()
+                # Do something with the tree.
+                print(tree.index)
+            # tree is now back in the null state.
+
+        :return: True if the tree has been transformed into one of the trees
+            in the sequence; False if the tree has been transformed into the
+            null state.
+        :rtype: bool
+        """
         return bool(self._ll_tree.prev())
+
+    def clear(self):
+        """
+        Resets this tree back to the initial null state. Calling this method
+        on a tree already in the null state has no effect.
+        """
+        self._ll_tree.clear()
 
     def seek_index(self, index):
         """
@@ -2307,44 +2379,46 @@ class TreeSequence(object):
         """
         yield 0
         for t in self.trees():
-            yield t.get_interval()[1]
+            yield t.interval[1]
 
     def first(self):
         """
         Returns the first tree in this :class:`.TreeSequence`. To iterate over all
         trees in the sequence, use the :meth:`.trees` method.
 
-        Currently does not support the extra options for the :meth:`.trees` method.
-
         :return: The first tree in this tree sequence.
         :rtype: :class:`.Tree`.
         """
-        return next(self.trees())
+        return self[0]
+
+    def last(self):
+        """
+        Returns the last tree in this :class:`.TreeSequence`. To iterate over all
+        trees in the sequence, use the :meth:`.trees` method.
+
+        :return: The last tree in this tree sequence.
+        :rtype: :class:`.Tree`.
+        """
+        return self[-1]
 
     def trees(
             self, tracked_samples=None, sample_counts=True, sample_lists=False,
             tracked_leaves=None, leaf_counts=None, leaf_lists=None):
         """
         Returns an iterator over the trees in this tree sequence. Each value
-        returned in this iterator is an instance of :class:`.Tree`.
+        returned in this iterator is an instance of :class:`.Tree`. Upon
+        successful termination of the iterator, the tree will be in the
+        "cleared" null state.
 
-        The ``sample_counts`` and ``sample_lists`` parameters control the
-        features that are enabled for the resulting trees. If ``sample_counts``
-        is True, then it is possible to count the number of samples underneath
-        a particular node in constant time using the :meth:`.num_samples`
-        method. If ``sample_lists`` is True a more efficient algorithm is
-        used in the :meth:`.Tree.samples` method.
-
-        The ``tracked_samples`` parameter can be used to efficiently count the
-        number of samples in a given set that exist in a particular subtree
-        using the :meth:`.Tree.get_num_tracked_samples` method. It is an
-        error to use the ``tracked_samples`` parameter when the ``sample_counts``
-        flag is False.
+        The ``sample_counts``, ``sample_lists`` and ``tracked_samples``
+        parameters are passed to the :class:`.Tree` constructor, and control
+        the options that are set in the returned tree instance.
 
         :warning: Do not store the results of this iterator in a list!
            For performance reasons, the same underlying object is used
            for every tree returned which will most likely lead to unexpected
-           behaviour.
+           behaviour. If you wish to obtain a list of trees in a tree sequence
+           please use ``list(ts)`` instead.
 
         :param list tracked_samples: The list of samples to be tracked and
             counted using the :meth:`.Tree.get_num_tracked_samples`

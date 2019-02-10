@@ -1052,7 +1052,7 @@ out:
  * Tree
  * ======================================================== */
 
-static int TSK_WARN_UNUSED
+int TSK_WARN_UNUSED
 tsk_tree_clear(tsk_tree_t *self)
 {
     int ret = 0;

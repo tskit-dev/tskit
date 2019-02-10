@@ -283,11 +283,9 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
         CU_ASSERT_EQUAL_FATAL(ret, 1);
     }
 
-    ret = tsk_tree_free(&t);
+    ret = tsk_tree_clear(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_tree_init(&t, ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    /* Calling next() on an uninitialised tree should be the same as first() */
+    /* Calling next() on a cleared tree should be the same as first() */
     j = 0;
     while ((ret = tsk_tree_next(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j, t.index);

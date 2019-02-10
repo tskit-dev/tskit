@@ -28,7 +28,7 @@ Top level-classes
 .. autoclass:: tskit.TreeSequence()
     :members:
 
-.. autoclass:: tskit.Tree()
+.. autoclass:: tskit.Tree
     :members:
 
 

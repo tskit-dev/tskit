@@ -6850,6 +6850,25 @@ out:
 }
 
 static PyObject *
+Tree_clear(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    err = tsk_tree_clear(self->tree);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_sample_size(Tree *self)
 {
     PyObject *ret = NULL;
@@ -7388,6 +7407,8 @@ static PyMethodDef Tree_methods[] = {
             "Sets this tree to the previous one in the sequence." },
     {"next", (PyCFunction) Tree_next, METH_NOARGS,
             "Sets this tree to the next one in the sequence." },
+    {"clear", (PyCFunction) Tree_clear, METH_NOARGS,
+            "Resets this tree back to the cleared null state." },
     {"get_sample_size", (PyCFunction) Tree_get_sample_size, METH_NOARGS,
             "Returns the number of samples in this tree." },
     {"get_num_nodes", (PyCFunction) Tree_get_num_nodes, METH_NOARGS,

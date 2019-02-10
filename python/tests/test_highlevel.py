@@ -1113,12 +1113,19 @@ class TestTreeSequence(HighLevelTestCase):
                         if node.population == pop and node.is_sample()])
             self.assertRaises(ValueError, ts.samples, population=0, population_id=0)
 
-    def test_first(self):
+    def test_first_last(self):
         for ts in get_example_tree_sequences():
             t1 = ts.first()
             t2 = next(ts.trees())
             self.assertFalse(t1 is t2)
             self.assertEqual(t1.parent_dict, t2.parent_dict)
+            self.assertEqual(t1.index, 0)
+
+            t1 = ts.last()
+            t2 = next(reversed(ts.trees()))
+            self.assertFalse(t1 is t2)
+            self.assertEqual(t1.parent_dict, t2.parent_dict)
+            self.assertEqual(t1.index, len(ts) - 1)
 
     def test_trees_interface(self):
         ts = list(get_example_tree_sequences())[0]
@@ -2066,6 +2073,12 @@ class TestTree(HighLevelTestCase):
                 self.assertEqual(tree.index, j)
             self.assertEqual(tree.index, -1)
             self.assertEqual(j, 0)
+        tree.first()
+        tree.prev()
+        self.assertEqual(tree.index, -1)
+        tree.last()
+        tree.next()
+        self.assertEqual(tree.index, -1)
 
     def verify_empty_tree(self, tree):
         ts = tree.tree_sequence
@@ -2097,6 +2110,20 @@ class TestTree(HighLevelTestCase):
         self.verify_empty_tree(tree)
         while tree.prev():
             pass
+        self.verify_empty_tree(tree)
+
+    def test_clear(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        tree = tskit.Tree(ts)
+        tree.first()
+        tree.clear()
+        self.verify_empty_tree(tree)
+        tree.last()
+        tree.clear()
+        self.verify_empty_tree(tree)
+        tree.seek_index(ts.num_trees // 2)
+        tree.clear()
         self.verify_empty_tree(tree)
 
 

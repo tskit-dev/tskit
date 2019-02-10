@@ -217,6 +217,7 @@ int tsk_tree_first(tsk_tree_t *self);
 int tsk_tree_last(tsk_tree_t *self);
 int tsk_tree_next(tsk_tree_t *self);
 int tsk_tree_prev(tsk_tree_t *self);
+int tsk_tree_clear(tsk_tree_t *self);
 
 void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /** @} */
