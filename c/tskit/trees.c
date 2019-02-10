@@ -1351,39 +1351,14 @@ out:
     return ret;
 }
 
-/* Returns 0 if the specified sparse trees are equal, 1 if they are
- * not equal, and < 0 if an error occurs.
- *
- * We only consider topological properties of the tree. Optional
- * counts and sample lists are not considered for equality.
- */
-int TSK_WARN_UNUSED
-tsk_tree_equal(tsk_tree_t *self, tsk_tree_t *other)
+bool TSK_WARN_UNUSED
+tsk_tree_equals(tsk_tree_t *self, tsk_tree_t *other)
 {
-    int ret = 1;
-    int condition;
-    size_t N = self->num_nodes;
+    bool ret = false;
 
-    if (self->tree_sequence != other->tree_sequence) {
-        /* It is an error to compare trees from different tree sequences. */
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
+    if (self->tree_sequence == other->tree_sequence) {
+        ret = self->index == other->index;
     }
-    condition = self->index == other->index
-        && self->left == other->left
-        && self->right == other->right
-        && self->sites_length == other->sites_length
-        && self->sites == other->sites
-        && memcmp(self->parent, other->parent, N * sizeof(tsk_id_t)) == 0;
-    /* We do not check the children for equality here because
-     * the ordering of the children within a parent are essentially irrelevant
-     * in terms of topology. Depending on the way in which we approach a given
-     * tree we can get different orderings within the children, and so the
-     * same tree would not be equal to itself. */
-    if (condition) {
-        ret = 0;
-    }
-out:
     return ret;
 }
 
