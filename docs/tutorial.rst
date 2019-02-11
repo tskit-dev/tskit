@@ -37,6 +37,10 @@ is possible using the :meth:`.Tree.nodes` iterator.
 Moving along a tree sequence
 ****************************
 
+----------
+High level
+----------
+
 Most of the time we will want to iterate over all the trees in a tree sequence
 sequentially as efficiently as possible. The simplest way to do this is to
 use the :meth:`.TreeSequence.trees` method:
@@ -118,7 +122,7 @@ list, we will get unexpected results:
     Tree -1 covers [0.00, 0.00): id=7f290becb3c8
 
 Thus, we have stored seven copies of the same :class:`Tree` instance in the
-list. Because iteration has ended, this tree is in the "cleared" state (see
+list. Because iteration has ended, this tree is in the "null" state (see
 below for more details) which means that it doesn't represent any of the
 trees in the tree sequence.
 
@@ -143,8 +147,8 @@ If we do wish to obtain a list of the trees, we can do so by simply calling
 
 Note that we now have a different object for each tree in the list. Please
 note that this is **much** less efficient than iterating over the trees
-using the :meth:`.TreeSequence.trees` method, and should only be used as a
-convenience when working with small trees.
+using the :meth:`.TreeSequence.trees` method (and use far more memory!),
+and should only be used as a convenience when working with small trees.
 
 The :class:`.TreeSequence` class is regarded literally as a sequence of
 trees from a Python perspective and so we can use the familiar list access
@@ -169,8 +173,125 @@ and so it is much, much less efficient to sequentially access trees
 by their index values than it is to use the :meth:`.TreeSequence.trees`
 iterator.
 
-.. todo:: Add discussion on manually iterating over trees using the
-    next, prev methods.
+---------
+Low level
+---------
+
+The high-level operations described in the previous section provide a
+convenient interface to obtain the trees along a sequence in various
+different ways in the :class:`.TreeSequence` class.
+These operations are all built on the lower-level :class:`.Tree` class
+which provides the efficient primitive operations required. For most
+applications the higher-level :class:`.TreeSequence` API is more
+appropriate, but it is sometimes useful to work directly with the
+:class:`.Tree` API also.
+
+The :class:`.Tree` class represents individual trees along a tree
+sequence and is *mutable*: it provides method to "seek" along the
+sequence and transform its state to represent the tree at a given position.
+Continuing the example above,
+
+.. code-block:: python
+
+    tree = tskit.Tree(ts)
+    tree.seek_index(len(ts) // 2)
+    print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
+    tree.seek_position(0.95)
+    print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
+
+::
+
+    Tree 3 covers [0.37, 0.66)
+    Tree 6 covers [0.75, 1.00)
+
+
+Here, we allocate a new :class:`.Tree` for the tree sequence in our example,
+and we tell it to seek to two different locations. In the first, we change
+the state to the tree at index 3. In the second, we seek to the tree that
+covers position 0.95, which turns out to be tree index 6. Notice that we are
+still using the same :class:`.Tree` instance, we have just changed its internal
+state to represent different trees along the sequence. We also have the
+:meth:`.Tree.next` and :meth:`.Tree.prev` methods, which transform the tree
+into the next and previous trees along the sequence, respectively:
+
+
+.. code-block:: python
+
+    tree.prev()
+    print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
+    tree.next()
+    print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
+
+::
+
+    Tree 5 covers [0.71, 0.75)
+    Tree 6 covers [0.75, 1.00)
+
+At the end of the last code block, the tree object represented the state of tree
+index 6 on the sequence, and so when we call ``prev`` on this it transforms
+the state to represent the tree at index 5. Afterwards, we call ``next``, and
+we transform the state back to the tree at index 6.
+
+Thus, the :class:`.Tree` class is a state-machine which has a state corresponding
+to each of the trees in the parent tree sequence. We transition between these
+states by using the seek functions like :meth:`.Tree.first`,
+:meth:`.Tree.last`, :meth:`.Tree.seek_index` and :meth:`.Tree.seek_position`. There
+is one more state, the so-called "null" or "cleared" state. This is the state
+that a :class:`.Tree` is in immediately after initialisation;  it has
+an index of -1, and no edges. We can also enter the null state by
+calling :meth:`.Tree.next` on the last tree in a sequence, calling
+:meth:`.Tree.prev` on the first tree in a sequence or calling
+calling the :meth:`.Tree.clear` method at any time.
+
+.. code-block:: python
+
+    tree = tskit.Tree(ts)
+    print("Tree {}: parent_dict = {}".format(tree.index, tree.parent_dict))
+    tree.first()
+    print("Tree {}: parent_dict = {}".format(tree.index, tree.parent_dict))
+    tree.prev()
+    print("Tree {}: parent_dict = {}".format(tree.index, tree.parent_dict))
+
+::
+
+    Tree -1: parent_dict = {}
+    Tree 0: parent_dict = {0: 9, 1: 11, 2: 6, 3: 6, 4: 9, 6: 12, 9: 11, 11: 12}
+    Tree -1: parent_dict = {}
+
+The :meth:`.Tree.next` and :meth:`.Tree.prev` methods provide two short-cuts
+allow for easy iteration over the trees in a sequence. First, if ``next`` is
+called on a :class:`.Tree` in the null state, this changes the state to
+represent the first tree in the sequence (or last tree, if calling ``prev``).
+Secondly, the ``next`` and ``prev`` methods return True if the tree
+has just been transformed into a non-null state. This gives us a
+neat idiom for iteratively visiting all the trees along a sequence:
+
+.. code-block:: python
+
+    tree = tskit.Tree(ts)
+    while tree.next():
+        print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
+    print("After loop: tree index =", tree.index)
+    while tree.prev():
+        print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
+
+::
+
+    Tree 0 covers [0.00, 0.08)
+    Tree 1 covers [0.08, 0.27)
+    Tree 2 covers [0.27, 0.37)
+    Tree 3 covers [0.37, 0.66)
+    Tree 4 covers [0.66, 0.71)
+    Tree 5 covers [0.71, 0.75)
+    Tree 6 covers [0.75, 1.00)
+    After loop: tree index = -1
+    Tree 6 covers [0.75, 1.00)
+    Tree 5 covers [0.71, 0.75)
+    Tree 4 covers [0.66, 0.71)
+    Tree 3 covers [0.37, 0.66)
+    Tree 2 covers [0.27, 0.37)
+    Tree 1 covers [0.08, 0.27)
+    Tree 0 covers [0.00, 0.08)
 
 
 **********************
