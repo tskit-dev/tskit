@@ -582,7 +582,7 @@ class Tree(object):
         # No point in complicating the current implementation by trying
         # to seek from the correct direction.
         self.first()
-        while self.interval[0] < position:
+        while self.interval[1] <= position:
             self.next()
 
     def get_branch_length(self, u):

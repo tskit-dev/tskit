@@ -48,7 +48,7 @@ jobs:
             PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
-            python3 -m codecov -F python_tests
+            python3 -m codecov -F python_tests -X gcov
 
       - run:
           name: Build Python package

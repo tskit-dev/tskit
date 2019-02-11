@@ -2080,6 +2080,27 @@ class TestTree(HighLevelTestCase):
         tree.next()
         self.assertEqual(tree.index, -1)
 
+    def test_seek_position(self):
+        L = 10
+        ts = msprime.simulate(10, recombination_rate=3, length=L, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        same_tree = tskit.Tree(ts)
+        for tree in [same_tree, tskit.Tree(ts)]:
+            for j in range(L):
+                tree.seek_position(j)
+                index = tree.index
+                self.assertTrue(tree.interval[0] <= j < tree.interval[1])
+                tree.seek_position(tree.interval[0])
+                self.assertEqual(tree.index, index)
+                if tree.interval[1] < L:
+                    tree.seek_position(tree.interval[1])
+                    self.assertEqual(tree.index, index + 1)
+            for j in reversed(range(L)):
+                tree.seek_position(j)
+                self.assertTrue(tree.interval[0] <= j < tree.interval[1])
+        for bad_position in [-1, L, L + 1, -L]:
+            self.assertRaises(ValueError, tree.seek_position, bad_position)
+
     def verify_empty_tree(self, tree):
         ts = tree.tree_sequence
         self.assertEqual(tree.index, -1)
