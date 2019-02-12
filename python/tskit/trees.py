@@ -419,14 +419,21 @@ class Tree(object):
     error to use the ``tracked_samples`` parameter when the ``sample_counts``
     flag is False.
 
-    The tree is initially in a "null" or "cleared" state, in which it does
-    not represent the state of any of the trees in the tree sequence. The
-    null tree has an ``index`` value of -1 and no edges; each sample in the
-    parent tree sequence is a root in this tree. To update a tree to represent
-    the state of a given tree in the tree sequence, you must use one of the
-    "seeking" methods (e.g., :meth:`.first`, :meth:`.last`, :meth:`.seek`
-    or :meth:`.seek_index`). The :meth:`.clear` method can be used to return
-    the tree to this null state at any time.
+    The :class:`.Tree` class is a state-machine which has a state
+    corresponding to each of the trees in the parent tree sequence. We
+    transition between these states by using the seek functions like
+    :meth:`.Tree.first`, :meth:`.Tree.last`, :meth:`.Tree.seek` and
+    :meth:`.Tree.seek_index`. There is one more state, the so-called "null"
+    or "cleared" state. This is the state that a :class:`.Tree` is in
+    immediately after initialisation;  it has an index of -1, and no edges. We
+    can also enter the null state by calling :meth:`.Tree.next` on the last
+    tree in a sequence, calling :meth:`.Tree.prev` on the first tree in a
+    sequence or calling calling the :meth:`.Tree.clear` method at any time.
+
+    The high-level TreeSequence seeking and iterations methods (e.g,
+    :class:`.TreeSequence.trees`) are built on these low-level state-machine
+    seek operations. We recommend these higher level operations for most
+    users.
 
     :param TreeSequence tree_sequence: The parent tree sequence.
     :param list tracked_samples: The list of samples to be tracked and
@@ -2454,11 +2461,10 @@ class TreeSequence(object):
            For performance reasons, the same underlying object is used
            for every tree returned which will most likely lead to unexpected
            behaviour. If you wish to obtain a list of trees in a tree sequence
-           please use ``list(ts)`` instead.
+           please use ``ts.aslist()`` instead.
 
         :param list tracked_samples: The list of samples to be tracked and
-            counted using the :meth:`.Tree.get_num_tracked_samples`
-            method.
+            counted using the :meth:`.Tree.get_num_tracked_samples` method.
         :param bool sample_counts: If True, support constant time sample counts
             via the :meth:`.Tree.num_samples` and
             :meth:`.Tree.get_num_tracked_samples` methods.

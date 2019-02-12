@@ -29,23 +29,26 @@ def moving_along_tree_sequence():
             tree.index, *tree.interval, id(tree)))
 
     print()
-    for tree in list(ts):
+    for tree in ts.aslist():
         print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
             tree.index, *tree.interval, id(tree)))
 
     print()
-    tree = ts[0]
+    tree = ts.at(0.5)
     print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
         tree.index, *tree.interval, id(tree)))
-    tree = ts[-1]
+    tree = ts.at_index(0)
+    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+        tree.index, *tree.interval, id(tree)))
+    tree = ts.at_index(-1)
     print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
         tree.index, *tree.interval, id(tree)))
 
     print()
     tree = tskit.Tree(ts)
-    tree.seek_index(len(ts) // 2)
+    tree.seek_index(ts.num_trees // 2)
     print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
-    tree.seek_position(0.95)
+    tree.seek(0.95)
     print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
 
     print()
