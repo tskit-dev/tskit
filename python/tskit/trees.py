@@ -424,8 +424,8 @@ class Tree(object):
     null tree has an ``index`` value of -1 and no edges; each sample in the
     parent tree sequence is a root in this tree. To update a tree to represent
     the state of a given tree in the tree sequence, you must use one of the
-    "seeking" methods (e.g., :meth:`.first`, :meth:`.last`, :meth:`.seek_index`
-    or :meth:`.seek_position`). The :meth:`.clear` method can be used to return
+    "seeking" methods (e.g., :meth:`.first`, :meth:`.last`, :meth:`.seek`
+    or :meth:`.seek_index`). The :meth:`.clear` method can be used to return
     the tree to this null state at any time.
 
     :param TreeSequence tree_sequence: The parent tree sequence.
@@ -564,11 +564,11 @@ class Tree(object):
         while self.index != index:
             self.next()
 
-    def seek_position(self, position):
+    def seek(self, position):
         """
         Sets the state to represent the tree that covers the specified
         position in the parent tree sequence. After a successful return
-        of this method, we always have ``tree.interval[0]`` <= ``position``
+        of this method we have ``tree.interval[0]`` <= ``position``
         < ``tree.interval[1]``.
 
         :param float position: The position along the sequence length to
@@ -1836,18 +1836,25 @@ class TreeSequence(object):
     def get_ll_tree_sequence(self):
         return self._ll_tree_sequence
 
-    # Sequence magic methods. We don't implement the __iter__ or __reversed__
-    # methods via efficient iterators because we want the semantics of
-    # list(ts) to make sense. This only works if each tree is a different
-    # object.
+    def aslist(self):
+        """
+        Returns the trees in this tree sequence as a list. Each tree is
+        represented by a different instance of :class:`.Tree`. As such, this
+        method is inefficient and may use a large amount of memory, and should
+        not be used when performance is a consideration. The :meth:`.trees`
+        method is the recommended way to efficiently iterate over the trees
+        in a tree sequence.
 
-    def __len__(self):
-        return self.num_trees
-
-    def __getitem__(self, index):
-        tree = Tree(self)
-        tree.seek_index(index=index)
-        return tree
+        :return: A list of the trees in this tree sequence.
+        :rtype: list
+        """
+        # TODO Use tree.copy here to avoid all the seeking. See
+        # https://github.com/tskit-dev/tskit/issues/122
+        treelist = [None for _ in range(self.num_trees)]
+        for j in range(self.num_trees):
+            treelist[j] = Tree(self)
+            treelist[j].seek_index(j)
+        return treelist
 
     @classmethod
     def load(cls, path):
@@ -2381,6 +2388,31 @@ class TreeSequence(object):
         for t in self.trees():
             yield t.interval[1]
 
+    def at(self, position):
+        """
+        Returns the tree covering the specified genomic location. The returned tree
+        will have ``tree.interval[0]`` <= ``position`` < ``tree.interval[1]``.
+        See also :meth:`.Tree.seek`.
+
+        :return: A new instance of :class:`.Tree` positioned to cover the specified
+            position.
+        :rtype: Tree
+        """
+        tree = Tree(self)
+        tree.seek(position)
+        return tree
+
+    def at_index(self, index):
+        """
+        Returns the tree at the specified index. See also :meth:`.Tree.seek_index`.
+
+        :return: A new instance of :class:`.Tree` positioned at the specified index.
+        :rtype: Tree
+        """
+        tree = Tree(self)
+        tree.seek_index(index)
+        return tree
+
     def first(self):
         """
         Returns the first tree in this :class:`.TreeSequence`. To iterate over all
@@ -2389,7 +2421,9 @@ class TreeSequence(object):
         :return: The first tree in this tree sequence.
         :rtype: :class:`.Tree`.
         """
-        return self[0]
+        tree = Tree(self)
+        tree.first()
+        return tree
 
     def last(self):
         """
@@ -2399,7 +2433,9 @@ class TreeSequence(object):
         :return: The last tree in this tree sequence.
         :rtype: :class:`.Tree`.
         """
-        return self[-1]
+        tree = Tree(self)
+        tree.last()
+        return tree
 
     def trees(
             self, tracked_samples=None, sample_counts=True, sample_lists=False,

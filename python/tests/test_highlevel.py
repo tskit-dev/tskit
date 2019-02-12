@@ -1125,7 +1125,7 @@ class TestTreeSequence(HighLevelTestCase):
             t2 = next(reversed(ts.trees()))
             self.assertFalse(t1 is t2)
             self.assertEqual(t1.parent_dict, t2.parent_dict)
-            self.assertEqual(t1.index, len(ts) - 1)
+            self.assertEqual(t1.index, ts.num_trees - 1)
 
     def test_trees_interface(self):
         ts = list(get_example_tree_sequences())[0]
@@ -1530,42 +1530,55 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertEqual(migration.right, 1)
             self.assertTrue(0 <= migration.node < ts.num_nodes)
 
-    def test_get_item(self):
-        for ts in get_example_tree_sequences():
-            tree1 = ts[-1]
-            self.assertEqual(tree1.index, len(ts) - 1)
-            with self.assertRaises(IndexError):
-                ts[len(ts)]
-            with self.assertRaises(IndexError):
-                ts[len(ts) + 1]
-            with self.assertRaises(IndexError):
-                ts[-len(ts) - 1]
-
-            for index, tree1 in enumerate(ts.trees()):
-                self.assertEqual(index, tree1.index)
-                tree2 = ts[index]
-                self.assertIsNot(tree1, tree2)
-                self.assertEqual(tree1, tree2)
-                self.assertEqual(tree1.parent_dict, tree2.parent_dict)
-
     def test_list(self):
         for ts in get_example_tree_sequences():
-            tree_list = list(ts)
-            self.assertEqual(len(tree_list), len(ts))
+            tree_list = ts.aslist()
             self.assertEqual(len(tree_list), ts.num_trees)
-            self.assertEqual(len(set(map(id, tree_list))), len(ts))
+            self.assertEqual(len(set(map(id, tree_list))), ts.num_trees)
             for index, tree in enumerate(tree_list):
                 self.assertEqual(index, tree.index)
+            for t1, t2 in zip(tree_list, ts.trees()):
+                self.assertEqual(t1, t2)
+                self.assertEqual(t1.parent_dict, t2.parent_dict)
 
     def test_reversed_trees(self):
         for ts in get_example_tree_sequences():
-            index = len(ts) - 1
+            index = ts.num_trees - 1
+            tree_list = ts.aslist()
             for tree in reversed(ts.trees()):
                 self.assertEqual(tree.index, index)
-                t2 = ts[index]
+                t2 = tree_list[index]
                 self.assertEqual(tree.interval, t2.interval)
                 self.assertEqual(tree.parent_dict, t2.parent_dict)
                 index -= 1
+
+    def test_at_index(self):
+        for ts in get_example_tree_sequences():
+            tree_list = ts.aslist()
+            for index in list(range(ts.num_trees)) + [-1]:
+                t1 = tree_list[index]
+                t2 = ts.at_index(index)
+                self.assertEqual(t1, t2)
+                self.assertEqual(t1.interval, t2.interval)
+                self.assertEqual(t1.parent_dict, t2.parent_dict)
+
+    def test_at(self):
+        for ts in get_example_tree_sequences():
+            tree_list = ts.aslist()
+            for t1 in tree_list:
+                left, right = t1.interval
+                mid = left + (right - left) / 2
+                for pos in [left, left + 1e-9, mid, right - 1e-9]:
+                    t2 = ts.at(pos)
+                    self.assertEqual(t1, t2)
+                    self.assertEqual(t1.interval, t2.interval)
+                    self.assertEqual(t1.parent_dict, t2.parent_dict)
+                if right < ts.sequence_length:
+                    t2 = ts.at(right)
+                    t3 = tree_list[t1.index + 1]
+                    self.assertEqual(t3, t2)
+                    self.assertEqual(t3.interval, t2.interval)
+                    self.assertEqual(t3.parent_dict, t2.parent_dict)
 
 
 class TestFileUuid(HighLevelTestCase):
@@ -2051,13 +2064,13 @@ class TestTree(HighLevelTestCase):
     def test_eq_different_tree_sequence(self):
         ts = msprime.simulate(4, recombination_rate=1, length=2, random_seed=42)
         copy = ts.tables.tree_sequence()
-        for tree1, tree2 in zip(list(ts), list(copy)):
+        for tree1, tree2 in zip(ts.aslist(), copy.aslist()):
             self.assertNotEqual(tree1, tree2)
 
     def test_next_prev(self):
         ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
         self.assertGreater(ts.num_trees, 5)
-        for index, tree in enumerate(list(ts)):
+        for index, tree in enumerate(ts.aslist()):
             self.assertEqual(tree.index, index)
             j = index
             while tree.next():
@@ -2065,7 +2078,7 @@ class TestTree(HighLevelTestCase):
                 self.assertEqual(tree.index, j)
             self.assertEqual(tree.index, -1)
             self.assertEqual(j + 1, ts.num_trees)
-        for index, tree in enumerate(list(ts)):
+        for index, tree in enumerate(ts.aslist()):
             self.assertEqual(tree.index, index)
             j = index
             while tree.prev():
@@ -2080,26 +2093,26 @@ class TestTree(HighLevelTestCase):
         tree.next()
         self.assertEqual(tree.index, -1)
 
-    def test_seek_position(self):
+    def test_seek(self):
         L = 10
         ts = msprime.simulate(10, recombination_rate=3, length=L, random_seed=42)
         self.assertGreater(ts.num_trees, 5)
         same_tree = tskit.Tree(ts)
         for tree in [same_tree, tskit.Tree(ts)]:
             for j in range(L):
-                tree.seek_position(j)
+                tree.seek(j)
                 index = tree.index
                 self.assertTrue(tree.interval[0] <= j < tree.interval[1])
-                tree.seek_position(tree.interval[0])
+                tree.seek(tree.interval[0])
                 self.assertEqual(tree.index, index)
                 if tree.interval[1] < L:
-                    tree.seek_position(tree.interval[1])
+                    tree.seek(tree.interval[1])
                     self.assertEqual(tree.index, index + 1)
             for j in reversed(range(L)):
-                tree.seek_position(j)
+                tree.seek(j)
                 self.assertTrue(tree.interval[0] <= j < tree.interval[1])
         for bad_position in [-1, L, L + 1, -L]:
-            self.assertRaises(ValueError, tree.seek_position, bad_position)
+            self.assertRaises(ValueError, tree.seek, bad_position)
 
     def verify_empty_tree(self, tree):
         ts = tree.tree_sequence
