@@ -3,7 +3,7 @@ coverage:
     project:
       python-tests:
         target: 95%
-        flags: python-tests
+        flags: python_tests
       c-tests:
         target: 85%
-        flags: c-tests
+        flags: c_tests

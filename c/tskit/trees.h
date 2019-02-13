@@ -217,14 +217,15 @@ int tsk_tree_first(tsk_tree_t *self);
 int tsk_tree_last(tsk_tree_t *self);
 int tsk_tree_next(tsk_tree_t *self);
 int tsk_tree_prev(tsk_tree_t *self);
+int tsk_tree_clear(tsk_tree_t *self);
 
 void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /** @} */
 
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);
+bool tsk_tree_equals(tsk_tree_t *self, tsk_tree_t *other);
 int tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source);
-int tsk_tree_equal(tsk_tree_t *self, tsk_tree_t *other);
 int tsk_tree_set_tracked_samples(tsk_tree_t *self,
         size_t num_tracked_samples, tsk_id_t *tracked_samples);
 int tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,

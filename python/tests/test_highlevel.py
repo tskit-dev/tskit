@@ -1113,12 +1113,19 @@ class TestTreeSequence(HighLevelTestCase):
                         if node.population == pop and node.is_sample()])
             self.assertRaises(ValueError, ts.samples, population=0, population_id=0)
 
-    def test_first(self):
+    def test_first_last(self):
         for ts in get_example_tree_sequences():
             t1 = ts.first()
             t2 = next(ts.trees())
             self.assertFalse(t1 is t2)
             self.assertEqual(t1.parent_dict, t2.parent_dict)
+            self.assertEqual(t1.index, 0)
+
+            t1 = ts.last()
+            t2 = next(reversed(ts.trees()))
+            self.assertFalse(t1 is t2)
+            self.assertEqual(t1.parent_dict, t2.parent_dict)
+            self.assertEqual(t1.index, ts.num_trees - 1)
 
     def test_trees_interface(self):
         ts = list(get_example_tree_sequences())[0]
@@ -1155,10 +1162,8 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
             self.assertEqual(list(t.samples(0)), [0])
 
-        # This is a bit weird as we don't seem to actually execute the
-        # method until it is iterated.
         self.assertRaises(
-            ValueError, list, ts.trees(sample_counts=False, tracked_samples=[0]))
+            ValueError, ts.trees, sample_counts=False, tracked_samples=[0])
 
     def test_get_pairwise_diversity(self):
         for ts in get_example_tree_sequences():
@@ -1524,6 +1529,56 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertEqual(migration.left, 0)
             self.assertEqual(migration.right, 1)
             self.assertTrue(0 <= migration.node < ts.num_nodes)
+
+    def test_list(self):
+        for ts in get_example_tree_sequences():
+            tree_list = ts.aslist()
+            self.assertEqual(len(tree_list), ts.num_trees)
+            self.assertEqual(len(set(map(id, tree_list))), ts.num_trees)
+            for index, tree in enumerate(tree_list):
+                self.assertEqual(index, tree.index)
+            for t1, t2 in zip(tree_list, ts.trees()):
+                self.assertEqual(t1, t2)
+                self.assertEqual(t1.parent_dict, t2.parent_dict)
+
+    def test_reversed_trees(self):
+        for ts in get_example_tree_sequences():
+            index = ts.num_trees - 1
+            tree_list = ts.aslist()
+            for tree in reversed(ts.trees()):
+                self.assertEqual(tree.index, index)
+                t2 = tree_list[index]
+                self.assertEqual(tree.interval, t2.interval)
+                self.assertEqual(tree.parent_dict, t2.parent_dict)
+                index -= 1
+
+    def test_at_index(self):
+        for ts in get_example_tree_sequences():
+            tree_list = ts.aslist()
+            for index in list(range(ts.num_trees)) + [-1]:
+                t1 = tree_list[index]
+                t2 = ts.at_index(index)
+                self.assertEqual(t1, t2)
+                self.assertEqual(t1.interval, t2.interval)
+                self.assertEqual(t1.parent_dict, t2.parent_dict)
+
+    def test_at(self):
+        for ts in get_example_tree_sequences():
+            tree_list = ts.aslist()
+            for t1 in tree_list:
+                left, right = t1.interval
+                mid = left + (right - left) / 2
+                for pos in [left, left + 1e-9, mid, right - 1e-9]:
+                    t2 = ts.at(pos)
+                    self.assertEqual(t1, t2)
+                    self.assertEqual(t1.interval, t2.interval)
+                    self.assertEqual(t1.parent_dict, t2.parent_dict)
+                if right < ts.sequence_length:
+                    t2 = ts.at(right)
+                    t3 = tree_list[t1.index + 1]
+                    self.assertEqual(t3, t2)
+                    self.assertEqual(t3.interval, t2.interval)
+                    self.assertEqual(t3.parent_dict, t2.parent_dict)
 
 
 class TestFileUuid(HighLevelTestCase):
@@ -1963,6 +2018,147 @@ class TestTree(HighLevelTestCase):
         for pair in pairs:
             self.assertEqual(t1.get_mrca(*pair), t1.mrca(*pair))
             self.assertEqual(t1.get_tmrca(*pair), t1.tmrca(*pair))
+
+    def test_seek_index(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)
+        N = ts.num_trees
+        self.assertGreater(ts.num_trees, 3)
+        tree = tskit.Tree(ts)
+        for index in [0, N // 2, N - 1, 1]:
+            fresh_tree = tskit.Tree(ts)
+            self.assertEqual(fresh_tree.index, -1)
+            fresh_tree.seek_index(index)
+            tree.seek_index(index)
+            self.assertEqual(fresh_tree.index, index)
+            self.assertEqual(tree.index, index)
+
+        tree = tskit.Tree(ts)
+        for index in [-1,  -2, -N + 2, -N + 1, -N]:
+            fresh_tree = tskit.Tree(ts)
+            self.assertEqual(fresh_tree.index, -1)
+            fresh_tree.seek_index(index)
+            tree.seek_index(index)
+            self.assertEqual(fresh_tree.index, index + N)
+            self.assertEqual(tree.index, index + N)
+        self.assertRaises(IndexError, tree.seek_index, N)
+        self.assertRaises(IndexError, tree.seek_index, N + 1)
+        self.assertRaises(IndexError, tree.seek_index, -N - 1)
+        self.assertRaises(IndexError, tree.seek_index, -N - 2)
+
+    def test_first_last(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=2, random_seed=42)
+        self.assertGreater(ts.num_trees, 3)
+        tree = tskit.Tree(ts)
+        tree.first()
+        self.assertEqual(tree.index, 0)
+        tree = tskit.Tree(ts)
+        tree.last()
+        self.assertEqual(tree.index, ts.num_trees - 1)
+        tree = tskit.Tree(ts)
+        for _ in range(3):
+            tree.last()
+            self.assertEqual(tree.index, ts.num_trees - 1)
+            tree.first()
+            self.assertEqual(tree.index, 0)
+
+    def test_eq_different_tree_sequence(self):
+        ts = msprime.simulate(4, recombination_rate=1, length=2, random_seed=42)
+        copy = ts.tables.tree_sequence()
+        for tree1, tree2 in zip(ts.aslist(), copy.aslist()):
+            self.assertNotEqual(tree1, tree2)
+
+    def test_next_prev(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        for index, tree in enumerate(ts.aslist()):
+            self.assertEqual(tree.index, index)
+            j = index
+            while tree.next():
+                j += 1
+                self.assertEqual(tree.index, j)
+            self.assertEqual(tree.index, -1)
+            self.assertEqual(j + 1, ts.num_trees)
+        for index, tree in enumerate(ts.aslist()):
+            self.assertEqual(tree.index, index)
+            j = index
+            while tree.prev():
+                j -= 1
+                self.assertEqual(tree.index, j)
+            self.assertEqual(tree.index, -1)
+            self.assertEqual(j, 0)
+        tree.first()
+        tree.prev()
+        self.assertEqual(tree.index, -1)
+        tree.last()
+        tree.next()
+        self.assertEqual(tree.index, -1)
+
+    def test_seek(self):
+        L = 10
+        ts = msprime.simulate(10, recombination_rate=3, length=L, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        same_tree = tskit.Tree(ts)
+        for tree in [same_tree, tskit.Tree(ts)]:
+            for j in range(L):
+                tree.seek(j)
+                index = tree.index
+                self.assertTrue(tree.interval[0] <= j < tree.interval[1])
+                tree.seek(tree.interval[0])
+                self.assertEqual(tree.index, index)
+                if tree.interval[1] < L:
+                    tree.seek(tree.interval[1])
+                    self.assertEqual(tree.index, index + 1)
+            for j in reversed(range(L)):
+                tree.seek(j)
+                self.assertTrue(tree.interval[0] <= j < tree.interval[1])
+        for bad_position in [-1, L, L + 1, -L]:
+            self.assertRaises(ValueError, tree.seek, bad_position)
+
+    def verify_empty_tree(self, tree):
+        ts = tree.tree_sequence
+        self.assertEqual(tree.index, -1)
+        self.assertEqual(tree.parent_dict, {})
+        for u in range(ts.num_nodes):
+            self.assertEqual(tree.parent(u), tskit.NULL)
+            self.assertEqual(tree.left_child(u), tskit.NULL)
+            self.assertEqual(tree.right_child(u), tskit.NULL)
+            if not ts.node(u).is_sample():
+                self.assertEqual(tree.left_sib(u), tskit.NULL)
+                self.assertEqual(tree.right_sib(u), tskit.NULL)
+        # Samples should have left-sib right-sibs set
+        samples = ts.samples()
+        self.assertEqual(tree.left_root, samples[0])
+        for j in range(ts.num_samples):
+            if j > 0:
+                self.assertEqual(tree.left_sib(samples[j]), samples[j - 1])
+            if j < ts.num_samples - 1:
+                self.assertEqual(tree.right_sib(samples[j]), samples[j + 1])
+
+    def test_empty_tree(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        tree = tskit.Tree(ts)
+        self.verify_empty_tree(tree)
+        while tree.next():
+            pass
+        self.verify_empty_tree(tree)
+        while tree.prev():
+            pass
+        self.verify_empty_tree(tree)
+
+    def test_clear(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        tree = tskit.Tree(ts)
+        tree.first()
+        tree.clear()
+        self.verify_empty_tree(tree)
+        tree.last()
+        tree.clear()
+        self.verify_empty_tree(tree)
+        tree.seek_index(ts.num_trees // 2)
+        tree.clear()
+        self.verify_empty_tree(tree)
 
 
 class TestNodeOrdering(HighLevelTestCase):

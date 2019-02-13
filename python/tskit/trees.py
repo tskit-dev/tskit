@@ -401,26 +401,67 @@ def add_deprecated_mutation_attrs(site, mutation):
 
 class Tree(object):
     """
-    A Tree is a single tree in a :class:`.TreeSequence`. The Tree
-    implementation differs from most tree implementations by using **integer
-    node IDs** to refer to nodes rather than objects. Thus, when we wish to
-    find the parent of the node with ID '0', we use ``tree.parent(0)``, which
-    returns another integer. If '0' does not have a parent in the current tree
-    (e.g., if it is a root), then the special value :const:`.NULL`
-    (:math:`-1`) is returned. The children of a node are found using the
-    :meth:`.children` method. To obtain information about a particular node,
-    one may either use ``tree.tree_sequence.node(u)`` to obtain the
-    corresponding :class:`Node` instance, or use the :meth:`.time` or
-    :meth:`.population` shorthands. Tree traversals in various orders
-    is possible using the :meth:`.Tree.nodes` iterator.
+    A single tree in a :class:`.TreeSequence`. Please see the
+    :ref:`sec_tutorial_moving_along_a_tree_sequence` section for information
+    on how efficiently access trees sequentially or obtain a list
+    of individual trees in a tree sequence.
 
-    Trees are not intended to be instantiated directly, and are
-    obtained as part of a :class:`.TreeSequence` using the
-    :meth:`.trees` method.
+    The ``sample_counts`` and ``sample_lists`` parameters control the
+    features that are enabled for this tree. If ``sample_counts``
+    is True, then it is possible to count the number of samples underneath
+    a particular node in constant time using the :meth:`.num_samples`
+    method. If ``sample_lists`` is True a more efficient algorithm is
+    used in the :meth:`.Tree.samples` method.
+
+    The ``tracked_samples`` parameter can be used to efficiently count the
+    number of samples in a given set that exist in a particular subtree
+    using the :meth:`.Tree.num_tracked_samples` method. It is an
+    error to use the ``tracked_samples`` parameter when the ``sample_counts``
+    flag is False.
+
+    The :class:`.Tree` class is a state-machine which has a state
+    corresponding to each of the trees in the parent tree sequence. We
+    transition between these states by using the seek functions like
+    :meth:`.Tree.first`, :meth:`.Tree.last`, :meth:`.Tree.seek` and
+    :meth:`.Tree.seek_index`. There is one more state, the so-called "null"
+    or "cleared" state. This is the state that a :class:`.Tree` is in
+    immediately after initialisation;  it has an index of -1, and no edges. We
+    can also enter the null state by calling :meth:`.Tree.next` on the last
+    tree in a sequence, calling :meth:`.Tree.prev` on the first tree in a
+    sequence or calling calling the :meth:`.Tree.clear` method at any time.
+
+    The high-level TreeSequence seeking and iterations methods (e.g,
+    :class:`.TreeSequence.trees`) are built on these low-level state-machine
+    seek operations. We recommend these higher level operations for most
+    users.
+
+    :param TreeSequence tree_sequence: The parent tree sequence.
+    :param list tracked_samples: The list of samples to be tracked and
+        counted using the :meth:`.Tree.num_tracked_samples` method.
+    :param bool sample_counts: If True, support constant time sample counts
+        via the :meth:`.Tree.num_samples` and
+        :meth:`.Tree.num_tracked_samples` methods.
+    :param bool sample_lists: If True, provide more efficient access
+        to the samples beneath a give node using the
+        :meth:`.Tree.samples` method.
     """
-    def __init__(self, ll_tree, tree_sequence):
-        self._ll_tree = ll_tree
+    def __init__(
+            self, tree_sequence,
+            tracked_samples=None, sample_counts=True, sample_lists=False):
+        options = 0
+        if sample_counts:
+            options |= _tskit.SAMPLE_COUNTS
+        elif tracked_samples is not None:
+            raise ValueError("Cannot set tracked_samples without sample_counts")
+        if sample_lists:
+            options |= _tskit.SAMPLE_LISTS
+        kwargs = {"options": options}
+        if tracked_samples is not None:
+            # TODO remove this when we allow numpy arrays in the low-level API.
+            kwargs["tracked_samples"] = list(tracked_samples)
+
         self._tree_sequence = tree_sequence
+        self._ll_tree = _tskit.Tree(tree_sequence.ll_tree_sequence, **kwargs)
 
     @property
     def tree_sequence(self):
@@ -431,6 +472,125 @@ class Tree(object):
         :rtype: :class:`.TreeSequence`
         """
         return self._tree_sequence
+
+    def __eq__(self, other):
+        ret = False
+        if type(other) is type(self):
+            ret = bool(self._ll_tree.equals(other._ll_tree))
+        return ret
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def first(self):
+        """
+        Seeks to the first tree in the sequence. This can be called whether
+        the tree is in the null state or not.
+        """
+        self._ll_tree.first()
+
+    def last(self):
+        """
+        Seeks to the last tree in the sequence. This can be called whether
+        the tree is in the null state or not.
+        """
+        self._ll_tree.last()
+
+    def next(self):
+        """
+        Seeks to the next tree in the sequence. If the tree is in the initial
+        null state we seek to the first tree (equivalent to calling :meth:`.first`).
+        Calling ``next`` on the last tree in the sequence results in the tree
+        being cleared back into the null initial state (equivalent to calling
+        :meth:`clear`). The return value of the function indicates whether the
+        tree is in a non-null state, and can be used to loop over the trees::
+
+            # Iterate over the trees from left-to-right
+            tree = tskit.Tree(tree_sequence)
+            while tree.next()
+                # Do something with the tree.
+                print(tree.index)
+            # tree is now back in the null state.
+
+        :return: True if the tree has been transformed into one of the trees
+            in the sequence; False if the tree has been transformed into the
+            null state.
+        :rtype: bool
+        """
+        return bool(self._ll_tree.next())
+
+    def prev(self):
+        """
+        Seeks to the previous tree in the sequence. If the tree is in the initial
+        null state we seek to the last tree (equivalent to calling :meth:`.last`).
+        Calling ``prev`` on the first tree in the sequence results in the tree
+        being cleared back into the null initial state (equivalent to calling
+        :meth:`clear`). The return value of the function indicates whether the
+        tree is in a non-null state, and can be used to loop over the trees::
+
+            # Iterate over the trees from right-to-left
+            tree = tskit.Tree(tree_sequence)
+            while tree.prev()
+                # Do something with the tree.
+                print(tree.index)
+            # tree is now back in the null state.
+
+        :return: True if the tree has been transformed into one of the trees
+            in the sequence; False if the tree has been transformed into the
+            null state.
+        :rtype: bool
+        """
+        return bool(self._ll_tree.prev())
+
+    def clear(self):
+        """
+        Resets this tree back to the initial null state. Calling this method
+        on a tree already in the null state has no effect.
+        """
+        self._ll_tree.clear()
+
+    def seek_index(self, index):
+        """
+        Sets the state to represent the tree at the specified
+        index in the parent tree sequence. Negative indexes following the
+        standard Python conventions are allowed, i.e., ``index=-1`` will
+        seek to the last tree in the sequence.
+
+        :param int index: The tree index to seek to.
+        :raises IndexError: If an index outside the acceptable range is provided.
+        """
+        num_trees = self.tree_sequence.num_trees
+        if index < 0:
+            index += num_trees
+        if index < 0 or index >= num_trees:
+            raise IndexError("Index out of bounds")
+        # This should be implemented in C efficiently using the indexes.
+        # No point in complicating the current implementation by trying
+        # to seek from the correct direction.
+        self.first()
+        while self.index != index:
+            self.next()
+
+    def seek(self, position):
+        """
+        Sets the state to represent the tree that covers the specified
+        position in the parent tree sequence. After a successful return
+        of this method we have ``tree.interval[0]`` <= ``position``
+        < ``tree.interval[1]``.
+
+        :param float position: The position along the sequence length to
+            seek to.
+        :raises ValueError: If 0 < position or position >=
+            :attr:`.TreeSequence.sequence_length`.
+        """
+        if position < 0 or position >= self.tree_sequence.sequence_length:
+            raise ValueError("Position out of bounds")
+        # This should be implemented in C efficiently using the indexes.
+        # No point in complicating the current implementation by trying
+        # to seek from the correct direction.
+        self.first()
+        while self.interval[1] <= position:
+            self.next()
 
     def get_branch_length(self, u):
         # Deprecated alias for branch_length
@@ -1628,6 +1788,32 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
     return tc.tree_sequence()
 
 
+class TreeIterator(object):
+    """
+    Simple class providing forward and backward iteration over a tree sequence.
+    """
+    def __init__(self, tree):
+        self.tree = tree
+        self.more_trees = True
+        self.forward = True
+
+    def __iter__(self):
+        return self
+
+    def __reversed__(self):
+        self.forward = False
+        return self
+
+    def __next__(self):
+        if self.forward:
+            self.more_trees = self.more_trees and self.tree.next()
+        else:
+            self.more_trees = self.more_trees and self.tree.prev()
+        if not self.more_trees:
+            raise StopIteration()
+        return self.tree
+
+
 class TreeSequence(object):
     """
     A single tree sequence, as defined by the :ref:`data model <sec_data_model>`.
@@ -1656,6 +1842,26 @@ class TreeSequence(object):
 
     def get_ll_tree_sequence(self):
         return self._ll_tree_sequence
+
+    def aslist(self):
+        """
+        Returns the trees in this tree sequence as a list. Each tree is
+        represented by a different instance of :class:`.Tree`. As such, this
+        method is inefficient and may use a large amount of memory, and should
+        not be used when performance is a consideration. The :meth:`.trees`
+        method is the recommended way to efficiently iterate over the trees
+        in a tree sequence.
+
+        :return: A list of the trees in this tree sequence.
+        :rtype: list
+        """
+        # TODO Use tree.copy here to avoid all the seeking. See
+        # https://github.com/tskit-dev/tskit/issues/122
+        treelist = [None for _ in range(self.num_trees)]
+        for j in range(self.num_trees):
+            treelist[j] = Tree(self)
+            treelist[j].seek_index(j)
+        return treelist
 
     @classmethod
     def load(cls, path):
@@ -2187,48 +2393,78 @@ class TreeSequence(object):
         """
         yield 0
         for t in self.trees():
-            yield t.get_interval()[1]
+            yield t.interval[1]
+
+    def at(self, position):
+        """
+        Returns the tree covering the specified genomic location. The returned tree
+        will have ``tree.interval[0]`` <= ``position`` < ``tree.interval[1]``.
+        See also :meth:`.Tree.seek`.
+
+        :return: A new instance of :class:`.Tree` positioned to cover the specified
+            position.
+        :rtype: Tree
+        """
+        tree = Tree(self)
+        tree.seek(position)
+        return tree
+
+    def at_index(self, index):
+        """
+        Returns the tree at the specified index. See also :meth:`.Tree.seek_index`.
+
+        :return: A new instance of :class:`.Tree` positioned at the specified index.
+        :rtype: Tree
+        """
+        tree = Tree(self)
+        tree.seek_index(index)
+        return tree
 
     def first(self):
         """
         Returns the first tree in this :class:`.TreeSequence`. To iterate over all
         trees in the sequence, use the :meth:`.trees` method.
 
-        Currently does not support the extra options for the :meth:`.trees` method.
-
         :return: The first tree in this tree sequence.
         :rtype: :class:`.Tree`.
         """
-        return next(self.trees())
+        tree = Tree(self)
+        tree.first()
+        return tree
+
+    def last(self):
+        """
+        Returns the last tree in this :class:`.TreeSequence`. To iterate over all
+        trees in the sequence, use the :meth:`.trees` method.
+
+        :return: The last tree in this tree sequence.
+        :rtype: :class:`.Tree`.
+        """
+        tree = Tree(self)
+        tree.last()
+        return tree
 
     def trees(
             self, tracked_samples=None, sample_counts=True, sample_lists=False,
             tracked_leaves=None, leaf_counts=None, leaf_lists=None):
         """
         Returns an iterator over the trees in this tree sequence. Each value
-        returned in this iterator is an instance of :class:`.Tree`.
+        returned in this iterator is an instance of :class:`.Tree`. Upon
+        successful termination of the iterator, the tree will be in the
+        "cleared" null state.
 
-        The ``sample_counts`` and ``sample_lists`` parameters control the
-        features that are enabled for the resulting trees. If ``sample_counts``
-        is True, then it is possible to count the number of samples underneath
-        a particular node in constant time using the :meth:`.num_samples`
-        method. If ``sample_lists`` is True a more efficient algorithm is
-        used in the :meth:`.Tree.samples` method.
-
-        The ``tracked_samples`` parameter can be used to efficiently count the
-        number of samples in a given set that exist in a particular subtree
-        using the :meth:`.Tree.get_num_tracked_samples` method. It is an
-        error to use the ``tracked_samples`` parameter when the ``sample_counts``
-        flag is False.
+        The ``sample_counts``, ``sample_lists`` and ``tracked_samples``
+        parameters are passed to the :class:`.Tree` constructor, and control
+        the options that are set in the returned tree instance.
 
         :warning: Do not store the results of this iterator in a list!
            For performance reasons, the same underlying object is used
            for every tree returned which will most likely lead to unexpected
-           behaviour.
+           behaviour. If you wish to obtain a list of trees in a tree sequence
+           please use ``ts.aslist()`` instead.
 
         :param list tracked_samples: The list of samples to be tracked and
-            counted using the :meth:`.Tree.get_num_tracked_samples`
-            method.
+            counted using the :meth:`.Tree.get_num_tracked_samples` method.
         :param bool sample_counts: If True, support constant time sample counts
             via the :meth:`.Tree.num_samples` and
             :meth:`.Tree.get_num_tracked_samples` methods.
@@ -2248,22 +2484,10 @@ class TreeSequence(object):
             sample_counts = leaf_counts
         if leaf_lists is not None:
             sample_lists = leaf_lists
-        options = 0
-        if sample_counts:
-            options |= _tskit.SAMPLE_COUNTS
-        elif tracked_samples is not None:
-            raise ValueError("Cannot set tracked_samples without sample_counts")
-        if sample_lists:
-            options |= _tskit.SAMPLE_LISTS
-        kwargs = {"options": options}
-        if tracked_samples is not None:
-            # TODO remove this when we allow numpy arrays in the low-level API.
-            kwargs["tracked_samples"] = list(tracked_samples)
-        ll_tree = _tskit.Tree(self._ll_tree_sequence, **kwargs)
-        iterator = _tskit.TreeIterator(ll_tree)
-        tree = Tree(ll_tree, self)
-        for _ in iterator:
-            yield tree
+        tree = Tree(
+            self, tracked_samples=tracked_samples, sample_counts=sample_counts,
+            sample_lists=sample_lists)
+        return TreeIterator(tree)
 
     def haplotypes(self):
         """

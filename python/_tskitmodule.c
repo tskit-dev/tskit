@@ -6696,21 +6696,12 @@ Tree_dealloc(Tree* self)
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-/* TODO this API should be updated to remove the TreeIterator object
- * and instead support the first(), last() etc methods. Until some seeking
- * function has been called, we should be in a state that errors if any
- * methods are called.
- *
- * The _free method below is also probably redundant now and should be
- * removed.
- */
 static int
 Tree_init(Tree *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "options", "tracked_samples",
-        NULL};
+    static char *kwlist[] = {"tree_sequence", "options", "tracked_samples", NULL};
     PyObject *py_tracked_samples = NULL;
     TreeSequence *tree_sequence = NULL;
     tsk_id_t *tracked_samples = NULL;
@@ -6782,21 +6773,96 @@ out:
     return ret;
 }
 
-/* TODO this should be redundant; remove */
 static PyObject *
-Tree_free(Tree *self)
+Tree_first(Tree *self)
 {
     PyObject *ret = NULL;
+    int err;
 
     if (Tree_check_tree(self) != 0) {
         goto out;
     }
-    /* This method is need because we have dangling references to
-     * trees after a for loop and we can't run set_sites.
-     */
-    tsk_tree_free(self->tree);
-    PyMem_Free(self->tree);
-    self->tree = NULL;
+    err = tsk_tree_first(self->tree);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_last(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    err = tsk_tree_last(self->tree);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_next(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    err = tsk_tree_next(self->tree);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("i", err == 1);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_prev(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    err = tsk_tree_prev(self->tree);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("i", err == 1);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_clear(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    err = tsk_tree_clear(self->tree);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
     ret = Py_BuildValue("");
 out:
     return ret;
@@ -7311,13 +7377,38 @@ out:
     return ret;
 }
 
+/* Forward declaration */
+static PyTypeObject TreeType;
+
+static PyObject *
+Tree_equals(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    Tree *other = NULL;
+
+    if (!PyArg_ParseTuple(args, "O!", &TreeType, &other)) {
+        goto out;
+    }
+    ret = Py_BuildValue("i", tsk_tree_equals(self->tree, other->tree));
+out:
+    return ret;
+}
+
 static PyMemberDef Tree_members[] = {
     {NULL}  /* Sentinel */
 };
 
 static PyMethodDef Tree_methods[] = {
-    {"free", (PyCFunction) Tree_free, METH_NOARGS,
-            "Frees the underlying tree object." },
+    {"first", (PyCFunction) Tree_first, METH_NOARGS,
+            "Sets this tree to the first in the sequence." },
+    {"last", (PyCFunction) Tree_last, METH_NOARGS,
+            "Sets this tree to the last in the sequence." },
+    {"prev", (PyCFunction) Tree_prev, METH_NOARGS,
+            "Sets this tree to the previous one in the sequence." },
+    {"next", (PyCFunction) Tree_next, METH_NOARGS,
+            "Sets this tree to the next one in the sequence." },
+    {"clear", (PyCFunction) Tree_clear, METH_NOARGS,
+            "Resets this tree back to the cleared null state." },
     {"get_sample_size", (PyCFunction) Tree_get_sample_size, METH_NOARGS,
             "Returns the number of samples in this tree." },
     {"get_num_nodes", (PyCFunction) Tree_get_num_nodes, METH_NOARGS,
@@ -7372,6 +7463,8 @@ static PyMethodDef Tree_methods[] = {
     {"get_newick", (PyCFunction) Tree_get_newick,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the newick representation of this tree." },
+    {"equals", (PyCFunction) Tree_equals, METH_VARARGS,
+            "Returns True if this tree is equal to the parameter tree." },
     {NULL}  /* Sentinel */
 };
 
@@ -7601,123 +7694,6 @@ static PyTypeObject TreeDiffIteratorType = {
     0,                         /* tp_descr_set */
     0,                         /* tp_dictoffset */
     (initproc)TreeDiffIterator_init,      /* tp_init */
-};
-
-/*===================================================================
- * TreeIterator
- *===================================================================
- */
-
-static int
-TreeIterator_check_state(TreeIterator *self)
-{
-    int ret = 0;
-    return ret;
-}
-
-static void
-TreeIterator_dealloc(TreeIterator* self)
-{
-    Py_XDECREF(self->tree);
-    Py_TYPE(self)->tp_free((PyObject*)self);
-}
-
-static int
-TreeIterator_init(TreeIterator *self, PyObject *args, PyObject *kwds)
-{
-    int ret = -1;
-    static char *kwlist[] = {"tree", NULL};
-    Tree *tree;
-
-    self->first = 1;
-    self->tree = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!", kwlist,
-            &TreeType, &tree)) {
-        goto out;
-    }
-    self->tree = tree;
-    Py_INCREF(self->tree);
-    if (Tree_check_tree(self->tree) != 0) {
-        goto out;
-    }
-    ret = 0;
-out:
-    return ret;
-}
-
-static PyObject *
-TreeIterator_next(TreeIterator  *self)
-{
-    PyObject *ret = NULL;
-    int err;
-
-    if (TreeIterator_check_state(self) != 0) {
-        goto out;
-    }
-
-    if (self->first) {
-        err = tsk_tree_first(self->tree->tree);
-        self->first = 0;
-    } else {
-        err = tsk_tree_next(self->tree->tree);
-    }
-    if (err < 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    if (err == 1) {
-        ret = (PyObject *) self->tree;
-        Py_INCREF(ret);
-    }
-out:
-    return ret;
-}
-
-static PyMemberDef TreeIterator_members[] = {
-    {NULL}  /* Sentinel */
-};
-
-static PyMethodDef TreeIterator_methods[] = {
-    {NULL}  /* Sentinel */
-};
-
-static PyTypeObject TreeIteratorType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "_tskit.TreeIterator",             /* tp_name */
-    sizeof(TreeIterator),             /* tp_basicsize */
-    0,                         /* tp_itemsize */
-    (destructor)TreeIterator_dealloc, /* tp_dealloc */
-    0,                         /* tp_print */
-    0,                         /* tp_getattr */
-    0,                         /* tp_setattr */
-    0,                         /* tp_reserved */
-    0,                         /* tp_repr */
-    0,                         /* tp_as_number */
-    0,                         /* tp_as_sequence */
-    0,                         /* tp_as_mapping */
-    0,                         /* tp_hash  */
-    0,                         /* tp_call */
-    0,                         /* tp_str */
-    0,                         /* tp_getattro */
-    0,                         /* tp_setattro */
-    0,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,        /* tp_flags */
-    "TreeIterator objects",           /* tp_doc */
-    0,                     /* tp_traverse */
-    0,                     /* tp_clear */
-    0,                     /* tp_richcompare */
-    0,                     /* tp_weaklistoffset */
-    PyObject_SelfIter,                    /* tp_iter */
-    (iternextfunc) TreeIterator_next, /* tp_iternext */
-    TreeIterator_methods,             /* tp_methods */
-    TreeIterator_members,             /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    (initproc)TreeIterator_init,      /* tp_init */
 };
 
 /*===================================================================
@@ -8550,14 +8526,6 @@ init_tskit(void)
     }
     Py_INCREF(&TreeType);
     PyModule_AddObject(module, "Tree", (PyObject *) &TreeType);
-
-    /* TreeIterator type */
-    TreeIteratorType.tp_new = PyType_GenericNew;
-    if (PyType_Ready(&TreeIteratorType) < 0) {
-        INITERROR;
-    }
-    Py_INCREF(&TreeIteratorType);
-    PyModule_AddObject(module, "TreeIterator", (PyObject *) &TreeIteratorType);
 
     /* TreeDiffIterator type */
     TreeDiffIteratorType.tp_new = PyType_GenericNew;

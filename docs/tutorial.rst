@@ -7,6 +7,179 @@ Tutorial
 .. todo:: The content here has been ported from the msprime tutorial and
     needs to be reorganised to make a coherent narrative.
 
+
+.. _sec_tutorial_traversing_trees:
+
+****************
+Traversing trees
+****************
+
+A :class:`.Tree` represents a single tree in a :class:`.TreeSequence`.
+The ``tskit`` Tree implementation differs from most tree libraries by
+using **integer IDs** to refer to nodes rather than objects. Thus, when we wish to
+find the parent of the node with ID '0', we use ``tree.parent(0)``, which
+returns another integer. If '0' does not have a parent in the current tree
+(e.g., if it is a root), then the special value :const:`.NULL`
+(:math:`-1`) is returned. The children of a node are found using the
+:meth:`.Tree.children` method. To obtain information about a particular node,
+one may either use ``tree.tree_sequence.node(u)`` to which returns the
+corresponding :class:`Node` instance, or use the :meth:`.Tree.time` or
+:meth:`.Tree.population` shorthands. Tree traversals in various orders
+is possible using the :meth:`.Tree.nodes` iterator.
+
+.. todo:: Add tree diagram and example. Also describe the left_child,
+    right_child, left_sib, right_sib functions.
+
+
+.. _sec_tutorial_moving_along_a_tree_sequence:
+
+****************************
+Moving along a tree sequence
+****************************
+
+Most of the time we will want to iterate over all the trees in a tree sequence
+sequentially as efficiently as possible. The simplest way to do this is to
+use the :meth:`.TreeSequence.trees` method:
+
+.. code-block:: python
+
+    import msprime
+
+    ts = msprime.simulate(5, recombination_rate=1, random_seed=42)
+
+    print("Tree sequence has {} trees".format(ts.num_trees))
+    print()
+    for tree in ts.trees():
+        print("Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
+            tree.index, *tree.interval, tree.time(tree.root)))
+
+Running the code, we get::
+
+    Tree sequence has 7 trees
+
+    Tree 0 covers [0.00, 0.08); TMRCA = 4.2542
+    Tree 1 covers [0.08, 0.27); TMRCA = 2.5973
+    Tree 2 covers [0.27, 0.37); TMRCA = 4.2542
+    Tree 3 covers [0.37, 0.66); TMRCA = 2.5973
+    Tree 4 covers [0.66, 0.71); TMRCA = 4.2542
+    Tree 5 covers [0.71, 0.75); TMRCA = 2.5973
+    Tree 6 covers [0.75, 1.00); TMRCA = 2.5973
+
+Here we run a small simulation using `msprime <https://msprime.readthedocs.io>`_
+which results in 7 distinct trees along a genome of length 1. We then iterate
+over these trees sequentially using the :meth:`.TreeSequence.trees` method,
+and print out each tree's index, the interval over which the tree applies
+and the time of the most recent common ancestor of all the samples. This
+method is very efficient, and allows us to quickly iterate over very large
+tree sequences.
+
+We can also efficiently iterate over the trees backwards, using Python's
+:func:`reversed` function:
+
+.. code-block:: python
+
+    for tree in reversed(ts.trees()):
+        print("Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
+            tree.index, *tree.interval, tree.time(tree.root)))
+
+giving::
+
+    Tree 6 covers [0.75, 1.00); TMRCA = 2.5973
+    Tree 5 covers [0.71, 0.75); TMRCA = 2.5973
+    Tree 4 covers [0.66, 0.71); TMRCA = 4.2542
+    Tree 3 covers [0.37, 0.66); TMRCA = 2.5973
+    Tree 2 covers [0.27, 0.37); TMRCA = 4.2542
+    Tree 1 covers [0.08, 0.27); TMRCA = 2.5973
+    Tree 0 covers [0.00, 0.08); TMRCA = 4.2542
+
+One of the reasons that the ``trees`` iterator allows us to access
+the trees in a tree sequence so efficiently is because we use the
+same underlying instance of the ``.Tree`` class each time. That is,
+each time the iterator returns a value, it is actually the same tree
+instance each time which has been updated internally to reflect the
+(usually small) changes in the tree along the sequence. As a
+result of this, if we store the results of the tree iterator in a
+list, we will get unexpected results:
+
+.. code-block:: python
+
+    for tree in list(ts.trees()):
+        print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)))
+
+::
+
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+    Tree -1 covers [0.00, 0.00): id=7f290becb3c8
+
+We have stored seven copies of the same :class:`Tree` instance in the
+list. Because iteration has ended, this tree is in the "null" state (see
+below for more details) which means that it doesn't represent any of the
+trees in the tree sequence.
+
+If we do wish to obtain a list of the trees, we can do so by using the
+:meth:`.TreeSequence.aslist` method:
+
+.. code-block:: python
+
+    for tree in ts.aslist():
+        print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)))
+
+::
+
+    Tree 0 covers [0.00, 0.08): id=7fd2c50a40f0
+    Tree 1 covers [0.08, 0.27): id=7fd2b2aca6d8
+    Tree 2 covers [0.27, 0.37): id=7fd2b2adde10
+    Tree 3 covers [0.37, 0.66): id=7fd2b2adddd8
+    Tree 4 covers [0.66, 0.71): id=7fd2b2addd68
+    Tree 5 covers [0.71, 0.75): id=7fd2b2addcf8
+    Tree 6 covers [0.75, 1.00): id=7fd2b2addeb8
+
+Note that we now have a different object for each tree in the list. Please
+note that this is **much** less efficient than iterating over the trees
+using the :meth:`.TreeSequence.trees` method (and uses far more memory!),
+and should only be used as a convenience when working with small trees.
+
+We can also obtain specific trees along the sequence, using the
+:meth:`.TreeSequence.first`,
+:meth:`.TreeSequence.last`
+:meth:`.TreeSequence.at` and
+:meth:`.TreeSequence.at_index` methods. The ``first()`` and ``last()``
+methods return the first and last trees in the sequence, as might be
+imagined. The ``at()`` method returns the tree that covers a
+given genomic location, and the ``at_index()`` method returns the
+tree at a given index along the sequence:
+
+.. code-block:: python
+
+    tree = ts.at(0.5)
+    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+        tree.index, *tree.interval, id(tree)))
+    tree = ts.at_index(0)
+    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+        tree.index, *tree.interval, id(tree)))
+    tree = ts.at_index(-1)
+    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+        tree.index, *tree.interval, id(tree)))
+
+::
+
+    Tree 3 covers [0.37, 0.66): id=7f9fdb469630
+    Tree 0 covers [0.00, 0.08): id=7f9fdb46d160
+    Tree 6 covers [0.75, 1.00): id=7f9fdb469630
+
+Note that each call to these methods return a different :class:`.Tree` instance
+and so it is much, much less efficient to sequentially access trees
+by their index values than it is to use the :meth:`.TreeSequence.trees`
+iterator.
+
+
 **********************
 Editing tree sequences
 **********************
