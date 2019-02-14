@@ -7417,6 +7417,34 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_copy(Tree *self)
+{
+    int err;
+    PyObject *ret = NULL;
+    Tree *copy = NULL;;
+    PyObject *args = Py_BuildValue("(O,i)", self->tree_sequence, self->tree->options);
+
+    if (args == NULL) {
+        goto out;
+    }
+    copy = (Tree *) PyObject_CallObject((PyObject *) &TreeType, args);
+    if (copy == NULL) {
+        goto out;
+    }
+    err = tsk_tree_copy(self->tree, copy->tree, TSK_NO_INIT);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) copy;
+    copy = NULL;
+out:
+    Py_XDECREF(args);
+    Py_XDECREF(copy);
+    return ret;
+}
+
 static PyMemberDef Tree_members[] = {
     {NULL}  /* Sentinel */
 };
@@ -7490,6 +7518,8 @@ static PyMethodDef Tree_methods[] = {
             "Returns the newick representation of this tree." },
     {"equals", (PyCFunction) Tree_equals, METH_VARARGS,
             "Returns True if this tree is equal to the parameter tree." },
+    {"copy", (PyCFunction) Tree_copy, METH_NOARGS,
+            "Returns a copy of this tree." },
     {NULL}  /* Sentinel */
 };
 
