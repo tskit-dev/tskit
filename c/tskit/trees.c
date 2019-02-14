@@ -1372,6 +1372,22 @@ tsk_tree_check_node(tsk_tree_t *self, tsk_id_t u)
     return ret;
 }
 
+bool
+tsk_tree_is_descendant(tsk_tree_t *self, tsk_id_t u, tsk_id_t v)
+{
+    bool ret = false;
+    tsk_id_t w = u;
+    tsk_id_t *restrict parent = self->parent;
+
+    if (tsk_tree_check_node(self, u) == 0 && tsk_tree_check_node(self, v) == 0) {
+        while (w != v && w != TSK_NULL) {
+            w = parent[w];
+        }
+        ret = w == v;
+    }
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v,
         tsk_id_t *mrca)

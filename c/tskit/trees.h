@@ -225,13 +225,16 @@ void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);
 bool tsk_tree_equals(tsk_tree_t *self, tsk_tree_t *other);
+/* Returns true if u is a descendant of v; false otherwise */
+bool tsk_tree_is_descendant(tsk_tree_t *self, tsk_id_t u, tsk_id_t v);
+bool tsk_tree_is_sample(tsk_tree_t *self, tsk_id_t u);
+
 int tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source);
 int tsk_tree_set_tracked_samples(tsk_tree_t *self,
         size_t num_tracked_samples, tsk_id_t *tracked_samples);
 int tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,
         tsk_tree_t *other, tsk_id_t node);
 int tsk_tree_get_root(tsk_tree_t *self, tsk_id_t *root);
-bool tsk_tree_is_sample(tsk_tree_t *self, tsk_id_t u);
 
 int tsk_tree_get_parent(tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_time(tsk_tree_t *self, tsk_id_t u, double *t);
