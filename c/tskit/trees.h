@@ -98,7 +98,6 @@ typedef struct {
     tsk_id_t *left_sample;
     tsk_id_t *right_sample;
     tsk_id_t *next_sample;
-    tsk_id_t *sample_index_map;
     /* traversal stacks */
     tsk_id_t *stack1;
     tsk_id_t *stack2;
@@ -229,7 +228,7 @@ bool tsk_tree_equals(tsk_tree_t *self, tsk_tree_t *other);
 bool tsk_tree_is_descendant(tsk_tree_t *self, tsk_id_t u, tsk_id_t v);
 bool tsk_tree_is_sample(tsk_tree_t *self, tsk_id_t u);
 
-int tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source);
+int tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options);
 int tsk_tree_set_tracked_samples(tsk_tree_t *self,
         size_t num_tracked_samples, tsk_id_t *tracked_samples);
 int tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,

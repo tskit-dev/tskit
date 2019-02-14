@@ -34,30 +34,66 @@
  * Verification utilities.
  *======================================================*/
 
-static int
+/* Checks if the specified trees are topologically equivalent, i.e, represent
+ * the same tree without checking state specific to seeking.*/
+static void
 check_trees_equal(tsk_tree_t *self, tsk_tree_t *other)
 {
-    int ret = 0;
-    int condition;
     size_t N = self->num_nodes;
 
     CU_ASSERT_FATAL(self->tree_sequence == other->tree_sequence);
-    condition = self->index == other->index
-        && self->left == other->left
-        && self->right == other->right
-        && self->sites_length == other->sites_length
-        && self->sites == other->sites
-        && memcmp(self->parent, other->parent, N * sizeof(tsk_id_t)) == 0;
-    /* We do not check the children for equality here because
-     * the ordering of the children within a parent are essentially irrelevant
-     * in terms of topology. Depending on the way in which we approach a given
-     * tree we can get different orderings within the children, and so the
-     * same tree would not be equal to itself. */
-    if (condition) {
-        ret = 1;
+    CU_ASSERT_FATAL(self->index == other->index);
+    CU_ASSERT_FATAL(self->left == other->left);
+    CU_ASSERT_FATAL(self->right == other->right);
+    CU_ASSERT_FATAL(self->sites_length == other->sites_length);
+    CU_ASSERT_FATAL(self->sites == other->sites);
+    CU_ASSERT_FATAL(self->samples == other->samples);
+    CU_ASSERT_FATAL(memcmp(self->parent, other->parent, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(tsk_tree_equals(self, other));
+}
+
+static void
+check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
+{
+    size_t N = self->num_nodes;
+
+    check_trees_equal(self, other);
+    CU_ASSERT_FATAL(self->left_root == other->left_root);
+    CU_ASSERT_FATAL(self->left_index == other->left_index);
+    CU_ASSERT_FATAL(self->right_index == other->right_index);
+    CU_ASSERT_FATAL(self->direction == other->direction);
+
+    CU_ASSERT_FATAL(memcmp(self->left_child, other->left_child, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(memcmp(self->right_child, other->right_child, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(memcmp(self->left_sib, other->left_sib, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(memcmp(self->above_sample, other->above_sample,
+                N * sizeof(*self->above_sample)) == 0);
+
+    CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
+    CU_ASSERT_EQUAL_FATAL(self->num_tracked_samples == NULL,
+            other->num_tracked_samples == NULL)
+    CU_ASSERT_EQUAL_FATAL(self->marked == NULL, other->marked == NULL)
+    if (self->num_samples != NULL) {
+        CU_ASSERT_FATAL(memcmp(self->num_samples, other->num_samples,
+                    N * sizeof(*self->num_samples)) == 0);
+        CU_ASSERT_FATAL(memcmp(self->num_tracked_samples, other->num_tracked_samples,
+                    N * sizeof(*self->num_tracked_samples)) == 0);
+        CU_ASSERT_FATAL(memcmp(self->marked, other->marked,
+                    N * sizeof(*self->marked)) == 0);
     }
-    CU_ASSERT_FATAL(ret == tsk_tree_equals(self, other));
-    return ret;
+
+    CU_ASSERT_EQUAL_FATAL(self->left_sample == NULL, other->left_sample == NULL)
+    CU_ASSERT_EQUAL_FATAL(self->right_sample == NULL, other->left_sample == NULL)
+    CU_ASSERT_EQUAL_FATAL(self->next_sample == NULL, other->next_sample == NULL)
+    if (self->left_sample != NULL) {
+        CU_ASSERT_FATAL(memcmp(self->left_sample, other->left_sample,
+                    N * sizeof(*self->left_sample)) == 0);
+        CU_ASSERT_FATAL(memcmp(self->right_sample, other->right_sample,
+                    N * sizeof(*self->right_sample)) == 0);
+        CU_ASSERT_FATAL(memcmp(self->next_sample, other->next_sample,
+                    self->tree_sequence->num_samples * sizeof(*self->next_sample)) == 0);
+    }
 }
 
 static void
@@ -172,15 +208,12 @@ get_tree_list(tsk_treeseq_t *ts)
     CU_ASSERT_FATAL(trees != NULL);
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
         CU_ASSERT_FATAL(t.index < (tsk_id_t) num_trees);
-        ret = tsk_tree_init(&trees[t.index], ts, 0);
+        ret = tsk_tree_copy(&t, &trees[t.index], 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_tree_copy(&trees[t.index], &t);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = check_trees_equal(&trees[t.index], &t);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&trees[t.index], &t);
         /* Make sure the left and right coordinates are also OK */
-        CU_ASSERT_DOUBLE_EQUAL(trees[t.index].left, t.left, 1e-6);
-        CU_ASSERT_DOUBLE_EQUAL(trees[t.index].right, t.right, 1e-6);
+        CU_ASSERT_EQUAL(trees[t.index].left, t.left);
+        CU_ASSERT_EQUAL(trees[t.index].right, t.right);
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_free(&t);
@@ -205,8 +238,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     j = 0;
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
         CU_ASSERT_EQUAL_FATAL(j, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j++;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -216,8 +248,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     j = num_trees;
     for (ret = tsk_tree_last(&t); ret == 1; ret = tsk_tree_prev(&t)) {
         CU_ASSERT_EQUAL_FATAL(j - 1, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j--;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -227,16 +258,14 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     j = 0;
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
         CU_ASSERT_EQUAL_FATAL(j, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j++;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(j, num_trees);
     while ((ret = tsk_tree_prev(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j - 1, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j--;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -247,16 +276,14 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     j = num_trees;
     for (ret = tsk_tree_last(&t); ret == 1; ret = tsk_tree_prev(&t)) {
         CU_ASSERT_EQUAL_FATAL(j - 1, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j--;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(j, 0);
     while ((ret = tsk_tree_next(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j++;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -272,15 +299,13 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
             CU_ASSERT_EQUAL_FATAL(ret, 1);
         }
         CU_ASSERT_EQUAL_FATAL(t.index, num_trees - j);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         while (t.index > j) {
             ret = tsk_tree_prev(&t);
             CU_ASSERT_EQUAL_FATAL(ret, 1);
         }
         CU_ASSERT_EQUAL_FATAL(t.index, j);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
     }
 
     ret = tsk_tree_clear(&t);
@@ -289,8 +314,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     j = 0;
     while ((ret = tsk_tree_next(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j++;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -305,8 +329,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     j = num_trees;
     while ((ret = tsk_tree_prev(&t)) == 1) {
         CU_ASSERT_EQUAL_FATAL(j - 1, t.index);
-        ret = check_trees_equal(&t, &trees[t.index]);
-        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        check_trees_equal(&t, &trees[t.index]);
         j--;
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -316,7 +339,7 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
     ret = tsk_tree_free(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     for (j = 0; j < (tsk_id_t) tsk_treeseq_get_num_trees(ts); j++) {
-        ret = tsk_tree_free(&trees[j]);
+        tsk_tree_free(&trees[j]);
     }
     free(trees);
 }
@@ -3878,16 +3901,75 @@ test_tree_errors(void)
             paper_ex_individuals, NULL);
     ret = tsk_tree_init(&other_t, &other_ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_tree_copy(&t, &t);
+    ret = tsk_tree_copy(&t, &other_t, TSK_NO_INIT);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_tree_copy(&t, &other_t);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-
-    /* TODO run checks for the various unsupported operations with flags */
 
     tsk_tree_free(&t);
     tsk_tree_free(&other_t);
     tsk_treeseq_free(&other_ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_tree_copy_flags(void)
+{
+    int iret, ret;
+    size_t j;
+    tsk_treeseq_t ts;
+    tsk_tree_t t, other_t;
+    tsk_flags_t options[] = {
+        0, TSK_SAMPLE_COUNTS, TSK_SAMPLE_LISTS, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS};
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
+            paper_ex_individuals, NULL);
+
+    for (j = 0; j < sizeof(options) / sizeof(*options); j++) {
+        ret = tsk_tree_init(&t, &ts, options[j]);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_tree_init(&other_t, &ts, options[j]);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_tree_copy(&t, &other_t, TSK_NO_INIT);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        check_trees_identical(&t, &other_t);
+        tsk_tree_free(&other_t);
+
+        while ((iret = tsk_tree_next(&t)) == 1) {
+            ret = tsk_tree_copy(&t, &other_t, options[j]);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            check_trees_identical(&t, &other_t);
+            tsk_tree_free(&other_t);
+        }
+        CU_ASSERT_EQUAL_FATAL(iret, 0);
+
+        ret = tsk_tree_first(&t);
+        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        ret = tsk_tree_copy(&t, &other_t, options[j]);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        while (true) {
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            check_trees_identical(&t, &other_t);
+            CU_ASSERT_EQUAL_FATAL(tsk_tree_next(&t), tsk_tree_next(&other_t));
+            if (t.index == -1) {
+                break;
+            }
+        }
+
+        ret = tsk_tree_last(&t);
+        CU_ASSERT_EQUAL_FATAL(ret, 1);
+        ret = tsk_tree_copy(&t, &other_t, TSK_NO_INIT | options[j]);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        while (true) {
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            check_trees_identical(&t, &other_t);
+            CU_ASSERT_EQUAL_FATAL(tsk_tree_prev(&t), tsk_tree_prev(&other_t));
+            if (t.index == -1) {
+                break;
+            }
+        }
+
+        tsk_tree_free(&other_t);
+        tsk_tree_free(&t);
+    }
     tsk_treeseq_free(&ts);
 }
 
@@ -4314,6 +4396,7 @@ main(int argc, char **argv)
 
         /* Misc */
         {"test_tree_errors", test_tree_errors},
+        {"test_tree_copy_flags", test_tree_copy_flags},
         {"test_genealogical_nearest_neighbours_errors",
             test_genealogical_nearest_neighbours_errors},
         {"test_deduplicate_sites", test_deduplicate_sites},

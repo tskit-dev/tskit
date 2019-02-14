@@ -1155,7 +1155,7 @@ tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t option
     if (self->stack1 == NULL || self->stack2 == NULL) {
         goto out;
     }
-    if (!!(self->options & TSK_SAMPLE_COUNTS)) {
+    if (self->options & TSK_SAMPLE_COUNTS) {
         self->num_samples = calloc(num_nodes, sizeof(tsk_id_t));
         self->num_tracked_samples = calloc(num_nodes, sizeof(tsk_id_t));
         self->marked = calloc(num_nodes, sizeof(uint8_t));
@@ -1164,7 +1164,7 @@ tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t option
             goto out;
         }
     }
-    if (!!(self->options & TSK_SAMPLE_LISTS)) {
+    if (self->options & TSK_SAMPLE_LISTS) {
         self->left_sample = malloc(num_nodes * sizeof(*self->left_sample));
         self->right_sample = malloc(num_nodes * sizeof(*self->right_sample));
         self->next_sample = malloc(num_samples * sizeof(*self->next_sample));
@@ -1305,46 +1305,58 @@ out:
     return ret;
 }
 
-/* TODO The semantics of this function are weird and not the same other copy
- * methods. We should be copying *into* the other object and also have an
- * options method to turn off automatic init.
- */
 int TSK_WARN_UNUSED
-tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *source)
+tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 {
     int ret = TSK_ERR_GENERIC;
     size_t N = self->num_nodes;
 
-    if (self == source) {
+    if (!(options & TSK_NO_INIT)) {
+        ret = tsk_tree_init(dest, self->tree_sequence, options);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (self->tree_sequence != dest->tree_sequence) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
-    if (self->tree_sequence != source->tree_sequence) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
-    self->left = source->left;
-    self->right = source->right;
-    self->left_root = source->left_root;
-    self->index = source->index;
-    self->sites = source->sites;
-    self->sites_length = source->sites_length;
+    dest->left = self->left;
+    dest->right = self->right;
+    dest->left_root = self->left_root;
+    dest->left_index = self->left_index;
+    dest->right_index = self->right_index;
+    dest->direction = self->direction;
+    dest->index = self->index;
+    dest->sites = self->sites;
+    dest->sites_length = self->sites_length;
 
-    memcpy(self->parent, source->parent, N * sizeof(tsk_id_t));
-    memcpy(self->left_child, source->left_child, N * sizeof(tsk_id_t));
-    memcpy(self->right_child, source->right_child, N * sizeof(tsk_id_t));
-    memcpy(self->left_sib, source->left_sib, N * sizeof(tsk_id_t));
-    memcpy(self->right_sib, source->right_sib, N * sizeof(tsk_id_t));
-    if (self->options & TSK_SAMPLE_COUNTS) {
-        if (! (source->options & TSK_SAMPLE_COUNTS)) {
+    memcpy(dest->parent, self->parent, N * sizeof(tsk_id_t));
+    memcpy(dest->left_child, self->left_child, N * sizeof(tsk_id_t));
+    memcpy(dest->right_child, self->right_child, N * sizeof(tsk_id_t));
+    memcpy(dest->left_sib, self->left_sib, N * sizeof(tsk_id_t));
+    memcpy(dest->right_sib, self->right_sib, N * sizeof(tsk_id_t));
+    memcpy(dest->above_sample, self->above_sample, N * sizeof(*self->above_sample));
+    if (dest->options & TSK_SAMPLE_COUNTS) {
+        if (!(self->options & TSK_SAMPLE_COUNTS)) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
             goto out;
         }
-        memcpy(self->num_samples, source->num_samples, N * sizeof(tsk_id_t));
+        memcpy(dest->num_samples, self->num_samples,
+                N * sizeof(*self->num_samples));
+        memcpy(dest->num_tracked_samples, self->num_tracked_samples,
+                N * sizeof(*self->num_tracked_samples));
+        memcpy(dest->marked, self->marked, N * sizeof(*self->marked));
     }
-    if (self->options & TSK_SAMPLE_LISTS) {
-        ret = TSK_ERR_UNSUPPORTED_OPERATION;
-        goto out;
+    if (dest->options & TSK_SAMPLE_LISTS) {
+        if (!(self->options & TSK_SAMPLE_LISTS)) {
+            ret = TSK_ERR_UNSUPPORTED_OPERATION;
+            goto out;
+        }
+        memcpy(dest->left_sample, self->left_sample, N * sizeof(tsk_id_t));
+        memcpy(dest->right_sample, self->right_sample, N * sizeof(tsk_id_t));
+        memcpy(dest->next_sample, self->next_sample,
+                self->tree_sequence->num_samples * sizeof(tsk_id_t));
     }
     ret = 0;
 out:
