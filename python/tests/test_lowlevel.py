@@ -732,14 +732,15 @@ class TestTree(LowLevelTestCase):
     def test_bounds_checking(self):
         for ts in self.get_example_tree_sequences():
             n = ts.get_num_nodes()
-            st = _tskit.Tree(
-                ts, options=_tskit.SAMPLE_COUNTS | _tskit.SAMPLE_LISTS)
+            st = _tskit.Tree(ts, options=_tskit.SAMPLE_COUNTS | _tskit.SAMPLE_LISTS)
             for v in [-100, -1, n + 1, n + 100, n * 100]:
                 self.assertRaises(ValueError, st.get_parent, v)
                 self.assertRaises(ValueError, st.get_children, v)
                 self.assertRaises(ValueError, st.get_time, v)
                 self.assertRaises(ValueError, st.get_left_sample, v)
                 self.assertRaises(ValueError, st.get_right_sample, v)
+                self.assertRaises(ValueError, st.is_descendant, v, 0)
+                self.assertRaises(ValueError, st.is_descendant, 0, v)
             n = ts.get_num_samples()
             for v in [-100, -1, n + 1, n + 100, n * 100]:
                 self.assertRaises(ValueError, st.get_next_sample, v)
