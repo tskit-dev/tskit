@@ -790,6 +790,22 @@ class Tree(object):
         """
         return bool(self._ll_tree.is_sample(u))
 
+    def is_descendant(self, u, v):
+        """
+        Returns True if the specified node u is a descendant of node v and False
+        otherwise. A node :math:`u` is a descendant of another node :math:`v` if
+        :math:`v` is on the path from :math:`u` to root. A node is considered
+        to be a descendant of itself, so ``tree.is_descendant(u, u)`` will be
+        True for any valid node.
+
+        :param int u: The descendant node.
+        :param int v: The ancestral node.
+        :return: True if u is a descendant of v.
+        :rtype: bool
+        :raises ValueError: If u or v are not valid node IDs.
+        """
+        return bool(self._ll_tree.is_descendant(u, v))
+
     @property
     def num_nodes(self):
         """

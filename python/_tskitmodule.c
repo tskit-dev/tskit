@@ -7005,6 +7005,29 @@ out:
 }
 
 static PyObject *
+Tree_is_descendant(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int u, v;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "II", &u, &v)) {
+        goto out;
+    }
+    if (Tree_check_bounds(self, (tsk_id_t) u)) {
+        goto out;
+    }
+    if (Tree_check_bounds(self, (tsk_id_t) v)) {
+        goto out;
+    }
+    ret = Py_BuildValue("i", tsk_tree_is_descendant(self->tree, (tsk_id_t) u, (tsk_id_t) v));
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_parent(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
@@ -7431,6 +7454,8 @@ static PyMethodDef Tree_methods[] = {
             "Returns the number of sites on this tree." },
     {"is_sample", (PyCFunction) Tree_is_sample, METH_VARARGS,
             "Returns True if the specified node is a sample." },
+    {"is_descendant", (PyCFunction) Tree_is_descendant, METH_VARARGS,
+            "Returns True if u is a descendant of v." },
     {"get_parent", (PyCFunction) Tree_get_parent, METH_VARARGS,
             "Returns the parent of node u" },
     {"get_time", (PyCFunction) Tree_get_time, METH_VARARGS,

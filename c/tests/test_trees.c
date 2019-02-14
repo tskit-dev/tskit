@@ -3329,6 +3329,45 @@ test_single_tree_compute_mutation_parents(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_single_tree_is_descendant(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 0, 4));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 1, 4));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 0, 6));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 1, 6));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 4, 6));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 2, 5));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 3, 5));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 2, 6));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 3, 6));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 5, 6));
+    /* Nodes are descendents of themselves. */
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 0, 0));
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&tree, 1, 1));
+
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&tree, 0, 1));
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&tree, 0, 2));
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&tree, 0, 5));
+
+    /* Out of bounds nodes always return false.*/
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&tree, -1, 5));
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&tree, 100, 5));
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&tree, -1, -1));
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
 
 /*=======================================================
  * Multi tree tests.
@@ -4249,6 +4288,7 @@ main(int argc, char **argv)
         {"test_single_tree_simplify_no_sample_nodes", test_single_tree_simplify_no_sample_nodes},
         {"test_single_tree_simplify_null_samples", test_single_tree_simplify_null_samples},
         {"test_single_tree_compute_mutation_parents", test_single_tree_compute_mutation_parents},
+        {"test_single_tree_is_descendant", test_single_tree_is_descendant},
 
         /* Multi tree tests */
         {"test_simple_multi_tree", test_simple_multi_tree},

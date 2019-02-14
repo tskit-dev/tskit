@@ -1989,6 +1989,23 @@ class TestTree(HighLevelTestCase):
         self.assertGreater(bl, 0)
         self.assertEqual(t1.get_total_branch_length(), bl)
 
+    def test_is_descendant(self):
+
+        def is_descendant(tree, u, v):
+            path = []
+            while u != tskit.NULL:
+                path.append(u)
+                u = tree.parent(u)
+            return v in path
+
+        tree = self.get_tree()
+        for u, v in itertools.product(range(tree.num_nodes), repeat=2):
+            self.assertEqual(is_descendant(tree, u, v), tree.is_descendant(u, v))
+        for bad_node in [-1, -2, tree.num_nodes, tree.num_nodes + 1]:
+            self.assertRaises(ValueError, tree.is_descendant, 0, bad_node)
+            self.assertRaises(ValueError, tree.is_descendant, bad_node, 0)
+            self.assertRaises(ValueError, tree.is_descendant, bad_node, bad_node)
+
     def test_apis(self):
         # tree properties
         t1 = self.get_tree()
