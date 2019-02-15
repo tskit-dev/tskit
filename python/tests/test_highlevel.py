@@ -709,6 +709,30 @@ class TestVariantGenerator(HighLevelTestCase):
             count += 1
         self.assertEqual(count, ts.num_sites)
 
+    def verify_jukes_cantor(self, ts):
+        self.assertTrue(np.array_equal(ts.genotype_matrix(), ts.genotype_matrix()))
+        tree = ts.first()
+        for variant in ts.variants():
+            mutations = {
+                mutation.node: mutation.derived_state
+                for mutation in variant.site.mutations}
+            for sample_index, u in enumerate(ts.samples()):
+                while u not in mutations and u != tskit.NULL:
+                    u = tree.parent(u)
+                state1 = mutations.get(u, variant.site.ancestral_state)
+                state2 = variant.alleles[variant.genotypes[sample_index]]
+                self.assertEqual(state1, state2)
+
+    def test_jukes_cantor_n5(self):
+        ts = msprime.simulate(5, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 5, 1, seed=2)
+        self.verify_jukes_cantor(ts)
+
+    def test_jukes_cantor_n20(self):
+        ts = msprime.simulate(20, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 5, 1, seed=2)
+        self.verify_jukes_cantor(ts)
+
 
 class TestHaplotypeGenerator(HighLevelTestCase):
     """
@@ -2291,6 +2315,27 @@ class TestTree(HighLevelTestCase):
             for j in range(ts.num_nodes):
                 self.assertEqual(
                     tree.num_tracked_samples(j), copy.num_tracked_samples(j))
+
+    def test_reconstruct(self):
+        ts = msprime.simulate(5, random_seed=42)
+        tree = ts.first()
+        genotypes = np.zeros(5, dtype=np.uint8)
+        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(node.shape, (0,))
+        self.assertEqual(parent.shape, (0,))
+        self.assertEqual(state.shape, (0,))
+        for j in range(1, 64):
+            genotypes[0] = j
+            ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+            self.assertEqual(ancestral_state, 0)
+            self.assertEqual(node.shape, (1,))
+            self.assertEqual(parent.shape, (1,))
+            self.assertEqual(state.shape, (1,))
+        for j in range(64, 67):
+            genotypes[0] = j
+            with self.assertRaises(ValueError):
+                tree.reconstruct(genotypes)
 
 
 class TestNodeOrdering(HighLevelTestCase):

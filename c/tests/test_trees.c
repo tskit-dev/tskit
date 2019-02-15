@@ -2616,6 +2616,367 @@ test_simplest_individual_filter(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_simplest_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0";
+    const char *edges =
+        "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    /* Check the null tree */
+    CU_ASSERT_FALSE(tsk_tree_next(&t));
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_nonbinary_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0";
+    const char *edges =
+        "0  1   4   0,1,2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0, 0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_unary_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n"
+        "0  1   0\n"
+        "0  2   0";
+    const char *edges =
+        "0  1   2   0\n"
+        "0  1   3   1\n"
+        "0  1   4   2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_non_sample_leaf_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n"
+        "0  0   0\n"
+        "0  0   0";
+    const char *edges =
+        "0  1   2   0,1,3,4\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_internal_sample_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  1   0";
+    const char *edges =
+        "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    genotypes[2] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 0);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_multiple_root_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n"
+        "0  1   0\n";
+    const char *edges =
+        "0  1   4   0,1\n"
+        "0  1   5   2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0, 0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    genotypes[1] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 4);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_chained_reconstruct(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  1   0\n"
+        "1  1   0\n"
+        "0  2   0";
+    const char *edges =
+        "0  1   2   0\n"
+        "0  1   3   1\n"
+        "0  1   4   2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 0, 0, 0};
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[2] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].parent, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].state, 0);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
 /*=======================================================
  * Single tree tests.
  *======================================================*/
@@ -3443,6 +3804,142 @@ test_single_tree_is_descendant(void)
 
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_reconstruct(void)
+{
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 1, 1, 1};
+    int ret = 0;
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state, j;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 0;
+    genotypes[1] = 0;
+    genotypes[2] = 0;
+    genotypes[3] = 0;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    for (j = 1; j < 64; j++) {
+        genotypes[0] = j;
+        genotypes[1] = 0;
+        genotypes[2] = 0;
+        genotypes[3] = 0;
+        ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+                &ancestral_state, &num_transitions, &transitions);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+        CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+        CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+        CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+        CU_ASSERT_EQUAL_FATAL(transitions[0].state, j);
+        free(transitions);
+    }
+
+    genotypes[0] = 2;
+    genotypes[1] = 1;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 4);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].parent, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].state, 2);
+    free(transitions);
+
+    genotypes[0] = 64;
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_reconstruct_internal_samples(void)
+{
+    /* Example derived from test case provoking a segfault */
+    const char *nodes =
+        "0       0.00000000000000   0\n"
+        "0       0.00000000000000   0\n"
+        "1       0.00000000000000   0\n"
+        "1       0.00000000000000   0\n"
+        "1       0.00000000000000   0\n"
+        "0       0.10792116530237   0\n"
+        "1       1.00674711128465   0\n"
+        "1       1.24675560985525   0\n"
+        "0       1.78536352520779   0\n";
+    const char *edges =
+        "0.00000000      1.00000000      5       0\n"
+        "0.00000000      1.00000000      5       2\n"
+        "0.00000000      1.00000000      6       4\n"
+        "0.00000000      1.00000000      6       5\n"
+        "0.00000000      1.00000000      7       1\n"
+        "0.00000000      1.00000000      7       3\n"
+        "0.00000000      1.00000000      8       6\n"
+        "0.00000000      1.00000000      8       7\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    uint8_t genotypes[] = {0, 2, 2, 1, 0};
+    int ret = 0;
+    size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    uint8_t ancestral_state;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges,
+            NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 5);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 4);
+    free(transitions);
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
 }
 
 /*=======================================================
@@ -4436,6 +4933,16 @@ main(int argc, char **argv)
         {"test_simplest_reduce_site_topology", test_simplest_reduce_site_topology},
         {"test_simplest_population_filter", test_simplest_population_filter},
         {"test_simplest_individual_filter", test_simplest_individual_filter},
+        {"test_simplest_reconstruct", test_simplest_reconstruct},
+        {"test_simplest_nonbinary_reconstruct", test_simplest_nonbinary_reconstruct},
+        {"test_simplest_unary_reconstruct", test_simplest_unary_reconstruct},
+        {"test_simplest_non_sample_leaf_reconstruct",
+            test_simplest_non_sample_leaf_reconstruct},
+        {"test_simplest_internal_sample_reconstruct",
+            test_simplest_internal_sample_reconstruct},
+        {"test_simplest_multiple_root_reconstruct",
+            test_simplest_multiple_root_reconstruct},
+        {"test_simplest_chained_reconstruct", test_simplest_chained_reconstruct},
 
         /* Single tree tests */
         {"test_single_tree_good_records", test_single_tree_good_records},
@@ -4453,6 +4960,9 @@ main(int argc, char **argv)
         {"test_single_tree_simplify_null_samples", test_single_tree_simplify_null_samples},
         {"test_single_tree_compute_mutation_parents", test_single_tree_compute_mutation_parents},
         {"test_single_tree_is_descendant", test_single_tree_is_descendant},
+        {"test_single_tree_reconstruct", test_single_tree_reconstruct},
+        {"test_single_tree_reconstruct_internal_samples",
+            test_single_tree_reconstruct_internal_samples},
 
         /* Multi tree tests */
         {"test_simple_multi_tree", test_simple_multi_tree},

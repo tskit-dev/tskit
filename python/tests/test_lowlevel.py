@@ -33,6 +33,7 @@ import unittest
 
 import numpy as np
 import msprime
+import numpy as np
 
 import _tskit
 
@@ -1563,6 +1564,56 @@ class TestTree(LowLevelTestCase):
             while t1.next():
                 t2 = t1.copy()
                 self.assertEqual(t1.get_index(), t2.get_index())
+
+    def test_reconstruct_null(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        n = ts.get_num_samples()
+        genotypes = np.zeros(n, dtype=np.uint8)
+        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(node.shape, (0,))
+        self.assertEqual(parent.shape, (0,))
+        self.assertEqual(state.shape, (0,))
+
+        genotypes = np.arange(n, dtype=np.uint8)
+        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        self.assertEqual(ancestral_state, 0)
+        self.assertTrue(np.array_equal(node, 1 + np.arange(n - 1, dtype=np.int32)))
+        self.assertTrue(np.array_equal(state, 1 + np.arange(n - 1, dtype=np.uint8)))
+        self.assertTrue(np.array_equal(parent, np.zeros(n - 1, dtype=np.int32) - 1))
+
+    def test_reconstruct(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        tree.next()
+        n = ts.get_num_samples()
+        genotypes = np.zeros(n, dtype=np.uint8)
+        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(node.shape, (0,))
+        self.assertEqual(parent.shape, (0,))
+        self.assertEqual(state.shape, (0,))
+
+    def test_reconstruct_errors(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        n = ts.get_num_samples()
+        genotypes = np.zeros(n, dtype=np.uint8)
+        self.assertRaises(TypeError, tree.reconstruct)
+        for bad_size in [0, 1, n - 1, n + 1]:
+            self.assertRaises(
+                ValueError, tree.reconstruct, np.zeros(bad_size, dtype=np.uint8))
+        for bad_type in [None, {}, set()]:
+            self.assertRaises(TypeError, tree.reconstruct, [bad_type] * n)
+        for bad_type in [np.int8, np.uint64, np.float32]:
+            self.assertRaises(
+                TypeError, tree.reconstruct, np.zeros(bad_size, dtype=bad_type))
+        genotypes = np.zeros(n, dtype=np.uint8)
+        tree.reconstruct(genotypes)
+        for bad_value in [64, 65, 255]:
+            genotypes[0] = bad_value
+            self.assertRaises(_tskit.LibraryError, tree.reconstruct, genotypes)
 
 
 class TestModuleFunctions(unittest.TestCase):

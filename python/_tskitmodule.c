@@ -8193,6 +8193,76 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    PyObject *genotypes = NULL;
+    PyArrayObject *genotypes_array = NULL;
+    PyArrayObject *node_array  = NULL;
+    PyArrayObject *parent_array = NULL;
+    PyArrayObject *state_array = NULL;
+    static char *kwlist[] = {"genotypes", NULL};
+    uint8_t ancestral_state, *state;
+    int32_t *node, *parent;
+    tsk_state_transition_t *transitions = NULL;
+    size_t j, num_transitions;
+    npy_intp *shape, dims;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &genotypes)) {
+        goto out;
+    }
+    genotypes_array = (PyArrayObject *) PyArray_FROMANY(genotypes, NPY_UINT8, 1, 1,
+            NPY_ARRAY_IN_ARRAY);
+    if (genotypes_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(genotypes_array);
+    if (shape[0] != tsk_treeseq_get_num_samples(self->tree->tree_sequence)) {
+        PyErr_SetString(PyExc_ValueError,
+                "Genotypes array must have 1D (num_samples,) array");
+        goto out;
+    }
+
+    err = tsk_tree_reconstruct(self->tree,
+        (uint8_t *) PyArray_DATA(genotypes_array), NULL, 0,
+        &ancestral_state, &num_transitions, &transitions);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    dims = num_transitions;
+    node_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
+    parent_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
+    state_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_UINT8);
+    if (node_array == NULL || parent_array == NULL || state_array == NULL) {
+        goto out;
+    }
+    node = (int32_t *) PyArray_DATA(node_array);
+    parent = (int32_t *) PyArray_DATA(parent_array);
+    state = (uint8_t *) PyArray_DATA(state_array);
+    for (j = 0; j < num_transitions; j++) {
+        node[j] = transitions[j].node;
+        parent[j] = transitions[j].parent;
+        state[j] = transitions[j].state;
+    }
+    ret = Py_BuildValue("i(OOO)", ancestral_state, node_array, parent_array, state_array);
+out:
+    if (transitions != NULL) {
+        free(transitions);
+    }
+    Py_XDECREF(genotypes_array);
+    Py_XDECREF(node_array);
+    Py_XDECREF(parent_array);
+    Py_XDECREF(state_array);
+    return ret;
+}
+
 /* Forward declaration */
 static PyTypeObject TreeType;
 
@@ -8309,6 +8379,9 @@ static PyMethodDef Tree_methods[] = {
     {"get_newick", (PyCFunction) Tree_get_newick,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the newick representation of this tree." },
+    {"reconstruct", (PyCFunction) Tree_reconstruct,
+            METH_VARARGS|METH_KEYWORDS,
+            "Returns the minimal ancestral state reconstruction for the specified genotypes." },
     {"equals", (PyCFunction) Tree_equals, METH_VARARGS,
             "Returns True if this tree is equal to the parameter tree." },
     {"copy", (PyCFunction) Tree_copy, METH_NOARGS,

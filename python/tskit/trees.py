@@ -1289,18 +1289,18 @@ class Tree(object):
         while len(stack) > 0:
             v = stack.pop()
             if self.is_internal(v):
-                stack.extend(reversed(self.get_children(v)))
+                stack.extend(reversed(self.children(v)))
             yield v
 
     def _postorder_traversal(self, u):
         stack = [u]
-        k = NULL
-        while stack:
+        parent = NULL
+        while len(stack) > 0:
             v = stack[-1]
-            if self.is_internal(v) and v != k:
-                stack.extend(reversed(self.get_children(v)))
+            if self.is_internal(v) and v != parent:
+                stack.extend(reversed(self.children(v)))
             else:
-                k = self.get_parent(v)
+                parent = self.parent(v)
                 yield stack.pop()
 
     def _inorder_traversal(self, u):
@@ -1320,7 +1320,7 @@ class Tree(object):
         while queue:
             v = queue.popleft()
             if self.is_internal(v):
-                queue.extend(self.get_children(v))
+                queue.extend(self.children(v))
             yield v
 
     def nodes(self, root=None, order="preorder"):
@@ -1424,6 +1424,54 @@ class Tree(object):
 
     def __str__(self):
         return str(self.get_parent_dict())
+
+    def reconstruct(self, genotypes):
+        """
+        Given observations for a discrete set of characters at the samples in this
+        tree, reconstruct the state transitions required to reproduce these
+        observations. The observations are described by the genotypes array, with
+        distinct characters mapped to integers in the range 0 to 63,
+        such that ``genotypes[0]`` contains the observation for sample 0 and so on.
+
+        The current implementation uses the Fitch parsimony algorithm to determine
+        the minimum number of state transitions required to explain the data.
+
+        The state reconstruction is returned as two-tuple, ``(ancestral_state,
+        transitions)``, where ancestral_state is the integer state that has been
+        determined to be most parsimonious. The returned ``transitions`` are
+        described by a tuple of three numpy arrays of equal length,
+        ``(node, parent, state)``. The ``node`` array contains the nodes over which
+        state transitions occur and ``state`` array contains the derived state
+        at each of these transitions. The ``parent`` array contains the index
+        of the previous state transition on the path to root.
+
+        One of the main uses of this method is to position mutations on a tree
+        to encode observed data. In the following example we show how a set
+        of tables can be updated to include sites and mutations to encode data
+        stored in an (m, n) numpy array of genotypes with a corresponding list
+        of m lists encoding the alleles for these sites::
+
+            for j in range(m):
+                ancestral_state, (node, parent, state) = tree.reconstruct(genotypes[j])
+                tables.sites.add_row(j, ancestral_state=alleles[j][ancestral_state]))
+                parent_offset = len(tables.mutations)
+                for u, p, s in zip(node, parent, state):
+                    p = parent_offset + p if p != tskit.NULL else p
+                    tables.mutations.add_row(
+                        site=j, node=u, parent=p, derived_state=alleles[j][s])
+
+
+        .. warning:: This method is experimental and the interface may change.
+
+        :param array_like genotypes: The input observations for the samples in this tree.
+        :return: An encoding of the ancestral_state and state transitions required
+            on this tree.
+        :rtype: (int, (np.array(dtype=np.int32),
+            np.array(dtype=np.int32), np.array(dtype=np.uint8))
+        """
+        if np.max(genotypes) >= 64:
+            raise ValueError("A maximum of 64 states is supported")
+        return self._ll_tree.reconstruct(genotypes)
 
 
 def load(path):

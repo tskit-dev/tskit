@@ -69,6 +69,8 @@ def decapitate(ts, num_edges):
         left=t.edges.left[:num_edges], right=t.edges.right[:num_edges],
         parent=t.edges.parent[:num_edges], child=t.edges.child[:num_edges])
     add_provenance(t.provenances, "decapitate")
+    # Simplify to get rid of any mutations that are lying around above roots.
+    t.simplify()
     return t.tree_sequence()
 
 
@@ -334,29 +336,30 @@ def generate_site_mutations(tree, position, mu, site_table, mutation_table,
     """
     assert tree.interval[0] <= position < tree.interval[1]
     states = ["A", "C", "G", "T"]
-    state = random.choice(states)
-    site_table.add_row(position, state)
+    ancestral_state = random.choice(states)
+    site_table.add_row(position, ancestral_state)
     site = site_table.num_rows - 1
-    stack = [(tree.root, state, tskit.NULL)]
-    while len(stack) != 0:
-        u, state, parent = stack.pop()
-        if u != tree.root:
-            branch_length = tree.branch_length(u)
-            x = random.expovariate(mu)
-            new_state = state
-            while x < branch_length:
-                new_state = random.choice([s for s in states if s != state])
-                if multiple_per_node and (state != new_state):
-                    mutation_table.add_row(site, u, new_state, parent)
-                    parent = mutation_table.num_rows - 1
-                    state = new_state
-                x += random.expovariate(mu)
-            else:
-                if (not multiple_per_node) and (state != new_state):
-                    mutation_table.add_row(site, u, new_state, parent)
-                    parent = mutation_table.num_rows - 1
-                    state = new_state
-        stack.extend(reversed([(v, state, parent) for v in tree.children(u)]))
+    for root in tree.roots:
+        stack = [(root, ancestral_state, tskit.NULL)]
+        while len(stack) != 0:
+            u, state, parent = stack.pop()
+            if u != root:
+                branch_length = tree.branch_length(u)
+                x = random.expovariate(mu)
+                new_state = state
+                while x < branch_length:
+                    new_state = random.choice([s for s in states if s != state])
+                    if multiple_per_node and (state != new_state):
+                        mutation_table.add_row(site, u, new_state, parent)
+                        parent = mutation_table.num_rows - 1
+                        state = new_state
+                    x += random.expovariate(mu)
+                else:
+                    if (not multiple_per_node) and (state != new_state):
+                        mutation_table.add_row(site, u, new_state, parent)
+                        parent = mutation_table.num_rows - 1
+                        state = new_state
+            stack.extend(reversed([(v, state, parent) for v in tree.children(u)]))
 
 
 def jukes_cantor(ts, num_sites, mu, multiple_per_node=True, seed=None):

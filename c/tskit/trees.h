@@ -317,6 +317,17 @@ int tsk_tree_get_num_tracked_samples(tsk_tree_t *self, tsk_id_t u,
         size_t *num_tracked_samples);
 int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_length);
 
+typedef struct {
+    tsk_id_t node;
+    tsk_id_t parent;
+    uint8_t state;
+} tsk_state_transition_t;
+
+int tsk_tree_reconstruct(tsk_tree_t *self, uint8_t *genotypes,
+        double *cost_matrix, tsk_flags_t options,
+        uint8_t *ancestral_state,
+        size_t *num_transitions, tsk_state_transition_t **transitions);
+
 
 /****************************************************************************/
 /* Diff iterator */
