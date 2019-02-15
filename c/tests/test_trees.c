@@ -3899,13 +3899,24 @@ test_tree_errors(void)
 
     tsk_treeseq_from_text(&other_ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
             paper_ex_individuals, NULL);
+
     ret = tsk_tree_init(&other_t, &other_ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_copy(&t, &other_t, TSK_NO_INIT);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-
     tsk_tree_free(&t);
     tsk_tree_free(&other_t);
+
+    ret = tsk_tree_init(&t, &other_ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_copy(&t, &other_t, TSK_SAMPLE_COUNTS);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_UNSUPPORTED_OPERATION);
+    tsk_tree_free(&other_t);
+    ret = tsk_tree_copy(&t, &other_t, TSK_SAMPLE_LISTS);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_UNSUPPORTED_OPERATION);
+    tsk_tree_free(&other_t);
+
+    tsk_tree_free(&t);
     tsk_treeseq_free(&other_ts);
     tsk_treeseq_free(&ts);
 }

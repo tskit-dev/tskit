@@ -1400,9 +1400,11 @@ tsk_tree_is_descendant(tsk_tree_t *self, tsk_id_t u, tsk_id_t v)
     return ret;
 }
 
+/* TODO need to either document that we're using state within the tree
+ * here and so it's not threadsafe or we should just malloc the buffers
+ * each time. */
 int TSK_WARN_UNUSED
-tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v,
-        tsk_id_t *mrca)
+tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca)
 {
     int ret = 0;
     tsk_id_t w = 0;
