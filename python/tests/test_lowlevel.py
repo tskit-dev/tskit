@@ -544,20 +544,22 @@ class TestTree(LowLevelTestCase):
             0, _tskit.SAMPLE_COUNTS, _tskit.SAMPLE_LISTS,
             _tskit.SAMPLE_COUNTS | _tskit.SAMPLE_LISTS]
         for options in all_options:
-            st = _tskit.Tree(ts, options=options)
-            self.assertEqual(st.get_options(), options)
-            self.assertEqual(st.get_num_samples(0), 1)
-            if options & _tskit.SAMPLE_COUNTS:
-                self.assertEqual(st.get_num_tracked_samples(0), 0)
-            else:
-                self.assertRaises(_tskit.LibraryError, st.get_num_tracked_samples, 0)
-            if options & _tskit.SAMPLE_LISTS:
-                self.assertEqual(0, st.get_left_sample(0))
-                self.assertEqual(0, st.get_right_sample(0))
-            else:
-                self.assertRaises(ValueError, st.get_left_sample, 0)
-                self.assertRaises(ValueError, st.get_right_sample, 0)
-                self.assertRaises(ValueError, st.get_next_sample, 0)
+            tree = _tskit.Tree(ts, options=options)
+            copy = tree.copy()
+            for st in [tree, copy]:
+                self.assertEqual(st.get_options(), options)
+                self.assertEqual(st.get_num_samples(0), 1)
+                if options & _tskit.SAMPLE_COUNTS:
+                    self.assertEqual(st.get_num_tracked_samples(0), 0)
+                else:
+                    self.assertRaises(_tskit.LibraryError, st.get_num_tracked_samples, 0)
+                if options & _tskit.SAMPLE_LISTS:
+                    self.assertEqual(0, st.get_left_sample(0))
+                    self.assertEqual(0, st.get_right_sample(0))
+                else:
+                    self.assertRaises(ValueError, st.get_left_sample, 0)
+                    self.assertRaises(ValueError, st.get_right_sample, 0)
+                    self.assertRaises(ValueError, st.get_next_sample, 0)
 
     def test_site_errors(self):
         ts = self.get_example_tree_sequence()
@@ -927,6 +929,16 @@ class TestTree(LowLevelTestCase):
                 self.assertFalse(t1.equals(t2))
                 self.assertFalse(t2.equals(t1))
             last_ts = ts
+
+    def test_copy(self):
+        for ts in self.get_example_tree_sequences():
+            t1 = _tskit.Tree(ts)
+            t2 = t1.copy()
+            self.assertEqual(t1.get_index(), t2.get_index())
+            self.assertIsNot(t1, t2)
+            while t1.next():
+                t2 = t1.copy()
+                self.assertEqual(t1.get_index(), t2.get_index())
 
 
 class TestModuleFunctions(unittest.TestCase):

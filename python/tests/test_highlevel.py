@@ -2177,6 +2177,76 @@ class TestTree(HighLevelTestCase):
         tree.clear()
         self.verify_empty_tree(tree)
 
+    def verify_trees_identical(self, t1, t2):
+        self.assertIs(t1.tree_sequence, t2.tree_sequence)
+        self.assertIs(t1.num_nodes, t2.num_nodes)
+        self.assertEqual(
+            [t1.parent(u) for u in range(t1.num_nodes)],
+            [t2.parent(u) for u in range(t2.num_nodes)])
+        self.assertEqual(
+            [t1.left_child(u) for u in range(t1.num_nodes)],
+            [t2.left_child(u) for u in range(t2.num_nodes)])
+        self.assertEqual(
+            [t1.right_child(u) for u in range(t1.num_nodes)],
+            [t2.right_child(u) for u in range(t2.num_nodes)])
+        self.assertEqual(
+            [t1.left_sib(u) for u in range(t1.num_nodes)],
+            [t2.left_sib(u) for u in range(t2.num_nodes)])
+        self.assertEqual(
+            [t1.right_sib(u) for u in range(t1.num_nodes)],
+            [t2.right_sib(u) for u in range(t2.num_nodes)])
+        self.assertEqual(list(t1.sites()), list(t2.sites()))
+
+    def test_copy_seek(self):
+        ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
+        self.assertGreater(ts.num_trees, 5)
+        tree = tskit.Tree(ts)
+        copy = tree.copy()
+        self.verify_empty_tree(copy)
+        while tree.next():
+            copy = tree.copy()
+            self.verify_trees_identical(tree, copy)
+        while tree.prev():
+            copy = tree.copy()
+            self.verify_trees_identical(tree, copy)
+        tree.clear()
+        copy = tree.copy()
+        tree.first()
+        copy.first()
+        while tree.index != -1:
+            self.verify_trees_identical(tree, copy)
+            self.assertEqual(tree.next(), copy.next())
+        tree.last()
+        copy.last()
+        while tree.index != -1:
+            self.verify_trees_identical(tree, copy)
+            self.assertEqual(tree.prev(), copy.prev())
+        # Seek to middle and two independent trees.
+        tree.seek_index(ts.num_trees // 2)
+        left_copy = tree.copy()
+        right_copy = tree.copy()
+        self.verify_trees_identical(tree, left_copy)
+        self.verify_trees_identical(tree, right_copy)
+        left_copy.prev()
+        self.assertEqual(left_copy.index, tree.index - 1)
+        right_copy.next()
+        self.assertEqual(right_copy.index, tree.index + 1)
+
+    def test_copy_tracked_samples(self):
+        ts = msprime.simulate(10, recombination_rate=2, length=3, random_seed=42)
+        tree = tskit.Tree(ts, tracked_samples=[0, 1])
+        while tree.next():
+            copy = tree.copy()
+            for j in range(ts.num_nodes):
+                self.assertEqual(
+                    tree.num_tracked_samples(j), copy.num_tracked_samples(j))
+        copy = tree.copy()
+        while tree.next():
+            copy.next()
+            for j in range(ts.num_nodes):
+                self.assertEqual(
+                    tree.num_tracked_samples(j), copy.num_tracked_samples(j))
+
 
 class TestNodeOrdering(HighLevelTestCase):
     """

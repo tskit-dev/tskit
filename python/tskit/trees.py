@@ -463,6 +463,19 @@ class Tree(object):
         self._tree_sequence = tree_sequence
         self._ll_tree = _tskit.Tree(tree_sequence.ll_tree_sequence, **kwargs)
 
+    def copy(self):
+        """
+        Returns a deep copy of this tree. The returned tree will have identical state
+        to this tree.
+
+        :return: A copy of this tree.
+        :rtype: Tree
+        """
+        copy = type(self).__new__(type(self))
+        copy._tree_sequence = self._tree_sequence
+        copy._ll_tree = self._ll_tree.copy()
+        return copy
+
     @property
     def tree_sequence(self):
         """
@@ -1871,13 +1884,7 @@ class TreeSequence(object):
         :return: A list of the trees in this tree sequence.
         :rtype: list
         """
-        # TODO Use tree.copy here to avoid all the seeking. See
-        # https://github.com/tskit-dev/tskit/issues/122
-        treelist = [None for _ in range(self.num_trees)]
-        for j in range(self.num_trees):
-            treelist[j] = Tree(self)
-            treelist[j].seek_index(j)
-        return treelist
+        return [tree.copy() for tree in self.trees()]
 
     @classmethod
     def load(cls, path):
