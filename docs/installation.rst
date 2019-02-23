@@ -9,8 +9,8 @@ Installation
     as there are no external dependencies, pip should work well for all
     non-Windows users.
 
-Please install ``tskit`` from PyPI using pip::
+The tree sequence toolkit is often installed to provide succinct tree sequence functionality to other software (such as [msprime](https://github.com/tskit-dev/msprime)). If installing as a standalone Python module, users are encouraged to install an official release from PyPI using pip::
 
     $ python -m pip install tskit
 
-
+For technical reasons it is not possible to install a development version directly using the GitHub URL (i.e. `install git+git://...` will not work)
