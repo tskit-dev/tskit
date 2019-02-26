@@ -22,44 +22,13 @@ install:
   - cmd: conda install --yes --file=python\requirements\conda-minimal.txt
   - cmd: conda info -a
 
-    
-# NOTE attempted to get meson to work here and it was almost working except
-# for linking against the Advapi32 for the random bytes extension. Might be
-# worth trying again when/after getting the Python based tests up and running.
-  # # Download ninja
-  # - cmd: mkdir C:\ninja-build
-  # - ps: (new-object net.webclient).DownloadFile('https://github.com/mesonbuild/cidata/raw/master/ninja.exe', 'C:\ninja-build\ninja.exe')
-  # - cmd: set PATH=%cd%;C:\ninja-build;%PATH%
-  # - cmd: pip install meson
-
-# build_script:
-  # - cmd: meson builddir c 
-  # - cmd: cd builddir
-  # - cmd: meson configure
-  # # - cmd: ninja -C builddir
-  # - cmd: ninja -v
-
-# test_script:
-  # - cmd: ninja -C builddir test
-
 build_script:
-  - cmd: cd python"
+  - cmd: cd python
   - cmd: python setup.py build_ext --inplace
-
-#   - "pip install kastore"  
-#   - "pip install PyVCF"  
-#   - "pip install newick"  
-#   - "pip install python_jsonschema_objects"
-
-# FIXME: giving up until we have an installable version of msprime from Conda.
-# It's too tricky to manage the GSL dependency otherwise.
-#
-#   # TODO: remove when we have an installable version of msprime 0.7.x
-#   - "pip install --pre tskit"
-#   - "conda install --yes gsl"
-#   - "SET MSP_CONDA_PREFIX=%PYTHON%"
-#   - "pip install --user git+https://github.com/tskit-dev/msprime"
-  # - "nosetests -vs"
+  - cmd: pip install PyVCF
+  - cmd: pip install newick
+  - cmd: pip install python_jsonschema_objects
+  - cmd: nosetests -vs
 
 after_test:
   - cmd: python setup.py bdist_wheel
