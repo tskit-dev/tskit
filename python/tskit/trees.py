@@ -1833,6 +1833,10 @@ class TreeIterator(object):
         self.forward = False
         return self
 
+    def next(self):
+        # This is for Python2 support only.
+        return self.__next__()
+
     def __next__(self):
         if self.forward:
             self.more_trees = self.more_trees and self.tree.next()
