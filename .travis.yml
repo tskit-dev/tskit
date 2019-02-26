@@ -11,47 +11,39 @@ matrix:
     - os: linux
       python: 2.7
     - os: linux
-      python: 3.5
-    - os: linux
       python: 3.6
     - os: osx
       language: generic
 
 install:
-  - echo "DISABLED"
+  # We do this conditionally because it saves us some downloading if the
+  # version is the same.
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      curl https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh > miniconda.sh;
+      export TRAVIS_PYTHON_VERSION="3.6";
+    elif [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda config --add channels conda-forge
+  - conda update -q conda
+  - conda info -a
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
+  - source activate test-environment
+  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
+      # We shouldn't need to do this, but we get compile failures otherwise as the 
+      # gcc we're looking for is missing.
+      conda install -c conda-forge gxx_linux-64;
+    fi
+  - conda install --yes --file=python/requirements/conda-minimal.txt
+  # - conda install -c bioconda --yes pysam
+  - pip install -r python/requirements/development.txt
+  - pip install -e python
 
 script:
-  - echo "DISABLED"
-
-# FIXME giving up here also until an installable version of msprime is available
-# on conda. The GSL dependency is too hard otherwise.
-#
-# install:
-#   # We do this conditionally because it saves us some downloading if the
-#   # version is the same.
-#   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-#       curl https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh > miniconda.sh;
-#       export TRAVIS_PYTHON_VERSION="3.6";
-#     elif [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-#       wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
-#     else
-#       wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-#     fi
-#   - bash miniconda.sh -b -p $HOME/miniconda
-#   - export PATH="$HOME/miniconda/bin:$PATH"
-#   - hash -r
-#   - conda config --set always_yes yes --set changeps1 no
-#   - conda config --add channels conda-forge
-#   - conda update -q conda
-#   - conda info -a
-#   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
-#   - source activate test-environment
-#   - conda install --yes --file=python/requirements/conda-minimal.txt
-#   - conda install -c bioconda --yes pysam
-#   - pip install -r python/requirements/development.txt
-#   # Need to install in 'edit' mode, as pip can't find the header files otherwise.
-#   # No idea why.
-#   - pip install -e python/
-
-# script:
-#   - nosetests -vs python/tests
+  - nosetests -vs tests

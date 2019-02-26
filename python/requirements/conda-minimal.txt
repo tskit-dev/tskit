@@ -4,3 +4,6 @@ h5py
 six
 jsonschema
 svgwrite
+msprime
+kastore
+mock
