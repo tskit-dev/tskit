@@ -1,13 +1,8 @@
 environment:
   matrix:
-    # Disabling Py36 x64. Some weird problem with h5py. See github.com/tskit-dev/msprime/issues/678
-    # Disabling Py37. See https://github.com/tskit-dev/msprime/issues/653
-    - PYTHON: "C:\\Miniconda36-x64"
-    # JK: Disabling all of these because conda doesn't seem top be working properly.
-    # When we're on the other versions we always go back to Python36.
-    # - PYTHON: "C:\\Miniconda37"
+    # Disabling Py37 x64. Some weird problem with h5py. See github.com/tskit-dev/msprime/issues/678
     # - PYTHON: "C:\\Miniconda37-x64"
-    # - PYTHON: "C:\\Miniconda36"
+    - PYTHON: "C:\\Miniconda36-x64"
 
 init:
   - cmd: ECHO Using %PYTHON%
