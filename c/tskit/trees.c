@@ -1695,15 +1695,20 @@ tsk_tree_print_state(tsk_tree_t *self, FILE *out)
 
 /* Methods for positioning the tree along the sequence */
 
+/* Implementation note: we're passing the parent array as a restrict pointer
+ * argument here for performance reasons. The num_samples and num_tracked_samples
+ * arrays can be accessed through local restrict pointers here because we're not
+ * accessing them from the calling function.
+ */
+
 static inline void
-tsk_tree_propagate_sample_count_loss(tsk_tree_t *self, tsk_id_t parent,
-        tsk_id_t child)
+tsk_tree_propagate_sample_count_loss(tsk_tree_t *self,
+        const tsk_id_t * restrict tree_parent, tsk_id_t parent, tsk_id_t child)
 {
     tsk_id_t v;
     const tsk_id_t all_samples_diff = self->num_samples[child];
     const tsk_id_t tracked_samples_diff = self->num_tracked_samples[child];
     const uint8_t mark = self->mark;
-    const tsk_id_t * restrict tree_parent = self->parent;
     tsk_id_t * restrict num_samples = self->num_samples;
     tsk_id_t * restrict num_tracked_samples = self->num_tracked_samples;
     uint8_t * restrict marked = self->marked;
@@ -1719,14 +1724,13 @@ tsk_tree_propagate_sample_count_loss(tsk_tree_t *self, tsk_id_t parent,
 }
 
 static inline void
-tsk_tree_propagate_sample_count_gain(tsk_tree_t *self, tsk_id_t parent,
-        tsk_id_t child)
+tsk_tree_propagate_sample_count_gain(tsk_tree_t *self,
+        const tsk_id_t * restrict tree_parent, tsk_id_t parent, tsk_id_t child)
 {
     tsk_id_t v;
     const tsk_id_t all_samples_diff = self->num_samples[child];
     const tsk_id_t tracked_samples_diff = self->num_tracked_samples[child];
     const uint8_t mark = self->mark;
-    const tsk_id_t * restrict tree_parent = self->parent;
     tsk_id_t * restrict num_samples = self->num_samples;
     tsk_id_t * restrict num_tracked_samples = self->num_tracked_samples;
     uint8_t * restrict marked = self->marked;
@@ -1741,16 +1745,20 @@ tsk_tree_propagate_sample_count_gain(tsk_tree_t *self, tsk_id_t parent,
     }
 }
 
+/* parent, left_child and right_sib are restrict pointers in the calling function,
+ * so we pass these as parameters to ensure the relationships are clear to the
+ * compiler. */
 static inline void
-tsk_tree_update_sample_lists(tsk_tree_t *self, tsk_id_t node)
+tsk_tree_update_sample_lists(tsk_tree_t *self,
+        const tsk_id_t * restrict parent,
+        const tsk_id_t * restrict left_child,
+        const tsk_id_t * restrict right_sib,
+        tsk_id_t node)
 {
     tsk_id_t u, v, sample_index;
     tsk_id_t * restrict left = self->left_sample;
     tsk_id_t * restrict right = self->right_sample;
     tsk_id_t * restrict next = self->next_sample;
-    const tsk_id_t * restrict left_child = self->left_child;
-    const tsk_id_t * restrict right_sib = self->right_sib;
-    const tsk_id_t * restrict parent = self->parent;
     const tsk_id_t * restrict sample_index_map = self->tree_sequence->sample_index_map;
 
     for (u = node; u != TSK_NULL; u = parent[u]) {
@@ -1790,14 +1798,20 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
     tsk_id_t in = *in_index + direction_change;
     tsk_id_t out = *out_index + direction_change;
     tsk_id_t k, p, c, u, v, root, lsib, rsib, lroot, rroot;
-    tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
     const double sequence_length = tables->sequence_length;
     const tsk_id_t num_edges = (tsk_id_t) tables->edges.num_rows;
     const tsk_id_t * restrict edge_parent = tables->edges.parent;
     const tsk_id_t * restrict edge_child = tables->edges.child;
-    const uint32_t * restrict node_flags = tables->nodes.flags;
+    const tsk_flags_t * restrict node_flags = tables->nodes.flags;
+    tsk_id_t * restrict parent = self->parent;
+    tsk_id_t * restrict left_child = self->left_child;
+    tsk_id_t * restrict right_child = self->right_child;
+    tsk_id_t * restrict left_sib = self->left_sib;
+    tsk_id_t * restrict right_sib = self->right_sib;
+    bool * restrict above_sample = self->above_sample;
+    bool currently_above_sample;
     double x;
-    bool above_sample;
 
     if (direction == TSK_DIR_FORWARD) {
         x = self->right;
@@ -1810,72 +1824,72 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
         out += direction;
         p = edge_parent[k];
         c = edge_child[k];
-        lsib = self->left_sib[c];
-        rsib = self->right_sib[c];
+        lsib = left_sib[c];
+        rsib = right_sib[c];
         if (lsib == TSK_NULL) {
-            self->left_child[p] = rsib;
+            left_child[p] = rsib;
         } else {
-            self->right_sib[lsib] = rsib;
+            right_sib[lsib] = rsib;
         }
         if (rsib == TSK_NULL) {
-            self->right_child[p] = lsib;
+            right_child[p] = lsib;
         } else {
-            self->left_sib[rsib] = lsib;
+            left_sib[rsib] = lsib;
         }
-        self->parent[c] = TSK_NULL;
-        self->left_sib[c] = TSK_NULL;
-        self->right_sib[c] = TSK_NULL;
+        parent[c] = TSK_NULL;
+        left_sib[c] = TSK_NULL;
+        right_sib[c] = TSK_NULL;
         if (self->options & TSK_SAMPLE_COUNTS) {
-            tsk_tree_propagate_sample_count_loss(self, p, c);
+            tsk_tree_propagate_sample_count_loss(self, parent, p, c);
         }
         if (self->options & TSK_SAMPLE_LISTS) {
-            tsk_tree_update_sample_lists(self, p);
+            tsk_tree_update_sample_lists(self, parent, left_child, right_sib, p);
         }
 
         /* Update the roots. If c is not above a sample then we have nothing to do
          * as we cannot affect the status of any roots. */
-        if (self->above_sample[c]) {
+        if (above_sample[c]) {
             /* Compute the new above sample status for the nodes from p up to root. */
             v = p;
             root = v;
-            above_sample = false;
-            while (v != TSK_NULL && !above_sample) {
-                above_sample = !!(node_flags[v] & TSK_NODE_IS_SAMPLE);
-                u = self->left_child[v];
-                while (u != TSK_NULL && !above_sample) {
-                    above_sample = above_sample || self->above_sample[u];
-                    u = self->right_sib[u];
+            currently_above_sample = false;
+            while (v != TSK_NULL && !currently_above_sample) {
+                currently_above_sample = !!(node_flags[v] & TSK_NODE_IS_SAMPLE);
+                u = left_child[v];
+                while (u != TSK_NULL && !currently_above_sample) {
+                    currently_above_sample = above_sample[u];
+                    u = right_sib[u];
                 }
-                self->above_sample[v] = above_sample;
+                above_sample[v] = currently_above_sample;
                 root = v;
-                v = self->parent[v];
+                v = parent[v];
             }
-            if (!above_sample) {
+            if (!currently_above_sample) {
                 /* root is no longer above samples. Remove it from the root list */
-                lroot = self->left_sib[root];
-                rroot = self->right_sib[root];
+                lroot = left_sib[root];
+                rroot = right_sib[root];
                 self->left_root = TSK_NULL;
                 if (lroot != TSK_NULL) {
-                    self->right_sib[lroot] = rroot;
+                    right_sib[lroot] = rroot;
                     self->left_root = lroot;
                 }
                 if (rroot != TSK_NULL) {
-                    self->left_sib[rroot] = lroot;
+                    left_sib[rroot] = lroot;
                     self->left_root = rroot;
                 }
-                self->left_sib[root] = TSK_NULL;
-                self->right_sib[root] = TSK_NULL;
+                left_sib[root] = TSK_NULL;
+                right_sib[root] = TSK_NULL;
             }
             /* Add c to the root list */
             if (self->left_root != TSK_NULL) {
-                lroot = self->left_sib[self->left_root];
+                lroot = left_sib[self->left_root];
                 if (lroot != TSK_NULL) {
-                    self->right_sib[lroot] = c;
+                    right_sib[lroot] = c;
                 }
-                self->left_sib[c] = lroot;
-                self->left_sib[self->left_root] = c;
+                left_sib[c] = lroot;
+                left_sib[self->left_root] = c;
             }
-            self->right_sib[c] = self->left_root;
+            right_sib[c] = self->left_root;
             self->left_root = c;
         }
     }
@@ -1885,62 +1899,62 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
         in += direction;
         p = edge_parent[k];
         c = edge_child[k];
-        if (self->parent[c] != TSK_NULL) {
+        if (parent[c] != TSK_NULL) {
             ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
             goto out;
         }
-        self->parent[c] = p;
-        u = self->right_child[p];
-        lsib = self->left_sib[c];
-        rsib = self->right_sib[c];
+        parent[c] = p;
+        u = right_child[p];
+        lsib = left_sib[c];
+        rsib = right_sib[c];
         if (u == TSK_NULL) {
-            self->left_child[p] = c;
-            self->left_sib[c] = TSK_NULL;
-            self->right_sib[c] = TSK_NULL;
+            left_child[p] = c;
+            left_sib[c] = TSK_NULL;
+            right_sib[c] = TSK_NULL;
         } else {
-            self->right_sib[u] = c;
-            self->left_sib[c] = u;
-            self->right_sib[c] = TSK_NULL;
+            right_sib[u] = c;
+            left_sib[c] = u;
+            right_sib[c] = TSK_NULL;
         }
-        self->right_child[p] = c;
+        right_child[p] = c;
         if (self->options & TSK_SAMPLE_COUNTS) {
-            tsk_tree_propagate_sample_count_gain(self, p, c);
+            tsk_tree_propagate_sample_count_gain(self, parent, p, c);
         }
         if (self->options & TSK_SAMPLE_LISTS) {
-            tsk_tree_update_sample_lists(self, p);
+            tsk_tree_update_sample_lists(self, parent, left_child, right_sib, p);
         }
 
         /* Update the roots. */
-        if (self->above_sample[c]) {
+        if (above_sample[c]) {
             v = p;
             root = v;
-            above_sample = false;
-            while (v != TSK_NULL && !above_sample) {
-                above_sample = self->above_sample[v];
-                self->above_sample[v] = true;
+            currently_above_sample = false;
+            while (v != TSK_NULL && !currently_above_sample) {
+                currently_above_sample = above_sample[v];
+                above_sample[v] = true;
                 root = v;
-                v = self->parent[v];
+                v = parent[v];
             }
-            if (! above_sample) {
+            if (!currently_above_sample) {
                 /* Replace c with root in root list */
                 if (lsib != TSK_NULL) {
-                    self->right_sib[lsib] = root;
+                    right_sib[lsib] = root;
                 }
                 if (rsib != TSK_NULL) {
-                    self->left_sib[rsib] = root;
+                    left_sib[rsib] = root;
                 }
-                self->left_sib[root] = lsib;
-                self->right_sib[root] = rsib;
+                left_sib[root] = lsib;
+                right_sib[root] = rsib;
                 self->left_root = root;
             } else {
                 /* Remove c from root list */
                 self->left_root = TSK_NULL;
                 if (lsib != TSK_NULL) {
-                    self->right_sib[lsib] = rsib;
+                    right_sib[lsib] = rsib;
                     self->left_root = lsib;
                 }
                 if (rsib != TSK_NULL) {
-                    self->left_sib[rsib] = lsib;
+                    left_sib[rsib] = lsib;
                     self->left_root = rsib;
                 }
             }
@@ -1949,8 +1963,8 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
 
     if (self->left_root != TSK_NULL) {
         /* Ensure that left_root is the left-most root */
-        while (self->left_sib[self->left_root] != TSK_NULL) {
-            self->left_root = self->left_sib[self->left_root];
+        while (left_sib[self->left_root] != TSK_NULL) {
+            self->left_root = left_sib[self->left_root];
         }
     }
 
