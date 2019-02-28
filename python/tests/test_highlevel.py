@@ -23,9 +23,6 @@
 """
 Test cases for the high level interface to msprime.
 """
-from __future__ import print_function
-from __future__ import division
-
 import collections
 import itertools
 import io

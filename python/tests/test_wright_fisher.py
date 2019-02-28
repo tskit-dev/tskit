@@ -23,9 +23,6 @@
 """
 Test various functions using messy tables output by a forwards-time simulator.
 """
-from __future__ import print_function
-from __future__ import division
-
 import itertools
 import random
 import unittest

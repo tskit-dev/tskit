@@ -25,9 +25,6 @@
 Test cases for the low-level tables used to transfer information
 between simulations and the tree sequence.
 """
-from __future__ import print_function
-from __future__ import division
-
 import io
 import pickle
 import random

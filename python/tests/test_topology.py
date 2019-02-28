@@ -23,9 +23,6 @@
 """
 Test cases for the supported topological variations and operations.
 """
-from __future__ import print_function
-from __future__ import division
-
 import io
 import unittest
 import itertools

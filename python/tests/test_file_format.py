@@ -23,9 +23,6 @@
 """
 Test cases for tskit's file format.
 """
-from __future__ import print_function
-from __future__ import division
-
 import os
 import tempfile
 import unittest

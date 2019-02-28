@@ -24,9 +24,6 @@
 """
 Test cases for visualisation in tskit.
 """
-from __future__ import print_function
-from __future__ import division
-
 import io
 import os
 import tempfile

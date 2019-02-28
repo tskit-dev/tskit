@@ -25,9 +25,6 @@
 """
 Module responsible for managing trees and tree sequences.
 """
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import itertools
 import json

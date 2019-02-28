@@ -23,9 +23,6 @@
 """
 Test cases for VCF output in tskit.
 """
-from __future__ import print_function
-from __future__ import division
-
 import collections
 import math
 import os

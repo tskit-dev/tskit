@@ -23,10 +23,6 @@
 """
 Test cases for generalized statistic computation.
 """
-from __future__ import print_function
-from __future__ import division
-
-
 import io
 import unittest
 import random

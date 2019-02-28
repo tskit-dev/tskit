@@ -23,9 +23,6 @@
 Test cases for the low-level dictionary encoding used to move
 data around in C.
 """
-from __future__ import print_function
-from __future__ import division
-
 import unittest
 
 import msprime

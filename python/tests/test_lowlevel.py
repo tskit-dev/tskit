@@ -23,10 +23,6 @@
 """
 Test cases for the low level C interface to tskit.
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-
 import collections
 import itertools
 import os
