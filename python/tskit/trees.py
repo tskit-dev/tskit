@@ -31,7 +31,6 @@ from __future__ import print_function
 import collections
 import itertools
 import json
-import sys
 import base64
 import warnings
 import functools
@@ -52,9 +51,6 @@ import tskit.formats as formats
 
 from _tskit import NODE_IS_SAMPLE
 from _tskit import NULL
-
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 CoalescenceRecord = collections.namedtuple(
@@ -1350,8 +1346,7 @@ class Tree(object):
             root = self.root
         if node_labels is None:
             s = self._ll_tree.get_newick(precision=precision, root=root)
-            if not IS_PY2:
-                s = s.decode()
+            s = s.decode()
         else:
             return self.__build_newick(root, precision, node_labels) + ";"
         return s
@@ -2664,8 +2659,6 @@ class TreeSequence(object):
             return self._ll_tree_sequence.genealogical_nearest_neighbours(
                 focal, reference_sets)
         else:
-            if IS_PY2:  # pragma: no cover
-                raise ValueError("Threads not supported on Python 2.")
             worker = functools.partial(
                 self._ll_tree_sequence.genealogical_nearest_neighbours,
                 reference_sets=reference_sets)

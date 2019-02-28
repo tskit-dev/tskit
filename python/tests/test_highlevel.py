@@ -45,7 +45,6 @@ import tempfile
 import unittest
 import warnings
 import uuid as _uuid
-import sys
 
 import numpy as np
 import msprime
@@ -55,8 +54,6 @@ import _tskit
 import tests as tests
 import tests.tsutil as tsutil
 import tests.simplify as simplify
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -2414,7 +2411,6 @@ class TestEdgeContainer(unittest.TestCase, SimpleContainersMixin):
             tskit.Edge(left=j, right=j, parent=j, child=j) for j in range(n)]
 
 
-@unittest.skipIf("py2", IS_PY2)
 class TestSiteContainer(unittest.TestCase, SimpleContainersMixin):
     def get_instances(self, n):
         return [
@@ -2458,7 +2454,6 @@ class TestEdgesetContainer(unittest.TestCase, SimpleContainersMixin):
             tskit.Edgeset(left=j, right=j, parent=j, children=j) for j in range(n)]
 
 
-@unittest.skipIf("py2", IS_PY2)
 class TestVariantContainer(unittest.TestCase, SimpleContainersMixin):
     def get_instances(self, n):
         return [

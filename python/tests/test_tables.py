@@ -33,7 +33,6 @@ import random
 import string
 import unittest
 import warnings
-import sys
 
 import numpy as np
 import six
@@ -43,8 +42,6 @@ import _tskit
 import msprime
 
 import tests.tsutil as tsutil
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 def random_bytes(max_length):
@@ -1238,7 +1235,6 @@ class TestSimplifyTables(unittest.TestCase):
     """
     random_seed = 42
 
-    @unittest.skipIf(IS_PY2, "Warnings different in Py2")
     def test_deprecated_zero_mutation_sites(self):
         ts = msprime.simulate(10,  mutation_rate=1, random_seed=self.random_seed)
         tables = ts.dump_tables()

@@ -26,7 +26,6 @@ Test cases for threading enabled aspects of the API.
 from __future__ import print_function
 from __future__ import division
 
-import sys
 import threading
 import unittest
 import platform
@@ -37,7 +36,6 @@ import msprime
 import tskit
 import tests.tsutil as tsutil
 
-IS_PY2 = sys.version_info[0] < 3
 IS_WINDOWS = platform.system() == "Windows"
 
 
@@ -141,10 +139,9 @@ class TestLdCalculatorReplicates(unittest.TestCase):
             self.assertEqual(results[j][0], m - j - 1)
 
 
-# @unittest.skipIf(IS_PY2, "Cannot test thread support on Py2.")
-# Temporarily skipping these on windows too. See
+# Temporarily skipping these on Windows. See
 # https://github.com/jeromekelleher/tskit/issues/344
-@unittest.skipIf(IS_PY2 or IS_WINDOWS, "Cannot test thread support on Py2.")
+@unittest.skipIf(IS_WINDOWS, "Cannot test thread support on Windows.")
 class TestTables(unittest.TestCase):
     """
     Tests to ensure that attempts to access tables in threads correctly

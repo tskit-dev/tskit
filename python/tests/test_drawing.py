@@ -28,7 +28,6 @@ from __future__ import print_function
 from __future__ import division
 
 import os
-import sys
 import tempfile
 import unittest
 import xml.etree
@@ -37,8 +36,6 @@ import msprime
 import six
 import tskit
 import tests.tsutil as tsutil
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 class TestTreeDraw(unittest.TestCase):
@@ -169,13 +166,10 @@ class TestFormats(TestTreeDraw):
     def test_unicode_variants(self):
         t = self.get_binary_tree()
         for fmt in ["unicode", "UNICODE", "uniCODE"]:
-            if IS_PY2:
-                self.assertRaises(ValueError, t.draw, format=fmt)
-            else:
-                output = t.draw(format=fmt)
-                self.assertRaises(
-                    xml.etree.ElementTree.ParseError, xml.etree.ElementTree.fromstring,
-                    output)
+            output = t.draw(format=fmt)
+            self.assertRaises(
+                xml.etree.ElementTree.ParseError, xml.etree.ElementTree.fromstring,
+                output)
 
     def test_bad_formats(self):
         t = self.get_binary_tree()
@@ -302,7 +296,6 @@ class TestDrawText(TestTreeDraw):
             self.assertEqual(text.find(str(u)), -1)
 
 
-@unittest.skipIf(IS_PY2, "Unicode tree drawing not supported on Python 2")
 class TestDrawUnicode(TestDrawText):
     """
     Tests the Unicode tree drawing method

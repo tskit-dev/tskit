@@ -28,15 +28,12 @@ from __future__ import print_function
 
 import array
 import collections
-import sys
 
 try:
     import svgwrite
     _svgwrite_imported = True
 except ImportError:  # pragma: no cover
     _svgwrite_imported = False
-
-IS_PY2 = sys.version_info[0] < 3
 
 NULL_NODE = -1
 
@@ -64,8 +61,6 @@ def draw_tree(
     elif fmt == "ascii":
         cls = AsciiTreeDrawer
     elif fmt == "unicode":
-        if IS_PY2:
-            raise ValueError("Unicode tree drawing not supported on Python 2")
         cls = UnicodeTreeDrawer
 
     # We can't draw trees with zero roots.
@@ -387,9 +382,7 @@ class AsciiTreeDrawer(TextTreeDrawer):
         return array.array(self.array_type, text.encode())
 
     def draw(self):
-        s = self._draw().tostring()
-        if not IS_PY2:
-            s = s.decode()
+        s = self._draw().tostring().decode()
         return s
 
 

@@ -32,7 +32,6 @@ import itertools
 import os
 import platform
 import random
-import sys
 import tempfile
 import unittest
 
@@ -40,7 +39,6 @@ import msprime
 
 import _tskit
 
-IS_PY2 = sys.version_info[0] < 3
 IS_WINDOWS = platform.system() == "Windows"
 
 
