@@ -1,5 +1,4 @@
 numpy
-six
 svgwrite
 jsonschema
 h5py

@@ -33,11 +33,11 @@ except ImportError:
     # This fails for Python 3.x, but that's fine.
     pass
 
+import io
 import unittest
 import itertools
 import random
 
-import six
 import numpy as np
 import msprime
 
@@ -442,13 +442,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
             self.assertEqual(tree.roots, [])
 
     def test_simple_hole(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       2       0
         2       3       2       0
@@ -463,13 +463,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_trees(ts, expected)
 
     def test_simple_hole_zero_roots(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   0           0
         1   0           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       2       0
         2       3       2       0
@@ -485,13 +485,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_zero_roots(ts)
 
     def test_initial_gap(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         1       2       2       0,1
         """)
@@ -502,13 +502,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_trees(ts, expected)
 
     def test_initial_gap_zero_roots(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   0           0
         1   0           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         1       2       2       0,1
         """)
@@ -520,13 +520,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_zero_roots(ts)
 
     def test_final_gap(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       2       2       0,1
         """)
@@ -537,13 +537,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_trees(ts, expected)
 
     def test_final_gap_zero_roots(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   0           0
         1   0           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       2       2       0,1
         """)
@@ -555,13 +555,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_zero_roots(ts)
 
     def test_initial_and_final_gap(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         1       2       2       0,1
         """)
@@ -573,13 +573,13 @@ class TestHoleyTreeSequences(TopologyTestCase):
         self.verify_trees(ts, expected)
 
     def test_initial_and_final_gap_zero_roots(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   0           0
         1   0           0
         2   0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         1       2       2       0,1
         """)
@@ -599,7 +599,7 @@ class TestTsinferExamples(TopologyTestCase):
     def test_no_last_tree(self):
         # The last tree was not being generated here because of a bug in
         # the low-level tree generation code.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   population      time
         0       1       -1              3.00000000000000
         1       1       -1              2.00000000000000
@@ -613,7 +613,7 @@ class TestTsinferExamples(TopologyTestCase):
         9       1       -1              1.00000000000000
         10      1       -1              1.00000000000000
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         id      left            right           parent  child
         0       62291.41659631  79679.17408763  1       5
         1       62291.41659631  62374.60889677  1       6
@@ -672,12 +672,12 @@ class TestRecordSquashing(TopologyTestCase):
     Tests that we correctly squash adjacent equal records together.
     """
     def test_single_record(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       1       0
         1       2       1       0
@@ -751,7 +751,7 @@ class TestUnaryNodes(TopologyTestCase):
     """
     def test_simple_case(self):
         # Simple case where we have n = 2 and some unary nodes.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -760,7 +760,7 @@ class TestUnaryNodes(TopologyTestCase):
         4       0           2
         5       0           3
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       2       0
         0       1       3       1
@@ -774,8 +774,8 @@ class TestUnaryNodes(TopologyTestCase):
             sites += "{} 0\n".format(position)
             mutations += "{} {} 1\n".format(j, j)
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=six.StringIO(sites),
-            mutations=six.StringIO(mutations), strict=False)
+            nodes=nodes, edges=edges, sites=io.StringIO(sites),
+            mutations=io.StringIO(mutations), strict=False)
 
         self.assertEqual(ts.sample_size, 2)
         self.assertEqual(ts.num_nodes, 6)
@@ -815,7 +815,7 @@ class TestUnaryNodes(TopologyTestCase):
         root = num_unary_nodes + 3
         root_time = num_unary_nodes + 3
         edges += "0    1     {}      1,{}\n".format(root, num_unary_nodes + 2)
-        ts = tskit.load_text(six.StringIO(nodes), six.StringIO(edges), strict=False)
+        ts = tskit.load_text(io.StringIO(nodes), io.StringIO(edges), strict=False)
         t = next(ts.trees())
         self.assertEqual(t.mrca(0, 1), root)
         self.assertEqual(t.tmrca(0, 1), root_time)
@@ -892,7 +892,7 @@ class TestGeneralSamples(TopologyTestCase):
     """
     def test_simple_case(self):
         # Simple case where we have n = 3 and samples starting at n.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       0           2
         1       0           1
@@ -900,19 +900,19 @@ class TestGeneralSamples(TopologyTestCase):
         3       1           0
         4       1           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       1       2,3
         0       1       0       1,4
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0.1     0
         0.2     0
         0.3     0
         0.4     0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       2       1
         1       3       1
@@ -1060,21 +1060,21 @@ class TestSimplifyExamples(TopologyTestCase):
         required output.
         """
         ts = tskit.load_text(
-            nodes=six.StringIO(nodes_before),
-            edges=six.StringIO(edges_before),
-            sites=six.StringIO(sites_before) if sites_before is not None else None,
+            nodes=io.StringIO(nodes_before),
+            edges=io.StringIO(edges_before),
+            sites=io.StringIO(sites_before) if sites_before is not None else None,
             mutations=(
-                six.StringIO(mutations_before)
+                io.StringIO(mutations_before)
                 if mutations_before is not None else None),
             strict=False)
         before = ts.dump_tables()
 
         ts = tskit.load_text(
-            nodes=six.StringIO(nodes_after),
-            edges=six.StringIO(edges_after),
-            sites=six.StringIO(sites_after) if sites_after is not None else None,
+            nodes=io.StringIO(nodes_after),
+            edges=io.StringIO(edges_after),
+            sites=io.StringIO(sites_after) if sites_after is not None else None,
             mutations=(
-                six.StringIO(mutations_after)
+                io.StringIO(mutations_after)
                 if mutations_after is not None else None),
             strict=False,
             sequence_length=before.sequence_length)
@@ -1112,8 +1112,8 @@ class TestSimplifyExamples(TopologyTestCase):
         1       2       2       0,1
         1       2       3       0,1
         """
-        nodes = tskit.parse_nodes(six.StringIO(nodes_before), strict=False)
-        edges = tskit.parse_edges(six.StringIO(edges_before), strict=False)
+        nodes = tskit.parse_nodes(io.StringIO(nodes_before), strict=False)
+        edges = tskit.parse_edges(io.StringIO(edges_before), strict=False)
         # Cannot use load_text here because it calls sort()
         tables = tskit.TableCollection(sequence_length=2)
         tables.nodes.set_columns(**nodes.asdict())
@@ -1431,7 +1431,7 @@ class TestNonSampleExternalNodes(TopologyTestCase):
     """
     def test_simple_case(self):
         # Simplest case where we have n = 2 and external non-sample nodes.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1439,18 +1439,18 @@ class TestNonSampleExternalNodes(TopologyTestCase):
         3       0           0
         4       0           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       2       0,1,3,4
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.1         0
         1   0.2         0
         2   0.3         0
         3   0.4         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       0       1
         1       1       1
@@ -1513,20 +1513,20 @@ class TestMultipleRoots(TopologyTestCase):
 
     def test_simplest_degenerate_case(self):
         # Simplest case where we have n = 2 and no edges.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.1         0
         1   0.2         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       0         1
         1       1         1
@@ -1552,7 +1552,7 @@ class TestMultipleRoots(TopologyTestCase):
 
     def test_simplest_non_degenerate_case(self):
         # Simplest case where we have n = 4 and two trees.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1561,19 +1561,19 @@ class TestMultipleRoots(TopologyTestCase):
         4       0           1
         5       0           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       4       0,1
         0       1       5       2,3
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.1         0
         1   0.2         0
         2   0.3         0
         3   0.4         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       0       1
         1       1       1
@@ -1610,7 +1610,7 @@ class TestMultipleRoots(TopologyTestCase):
 
     def test_two_reducable_trees(self):
         # We have n = 4 and two trees, with some unary nodes and non-sample leaves
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1622,14 +1622,14 @@ class TestMultipleRoots(TopologyTestCase):
         7       0           3
         8       0           0   # Non sample leaf
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1      4         0
         0       1      5         1
         0       1      6         4,5
         0       1      7         2,3,8
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.1         0
         1   0.2         0
@@ -1637,7 +1637,7 @@ class TestMultipleRoots(TopologyTestCase):
         3   0.4         0
         4   0.5         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       0       1
         1       1       1
@@ -1682,7 +1682,7 @@ class TestMultipleRoots(TopologyTestCase):
 
     def test_one_reducable_tree(self):
         # We have n = 4 and two trees. One tree is reducable and the other isn't.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1694,7 +1694,7 @@ class TestMultipleRoots(TopologyTestCase):
         7       0           3
         8       0           0   # Non sample leaf
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1      4         0
         0       1      5         1
@@ -1722,7 +1722,7 @@ class TestMultipleRoots(TopologyTestCase):
     # so there might be other problems with it.
     def test_mutations_over_roots(self):
         # Mutations over root nodes should be ok when we have multiple roots.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1731,13 +1731,13 @@ class TestMultipleRoots(TopologyTestCase):
         4       0           2
         5       0           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       3       0,1
         0       1       4       3
         0       1       5       2
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.1         0
         1   0.2         0
@@ -1746,7 +1746,7 @@ class TestMultipleRoots(TopologyTestCase):
         4   0.5         0
         5   0.6         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       0       1
         1       1       1
@@ -1850,7 +1850,7 @@ class TestWithVisuals(TopologyTestCase):
         #
         #          (0.0, 0.2),                 (0.2, 0.8),         (0.8, 1.0)
 
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1861,7 +1861,7 @@ class TestWithVisuals(TopologyTestCase):
         6       0           0.7
         7       0           1.0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.2     4       2,3
         0.2     0.8     4       0,2
@@ -1904,7 +1904,7 @@ class TestWithVisuals(TopologyTestCase):
         # 0.0 0     1           2     1   0       2     0   1           2
         #
         #          (0.0, 0.2),         (0.2, 0.8),         (0.8, 1.0)
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1915,7 +1915,7 @@ class TestWithVisuals(TopologyTestCase):
         6       0           1.0
         7       0           0    # Non sample leaf
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.2     3       2,7
         0.2     0.8     3       0,2
@@ -1961,7 +1961,7 @@ class TestWithVisuals(TopologyTestCase):
         # 0.0    0     1           2           1   0       2          0   1           2
         #
         #          (0.0, 0.2),               (0.2, 0.8),              (0.8, 1.0)
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
@@ -1972,7 +1972,7 @@ class TestWithVisuals(TopologyTestCase):
         6   0           0.7
         7   0           1.0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.2     4       2,3
         0.2     0.8     4       0,2
@@ -2056,7 +2056,7 @@ class TestWithVisuals(TopologyTestCase):
             {0: 9, 1: 10, 2: 5, 3: -1, 4: 3, 5: 3, 6: 3, 7: 5, 8: 7, 9: 6, 10: 8}
         ]
         true_haplotypes = ['0100', '0001', '1110']
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -2070,7 +2070,7 @@ class TestWithVisuals(TopologyTestCase):
         9       0           1
         10      0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.5     1.0     10      1
         0.0     0.4     10      2
@@ -2091,14 +2091,14 @@ class TestWithVisuals(TopologyTestCase):
         0.1     0.9     3       4,5
         0.0     0.1     3       4,5,7
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0.05        0
         0.15        0
         0.25        0
         0.4         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       7       1               -1
         0      10       0               0
@@ -2151,7 +2151,7 @@ class TestWithVisuals(TopologyTestCase):
         # 0   1 2   3 4  5  . 0   1 2   3 4  5  . 4   5 2   3 0  1  .
         #                   .                   .                   .
         # 0.0              0.4                 0.5                 1.0
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -2167,7 +2167,7 @@ class TestWithVisuals(TopologyTestCase):
         11      0           3
         12      0           4
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left right parent child
         0.0  0.5   6      0
         0.0  0.5   6      1
@@ -2236,7 +2236,7 @@ class TestWithVisuals(TopologyTestCase):
         #  . 0   1 2   3 4  5  . 4   5 2   3 0  1  .
         #  .                   .                   .
         # 0.4                 0.5                 1.0
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -2255,7 +2255,7 @@ class TestWithVisuals(TopologyTestCase):
         14      0           1
         15      0           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left right parent child
         0.0  0.5   6      0,1
         0.5  1.0   6      4,5
@@ -2318,7 +2318,7 @@ class TestWithVisuals(TopologyTestCase):
         #              *           *          *           *         *           *
         #          (0.0, 0.2),                 (0.2, 0.8),         (0.8, 1.0)
 
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       0           0
         1       1           0
@@ -2330,7 +2330,7 @@ class TestWithVisuals(TopologyTestCase):
         7       0           1.0
         8       0           0.8
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.2     4       2,3
         0.2     0.8     4       0,2
@@ -2396,7 +2396,7 @@ class TestWithVisuals(TopologyTestCase):
         #
         #          (0.0, 0.2),                 (0.2, 0.8),         (0.8, 1.0)
 
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       0           0
         1       1           0.1
@@ -2408,7 +2408,7 @@ class TestWithVisuals(TopologyTestCase):
         7       0           1.0
         8       0           0.8
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.2     4       2,3
         0.2     0.8     4       0,2
@@ -2454,7 +2454,7 @@ class TestWithVisuals(TopologyTestCase):
         # 0.0    0      *         *            *  0      *      0    *         *
         #
         #          (0.0, 0.2),                 (0.2, 0.8),         (0.8, 1.0)
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       0           0
         1       1           0.1
@@ -2466,7 +2466,7 @@ class TestWithVisuals(TopologyTestCase):
         7       0           1.0
         8       0           0.8
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.2     4       2,3
         0.2     0.8     4       0,2
@@ -2540,14 +2540,14 @@ class TestBadTrees(unittest.TestCase):
     try to create trees.
     """
     def test_simplest_contradictory_children(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         2       0           1
         3       0           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     1.0     2       0
         0.0     1.0     3       0
@@ -2556,14 +2556,14 @@ class TestBadTrees(unittest.TestCase):
         self.assertRaises(_tskit.LibraryError, list, ts.trees())
 
     def test_partial_overlap_contradictory_children(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         2       0           1
         3       0           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     1.0     2       0,1
         0.5     1.0     3       0
@@ -2744,8 +2744,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_internal_samples(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         nodes = tables.nodes
         flags = nodes.flags
@@ -2766,8 +2766,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_linear_samples(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         nodes = tables.nodes
         flags = nodes.flags
@@ -2788,8 +2788,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_internal_and_external_samples(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         nodes = tables.nodes
         flags = nodes.flags
@@ -2812,8 +2812,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_mutations(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         # Add some simple mutations here above the nodes we're keeping.
         tables.sites.add_row(position=0.25, ancestral_state="0")
@@ -2834,8 +2834,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_filter_zero_mutations(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         ts = tsutil.insert_branch_sites(ts)
         self.assertEqual(ts.num_sites, 8)
         self.assertEqual(ts.num_mutations, 8)
@@ -2848,8 +2848,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_fixed_sites(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         # Add some simple mutations that will be fixed after simplify
         tables.sites.add_row(position=0.25, ancestral_state="0")
@@ -2868,8 +2868,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_mutations_over_root(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         tables.sites.add_row(position=0.25, ancestral_state="0")
         tables.mutations.add_row(site=0, node=8, derived_state="1")
@@ -2883,8 +2883,8 @@ class TestSimplify(unittest.TestCase):
 
     def test_small_tree_recurrent_mutations(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         # Add recurrent mutation on the root branches
         tables.sites.add_row(position=0.25, ancestral_state="0")
@@ -2901,8 +2901,8 @@ class TestSimplify(unittest.TestCase):
 
     def best_small_tree_back_mutations(self):
         ts = tskit.load_text(
-            nodes=six.StringIO(self.small_tree_ex_nodes),
-            edges=six.StringIO(self.small_tree_ex_edges), strict=False)
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
         tables = ts.dump_tables()
         # Add a chain of mutations
         tables.sites.add_row(position=0.25, ancestral_state="0")
@@ -2935,13 +2935,13 @@ class TestSimplify(unittest.TestCase):
         self.assertEqual(list(tss.haplotypes()), ["1", "0", "1"])
 
     def test_overlapping_unary_edges(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         2       0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       2       2       0
         1       3       2       1
@@ -2957,13 +2957,13 @@ class TestSimplify(unittest.TestCase):
             self.assertEqual(t.parent_dict, trees[t.index])
 
     def test_overlapping_unary_edges_internal_samples(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         2       1           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       2       2       0
         1       3       2       1
@@ -2978,13 +2978,13 @@ class TestSimplify(unittest.TestCase):
         self.assertEqual(list(node_map), [0, 1, 2])
 
     def test_isolated_samples(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           1
         2       1           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         """)
         ts = tskit.load_text(nodes, edges, sequence_length=1, strict=False)
@@ -2997,7 +2997,7 @@ class TestSimplify(unittest.TestCase):
         self.assertEqual(list(node_map), [0, 1, 2])
 
     def test_internal_samples(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   population      time
         0       1       -1              1.00000000000000
         1       0       -1              1.00000000000000
@@ -3007,7 +3007,7 @@ class TestSimplify(unittest.TestCase):
         5       1       -1              0.00000000000000
 
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         id      left            right           parent  child
         0       0.62185118      1.00000000      1       5
         1       0.00000000      0.62185118      2       5
@@ -3030,20 +3030,20 @@ class TestSimplify(unittest.TestCase):
             self.assertEqual(t.parent_dict, trees[t.index])
 
     def test_many_mutations_over_single_sample_ancestral_state(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       1       0
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0           0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       0       1               -1
         0       0       0               0
@@ -3060,20 +3060,20 @@ class TestSimplify(unittest.TestCase):
         self.assertEqual(list(tss.haplotypes()), ["0"])
 
     def test_many_mutations_over_single_sample_derived_state(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       0           1
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       1       0
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0           0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       0       1               -1
         0       0       0               0
@@ -3311,7 +3311,7 @@ class TestMutationParent(unittest.TestCase):
         self.assertTrue(np.array_equal(parent, tables.mutations.parent))
 
     def test_example(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       0           2.0
         1       0           1.0
@@ -3319,7 +3319,7 @@ class TestMutationParent(unittest.TestCase):
         3       1           0
         4       1           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0    0.5   2  3
         0.0    0.8   2  4
@@ -3328,13 +3328,13 @@ class TestMutationParent(unittest.TestCase):
         0.0    1.0   0  2
         0.8    1.0   0  4
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0.1     0
         0.5     0
         0.9     0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       1       1               -1
         0       2       1               -1

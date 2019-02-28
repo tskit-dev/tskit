@@ -27,6 +27,7 @@ Tests for metadata handling.
 from __future__ import print_function
 from __future__ import division
 
+import io
 import json
 import os
 import tempfile
@@ -35,7 +36,6 @@ import pickle
 
 import numpy as np
 import python_jsonschema_objects as pjs
-import six
 import msprime
 
 import tskit
@@ -192,7 +192,7 @@ class TestLoadTextMetadata(unittest.TestCase):
     """
 
     def test_individuals(self):
-        individuals = six.StringIO("""\
+        individuals = io.StringIO("""\
         id  flags location     metadata
         0   1     0.0,1.0,0.0  abc
         1   1     1.0,2.0      XYZ+
@@ -212,7 +212,7 @@ class TestLoadTextMetadata(unittest.TestCase):
                              b.metadata)
 
     def test_nodes(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time    metadata
         0   1           0   abc
         1   1           0   XYZ+
@@ -226,7 +226,7 @@ class TestLoadTextMetadata(unittest.TestCase):
                              b.metadata)
 
     def test_sites(self):
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state metadata
         0.1 A   abc
         0.5 C   XYZ+
@@ -240,7 +240,7 @@ class TestLoadTextMetadata(unittest.TestCase):
                              b.metadata)
 
     def test_mutations(self):
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   metadata
         0   2   C   mno
         0   3   G   )(*&^%$#@!
@@ -253,7 +253,7 @@ class TestLoadTextMetadata(unittest.TestCase):
                              b.metadata)
 
     def test_populations(self):
-        populations = six.StringIO("""\
+        populations = io.StringIO("""\
         id    metadata
         0     mno
         1     )(*&^%$#@!

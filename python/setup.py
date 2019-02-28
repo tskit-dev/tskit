@@ -89,7 +89,7 @@ setup(
     packages=['tskit'],
     include_package_data=True,
     ext_modules=[_tskit_module],
-    install_requires=[numpy_ver, "h5py", "svgwrite", "six", "jsonschema"],
+    install_requires=[numpy_ver, "h5py", "svgwrite", "jsonschema"],
     entry_points={
         'console_scripts': [
             'tskit=tskit.__main__:main',

@@ -28,11 +28,11 @@ from __future__ import print_function
 
 import base64
 import collections
+import copyreg
 import datetime
 import warnings
 
 import numpy as np
-from six.moves import copyreg
 
 import _tskit
 # This circular import is ugly but it seems hard to avoid it since table collection

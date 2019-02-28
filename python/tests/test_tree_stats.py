@@ -27,13 +27,13 @@ from __future__ import print_function
 from __future__ import division
 
 
+import io
 import unittest
 import random
 
 import numpy as np
 import numpy.testing as nt
 
-import six
 import msprime
 
 import tskit
@@ -836,7 +836,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         branch_true_Y = 0.2*(1 + 0.5) + 0.6*(0.4) + 0.2*(0.7+0.2)
         site_true_Y = 3 + 0 + 1
 
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -846,7 +846,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         5       0           0.7
         6       0           1.0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.2     0.8     3       0,2
         0.0     0.2     4       1,2
@@ -855,7 +855,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         0.8     1.0     5       0,4
         0.0     0.2     6       0,4
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.05        0
         1   0.1         0
@@ -868,7 +868,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         8   0.95        0
         9   0.951       0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state
         0       4       1
         1       0       1
@@ -947,23 +947,23 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
     def test_case_odds_and_ends(self):
         # Tests having (a) the first site after the first window, and
         # (b) no samples having the ancestral state.
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         2       0           0.5
         3       0           1.0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.0     0.5     2       0,1
         0.5     1.0     3       0,1
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.65        0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       0       1               -1
         0       1       2               -1
@@ -997,7 +997,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         #       0     2       0        1   0   1       0   2       3
         site_true_Y = 0 + 1 + 1
 
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
@@ -1007,7 +1007,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         5       0           0.7
         6       0           1.0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.2     0.8     3       0,2
         0.0     0.2     4       1,2
@@ -1016,13 +1016,13 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         0.8     1.0     5       0,4
         0.0     0.2     6       0,4
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.05        0
         1   0.3         0
         2   0.9         0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       0       1               -1
         0       0       2               0
@@ -1098,7 +1098,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         # Y(0;1, 2)
         site_true_Y = 1
 
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         is_sample       time    population
         1       0.000000        0
         1       0.000000        0
@@ -1112,7 +1112,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         0       1.000000        0
         0       1.000000        0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0.500000        1.000000        10      1
         0.000000        0.400000        10      2
@@ -1133,14 +1133,14 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         0.100000        0.900000        3       4,5
         0.000000        0.100000        3       4,5,7
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         id  position    ancestral_state
         0   0.0         0
         1   0.55        0
         2   0.75        0
         3   0.85        0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         0       0       1               -1
         0       10      1               -1

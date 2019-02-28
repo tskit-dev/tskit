@@ -28,6 +28,7 @@ between simulations and the tree sequence.
 from __future__ import print_function
 from __future__ import division
 
+import io
 import pickle
 import random
 import string
@@ -35,7 +36,6 @@ import unittest
 import warnings
 
 import numpy as np
-import six
 
 import tskit
 import _tskit
@@ -1140,20 +1140,20 @@ class TestSortMutations(unittest.TestCase):
     """
 
     def test_sort_mutations_stability(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         1       1           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0.1     0
         0.2     0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         1       0       1               -1
         1       1       1               -1
@@ -1173,19 +1173,19 @@ class TestSortMutations(unittest.TestCase):
         self.assertEqual(list(mutations.node), [1, 0, 0, 1])
 
     def test_sort_mutations_remap_parent_id(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0.1     0
         0.2     0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         1       0       1               -1
         1       0       0               0
@@ -1208,18 +1208,18 @@ class TestSortMutations(unittest.TestCase):
         self.assertEqual(list(mutations.parent), [-1, 0, 1, -1, 3, 4])
 
     def test_sort_mutations_bad_parent_id(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id      is_sample   time
         0       1           0
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         """)
-        sites = six.StringIO("""\
+        sites = io.StringIO("""\
         position    ancestral_state
         0.1     0
         """)
-        mutations = six.StringIO("""\
+        mutations = io.StringIO("""\
         site    node    derived_state   parent
         1       0       1               -2
         """)

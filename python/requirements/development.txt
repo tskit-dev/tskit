@@ -6,7 +6,6 @@ mock
 newick
 nose
 numpy
-six
 kastore
 jsonschema
 sphinx

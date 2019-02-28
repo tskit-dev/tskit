@@ -35,12 +35,12 @@ except ImportError:
 
 import collections
 import itertools
+import io
 import json
 import math
 import os
 import random
 import shutil
-import six
 import tempfile
 import unittest
 import warnings
@@ -1715,10 +1715,10 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
     def test_output_format(self):
         for ts in get_example_tree_sequences():
             for precision in [2, 7]:
-                nodes_file = six.StringIO()
-                edges_file = six.StringIO()
-                sites_file = six.StringIO()
-                mutations_file = six.StringIO()
+                nodes_file = io.StringIO()
+                edges_file = io.StringIO()
+                sites_file = io.StringIO()
+                mutations_file = io.StringIO()
                 ts.dump_text(
                     nodes=nodes_file, edges=edges_file, sites=sites_file,
                     mutations=mutations_file, precision=precision)
@@ -1778,12 +1778,12 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
 
     def test_text_record_round_trip(self):
         for ts1 in get_example_tree_sequences():
-            nodes_file = six.StringIO()
-            edges_file = six.StringIO()
-            sites_file = six.StringIO()
-            mutations_file = six.StringIO()
-            individuals_file = six.StringIO()
-            populations_file = six.StringIO()
+            nodes_file = io.StringIO()
+            edges_file = io.StringIO()
+            sites_file = io.StringIO()
+            mutations_file = io.StringIO()
+            individuals_file = io.StringIO()
+            populations_file = io.StringIO()
             ts1.dump_text(
                 nodes=nodes_file, edges=edges_file, sites=sites_file,
                 mutations=mutations_file, individuals=individuals_file,
@@ -1803,20 +1803,20 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             self.verify_approximate_equality(ts1, ts2)
 
     def test_empty_files(self):
-        nodes_file = six.StringIO("is_sample\ttime\n")
-        edges_file = six.StringIO("left\tright\tparent\tchild\n")
-        sites_file = six.StringIO("position\tancestral_state\n")
-        mutations_file = six.StringIO("site\tnode\tderived_state\n")
+        nodes_file = io.StringIO("is_sample\ttime\n")
+        edges_file = io.StringIO("left\tright\tparent\tchild\n")
+        sites_file = io.StringIO("position\tancestral_state\n")
+        mutations_file = io.StringIO("site\tnode\tderived_state\n")
         self.assertRaises(
             _tskit.LibraryError, tskit.load_text,
             nodes=nodes_file, edges=edges_file, sites=sites_file,
             mutations=mutations_file)
 
     def test_empty_files_sequence_length(self):
-        nodes_file = six.StringIO("is_sample\ttime\n")
-        edges_file = six.StringIO("left\tright\tparent\tchild\n")
-        sites_file = six.StringIO("position\tancestral_state\n")
-        mutations_file = six.StringIO("site\tnode\tderived_state\n")
+        nodes_file = io.StringIO("is_sample\ttime\n")
+        edges_file = io.StringIO("left\tright\tparent\tchild\n")
+        sites_file = io.StringIO("position\tancestral_state\n")
+        mutations_file = io.StringIO("site\tnode\tderived_state\n")
         ts = tskit.load_text(
             nodes=nodes_file, edges=edges_file, sites=sites_file,
             mutations=mutations_file, sequence_length=100)
@@ -2333,8 +2333,8 @@ class TestNodeOrdering(HighLevelTestCase):
         other_ts.dump(self.temp_file)
         ts3 = tskit.load(self.temp_file)
         self.verify_tree_sequences_equal(other_ts, ts3)
-        nodes_file = six.StringIO()
-        edges_file = six.StringIO()
+        nodes_file = io.StringIO()
+        edges_file = io.StringIO()
         # Also verify we can read the text version.
         other_ts.dump_text(nodes=nodes_file, edges=edges_file, precision=14)
         nodes_file.seek(0)

@@ -1,7 +1,6 @@
 numpy
 nose
 h5py
-six
 jsonschema
 svgwrite
 msprime
