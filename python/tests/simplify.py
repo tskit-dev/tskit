@@ -288,7 +288,7 @@ class Simplifier(object):
         """
         Process all of the edges for a given parent.
         """
-        assert len(set(e.parent for e in edges)) == 1
+        assert len({e.parent for e in edges}) == 1
         parent = edges[0].parent
         S = []
         for edge in edges:

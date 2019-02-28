@@ -289,7 +289,7 @@ class TextTreeDrawer(TreeDrawer):
 
     def _assign_coordinates(self):
         # Get the age of each node and rank them.
-        times = set(self._tree.time(u) for u in self._tree.nodes())
+        times = {self._tree.time(u) for u in self._tree.nodes()}
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
         for u in self._tree.nodes():
             self._y_coords[u] = depth[self._tree.time(u)]

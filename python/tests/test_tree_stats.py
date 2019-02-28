@@ -144,7 +144,7 @@ class PythonBranchLengthStatCalculator(object):
             this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
             for x in X:
                 for y in Y:
-                    for z in set(Y) - set([y]):
+                    for z in set(Y) - {y}:
                         xy_mrca = tr.mrca(x, y)
                         xz_mrca = tr.mrca(x, z)
                         yz_mrca = tr.mrca(y, z)
@@ -176,8 +176,8 @@ class PythonBranchLengthStatCalculator(object):
                 break
             this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
             for x in X:
-                for y in set(X) - set([x]):
-                    for z in set(X) - set([x, y]):
+                for y in set(X) - {x}:
+                    for z in set(X) - {x, y}:
                         xy_mrca = tr.mrca(x, y)
                         xz_mrca = tr.mrca(x, z)
                         yz_mrca = tr.mrca(y, z)
@@ -239,7 +239,7 @@ class PythonBranchLengthStatCalculator(object):
             SS = 0
             for a in A:
                 for b in B:
-                    for c in set(A) - set([a]):
+                    for c in set(A) - {a}:
                         for d in C:
                             SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
                             SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
@@ -264,8 +264,8 @@ class PythonBranchLengthStatCalculator(object):
             SS = 0
             for a in A:
                 for b in B:
-                    for c in set(A) - set([a]):
-                        for d in set(B) - set([b]):
+                    for c in set(A) - {a}:
+                        for d in set(B) - {b}:
                             SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
                             SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
             S += SS * this_length
@@ -400,7 +400,7 @@ class PythonSiteStatCalculator(object):
             if (site_positions[k] >= begin) and (site_positions[k] < end):
                 for x in X:
                     for y in Y:
-                        for z in set(Y) - set([y]):
+                        for z in set(Y) - {y}:
                             if ((haps[x][k] != haps[y][k])
                                and (haps[x][k] != haps[z][k])):
                                 # x|yz
@@ -416,8 +416,8 @@ class PythonSiteStatCalculator(object):
         for k in range(self.tree_sequence.num_sites):
             if (site_positions[k] >= begin) and (site_positions[k] < end):
                 for x in X:
-                    for y in set(X) - set([x]):
-                        for z in set(X) - set([x, y]):
+                    for y in set(X) - {x}:
+                        for z in set(X) - {x, y}:
                             if ((haps[x][k] != haps[y][k])
                                and (haps[x][k] != haps[z][k])):
                                 # x|yz
@@ -464,7 +464,7 @@ class PythonSiteStatCalculator(object):
             if (site_positions[k] >= begin) and (site_positions[k] < end):
                 for a in A:
                     for b in B:
-                        for c in set(A) - set([a]):
+                        for c in set(A) - {a}:
                             for d in C:
                                 if ((haps[a][k] == haps[c][k])
                                    and (haps[a][k] != haps[d][k])
@@ -491,8 +491,8 @@ class PythonSiteStatCalculator(object):
             if (site_positions[k] >= begin) and (site_positions[k] < end):
                 for a in A:
                     for b in B:
-                        for c in set(A) - set([a]):
-                            for d in set(B) - set([b]):
+                        for c in set(A) - {a}:
+                            for d in set(B) - {b}:
                                 if ((haps[a][k] == haps[c][k])
                                    and (haps[a][k] != haps[d][k])
                                    and (haps[a][k] != haps[b][k])):

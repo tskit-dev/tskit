@@ -1102,7 +1102,7 @@ class TestTreeSequence(HighLevelTestCase):
     def test_samples(self):
         for ts in get_example_tree_sequences():
             self.verify_samples(ts)
-            pops = set(node.population for node in ts.nodes())
+            pops = {node.population for node in ts.nodes()}
             for pop in pops:
                 subsample = ts.samples(pop)
                 self.assertTrue(np.array_equal(subsample, ts.samples(population=pop)))
@@ -1358,7 +1358,7 @@ class TestTreeSequence(HighLevelTestCase):
             num_mutations += ts.get_num_mutations()
             sample_sizes = {0, 1}
             if n > 2:
-                sample_sizes |= set([2, max(2, n // 2), n - 1])
+                sample_sizes |= {2, max(2, n // 2), n - 1}
             for k in sample_sizes:
                 subset = random.sample(list(ts.samples()), k)
                 self.verify_simplify_topology(ts, subset)

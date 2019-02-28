@@ -1302,7 +1302,7 @@ class Tree(object):
         """
         label = node_labels.get(node, "")
         if self.is_leaf(node):
-            s = "{0}".format(label)
+            s = "{}".format(label)
         else:
             s = "("
             for child in self.children(node):
