@@ -1917,7 +1917,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction,
             above_sample = false;
             while (v != TSK_NULL && !above_sample) {
                 above_sample = self->above_sample[v];
-                self->above_sample[v] = self->above_sample[v] || self->above_sample[c];
+                self->above_sample[v] = true;
                 root = v;
                 v = self->parent[v];
             }
