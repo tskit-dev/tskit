@@ -26,13 +26,6 @@ Test cases for the high level interface to msprime.
 from __future__ import print_function
 from __future__ import division
 
-try:
-    # We use the zip as iterator functionality here.
-    from future_builtins import zip
-except ImportError:
-    # This fails for Python 3.x, but that's fine.
-    pass
-
 import collections
 import itertools
 import io

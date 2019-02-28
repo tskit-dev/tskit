@@ -8,9 +8,6 @@ allchecks: _tskitmodule.c
 ext3: _tskitmodule.c 
 	python3 setup.py build_ext --inplace
 
-ext2: _tskitmodule.c 
-	python2 setup.py build_ext --inplace
-
 ctags:
 	ctags lib/*.c lib/*.h tskit/*.py
 

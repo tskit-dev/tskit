@@ -34,11 +34,7 @@ import json
 import base64
 import warnings
 import functools
-try:
-    import concurrent.futures
-except ImportError:  # pragma: no cover
-    # We're on Python2; any attempts to use futures are dealt with below.
-    pass
+import concurrent.futures
 
 import numpy as np
 
@@ -1827,10 +1823,6 @@ class TreeIterator(object):
     def __reversed__(self):
         self.forward = False
         return self
-
-    def next(self):
-        # This is for Python2 support only.
-        return self.__next__()
 
     def __next__(self):
         if self.forward:

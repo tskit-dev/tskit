@@ -28,10 +28,6 @@
 #include "kastore.h"
 #include "tskit.h"
 
-#if PY_MAJOR_VERSION >= 3
-#define IS_PY3K
-#endif
-
 #define MODULE_DOC \
 "Low level interface for tskit"
 
@@ -8452,8 +8448,6 @@ static PyMethodDef tskit_methods[] = {
  * from the Python documentation still use this idiom.
  */
 
-#if PY_MAJOR_VERSION >= 3
-
 static struct PyModuleDef tskitmodule = {
     PyModuleDef_HEAD_INIT,
     "_tskit",   /* name of module */
@@ -8468,18 +8462,8 @@ static struct PyModuleDef tskitmodule = {
 PyObject *
 PyInit__tskit(void)
 
-#else
-#define INITERROR return
-
-void
-init_tskit(void)
-#endif
 {
-#if PY_MAJOR_VERSION >= 3
-    PyObject *module = PyModule_Create(&tskitmodule);
-#else
-    PyObject *module = Py_InitModule3("_tskit", tskit_methods, MODULE_DOC);
-#endif
+PyObject *module = PyModule_Create(&tskitmodule);
     if (module == NULL) {
         INITERROR;
     }
@@ -8652,7 +8636,5 @@ init_tskit(void)
     PyModule_AddIntConstant(module, "FORWARD", TSK_DIR_FORWARD);
     PyModule_AddIntConstant(module, "REVERSE", TSK_DIR_REVERSE);
 
-#if PY_MAJOR_VERSION >= 3
     return module;
-#endif
 }

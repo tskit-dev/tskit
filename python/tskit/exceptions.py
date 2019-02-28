@@ -36,19 +36,15 @@ from _tskit import VersionTooOldError
 
 # TODO finalise this when working out the docs structure for tskit on rtd.
 
-try:
-    TskitException.__doc__ = "Superclass of all exceptions defined in tskit."
-    LibraryError.__doc__ = "Generic low-level error raised by the C library."
-    FileFormatError.__doc__ = "An error was detected in the file format."
-    VersionTooNewError.__doc__ = """
-    The version of the file is too new and cannot be read by the library.
-    """
-    VersionTooOldError.__doc__ = """
-    The version of the file is too old and cannot be read by the library.
-    """
-except AttributeError:  # pragma: no cover
-    # Python2 throws attribute error. Ignore.
-    pass
+TskitException.__doc__ = "Superclass of all exceptions defined in tskit."
+LibraryError.__doc__ = "Generic low-level error raised by the C library."
+FileFormatError.__doc__ = "An error was detected in the file format."
+VersionTooNewError.__doc__ = """
+The version of the file is too new and cannot be read by the library.
+"""
+VersionTooOldError.__doc__ = """
+The version of the file is too old and cannot be read by the library.
+"""
 
 
 class DuplicatePositionsError(TskitException):
