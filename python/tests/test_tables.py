@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # MIT License
 #
 # Copyright (c) 2018-2019 Tskit Developers
@@ -883,7 +882,7 @@ class TestStringPacking(unittest.TestCase):
             self.verify_packing(strings)
 
     def test_unicode(self):
-        self.verify_packing([u'abcdé', u'€'])
+        self.verify_packing(['abcdé', '€'])
 
 
 class TestBytePacking(unittest.TestCase):

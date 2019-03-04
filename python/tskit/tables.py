@@ -190,7 +190,7 @@ class IndividualTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
-        super(IndividualTable, self).__init__(ll_table, IndividualTableRow)
+        super().__init__(ll_table, IndividualTableRow)
 
     @property
     def flags(self):
@@ -370,7 +370,7 @@ class NodeTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
-        super(NodeTable, self).__init__(ll_table, NodeTableRow)
+        super().__init__(ll_table, NodeTableRow)
 
     @property
     def time(self):
@@ -560,7 +560,7 @@ class EdgeTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
-        super(EdgeTable, self).__init__(ll_table, EdgeTableRow)
+        super().__init__(ll_table, EdgeTableRow)
 
     @property
     def left(self):
@@ -699,7 +699,7 @@ class MigrationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
-        super(MigrationTable, self).__init__(ll_table, MigrationTableRow)
+        super().__init__(ll_table, MigrationTableRow)
 
     @property
     def left(self):
@@ -865,7 +865,7 @@ class SiteTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
-        super(SiteTable, self).__init__(ll_table, SiteTableRow)
+        super().__init__(ll_table, SiteTableRow)
 
     @property
     def position(self):
@@ -1056,7 +1056,7 @@ class MutationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
-        super(MutationTable, self).__init__(ll_table, MutationTableRow)
+        super().__init__(ll_table, MutationTableRow)
 
     @property
     def site(self):
@@ -1259,7 +1259,7 @@ class PopulationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.PopulationTable(max_rows_increment=max_rows_increment)
-        super(PopulationTable, self).__init__(ll_table, PopulationTableRow)
+        super().__init__(ll_table, PopulationTableRow)
 
     @property
     def metadata(self):
@@ -1347,7 +1347,7 @@ class ProvenanceTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.ProvenanceTable(max_rows_increment=max_rows_increment)
-        super(ProvenanceTable, self).__init__(ll_table, ProvenanceTableRow)
+        super().__init__(ll_table, ProvenanceTableRow)
 
     @property
     def record(self):
