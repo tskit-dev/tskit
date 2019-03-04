@@ -24,9 +24,6 @@
 Module responsible for converting tree sequence files from older
 formats.
 """
-from __future__ import division
-from __future__ import print_function
-
 import datetime
 import json
 import logging

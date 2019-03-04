@@ -23,16 +23,12 @@
 """
 Tree sequence IO via the tables API.
 """
-from __future__ import division
-from __future__ import print_function
-
 import base64
 import collections
 import datetime
 import warnings
 
 import numpy as np
-from six.moves import copyreg
 
 import _tskit
 # This circular import is ugly but it seems hard to avoid it since table collection
@@ -149,8 +145,13 @@ class BaseTable(object):
         """
         return self.ll_table.truncate(num_rows)
 
+    # Picle support
+    def __getstate__(self):
+        return self.asdict()
+
     # Unpickle support
     def __setstate__(self, state):
+        self.__init__()
         self.set_columns(**state)
 
     def asdict(self):
@@ -193,7 +194,7 @@ class IndividualTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
-        super(IndividualTable, self).__init__(ll_table, IndividualTableRow)
+        super().__init__(ll_table, IndividualTableRow)
 
     @property
     def flags(self):
@@ -336,11 +337,6 @@ class IndividualTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _pickle_individual_table(table):
-    return IndividualTable, tuple(), table.asdict()
-
-
 class NodeTable(BaseTable):
     """
     A table defining the nodes in a tree sequence. See the
@@ -373,7 +369,7 @@ class NodeTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
-        super(NodeTable, self).__init__(ll_table, NodeTableRow)
+        super().__init__(ll_table, NodeTableRow)
 
     @property
     def time(self):
@@ -532,11 +528,6 @@ class NodeTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _pickle_node_table(table):
-    return NodeTable, tuple(), table.asdict()
-
-
 class EdgeTable(BaseTable):
     """
     A table defining the edges in a tree sequence. See the
@@ -563,7 +554,7 @@ class EdgeTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
-        super(EdgeTable, self).__init__(ll_table, EdgeTableRow)
+        super().__init__(ll_table, EdgeTableRow)
 
     @property
     def left(self):
@@ -666,11 +657,6 @@ class EdgeTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _edge_table_pickle(table):
-    return EdgeTable, tuple(), table.asdict()
-
-
 class MigrationTable(BaseTable):
     """
     A table defining the migrations in a tree sequence. See the
@@ -702,7 +688,7 @@ class MigrationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
-        super(MigrationTable, self).__init__(ll_table, MigrationTableRow)
+        super().__init__(ll_table, MigrationTableRow)
 
     @property
     def left(self):
@@ -830,11 +816,6 @@ class MigrationTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _migration_table_pickle(table):
-    return MigrationTable, tuple(), table.asdict()
-
-
 class SiteTable(BaseTable):
     """
     A table defining the sites in a tree sequence. See the
@@ -868,7 +849,7 @@ class SiteTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
-        super(SiteTable, self).__init__(ll_table, SiteTableRow)
+        super().__init__(ll_table, SiteTableRow)
 
     @property
     def position(self):
@@ -1017,11 +998,6 @@ class SiteTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _site_table_pickle(table):
-    return SiteTable, tuple(), table.asdict()
-
-
 class MutationTable(BaseTable):
     """
     A table defining the mutations in a tree sequence. See the
@@ -1059,7 +1035,7 @@ class MutationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
-        super(MutationTable, self).__init__(ll_table, MutationTableRow)
+        super().__init__(ll_table, MutationTableRow)
 
     @property
     def site(self):
@@ -1232,11 +1208,6 @@ class MutationTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _mutation_table_pickle(table):
-    return MutationTable, tuple(), table.asdict()
-
-
 class PopulationTable(BaseTable):
     """
     A table defining the populations referred to in a tree sequence.
@@ -1262,7 +1233,7 @@ class PopulationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.PopulationTable(max_rows_increment=max_rows_increment)
-        super(PopulationTable, self).__init__(ll_table, PopulationTableRow)
+        super().__init__(ll_table, PopulationTableRow)
 
     @property
     def metadata(self):
@@ -1317,11 +1288,6 @@ class PopulationTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _population_table_pickle(table):
-    return PopulationTable, tuple(), table.asdict()
-
-
 class ProvenanceTable(BaseTable):
     """
     A table recording the provenance (i.e., history) of this table, so that the
@@ -1350,7 +1316,7 @@ class ProvenanceTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.ProvenanceTable(max_rows_increment=max_rows_increment)
-        super(ProvenanceTable, self).__init__(ll_table, ProvenanceTableRow)
+        super().__init__(ll_table, ProvenanceTableRow)
 
     @property
     def record(self):
@@ -1408,14 +1374,6 @@ class ProvenanceTable(BaseTable):
             ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
         return ret[:-1]
 
-    # Unpickle support
-    def __setstate__(self, state):
-        self.set_columns(
-            timestamp=state["timestamp"],
-            timestamp_offset=state["timestamp_offset"],
-            record=state["record"],
-            record_offset=state["record_offset"])
-
     def copy(self):
         """
         Returns a deep copy of this table.
@@ -1435,11 +1393,6 @@ class ProvenanceTable(BaseTable):
             "record": self.record,
             "record_offset": self.record_offset,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _provenance_table_pickle(table):
-    return ProvenanceTable, tuple(), table.asdict()
 
 
 class TableCollection(object):
@@ -1579,6 +1532,9 @@ class TableCollection(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __getstate__(self):
+        return self.asdict()
 
     # Unpickle support
     def __setstate__(self, state):
@@ -1774,26 +1730,6 @@ class TableCollection(object):
         indexed this method has no effect.
         """
         self.ll_tables.drop_index()
-
-
-# Pickle support. See copyreg registration for this function below.
-def _table_collection_pickle(tables):
-    return TableCollection, tuple(), tables.asdict()
-
-
-# Pickle support for the various tables. We are forced to use copyreg.pickle
-# here to support Python 2. For Python 3, we can just use the __setstate__.
-# It would be cleaner to attach the pickle_*_table functions to the classes
-# themselves, but this causes issues with Mocking on readthedocs. Sigh.
-copyreg.pickle(IndividualTable, _pickle_individual_table)
-copyreg.pickle(NodeTable, _pickle_node_table)
-copyreg.pickle(EdgeTable, _edge_table_pickle)
-copyreg.pickle(MigrationTable, _migration_table_pickle)
-copyreg.pickle(SiteTable, _site_table_pickle)
-copyreg.pickle(MutationTable, _mutation_table_pickle)
-copyreg.pickle(PopulationTable, _population_table_pickle)
-copyreg.pickle(ProvenanceTable, _provenance_table_pickle)
-copyreg.pickle(TableCollection, _table_collection_pickle)
 
 
 #############################################

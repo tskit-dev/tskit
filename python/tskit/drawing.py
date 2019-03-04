@@ -23,20 +23,14 @@
 """
 Module responsible for visualisations.
 """
-from __future__ import division
-from __future__ import print_function
-
 import array
 import collections
-import sys
 
 try:
     import svgwrite
     _svgwrite_imported = True
 except ImportError:  # pragma: no cover
     _svgwrite_imported = False
-
-IS_PY2 = sys.version_info[0] < 3
 
 NULL_NODE = -1
 
@@ -64,8 +58,6 @@ def draw_tree(
     elif fmt == "ascii":
         cls = AsciiTreeDrawer
     elif fmt == "unicode":
-        if IS_PY2:
-            raise ValueError("Unicode tree drawing not supported on Python 2")
         cls = UnicodeTreeDrawer
 
     # We can't draw trees with zero roots.
@@ -294,7 +286,7 @@ class TextTreeDrawer(TreeDrawer):
 
     def _assign_coordinates(self):
         # Get the age of each node and rank them.
-        times = set(self._tree.time(u) for u in self._tree.nodes())
+        times = {self._tree.time(u) for u in self._tree.nodes()}
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
         for u in self._tree.nodes():
             self._y_coords[u] = depth[self._tree.time(u)]
@@ -387,9 +379,7 @@ class AsciiTreeDrawer(TextTreeDrawer):
         return array.array(self.array_type, text.encode())
 
     def draw(self):
-        s = self._draw().tostring()
-        if not IS_PY2:
-            s = s.decode()
+        s = self._draw().tostring().decode()
         return s
 
 

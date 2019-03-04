@@ -6,12 +6,12 @@ mock
 newick
 nose
 numpy
-six
 kastore
 jsonschema
 sphinx
 sphinx-argparse
 sphinx_rtd_theme
+sphinx-issues
 breathe
 svgwrite
 pyparsing 

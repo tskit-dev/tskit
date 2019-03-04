@@ -1,4 +1,3 @@
-import sys
 import os.path
 import codecs
 import platform
@@ -14,10 +13,7 @@ IS_WINDOWS = platform.system() == "Windows"
 class local_build_ext(build_ext):
     def finalize_options(self):
         build_ext.finalize_options(self)
-        if sys.version_info[0] >= 3:
-            import builtins
-        else:
-            import __builtin__ as builtins
+        import builtins
         # Prevent numpy from thinking it is still in its setup process:
         builtins.__NUMPY_SETUP__ = False
         import numpy
@@ -77,23 +73,23 @@ setup(
     version=tskit_version,
     # TODO setup a tskit developers email address.
     author_email='jerome.kelleher@well.ox.ac.uk',
+    python_requires='>=3.5',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3 :: Only',
     ],
     keywords='tree sequence',
     packages=['tskit'],
     include_package_data=True,
     ext_modules=[_tskit_module],
-    install_requires=[numpy_ver, "h5py", "svgwrite", "six", "jsonschema"],
+    install_requires=[numpy_ver, "h5py", "svgwrite", "jsonschema"],
     entry_points={
         'console_scripts': [
             'tskit=tskit.__main__:main',

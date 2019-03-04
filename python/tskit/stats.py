@@ -22,9 +22,6 @@
 """
 Module responsible for computing various statistics on tree sequences.
 """
-from __future__ import division
-from __future__ import print_function
-
 import threading
 import struct
 import sys

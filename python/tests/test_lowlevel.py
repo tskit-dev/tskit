@@ -23,16 +23,11 @@
 """
 Test cases for the low level C interface to tskit.
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-
 import collections
 import itertools
 import os
 import platform
 import random
-import sys
 import tempfile
 import unittest
 
@@ -40,7 +35,6 @@ import msprime
 
 import _tskit
 
-IS_PY2 = sys.version_info[0] < 3
 IS_WINDOWS = platform.system() == "Windows"
 
 

@@ -43,7 +43,7 @@ if read_the_docs_build:
 # -- Project information -----------------------------------------------------
 
 project = 'tskit'
-copyright = '2018, Tskit developers'
+copyright = '2018-2019, Tskit developers'
 author = 'Tskit developers'
 
 # The short X.Y version
@@ -76,7 +76,7 @@ def patched_make_field(self, types, domain, items, env):
             # inconsistencies later when references are resolved
             fieldtype = types.pop(fieldarg)
             if len(fieldtype) == 1 and isinstance(fieldtype[0], nodes.Text):
-                typename = u''.join(n.astext() for n in fieldtype)
+                typename = ''.join(n.astext() for n in fieldtype)
                 par.extend(self.make_xrefs(self.typerolename, domain, typename,
                                            addnodes.literal_emphasis))
             else:
@@ -117,7 +117,11 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'breathe',
+    'sphinx_issues',
 ]
+
+# Github repo
+issues_github_path = "tskit-dev/tskit"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

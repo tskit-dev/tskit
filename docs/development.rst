@@ -25,8 +25,7 @@ Quickstart
 
 - Install the Python development requirements using
   ``pip install -r python/requirements/development.txt``.
-- Build the low level module by running ``make`` in the ``python`` directory. Python 3.x
-  is the default for developement (Python 2.x is discouraged).
+- Build the low level module by running ``make`` in the ``python`` directory.
 - Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
   all pass.
 - Make your changes in a local branch, and open a pull request on GitHub when you

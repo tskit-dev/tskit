@@ -25,21 +25,13 @@
 """
 Module responsible for managing trees and tree sequences.
 """
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import itertools
 import json
-import sys
 import base64
 import warnings
 import functools
-try:
-    import concurrent.futures
-except ImportError:  # pragma: no cover
-    # We're on Python2; any attempts to use futures are dealt with below.
-    pass
+import concurrent.futures
 
 import numpy as np
 
@@ -52,9 +44,6 @@ import tskit.formats as formats
 
 from _tskit import NODE_IS_SAMPLE
 from _tskit import NULL
-
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 CoalescenceRecord = collections.namedtuple(
@@ -1306,7 +1295,7 @@ class Tree(object):
         """
         label = node_labels.get(node, "")
         if self.is_leaf(node):
-            s = "{0}".format(label)
+            s = "{}".format(label)
         else:
             s = "("
             for child in self.children(node):
@@ -1350,8 +1339,7 @@ class Tree(object):
             root = self.root
         if node_labels is None:
             s = self._ll_tree.get_newick(precision=precision, root=root)
-            if not IS_PY2:
-                s = s.decode()
+            s = s.decode()
         else:
             return self.__build_newick(root, precision, node_labels) + ";"
         return s
@@ -1832,10 +1820,6 @@ class TreeIterator(object):
     def __reversed__(self):
         self.forward = False
         return self
-
-    def next(self):
-        # This is for Python2 support only.
-        return self.__next__()
 
     def __next__(self):
         if self.forward:
@@ -2541,11 +2525,8 @@ class TreeSequence(object):
             multiletter alleles.
         """
         hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence)
-        j = 0
-        # Would use range here except for Python 2.
-        while j < self.num_samples:
+        for j in range(self.num_samples):
             yield hapgen.get_haplotype(j)
-            j += 1
 
     # Samples is experimental for now, so we don't document it.
     def variants(self, as_bytes=False, samples=None):
@@ -2664,8 +2645,6 @@ class TreeSequence(object):
             return self._ll_tree_sequence.genealogical_nearest_neighbours(
                 focal, reference_sets)
         else:
-            if IS_PY2:  # pragma: no cover
-                raise ValueError("Threads not supported on Python 2.")
             worker = functools.partial(
                 self._ll_tree_sequence.genealogical_nearest_neighbours,
                 reference_sets=reference_sets)

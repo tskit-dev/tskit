@@ -1,4 +1,16 @@
 --------------------
+[0.1.5] - 2019-XX-XX
+--------------------
+
+Under development.
+
+This release removes support for Python 2.
+
+**New features**
+
+- Remove support for Python 2 (:user:`hugovk`). See :issue:`137` and :pr:`140`.
+
+--------------------
 [0.1.4] - 2019-02-01
 --------------------
 

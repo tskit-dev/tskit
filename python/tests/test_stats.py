@@ -23,11 +23,7 @@
 """
 Test cases for stats calculations in tskit.
 """
-from __future__ import print_function
-from __future__ import division
-
 import unittest
-import sys
 
 import numpy as np
 import msprime
@@ -36,9 +32,6 @@ import tskit
 import _tskit
 import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
-
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 def get_r2_matrix(ts):
@@ -377,14 +370,8 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         A1 = naive_genealogical_nearest_neighbours(ts, focal, reference_sets)
         A2 = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
         A3 = ts.genealogical_nearest_neighbours(focal, reference_sets)
-        if IS_PY2:
-            # Threads not supported on PY2
-            self.assertRaises(
-                ValueError, ts.genealogical_nearest_neighbours, focal,
-                reference_sets, num_threads=3)
-        else:
-            A4 = ts.genealogical_nearest_neighbours(focal, reference_sets, num_threads=3)
-            self.assertTrue(np.array_equal(A3, A4))
+        A4 = ts.genealogical_nearest_neighbours(focal, reference_sets, num_threads=3)
+        self.assertTrue(np.array_equal(A3, A4))
         self.assertEqual(A1.shape, A2.shape)
         self.assertEqual(A1.shape, A3.shape)
         self.assertTrue(np.allclose(A1, A2))

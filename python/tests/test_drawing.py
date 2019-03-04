@@ -24,21 +24,15 @@
 """
 Test cases for visualisation in tskit.
 """
-from __future__ import print_function
-from __future__ import division
-
+import io
 import os
-import sys
 import tempfile
 import unittest
 import xml.etree
 
 import msprime
-import six
 import tskit
 import tests.tsutil as tsutil
-
-IS_PY2 = sys.version_info[0] < 3
 
 
 class TestTreeDraw(unittest.TestCase):
@@ -169,13 +163,10 @@ class TestFormats(TestTreeDraw):
     def test_unicode_variants(self):
         t = self.get_binary_tree()
         for fmt in ["unicode", "UNICODE", "uniCODE"]:
-            if IS_PY2:
-                self.assertRaises(ValueError, t.draw, format=fmt)
-            else:
-                output = t.draw(format=fmt)
-                self.assertRaises(
-                    xml.etree.ElementTree.ParseError, xml.etree.ElementTree.fromstring,
-                    output)
+            output = t.draw(format=fmt)
+            self.assertRaises(
+                xml.etree.ElementTree.ParseError, xml.etree.ElementTree.fromstring,
+                output)
 
     def test_bad_formats(self):
         t = self.get_binary_tree()
@@ -236,7 +227,7 @@ class TestDrawText(TestTreeDraw):
         self.verify_basic_text(text)
 
     def test_even_num_children_tree(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           1
@@ -246,7 +237,7 @@ class TestDrawText(TestTreeDraw):
         5   1           5
         6   1           7
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       6       0
         0       1       6       1
@@ -261,7 +252,7 @@ class TestDrawText(TestTreeDraw):
         self.verify_basic_text(text)
 
     def test_odd_num_children_tree(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           1
@@ -270,7 +261,7 @@ class TestDrawText(TestTreeDraw):
         4   1           4
         5   1           5
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       5       0
         0       1       5       1
@@ -302,7 +293,6 @@ class TestDrawText(TestTreeDraw):
             self.assertEqual(text.find(str(u)), -1)
 
 
-@unittest.skipIf(IS_PY2, "Unicode tree drawing not supported on Python 2")
 class TestDrawUnicode(TestDrawText):
     """
     Tests the Unicode tree drawing method
@@ -324,13 +314,13 @@ class TestDrawUnicode(TestDrawText):
             self.assertEqual(l1.rstrip(), l2.rstrip())
 
     def test_simple_tree(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
         2   1           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       2       0
         0       1       2       1
@@ -345,14 +335,14 @@ class TestDrawUnicode(TestDrawText):
         self.verify_text_rendering(drawn, tree)
 
     def test_trident_tree(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
         2   1           0
         3   1           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       3       0
         0       1       3       1
@@ -368,7 +358,7 @@ class TestDrawUnicode(TestDrawText):
         self.verify_text_rendering(drawn, tree)
 
     def test_pitchfork_tree(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           0
@@ -376,7 +366,7 @@ class TestDrawUnicode(TestDrawText):
         3   1           0
         4   1           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       4       0
         0       1       4       1
@@ -405,13 +395,13 @@ class TestDrawUnicode(TestDrawText):
         self.verify_text_rendering(drawn, tree)
 
     def test_stick_tree(self):
-        nodes = six.StringIO("""\
+        nodes = io.StringIO("""\
         id  is_sample   time
         0   1           0
         1   1           1
         2   1           2
         """)
-        edges = six.StringIO("""\
+        edges = io.StringIO("""\
         left    right   parent  child
         0       1       1       0
         0       1       2       1

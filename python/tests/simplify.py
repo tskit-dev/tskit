@@ -23,10 +23,6 @@
 """
 Python implementation of the simplify algorithm.
 """
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import division
-
 import sys
 
 import numpy as np
@@ -288,7 +284,7 @@ class Simplifier(object):
         """
         Process all of the edges for a given parent.
         """
-        assert len(set(e.parent for e in edges)) == 1
+        assert len({e.parent for e in edges}) == 1
         parent = edges[0].parent
         S = []
         for edge in edges:
