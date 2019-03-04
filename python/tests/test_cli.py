@@ -284,6 +284,33 @@ class TestTskitArgumentParser(unittest.TestCase):
         args = parser.parse_args([cmd, tree_sequence])
         self.assertEqual(args.tree_sequence, tree_sequence)
 
+    def test_trees_default_values(self):
+        parser = cli.get_tskit_parser()
+        cmd = "trees"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.precision, 6)
+        self.assertEqual(args.draw, False)
+
+    def test_trees_short_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "trees"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence, "-d", "-p", "8"])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.precision, 8)
+        self.assertEqual(args.draw, True)
+
+    def test_trees_long_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "trees"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([
+            cmd, tree_sequence, "--precision", "5", "--draw"])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.precision, 5)
+        self.assertEqual(args.draw, True)
 
 
 class TestTskitConversionOutput(unittest.TestCase):
@@ -450,6 +477,21 @@ class TestTskitConversionOutput(unittest.TestCase):
             output_provenances[name] = value
         ts = tskit.load(self._tree_sequence_file)
         self.verify_info(ts, output_provenances)
+
+    def test_trees_no_draw(self):
+        cmd = "trees"
+        stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
+        self.assertEqual(len(stderr), 0)
+        ts = tskit.load(self._tree_sequence_file)
+        self.assertEqual(len(stdout.splitlines()), 3 * ts.num_trees)
+
+    def test_trees_draw(self):
+        cmd = "trees"
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, "-d", self._tree_sequence_file])
+        self.assertEqual(len(stderr), 0)
+        ts = tskit.load(self._tree_sequence_file)
+        self.assertGreater(len(stdout.splitlines()), 3 * ts.num_trees)
 
 
 class TestBadFile(unittest.TestCase):

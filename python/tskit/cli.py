@@ -65,6 +65,17 @@ def run_info(args):
     print("provenances:     ", ts.num_provenances)
 
 
+def run_trees(args):
+    ts = load_tree_sequence(args.tree_sequence)
+    for tree in ts.trees():
+        print("tree {}:".format(tree.index))
+        print("  num_sites: {}".format(tree.num_sites))
+        print("  interval:  ({0:.{2}f}, {1:.{2}f})".format(
+            *tree.interval, args.precision))
+        if args.draw:
+            print(tree.draw(format="unicode"))
+
+
 def run_upgrade(args):
     try:
         tree_sequence = tskit.load_legacy(args.source, args.remove_duplicate_positions)
@@ -77,37 +88,37 @@ def run_upgrade(args):
             "of data from the original file!")
 
 
-def run_dump_individuals(args):
+def run_individuals(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(individuals=sys.stdout, precision=args.precision)
 
 
-def run_dump_nodes(args):
+def run_nodes(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(nodes=sys.stdout, precision=args.precision)
 
 
-def run_dump_edges(args):
+def run_edges(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(edges=sys.stdout, precision=args.precision)
 
 
-def run_dump_sites(args):
+def run_sites(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(sites=sys.stdout, precision=args.precision)
 
 
-def run_dump_mutations(args):
+def run_mutations(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(mutations=sys.stdout, precision=args.precision)
 
 
-def run_dump_populations(args):
+def run_populations(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(populations=sys.stdout)
 
 
-def run_dump_provenances(args):
+def run_provenances(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     if args.human:
         for provenance in tree_sequence.provenances():
@@ -118,7 +129,7 @@ def run_dump_provenances(args):
         tree_sequence.dump_text(provenances=sys.stdout)
 
 
-def run_dump_vcf(args):
+def run_vcf(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.write_vcf(sys.stdout, args.ploidy)
 
@@ -140,7 +151,6 @@ def get_tskit_parser():
     top_parser.add_argument(
         "-V", "--version", action='version',
         version='%(prog)s {}'.format(tskit.__version__))
-    # This is required to get uniform behaviour in Python2 and Python3
     subparsers = top_parser.add_subparsers(dest="subcommand")
     subparsers.required = True
 
@@ -151,8 +161,18 @@ def get_tskit_parser():
     parser.set_defaults(runner=run_info)
 
     parser = subparsers.add_parser(
+        "trees",
+        help="Print information about trees.")
+    add_tree_sequence_argument(parser)
+    add_precision_argument(parser)
+    parser.add_argument(
+        "--draw", "-d", action="store_true", default=False,
+        help="Draw the trees")
+    parser.set_defaults(runner=run_trees)
+
+    parser = subparsers.add_parser(
         "upgrade",
-        help="Upgrade legacy tree sequence files to the latest version.")
+        help="Upgrade legacy tree sequence files.")
     parser.add_argument(
         "source", help="The source tskit tree sequence file in legacy format")
     parser.add_argument(
@@ -169,48 +189,48 @@ def get_tskit_parser():
     parser.add_argument(
         "--ploidy", "-P", type=int, default=1,
         help="The ploidy level of samples")
-    parser.set_defaults(runner=run_dump_vcf)
+    parser.set_defaults(runner=run_vcf)
 
     parser = subparsers.add_parser(
         "individuals",
         help="Output individuals in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
-    parser.set_defaults(runner=run_dump_individuals)
+    parser.set_defaults(runner=run_individuals)
 
     parser = subparsers.add_parser(
         "nodes",
         help="Output nodes in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
-    parser.set_defaults(runner=run_dump_nodes)
+    parser.set_defaults(runner=run_nodes)
 
     parser = subparsers.add_parser(
         "edges",
         help="Output edges in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
-    parser.set_defaults(runner=run_dump_edges)
+    parser.set_defaults(runner=run_edges)
 
     parser = subparsers.add_parser(
         "sites",
         help="Output sites in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
-    parser.set_defaults(runner=run_dump_sites)
+    parser.set_defaults(runner=run_sites)
 
     parser = subparsers.add_parser(
         "mutations",
         help="Output mutations in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
-    parser.set_defaults(runner=run_dump_mutations)
+    parser.set_defaults(runner=run_mutations)
 
     parser = subparsers.add_parser(
         "populations",
         help="Output population information in tabular format.")
     add_tree_sequence_argument(parser)
-    parser.set_defaults(runner=run_dump_populations)
+    parser.set_defaults(runner=run_populations)
 
     parser = subparsers.add_parser(
         "provenances",
@@ -219,7 +239,7 @@ def get_tskit_parser():
     parser.add_argument(
         "-H", "--human", action="store_true",
         help="Print out the provenances in a human readable format")
-    parser.set_defaults(runner=run_dump_provenances)
+    parser.set_defaults(runner=run_provenances)
 
     return top_parser
 
