@@ -2525,11 +2525,8 @@ class TreeSequence(object):
             multiletter alleles.
         """
         hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence)
-        j = 0
-        # Would use range here except for Python 2.
-        while j < self.num_samples:
+        for j in range(self.num_samples):
             yield hapgen.get_haplotype(j)
-            j += 1
 
     # Samples is experimental for now, so we don't document it.
     def variants(self, as_bytes=False, samples=None):

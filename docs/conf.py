@@ -43,7 +43,7 @@ if read_the_docs_build:
 # -- Project information -----------------------------------------------------
 
 project = 'tskit'
-copyright = '2018, Tskit developers'
+copyright = '2018-2019, Tskit developers'
 author = 'Tskit developers'
 
 # The short X.Y version
@@ -117,7 +117,11 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'breathe',
+    'sphinx_issues',
 ]
+
+# Github repo
+issues_github_path = "tskit-dev/tskit"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
