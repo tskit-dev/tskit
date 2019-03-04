@@ -35,6 +35,7 @@ import h5py
 
 import tskit
 import tskit.cli as cli
+from . import tsutil
 
 
 class TestException(Exception):
@@ -84,6 +85,31 @@ class TestTskitArgumentParser(unittest.TestCase):
     """
     Tests for the argument parsers in msp.
     """
+
+    def test_individuals_default_values(self):
+        parser = cli.get_tskit_parser()
+        cmd = "individuals"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.precision, 6)
+
+    def test_individuals_short_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "individuals"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.precision, 8)
+
+    def test_individuals_long_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "individuals"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([
+            cmd, tree_sequence, "--precision", "5"])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.precision, 5)
 
     def test_nodes_default_values(self):
         parser = cli.get_tskit_parser()
@@ -251,6 +277,14 @@ class TestTskitArgumentParser(unittest.TestCase):
         args = parser.parse_args([cmd, tree_sequence])
         self.assertEqual(args.tree_sequence, tree_sequence)
 
+    def test_populations_default_values(self):
+        parser = cli.get_tskit_parser()
+        cmd = "populations"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+
+
 
 class TestTskitConversionOutput(unittest.TestCase):
     """
@@ -258,8 +292,14 @@ class TestTskitConversionOutput(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        cls._tree_sequence = msprime.simulate(
-            10, length=10, recombination_rate=10, mutation_rate=10, random_seed=1)
+        ts = msprime.simulate(
+            length=1, recombination_rate=2, mutation_rate=2, random_seed=1,
+            migration_matrix=[[0, 1], [1, 0]],
+            population_configurations=[
+                msprime.PopulationConfiguration(5) for _ in range(2)],
+            record_migrations=True)
+        assert ts.num_migrations > 0
+        cls._tree_sequence = tsutil.insert_random_ploidy_individuals(ts)
         fd, cls._tree_sequence_file = tempfile.mkstemp(prefix="tsk_cli", suffix=".trees")
         os.close(fd)
         cls._tree_sequence.dump(cls._tree_sequence_file)
@@ -267,6 +307,22 @@ class TestTskitConversionOutput(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         os.unlink(cls._tree_sequence_file)
+
+    def verify_individuals(self, output_individuals, precision):
+        with tempfile.TemporaryFile("w+") as f:
+            self._tree_sequence.dump_text(individuals=f, precision=precision)
+            f.seek(0)
+            output = f.read().splitlines()
+        self.assertEqual(output, output_individuals)
+
+    def test_individuals(self):
+        cmd = "individuals"
+        precision = 8
+        stdout, stderr = capture_output(cli.tskit_main, [
+            cmd, self._tree_sequence_file, "-p", str(precision)])
+        self.assertEqual(len(stderr), 0)
+        output_individuals = stdout.splitlines()
+        self.verify_individuals(output_individuals, precision)
 
     def verify_nodes(self, output_nodes, precision):
         with tempfile.TemporaryFile("w+") as f:
@@ -401,7 +457,7 @@ class TestBadFile(unittest.TestCase):
     Tests that we deal with IO errors appropriately.
     """
     def verify(self, command):
-        with mock.patch("tskit.cli.exit", side_effect=TestException) as mocked_exit:
+        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 capture_output(cli.tskit_main, ["info", "/no/such/file"])
             mocked_exit.assert_called_once_with("Load error: No such file or directory")
@@ -481,7 +537,7 @@ class TestUpgrade(TestCli):
             root = h5py.File(self.legacy_file_name, "r+")
             root['mutations/position'][:] = 0
             root.close()
-            with mock.patch("tskit.cli.exit", side_effect=TestException) as mocked_exit:
+            with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
                 with self.assertRaises(TestException):
                     capture_output(
                         cli.tskit_main,

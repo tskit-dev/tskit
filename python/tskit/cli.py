@@ -77,6 +77,11 @@ def run_upgrade(args):
             "of data from the original file!")
 
 
+def run_dump_individuals(args):
+    tree_sequence = load_tree_sequence(args.tree_sequence)
+    tree_sequence.dump_text(individuals=sys.stdout, precision=args.precision)
+
+
 def run_dump_nodes(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(nodes=sys.stdout, precision=args.precision)
@@ -95,6 +100,11 @@ def run_dump_sites(args):
 def run_dump_mutations(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(mutations=sys.stdout, precision=args.precision)
+
+
+def run_dump_populations(args):
+    tree_sequence = load_tree_sequence(args.tree_sequence)
+    tree_sequence.dump_text(populations=sys.stdout)
 
 
 def run_dump_provenances(args):
@@ -162,6 +172,13 @@ def get_tskit_parser():
     parser.set_defaults(runner=run_dump_vcf)
 
     parser = subparsers.add_parser(
+        "individuals",
+        help="Output individuals in tabular format.")
+    add_tree_sequence_argument(parser)
+    add_precision_argument(parser)
+    parser.set_defaults(runner=run_dump_individuals)
+
+    parser = subparsers.add_parser(
         "nodes",
         help="Output nodes in tabular format.")
     add_tree_sequence_argument(parser)
@@ -188,6 +205,12 @@ def get_tskit_parser():
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_dump_mutations)
+
+    parser = subparsers.add_parser(
+        "populations",
+        help="Output population information in tabular format.")
+    add_tree_sequence_argument(parser)
+    parser.set_defaults(runner=run_dump_populations)
 
     parser = subparsers.add_parser(
         "provenances",
