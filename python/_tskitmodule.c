@@ -1,21 +1,27 @@
 /*
-** Copyright (C) 2014-2018 University of Oxford
-**
-** This file is part of tskit.
-**
-** tskit is free software: you can redistribute it and/or modify
-** it under the terms of the GNU General Public License as published by
-** the Free Software Foundation, either version 3 of the License, or
-** (at your option) any later version.
-**
-** tskit is distributed in the hope that it will be useful,
-** but WITHOUT ANY WARRANTY; without even the implied warranty of
-** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-** GNU General Public License for more details.
-**
-** You should have received a copy of the GNU General Public License
-** along with tskit.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * MIT License
+ *
+ * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2015-2018 University of Oxford
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 #define PY_SSIZE_T_CLEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -27,9 +33,6 @@
 
 #include "kastore.h"
 #include "tskit.h"
-
-#define MODULE_DOC \
-"Low level interface for tskit"
 
 #define SET_COLS 0
 #define APPEND_COLS 1
@@ -8423,8 +8426,6 @@ static PyTypeObject LdCalculatorType = {
 static PyObject *
 tskit_get_kastore_version(PyObject *self)
 {
-    /* TODO if we provide the option of linking against kastore separately, we
-     * should return the link time version using kas_get_version */
     return Py_BuildValue("iii", KAS_VERSION_MAJOR, KAS_VERSION_MINOR, KAS_VERSION_PATCH);
 }
 
@@ -8442,37 +8443,28 @@ static PyMethodDef tskit_methods[] = {
     {NULL}        /* Sentinel */
 };
 
-/* Initialisation code supports Python 2.x and 3.x. The framework uses the
- * recommended structure from http://docs.python.org/howto/cporting.html.
- * I've ignored the point about storing state in globals, as the examples
- * from the Python documentation still use this idiom.
- */
-
 static struct PyModuleDef tskitmodule = {
     PyModuleDef_HEAD_INIT,
-    "_tskit",   /* name of module */
-    MODULE_DOC, /* module documentation, may be NULL */
+    "_tskit",
+    "Low level interface for tskit",
     -1,
     tskit_methods,
     NULL, NULL, NULL, NULL
 };
 
-#define INITERROR return NULL
-
 PyObject *
 PyInit__tskit(void)
-
 {
-PyObject *module = PyModule_Create(&tskitmodule);
+    PyObject *module = PyModule_Create(&tskitmodule);
     if (module == NULL) {
-        INITERROR;
+        return NULL;
     }
     import_array();
 
     /* LightweightTableCollection type */
     LightweightTableCollectionType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&LightweightTableCollectionType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&LightweightTableCollectionType);
     PyModule_AddObject(module, "LightweightTableCollection",
@@ -8481,7 +8473,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* IndividualTable type */
     IndividualTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&IndividualTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&IndividualTableType);
     PyModule_AddObject(module, "IndividualTable", (PyObject *) &IndividualTableType);
@@ -8489,7 +8481,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* NodeTable type */
     NodeTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&NodeTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&NodeTableType);
     PyModule_AddObject(module, "NodeTable", (PyObject *) &NodeTableType);
@@ -8497,7 +8489,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* EdgeTable type */
     EdgeTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&EdgeTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&EdgeTableType);
     PyModule_AddObject(module, "EdgeTable", (PyObject *) &EdgeTableType);
@@ -8505,7 +8497,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* MigrationTable type */
     MigrationTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&MigrationTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&MigrationTableType);
     PyModule_AddObject(module, "MigrationTable", (PyObject *) &MigrationTableType);
@@ -8513,7 +8505,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* SiteTable type */
     SiteTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&SiteTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&SiteTableType);
     PyModule_AddObject(module, "SiteTable", (PyObject *) &SiteTableType);
@@ -8521,7 +8513,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* MutationTable type */
     MutationTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&MutationTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&MutationTableType);
     PyModule_AddObject(module, "MutationTable", (PyObject *) &MutationTableType);
@@ -8529,7 +8521,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* PopulationTable type */
     PopulationTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&PopulationTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&PopulationTableType);
     PyModule_AddObject(module, "PopulationTable", (PyObject *) &PopulationTableType);
@@ -8537,7 +8529,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* ProvenanceTable type */
     ProvenanceTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&ProvenanceTableType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&ProvenanceTableType);
     PyModule_AddObject(module, "ProvenanceTable", (PyObject *) &ProvenanceTableType);
@@ -8545,7 +8537,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* TableCollectionTable type */
     TableCollectionType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TableCollectionType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&TableCollectionType);
     PyModule_AddObject(module, "TableCollection", (PyObject *) &TableCollectionType);
@@ -8553,7 +8545,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* TreeSequence type */
     TreeSequenceType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TreeSequenceType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&TreeSequenceType);
     PyModule_AddObject(module, "TreeSequence", (PyObject *) &TreeSequenceType);
@@ -8561,7 +8553,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* Tree type */
     TreeType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TreeType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&TreeType);
     PyModule_AddObject(module, "Tree", (PyObject *) &TreeType);
@@ -8569,7 +8561,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* TreeDiffIterator type */
     TreeDiffIteratorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TreeDiffIteratorType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&TreeDiffIteratorType);
     PyModule_AddObject(module, "TreeDiffIterator", (PyObject *) &TreeDiffIteratorType);
@@ -8577,7 +8569,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* VcfConverter type */
     VcfConverterType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&VcfConverterType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&VcfConverterType);
     PyModule_AddObject(module, "VcfConverter", (PyObject *) &VcfConverterType);
@@ -8585,7 +8577,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* HaplotypeGenerator type */
     HaplotypeGeneratorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&HaplotypeGeneratorType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&HaplotypeGeneratorType);
     PyModule_AddObject(module, "HaplotypeGenerator",
@@ -8594,7 +8586,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* VariantGenerator type */
     VariantGeneratorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&VariantGeneratorType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&VariantGeneratorType);
     PyModule_AddObject(module, "VariantGenerator", (PyObject *) &VariantGeneratorType);
@@ -8602,7 +8594,7 @@ PyObject *module = PyModule_Create(&tskitmodule);
     /* LdCalculator type */
     LdCalculatorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&LdCalculatorType) < 0) {
-        INITERROR;
+        return NULL;
     }
     Py_INCREF(&LdCalculatorType);
     PyModule_AddObject(module, "LdCalculator", (PyObject *) &LdCalculatorType);
