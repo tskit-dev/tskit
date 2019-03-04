@@ -43,6 +43,28 @@ def exit(message):
     sys.exit(message)
 
 
+def load_tree_sequence(path):
+    try:
+        return tskit.load(path)
+    except tskit.FileFormatError as e:
+        exit("Load error: {}".format(e))
+
+
+def run_info(args):
+    ts = load_tree_sequence(args.tree_sequence)
+    print("sequence_length: ", ts.sequence_length)
+    print("trees:           ", ts.num_trees)
+    print("samples:         ", ts.num_samples)
+    print("individuals:     ", ts.num_individuals)
+    print("nodes:           ", ts.num_nodes)
+    print("edges:           ", ts.num_edges)
+    print("sites:           ", ts.num_sites)
+    print("mutations:       ", ts.num_mutations)
+    print("migrations:      ", ts.num_migrations)
+    print("populations:     ", ts.num_populations)
+    print("provenances:     ", ts.num_provenances)
+
+
 def run_upgrade(args):
     try:
         tree_sequence = tskit.load_legacy(args.source, args.remove_duplicate_positions)
@@ -56,27 +78,27 @@ def run_upgrade(args):
 
 
 def run_dump_nodes(args):
-    tree_sequence = tskit.load(args.tree_sequence)
+    tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(nodes=sys.stdout, precision=args.precision)
 
 
 def run_dump_edges(args):
-    tree_sequence = tskit.load(args.tree_sequence)
+    tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(edges=sys.stdout, precision=args.precision)
 
 
 def run_dump_sites(args):
-    tree_sequence = tskit.load(args.tree_sequence)
+    tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(sites=sys.stdout, precision=args.precision)
 
 
 def run_dump_mutations(args):
-    tree_sequence = tskit.load(args.tree_sequence)
+    tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.dump_text(mutations=sys.stdout, precision=args.precision)
 
 
 def run_dump_provenances(args):
-    tree_sequence = tskit.load(args.tree_sequence)
+    tree_sequence = load_tree_sequence(args.tree_sequence)
     if args.human:
         for provenance in tree_sequence.provenances():
             d = json.loads(provenance.record)
@@ -87,13 +109,13 @@ def run_dump_provenances(args):
 
 
 def run_dump_vcf(args):
-    tree_sequence = tskit.load(args.tree_sequence)
+    tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.write_vcf(sys.stdout, args.ploidy)
 
 
 def add_tree_sequence_argument(parser):
     parser.add_argument(
-        "tree_sequence", help="The msprime tree sequence file")
+        "tree_sequence", help="The tskit tree sequence file")
 
 
 def add_precision_argument(parser):
@@ -113,8 +135,26 @@ def get_tskit_parser():
     subparsers.required = True
 
     parser = subparsers.add_parser(
+        "info",
+        help="Print summary information about a tree sequence.")
+    add_tree_sequence_argument(parser)
+    parser.set_defaults(runner=run_info)
+
+    parser = subparsers.add_parser(
+        "upgrade",
+        help="Upgrade legacy tree sequence files to the latest version.")
+    parser.add_argument(
+        "source", help="The source tskit tree sequence file in legacy format")
+    parser.add_argument(
+        "destination", help="The filename of the upgraded copy.")
+    parser.add_argument(
+        "--remove-duplicate-positions", "-d", action="store_true", default=False,
+        help="Remove any duplicated mutation positions in the source file. ")
+    parser.set_defaults(runner=run_upgrade)
+
+    parser = subparsers.add_parser(
         "vcf",
-        help="Write the tree sequence out in VCF format.")
+        help="Convert the tree sequence genotypes to VCF format.")
     add_tree_sequence_argument(parser)
     parser.add_argument(
         "--ploidy", "-P", type=int, default=1,
@@ -123,52 +163,40 @@ def get_tskit_parser():
 
     parser = subparsers.add_parser(
         "nodes",
-        help="Dump nodes in tabular format.")
+        help="Output nodes in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_dump_nodes)
 
     parser = subparsers.add_parser(
         "edges",
-        help="Dump edges in tabular format.")
+        help="Output edges in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_dump_edges)
 
     parser = subparsers.add_parser(
         "sites",
-        help="Dump sites in tabular format.")
+        help="Output sites in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_dump_sites)
 
     parser = subparsers.add_parser(
         "mutations",
-        help="Dump mutations in tabular format.")
+        help="Output mutations in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_dump_mutations)
 
     parser = subparsers.add_parser(
         "provenances",
-        help="Dump provenance information in tabular format.")
+        help="Output provenance information in tabular format.")
     add_tree_sequence_argument(parser)
     parser.add_argument(
         "-H", "--human", action="store_true",
         help="Print out the provenances in a human readable format")
     parser.set_defaults(runner=run_dump_provenances)
-
-    parser = subparsers.add_parser(
-        "upgrade",
-        help="Upgrade legacy tree sequence files to the latest version.")
-    parser.add_argument(
-        "source", help="The source msprime tree sequence file in legacy format")
-    parser.add_argument(
-        "destination", help="The filename of the upgraded copy.")
-    parser.add_argument(
-        "--remove-duplicate-positions", "-d", action="store_true", default=False,
-        help="Remove any duplicated mutation positions in the source file. ")
-    parser.set_defaults(runner=run_upgrade)
 
     return top_parser
 

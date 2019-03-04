@@ -37,6 +37,12 @@ import tskit
 import tskit.cli as cli
 
 
+class TestException(Exception):
+    """
+    Custom exception we can throw for testing.
+    """
+
+
 def capture_output(func, *args, **kwargs):
     """
     Runs the specified function and arguments, and returns the
@@ -238,18 +244,23 @@ class TestTskitArgumentParser(unittest.TestCase):
         self.assertEqual(args.destination, destination)
         self.assertEqual(args.remove_duplicate_positions, False)
 
+    def test_info_default_values(self):
+        parser = cli.get_tskit_parser()
+        cmd = "info"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence])
+        self.assertEqual(args.tree_sequence, tree_sequence)
 
-class TestMspConversionOutput(unittest.TestCase):
+
+class TestTskitConversionOutput(unittest.TestCase):
     """
     Tests the output of msp to ensure it's correct.
     """
     @classmethod
     def setUpClass(cls):
         cls._tree_sequence = msprime.simulate(
-            10, length=10, recombination_rate=10,
-            mutation_rate=10, random_seed=1)
-        fd, cls._tree_sequence_file = tempfile.mkstemp(
-            prefix="msp_cli", suffix=".trees")
+            10, length=10, recombination_rate=10, mutation_rate=10, random_seed=1)
+        fd, cls._tree_sequence_file = tempfile.mkstemp(prefix="tsk_cli", suffix=".trees")
         os.close(fd)
         cls._tree_sequence.dump(cls._tree_sequence_file)
 
@@ -357,6 +368,65 @@ class TestMspConversionOutput(unittest.TestCase):
         self.assertEqual(len(stderr), 0)
         self.verify_vcf(stdout)
 
+    def verify_info(self, ts, output_info):
+        info = {
+            "sequence_length": ts.sequence_length,
+            "edges": ts.num_edges,
+            "nodes": ts.num_nodes,
+            "individuals": ts.num_individuals,
+            "migrations": ts.num_migrations,
+            "sites": ts.num_sites,
+            "mutations": ts.num_mutations,
+            "populations": ts.num_populations,
+            "provenances": ts.num_provenances,
+            "trees": ts.num_trees,
+            "samples": ts.num_samples,
+        }
+        self.assertEqual({k: str(v) for k, v in info.items()}, output_info)
+
+    def test_info(self):
+        cmd = "info"
+        stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
+        self.assertEqual(len(stderr), 0)
+        output_provenances = {}
+        for row in stdout.splitlines():
+            name, value = [tok.strip() for tok in row.split(":")]
+            output_provenances[name] = value
+        ts = tskit.load(self._tree_sequence_file)
+        self.verify_info(ts, output_provenances)
+
+
+class TestBadFile(unittest.TestCase):
+    """
+    Tests that we deal with IO errors appropriately.
+    """
+    def verify(self, command):
+        with mock.patch("tskit.cli.exit", side_effect=TestException) as mocked_exit:
+            with self.assertRaises(TestException):
+                capture_output(cli.tskit_main, ["info", "/no/such/file"])
+            mocked_exit.assert_called_once_with("Load error: No such file or directory")
+
+    def test_info(self):
+        self.verify("info")
+
+    def test_vcf(self):
+        self.verify("vcf")
+
+    def test_nodes(self):
+        self.verify("nodes")
+
+    def test_edges(self):
+        self.verify("edges")
+
+    def test_sites(self):
+        self.verify("sites")
+
+    def test_mutations(self):
+        self.verify("mutations")
+
+    def test_provenances(self):
+        self.verify("provenances")
+
 
 class TestUpgrade(TestCli):
     """
@@ -411,10 +481,9 @@ class TestUpgrade(TestCli):
             root = h5py.File(self.legacy_file_name, "r+")
             root['mutations/position'][:] = 0
             root.close()
-            with mock.patch("tskit.cli.exit") as mocked_exit:
-                stdout, stderr = capture_output(
-                    cli.tskit_main,
-                    ["upgrade",  self.legacy_file_name, self.current_file_name])
+            with mock.patch("tskit.cli.exit", side_effect=TestException) as mocked_exit:
+                with self.assertRaises(TestException):
+                    capture_output(
+                        cli.tskit_main,
+                        ["upgrade",  self.legacy_file_name, self.current_file_name])
                 self.assertEqual(mocked_exit.call_count, 1)
-                self.assertEqual(stdout, "")
-                self.assertEqual(stderr, "")
