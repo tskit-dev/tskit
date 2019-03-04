@@ -25,7 +25,6 @@ Tree sequence IO via the tables API.
 """
 import base64
 import collections
-import copyreg
 import datetime
 import warnings
 
@@ -146,8 +145,13 @@ class BaseTable(object):
         """
         return self.ll_table.truncate(num_rows)
 
+    # Picle support
+    def __getstate__(self):
+        return self.asdict()
+
     # Unpickle support
     def __setstate__(self, state):
+        self.__init__()
         self.set_columns(**state)
 
     def asdict(self):
@@ -331,11 +335,6 @@ class IndividualTable(BaseTable):
             "metadata": self.metadata,
             "metadata_offset": self.metadata_offset,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _pickle_individual_table(table):
-    return IndividualTable, tuple(), table.asdict()
 
 
 class NodeTable(BaseTable):
@@ -529,11 +528,6 @@ class NodeTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _pickle_node_table(table):
-    return NodeTable, tuple(), table.asdict()
-
-
 class EdgeTable(BaseTable):
     """
     A table defining the edges in a tree sequence. See the
@@ -661,11 +655,6 @@ class EdgeTable(BaseTable):
             "parent": self.parent,
             "child": self.child,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _edge_table_pickle(table):
-    return EdgeTable, tuple(), table.asdict()
 
 
 class MigrationTable(BaseTable):
@@ -825,11 +814,6 @@ class MigrationTable(BaseTable):
             "dest": self.dest,
             "time": self.time,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _migration_table_pickle(table):
-    return MigrationTable, tuple(), table.asdict()
 
 
 class SiteTable(BaseTable):
@@ -1012,11 +996,6 @@ class SiteTable(BaseTable):
             "metadata": self.metadata,
             "metadata_offset": self.metadata_offset,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _site_table_pickle(table):
-    return SiteTable, tuple(), table.asdict()
 
 
 class MutationTable(BaseTable):
@@ -1229,11 +1208,6 @@ class MutationTable(BaseTable):
         }
 
 
-# Pickle support. See copyreg registration for this function below.
-def _mutation_table_pickle(table):
-    return MutationTable, tuple(), table.asdict()
-
-
 class PopulationTable(BaseTable):
     """
     A table defining the populations referred to in a tree sequence.
@@ -1312,11 +1286,6 @@ class PopulationTable(BaseTable):
             "metadata": self.metadata,
             "metadata_offset": self.metadata_offset,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _population_table_pickle(table):
-    return PopulationTable, tuple(), table.asdict()
 
 
 class ProvenanceTable(BaseTable):
@@ -1405,14 +1374,6 @@ class ProvenanceTable(BaseTable):
             ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
         return ret[:-1]
 
-    # Unpickle support
-    def __setstate__(self, state):
-        self.set_columns(
-            timestamp=state["timestamp"],
-            timestamp_offset=state["timestamp_offset"],
-            record=state["record"],
-            record_offset=state["record_offset"])
-
     def copy(self):
         """
         Returns a deep copy of this table.
@@ -1432,11 +1393,6 @@ class ProvenanceTable(BaseTable):
             "record": self.record,
             "record_offset": self.record_offset,
         }
-
-
-# Pickle support. See copyreg registration for this function below.
-def _provenance_table_pickle(table):
-    return ProvenanceTable, tuple(), table.asdict()
 
 
 class TableCollection(object):
@@ -1576,6 +1532,9 @@ class TableCollection(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __getstate__(self):
+        return self.asdict()
 
     # Unpickle support
     def __setstate__(self, state):
@@ -1771,26 +1730,6 @@ class TableCollection(object):
         indexed this method has no effect.
         """
         self.ll_tables.drop_index()
-
-
-# Pickle support. See copyreg registration for this function below.
-def _table_collection_pickle(tables):
-    return TableCollection, tuple(), tables.asdict()
-
-
-# Pickle support for the various tables. We are forced to use copyreg.pickle
-# here to support Python 2. For Python 3, we can just use the __setstate__.
-# It would be cleaner to attach the pickle_*_table functions to the classes
-# themselves, but this causes issues with Mocking on readthedocs. Sigh.
-copyreg.pickle(IndividualTable, _pickle_individual_table)
-copyreg.pickle(NodeTable, _pickle_node_table)
-copyreg.pickle(EdgeTable, _edge_table_pickle)
-copyreg.pickle(MigrationTable, _migration_table_pickle)
-copyreg.pickle(SiteTable, _site_table_pickle)
-copyreg.pickle(MutationTable, _mutation_table_pickle)
-copyreg.pickle(PopulationTable, _population_table_pickle)
-copyreg.pickle(ProvenanceTable, _provenance_table_pickle)
-copyreg.pickle(TableCollection, _table_collection_pickle)
 
 
 #############################################
