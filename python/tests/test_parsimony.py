@@ -22,18 +22,15 @@
 """
 Tests for the tree parsimony methods.
 """
-from __future__ import print_function
-from __future__ import division
-
 import unittest
 import itertools
+import io
 
 import numpy as np
 import msprime
 import Bio
 import Bio.Phylo
 import Bio.Phylo.TreeConstruction
-import six
 
 import tskit
 import tests.tsutil as tsutil
@@ -47,7 +44,7 @@ def bp_sankoff_score(tree, genotypes, cost_matrix):
     Returns the sankoff score matrix computed by BioPython.
     """
     ts = tree.tree_sequence
-    bp_tree = Bio.Phylo.read(six.StringIO(tree.newick()), 'newick')
+    bp_tree = Bio.Phylo.read(io.StringIO(tree.newick()), 'newick')
     records = [Bio.SeqRecord.SeqRecord(
         Bio.Seq.Seq(str(genotypes[j])), id=str(j + 1)) for j in range(ts.num_samples)]
     alignment = Bio.Align.MultipleSeqAlignment(records)
@@ -66,7 +63,7 @@ def bp_fitch_score(tree, genotypes):
     Returns the Fitch parsimony score computed by BioPython.
     """
     ts = tree.tree_sequence
-    bp_tree = Bio.Phylo.read(six.StringIO(tree.newick()), 'newick')
+    bp_tree = Bio.Phylo.read(io.StringIO(tree.newick()), 'newick')
     records = [Bio.SeqRecord.SeqRecord(
         Bio.Seq.Seq(str(genotypes[j])), id=str(j + 1)) for j in range(ts.num_samples)]
     alignment = Bio.Align.MultipleSeqAlignment(records)
@@ -111,6 +108,9 @@ def fitch_score(tree, genotypes):
     return score
 
 
+# TODO Fix this so that it has the same return type as the library function.
+# ALSO, add a superclass of the test cases, and add a function do_reconstruct
+# which will automatically run the library function and check the results.
 def fitch_reconstruction(tree, genotypes):
     """
     Returns the Fitch parsimony reconstruction for the specified set of genotypes.
@@ -121,10 +121,16 @@ def fitch_reconstruction(tree, genotypes):
     if there is none) and state is the new state.
     """
     # Encode the set operations using a numpy array.
-    num_alleles = np.max(genotypes) + 1
+    not_missing = genotypes != 255
+    if np.sum(not_missing) == 0:
+        raise ValueError("Must have at least one non-missing genotype")
+    num_alleles = np.max(genotypes[not_missing]) + 1
     A = np.zeros((tree.num_nodes, num_alleles), dtype=np.int8)
     for allele, u in zip(genotypes, tree.tree_sequence.samples()):
-        A[u, allele] = 1
+        if allele != 255:
+            A[u, allele] = 1
+        else:
+            A[u] = 1
     for u in tree.nodes(order="postorder"):
         if not tree.is_sample(u):
             A[u] = 1
@@ -203,9 +209,9 @@ def sankoff_reconstruction(tree, genotypes, cost_matrix=None):
     return reconstruct_states(tree, genotypes, S, cost_matrix)
 
 
-def felsenstein_example():
+def felsenstein_tables():
     """
-    Returns the tree used in Felsenstein's book, pg.15.
+    Return tables for the example tree.
     """
     #
     #     8
@@ -232,7 +238,14 @@ def felsenstein_example():
     tables.edges.add_row(0, 1, 8, 6)
     tables.edges.add_row(0, 1, 8, 7)
     tables.sort()
-    ts = tables.tree_sequence()
+    return tables
+
+
+def felsenstein_example():
+    """
+    Returns the tree used in Felsenstein's book, pg.15.
+    """
+    ts = felsenstein_tables().tree_sequence()
     return ts.first()
 
 
@@ -524,11 +537,59 @@ class TestParsimonyRoundTrip(unittest.TestCase):
         ts = msprime.simulate(20, mutation_rate=3, random_seed=3)
         self.verify(tsutil.decapitate(ts, ts.num_edges // 2))
 
+    def test_jukes_cantor_n15_multiroot(self):
+        ts = msprime.simulate(15, random_seed=1)
+        ts = tsutil.decapitate(ts, ts.num_edges // 3)
+        ts = tsutil.jukes_cantor(ts, 15, 2, seed=3)
+        self.verify(ts)
+
     def test_jukes_cantor_n50_multiroot(self):
         ts = msprime.simulate(50, random_seed=1)
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(ts)
+
+
+class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
+    """
+    Tests that we can reproduce the genotypes for set of tree sequences by
+    inferring the locations of mutations.
+    """
+
+    def verify(self, ts):
+        tables = ts.dump_tables()
+        tables.sites.clear()
+        tables.mutations.clear()
+        G = ts.genotype_matrix()
+        alleles = [v.alleles for v in ts.variants()]
+        # Set the first sample to missing data everywhere
+        G[:, 0] = -1
+        for tree in ts.trees():
+            for site in tree.sites():
+                ancestral_state, mutations = fitch_reconstruction(tree, G[site.id])
+                # ancestral_state1, (node, parent, state) = tree.reconstruct(G[site.id])
+                # self.assertEqual(ancestral_state, ancestral_state1)
+                # self.assertEqual(len(mutations), len(node))
+                # self.assertEqual(len(mutations), len(parent))
+                # self.assertEqual(len(mutations), len(state))
+                # for row1, row2 in zip(mutations, zip(node, parent, state)):
+                #     self.assertEqual(row1, tuple(row2))
+
+                site_id = tables.sites.add_row(
+                    site.position, alleles[site.id][ancestral_state])
+                parent_offset = len(tables.mutations)
+                # print("Inferred for ", site_id, mutations)
+                for node, parent, allele in mutations:
+                    parent = parent if parent == tskit.NULL else parent + parent_offset
+                    tables.mutations.add_row(
+                        site_id, node=node, parent=parent,
+                        derived_state=alleles[site.id][allele])
+        other_ts = tables.tree_sequence()
+        self.assertEqual(ts.num_samples, other_ts.num_samples)
+        H1 = list(ts.haplotypes())
+        H2 = list(other_ts.haplotypes())
+        # All samples except 0 should be reproduced exactly.
+        self.assertEqual(H1[1:], H2[1:])
 
 
 class TestReconstructAllTuples(unittest.TestCase):
@@ -592,3 +653,67 @@ class TestReconstructAllTuples(unittest.TestCase):
     def test_simple_n6_k3(self):
         ts = msprime.simulate(6, random_seed=4)
         self.verify(ts, 3)
+
+
+class TestReconstructMissingData(unittest.TestCase):
+    """
+    Tests that we correctly reconstruct when we have missing data.
+    """
+    def do_reconstruction(self, tree, genotypes):
+        ancestral_state, mutations = fitch_reconstruction(tree, genotypes)
+
+        # ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        # self.assertEqual(ancestral_state, 0)
+        # self.assertEqual(len(node), 0)
+        # self.assertEqual(len(parent), 0)
+        # self.assertEqual(len(state), 0)
+        return ancestral_state, mutations
+
+    def test_all_missing(self):
+        for n in range(2, 10):
+            ts = msprime.simulate(n, random_seed=2)
+            tree = ts.first()
+            genotypes = np.zeros(n, dtype=np.uint8) - 1
+            with self.assertRaises(ValueError):
+                fitch_reconstruction(tree, genotypes)
+
+    def test_one_non_missing(self):
+        for n in range(2, 10):
+            ts = msprime.simulate(n, random_seed=2)
+            tree = ts.first()
+            for j in range(n):
+                genotypes = np.zeros(n, dtype=np.uint8) - 1
+                genotypes[j] = 0
+                ancestral_state, mutations = fitch_reconstruction(tree, genotypes)
+                self.assertEqual(ancestral_state, 0)
+                self.assertEqual(len(mutations), 0)
+
+                # ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+                # self.assertEqual(ancestral_state, 0)
+                # self.assertEqual(len(node), 0)
+                # self.assertEqual(len(parent), 0)
+                # self.assertEqual(len(state), 0)
+
+    def test_one_missing(self):
+        for n in range(2, 10):
+            ts = msprime.simulate(n, random_seed=2)
+            tree = ts.first()
+            for j in range(n):
+                genotypes = np.zeros(n, dtype=np.uint8) - 1
+                genotypes[j] = 0
+                ancestral_state, mutations = fitch_reconstruction(tree, genotypes)
+                self.assertEqual(ancestral_state, 0)
+                self.assertEqual(len(mutations), 0)
+
+    def test_one_missing_derived_state(self):
+        tables = felsenstein_tables()
+        ts = tables.tree_sequence()
+        genotypes = np.zeros(5, dtype=np.uint8)
+        genotypes[0] = -1
+        genotypes[1] = 1
+        ancestral_state, mutations = self.do_reconstruction(ts.first(), genotypes)
+        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(len(mutations), 1)
+        self.assertEqual(mutations[0][0], 7)
+        self.assertEqual(mutations[0][1], -1)
+        self.assertEqual(mutations[0][2], 1)
