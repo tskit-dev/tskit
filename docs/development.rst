@@ -13,7 +13,7 @@ please open an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
 Quickstart
 **********
 
-- Make a fork of the tskit repo on `GitHub <github.com/tskit-dev/tskit>`_
+- Make a fork of the tskit repo on `GitHub <http://github.com/tskit-dev/tskit>`_
 - Clone your fork into a local directory, making sure that the **submodules
   are correctly initialised**::
 
