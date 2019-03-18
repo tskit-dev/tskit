@@ -37,7 +37,7 @@ NULL_NODE = -1
 
 def draw_tree(
         tree, width=None, height=None, node_labels=None, node_colours=None,
-        mutation_labels=None, mutation_colours=None, format=None):
+        mutation_labels=None, mutation_colours=None, format=None, edge_colours=None):
     # See tree.draw() for documentation on these arguments.
     if format is None:
         format = "SVG"
@@ -67,7 +67,8 @@ def draw_tree(
     td = cls(
         tree, width=width, height=height,
         node_labels=node_labels, node_colours=node_colours,
-        mutation_labels=mutation_labels, mutation_colours=mutation_colours)
+        mutation_labels=mutation_labels, mutation_colours=mutation_colours,
+        edge_colours=edge_colours)
     return td.draw()
 
 
@@ -89,7 +90,7 @@ class TreeDrawer(object):
 
     def __init__(
             self, tree, width=None, height=None, node_labels=None, node_colours=None,
-            mutation_labels=None, mutation_colours=None):
+            mutation_labels=None, mutation_colours=None, edge_colours=None):
         self._tree = tree
         self._num_leaves = len(list(tree.leaves()))
         self._width = width
@@ -100,6 +101,7 @@ class TreeDrawer(object):
         self._node_colours = {}
         self._mutation_labels = {}
         self._mutation_colours = {}
+        self._edge_colours = {}
 
         # Set the node labels and colours.
         for u in tree.nodes():
@@ -113,6 +115,9 @@ class TreeDrawer(object):
         if node_colours is not None:
             for node, colour in node_colours.items():
                 self._node_colours[node] = colour
+        if edge_colours is not None:
+            for node, colour in edge_colours.items():
+                self._edge_colours[node] = colour
 
         # Set the mutation labels.
         for site in tree.sites():
@@ -202,17 +207,24 @@ class SvgTreeDrawer(TreeDrawer):
         code as text.
         """
         dwg = svgwrite.Drawing(size=(self._width, self._height), debug=True)
-        lines = dwg.add(dwg.g(id='lines', stroke='black'))
+        default_edge_colour = "black"
+        default_node_colour = "black"
+        default_mutation_colour = "red"
+        lines = dwg.add(dwg.g(id='lines', stroke=default_edge_colour))
+        nodes = dwg.add(dwg.g(id='nodes', fill=default_node_colour))
+        mutations = dwg.add(dwg.g(id='mutations', fill=default_mutation_colour))
         left_labels = dwg.add(dwg.g(font_size=14, text_anchor="start"))
         right_labels = dwg.add(dwg.g(font_size=14, text_anchor="end"))
         mid_labels = dwg.add(dwg.g(font_size=14, text_anchor="middle"))
         for u in self._tree.nodes():
             v = self._tree.get_parent(u)
             x = self._x_coords[u], self._y_coords[u]
-            colour = "black"
-            if self._node_colours.get(u, None) is not None:
-                colour = self._node_colours[u]
-            dwg.add(dwg.circle(center=x, r=3, fill=colour))
+            fill = self._node_colours.get(u, default_node_colour)
+            if fill is not None:
+                # Keep SVG small and clean by only adding node markers if required,
+                # and only specifying a fill colour if not the default
+                params = {} if fill == default_node_colour else {'fill': fill}
+                nodes.add(dwg.circle(center=x, r=3, **params))
             dx = 0
             dy = -5
             labels = mid_labels
@@ -229,8 +241,12 @@ class SvgTreeDrawer(TreeDrawer):
                 labels.add(dwg.text(self._node_labels[u], (x[0] + dx, x[1] + dy)))
             if self._tree.parent(u) != NULL_NODE:
                 y = self._x_coords[v], self._y_coords[v]
-                lines.add(dwg.line(x, (x[0], y[1])))
-                lines.add(dwg.line((x[0], y[1]), y))
+                stroke = self._edge_colours.get(u, default_edge_colour)
+                if stroke is not None:
+                    # Keep SVG small and clean
+                    params = {} if stroke == default_edge_colour else {'stroke': stroke}
+                    lines.add(dwg.line(x, (x[0], y[1]), **params))
+                    lines.add(dwg.line((x[0], y[1]), y, **params))
 
         # Experimental stuff to render the mutation labels. Not working very
         # well at the moment.
@@ -242,11 +258,12 @@ class SvgTreeDrawer(TreeDrawer):
             alignment_baseline="middle"))
         for x, mutation in self._mutations:
             r = 3
-            colour = "red"
-            if self._mutation_colours.get(mutation.id, None) is not None:
-                colour = self._mutation_colours[mutation.id]
-            dwg.add(dwg.rect(
-                insert=(x[0] - r, x[1] - r), size=(2 * r, 2 * r), fill=colour))
+            fill = self._mutation_colours.get(mutation.id, default_mutation_colour)
+            if fill is not None:
+                # Keep SVG small and clean
+                params = {} if fill == default_mutation_colour else {'fill': fill}
+                mutations.add(dwg.rect(
+                    insert=(x[0] - r, x[1] - r), size=(2 * r, 2 * r), **params))
             dx = 5
             if self._tree.left_sib(mutation.node) == NULL_NODE:
                 dx *= -1

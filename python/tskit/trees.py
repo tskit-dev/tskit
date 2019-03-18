@@ -959,7 +959,7 @@ class Tree(object):
             self, path=None, width=None, height=None,
             node_labels=None, node_colours=None,
             mutation_labels=None, mutation_colours=None,
-            format=None):
+            format=None, edge_colours=None):
         """
         Returns a drawing of this tree.
 
@@ -1004,17 +1004,32 @@ class Tree(object):
         :param map node_labels: If specified, show custom labels for the nodes
             that are present in the map. Any nodes not specified in the map will
             not have a node label.
-        :param map node_colours: If specified, show custom colours for nodes. (Only
+        :param map node_colours: If specified, show custom colours for the nodes
+            given in the map. Any nodes not specified in the map will take the default
+            colour; a value of ``None`` is treated as transparent and hence the node
+            symbol is not plotted. (Only supported in the SVG format.)
+        :param map mutation_labels: If specified, show custom labels for the mutations
+            that are present in the map. Any nodes not specified in the map will
+            not have a node label. (Showing mutations is currently only supported in the
+            SVG format)
+        :param map mutation_colours: If specified, show custom colours for the mutations
+            given in the map. As for ``node_colours``, unspecified mutations take the
+            default colour, and ``None`` values result in the symbol being omitted. (Only
             supported in the SVG format.)
         :param str format: The format of the returned image. Currently supported
             are 'svg', 'ascii' and 'unicode'.
+        :param map edge_colours: If specified, show custom colours for the edge
+            joining each node in the map to its parent. As for ``node_colours``,
+            unspecified edges take the default colour, and ``None`` values result in the
+            edge being omitted. (Only supported in the SVG format.)
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
         output = drawing.draw_tree(
             self, format=format, width=width, height=height,
             node_labels=node_labels, node_colours=node_colours,
-            mutation_labels=mutation_labels, mutation_colours=mutation_colours)
+            mutation_labels=mutation_labels, mutation_colours=mutation_colours,
+            edge_colours=edge_colours)
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)
