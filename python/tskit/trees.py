@@ -2630,6 +2630,47 @@ class TreeSequence(object):
         return self._ll_tree_sequence.mean_descendants(reference_sets)
 
     def genealogical_nearest_neighbours(self, focal, reference_sets, num_threads=0):
+        """
+        Return the genealogical nearest neighbours (GNN) proportions for the given
+        focal nodes, with reference to two or more sets of interest, averaged over all
+        trees in the tree sequence.
+
+        The GNN proportions for a focal node in a single tree are given by first finding
+        the most recent common ancestral node :math:`a` between the focal node and any
+        other node present in the reference sets. The GNN proportion for a specific
+        reference set, :math:`S` is the number of nodes in :math:`S` that descend from
+        :math:`a`, as a proportion of the total number of descendant nodes in any of the
+        reference sets.
+
+        For example, consider a case with 2 reference sets, :math:`S_1` and :math:`S_2`.
+        For a given tree, :math:`a` is the node that includes at least one descendant in
+        :math:`S_1` or :math:`S_2` (not including the focal node). If the descendants of
+        :math:`a` include some nodes in :math:`S_1` but no nodes in :math:`S_2`, then the
+        GNN proportions for that tree will be 100% :math:`S_1` and 0% :math:`S_2`, or
+        :math:`[1.0, 0.0]`.
+
+        For a given focal node, the GNN proportions returned by this function are an
+        average of the GNNs for each tree, weighted by the genomic distance spanned by
+        that tree.
+
+        For an precise mathematical definition of GNN, see https://doi.org/10.1101/458067
+
+        .. note:: The reference sets need not include all the samples, hence the most
+            recent common ancestral node of the reference sets, :math:`a`, need not be
+            the immediate ancestor of the focal node. If the reference sets only comprise
+            sequences from relatively distant individuals, the GNN statistic may end up
+            as a measure of comparatively distant ancestry, even for tree sequences that
+            contain many closely related individuals.
+
+        :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
+        :param iterable reference sets: A list of :math:`m` lists of node IDs.
+        :return: An :math:`n`  by :math:`m` array of focal nodes by GNN proportions.
+            Every focal node corresponds to a row. The numbers in each
+            row corresponding to the GNN proportion for each of the passed-in reference
+            sets. Rows therefore sum to one.
+        :rtype: numpy.ndarray
+
+        """
         # TODO this may not be a good name because there is another version of the
         # statistic which may be occasionally useful where we return the tree-by-tree
         # value. We could do this by adding an extra dimension to the returned array
