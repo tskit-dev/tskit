@@ -2660,7 +2660,7 @@ class TreeSequence(object):
             the immediate ancestor of the focal node. If the reference sets only comprise
             sequences from relatively distant individuals, the GNN statistic may end up
             as a measure of comparatively distant ancestry, even for tree sequences that
-            contain many closely related individuals. 
+            contain many closely related individuals.
 
         :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
         :param iterable reference sets: A list of :math:`m` lists of node IDs.
