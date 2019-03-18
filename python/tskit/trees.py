@@ -2652,7 +2652,7 @@ class TreeSequence(object):
         For a given focal node, the GNN proportions returned by this function are an
         average of the GNNs for each tree, weighted by the genomic distance spanned by
         that tree.
-        
+
         For an precise mathematical definition of GNN, see https://doi.org/10.1101/458067
 
         .. note:: The reference sets need not include all the samples, hence the most
