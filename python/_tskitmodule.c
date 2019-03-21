@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2020 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -165,6 +165,24 @@ typedef struct {
     TreeSequence *tree_sequence;
     tsk_ld_calc_t *ld_calc;
 } LdCalculator;
+
+typedef struct {
+    PyObject_HEAD
+    TreeSequence *tree_sequence;
+    tsk_ls_hmm_t *ls_hmm;
+} LsHmm;
+
+typedef struct {
+    PyObject_HEAD
+    TreeSequence *tree_sequence;
+    tsk_compressed_matrix_t *compressed_matrix;
+} CompressedMatrix;
+
+typedef struct {
+    PyObject_HEAD
+    TreeSequence *tree_sequence;
+    tsk_viterbi_matrix_t *viterbi_matrix;
+} ViterbiMatrix;
 
 static void
 handle_library_error(int err)
@@ -511,6 +529,69 @@ convert_transitions(tsk_state_transition_t *transitions, size_t num_transitions)
 out:
     return ret;
 }
+
+/* TODO: this should really be a dict we're returning */
+static PyObject *
+convert_compressed_matrix_site(tsk_compressed_matrix_t *matrix, unsigned int site)
+{
+    PyObject *ret = NULL;
+    PyObject *list = NULL;
+    PyObject *item = NULL;
+    size_t j, num_values;
+
+    if (site >= matrix->num_sites) {
+        PyErr_SetString(PyExc_ValueError, "Site index out of bounds");
+        goto out;
+    }
+
+    num_values = matrix->num_transitions[site];
+    list = PyList_New(num_values);
+    if (list == NULL) {
+        goto out;
+    }
+    for (j = 0; j < num_values; j++) {
+        item = Py_BuildValue("id", matrix->nodes[site][j], matrix->values[site][j]);
+        if (item == NULL) {
+            goto out;
+        }
+        PyList_SET_ITEM(list, j, item);
+        item = NULL;
+    }
+    ret = list;
+    list = NULL;
+out:
+    Py_XDECREF(item);
+    Py_XDECREF(list);
+    return ret;
+}
+
+static PyObject *
+decode_compressed_matrix(tsk_compressed_matrix_t *matrix)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyArrayObject *decoded = NULL;
+    npy_intp dims[2];
+
+    dims[0] = tsk_treeseq_get_num_sites(matrix->tree_sequence);
+    dims[1] = tsk_treeseq_get_num_samples(matrix->tree_sequence);
+    decoded = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_FLOAT64);
+    if (decoded == NULL) {
+        goto out;
+    }
+    err = tsk_compressed_matrix_decode(matrix, PyArray_DATA(decoded));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) decoded;
+    decoded = NULL;
+out:
+    Py_XDECREF(decoded);
+    return ret;
+}
+
+
 
 static const char **
 parse_allele_list(PyObject *allele_tuple)
@@ -9151,6 +9232,627 @@ static PyTypeObject LdCalculatorType = {
     (initproc)LdCalculator_init,      /* tp_init */
 };
 
+
+/*===================================================================
+ * CompressedMatrix
+ *===================================================================
+ */
+
+static void
+CompressedMatrix_dealloc(CompressedMatrix* self)
+{
+    if (self->compressed_matrix != NULL) {
+        tsk_compressed_matrix_free(self->compressed_matrix);
+        PyMem_Free(self->compressed_matrix);
+        self->compressed_matrix = NULL;
+    }
+    Py_XDECREF(self->tree_sequence);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static int
+CompressedMatrix_init(CompressedMatrix *self, PyObject *args, PyObject *kwds)
+{
+    int ret = -1;
+    int err;
+    static char *kwlist[] = {"tree_sequence", "block_size", NULL};
+    TreeSequence *tree_sequence = NULL;
+    Py_ssize_t block_size = 0;
+
+    self->compressed_matrix = NULL;
+    self->tree_sequence = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|n", kwlist,
+            &TreeSequenceType, &tree_sequence, &block_size)) {
+        goto out;
+    }
+    self->tree_sequence = tree_sequence;
+    Py_INCREF(self->tree_sequence);
+    if (TreeSequence_check_tree_sequence(self->tree_sequence) != 0) {
+        goto out;
+    }
+    self->compressed_matrix = PyMem_Malloc(sizeof(tsk_compressed_matrix_t));
+    if (self->compressed_matrix == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    memset(self->compressed_matrix, 0, sizeof(tsk_compressed_matrix_t));
+
+    err = tsk_compressed_matrix_init(self->compressed_matrix,
+            self->tree_sequence->tree_sequence, block_size, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
+CompressedMatrix_get_num_sites(CompressedMatrix *self, void *closure)
+{
+    return Py_BuildValue("n", (Py_ssize_t) self->compressed_matrix->num_sites);
+}
+
+static PyObject *
+CompressedMatrix_get_normalisation_factor(CompressedMatrix *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array;
+    size_t num_sites = self->compressed_matrix->num_sites;
+    npy_intp dims = (npy_intp) num_sites;
+
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_FLOAT64, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), self->compressed_matrix->normalisation_factor,
+            num_sites * sizeof(*self->compressed_matrix->normalisation_factor));
+    ret = (PyObject *) array;
+out:
+    return ret;
+}
+
+static PyObject *
+CompressedMatrix_get_num_transitions(CompressedMatrix *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array;
+    size_t num_sites = self->compressed_matrix->num_sites;
+    npy_intp dims = (npy_intp) num_sites;
+
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), self->compressed_matrix->num_transitions,
+            num_sites * sizeof(*self->compressed_matrix->num_transitions));
+    ret = (PyObject *) array;
+out:
+    return ret;
+}
+
+static PyObject *
+CompressedMatrix_get_site(CompressedMatrix *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    unsigned int site;
+
+    if (!PyArg_ParseTuple(args, "I", &site)) {
+        goto out;
+    }
+    ret = convert_compressed_matrix_site(self->compressed_matrix, site);
+out:
+    return ret;
+}
+
+static PyObject *
+CompressedMatrix_decode(CompressedMatrix *self)
+{
+    return decode_compressed_matrix(self->compressed_matrix);
+}
+
+static PyGetSetDef CompressedMatrix_getsetters[] = {
+    {"num_sites", (getter) CompressedMatrix_get_num_sites, NULL, "The number of sites."},
+    {"normalisation_factor", (getter) CompressedMatrix_get_normalisation_factor, NULL,
+        "The per-site normalisation factor."},
+    {"num_transitions", (getter) CompressedMatrix_get_num_transitions, NULL,
+        "The per-site number of transitions in the compressed matrix."},
+    {NULL}  /* Sentinel */
+};
+
+static PyMemberDef CompressedMatrix_members[] = {
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef CompressedMatrix_methods[] = {
+    {"get_site", (PyCFunction) CompressedMatrix_get_site, METH_VARARGS,
+        "Returns the list of (node, value) tuples for the specified site."},
+    {"decode", (PyCFunction) CompressedMatrix_decode, METH_NOARGS,
+        "Returns the full decoded forward matrix."},
+    {NULL}  /* Sentinel */
+};
+
+static PyTypeObject CompressedMatrixType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_tskit.CompressedMatrix",             /* tp_name */
+    sizeof(CompressedMatrix),             /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    (destructor)CompressedMatrix_dealloc, /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,        /* tp_flags */
+    "CompressedMatrix objects",           /* tp_doc */
+    0,                     /* tp_traverse */
+    0,                     /* tp_clear */
+    0,                     /* tp_richcompare */
+    0,                     /* tp_weaklistoffset */
+    0,                     /* tp_iter */
+    0,                     /* tp_iternext */
+    CompressedMatrix_methods,             /* tp_methods */
+    CompressedMatrix_members,             /* tp_members */
+    CompressedMatrix_getsetters,          /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    (initproc)CompressedMatrix_init,      /* tp_init */
+};
+
+/*===================================================================
+ * ViterbiMatrix
+ *===================================================================
+ */
+
+static void
+ViterbiMatrix_dealloc(ViterbiMatrix* self)
+{
+    if (self->viterbi_matrix != NULL) {
+        tsk_viterbi_matrix_free(self->viterbi_matrix);
+        PyMem_Free(self->viterbi_matrix);
+        self->viterbi_matrix = NULL;
+    }
+    Py_XDECREF(self->tree_sequence);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static int
+ViterbiMatrix_init(ViterbiMatrix *self, PyObject *args, PyObject *kwds)
+{
+    int ret = -1;
+    int err;
+    static char *kwlist[] = {"tree_sequence", "num_records", NULL};
+    TreeSequence *tree_sequence = NULL;
+    Py_ssize_t num_records = 0;
+
+    self->viterbi_matrix = NULL;
+    self->tree_sequence = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|n", kwlist,
+            &TreeSequenceType, &tree_sequence, &num_records)) {
+        goto out;
+    }
+    self->tree_sequence = tree_sequence;
+    Py_INCREF(self->tree_sequence);
+    if (TreeSequence_check_tree_sequence(self->tree_sequence) != 0) {
+        goto out;
+    }
+    self->viterbi_matrix = PyMem_Malloc(sizeof(tsk_viterbi_matrix_t));
+    if (self->viterbi_matrix == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    memset(self->viterbi_matrix, 0, sizeof(tsk_viterbi_matrix_t));
+
+    err = tsk_viterbi_matrix_init(self->viterbi_matrix,
+            self->tree_sequence->tree_sequence, num_records, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
+ViterbiMatrix_traceback(ViterbiMatrix *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *path = NULL;
+    npy_intp dims;
+    int err;
+
+    dims = self->viterbi_matrix->matrix.num_sites;
+    path = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
+    if (path == NULL) {
+        goto out;
+    }
+
+    err = tsk_viterbi_matrix_traceback(self->viterbi_matrix,
+            PyArray_DATA(path), 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) path;
+    path = NULL;
+out:
+    Py_XDECREF(path);
+    return ret;
+}
+
+static PyObject *
+ViterbiMatrix_get_num_sites(ViterbiMatrix *self, void *closure)
+{
+    return Py_BuildValue("n", (Py_ssize_t) self->viterbi_matrix->matrix.num_sites);
+}
+
+/* NOTE: We're doing something pretty ugly here in that we're duplicating the
+ * methods from the CompressedMatrix class to provide access to the
+ * viterbi_matrix struct's embedded compressed_matrix. It would be more
+ * elegant if the ViterbiMatrix class had a CompressedMatrix member,
+ * but the memory management is tricky, so it doesn't seem worth the
+ * hassle.
+ */
+
+static PyObject *
+ViterbiMatrix_get_normalisation_factor(ViterbiMatrix *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array;
+    size_t num_sites = self->viterbi_matrix->matrix.num_sites;
+    npy_intp dims = (npy_intp) num_sites;
+
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_FLOAT64, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), self->viterbi_matrix->matrix.normalisation_factor,
+            num_sites * sizeof(*self->viterbi_matrix->matrix.normalisation_factor));
+    ret = (PyObject *) array;
+out:
+    return ret;
+}
+
+static PyObject *
+ViterbiMatrix_get_num_transitions(ViterbiMatrix *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array;
+    size_t num_sites = self->viterbi_matrix->matrix.num_sites;
+    npy_intp dims = (npy_intp) num_sites;
+
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), self->viterbi_matrix->matrix.num_transitions,
+            num_sites * sizeof(*self->viterbi_matrix->matrix.num_transitions));
+    ret = (PyObject *) array;
+out:
+    return ret;
+}
+
+static PyObject *
+ViterbiMatrix_get_site(ViterbiMatrix *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    unsigned int site;
+
+    if (!PyArg_ParseTuple(args, "I", &site)) {
+        goto out;
+    }
+    ret = convert_compressed_matrix_site(&self->viterbi_matrix->matrix, site);
+out:
+    return ret;
+}
+
+static PyObject *
+ViterbiMatrix_decode(ViterbiMatrix *self)
+{
+    return decode_compressed_matrix(&self->viterbi_matrix->matrix);
+}
+
+static PyGetSetDef ViterbiMatrix_getsetters[] = {
+    {"num_sites", (getter) ViterbiMatrix_get_num_sites, NULL, "The number of sites."},
+    {"normalisation_factor", (getter) ViterbiMatrix_get_normalisation_factor, NULL,
+        "The per-site normalisation factor."},
+    {"num_transitions", (getter) ViterbiMatrix_get_num_transitions, NULL,
+        "The per-site number of transitions in the compressed matrix."},
+    {NULL}  /* Sentinel */
+};
+
+static PyMemberDef ViterbiMatrix_members[] = {
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef ViterbiMatrix_methods[] = {
+    {"traceback", (PyCFunction) ViterbiMatrix_traceback, METH_NOARGS,
+        "Returns a path for a given haplotype."},
+    {"get_site", (PyCFunction) ViterbiMatrix_get_site, METH_VARARGS,
+        "Returns the list of (node, value) tuples for the specified site."},
+    {"decode", (PyCFunction) ViterbiMatrix_decode, METH_NOARGS,
+        "Returns the full decoded forward matrix."},
+    {NULL}  /* Sentinel */
+};
+
+static PyTypeObject ViterbiMatrixType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_tskit.ViterbiMatrix",             /* tp_name */
+    sizeof(ViterbiMatrix),             /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    (destructor)ViterbiMatrix_dealloc, /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,        /* tp_flags */
+    "ViterbiMatrix objects",           /* tp_doc */
+    0,                     /* tp_traverse */
+    0,                     /* tp_clear */
+    0,                     /* tp_richcompare */
+    0,                     /* tp_weaklistoffset */
+    0,                     /* tp_iter */
+    0,                     /* tp_iternext */
+    ViterbiMatrix_methods,             /* tp_methods */
+    ViterbiMatrix_members,             /* tp_members */
+    ViterbiMatrix_getsetters,          /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    (initproc)ViterbiMatrix_init,      /* tp_init */
+};
+
+/*===================================================================
+ * LsHmm
+ *===================================================================
+ */
+
+static void
+LsHmm_dealloc(LsHmm* self)
+{
+    if (self->ls_hmm != NULL) {
+        tsk_ls_hmm_free(self->ls_hmm);
+        PyMem_Free(self->ls_hmm);
+        self->ls_hmm = NULL;
+    }
+    Py_XDECREF(self->tree_sequence);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static int
+LsHmm_init(LsHmm *self, PyObject *args, PyObject *kwds)
+{
+    int ret = -1;
+    int err;
+    static char *kwlist[] = {"tree_sequence", "recombination_rate",
+        "mutation_rate", "precision", "acgt_alleles", NULL};
+    PyObject *recombination_rate = NULL;
+    PyArrayObject *recombination_rate_array = NULL;
+    PyObject *mutation_rate = NULL;
+    PyArrayObject *mutation_rate_array = NULL;
+    TreeSequence *tree_sequence = NULL;
+    unsigned int precision = 23;
+    int acgt_alleles = 0;
+    tsk_flags_t options = 0;
+    npy_intp *shape, num_sites;
+
+    self->ls_hmm = NULL;
+    self->tree_sequence = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!OO|Ii", kwlist,
+            &TreeSequenceType, &tree_sequence, &recombination_rate, &mutation_rate,
+            &precision, &acgt_alleles)) {
+        goto out;
+    }
+    self->tree_sequence = tree_sequence;
+    Py_INCREF(self->tree_sequence);
+    if (TreeSequence_check_tree_sequence(self->tree_sequence) != 0) {
+        goto out;
+    }
+    self->ls_hmm = PyMem_Malloc(sizeof(tsk_ls_hmm_t));
+    if (self->ls_hmm == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    memset(self->ls_hmm, 0, sizeof(tsk_ls_hmm_t));
+
+    num_sites = (npy_intp) tsk_treeseq_get_num_sites(self->tree_sequence->tree_sequence);
+    recombination_rate_array = (PyArrayObject *) PyArray_FROMANY(recombination_rate,
+            NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (recombination_rate_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(recombination_rate_array);
+    if (shape[0] != num_sites) {
+        PyErr_SetString(PyExc_ValueError,
+                "recombination_rate array must have dimension (num_sites,)");
+        goto out;
+    }
+    mutation_rate_array = (PyArrayObject *) PyArray_FROMANY(mutation_rate,
+            NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (mutation_rate_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(mutation_rate_array);
+    if (shape[0] != num_sites) {
+        PyErr_SetString(PyExc_ValueError,
+                "mutation_rate array must have dimension (num_sites,)");
+        goto out;
+    }
+    if (acgt_alleles) {
+        options |= TSK_ALLELES_ACGT;
+    }
+
+    err = tsk_ls_hmm_init(self->ls_hmm, self->tree_sequence->tree_sequence,
+            PyArray_DATA(recombination_rate_array),
+            PyArray_DATA(mutation_rate_array),
+            options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    tsk_ls_hmm_set_precision(self->ls_hmm, precision);
+    ret = 0;
+out:
+    Py_XDECREF(recombination_rate_array);
+    Py_XDECREF(mutation_rate_array);
+    return ret;
+}
+
+static PyObject *
+LsHmm_forward_matrix(LsHmm *self, PyObject *args)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *haplotype = NULL;
+    CompressedMatrix *compressed_matrix = NULL;
+    PyArrayObject *haplotype_array = NULL;
+    npy_intp *shape, num_sites;
+
+    if (!PyArg_ParseTuple(args, "OO!", &haplotype,
+                &CompressedMatrixType, &compressed_matrix)) {
+        goto out;
+    }
+    num_sites = (npy_intp) tsk_treeseq_get_num_sites(self->tree_sequence->tree_sequence);
+    haplotype_array = (PyArrayObject *) PyArray_FROMANY(haplotype, NPY_INT8,
+            1, 1, NPY_ARRAY_IN_ARRAY);
+    if (haplotype_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(haplotype_array);
+    if (shape[0] != num_sites) {
+        PyErr_SetString(PyExc_ValueError,
+                "haplotype array must have dimension (num_sites,)");
+        goto out;
+    }
+    err = tsk_ls_hmm_forward(self->ls_hmm, PyArray_DATA(haplotype_array),
+            compressed_matrix->compressed_matrix, TSK_NO_INIT);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    Py_XDECREF(haplotype_array);
+    return ret;
+}
+
+static PyObject *
+LsHmm_viterbi_matrix(LsHmm *self, PyObject *args)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *haplotype = NULL;
+    ViterbiMatrix *viterbi_matrix = NULL;
+    PyArrayObject *haplotype_array = NULL;
+    npy_intp *shape, num_sites;
+
+    if (!PyArg_ParseTuple(args, "OO!", &haplotype,
+                &ViterbiMatrixType, &viterbi_matrix)) {
+        goto out;
+    }
+    num_sites = (npy_intp) tsk_treeseq_get_num_sites(self->tree_sequence->tree_sequence);
+    haplotype_array = (PyArrayObject *) PyArray_FROMANY(haplotype, NPY_INT8,
+            1, 1, NPY_ARRAY_IN_ARRAY);
+    if (haplotype_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(haplotype_array);
+    if (shape[0] != num_sites) {
+        PyErr_SetString(PyExc_ValueError,
+                "haplotype array must have dimension (num_sites,)");
+        goto out;
+    }
+    err = tsk_ls_hmm_viterbi(self->ls_hmm, PyArray_DATA(haplotype_array),
+            viterbi_matrix->viterbi_matrix, TSK_NO_INIT);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    Py_XDECREF(haplotype_array);
+    return ret;
+}
+
+
+
+static PyMemberDef LsHmm_members[] = {
+    {NULL}  /* Sentinel */
+};
+
+static PyMethodDef LsHmm_methods[] = {
+    {"forward_matrix", (PyCFunction) LsHmm_forward_matrix, METH_VARARGS,
+        "Returns the tree encoded forward matrix for a given haplotype"},
+    {"viterbi_matrix", (PyCFunction) LsHmm_viterbi_matrix, METH_VARARGS,
+        "Returns the tree encoded Viterbi matrix for a given haplotype"},
+    {NULL}  /* Sentinel */
+};
+
+static PyTypeObject LsHmmType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_tskit.LsHmm",             /* tp_name */
+    sizeof(LsHmm),             /* tp_basicsize */
+    0,                         /* tp_itemsize */
+    (destructor)LsHmm_dealloc, /* tp_dealloc */
+    0,                         /* tp_print */
+    0,                         /* tp_getattr */
+    0,                         /* tp_setattr */
+    0,                         /* tp_reserved */
+    0,                         /* tp_repr */
+    0,                         /* tp_as_number */
+    0,                         /* tp_as_sequence */
+    0,                         /* tp_as_mapping */
+    0,                         /* tp_hash  */
+    0,                         /* tp_call */
+    0,                         /* tp_str */
+    0,                         /* tp_getattro */
+    0,                         /* tp_setattro */
+    0,                         /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,        /* tp_flags */
+    "LsHmm objects",           /* tp_doc */
+    0,                     /* tp_traverse */
+    0,                     /* tp_clear */
+    0,                     /* tp_richcompare */
+    0,                     /* tp_weaklistoffset */
+    0,                     /* tp_iter */
+    0,                     /* tp_iternext */
+    LsHmm_methods,             /* tp_methods */
+    LsHmm_members,             /* tp_members */
+    0,                         /* tp_getset */
+    0,                         /* tp_base */
+    0,                         /* tp_dict */
+    0,                         /* tp_descr_get */
+    0,                         /* tp_descr_set */
+    0,                         /* tp_dictoffset */
+    (initproc)LsHmm_init,      /* tp_init */
+};
+
 /*===================================================================
  * Module level functions
  *===================================================================
@@ -9314,6 +10016,30 @@ PyInit__tskit(void)
     }
     Py_INCREF(&LdCalculatorType);
     PyModule_AddObject(module, "LdCalculator", (PyObject *) &LdCalculatorType);
+
+    /* CompressedMatrix type */
+    CompressedMatrixType.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&CompressedMatrixType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&CompressedMatrixType);
+    PyModule_AddObject(module, "CompressedMatrix", (PyObject *) &CompressedMatrixType);
+
+    /* ViterbiMatrix type */
+    ViterbiMatrixType.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&ViterbiMatrixType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&ViterbiMatrixType);
+    PyModule_AddObject(module, "ViterbiMatrix", (PyObject *) &ViterbiMatrixType);
+
+    /* LsHmm type */
+    LsHmmType.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&LsHmmType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&LsHmmType);
+    PyModule_AddObject(module, "LsHmm", (PyObject *) &LsHmmType);
 
     /* Errors and constants */
     TskitException = PyErr_NewException("_tskit.TskitException", NULL, NULL);

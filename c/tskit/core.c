@@ -28,6 +28,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <math.h>
 
 #include <kastore.h>
 #include <tskit/core.h>
@@ -385,6 +386,17 @@ tsk_strerror_internal(int err)
         case TSK_ERR_MULTIPLE_ROOTS:
             ret = "Trees with multiple roots not supported.";
             break;
+
+        /* Haplotype matching errors */
+        case TSK_ERR_NULL_VITERBI_MATRIX:
+            ret = "Viterbi matrix has not filled.";
+            break;
+        case TSK_ERR_MATCH_IMPOSSIBLE:
+            ret = "No matching haplotype exists with current parameters";
+            break;
+        case TSK_ERR_BAD_COMPRESSED_MATRIX_NODE:
+            ret = "The compressed matrix contains a node that subtends no samples";
+            break;
     }
     return ret;
 }
@@ -550,4 +562,30 @@ tsk_search_sorted(const double *restrict array, size_t size, double value)
     }
     offset = (int64_t) (array[lower] < value);
     return (size_t) (lower + offset);
+}
+
+/* Rounds the specified double to the closest multiple of 10**-num_digits. If
+ * num_digits > 22, return value without changes. This is intended for use with
+ * small positive numbers; behaviour with large inputs has not been considered.
+ *
+ * Based on double_round from the Python standard library
+ * https://github.com/python/cpython/blob/master/Objects/floatobject.c#L985
+ */
+double
+tsk_round(double x, unsigned int ndigits)
+{
+    double pow1, y, z;
+
+    z = x;
+    if (ndigits < 22) {
+        pow1 = pow(10.0, (double) ndigits);
+        y = x * pow1;
+        z = round(y);
+        if (fabs(y - z) == 0.5) {
+            /* halfway between two integers; use round-half-even */
+            z = 2.0 * round(y / 2.0);
+        }
+        z = z / pow1;
+    }
+    return z;
 }

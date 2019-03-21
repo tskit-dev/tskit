@@ -21,6 +21,7 @@ import tests.test_tables as test_tables
 import tests.test_topology as test_topology
 import tests.test_file_format as test_file_format
 import tests.test_dict_encoding as test_dict_encoding
+import tests.test_haplotype_matching as test_haplotype_matching
 
 
 def main():
@@ -35,6 +36,7 @@ def main():
         "file_format": test_file_format,
         "topology": test_topology,
         "dict_encoding": test_dict_encoding,
+        "haplotype_matching": test_haplotype_matching,
     }
     parser = argparse.ArgumentParser(
         description="Run tests in a loop to stress low-level interface")

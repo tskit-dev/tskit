@@ -540,9 +540,72 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
 
     ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
-     // printf("ret = %s\n", tsk_strerror(ret)); 
+     // printf("ret = %s\n", tsk_strerror(ret));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_table_collection_free(&tables);
+}
+
+
+/* Returns a tree sequence consisting of a single tree with n samples.
+ */
+tsk_treeseq_t *
+caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
+{
+    int ret;
+    tsk_treeseq_t *ts = malloc(sizeof(tsk_treeseq_t));
+    tsk_table_collection_t tables;
+    tsk_id_t j, k, last_node, u;
+    int state;
+    const char *states[] = {"0", "1"};
+
+    CU_ASSERT_FATAL(ts != NULL);
+    ret = tsk_table_collection_init(&tables, 1.0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_FATAL(num_sites > 0 && num_mutations < n - 1);
+
+    tables.sequence_length = 1.0;
+    for (j = 0; j < (tsk_id_t) n; j++) {
+        ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0,
+                TSK_NULL, TSK_NULL, NULL, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, j);
+    }
+    last_node = 0;
+    for (j = 0; j < n - 1; j++) {
+        ret = tsk_node_table_add_row(&tables.nodes, 0, j + 1,
+                TSK_NULL, TSK_NULL, NULL, 0);
+        CU_ASSERT_FATAL(ret >= 0);
+        u = ret;
+        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, last_node);
+        CU_ASSERT_FATAL(ret >= 0);
+        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, j + 1);
+        CU_ASSERT_FATAL(ret >= 0);
+        last_node = u;
+    }
+    for (j = 0; j < num_sites; j++) {
+        ret = tsk_site_table_add_row(&tables.sites, (j + 1) / (double) n, "0", 1, NULL, 0);
+        CU_ASSERT_FATAL(ret >= 0);
+        u = 2 * n - 3;
+        state = 0;
+        for (k = 0; k < num_mutations; k++) {
+            state = (state + 1) % 2;
+            ret = tsk_mutation_table_add_row(&tables.mutations, j, u, TSK_NULL,
+                    states[state], 1, NULL, 0);
+            CU_ASSERT_FATAL(ret >= 0);
+            u--;
+        }
+    }
+
+    ret = tsk_table_collection_sort(&tables, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_table_collection_free(&tables);
+    return ts;
 }
 
 void

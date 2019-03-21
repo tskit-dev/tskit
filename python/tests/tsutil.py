@@ -427,6 +427,39 @@ def jukes_cantor(ts, num_sites, mu, multiple_per_node=True, seed=None):
     return new_ts
 
 
+def caterpillar_tree(n, num_sites=0, num_mutations=1):
+    """
+    Returns caterpillar tree with n samples. For each of the sites and
+    path of at most n - 2 mutations are put down along the internal
+    nodes. Each site gets exactly the same set of mutations.
+    """
+    if num_sites > 0 and num_mutations > n - 2:
+        raise ValueError("At most n - 2 mutations allowed")
+    tables = tskit.TableCollection(1)
+    for j in range(n):
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+    last_node = 0
+    # Add the internal nodes
+    for j in range(n - 1):
+        u = tables.nodes.add_row(time=j + 1)
+        tables.edges.add_row(0, tables.sequence_length, u, last_node)
+        tables.edges.add_row(0, tables.sequence_length, u, j + 1)
+        last_node = u
+    for j in range(num_sites):
+        tables.sites.add_row(position=(j + 1) / n, ancestral_state="0")
+        node = 2 * n - 3
+        state = 0
+        for k in range(num_mutations):
+            state = (state + 1) % 2
+            tables.mutations.add_row(site=j, derived_state=str(state), node=node)
+            node -= 1
+
+    tables.sort()
+    tables.build_index()
+    tables.compute_mutation_parents()
+    return tables.tree_sequence()
+
+
 def compute_mutation_parent(ts):
     """
     Compute the `parent` column of a MutationTable. Correct computation uses

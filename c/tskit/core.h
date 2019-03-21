@@ -182,6 +182,7 @@ of tskit.
 #define TSK_ERR_MUTATION_PARENT_AFTER_CHILD                         -502
 #define TSK_ERR_INCONSISTENT_MUTATIONS                              -503
 #define TSK_ERR_UNSORTED_MUTATIONS                                  -505
+#define TSK_ERR_NON_SINGLE_CHAR_MUTATION                            -506
 
 /* Sample errors */
 #define TSK_ERR_DUPLICATE_SAMPLE                                    -600
@@ -228,6 +229,11 @@ of tskit.
 #define TSK_ERR_SAMPLES_NOT_EQUAL                                  -1201
 #define TSK_ERR_INTERNAL_SAMPLES                                   -1202
 #define TSK_ERR_MULTIPLE_ROOTS                                     -1203
+
+/* Haplotype matching errors */
+#define TSK_ERR_NULL_VITERBI_MATRIX                                -1300
+#define TSK_ERR_MATCH_IMPOSSIBLE                                   -1301
+#define TSK_ERR_BAD_COMPRESSED_MATRIX_NODE                         -1302
 
 
 /* This bit is 0 for any errors originating from kastore */
@@ -279,6 +285,7 @@ extern void * tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size);
 extern void tsk_blkalloc_free(tsk_blkalloc_t *self);
 
 size_t tsk_search_sorted(const double *array, size_t size, double value);
+double tsk_round(double x, unsigned int ndigits);
 
 #define TSK_UUID_SIZE 36
 int tsk_generate_uuid(char *dest, int flags);
@@ -288,3 +295,4 @@ int tsk_generate_uuid(char *dest, int flags);
 #endif
 
 #endif
+

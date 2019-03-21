@@ -104,9 +104,10 @@ class LowLevelTestCase(unittest.TestCase):
             if j > n:
                 self.assertGreaterEqual(num_children[j], 2)
 
-    def get_example_tree_sequence(self, sample_size=10, length=1, random_seed=1):
+    def get_example_tree_sequence(
+            self, sample_size=10, length=1, mutation_rate=1, random_seed=1):
         ts = msprime.simulate(
-            sample_size, recombination_rate=0.1, mutation_rate=1,
+            sample_size, recombination_rate=0.1, mutation_rate=mutation_rate,
             random_seed=random_seed, length=length)
         return ts.ll_tree_sequence
 
@@ -1182,6 +1183,141 @@ class TestLdCalculator(LowLevelTestCase):
         for bad_start_pos in [-1, n, n + 1]:
             with self.assertRaises(_tskit.LibraryError):
                 calc.get_r2_array(buff, bad_start_pos)
+
+
+class TestLsHmm(LowLevelTestCase):
+    """
+    Tests for the LsHmm class.
+    """
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        self.assertRaises(ValueError, _tskit.LsHmm, ts, None, None)
+
+    def test_constructor(self):
+        ts = self.get_example_tree_sequence()
+        self.assertRaises(TypeError, _tskit.LsHmm)
+        self.assertRaises(TypeError, _tskit.LsHmm, None)
+        values = np.zeros(ts.get_num_sites())
+        for bad_array in ["asdf", [[], []], None]:
+            self.assertRaises(ValueError, _tskit.LsHmm, ts, bad_array, values)
+            self.assertRaises(ValueError, _tskit.LsHmm, ts, values, bad_array)
+
+    def test_bad_rate_arrays(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        self.assertGreater(m, 0)
+        values = np.zeros(m)
+        for bad_size in [0, m - 1, m + 1, m + 2]:
+            bad_array = np.zeros(bad_size)
+            self.assertRaises(ValueError, _tskit.LsHmm, ts, bad_array, values)
+            self.assertRaises(ValueError, _tskit.LsHmm, ts, values, bad_array)
+
+    def test_haplotype_input(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        fm = _tskit.CompressedMatrix(ts)
+        vm = _tskit.ViterbiMatrix(ts)
+        ls_hmm = _tskit.LsHmm(ts, np.zeros(m), np.zeros(m))
+        for bad_size in [0, m - 1, m + 1, m + 2]:
+            bad_array = np.zeros(bad_size, dtype=np.int8)
+            with self.assertRaises(ValueError):
+                ls_hmm.forward_matrix(bad_array, fm)
+            with self.assertRaises(ValueError):
+                ls_hmm.viterbi_matrix(bad_array, vm)
+        for bad_array in [[0.002], [[], []], None]:
+            with self.assertRaises(ValueError):
+                ls_hmm.forward_matrix(bad_array, fm)
+            with self.assertRaises(ValueError):
+                ls_hmm.viterbi_matrix(bad_array, vm)
+
+    def test_output_type_errors(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        h = np.zeros(m, dtype=np.int8)
+        ls_hmm = _tskit.LsHmm(ts, np.zeros(m), np.zeros(m))
+        for bad_type in [ls_hmm, None, m, []]:
+            with self.assertRaises(TypeError):
+                ls_hmm.forward_matrix(h, bad_type)
+            with self.assertRaises(TypeError):
+                ls_hmm.viterbi_matrix(h, bad_type)
+
+        other_ts = self.get_example_tree_sequence()
+        output = _tskit.CompressedMatrix(other_ts)
+        with self.assertRaises(_tskit.LibraryError):
+            ls_hmm.forward_matrix(h, output)
+        output = _tskit.ViterbiMatrix(other_ts)
+        with self.assertRaises(_tskit.LibraryError):
+            ls_hmm.viterbi_matrix(h, output)
+
+    def test_empty_forward_matrix(self):
+        for mu in [0, 1]:
+            ts = self.get_example_tree_sequence(mutation_rate=mu)
+            m = ts.get_num_sites()
+            fm = _tskit.CompressedMatrix(ts)
+            self.assertEqual(fm.num_sites, m)
+            self.assertTrue(np.array_equal(np.zeros(m), fm.normalisation_factor))
+            self.assertTrue(np.array_equal(
+                np.zeros(m, dtype=np.uint32), fm.num_transitions))
+            F = fm.decode()
+            self.assertTrue(np.all(F >= 0))
+            for j in range(m):
+                self.assertEqual(fm.get_site(j), [])
+
+    def test_empty_viterbi_matrix(self):
+        for mu in [0, 1]:
+            ts = self.get_example_tree_sequence(mutation_rate=mu)
+            m = ts.get_num_sites()
+            vm = _tskit.ViterbiMatrix(ts)
+            self.assertEqual(vm.num_sites, m)
+            # TODO we should have the same semantics for 0 sites
+            if m == 0:
+                h = vm.traceback()
+                self.assertEqual(len(h), 0)
+            else:
+                with self.assertRaises(_tskit.LibraryError):
+                    vm.traceback()
+
+    def verify_compressed_matrix(self, ts, output):
+        S = output.normalisation_factor
+        N = output.num_transitions
+        self.assertTrue(np.all(0 < S))
+        self.assertTrue(np.all(S < 1))
+        self.assertTrue(np.all(N > 0))
+        F = output.decode()
+        self.assertEqual(F.shape, (ts.get_num_sites(), ts.get_num_samples()))
+        self.assertTrue(np.all(F >= 0))
+        m = ts.get_num_sites()
+        for j in range(m):
+            site_list = output.get_site(j)
+            self.assertEqual(len(site_list), N[j])
+            for item in site_list:
+                self.assertEqual(len(item), 2)
+                node, value = item
+                self.assertTrue(0 <= node < ts.get_num_nodes())
+                self.assertTrue(0 <= value <= 1)
+        for site in [m, m + 1, 2 * m]:
+            with self.assertRaises(ValueError):
+                output.get_site(site)
+
+    def test_forward_matrix(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        output = _tskit.CompressedMatrix(ts)
+        ls_hmm = _tskit.LsHmm(ts, np.zeros(m) + 0.1, np.zeros(m) + 0.1)
+        rv = ls_hmm.forward_matrix([0 for _ in range(m)], output)
+        self.assertIsNone(rv)
+        self.verify_compressed_matrix(ts, output)
+
+    def test_viterbi_matrix(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        output = _tskit.ViterbiMatrix(ts)
+        ls_hmm = _tskit.LsHmm(ts, np.zeros(m) + 0.1, np.zeros(m) + 0.1)
+        rv = ls_hmm.viterbi_matrix([0 for _ in range(m)], output)
+        self.assertIsNone(rv)
+        self.verify_compressed_matrix(ts, output)
+        h = output.traceback()
+        self.assertIsInstance(h, np.ndarray)
 
 
 class TestTree(LowLevelTestCase):

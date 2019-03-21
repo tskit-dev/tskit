@@ -108,6 +108,7 @@ jobs:
             gcov -pb tskit@sta/tskit_core.c.gcno ../c/tskit/core.c
             gcov -pb tskit@sta/tskit_convert.c.gcno ../c/tskit/convert.c
             gcov -pb tskit@sta/tskit_stats.c.gcno ../c/tskit/stats.c
+            gcov -pb tskit@sta/tskit_haplotype_matching.c.gcno ../c/tskit/haplotype_matching.c
             cd ..
             codecov -X gcov -F c_tests
 
@@ -120,6 +121,7 @@ jobs:
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_genotypes
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_convert
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_stats
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_haplotype_matching
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_minimal_cpp
 
       - run:
