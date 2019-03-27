@@ -5733,6 +5733,8 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
         }
     }
 
+    /* All of these functions will set the kas_error internally, so we don't have
+     * to modify the return value. */
     ret = tsk_table_collection_write_format_data(self, &store);
     if (ret != 0) {
         goto out;
@@ -5774,7 +5776,11 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
         goto out;
     }
     ret = kastore_close(&store);
+    if (ret != 0) {
+        ret = tsk_set_kas_error(ret);
+    }
 out:
+    /* It's safe to close a kastore twice. */
     if (ret != 0) {
         kastore_close(&store);
     }

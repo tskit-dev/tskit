@@ -274,11 +274,16 @@ test_table_collection_dump_errors(void)
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+
     ret = tsk_table_collection_dump(&tables, "/", 0);
     CU_ASSERT_TRUE(tsk_is_kas_error(ret));
     CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_IO);
     str = tsk_strerror(ret);
     CU_ASSERT_TRUE(strlen(str) > 0);
+
+    /* We'd like to catch close errors also, but it's hard to provoke them
+     * without intercepting calls to fclose() */
 
     tsk_table_collection_free(&tables);
 }
