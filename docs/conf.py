@@ -46,10 +46,10 @@ project = 'tskit'
 copyright = '2018-2019, Tskit developers'
 author = 'Tskit developers'
 
-# The short X.Y version
-version = ''
-# The full version, including alpha/beta/rc tags
-release = ''
+# Following https://github.com/pypa/setuptools_scm#usage-from-sphinx
+from pkg_resources import get_distribution
+release = get_distribution(project).version
+version = '.'.join(release.split('.')[:2])
 
 ###################################################################
 #

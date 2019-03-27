@@ -255,7 +255,8 @@ def raise_hdf5_format_error(filename, original_exception):
                 "File format {} is too old. Please use the ``tskit upgrade`` command "
                 "to upgrade this file to the latest version".format(version))
     except (IOError, OSError, KeyError):
-        raise exceptions.FileFormatError(str(original_exception))
+        # We want to keep a useful error message here as well as the chaining history.
+        raise exceptions.FileFormatError(str(original_exception)) from original_exception
 
 
 def _dump_legacy_hdf5_v2(tree_sequence, root):
