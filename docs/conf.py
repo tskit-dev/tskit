@@ -46,9 +46,11 @@ project = 'tskit'
 copyright = '2018-2019, Tskit developers'
 author = 'Tskit developers'
 
-# Following https://github.com/pypa/setuptools_scm#usage-from-sphinx
-from pkg_resources import get_distribution
-release = get_distribution(project).version
+
+with open(os.path.abspath('../python/tskit/_version.py')) as f:
+    exec(f.read())
+# tskit_version is defined in the specified file.
+release = tskit_version
 version = '.'.join(release.split('.')[:2])
 
 ###################################################################
