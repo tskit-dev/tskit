@@ -1891,7 +1891,7 @@ class TreeSequence(object):
     @classmethod
     def load(cls, path):
         ts = _tskit.TreeSequence()
-        ts.load(path)
+        ts.load(str(path))
         return TreeSequence(ts)
 
     @classmethod
@@ -1911,7 +1911,8 @@ class TreeSequence(object):
             warnings.warn(
                 "The zlib_compression option is no longer supported and is ignored",
                 RuntimeWarning)
-        self._ll_tree_sequence.dump(path)
+        # Convert the path to str to allow us use Pathlib inputs
+        self._ll_tree_sequence.dump(str(path))
 
     @property
     def tables(self):

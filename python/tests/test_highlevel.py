@@ -35,6 +35,7 @@ import tempfile
 import unittest
 import warnings
 import uuid as _uuid
+import pathlib
 
 import numpy as np
 import msprime
@@ -1481,6 +1482,15 @@ class TestTreeSequence(HighLevelTestCase):
         self.assertRaises(NotImplementedError, ts.get_num_records)
         self.assertRaises(NotImplementedError, ts.diffs)
         self.assertRaises(NotImplementedError, ts.newick_trees)
+
+    def test_dump_pathlib(self):
+        ts = msprime.simulate(5, random_seed=1)
+        path = pathlib.Path(self.temp_dir) / "tmp.trees"
+        self.assertTrue(path.exists)
+        self.assertTrue(path.is_file)
+        ts.dump(path)
+        other_ts = tskit.load(path)
+        self.assertEqual(ts.tables, other_ts.tables)
 
     def test_zlib_compression_warning(self):
         ts = msprime.simulate(5, random_seed=1)
