@@ -1,14 +1,25 @@
 --------------------
-[0.1.5] - 2019-XX-XX
+[0.1.5] - 2019-03-27
 --------------------
 
-Under development.
-
-This release removes support for Python 2.
+This release removes support for Python 2, adds more flexible tree access and a
+new ``tskit`` command line interface.
 
 **New features**
 
 - Remove support for Python 2 (:user:`hugovk`). See :issue:`137` and :pr:`140`.
+- More flexible tree API (:pr:`121`). Adds ``TreeSequence.at`` and
+  ``TreeSequence.at_index`` methods to find specific trees, and efficient support
+  for backwards traversal using ``reversed(ts.trees())``.
+- Add initial ``tskit`` CLI (:issue:`80`)
+- Add ``tskit info`` CLI command (:issue:`66`)
+- Enable drawing SVG trees with coloured edges (:user:`hyanwong`; :issue:`149`).
+- Add ``Tree.is_descendant`` method (:issue:`120`)
+- Add ``Tree.copy`` method (:issue:`122`)
+
+**Bugfixes**
+
+- Fixes to the low-level C API (:issue:`132` and :issue:`157`)
 
 --------------------
 [0.1.4] - 2019-02-01
