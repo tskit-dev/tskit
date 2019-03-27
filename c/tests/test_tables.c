@@ -274,11 +274,16 @@ test_table_collection_dump_errors(void)
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+
     ret = tsk_table_collection_dump(&tables, "/", 0);
     CU_ASSERT_TRUE(tsk_is_kas_error(ret));
     CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_IO);
     str = tsk_strerror(ret);
     CU_ASSERT_TRUE(strlen(str) > 0);
+
+    /* We'd like to catch close errors also, but it's hard to provoke them
+     * without intercepting calls to fclose() */
 
     tsk_table_collection_free(&tables);
 }
@@ -2098,6 +2103,99 @@ test_load_reindex(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_table_overflow(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_size_t max_rows = ((tsk_size_t) INT32_MAX) + 1;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Simulate overflows */
+    tables.individuals.max_rows = max_rows;
+    tables.individuals.num_rows = max_rows;
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.nodes.max_rows = max_rows;
+    tables.nodes.num_rows = max_rows;
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.edges.max_rows = max_rows;
+    tables.edges.num_rows = max_rows;
+    ret = tsk_edge_table_add_row(&tables.edges, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.migrations.max_rows = max_rows;
+    tables.migrations.num_rows = max_rows;
+    ret = tsk_migration_table_add_row(&tables.migrations, 0, 0, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.sites.max_rows = max_rows;
+    tables.sites.num_rows = max_rows;
+    ret = tsk_site_table_add_row(&tables.sites, 0, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.mutations.max_rows = max_rows;
+    tables.mutations.num_rows = max_rows;
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.provenances.max_rows = max_rows;
+    tables.provenances.num_rows = max_rows;
+    ret = tsk_provenance_table_add_row(&tables.provenances, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tables.populations.max_rows = max_rows;
+    tables.populations.num_rows = max_rows;
+    ret = tsk_population_table_add_row(&tables.populations, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_column_overflow(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_size_t too_big = ((tsk_size_t) INT32_MAX) + 2;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, too_big, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret = tsk_site_table_add_row(&tables.sites, 0, NULL, too_big, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_site_table_add_row(&tables.sites, 0, NULL, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, too_big, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret = tsk_provenance_table_add_row(&tables.provenances, NULL, too_big, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_provenance_table_add_row(&tables.provenances, NULL, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret = tsk_population_table_add_row(&tables.populations, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+
+    tsk_table_collection_free(&tables);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -2124,8 +2222,11 @@ main(int argc, char **argv)
         {"test_dump_load_empty", test_dump_load_empty},
         {"test_dump_load_unsorted", test_dump_load_unsorted},
         {"test_load_reindex", test_load_reindex},
+        {"test_table_overflow", test_table_overflow},
+        {"test_column_overflow", test_column_overflow},
         {NULL, NULL},
     };
+
 
     return test_main(tests, argc, argv);
 }

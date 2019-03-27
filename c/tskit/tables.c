@@ -56,6 +56,15 @@ typedef struct {
     int type;
 } write_table_col_t;
 
+/* Returns true if adding the specifiec number of rows would result in overflow.
+ * Tables can support indexes from 0 to INT32_MAX, and therefore have at most
+ * INT32_MAX + 1 rows */
+static bool
+check_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
+{
+    size_t new_size = (size_t) current_size + (size_t) additional_rows;
+    return new_size > ((size_t) INT32_MAX) + 1;
+}
 
 static int
 read_table_cols(kastore_t *store, read_table_col_t *read_cols, size_t num_cols)
@@ -167,6 +176,10 @@ tsk_individual_table_expand_main_columns(tsk_individual_table_t *self,
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->flags, new_size, sizeof(tsk_flags_t));
         if (ret != 0) {
@@ -192,10 +205,13 @@ static int
 tsk_individual_table_expand_location(tsk_individual_table_t *self, tsk_size_t additional_length)
 {
     int ret = 0;
-    tsk_size_t increment = TSK_MAX(additional_length,
-            self->max_location_length_increment);
+    tsk_size_t increment = TSK_MAX(additional_length, self->max_location_length_increment);
     tsk_size_t new_size = self->max_location_length + increment;
 
+    if (check_overflow(self->location_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->location_length + additional_length) > self->max_location_length) {
         ret = expand_column((void **) &self->location, new_size, sizeof(double));
         if (ret != 0) {
@@ -215,6 +231,10 @@ tsk_individual_table_expand_metadata(tsk_individual_table_t *self, tsk_size_t ad
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
+    if (check_overflow(self->metadata_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->metadata_length + additional_length) > self->max_metadata_length) {
         ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
         if (ret != 0) {
@@ -646,6 +666,10 @@ tsk_node_table_expand_main_columns(tsk_node_table_t *self, tsk_size_t additional
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->flags, new_size, sizeof(tsk_flags_t));
         if (ret != 0) {
@@ -682,6 +706,10 @@ tsk_node_table_expand_metadata(tsk_node_table_t *self, tsk_size_t additional_len
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
+    if (check_overflow(self->metadata_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->metadata_length + additional_length) > self->max_metadata_length) {
         ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
         if (ret != 0) {
@@ -1056,6 +1084,10 @@ tsk_edge_table_expand_columns(tsk_edge_table_t *self, size_t additional_rows)
         (tsk_size_t) additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->left, new_size, sizeof(double));
         if (ret != 0) {
@@ -1321,6 +1353,10 @@ tsk_site_table_expand_main_columns(tsk_site_table_t *self, tsk_size_t additional
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->position, new_size, sizeof(double));
         if (ret != 0) {
@@ -1350,6 +1386,10 @@ tsk_site_table_expand_ancestral_state(tsk_site_table_t *self, size_t additional_
             self->max_ancestral_state_length_increment);
     tsk_size_t new_size = self->max_ancestral_state_length + increment;
 
+    if (check_overflow(self->ancestral_state_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->ancestral_state_length + additional_length)
             > self->max_ancestral_state_length) {
         ret = expand_column((void **) &self->ancestral_state, new_size, sizeof(char));
@@ -1370,6 +1410,10 @@ tsk_site_table_expand_metadata(tsk_site_table_t *self, size_t additional_length)
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
+    if (check_overflow(self->metadata_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->metadata_length + additional_length)
             > self->max_metadata_length) {
         ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
@@ -1776,6 +1820,11 @@ tsk_mutation_table_expand_main_columns(tsk_mutation_table_t *self, size_t additi
     tsk_size_t increment = (tsk_size_t) TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->site, new_size, sizeof(tsk_id_t));
         if (ret != 0) {
@@ -1813,6 +1862,10 @@ tsk_mutation_table_expand_derived_state(tsk_mutation_table_t *self, size_t addit
             self->max_derived_state_length_increment);
     tsk_size_t new_size = self->max_derived_state_length + increment;
 
+    if (check_overflow(self->derived_state_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->derived_state_length + additional_length)
             > self->max_derived_state_length) {
         ret = expand_column((void **) &self->derived_state, new_size, sizeof(char));
@@ -1833,6 +1886,10 @@ tsk_mutation_table_expand_metadata(tsk_mutation_table_t *self, size_t additional
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
+    if (check_overflow(self->metadata_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->metadata_length + additional_length)
             > self->max_metadata_length) {
         ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
@@ -2262,6 +2319,10 @@ tsk_migration_table_expand(tsk_migration_table_t *self, size_t additional_rows)
             (tsk_size_t) additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->left, new_size, sizeof(double));
         if (ret != 0) {
@@ -2558,6 +2619,10 @@ tsk_population_table_expand_main_columns(tsk_population_table_t *self, tsk_size_
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->metadata_offset, new_size + 1,
                 sizeof(tsk_size_t));
@@ -2578,6 +2643,10 @@ tsk_population_table_expand_metadata(tsk_population_table_t *self, tsk_size_t ad
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
+    if (check_overflow(self->metadata_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->metadata_length + additional_length) > self->max_metadata_length) {
         ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
         if (ret != 0) {
@@ -2890,6 +2959,10 @@ tsk_provenance_table_expand_main_columns(tsk_provenance_table_t *self, tsk_size_
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
+    if (check_overflow(self->max_rows, increment)) {
+        ret = TSK_ERR_TABLE_OVERFLOW;
+        goto out;
+    }
     if ((self->num_rows + additional_rows) > self->max_rows) {
         ret = expand_column((void **) &self->timestamp_offset, new_size + 1,
                 sizeof(tsk_size_t));
@@ -2915,6 +2988,10 @@ tsk_provenance_table_expand_timestamp(tsk_provenance_table_t *self, tsk_size_t a
             self->max_timestamp_length_increment);
     tsk_size_t new_size = self->max_timestamp_length + increment;
 
+    if (check_overflow(self->timestamp_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->timestamp_length + additional_length) > self->max_timestamp_length) {
         ret = expand_column((void **) &self->timestamp, new_size, sizeof(char));
         if (ret != 0) {
@@ -2934,6 +3011,10 @@ tsk_provenance_table_expand_provenance(tsk_provenance_table_t *self, tsk_size_t 
             self->max_record_length_increment);
     tsk_size_t new_size = self->max_record_length + increment;
 
+    if (check_overflow(self->record_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
     if ((self->record_length + additional_length) > self->max_record_length) {
         ret = expand_column((void **) &self->record, new_size, sizeof(char));
         if (ret != 0) {
@@ -5733,6 +5814,8 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
         }
     }
 
+    /* All of these functions will set the kas_error internally, so we don't have
+     * to modify the return value. */
     ret = tsk_table_collection_write_format_data(self, &store);
     if (ret != 0) {
         goto out;
@@ -5774,7 +5857,11 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
         goto out;
     }
     ret = kastore_close(&store);
+    if (ret != 0) {
+        ret = tsk_set_kas_error(ret);
+    }
 out:
+    /* It's safe to close a kastore twice. */
     if (ret != 0) {
         kastore_close(&store);
     }

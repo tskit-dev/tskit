@@ -80,7 +80,7 @@ to the API or ABI are introduced, i.e., the addition of a new function.
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 */
-#define TSK_VERSION_PATCH   1
+#define TSK_VERSION_PATCH   2
 /** @} */
 
 /* Node flags */
@@ -189,6 +189,8 @@ of tskit.
 #define TSK_ERR_BAD_TABLE_POSITION                                  -700
 #define TSK_ERR_BAD_SEQUENCE_LENGTH                                 -701
 #define TSK_ERR_TABLES_NOT_INDEXED                                  -702
+#define TSK_ERR_TABLE_OVERFLOW                                      -703
+#define TSK_ERR_COLUMN_OVERFLOW                                     -704
 
 /* Limitations */
 #define TSK_ERR_ONLY_INFINITE_SITES                                 -800
