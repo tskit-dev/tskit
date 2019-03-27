@@ -92,7 +92,7 @@ setup(
     install_requires=[numpy_ver, "h5py", "svgwrite", "jsonschema"],
     entry_points={
         'console_scripts': [
-            'tskit=tskit.__main__:main',
+            'tskit=tskit.cli:tskit_main',
         ],
     },
     project_urls={
