@@ -2774,16 +2774,55 @@ class TreeSequence(object):
         to the prefix ``msp_`` such that we would have the sample names
         ``msp_0``, ``msp_1`` and ``msp_2`` in the running example.
 
-        Example usage:
-
-        >>> with open("output.vcf", "w") as vcf_file:
-        >>>     tree_sequence.write_vcf(vcf_file, 2)
-
         .. warning::
             This output function does not currently use information in the
             :class:`IndividualTable`, and so will only correctly produce
             non-haploid output if the nodes corresponding to each individual
             are contiguous as described above.
+
+        Example usage:
+
+        .. code-block:: python
+
+            with open("output.vcf", "w") as vcf_file:
+                tree_sequence.write_vcf(vcf_file, 2)
+
+        The VCF output can also be compressed using the :mod:`gzip` module, if you wish:
+
+        .. code-block:: python
+
+            import gzip
+            with gzip.open("output.vcf.gz", "wt") as f:
+                ts.write_vcf(f)
+
+        However, this gzipped VCF may not be fully compatible with downstream tools
+        such as tabix, which may require the VCF use the specialised bgzip format.
+        A general way to convert VCF data to various formats is to pipe the text
+        produced by ``tskit`` into ``bcftools``, as done here:
+
+        .. code-block:: python
+
+            import os
+            import subprocess
+
+            read_fd, write_fd = os.pipe()
+            write_pipe = os.fdopen(write_fd, "w")
+            with open("output.bcf", "w") as bcf_file:
+                proc = subprocess.Popen(
+                    ["bcftools", "view", "-O", "b"], stdin=read_fd, stdout=bcf_file)
+                ts.write_vcf(write_pipe)
+                write_pipe.close()
+                os.close(read_fd)
+                proc.wait()
+                if proc.returncode != 0:
+                    raise RuntimeError("bcftools failed with status:", proc.returncode)
+
+        This can also be achieved on the command line use the ``tskit vcf`` command,
+        e.g.:
+
+        .. code-block:: bash
+
+            $ tskit vcf example.trees | bcftools view -O b > example.bcf
 
         :param File output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
