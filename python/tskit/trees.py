@@ -2890,7 +2890,7 @@ class TreeSequence(object):
             map_nodes=False,
             reduce_to_site_topology=False,
             filter_populations=True, filter_individuals=True, filter_sites=True,
-            record_provenance=True):
+            record_provenance=True, keep_unary=False):
         """
         Returns a simplified tree sequence that retains only the history of
         the nodes given in the list ``samples``. If ``map_nodes`` is true,
@@ -2949,6 +2949,9 @@ class TreeSequence(object):
         :param bool record_provenance: If True, record details of this call to
             simplify in the returned tree sequence's provenance information
             (Default: True).
+        :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
+            one child) that exist on the path from samples to root will be preserved
+            in the output. (Default: False)
         :return: The simplified tree sequence, or (if ``map_nodes`` is True)
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
@@ -2965,7 +2968,8 @@ class TreeSequence(object):
             reduce_to_site_topology=reduce_to_site_topology,
             filter_populations=filter_populations,
             filter_individuals=filter_individuals,
-            filter_sites=filter_sites)
+            filter_sites=filter_sites,
+            keep_unary=keep_unary)
         if record_provenance:
             # TODO add simplify arguments here
             # TODO also make sure we convert all the arguments so that they are

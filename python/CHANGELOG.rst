@@ -1,4 +1,15 @@
 --------------------
+[0.1.6] - 2019-XX-XX
+--------------------
+
+In development.
+
+**New features**
+
+- Add the ``keep_unary`` option to simplify (:user:`gtsambos`). See :issue:`1`
+  and :pr:`143`.
+
+--------------------
 [0.1.5] - 2019-03-27
 --------------------
 

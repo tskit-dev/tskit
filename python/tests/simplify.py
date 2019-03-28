@@ -98,7 +98,7 @@ class Simplifier(object):
     """
     def __init__(
             self, ts, sample, reduce_to_site_topology=False, filter_sites=True,
-            filter_populations=True, filter_individuals=True, filter_unary=True):
+            filter_populations=True, filter_individuals=True, keep_unary=False):
         self.ts = ts
         self.n = len(sample)
         self.reduce_to_site_topology = reduce_to_site_topology
@@ -106,7 +106,7 @@ class Simplifier(object):
         self.filter_sites = filter_sites
         self.filter_populations = filter_populations
         self.filter_individuals = filter_individuals
-        self.filter_unary = filter_unary
+        self.keep_unary = keep_unary
         self.num_mutations = ts.num_mutations
         self.input_sites = list(ts.sites())
         self.A_head = [None for _ in range(ts.num_nodes)]
@@ -245,7 +245,6 @@ class Simplifier(object):
         All ancestry segments in S come together into a new parent.
         The new parent must be assigned and any overlapping segments coalesced.
         """
-
         output_id = self.node_id_map[input_id]
         is_sample = output_id != -1
         if is_sample:
@@ -262,11 +261,10 @@ class Simplifier(object):
                 if is_sample:
                     self.record_edge(left, right, output_id, ancestry_node)
                     ancestry_node = output_id
-                elif not self.filter_unary:
+                elif self.keep_unary:
                     if output_id == -1:
                         output_id = self.record_node(input_id)
                     self.record_edge(left, right, output_id, ancestry_node)
-
             else:
                 if output_id == -1:
                     output_id = self.record_node(input_id)
@@ -276,11 +274,9 @@ class Simplifier(object):
             if is_sample and left != prev_right:
                 # Fill in any gaps in the ancestry for the sample
                 self.add_ancestry(input_id, prev_right, left, output_id)
-
-            if self.filter_unary:
-                self.add_ancestry(input_id, left, right, ancestry_node)
-            else:
-                self.add_ancestry(input_id, left, right, output_id)
+            if self.keep_unary:
+                ancestry_node = output_id
+            self.add_ancestry(input_id, left, right, ancestry_node)
             prev_right = right
 
         if is_sample and prev_right != self.sequence_length:
@@ -302,8 +298,7 @@ class Simplifier(object):
             x = self.A_head[edge.child]
             while x is not None:
                 if x.right > edge.left and edge.right > x.left:
-                    y = Segment(
-                        max(x.left, edge.left), min(x.right, edge.right), x.node)
+                    y = Segment(max(x.left, edge.left), min(x.right, edge.right), x.node)
                     S.append(y)
                 x = x.next
         self.merge_labeled_ancestors(S, parent)
@@ -420,7 +415,6 @@ class Simplifier(object):
             edges = all_edges[:1]
             for e in all_edges[1:]:
                 if e.parent != edges[0].parent:
-                    # print('input_id:', edges[0].parent)
                     self.process_parent_edges(edges)
                     edges = []
                 edges.append(e)
@@ -460,9 +454,9 @@ if __name__ == "__main__":
     ts = tskit.load(sys.argv[1])
     samples = list(map(int, sys.argv[2:]))
 
-    # When filter_unary = True
-    print('When filter_unary = True:')
-    s = Simplifier(ts, samples, filter_unary=True)
+    # When keep_unary = True
+    print('When keep_unary = True:')
+    s = Simplifier(ts, samples, keep_unary=True)
     # s.print_state()
     tss, _ = s.simplify()
     tables = tss.dump_tables()
@@ -472,9 +466,9 @@ if __name__ == "__main__":
     print(tables.sites)
     print(tables.mutations)
 
-    # When filter_unary = False
-    print('\nWhen filter_unary = False:')
-    s = Simplifier(ts, samples, filter_unary=False)
+    # When keep_unary = False
+    print('\nWhen keep_unary = False:')
+    s = Simplifier(ts, samples, keep_unary=False)
     # s.print_state()
     tss, _ = s.simplify()
     tables = tss.dump_tables()

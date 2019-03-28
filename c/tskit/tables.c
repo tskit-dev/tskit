@@ -4006,6 +4006,8 @@ simplifier_print_state(simplifier_t *self, FILE *out)
             !!(self->options & TSK_FILTER_SITES));
     fprintf(out, "\treduce_to_site_topology  : %d\n",
             !!(self->options & TSK_REDUCE_TO_SITE_TOPOLOGY));
+    fprintf(out, "\tkeep_unary  : %d\n",
+            !!(self->options & TSK_KEEP_UNARY));
 
     fprintf(out, "===\nInput tables\n==\n");
     tsk_table_collection_print_state(&self->input_tables, out);
@@ -4531,6 +4533,7 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
     tsk_id_t ancestry_node;
     tsk_id_t output_id = self->node_id_map[input_id];
     bool is_sample = output_id != TSK_NULL;
+    bool keep_unary = !!(self->options & TSK_KEEP_UNARY);
 
     if (is_sample) {
         /* Free up the existing ancestry mapping. */
@@ -4558,6 +4561,14 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
                     goto out;
                 }
                 ancestry_node = output_id;
+            } else if (keep_unary) {
+                if (output_id == TSK_NULL) {
+                    output_id = simplifier_record_node(self, input_id, false);
+                }
+                ret = simplifier_record_edge(self, left, right, ancestry_node);
+                if (ret != 0) {
+                    goto out;
+                }
             }
         } else {
             if (output_id == TSK_NULL) {
@@ -4582,6 +4593,9 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
             if (ret != 0) {
                 goto out;
             }
+        }
+        if (keep_unary) {
+            ancestry_node = output_id;
         }
         ret = simplifier_add_ancestry(self, input_id, left, right, ancestry_node);
         if (ret != 0) {

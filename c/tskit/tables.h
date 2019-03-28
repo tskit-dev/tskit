@@ -586,6 +586,7 @@ typedef struct {
 #define TSK_FILTER_POPULATIONS           (1 << 1)
 #define TSK_FILTER_INDIVIDUALS           (1 << 2)
 #define TSK_REDUCE_TO_SITE_TOPOLOGY      (1 << 3)
+#define TSK_KEEP_UNARY                   (1 << 4)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_OFFSETS                (1 << 0)
@@ -2134,6 +2135,10 @@ TSK_REDUCE_TO_SITE_TOPOLOGY
     For a given site, the topology of the tree containing that site will be 
     identical (up to node ID remapping) to the topology of the corresponding tree 
     in the input.
+TSK_KEEP_UNARY
+    By default simplify removes unary nodes (i.e., nodes with exactly one child) 
+    along the path from samples to root. If this option is specified such unary
+    nodes will be preserved in the output.
 
 .. note:: Migrations are currently not supported by simplify, and an error will
     be raised if we attempt call simplify on a table collection with greater
