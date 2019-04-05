@@ -2295,8 +2295,7 @@ class TreeSequence(object):
         :rtype: iter(:class:`.Edge`)
         """
         for j in range(self.num_edges):
-            left, right, parent, child = self._ll_tree_sequence.get_edge(j)
-            yield Edge(left=left, right=right, parent=parent, child=child)
+            yield self.edge(j)
 
     def edgesets(self):
         # TODO the order that these records are returned in is not well specified.
@@ -2736,6 +2735,16 @@ class TreeSequence(object):
         return Node(
             id_=id_, flags=flags, time=time, population=population,
             individual=individual, metadata=metadata)
+
+    def edge(self, id_):
+        """
+        Returns the :ref:`edge <sec_edge_table_definition>` in this tree sequence
+        with the specified ID.
+
+        :rtype: :class:`.Edge`
+        """
+        (left, right, parent, child) = self._ll_tree_sequence.get_edge(id_)
+        return Edge(left=left, right=right, parent=parent, child=child)
 
     def mutation(self, id_):
         """
