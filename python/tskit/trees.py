@@ -604,9 +604,8 @@ class Tree(object):
 
         >>> tree.time(tree.parent(u)) - tree.time(u)
 
-        Note that this is not related to the value returned by
-        :attr:`.length`, which describes the length of the interval
-        covered by the tree in genomic coordinates.
+        (note that this is not related to the property :attr:`.length` which
+        is a deprecated alias for the genomic :attr:`.span` covered by a tree)
 
         :param int u: The node of interest.
         :return: The branch length from u to its parent.
@@ -915,17 +914,22 @@ class Tree(object):
         return self._ll_tree.get_left(), self._ll_tree.get_right()
 
     def get_length(self):
-        # Deprecated alias for self.length
+        # Deprecated alias for self.span
         return self.length
 
     @property
     def length(self):
+        # Deprecated alias for self.span
+        return self.span
+
+    @property
+    def span(self):
         """
-        Returns the length of the genomic interval that this tree represents.
+        Returns the genomic distance that this tree spans.
         This is defined as :math:`r - l`, where :math:`(l, r)` is the genomic
         interval returned by :attr:`.interval`.
 
-        :return: The length of the genomic interval covered by this tree.
+        :return: The genomic distance covered by this tree.
         :rtype: int
         """
         left, right = self.get_interval()
@@ -2631,9 +2635,9 @@ class TreeSequence(object):
         Computes for every node the mean number of samples in each of the
         `reference_sets` that descend from that node, averaged over the
         portions of the genome for which the node is ancestral to *any* sample.
-        The output is an array, `C[node, j]`, which reports the total length of
+        The output is an array, `C[node, j]`, which reports the total span of
         all genomes in `reference_sets[j]` that inherit from `node`, divided by
-        the total length of the genome on which `node` is an ancestor to any
+        the total span of the genome on which `node` is an ancestor to any
         sample in the tree sequence.
 
         .. note:: This interface *may change*, particularly the normalization by
@@ -2689,7 +2693,7 @@ class TreeSequence(object):
         # TODO this may not be a good name because there is another version of the
         # statistic which may be occasionally useful where we return the tree-by-tree
         # value. We could do this by adding an extra dimension to the returned array
-        # which would give the values tree-by-tree. The tree lengths can be computed
+        # which would give the values tree-by-tree. The tree spans can be computed
         # easily enough, *but* there may be occasions when the statistic isn't
         # defined over particular trees.
         #
