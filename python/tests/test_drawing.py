@@ -605,3 +605,47 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg)
         mutations_in_tree = list(t.mutations())
         self.assertEqual(svg.count('<rect'), len(mutations_in_tree) - 1)
+
+    def test_max_timescale(self):
+        nodes = io.StringIO("""\
+        id  is_sample   time
+        0   1           0
+        1   1           0
+        2   1           0
+        3   0           1
+        4   0           2
+        5   0           3
+        """)
+        edges = io.StringIO("""\
+        left    right   parent  child
+        0       1       5       2
+        0       1       5       3
+        1       2       4       2
+        1       2       4       3
+        0       2       3       0
+        0       2       3       1
+        """)
+        ts = tskit.load_text(nodes, edges, strict=False)
+
+        svg1 = ts.at_index(0).draw()
+        svg2 = ts.at_index(1).draw()
+        # if not scaled to ts, node 3 is at a different height in both trees, because the
+        # root is at a different height. We expect a label looking something like
+        # <text x="10.0" y="XXXX">3</text> where XXXX is different
+        str_pos = svg1.find('>3<')
+        snippet1 = svg1[svg1.rfind("<", 0, str_pos):str_pos]
+        str_pos = svg2.find('>3<')
+        snippet2 = svg2[svg2.rfind("<", 0, str_pos):str_pos]
+        self.assertNotEqual(snippet1, snippet2)
+
+        svg1 = ts.at_index(0).draw(max_timescale=5)
+        svg2 = ts.at_index(1).draw(max_timescale=5)
+        # when scaled, node 3 should be at the *same* height in both trees, so the label
+        # should be the same
+        self.verify_basic_svg(svg1)
+        self.verify_basic_svg(svg2)
+        str_pos = svg1.find('>3<')
+        snippet1 = svg1[svg1.rfind("<", 0, str_pos):str_pos]
+        str_pos = svg2.find('>3<')
+        snippet2 = svg2[svg2.rfind("<", 0, str_pos):str_pos]
+        self.assertEqual(snippet1, snippet2)

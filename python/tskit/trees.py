@@ -969,7 +969,7 @@ class Tree(object):
             self, path=None, width=None, height=None,
             node_labels=None, node_colours=None,
             mutation_labels=None, mutation_colours=None,
-            format=None, edge_colours=None):
+            format=None, edge_colours=None, max_timescale=None):
         """
         Returns a drawing of this tree.
 
@@ -1039,6 +1039,11 @@ class Tree(object):
             joining each node in the map to its parent. As for ``node_colours``,
             unspecified edges take the default colour, and ``None`` values result in the
             edge being omitted. (Only supported in the SVG format.)
+        :param map max_timescale: If None (the default), scale the tree so that it fits
+            exactly into the image. Otherwise, set the y-scale so that the top of the
+            image corresponds to the time passed in here. For example, to compare tree
+            heights across a tree sequence, you might want to set ``max_timescale`` to
+            ``tree.tree_sequence.oldest_root_time``.
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
@@ -1046,7 +1051,7 @@ class Tree(object):
             self, format=format, width=width, height=height,
             node_labels=node_labels, node_colours=node_colours,
             mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-            edge_colours=edge_colours)
+            edge_colours=edge_colours, max_timescale=max_timescale)
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)

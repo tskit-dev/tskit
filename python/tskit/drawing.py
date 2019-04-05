@@ -36,7 +36,8 @@ except ImportError:  # pragma: no cover
 
 def draw_tree(
         tree, width=None, height=None, node_labels=None, node_colours=None,
-        mutation_labels=None, mutation_colours=None, format=None, edge_colours=None):
+        mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
+        max_timescale=None):
     # See tree.draw() for documentation on these arguments.
     if format is None:
         format = "SVG"
@@ -67,7 +68,7 @@ def draw_tree(
         tree, width=width, height=height,
         node_labels=node_labels, node_colours=node_colours,
         mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-        edge_colours=edge_colours)
+        edge_colours=edge_colours, max_timescale=max_timescale)
     return td.draw()
 
 
@@ -89,7 +90,8 @@ class TreeDrawer(object):
 
     def __init__(
             self, tree, width=None, height=None, node_labels=None, node_colours=None,
-            mutation_labels=None, mutation_colours=None, edge_colours=None):
+            mutation_labels=None, mutation_colours=None, edge_colours=None,
+            max_timescale=None):
         self._tree = tree
         self._num_leaves = len(list(tree.leaves()))
         self._width = width
@@ -101,6 +103,7 @@ class TreeDrawer(object):
         self._mutation_labels = {}
         self._mutation_colours = {}
         self._edge_colours = {}
+        self._max_timescale = max_timescale
 
         # Set the node labels and colours.
         for u in tree.nodes():
@@ -143,7 +146,9 @@ class SvgTreeDrawer(TreeDrawer):
     def _assign_coordinates(self):
         y_padding = 20
         t = 1
-        if self._tree.num_roots > 0:
+        if self._max_timescale is not None:
+            t = self._max_timescale
+        elif self._tree.num_roots > 0:
             t = max(self._tree.time(root) for root in self._tree.roots)
         # In pathological cases, all the roots are at time 0
         if t == 0:
