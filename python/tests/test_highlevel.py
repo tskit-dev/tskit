@@ -213,10 +213,30 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
     yield tsutil.add_random_metadata(ts)
 
 
+def get_empty_ts(has_nodes=False):
+    """
+    Returns an empty tree sequence for testing purposes
+    """
+    node_text = """\
+        id      is_sample   time
+        """
+    if has_nodes:
+        node_text += """\
+        0       1           0
+        1       1           0
+        2       0           0.5
+        3       0           1.0
+        """
+    nodes = io.StringIO(node_text)
+    edges = io.StringIO("""\
+        left    right   parent  child
+        """)
+    return tskit.load_text(nodes=nodes, edges=edges, sequence_length=1, strict=False)
+
+
 def get_bottleneck_examples():
     """
-    Returns an iterator of example tree sequences with nonbinary
-    trees.
+    Returns an iterator of example tree sequences with nonbinary trees.
     """
     bottlenecks = [
         msprime.SimpleBottleneck(0.01, 0, proportion=0.05),
@@ -232,8 +252,7 @@ def get_bottleneck_examples():
 
 def get_back_mutation_examples():
     """
-    Returns an iterator of example tree sequences with nonbinary
-    trees.
+    Returns an iterator of example tree sequences with nonbinary trees.
     """
     ts = msprime.simulate(10, random_seed=1)
     for j in [1, 2, 3]:
@@ -1233,6 +1252,16 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertRaises(ValueError, ts.get_time, N + 1)
             for u in range(N):
                 self.assertEqual(ts.get_time(u), ts.node(u).time)
+
+    def test_oldest_root_time(self):
+        for ts in get_example_tree_sequences():
+            oldest = 0
+            for tree in ts.trees():
+                for root in tree.roots:
+                    oldest = max(oldest, tree.time(root))
+            self.assertEqual(oldest, ts.oldest_root_time)
+        with self.assertRaises(ValueError):
+            get_empty_ts().oldest_root_time
 
     def test_write_vcf_interface(self):
         for ts in get_example_tree_sequences():
