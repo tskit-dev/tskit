@@ -2012,11 +2012,11 @@ class TestTree(HighLevelTestCase):
         self.assertEqual(t1.get_root(), t1.root)
         self.assertEqual(t1.get_index(), t1.index)
         self.assertEqual(t1.get_interval(), t1.interval)
-        self.assertEqual(t1.get_length(), t1.length)
         self.assertEqual(t1.get_sample_size(), t1.sample_size)
         self.assertEqual(t1.get_num_mutations(), t1.num_mutations)
         self.assertEqual(t1.get_parent_dict(), t1.parent_dict)
         self.assertEqual(t1.get_total_branch_length(), t1.total_branch_length)
+        self.assertEqual(t1.span, t1.interval[1] - t1.interval[0])
         # node properties
         root = t1.get_root()
         for node in t1.nodes():
@@ -2035,6 +2035,11 @@ class TestTree(HighLevelTestCase):
         for pair in pairs:
             self.assertEqual(t1.get_mrca(*pair), t1.mrca(*pair))
             self.assertEqual(t1.get_tmrca(*pair), t1.tmrca(*pair))
+
+    def test_deprecated_apis(self):
+        t1 = self.get_tree()
+        self.assertEqual(t1.get_length(), t1.span)
+        self.assertEqual(t1.length, t1.span)
 
     def test_seek_index(self):
         ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)
