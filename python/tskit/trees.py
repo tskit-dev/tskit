@@ -1013,13 +1013,13 @@ class Tree(object):
             colour; a value of ``None`` is treated as transparent and hence the node
             symbol is not plotted. (Only supported in the SVG format.)
         :param map mutation_labels: If specified, show custom labels for the mutations
-            that are present in the map. Any nodes not specified in the map will
-            not have a node label. (Showing mutations is currently only supported in the
+            (specified by ID) that are present in the map. Any mutations not in the map
+            will not have a label. (Showing mutations is currently only supported in the
             SVG format)
         :param map mutation_colours: If specified, show custom colours for the mutations
-            given in the map. As for ``node_colours``, unspecified mutations take the
-            default colour, and ``None`` values result in the symbol being omitted. (Only
-            supported in the SVG format.)
+            given in the map (specified by ID). As for ``node_colours``, mutations not
+            present in the map take the default colour, and those mapping to ``None``
+            are not drawn. (Only supported in the SVG format.)
         :param str format: The format of the returned image. Currently supported
             are 'svg', 'ascii' and 'unicode'.
         :param map edge_colours: If specified, show custom colours for the edge
