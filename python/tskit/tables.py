@@ -1580,7 +1580,8 @@ class TableCollection(object):
             self, samples=None,
             filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
             reduce_to_site_topology=False,
-            filter_populations=True, filter_individuals=True, filter_sites=True):
+            filter_populations=True, filter_individuals=True, filter_sites=True,
+            keep_unary=False):
         """
         Simplifies the tables in place to retain only the information necessary
         to reconstruct the tree sequence describing the given ``samples``.
@@ -1621,6 +1622,9 @@ class TableCollection(object):
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: True)
+        :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
+            one child) that exist on the path from samples to root will be preserved
+            in the output. (Default: False)
         :return: A numpy array mapping node IDs in the input tables to their
             corresponding node IDs in the output tables.
         :rtype: numpy array (dtype=np.int32).
@@ -1639,7 +1643,8 @@ class TableCollection(object):
             samples, filter_sites=filter_sites,
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
-            reduce_to_site_topology=reduce_to_site_topology)
+            reduce_to_site_topology=reduce_to_site_topology,
+            keep_unary=keep_unary)
 
     def sort(self, edge_start=0):
         """
