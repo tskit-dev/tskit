@@ -213,27 +213,6 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
     yield tsutil.add_random_metadata(ts)
 
 
-def get_empty_ts(has_nodes=False):
-    """
-    Returns an empty tree sequence for testing purposes
-    """
-    node_text = """\
-        id      is_sample   time
-        """
-    if has_nodes:
-        node_text += """\
-        0       1           0
-        1       1           0
-        2       0           0.5
-        3       0           1.0
-        """
-    nodes = io.StringIO(node_text)
-    edges = io.StringIO("""\
-        left    right   parent  child
-        """)
-    return tskit.load_text(nodes=nodes, edges=edges, sequence_length=1, strict=False)
-
-
 def get_bottleneck_examples():
     """
     Returns an iterator of example tree sequences with nonbinary trees.
@@ -1253,15 +1232,23 @@ class TestTreeSequence(HighLevelTestCase):
             for u in range(N):
                 self.assertEqual(ts.get_time(u), ts.node(u).time)
 
-    def test_oldest_root_time(self):
+    def test_max_root_time(self):
         for ts in get_example_tree_sequences():
-            oldest = 0
-            for tree in ts.trees():
-                for root in tree.roots:
-                    oldest = max(oldest, tree.time(root))
-            self.assertEqual(oldest, ts.oldest_root_time)
-        with self.assertRaises(ValueError):
-            get_empty_ts().oldest_root_time
+            oldest = max(
+                max(tree.time(root) for root in tree.roots) for tree in ts.trees())
+            self.assertEqual(oldest, ts.max_root_time)
+
+    def test_max_root_time_corner_cases(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=2)
+        tables.nodes.add_row(flags=0, time=3)
+        self.assertEqual(tables.tree_sequence().max_root_time, 2)
+        tables.edges.add_row(0, 1, 1, 0)
+        self.assertEqual(tables.tree_sequence().max_root_time, 2)
+        tables.edges.add_row(0, 1, 3, 1)
+        self.assertEqual(tables.tree_sequence().max_root_time, 3)
 
     def test_write_vcf_interface(self):
         for ts in get_example_tree_sequences():

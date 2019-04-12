@@ -2247,24 +2247,26 @@ class TreeSequence(object):
         return self._ll_tree_sequence.get_num_migrations()
 
     @property
-    def oldest_root_time(self):
+    def max_root_time(self):
         """
-        Returns the oldest time for any parent in any of the edges in this tree sequence,
-        which is equivalent to the oldest root node in any tree. This is usually, but not
-        necessarily, the age of the oldest node in the entire tree sequence (since a tree
-        sequence can contain nodes which are not present in any tree). Raises a
-        ValueError if there are no edges in the tree sequence.
+        Returns time of the oldest root in any of the trees in this tree sequence.
+        This is usually equal to ``np.max(ts.tables.nodes.time)`` but may not be
+        since there can be nodes that are not present in any tree. Consistent
+        with the definition of tree roots, if there are no edges in the tree
+        sequence we return the time of the oldest sample.
 
-        :return: The oldest time of any root in any tree in this tree sequence.
+        :return: The maximum time of a root in this tree sequence.
         :rtype: float
         """
-        # Edges are guaranteed to be listed in parent-time order, so we can just get the
-        # last one, assuming there are any edges (otherwise return None). This is O(1)
-        # compared to looking for the maximum node time.
-        if self.num_edges == 0:
-            raise ValueError("No edges / trees in this tree sequence")
-        l, r, parent, child = self._ll_tree_sequence.get_edge(self.num_edges - 1)
-        return self.node(parent).time
+        ret = max(self.node(u).time for u in self.samples())
+        if self.num_edges > 0:
+            # Edges are guaranteed to be listed in parent-time order, so we can get the
+            # last one to get the oldest root.
+            edge = self.edge(self.num_edges - 1)
+            # However, we can have situations where there is a sample older than a
+            # 'proper' root
+            ret = max(ret, self.node(edge.parent).time)
+        return ret
 
     def migrations(self):
         """
