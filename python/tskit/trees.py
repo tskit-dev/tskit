@@ -2246,6 +2246,28 @@ class TreeSequence(object):
         """
         return self._ll_tree_sequence.get_num_migrations()
 
+    @property
+    def max_root_time(self):
+        """
+        Returns time of the oldest root in any of the trees in this tree sequence.
+        This is usually equal to ``np.max(ts.tables.nodes.time)`` but may not be
+        since there can be nodes that are not present in any tree. Consistent
+        with the definition of tree roots, if there are no edges in the tree
+        sequence we return the time of the oldest sample.
+
+        :return: The maximum time of a root in this tree sequence.
+        :rtype: float
+        """
+        ret = max(self.node(u).time for u in self.samples())
+        if self.num_edges > 0:
+            # Edges are guaranteed to be listed in parent-time order, so we can get the
+            # last one to get the oldest root.
+            edge = self.edge(self.num_edges - 1)
+            # However, we can have situations where there is a sample older than a
+            # 'proper' root
+            ret = max(ret, self.node(edge.parent).time)
+        return ret
+
     def migrations(self):
         """
         Returns an iterator over all the

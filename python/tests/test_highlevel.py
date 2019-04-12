@@ -215,8 +215,7 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
 
 def get_bottleneck_examples():
     """
-    Returns an iterator of example tree sequences with nonbinary
-    trees.
+    Returns an iterator of example tree sequences with nonbinary trees.
     """
     bottlenecks = [
         msprime.SimpleBottleneck(0.01, 0, proportion=0.05),
@@ -232,8 +231,7 @@ def get_bottleneck_examples():
 
 def get_back_mutation_examples():
     """
-    Returns an iterator of example tree sequences with nonbinary
-    trees.
+    Returns an iterator of example tree sequences with nonbinary trees.
     """
     ts = msprime.simulate(10, random_seed=1)
     for j in [1, 2, 3]:
@@ -1233,6 +1231,24 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertRaises(ValueError, ts.get_time, N + 1)
             for u in range(N):
                 self.assertEqual(ts.get_time(u), ts.node(u).time)
+
+    def test_max_root_time(self):
+        for ts in get_example_tree_sequences():
+            oldest = max(
+                max(tree.time(root) for root in tree.roots) for tree in ts.trees())
+            self.assertEqual(oldest, ts.max_root_time)
+
+    def test_max_root_time_corner_cases(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=2)
+        tables.nodes.add_row(flags=0, time=3)
+        self.assertEqual(tables.tree_sequence().max_root_time, 2)
+        tables.edges.add_row(0, 1, 1, 0)
+        self.assertEqual(tables.tree_sequence().max_root_time, 2)
+        tables.edges.add_row(0, 1, 3, 1)
+        self.assertEqual(tables.tree_sequence().max_root_time, 3)
 
     def test_write_vcf_interface(self):
         for ts in get_example_tree_sequences():
