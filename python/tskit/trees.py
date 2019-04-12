@@ -969,7 +969,8 @@ class Tree(object):
             self, path=None, width=None, height=None,
             node_labels=None, node_colours=None,
             mutation_labels=None, mutation_colours=None,
-            format=None, edge_colours=None, max_timescale=None):
+            format=None, edge_colours=None, tree_height_scale=None,
+            max_tree_height=None):
         """
         Returns a drawing of this tree.
 
@@ -1039,11 +1040,21 @@ class Tree(object):
             joining each node in the map to its parent. As for ``node_colours``,
             unspecified edges take the default colour, and ``None`` values result in the
             edge being omitted. (Only supported in the SVG format.)
-        :param map max_timescale: If None (the default), scale the tree so that it fits
-            exactly into the image. Otherwise, set the y-scale so that the top of the
-            image corresponds to the time passed in here. For example, to compare tree
-            heights across a tree sequence, you might want to set ``max_timescale`` to
-            ``tree.tree_sequence.oldest_root_time``.
+        :param str tree_height_scale: Control how height values for nodes are computed.
+            If this is equal to ``"time"``, node heights are proportional to their time
+            values. If it is equal to ``"rank"``, node heights are spaced equally
+            according to their ranked times. For SVG output the default is time-scale
+            whereas for text output the default is rank-scale. Time scaling is not
+            currently supported for text output.
+        :param str,float max_tree_height: The maximum tree height value in the current
+            scaling system (see ``tree_height_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"``, the maximum tree height is set to be
+            that of the oldest root in the tree. If equal to ``"ts"`` the maximum
+            height is set to be the height of the oldest root in the tree sequence;
+            this is useful when drawing trees from the same tree sequence as it ensures
+            that node heights are consistent. If a numeric value, this is used as the
+            maximum tree height by which to scale other nodes. This parameters
+            is not currently supported for text output.
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
@@ -1051,7 +1062,8 @@ class Tree(object):
             self, format=format, width=width, height=height,
             node_labels=node_labels, node_colours=node_colours,
             mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-            edge_colours=edge_colours, max_timescale=max_timescale)
+            edge_colours=edge_colours, tree_height_scale=tree_height_scale,
+            max_tree_height=max_tree_height)
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)

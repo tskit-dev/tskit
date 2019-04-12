@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover
 def draw_tree(
         tree, width=None, height=None, node_labels=None, node_colours=None,
         mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
-        max_timescale=None):
+        tree_height_scale=None, max_tree_height=None):
     # See tree.draw() for documentation on these arguments.
     if format is None:
         format = "SVG"
@@ -68,15 +68,21 @@ def draw_tree(
         tree, width=width, height=height,
         node_labels=node_labels, node_colours=node_colours,
         mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-        edge_colours=edge_colours, max_timescale=max_timescale)
+        edge_colours=edge_colours, tree_height_scale=tree_height_scale,
+        max_tree_height=max_tree_height)
     return td.draw()
 
+
+# NOTE The design of these classes is pretty poor. Could badly do with a rewrite.
 
 class TreeDrawer(object):
     """
     A class to draw sparse trees in SVG format.
     """
-
+    # NOTE: This was introduced as a way to centralise the SVG and text drawing
+    # code, but isn't actually used now. Probably the right thing to do is to
+    # have a more abstract 'canvas' idea which the backends draw onto, and the
+    # coordinates get transformed as required.
     discretise_coordinates = False
 
     def _discretise(self, x):
@@ -91,7 +97,7 @@ class TreeDrawer(object):
     def __init__(
             self, tree, width=None, height=None, node_labels=None, node_colours=None,
             mutation_labels=None, mutation_colours=None, edge_colours=None,
-            max_timescale=None):
+            tree_height_scale=None, max_tree_height=None):
         self._tree = tree
         self._num_leaves = len(list(tree.leaves()))
         self._width = width
@@ -103,7 +109,14 @@ class TreeDrawer(object):
         self._mutation_labels = {}
         self._mutation_colours = {}
         self._edge_colours = {}
-        self._max_timescale = max_timescale
+        self._tree_height_scale = tree_height_scale
+        self._max_tree_height = max_tree_height
+
+        if tree_height_scale not in [None, "time", "rank"]:
+            raise ValueError("tree_height_scale must be one of 'time' or 'rank'")
+        numeric_max_tree_height = max_tree_height not in [None, "tree", "ts"]
+        if tree_height_scale == "rank" and numeric_max_tree_height:
+            raise ValueError("Cannot specify numeric max_tree_height with rank scale")
 
         # Set the node labels and colours.
         for u in tree.nodes():
@@ -135,41 +148,60 @@ class TreeDrawer(object):
             for mutation, colour in mutation_colours.items():
                 self._mutation_colours[mutation] = colour
 
-        self._assign_coordinates()
+        self._assign_y_coordinates()
+        self._assign_x_coordinates()
 
 
 class SvgTreeDrawer(TreeDrawer):
     """
     Draws trees in SVG format using the svgwrite library.
     """
+    def _assign_y_coordinates(self):
+        tree = self._tree
+        ts = tree.tree_sequence
+        if self._tree_height_scale in [None, "time"]:
+            if self._max_tree_height in [None, "tree"]:
+                max_tree_height = max(tree.time(root) for root in tree.roots)
+            elif self._max_tree_height == "ts":
+                max_tree_height = ts.max_root_time
+            else:
+                # Use the numeric tree height value directly.
+                max_tree_height = self._max_tree_height
+            node_height = {u: tree.time(u) for u in tree.nodes()}
+        else:
+            assert self._tree_height_scale == "rank"
+            assert self._max_tree_height in [None, "tree", "ts"]
+            if self._max_tree_height in [None, "tree"]:
+                times = {tree.time(u) for u in tree.nodes()}
+            elif self._max_tree_height == "ts":
+                times = {node.time for node in ts.nodes()}
+            depth = {t: 2 * j for j, t in enumerate(sorted(times))}
+            node_height = {u: depth[tree.time(u)] for u in tree.nodes()}
+            max_tree_height = max(depth.values())
+        # In pathological cases, all the roots are at 0
+        if max_tree_height == 0:
+            max_tree_height = 1
 
-    def _assign_coordinates(self):
         y_padding = 20
-        t = 1
-        if self._max_timescale is not None:
-            t = self._max_timescale
-        elif self._tree.num_roots > 0:
-            t = max(self._tree.time(root) for root in self._tree.roots)
-        # In pathological cases, all the roots are at time 0
-        if t == 0:
-            t = 1
-        # Do we have any mutations over a root?
         mutations_over_root = any(
-            self._tree.parent(mut.node) == NULL for mut in self._tree.mutations())
+            tree.parent(mut.node) == NULL_NODE for mut in tree.mutations())
         root_branch_length = 0
         if mutations_over_root:
             # Allocate a fixed about of space to show the mutations on the
             # 'root branch'
             root_branch_length = self._height / 10
-        self._y_scale = (self._height - root_branch_length - 2 * y_padding) / t
+        self._y_scale = (
+            self._height - root_branch_length - 2 * y_padding) / max_tree_height
         self._y_coords[-1] = y_padding
-        for u in self._tree.nodes():
-            scaled_t = self._tree.get_time(u) * self._y_scale
-            self._y_coords[u] = self._height - scaled_t - y_padding
+        for u in tree.nodes():
+            scaled_h = node_height[u] * self._y_scale
+            self._y_coords[u] = self._height - scaled_h - y_padding
+
+    def _assign_x_coordinates(self):
         self._x_scale = self._width / (self._num_leaves + 2)
         self._leaf_x = 1
         for root in self._tree.roots:
-            self._assign_x_coordinates(root)
+            self._assign_x_coordinates_node(root)
         self._mutations = []
         node_mutations = collections.defaultdict(list)
         for site in self._tree.sites():
@@ -189,14 +221,14 @@ class SvgTreeDrawer(TreeDrawer):
                     z = x, self._discretise(y1 + (k + 1) * chunk)
                     self._mutations.append((z, mutation))
 
-    def _assign_x_coordinates(self, node):
+    def _assign_x_coordinates_node(self, node):
         """
         Assign x coordinates to all nodes underneath this node.
         """
         if self._tree.is_internal(node):
             children = self._tree.children(node)
             for c in children:
-                self._assign_x_coordinates(c)
+                self._assign_x_coordinates_node(c)
             coords = [self._x_coords[c] for c in children]
             a = min(coords)
             b = max(coords)
@@ -285,7 +317,7 @@ class TextTreeDrawer(TreeDrawer):
     """
     Abstract superclass of TreeDrawers that draw trees in a text buffer.
     """
-    discretise_coordinates = True
+    discretise_coordinates = False
 
     array_type = None  # the type used for the array.array canvas
     background_char = None  # The fill char
@@ -305,15 +337,29 @@ class TextTreeDrawer(TreeDrawer):
         """
         raise NotImplementedError()
 
-    def _assign_coordinates(self):
-        # Get the age of each node and rank them.
-        times = {self._tree.time(u) for u in self._tree.nodes()}
+    def _assign_y_coordinates(self):
+        if self._tree_height_scale == "time":
+            raise ValueError("time scaling not currently supported in text trees")
+        assert self._tree_height_scale in [None, "rank"]
+        assert self._max_tree_height in [None, "tree", "ts"]
+        tree = self._tree
+        if self._max_tree_height in [None, "tree"]:
+            times = {tree.time(u) for u in tree.nodes()}
+        elif self._max_tree_height == "ts":
+            times = {node.time for node in tree.tree_sequence.nodes()}
+        # NOTE the only real difference here between the y coordinates here
+        # and rank coordinates in SVG is that we're reversing. This is because
+        # the y-axis is measured in different directions. We could resolve this
+        # with a generic canvas that we draw on.
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
+        max_tree_height = max(depth.values())
         for u in self._tree.nodes():
             self._y_coords[u] = depth[self._tree.time(u)]
-        self._height = 0
-        if len(self._y_coords) > 0:
-            self._height = max(self._y_coords.values()) + 1
+        # TODO This should only be set if height is None, ie., the default
+        # strategy is to set the height to the minimum required.
+        self._height = max_tree_height + 1
+
+    def _assign_x_coordinates(self):
         # Get the overall width and assign x coordinates.
         x = 0
         for root in self._tree.roots:
@@ -379,6 +425,8 @@ class TextTreeDrawer(TreeDrawer):
         return canvas
 
 
+# NOTE: hopefully this can be dropped soon. See
+# https://github.com/tskit-dev/tskit/issues/174.
 class AsciiTreeDrawer(TextTreeDrawer):
     """
     Draws an ASCII rendering of a tree.

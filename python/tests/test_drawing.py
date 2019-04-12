@@ -638,8 +638,8 @@ class TestDrawSvg(TestTreeDraw):
         snippet2 = svg2[svg2.rfind("<", 0, str_pos):str_pos]
         self.assertNotEqual(snippet1, snippet2)
 
-        svg1 = ts.at_index(0).draw(max_timescale=5)
-        svg2 = ts.at_index(1).draw(max_timescale=5)
+        svg1 = ts.at_index(0).draw(max_tree_height="ts")
+        svg2 = ts.at_index(1).draw(max_tree_height="ts")
         # when scaled, node 3 should be at the *same* height in both trees, so the label
         # should be the same
         self.verify_basic_svg(svg1)
