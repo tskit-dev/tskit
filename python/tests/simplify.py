@@ -449,31 +449,215 @@ class Simplifier(object):
                     x = x.next
 
 
+class AncestorMap(object):
+    """
+    Simplifies a tree sequence to show relationships between
+    samples and a designated set of ancestors.
+    """
+
+    def __init__(self, ts, sample, ancestors):
+        self.ts = ts
+        self.samples = set(sample)
+        self.ancestors = set(ancestors)
+        self.table = tskit.EdgeTable()
+        self.sequence_length = ts.sequence_length
+        self.A_head = [None for _ in range(ts.num_nodes)]
+        self.A_tail = [None for _ in range(ts.num_nodes)]
+        for sample_id in sample:
+            self.add_ancestry(0, self.sequence_length, sample_id, sample_id)
+        self.edge_buffer = {}
+
+    def simplify(self):
+        if self.ts.num_edges > 0:
+            all_edges = list(self.ts.edges())
+            edges = all_edges[:1]
+            for e in all_edges[1:]:
+                if e.parent != edges[0].parent:
+                    self.process_parent_edges(edges)
+                    edges = []
+                edges.append(e)
+            self.process_parent_edges(edges)
+        return self.table
+
+    def process_parent_edges(self, edges):
+        """
+        Process all of the edges for a given parent.
+        """
+        assert len({e.parent for e in edges}) == 1
+        parent = edges[0].parent
+        S = []
+        for edge in edges:
+            x = self.A_head[edge.child]
+            while x is not None:
+                if x.right > edge.left and edge.right > x.left:
+                    y = Segment(max(x.left, edge.left), min(x.right, edge.right), x.node)
+                    S.append(y)
+                x = x.next
+        self.merge_labeled_ancestors(S, parent)
+        self.check_state()
+
+    def merge_labeled_ancestors(self, S, input_id):
+        """
+        All ancestry segments in S come together into a new parent.
+        The new parent must be assigned and any overlapping segments coalesced.
+        """
+        is_sample = input_id in self.samples
+        if is_sample:
+            # Free up the existing ancestry mapping.
+            x = self.A_tail[input_id]
+            assert x.left == 0 and x.right == self.sequence_length
+            self.A_tail[input_id] = None
+            self.A_head[input_id] = None
+
+        is_ancestor = input_id in self.ancestors
+        prev_right = 0
+        for left, right, X in overlapping_segments(S):
+            if is_ancestor or is_sample:
+                for x in X:
+                    ancestry_node = x.node
+                    self.record_edge(left, right, input_id, ancestry_node)
+                self.add_ancestry(left, right, input_id, input_id)
+
+                if is_sample and left != prev_right:
+                    # Fill in any gaps in the ancestry for the sample.
+                    self.add_ancestry(prev_right, left, input_id, input_id)
+
+            else:
+                for x in X:
+                    ancestry_node = x.node
+                    # Add sample ancestry for the currently-processed segment set.
+                    self.add_ancestry(left, right, ancestry_node, input_id)
+            prev_right = right
+
+        if is_sample and prev_right != self.sequence_length:
+            # If a trailing gap exists in the sample ancestry, fill it in.
+            self.add_ancestry(prev_right, self.sequence_length, input_id, input_id)
+        if input_id != -1:
+            self.flush_edges()
+
+    def record_edge(self, left, right, parent, child):
+        """
+        Adds an edge to the output list.
+        """
+        if child not in self.edge_buffer:
+            self.edge_buffer[child] = [tskit.Edge(left, right, parent, child)]
+        else:
+            last = self.edge_buffer[child][-1]
+            if last.right == left:
+                last.right = right
+            else:
+                self.edge_buffer[child].append(tskit.Edge(left, right, parent, child))
+
+    def add_ancestry(self, left, right, node, current_node):
+        tail = self.A_tail[current_node]
+        if tail is None:
+            x = Segment(left, right, node)
+            self.A_head[current_node] = x
+            self.A_tail[current_node] = x
+        else:
+            if tail.right == left and tail.node == node:
+                tail.right = right
+            else:
+                x = Segment(left, right, node)
+                tail.next = x
+                self.A_tail[current_node] = x
+
+    def flush_edges(self):
+        """
+        Flush the edges to the output table after sorting and squashing
+        any redundant records.
+        """
+        num_edges = 0
+        for child in sorted(self.edge_buffer.keys()):
+            for edge in self.edge_buffer[child]:
+                self.table.add_row(edge.left, edge.right, edge.parent, edge.child)
+                num_edges += 1
+        self.edge_buffer.clear()
+        return num_edges
+
+    def check_state(self):
+        num_nodes = len(self.A_head)
+        for j in range(num_nodes):
+            head = self.A_head[j]
+            tail = self.A_tail[j]
+            if head is None:
+                assert tail is None
+            else:
+                x = head
+                while x.next is not None:
+                    x = x.next
+                assert x == tail
+                x = head.next
+                while x is not None:
+                    assert x.left < x.right
+                    if x.next is not None:
+                        if self.ancestors is None:
+                            assert x.right <= x.next.left
+                        # We should also not have any squashable segments.
+                        if x.right == x.next.left:
+                            assert x.node != x.next.node
+                    x = x.next
+
+    def print_state(self):
+        print(".................")
+        print("Ancestors: ")
+        num_nodes = len(self.A_tail)
+        for j in range(num_nodes):
+            print("\t", j, "->", end="")
+            x = self.A_head[j]
+            while x is not None:
+                print("({}-{}->{})".format(x.left, x.right, x.node), end="")
+                x = x.next
+            print()
+        print("Output:")
+        print(self.table)
+        self.check_state()
+
+
 if __name__ == "__main__":
-    # Simple CLI for running simplifier above.
-    ts = tskit.load(sys.argv[1])
-    samples = list(map(int, sys.argv[2:]))
+    # Simple CLI for running simplifier/ancestor mapping above.
+    class_to_implement = sys.argv[1]
+    assert class_to_implement == 'Simplifier' or class_to_implement == 'AncestorMap'
+    ts = tskit.load(sys.argv[2])
 
-    # When keep_unary = True
-    print('When keep_unary = True:')
-    s = Simplifier(ts, samples, keep_unary=True)
-    # s.print_state()
-    tss, _ = s.simplify()
-    tables = tss.dump_tables()
-    print("Output:")
-    print(tables.nodes)
-    print(tables.edges)
-    print(tables.sites)
-    print(tables.mutations)
+    if class_to_implement == 'Simplifier':
 
-    # When keep_unary = False
-    print('\nWhen keep_unary = False:')
-    s = Simplifier(ts, samples, keep_unary=False)
-    # s.print_state()
-    tss, _ = s.simplify()
-    tables = tss.dump_tables()
-    print("Output:")
-    print(tables.nodes)
-    print(tables.edges)
-    print(tables.sites)
-    print(tables.mutations)
+        samples = list(map(int, sys.argv[3:]))
+
+        # When keep_unary = True
+        print('When keep_unary = True:')
+        s = Simplifier(ts, samples, keep_unary=True)
+        # s.print_state()
+        tss, _ = s.simplify()
+        tables = tss.dump_tables()
+        print(tables.nodes)
+        print(tables.edges)
+        print(tables.sites)
+        print(tables.mutations)
+
+        # When keep_unary = False
+        print('\nWhen keep_unary = False:')
+        s = Simplifier(ts, samples, keep_unary=False)
+        # s.print_state()
+        tss, _ = s.simplify()
+        tables = tss.dump_tables()
+        print(tables.nodes)
+        print(tables.edges)
+        print(tables.sites)
+        print(tables.mutations)
+
+    elif class_to_implement == 'AncestorMap':
+
+        samples = sys.argv[3]
+        samples = samples.split(",")
+        samples = list(map(int, samples))
+
+        ancestors = sys.argv[4]
+        ancestors = ancestors.split(",")
+        ancestors = list(map(int, ancestors))
+
+        s = AncestorMap(ts, samples, ancestors)
+        tss = s.simplify()
+        # tables = tss.dump_tables()
+        # print(tables.nodes)
+        print(tss)

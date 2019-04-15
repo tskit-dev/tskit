@@ -2702,12 +2702,6 @@ class TestSimplify(unittest.TestCase):
             py_tables = new_ts.dump_tables()
             for lib_tables, lib_node_map in [
                     (lib_tables1, lib_node_map1), (lib_tables2, lib_node_map2)]:
-                # print("lib = ")
-                # print(lib_tables.nodes)
-                # print(lib_tables.edges)
-                # print("py = ")
-                # print(py_tables.nodes)
-                # print(py_tables.edges)
 
                 self.assertEqual(lib_tables.nodes, py_tables.nodes)
                 self.assertEqual(lib_tables.edges, py_tables.edges)
@@ -3464,6 +3458,309 @@ class TestSimplify(unittest.TestCase):
                 for samples in itertools.combinations(ts.samples(), num_samples):
                     for keep in [True, False]:
                         self.verify_simplify_haplotypes(ts, samples, keep_unary=keep)
+
+
+class TestMapToAncestors(unittest.TestCase):
+    """
+    Tests the AncestorMap class.
+    """
+    random_seed = 13
+    #
+    #          8
+    #         / \
+    #        /   \
+    #       /     \
+    #      7       \
+    #     / \       6
+    #    /   5     / \
+    #   /   / \   /   \
+    #  4   0   1 2     3
+    nodes = """\
+    id      is_sample   population      time
+    0       1       0               0.00000000000000
+    1       1       0               0.00000000000000
+    2       1       0               0.00000000000000
+    3       1       0               0.00000000000000
+    4       1       0               0.00000000000000
+    5       0       0               0.14567111023387
+    6       0       0               0.21385545626353
+    7       0       0               0.43508024345063
+    8       0       0               1.60156352971203
+    """
+    edges = """\
+    id      left            right           parent  child
+    0       0.00000000      1.00000000      5       0,1
+    1       0.00000000      1.00000000      6       2,3
+    2       0.00000000      1.00000000      7       4,5
+    3       0.00000000      1.00000000      8       6,7
+    """
+    #
+    #          9                        10
+    #         / \                      / \
+    #        /   \                    /   8
+    #       /     \                  /   / \
+    #      7       \                /   /   \
+    #     / \       6              /   /     6
+    #    /   5     / \            /   5     / \
+    #   /   / \   /   \          /   / \   /   \
+    #  4   0   1 2     3        4   0   1 2     3
+    #
+    # 0 ------------------ 0.5 ------------------ 1.0
+    nodes0 = """\
+    id      is_sample   population      time
+    0       1       0               0.00000000000000
+    1       1       0               0.00000000000000
+    2       1       0               0.00000000000000
+    3       1       0               0.00000000000000
+    4       1       0               0.00000000000000
+    5       0       0               0.14567111023387
+    6       0       0               0.21385545626353
+    7       0       0               0.43508024345063
+    8       0       0               0.60156352971203
+    9       0       0               0.90000000000000
+    10      0       0               1.20000000000000
+    """
+    edges0 = """\
+    id      left            right           parent  child
+    0       0.00000000      1.00000000      5       0,1
+    1       0.00000000      1.00000000      6       2,3
+    2       0.00000000      0.50000000      7       4,5
+    3       0.50000000      1.00000000      8       5,6
+    4       0.00000000      0.50000000      9       6,7
+    5       0.50000000      1.00000000      10      4,8
+    """
+    nodes1 = """\
+    id      is_sample   population      time
+    0       0           0           1.0
+    1       1           0           0.0
+    2       1           0           0.0
+    """
+    edges1 = """\
+    id      left            right           parent  child
+    0       0.00000000      1.00000000      0       1,2
+    """
+
+    def do_simplify(
+            self, ts, ancestors, samples=None):
+        """
+        Runs the Python test implementation of simplify.
+        """
+        if samples is None:
+            samples = ts.samples()
+        s = tests.AncestorMap(ts, samples, ancestors)
+        ancestor_table = s.simplify()
+        # if compare_lib:
+        #     sts, lib_node_map1 = ts.simplify(
+        #         samples,
+        #         filter_sites=filter_sites,
+        #         filter_individuals=filter_individuals,
+        #         filter_populations=filter_populations,
+        #         keep_unary=keep_unary,
+        #         map_nodes=True)
+        #     lib_tables1 = sts.dump_tables()
+
+        #     lib_tables2 = ts.dump_tables()
+        #     lib_node_map2 = lib_tables2.simplify(
+        #         samples,
+        #         filter_sites=filter_sites,
+        #         keep_unary=keep_unary,
+        #         filter_individuals=filter_individuals,
+        #         filter_populations=filter_populations)
+
+        #     py_tables = new_ts.dump_tables()
+        #     for lib_tables, lib_node_map in [
+        #             (lib_tables1, lib_node_map1), (lib_tables2, lib_node_map2)]:
+
+        #         self.assertEqual(lib_tables.nodes, py_tables.nodes)
+        #         self.assertEqual(lib_tables.edges, py_tables.edges)
+        #         self.assertEqual(lib_tables.migrations, py_tables.migrations)
+        #         self.assertEqual(lib_tables.sites, py_tables.sites)
+        #         self.assertEqual(lib_tables.mutations, py_tables.mutations)
+        #         self.assertEqual(lib_tables.individuals, py_tables.individuals)
+        #         self.assertEqual(lib_tables.populations, py_tables.populations)
+        #         self.assertTrue(all(node_map == lib_node_map))
+        # print(ancestor_table)
+        return ancestor_table
+
+    def test_single_tree_one_ancestor(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, ancestors=[8])
+        self.assertEqual(list(tss.parent), [8, 8, 8, 8, 8])
+        self.assertEqual(list(tss.child), [0, 1, 2, 3, 4])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_single_tree_unordered_nodes(self):
+        nodes = io.StringIO(self.nodes1)
+        edges = io.StringIO(self.edges1)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, ancestors=[0])
+        self.assertEqual(list(tss.parent), [0, 0])
+        self.assertEqual(list(tss.child), [1, 2])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_single_tree_two_ancestors(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, ancestors=[6, 7])
+        self.assertEqual(list(tss.parent), [6, 6, 7, 7, 7])
+        self.assertEqual(list(tss.child), [2, 3, 0, 1, 4])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_single_tree_no_ancestors(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, samples=[2, 3], ancestors=[7])
+        self.assertEqual(tss.num_rows, 0)
+
+    def test_single_tree_ancestors_not_in_tree(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, samples=[2, 3], ancestors=[10])
+        self.assertEqual(tss.num_rows, 0)
+
+    def test_single_tree_ancestors_descend_from_other_ancestors(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, ancestors=[7, 8])
+        self.assertEqual(list(tss.parent), [7, 7, 7, 8, 8, 8])
+        self.assertEqual(list(tss.child), [0, 1, 4, 2, 3, 7])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_single_tree_internal_samples(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, samples=[2, 3, 4, 5], ancestors=[7, 8])
+        self.assertEqual(list(tss.parent), [7, 7, 8, 8, 8])
+        self.assertEqual(list(tss.child), [4, 5, 2, 3, 7])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_single_tree_samples_and_ancestors_overlap(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, samples=[1, 2, 3, 5], ancestors=[5, 6, 7])
+        self.assertEqual(list(tss.parent), [5, 6, 6, 7])
+        self.assertEqual(list(tss.child), [1, 2, 3, 5])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_single_tree_unary_ancestor(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, samples=[1, 2, 4], ancestors=[5, 7, 8])
+        self.assertEqual(list(tss.parent), [5, 7, 7, 8, 8])
+        self.assertEqual(list(tss.child), [1, 4, 5, 2, 7])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_multiple_trees_to_single_tree(self):
+        nodes = io.StringIO(self.nodes0)
+        edges = io.StringIO(self.edges0)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, ancestors=[5, 6])
+        self.assertEqual(list(tss.parent), [5, 5, 6, 6])
+        self.assertEqual(list(tss.child), [0, 1, 2, 3])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def test_multiple_trees_one_ancestor(self):
+        nodes = io.StringIO(self.nodes0)
+        edges = io.StringIO(self.edges0)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_simplify(ts, ancestors=[9, 10])
+        self.assertEqual(list(tss.parent), [9, 9, 9, 9, 9, 10, 10, 10, 10, 10])
+        self.assertEqual(list(tss.child), [0, 1, 2, 3, 4, 0, 1, 2, 3, 4])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
+    def verify(self, ts, sample_nodes, ancestral_nodes):
+        tss = self.do_simplify(ts, ancestors=ancestral_nodes, samples=sample_nodes)
+        ancestors = list(set(tss.parent))
+        # Loop through the rows of the ancestral branch table.
+        current_ancestor = tss.parent[0]
+        current_descendants = [tss.child[0]]
+        current_left = tss.left[0]
+        current_right = tss.right[0]
+        for ind, row in enumerate(tss):
+            if row.parent != current_ancestor or\
+                    row.left != current_left or\
+                    row.right != current_right:
+                # Loop through trees.
+                for tree in ts.trees():
+                    if tree.interval[0] >= current_right:
+                        break
+                    while tree.interval[1] <= current_left:
+                        tree.next()
+                    # If there's just one child, check node is an ancestor
+                    # in the original tree.
+                    current_descendants = list(set(current_descendants))
+                    if len(current_descendants) == 1:
+                        self.assertTrue(
+                            tree.is_descendant(
+                                current_descendants[0],
+                                current_ancestor))
+                    # Otherwise, for all combinations of descendants, check that the
+                    # current ancestor has the mrca as a descendant.
+                    else:
+                        pairs = itertools.combinations(current_descendants, 2)
+                        for pair in pairs:
+                            mrca = tree.mrca(pair[0], pair[1])
+                            self.assertTrue(tree.is_descendant(mrca, current_ancestor))
+                # Reset the current ancestor and descendants, left and right coords.
+                current_ancestor = row.parent
+                current_descendants = [row.child]
+                current_left = row.left
+                current_right = row.right
+            else:
+                # Collate a list of children corresponding to each ancestral node.
+                current_descendants.append(row.child)
+
+    def test_sim_single_coalescent_tree(self):
+        ts = msprime.simulate(30, random_seed=1, length=10)
+        ancestors = [3*n for n in np.arange(0, ts.num_nodes // 3)]
+        self.verify(ts, ts.samples(), ancestors)
+
+    def test_sim_coalescent_trees(self):
+        ts = msprime.simulate(8, recombination_rate=5, random_seed=1, length=2)
+        ancestors = [3*n for n in np.arange(0, ts.num_nodes // 3)]
+        self.verify(ts, ts.samples(), ancestors)
+
+    def test_sim_coalescent_trees_internal_samples(self):
+        ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
+        self.assertGreater(ts.num_trees, 2)
+        ancestors = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(tsutil.jiggle_samples(ts), ts.samples(), ancestors)
+
+    def test_sim_many_multiroot_trees(self):
+        ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
+        self.assertGreater(ts.num_trees, 3)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ancestors = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(ts, ts.samples(), ancestors)
+
+    def test_sim_wright_fisher_generations(self):
+        number_of_gens = 5
+        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=2)
+        tables.sort()
+        ts = tables.tree_sequence()
+        ancestors = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(ts, ts.samples(), ancestors)
+        for gen in range(1, number_of_gens):
+            ancestors = [u.id for u in ts.nodes() if u.time == gen]
+            self.verify(ts, ts.samples(), ancestors)
 
 
 class TestMutationParent(unittest.TestCase):
