@@ -27,11 +27,7 @@ import array
 import collections
 from _tskit import NULL
 
-try:
-    import svgwrite
-    _svgwrite_imported = True
-except ImportError:  # pragma: no cover
-    _svgwrite_imported = False
+import svgwrite
 
 
 def draw_tree(
@@ -47,9 +43,6 @@ def draw_tree(
         raise ValueError("Unknown format '{}'. Supported formats are {}".format(
             format, supported_formats))
     if fmt == "svg":
-        if not _svgwrite_imported:
-            raise ImportError(
-                "svgwrite is not installed. try `pip install svgwrite`")
         if width is None:
             width = 200
         if height is None:
