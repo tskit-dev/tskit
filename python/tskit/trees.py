@@ -3055,6 +3055,18 @@ class TreeSequence(object):
         else:
             return new_ts
 
+    def draw_svg(self, path=None, width=None, height=None, **kwargs):
+        if width is None:
+            width = 200 * self.num_trees
+        if height is None:
+            height = 300
+        draw = drawing.SvgTreeSequenceDrawing(self, (width, height), **kwargs)
+        output = draw.drawing.tostring()
+        if path is not None:
+            with open(path, "w") as f:
+                f.write(output)
+        return output
+
     ############################################
     #
     # Statistics computation

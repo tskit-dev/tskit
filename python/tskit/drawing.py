@@ -28,13 +28,10 @@ import collections
 from _tskit import NULL
 
 import svgwrite
+import numpy as np
 
 
-def draw_tree(
-        tree, width=None, height=None, node_labels=None, node_colours=None,
-        mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
-        tree_height_scale=None, max_tree_height=None):
-    # See tree.draw() for documentation on these arguments.
+def check_format(format):
     if format is None:
         format = "SVG"
     fmt = format.lower()
@@ -42,6 +39,15 @@ def draw_tree(
     if fmt not in supported_formats:
         raise ValueError("Unknown format '{}'. Supported formats are {}".format(
             format, supported_formats))
+    return fmt
+
+
+def draw_tree(
+        tree, width=None, height=None, node_labels=None, node_colours=None,
+        mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
+        tree_height_scale=None, max_tree_height=None):
+    # See tree.draw() for documentation on these arguments.
+    fmt = check_format(format)
     if fmt == "svg":
         if width is None:
             width = 200
@@ -64,6 +70,177 @@ def draw_tree(
         edge_colours=edge_colours, tree_height_scale=tree_height_scale,
         max_tree_height=max_tree_height)
     return td.draw()
+
+
+class SvgTreeSequenceDrawing(object):
+    def __init__(self, ts, size, tree_height_scale=None, max_tree_height=None):
+        self.ts = ts
+        self.image_size = size
+        self.setup_drawing()
+        self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
+        self.axes_x_offset = 10
+        self.axes_y_offset = 10
+        self.treebox_x_offset = 30
+        self.treebox_y_offset = 30
+        self.assign_y_coordinates(tree_height_scale, max_tree_height)
+        x = self.treebox_x_offset
+        treebox_width = size[0] - 2 * self.treebox_x_offset
+        tree_width = treebox_width / ts.num_trees
+        ticks = []
+        for tree in ts.trees():
+            self.draw_tree(tree, x, tree_width)
+            ticks.append((x, tree.interval[0]))
+            x += tree_width
+        ticks.append((x, ts.sequence_length))
+        self.draw_axes(ticks)
+
+    def setup_drawing(self):
+        self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
+        dwg = self.drawing
+        self.edges = dwg.add(dwg.g(id='edges',  stroke="black"))
+        self.nodes = dwg.add(dwg.g(id='nodes'))
+        self.mutations = dwg.add(dwg.g(id='mutations', fill="red"))
+        self.left_labels = dwg.add(dwg.g(font_size=14, text_anchor="start"))
+        self.right_labels = dwg.add(dwg.g(font_size=14, text_anchor="end"))
+        self.mid_labels = dwg.add(dwg.g(font_size=14, text_anchor="middle"))
+        self.mutation_left_labels = dwg.add(dwg.g(
+            font_size=14, text_anchor="start", font_style="italic",
+            alignment_baseline="middle"))
+        self.mutation_right_labels = dwg.add(dwg.g(
+            font_size=14, text_anchor="end", font_style="italic",
+            alignment_baseline="middle"))
+
+    def draw_axes(self, ticks):
+        dwg = self.drawing
+
+        # # Debug --- draw the tree and axes boxes
+        # w = self.image_size[0] - 2 * self.treebox_x_offset
+        # h = self.image_size[1] - 2 * self.treebox_y_offset
+        # dwg.add(dwg.rect((self.treebox_x_offset, self.treebox_y_offset), (w, h),
+        #     fill="white", fill_opacity=0, stroke="black", stroke_dasharray="15,15"))
+        # w = self.image_size[0] - 2 * self.axes_x_offset
+        # h = self.image_size[1] - 2 * self.axes_y_offset
+        # dwg.add(dwg.rect((self.axes_x_offset, self.axes_y_offset), (w, h),
+        #     fill="white", fill_opacity=0, stroke="black", stroke_dasharray="5,5"))
+
+        axes_left = self.treebox_x_offset
+        axes_right = self.image_size[0] - self.treebox_x_offset
+        y = self.image_size[1] - 2 * self.axes_y_offset
+        dwg.add(dwg.line((axes_left, y), (axes_right, y), stroke="black"))
+        for x, genome_coord in ticks:
+            delta = 5
+            dwg.add(dwg.line((x, y - delta), (x, y + delta), stroke="black"))
+            dwg.add(dwg.text(
+                "{:.2f}".format(genome_coord), (x, y + 20),
+                font_size=14, text_anchor="middle", font_weight="bold"))
+
+    def assign_y_coordinates(self, tree_height_scale, max_tree_height):
+        ts = self.ts
+        node_time = ts.tables.nodes.time
+        if tree_height_scale in [None, "time"]:
+            node_height = node_time
+            if max_tree_height is None:
+                max_tree_height = ts.max_root_time
+        else:
+            assert tree_height_scale == "rank"
+            depth = {t: 2 * j for j, t in enumerate(np.unique(node_time))}
+            node_height = [depth[node_time[u]] for u in range(ts.num_nodes)]
+            if max_tree_height is None:
+                max_tree_height = max(depth.values())
+        # In pathological cases, all the roots are at 0
+        if max_tree_height == 0:
+            max_tree_height = 1
+
+        # TODO should make this a parameter somewhere. This is padding to keep the
+        # node labels within the treebox
+        label_padding = 10
+        y_padding = self.treebox_y_offset + 2 * label_padding
+        mutations_over_root = any(
+            any(tree.parent(mut.node) == NULL_NODE for mut in tree.mutations())
+            for tree in ts.trees())
+        root_branch_length = 0
+        height = self.image_size[1]
+        if mutations_over_root:
+            # Allocate a fixed about of space to show the mutations on the
+            # 'root branch'
+            root_branch_length = height / 10  # FIXME just draw branch??
+        y_scale = (height - root_branch_length - 2 * y_padding) / max_tree_height
+        self.node_y_coord_map = [
+                height - y_scale * node_height[u] - y_padding
+                for u in range(ts.num_nodes)]
+
+    def assign_x_coordinates(self, tree, x_start, width):
+        num_leaves = len(list(tree.leaves()))
+        x_scale = width / (num_leaves + 1)
+        node_x_coord_map = {}
+        leaf_x = x_start
+        for root in tree.roots:
+            for u in tree.nodes(root, order="postorder"):
+                if tree.is_leaf(u):
+                    leaf_x += x_scale
+                    node_x_coord_map[u] = leaf_x
+                else:
+                    child_coords = [node_x_coord_map[c] for c in tree.children(u)]
+                    if len(child_coords) == 1:
+                        node_x_coord_map[u] = child_coords[0]
+                    else:
+                        a = min(child_coords)
+                        b = max(child_coords)
+                        assert b - a > 1
+                        node_x_coord_map[u] = a + (b - a) / 2
+        return node_x_coord_map
+
+    def draw_tree(self, tree, x_start, width):
+        dwg = self.drawing
+        node_x_coord_map = self.assign_x_coordinates(tree, x_start, width)
+        node_y_coord_map = self.node_y_coord_map
+
+        node_mutations = collections.defaultdict(list)
+        for site in tree.sites():
+            for mutation in site.mutations:
+                node_mutations[mutation.node].append(mutation)
+
+        for u in tree.nodes():
+            pu = node_x_coord_map[u], node_y_coord_map[u]
+            self.nodes.add(dwg.circle(center=pu, r=3))
+            dx = 0
+            dy = -5
+            labels = self.mid_labels
+            if tree.is_leaf(u):
+                dy = 20
+            elif tree.parent(u) != NULL_NODE:
+                dx = 5
+                if tree.left_sib(u) == NULL_NODE:
+                    dx *= -1
+                    labels = self.right_labels
+                else:
+                    labels = self.left_labels
+            labels.add(dwg.text(self.node_labels[u], (pu[0] + dx, pu[1] + dy)))
+            v = tree.parent(u)
+            if v != NULL_NODE:
+                pv = node_x_coord_map[v], node_y_coord_map[v]
+                self.edges.add(dwg.line(pu, (pu[0], pv[1])))
+                self.edges.add(dwg.line((pu[0], pv[1]), pv))
+
+                # TODO do something with mutations over the root
+                # Draw the mutations
+                num_mutations = len(node_mutations[u])
+                delta = (pv[1] - pu[1]) / (num_mutations + 1)
+                x = pu[0]
+                y = pv[1] - delta
+                r = 3
+                for mutation in node_mutations[u]:
+                    self.mutations.add(dwg.rect(
+                        insert=(x - r, y - r), size=(2 * r, 2 * r)))
+                    dx = 5
+                    if tree.left_sib(mutation.node) == NULL_NODE:
+                        dx *= -1
+                        labels = self.mutation_right_labels
+                    else:
+                        labels = self.mutation_left_labels
+                    dy = 1.5 * r
+                    labels.add(dwg.text(str(mutation.id), (x + dx, y + dy)))
+                    y -= delta
 
 
 # NOTE The design of these classes is pretty poor. Could badly do with a rewrite.
@@ -274,7 +451,7 @@ class SvgTreeDrawer(TreeDrawer):
                 if stroke is not None:
                     # Keep SVG small and clean
                     params = {} if stroke == default_edge_colour else {'stroke': stroke}
-                    lines.add(dwg.line(x, (x[0], y[1]), **params))
+                    lines.add(dwg.line(x, (x[1], y[1]), **params))
                     lines.add(dwg.line((x[0], y[1]), y, **params))
 
         # Experimental stuff to render the mutation labels. Not working very
@@ -303,7 +480,8 @@ class SvgTreeDrawer(TreeDrawer):
                 dy = 1.5 * r
                 labels.add(dwg.text(
                     self._mutation_labels[mutation.id], (x[0] + dx, x[1] + dy)))
-        return dwg.tostring()
+        # return dwg.tostring()
+        return dwg
 
 
 class TextTreeDrawer(TreeDrawer):
