@@ -38,7 +38,7 @@ if not meson.is_subproject()
     cunit_dep = dependency('cunit')
     # We don't specify extra C args here as CUnit won't pass the checks.
     test_lib = static_library('testlib', 
-        sources: ['tests/testlib.c'], dependencies: [cunit_dep, kastore_dep])
+        sources: ['tests/testlib.c'], dependencies: [cunit_dep, kastore_dep, tskit_dep])
 
     test_core = executable('test_core', 
         sources: ['tests/test_core.c'], 

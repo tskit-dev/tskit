@@ -96,9 +96,9 @@ test_single_tree_vargen_char_alphabet(void)
     int ret = 0;
     const char *sites =
         "0.0    A\n"
-        "0.1    A\n"
-        "0.2    C\n"
-        "0.4    A\n";
+        "0.125  A\n"
+        "0.25   C\n"
+        "0.5    A\n";
     const char *mutations =
         "0    0     T   -1\n"
         "1    1     TTTAAGGG   -1\n"
@@ -131,7 +131,7 @@ test_single_tree_vargen_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.1);
+    CU_ASSERT_EQUAL(var->site->position, 0.125);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 8);
@@ -144,7 +144,7 @@ test_single_tree_vargen_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.2);
+    CU_ASSERT_EQUAL(var->site->position, 0.25);
     CU_ASSERT_EQUAL(var->num_alleles, 4);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -161,7 +161,7 @@ test_single_tree_vargen_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.4);
+    CU_ASSERT_EQUAL(var->site->position, 0.5);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);

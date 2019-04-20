@@ -209,7 +209,7 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
         if (ind != TSK_NULL) {
             node_array = self->individual_nodes[ind];
             assert(node_array - self->individual_nodes_mem
-                    < total_node_refs - node_count[ind]);
+                    < (tsk_id_t) (total_node_refs - node_count[ind]));
             node_array[node_count[ind]] = node;
             node_count[ind] += 1;
         }
@@ -632,7 +632,7 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
     double left, right, *A_row, scale, tree_length;
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
     double *restrict length = calloc(num_focal, sizeof(*length));
-    uint32_t *restrict ref_count = calloc(num_nodes * ((size_t) K), sizeof(*ref_count));
+    uint32_t *restrict ref_count = calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
     int16_t *restrict reference_set_map = malloc(num_nodes * sizeof(*reference_set_map));
     uint32_t *restrict row, *restrict child_row, total;
 
