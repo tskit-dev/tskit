@@ -1796,8 +1796,8 @@ static void
 test_simplest_individuals(void)
 {
     const char *individuals =
-        "1      0.2\n"
-        "2      0.5,0.6\n";
+        "1      0.25\n"
+        "2      0.5,0.25\n";
     const char *nodes =
         "1  0   -1  -1\n"
         "1  0   -1  1\n"
@@ -1835,7 +1835,7 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.id, 0);
     CU_ASSERT_EQUAL_FATAL(individual.flags, 1);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
-    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.2);
+    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.25);
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 3);
 
@@ -1845,7 +1845,7 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.flags, 2);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.5);
-    CU_ASSERT_EQUAL_FATAL(individual.location[1], 0.6);
+    CU_ASSERT_EQUAL_FATAL(individual.location[1], 0.25);
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[1], 4);
@@ -2737,11 +2737,11 @@ test_single_tree_good_mutations(void)
         ret = tsk_treeseq_get_mutation(&ts, (tsk_id_t) j, other_mutations + j);
         CU_ASSERT_EQUAL(ret, 0);
     }
-    CU_ASSERT_EQUAL(other_sites[0].position, 0.1);
+    CU_ASSERT_EQUAL(other_sites[0].position, 0.125);
     CU_ASSERT_NSTRING_EQUAL(other_sites[0].ancestral_state, "0", 1);
-    CU_ASSERT_EQUAL(other_sites[1].position, 0.2);
+    CU_ASSERT_EQUAL(other_sites[1].position, 0.25);
     CU_ASSERT_NSTRING_EQUAL(other_sites[1].ancestral_state, "0", 1);
-    CU_ASSERT_EQUAL(other_sites[2].position, 0.3);
+    CU_ASSERT_EQUAL(other_sites[2].position, 0.5);
     CU_ASSERT_NSTRING_EQUAL(other_sites[2].ancestral_state, "0", 1);
 
     CU_ASSERT_EQUAL(other_mutations[0].id, 0);
