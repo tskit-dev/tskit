@@ -5971,7 +5971,8 @@ out:
  * one. Assumes the tables have been sorted, throwing an error if not.
  */
 int TSK_WARN_UNUSED
-tsk_table_collection_deduplicate_sites(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_deduplicate_sites(tsk_table_collection_t *self,
+        tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_size_t j;
@@ -5979,6 +5980,12 @@ tsk_table_collection_deduplicate_sites(tsk_table_collection_t *self, tsk_flags_t
     tsk_id_t *site_id_map = NULL;
     tsk_site_table_t copy;
     tsk_site_t row, last_row;
+
+    /* Early exit if there's 0 rows. We don't exit early for one row because
+     * we would then skip error checking, making the semantics inconsistent. */
+    if (self->sites.num_rows == 0) {
+        return 0;
+    }
 
     /* Must allocate the site table first for tsk_site_table_free to be safe */
     ret = tsk_site_table_copy(&self->sites, &copy, 0);

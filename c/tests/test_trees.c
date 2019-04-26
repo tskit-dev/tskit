@@ -4208,6 +4208,24 @@ test_deduplicate_sites_errors(void)
 }
 
 static void
+test_deduplicate_sites_zero_rows(void)
+{
+
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.sequence_length = 1;
+    ret = tsk_table_collection_deduplicate_sites(&tables, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tables.sites.num_rows, 0)
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_deduplicate_sites_multichar(void)
 {
     int ret;
@@ -4472,6 +4490,7 @@ main(int argc, char **argv)
             test_genealogical_nearest_neighbours_errors},
         {"test_deduplicate_sites", test_deduplicate_sites},
         {"test_deduplicate_sites_errors", test_deduplicate_sites_errors},
+        {"test_deduplicate_sites_zero_rows", test_deduplicate_sites_zero_rows},
         {"test_deduplicate_sites_multichar", test_deduplicate_sites_multichar},
         {"test_empty_tree_sequence", test_empty_tree_sequence},
         {"test_zero_edges", test_zero_edges},
