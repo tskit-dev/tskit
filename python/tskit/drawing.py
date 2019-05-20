@@ -25,14 +25,13 @@ Module responsible for visualisations.
 """
 import array
 import collections
+from _tskit import NULL
 
 try:
     import svgwrite
     _svgwrite_imported = True
 except ImportError:  # pragma: no cover
     _svgwrite_imported = False
-
-NULL_NODE = -1
 
 
 def draw_tree(
@@ -151,7 +150,7 @@ class SvgTreeDrawer(TreeDrawer):
             t = 1
         # Do we have any mutations over a root?
         mutations_over_root = any(
-            self._tree.parent(mut.node) == NULL_NODE for mut in self._tree.mutations())
+            self._tree.parent(mut.node) == NULL for mut in self._tree.mutations())
         root_branch_length = 0
         if mutations_over_root:
             # Allocate a fixed about of space to show the mutations on the
@@ -230,16 +229,16 @@ class SvgTreeDrawer(TreeDrawer):
             labels = mid_labels
             if self._tree.is_leaf(u):
                 dy = 20
-            elif self._tree.parent(u) != NULL_NODE:
+            elif self._tree.parent(u) != NULL:
                 dx = 5
-                if self._tree.left_sib(u) == NULL_NODE:
+                if self._tree.left_sib(u) == NULL:
                     dx *= -1
                     labels = right_labels
                 else:
                     labels = left_labels
             if self._node_labels[u] is not None:
                 labels.add(dwg.text(self._node_labels[u], (x[0] + dx, x[1] + dy)))
-            if self._tree.parent(u) != NULL_NODE:
+            if self._tree.parent(u) != NULL:
                 y = self._x_coords[v], self._y_coords[v]
                 stroke = self._edge_colours.get(u, default_edge_colour)
                 if stroke is not None:
@@ -265,7 +264,7 @@ class SvgTreeDrawer(TreeDrawer):
                 mutations.add(dwg.rect(
                     insert=(x[0] - r, x[1] - r), size=(2 * r, 2 * r), **params))
             dx = 5
-            if self._tree.left_sib(mutation.node) == NULL_NODE:
+            if self._tree.left_sib(mutation.node) == NULL:
                 dx *= -1
                 labels = right_labels
             else:
