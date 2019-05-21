@@ -2738,7 +2738,7 @@ class TreeSequence(object):
             splits = np.array_split(focal, num_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
                 arrays = pool.map(worker, splits)
-            return np.vstack(arrays)
+            return np.vstack(list(arrays))
 
     def individual(self, id_):
         """
