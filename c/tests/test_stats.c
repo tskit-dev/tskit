@@ -286,6 +286,15 @@ verify_genealogical_nearest_neighbours(tsk_treeseq_t *ts)
         samples, num_samples, sample_sets, sample_set_size, 2, 0, A);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    sample_sets[0] = samples;
+    sample_set_size[0] = 1;
+    sample_sets[1] = samples + 1;
+    sample_set_size[1] = 1;
+
+    ret = tsk_treeseq_genealogical_nearest_neighbours(ts,
+        samples, num_samples, sample_sets, sample_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     free(A);
 }
 

@@ -612,15 +612,77 @@ def exact_genealogical_nearest_neighbours(ts, focal, reference_sets):
     return A, L
 
 
+def local_gnn(ts, focal, reference_sets):
+    # Temporary implementation of the treewise GNN.
+    reference_set_map = np.zeros(ts.num_nodes, dtype=int) - 1
+    for k, reference_set in enumerate(reference_sets):
+        for u in reference_set:
+            if reference_set_map[u] != -1:
+                raise ValueError("Duplicate value in reference sets")
+            reference_set_map[u] = k
+
+    K = len(reference_sets)
+    A = np.zeros((len(focal), ts.num_trees, K))
+    lefts = np.zeros(ts.num_trees, dtype=float)
+    rights = np.zeros(ts.num_trees, dtype=float)
+    parent = np.zeros(ts.num_nodes, dtype=int) - 1
+    sample_count = np.zeros((ts.num_nodes, K), dtype=int)
+
+    # Set the intitial conditions.
+    for j in range(K):
+        sample_count[reference_sets[j], j] = 1
+
+    for t, ((left, right), edges_out, edges_in) in enumerate(ts.edge_diffs()):
+        for edge in edges_out:
+            parent[edge.child] = -1
+            v = edge.parent
+            while v != -1:
+                sample_count[v] -= sample_count[edge.child]
+                v = parent[v]
+        for edge in edges_in:
+            parent[edge.child] = edge.parent
+            v = edge.parent
+            while v != -1:
+                sample_count[v] += sample_count[edge.child]
+                v = parent[v]
+
+        # Process this tree.
+        for j, u in enumerate(focal):
+            focal_reference_set = reference_set_map[u]
+            delta = int(focal_reference_set != -1)
+            p = parent[u]
+            lefts[t] = left
+            rights[t] = right
+            while p != tskit.NULL:
+                total = np.sum(sample_count[p])
+                if total > delta:
+                    break
+                p = parent[p]
+            if p != tskit.NULL:
+                scale = 1 / (total - delta)
+                for k, reference_set in enumerate(reference_sets):
+                    n = sample_count[p, k] - int(focal_reference_set == k)
+                    A[j, t, k] = n * scale
+    return (A, lefts, rights)
+
+
 class TestExactGenealogicalNearestNeighbours(TestGenealogicalNearestNeighbours):
+    # This is a work in progress - these tests will be adapted to use the
+    # treewise GNN when it's implemented.
 
     def verify(self, ts, reference_sets, focal=None):
         if focal is None:
             focal = [u for refset in reference_sets for u in refset]
         A = ts.genealogical_nearest_neighbours(focal, reference_sets)
 
+        G, lefts, rights = local_gnn(ts, focal, reference_sets)
+        for tree in ts.trees():
+            self.assertEqual(lefts[tree.index], tree.interval[0])
+            self.assertEqual(rights[tree.index], tree.interval[1])
+
         for j, u in enumerate(focal):
             T, L = exact_genealogical_nearest_neighbours(ts, u, reference_sets)
+            self.assertTrue(np.allclose(G[j], T.T))
             # Ignore the cases where the node has no GNNs
             if np.sum(L) > 0:
                 mean = np.sum(T * L, axis=1) / np.sum(L)
