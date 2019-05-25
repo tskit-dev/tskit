@@ -965,6 +965,9 @@ class Tree(object):
         """
         return self._ll_tree.get_sample_size()
 
+    def draw_text(self):
+        return str(drawing.TextTree(self))
+
     def draw(
             self, path=None, width=None, height=None,
             node_labels=None, node_colours=None,
@@ -3056,16 +3059,20 @@ class TreeSequence(object):
             return new_ts
 
     def draw_svg(self, path=None, width=None, height=None, **kwargs):
+        # TODO is width/height helpful here or should we
         if width is None:
             width = 200 * self.num_trees
         if height is None:
             height = 300
-        draw = drawing.SvgTreeSequenceDrawing(self, (width, height), **kwargs)
+        draw = drawing.SvgTreeSequence(self, (width, height), **kwargs)
         output = draw.drawing.tostring()
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)
         return output
+
+    def draw_text(self):
+        return str(drawing.TextTreeSequence(self))
 
     ############################################
     #
