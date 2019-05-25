@@ -1375,6 +1375,19 @@ class Tree(object):
     def __str__(self):
         return str(self.get_parent_dict())
 
+    def Fst(self, samples_p1, samples_p2):
+
+        p1 = [self.tmrca(u,v) for u,v in itertools.combinations(sample_p1, 2)]
+        p1_mean = np.mean(p1)
+        p2 = [self.tmrca(u,v) for u,v in itertools.combinations(sample_p2, 2)]
+        p2_mean = np.mean(p2)
+        within_av = np.mean([p1,p2])
+        between = [self.tmrca(u,v) for u,v in itertools.product(sample_p1, sample_p2)]
+        between_mean = np.mean(between)
+        data_av = np.mean([within_av,between_mean])
+        
+        return (data_av - within_av)/data_av
+
 
 def load(path):
     """
@@ -2734,6 +2747,39 @@ class TreeSequence(object):
                 arrays = pool.map(worker, splits)
             return np.vstack(arrays)
 
+    def calculate_Fst(self, windows):
+    
+        samples_p1 = self.get_samples(population_id=0)
+        samples_p2 = self.get_samples(population_id=1)
+            
+        num_windows = len(windows)
+
+        #calculate statistic windowwise 
+        A = np.zeros(num_windows)
+        tree = ts.first()
+
+        # Whatever the stat you're interested in computing. We only evaluate
+        # this when the tree changes to avoid recomputing when a tree spans
+        # multiple windows.
+        stat = tree.Fst(samples_p1, samples_p2)
+        for j in range(num_windows):
+            w_left = windows[j]
+            w_right = windows[j + 1]
+            while True:
+                t_left, t_right = tree.interval
+                left = max(t_left, w_left)
+                right = min(t_right, w_right)
+                A[j] += stat * (right - left)
+                print("computing for ", left, right)
+                if t_right < w_right:
+                    tree.next()
+                    stat = tree.Fst(samples_p1, samples_p2)
+                else:
+                    break
+            # Normalise by the size of the window
+            A[j] /= w_right - w_left
+
+
     def individual(self, id_):
         """
         Returns the :ref:`individual <sec_individual_table_definition>`
@@ -2749,7 +2795,6 @@ class TreeSequence(object):
         """
         Returns the :ref:`node <sec_node_table_definition>` in this tree sequence
         with the specified ID.
-
         :rtype: :class:`.Node`
         """
         (flags, time, population, individual,
