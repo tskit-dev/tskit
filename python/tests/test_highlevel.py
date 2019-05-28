@@ -380,14 +380,15 @@ class HighLevelTestCase(unittest.TestCase):
             if mrca != tskit.NULL:
                 self.assertEqual(st.get_time(mrca), st.get_tmrca(0, j))
 
-    def verify_tree_branch_lengths(self, st):
-        for j in range(st.get_sample_size()):
-            u = j
-            while st.get_parent(u) != tskit.NULL:
-                length = st.get_time(st.get_parent(u)) - st.get_time(u)
+    def verify_tree_branch_lengths(self, tree):
+        for u in tree.tree_sequence.samples():
+            while tree.parent(u) != tskit.NULL:
+                length = tree.time(tree.parent(u)) - tree.time(u)
                 self.assertGreater(length, 0.0)
-                self.assertEqual(st.get_branch_length(u), length)
-                u = st.get_parent(u)
+                self.assertEqual(tree.branch_length(u), length)
+                u = tree.parent(u)
+            self.assertEqual(tree.parent(u), tskit.NULL)
+            self.assertEqual(tree.branch_length(u), 0)
 
     def verify_tree_structure(self, st):
         roots = set()
@@ -2004,6 +2005,17 @@ class TestTree(HighLevelTestCase):
                 bl += t1.get_branch_length(node)
         self.assertGreater(bl, 0)
         self.assertEqual(t1.get_total_branch_length(), bl)
+
+    def test_branch_length_empty_tree(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.num_trees, 1)
+        tree = ts.first()
+        self.assertEqual(tree.branch_length(0), 0)
+        self.assertEqual(tree.branch_length(1), 0)
+        self.assertEqual(tree.total_branch_length, 0)
 
     def test_is_descendant(self):
 
