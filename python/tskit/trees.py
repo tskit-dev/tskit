@@ -604,14 +604,21 @@ class Tree(object):
 
         >>> tree.time(tree.parent(u)) - tree.time(u)
 
-        (note that this is not related to the property :attr:`.length` which
-        is a deprecated alias for the genomic :attr:`.span` covered by a tree)
+        The branch length for a node that has no parent (e.g., a root) is
+        defined as zero.
+
+        Note that this is not related to the property :attr:`.length` which
+        is a deprecated alias for the genomic :attr:`.span` covered by a tree.
 
         :param int u: The node of interest.
         :return: The branch length from u to its parent.
         :rtype: float
         """
-        return self.time(self.get_parent(u)) - self.time(u)
+        ret = 0
+        parent = self.parent(u)
+        if parent != NULL:
+            ret = self.time(parent) - self.time(u)
+        return ret
 
     def get_total_branch_length(self):
         # Deprecated alias for total_branch_length
@@ -623,15 +630,14 @@ class Tree(object):
         Returns the sum of all the branch lengths in this tree (in
         units of generations). This is equivalent to
 
-        >>> sum(
-        >>>    tree.branch_length(u) for u in tree.nodes()
-        >>>    if u not in self.roots)
+        >>> sum(tree.branch_length(u) for u in tree.nodes())
+
+        Note that the branch lengths for root nodes are defined as zero.
 
         :return: The sum of all the branch lengths in this tree.
         :rtype: float
         """
-        return sum(
-            self.get_branch_length(u) for u in self.nodes() if u not in self.roots)
+        return sum(self.branch_length(u) for u in self.nodes())
 
     def get_mrca(self, u, v):
         # Deprecated alias for mrca
