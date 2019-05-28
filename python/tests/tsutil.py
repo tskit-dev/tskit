@@ -713,16 +713,17 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
         # Process this tree.
         for j, u in enumerate(focal):
             focal_reference_set = reference_set_map[u]
+            delta = int(focal_reference_set != -1)
             p = parent[u]
             while p != tskit.NULL:
                 total = np.sum(sample_count[p])
-                if total > 1:
+                if total > delta:
                     break
                 p = parent[p]
             if p != tskit.NULL:
                 length = right - left
                 L[j] += length
-                scale = length / (total - int(focal_reference_set != -1))
+                scale = length / (total - delta)
                 for k, reference_set in enumerate(reference_sets):
                     n = sample_count[p, k] - int(focal_reference_set == k)
                     A[j, k] += n * scale
