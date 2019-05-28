@@ -1639,6 +1639,8 @@ class TableCollection(object):
             flags = self.nodes.flags
             samples = np.where(
                 np.bitwise_and(flags, _tskit.NODE_IS_SAMPLE) != 0)[0].astype(np.int32)
+        else:
+            samples = to_np_int32(samples)
         return self.ll_tables.simplify(
             samples, filter_sites=filter_sites,
             filter_individuals=filter_individuals,
@@ -1815,3 +1817,23 @@ def unpack_strings(packed, offset, encoding="utf8"):
     :rtype: list[str]
     """
     return [b.decode(encoding) for b in unpack_bytes(packed, offset)]
+
+
+def to_np_int32(int_array):
+    """
+    A few functions require arrays of type np.int32. To allow passing standard numpy
+    integer arrays (dtype=np.int64) we cast but check bounds to avoid wrap-around
+    conversion errors (numpy doesn't seem to provide this functionality)
+    """
+    int_array = np.array(int_array)
+    if int_array.size == 0:
+        return int_array.astype(np.int32)  # Allow empty arrays of any type
+    try:
+        return int_array.astype(np.int32, casting='safe')
+    except TypeError:
+        int32bounds = np.iinfo(np.int32)
+        if np.all(int_array >= int32bounds.min) and np.all(int_array <= int32bounds.max):
+            # Raises a TypeError when we try to convert from, e.g., a float.
+            return int_array.astype(np.int32, casting='same_kind')
+        else:
+            raise OverflowError("Cannot convert safely to int32 type")

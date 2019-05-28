@@ -921,6 +921,51 @@ class TestBytePacking(unittest.TestCase):
         self.assertEqual(data, unpickled)
 
 
+class TestNumpyInt32Conversion(unittest.TestCase):
+    """
+    Tests the function that converts integer arrays to np.int32 for input to functions.
+    """
+    def test_arrays(self):
+        # Simple array
+        target = np.array([0, 1], dtype=np.int32)
+        for identical_array in [[0, 1], (0, 1), np.array([0, 1]), target]:
+            converted = tskit.tables.to_np_int32(identical_array)
+            # Use pickle to test exact equality including dtype
+            self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+        # Nested array
+        target = np.array([[0, 1], [2, 3]], dtype=np.int32)
+        for identical_array in [[[0, 1], [2, 3]], np.array([[0, 1], [2, 3]]), target]:
+            converted = tskit.tables.to_np_int32(identical_array)
+            self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+
+    def test_empty_arrays(self):
+        target = np.array([], dtype=np.int32)
+        converted = tskit.tables.to_np_int32([])
+        self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+        target = np.array([[]], dtype=np.int32)
+        converted = tskit.tables.to_np_int32([[]])
+        self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+
+    def test_bad_types(self):
+        for bad_type in [[0.1], ['string'], {}, [{}], np.array([0, 1], dtype=np.float)]:
+            self.assertRaises(TypeError, tskit.tables.to_np_int32, bad_type)
+
+    def test_overflow(self):
+        for bad_node in [np.iinfo(np.int32).min - 1, np.iinfo(np.int32).max + 1]:
+            self.assertRaises(  # Test plain array
+                OverflowError, tskit.tables.to_np_int32, [0, bad_node])
+            self.assertRaises(  # Test numpy array
+                OverflowError, tskit.tables.to_np_int32, np.array([0, bad_node]))
+        for good_node in [np.iinfo(np.int32).min, np.iinfo(np.int32).max]:
+            target = np.array([good_node], dtype=np.int32)
+            self.assertEqual(  # Test plain array
+                pickle.dumps(target),
+                pickle.dumps(tskit.tables.to_np_int32([good_node])))
+            self.assertEqual(  # Test numpy array
+                pickle.dumps(target),
+                pickle.dumps(tskit.tables.to_np_int32(np.array([good_node]))))
+
+
 class TestSortTables(unittest.TestCase):
     """
     Tests for the sort_tables method.
@@ -1385,14 +1430,14 @@ class TestSimplifyTables(unittest.TestCase):
             tables = ts.dump_tables()
             tables.simplify(good_form)
         tables = ts.dump_tables()
-        for bad_type in [[[[]]], {}]:
-            self.assertRaises(ValueError, tables.simplify, bad_type)
-        # We only accept numpy arrays of the right type
-        for bad_dtype in [np.uint32, np.int64, np.float64]:
+        for bad_values in [[[[]]], np.array([[0, 1], [2, 3]], dtype=np.int32)]:
+            self.assertRaises(ValueError, tables.simplify, bad_values)
+        for bad_type in [[0.1], ['string'], {}, [{}]]:
+            self.assertRaises(TypeError, tables.simplify, bad_type)
+        # We only convert to int if we don't overflow
+        for bad_node in [np.iinfo(np.int32).min-1, np.iinfo(np.int32).max+1]:
             self.assertRaises(
-                TypeError, tables.simplify, np.array([0, 1], dtype=bad_dtype))
-        bad_samples = np.array([[0, 1], [2, 3]], dtype=np.int32)
-        self.assertRaises(ValueError, tables.simplify, bad_samples)
+                OverflowError, tables.simplify, samples=np.array([0, bad_node]))
 
 
 class TestTableCollection(unittest.TestCase):
