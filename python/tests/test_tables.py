@@ -951,7 +951,7 @@ class TestNumpyInt32Conversion(unittest.TestCase):
             self.assertRaises(TypeError, tskit.tables.to_np_int32, bad_type)
 
     def test_overflow(self):
-        for bad_node in [np.iinfo(np.int32).min-1, np.iinfo(np.int32).max+1]:
+        for bad_node in [np.iinfo(np.int32).min - 1, np.iinfo(np.int32).max + 1]:
             self.assertRaises(  # Test plain array
                 OverflowError, tskit.tables.to_np_int32, [0, bad_node])
             self.assertRaises(  # Test numpy array

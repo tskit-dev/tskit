@@ -1832,8 +1832,8 @@ def to_np_int32(int_array):
         return int_array.astype(np.int32, casting='safe')
     except TypeError:
         int32bounds = np.iinfo(np.int32)
-        if (int_array >= int32bounds.min).all() and (int_array <= int32bounds.max).all():
-            # This should raise the correct error on conversion from e.g. a float array
+        if np.all(int_array >= int32bounds.min) and np.all(int_array <= int32bounds.max):
+            # Raises a TypeError when we try to convert from, e.g., a float.
             return int_array.astype(np.int32, casting='same_kind')
         else:
             raise OverflowError("Cannot convert safely to int32 type")
