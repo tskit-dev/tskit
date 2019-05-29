@@ -64,36 +64,44 @@ def windowed_tree_stat(ts, stat, windows):
     return A
 
 
-def treewise_naive_general_tree_stats(ts, W, f, windows=None):
-    N, K = W.shape
-    if N != ts.num_nodes:
-        raise ValueError("First dimension of W must be number of nodes")
+def naive_general_branch_stats(ts, W, f, windows=None, polarised=False):
+    n, K = W.shape
+    if n != ts.num_samples:
+        raise ValueError("First dimension of W must be number of samples")
     # Hack to determine M
     M, = f(W[0]).shape
+    total = np.sum(W, axis=0)
 
     sigma = np.zeros((ts.num_trees, M))
     for tree in ts.trees():
-        X = W.copy()
+        X = np.zeros((ts.num_nodes, K))
+        X[ts.samples()] = W
         for u in tree.nodes(order="postorder"):
             for v in tree.children(u):
                 X[u] += X[v]
-        s = sum(tree.branch_length(u) * f(X[u]) for u in tree.nodes())
+        if polarised:
+            s = sum(tree.branch_length(u) * f(X[u]) for u in tree.nodes())
+        else:
+            s = sum(
+                tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
+                for u in tree.nodes())
         sigma[tree.index] = s * tree.span
-
     if windows is None:
         return sigma
     else:
         return windowed_tree_stat(ts, sigma, windows)
 
 
-def treewise_general_tree_stats(ts, W, f, windows=None):
-    N, K = W.shape
-    if N != ts.num_nodes:
-        raise ValueError("First dimension of W must be number of nodes")
+def general_branch_stats(ts, W, f, windows=None, polarised=False):
+    n, K = W.shape
+    if n != ts.num_samples:
+        raise ValueError("First dimension of W must be number of samples")
     # Hack to determine M
     M, = f(W[0]).shape
     sigma = np.zeros((ts.num_trees, M))
-    X = W.copy()
+    X = np.zeros((ts.num_nodes, K))
+    X[ts.samples()] = W
+    total = np.sum(W, axis=0)
 
     tree_index = 0
     time = ts.tables.nodes.time
@@ -110,7 +118,7 @@ def treewise_general_tree_stats(ts, W, f, windows=None):
                 parent_u = parent[u]
                 if parent_u != -1:
                     branch_length = time[parent_u] - time[u]
-                    s -= branch_length * f(X[u])
+                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
                 u = parent_u
             u = edge.parent
             while u != -1:
@@ -124,19 +132,26 @@ def treewise_general_tree_stats(ts, W, f, windows=None):
                 parent_u = parent[u]
                 if parent_u != -1:
                     branch_length = time[parent_u] - time[u]
-                    s += branch_length * f(X[u])
+                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
                     X[parent_u] += X[edge.child]
                 u = parent_u
         sigma[tree_index] = (right - left) * s
         tree_index += 1
 
         # Debugging/development stuff from here.
-        s_other = np.sum(
-            [tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
-        assert np.allclose(s_other, s)
+        if polarised:
+            s_other = np.sum([
+                tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
+            assert np.allclose(s_other, s)
+        else:
+            s_other = np.sum([
+                tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
+                for u in tree.nodes()], axis=0)
+            assert np.allclose(s_other, s)
         for u in tree.nodes():
             assert tree.parent(u) == parent[u]
-        X2 = W.copy()
+        X2 = np.zeros((ts.num_nodes, K))
+        X2[ts.samples()] = W
         for u in tree.nodes(order="postorder"):
             for v in tree.children(u):
                 X2[u] += X2[v]
@@ -165,23 +180,21 @@ def windowed_sitewise_stat(ts, sigma, windows):
     return A / diff
 
 
-def sitewise_naive_general_tree_stats(ts, W, f, windows=None):
-    N, K = W.shape
-    if N != ts.num_nodes:
-        raise ValueError("First dimension of W must be number of nodes")
+def naive_general_site_stats(ts, W, f, windows=None, polarised=False):
+    n, K = W.shape
+    if n != ts.num_samples:
+        raise ValueError("First dimension of W must be number of samples")
     # Hack to determine M
     M, = f(W[0]).shape
     sigma = np.zeros((ts.num_sites, M))
     for tree in ts.trees():
-        X = W.copy()
+        X = np.zeros((ts.num_nodes, K))
+        X[ts.samples()] = W
         for u in tree.nodes(order="postorder"):
             for v in tree.children(u):
                 X[u] += X[v]
         for site in tree.sites():
             state_map = collections.defaultdict(functools.partial(np.zeros, K))
-            # Because we don't use the ancestral state in the calculation,
-            # we don't actually need to compute this (or the ancestral state
-            # update below). We keep it here for completeness though.
             state_map[site.ancestral_state] = sum(X[root] for root in tree.roots)
             for mutation in site.mutations:
                 state_map[mutation.derived_state] += X[mutation.node]
@@ -190,7 +203,8 @@ def sitewise_naive_general_tree_stats(ts, W, f, windows=None):
                     state_map[parent.derived_state] -= X[mutation.node]
                 else:
                     state_map[site.ancestral_state] -= X[mutation.node]
-            del state_map[site.ancestral_state]
+            if polarised:
+                del state_map[site.ancestral_state]
             sigma[site.id] += sum(map(f, state_map.values()))
     if windows is None:
         return sigma
@@ -198,20 +212,22 @@ def sitewise_naive_general_tree_stats(ts, W, f, windows=None):
         return windowed_sitewise_stat(ts, sigma, windows)
 
 
-def sitewise_general_tree_stats(ts, W, f, windows=None):
-    N, K = W.shape
-    if N != ts.num_nodes:
-        raise ValueError("First dimension of W must be number of nodes")
+def general_site_stats(ts, W, f, windows=None, polarised=False):
+    n, K = W.shape
+    if n != ts.num_samples:
+        raise ValueError("First dimension of W must be number of samples")
     # Hack to determine M
     M, = f(W[0]).shape
     sigma = np.zeros((ts.num_sites, M))
-    X = W.copy()
+    X = np.zeros((ts.num_nodes, K))
+    X[ts.samples()] = W
+    total = np.sum(W, axis=0)
 
     site_index = 0
     mutation_index = 0
     sites = ts.tables.sites
     mutations = ts.tables.mutations
-    parent = np.zeros(N, dtype=np.int32) - 1
+    parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
     tree = ts.first()  # For debugging
     for (left, right), edges_out, edges_in in ts.edge_diffs():
         for edge in edges_out:
@@ -230,6 +246,7 @@ def sitewise_general_tree_stats(ts, W, f, windows=None):
         while site_index < len(sites) and sites.position[site_index] < right:
             ancestral_state = sites[site_index].ancestral_state
             state_map = collections.defaultdict(functools.partial(np.zeros, K))
+            state_map[ancestral_state][:] = total
             while (
                     mutation_index < len(mutations)
                     and mutations[mutation_index].site == site_index):
@@ -238,10 +255,13 @@ def sitewise_general_tree_stats(ts, W, f, windows=None):
                 if mutation.parent != tskit.NULL:
                     parent_state = mutations[mutation.parent].derived_state
                     state_map[parent_state] -= X[mutation.node]
+                else:
+                    state_map[ancestral_state] -= X[mutation.node]
                 mutation_index += 1
+            if polarised:
+                del state_map[ancestral_state]
             for state, X_value in state_map.items():
-                if state != ancestral_state:
-                    sigma[site_index] += f(X_value)
+                sigma[site_index] += f(X_value)
             site_index += 1
 
         # Debugging/development stuff.
@@ -255,65 +275,72 @@ def sitewise_general_tree_stats(ts, W, f, windows=None):
         return windowed_sitewise_stat(ts, sigma, windows)
 
 
-class TestTreewiseGeneralTreeStats(unittest.TestCase):
+class TestGeneralBranchStats(unittest.TestCase):
     """
     Tests for general tree stats.
     """
-    def run_stats(self, ts, W, f, windows=None):
-        sigma1 = treewise_naive_general_tree_stats(ts, W, f, windows)
-        sigma2 = treewise_general_tree_stats(ts, W, f, windows)
+    def run_stats(self, ts, W, f, windows=None, polarised=False):
+        sigma1 = naive_general_branch_stats(ts, W, f, windows, polarised=polarised)
+        sigma2 = general_branch_stats(ts, W, f, windows, polarised=polarised)
         self.assertEqual(sigma1.shape, sigma2.shape)
         self.assertTrue(np.allclose(sigma1, sigma2))
         return sigma1
 
     def test_simple_identity_f_w_zeros(self):
         ts = msprime.simulate(10, recombination_rate=3, random_seed=2)
-        W = np.zeros((ts.num_nodes, 3))
-        sigma = self.run_stats(ts, W, lambda x: x)
-        self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-        self.assertTrue(np.all(sigma == 0))
+        W = np.zeros((ts.num_samples, 3))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: x, polarised=polarised)
+            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
+            self.assertTrue(np.all(sigma == 0))
 
     def test_simple_identity_f_w_ones(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
-        W = np.ones((ts.num_nodes, 2))
-        sigma = self.run_stats(ts, W, lambda x: x)
+        W = np.ones((ts.num_samples, 2))
+        sigma = self.run_stats(ts, W, lambda x: x, polarised=True)
         self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-        # A W of 1 for every node and identity f counts the nodes in the subtree.
+        # A W of 1 for every node and identity f counts the samples in the subtree
+        # if polarised is True.
         for tree in ts.trees():
             s = tree.span * sum(
-                len(list(tree.nodes(u))) * tree.branch_length(u) for u in tree.nodes())
+                tree.num_samples(u) * tree.branch_length(u) for u in tree.nodes())
             self.assertTrue(np.allclose(sigma[tree.index], s))
 
     def test_simple_cumsum_f_w_ones(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
-        W = np.ones((ts.num_nodes, 8))
-        sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
-        self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
+        W = np.ones((ts.num_samples, 8))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
+            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
 
     def test_windows_equal_to_ts_breakpoints(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
-        W = np.ones((ts.num_nodes, 1))
-        sigma_no_windows = self.run_stats(ts, W, lambda x: np.cumsum(x))
-        self.assertEqual(sigma_no_windows.shape, (ts.num_trees, W.shape[1]))
-        sigma_windows = self.run_stats(
-            ts, W, lambda x: np.cumsum(x), windows=np.array(list(ts.breakpoints())))
-        self.assertEqual(sigma_windows.shape, sigma_no_windows.shape)
-        self.assertTrue(np.allclose(sigma_windows.shape, sigma_no_windows.shape))
+        W = np.ones((ts.num_samples, 1))
+        for polarised in [True, False]:
+            sigma_no_windows = self.run_stats(
+                ts, W, lambda x: np.cumsum(x), polarised=polarised)
+            self.assertEqual(sigma_no_windows.shape, (ts.num_trees, W.shape[1]))
+            sigma_windows = self.run_stats(
+                ts, W, lambda x: np.cumsum(x), windows=np.array(list(ts.breakpoints())),
+                polarised=polarised)
+            self.assertEqual(sigma_windows.shape, sigma_no_windows.shape)
+            self.assertTrue(np.allclose(sigma_windows.shape, sigma_no_windows.shape))
 
     def test_simple_identity_f_w_zeros_windows(self):
         ts = msprime.simulate(10, recombination_rate=3, random_seed=2)
-        W = np.zeros((ts.num_nodes, 3))
+        W = np.zeros((ts.num_samples, 3))
         windows = np.linspace(0, 1, num=11)
-        sigma = self.run_stats(ts, W, lambda x: x, windows)
-        self.assertEqual(sigma.shape, (10, W.shape[1]))
-        self.assertTrue(np.all(sigma == 0))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: x, windows, polarised=polarised)
+            self.assertEqual(sigma.shape, (10, W.shape[1]))
+            self.assertTrue(np.all(sigma == 0))
 
 
-class TestSitewiseGeneralTreeStats(unittest.TestCase):
+class TestGeneralSiteStats(unittest.TestCase):
 
-    def run_stats(self, ts, W, f, windows=None):
-        sigma1 = sitewise_naive_general_tree_stats(ts, W, f, windows)
-        sigma2 = sitewise_general_tree_stats(ts, W, f, windows)
+    def run_stats(self, ts, W, f, windows=None, polarised=False):
+        sigma1 = naive_general_site_stats(ts, W, f, windows, polarised=polarised)
+        sigma2 = general_site_stats(ts, W, f, windows, polarised=polarised)
         self.assertEqual(sigma1.shape, sigma2.shape)
         self.assertTrue(np.allclose(sigma1, sigma2))
         return sigma1
@@ -321,32 +348,37 @@ class TestSitewiseGeneralTreeStats(unittest.TestCase):
     def test_identity_f_W_0_multiple_alleles(self):
         ts = msprime.simulate(10, recombination_rate=0, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
-        W = np.zeros((ts.num_nodes, 3))
-        sigma = self.run_stats(ts, W, lambda x: x)
-        self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
-        self.assertTrue(np.all(sigma == 0))
+        W = np.zeros((ts.num_samples, 3))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: x, polarised=polarised)
+            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
+            self.assertTrue(np.all(sigma == 0))
 
     def test_identity_f_W_0_multiple_alleles_windows(self):
         ts = msprime.simulate(10, recombination_rate=0, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
-        W = np.zeros((ts.num_nodes, 3))
+        W = np.zeros((ts.num_samples, 3))
         windows = np.linspace(0, 1, num=11)
-        sigma = self.run_stats(ts, W, lambda x: x, windows=windows)
-        self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
-        self.assertTrue(np.all(sigma == 0))
+        for polarised in [True, False]:
+            sigma = self.run_stats(
+                ts, W, lambda x: x, windows=windows, polarised=polarised)
+            self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
+            self.assertTrue(np.all(sigma == 0))
 
     def test_cumsum_f_W_1_multiple_alleles(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
-        W = np.ones((ts.num_nodes, 3))
-        sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
-        self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
+        W = np.ones((ts.num_samples, 3))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x), polarised=polarised)
+            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
     def test_cumsum_f_W_1_two_alleles(self):
         ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=1)
-        W = np.ones((ts.num_nodes, 5))
-        sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
-        self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
+        W = np.ones((ts.num_samples, 5))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
+            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
 
 def path_length(tr, x, y):
