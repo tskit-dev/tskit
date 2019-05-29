@@ -131,4 +131,4 @@ def validate_provenance(provenance):
     try:
         jsonschema.validate(provenance, schema)
     except jsonschema.exceptions.ValidationError as ve:
-        raise exceptions.ProvenanceValidationError(str(ve))
+        raise exceptions.ProvenanceValidationError from ve

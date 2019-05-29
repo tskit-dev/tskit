@@ -872,7 +872,9 @@ test_simplest_records(void)
         "0  1   0";
     const char *edges =
         "0  1   2   0,1\n";
-    tsk_treeseq_t ts;
+    tsk_treeseq_t ts, simplified;
+    tsk_id_t sample_ids[] = {0, 1};
+    int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
@@ -880,6 +882,17 @@ test_simplest_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -894,7 +907,9 @@ test_simplest_nonbinary_records(void)
         "0  1   0";
     const char *edges =
         "0  1   4   0,1,2,3\n";
-    tsk_treeseq_t ts;
+    tsk_treeseq_t ts, simplified;
+    tsk_id_t sample_ids[] = {0, 1, 2, 3};
+    int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
@@ -902,6 +917,17 @@ test_simplest_nonbinary_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 5);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 4, 0, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 4, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -935,11 +961,17 @@ test_simplest_unary_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&simplified), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&simplified), 1.0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&simplified), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_edges(&simplified), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&simplified), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&simplified), 1);
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
 
     tsk_treeseq_free(&ts);
-    tsk_treeseq_free(&simplified);
 }
 
 static void
@@ -1072,8 +1104,13 @@ test_simplest_degenerate_multiple_root_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&simplified), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&simplified), 1.0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&simplified), 2);
-
     tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
 }
@@ -1370,7 +1407,8 @@ test_simplest_holey_tree_sequence(void)
     char *haplotype;
     unsigned int j;
     int ret;
-    tsk_treeseq_t ts;
+    tsk_treeseq_t ts, simplified;
+    tsk_id_t sample_ids[] = {0, 1};
     tsk_hapgen_t hapgen;
 
     tsk_treeseq_from_text(&ts, 3, nodes_txt, edges_txt, NULL, sites_txt,
@@ -1390,8 +1428,18 @@ test_simplest_holey_tree_sequence(void)
         CU_ASSERT_EQUAL(ret, 0);
         CU_ASSERT_STRING_EQUAL(haplotype, haplotypes[j]);
     }
-
     tsk_hapgen_free(&hapgen);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1462,14 +1510,15 @@ test_simplest_initial_gap_tree_sequence(void)
     char *haplotype;
     unsigned int j;
     int ret;
-    tsk_treeseq_t ts;
+    tsk_treeseq_t ts, simplified;
     tsk_hapgen_t hapgen;
     const tsk_id_t z = TSK_NULL;
     tsk_id_t parents[] = {
         z, z, z,
         2, 2, z,
     };
-    uint32_t num_trees = 2;
+    tsk_size_t num_trees = 2;
+    tsk_id_t sample_ids[] = {0, 1};
 
     tsk_treeseq_from_text(&ts, 3, nodes, edges, NULL, sites, mutations, NULL, NULL);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
@@ -1490,6 +1539,17 @@ test_simplest_initial_gap_tree_sequence(void)
         CU_ASSERT_STRING_EQUAL(haplotype, haplotypes[j]);
     }
     tsk_hapgen_free(&hapgen);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables));
+    tsk_treeseq_free(&simplified);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1736,8 +1796,8 @@ static void
 test_simplest_individuals(void)
 {
     const char *individuals =
-        "1      0.2\n"
-        "2      0.5,0.6\n";
+        "1      0.25\n"
+        "2      0.5,0.25\n";
     const char *nodes =
         "1  0   -1  -1\n"
         "1  0   -1  1\n"
@@ -1775,7 +1835,7 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.id, 0);
     CU_ASSERT_EQUAL_FATAL(individual.flags, 1);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
-    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.2);
+    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.25);
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 3);
 
@@ -1785,7 +1845,7 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.flags, 2);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.5);
-    CU_ASSERT_EQUAL_FATAL(individual.location[1], 0.6);
+    CU_ASSERT_EQUAL_FATAL(individual.location[1], 0.25);
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[1], 4);
@@ -2677,11 +2737,11 @@ test_single_tree_good_mutations(void)
         ret = tsk_treeseq_get_mutation(&ts, (tsk_id_t) j, other_mutations + j);
         CU_ASSERT_EQUAL(ret, 0);
     }
-    CU_ASSERT_EQUAL(other_sites[0].position, 0.1);
+    CU_ASSERT_EQUAL(other_sites[0].position, 0.125);
     CU_ASSERT_NSTRING_EQUAL(other_sites[0].ancestral_state, "0", 1);
-    CU_ASSERT_EQUAL(other_sites[1].position, 0.2);
+    CU_ASSERT_EQUAL(other_sites[1].position, 0.25);
     CU_ASSERT_NSTRING_EQUAL(other_sites[1].ancestral_state, "0", 1);
-    CU_ASSERT_EQUAL(other_sites[2].position, 0.3);
+    CU_ASSERT_EQUAL(other_sites[2].position, 0.5);
     CU_ASSERT_NSTRING_EQUAL(other_sites[2].ancestral_state, "0", 1);
 
     CU_ASSERT_EQUAL(other_mutations[0].id, 0);
@@ -4148,6 +4208,24 @@ test_deduplicate_sites_errors(void)
 }
 
 static void
+test_deduplicate_sites_zero_rows(void)
+{
+
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.sequence_length = 1;
+    ret = tsk_table_collection_deduplicate_sites(&tables, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tables.sites.num_rows, 0)
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_deduplicate_sites_multichar(void)
 {
     int ret;
@@ -4412,6 +4490,7 @@ main(int argc, char **argv)
             test_genealogical_nearest_neighbours_errors},
         {"test_deduplicate_sites", test_deduplicate_sites},
         {"test_deduplicate_sites_errors", test_deduplicate_sites_errors},
+        {"test_deduplicate_sites_zero_rows", test_deduplicate_sites_zero_rows},
         {"test_deduplicate_sites_multichar", test_deduplicate_sites_multichar},
         {"test_empty_tree_sequence", test_empty_tree_sequence},
         {"test_zero_edges", test_zero_edges},

@@ -65,6 +65,7 @@ jobs:
             python setup.py egg_info
             python setup.py bdist_wheel
             pip install dist/*.tar.gz 
+            tskit --help
 
       - run:
           name: Compile C with gcc

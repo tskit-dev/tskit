@@ -293,6 +293,12 @@ tsk_strerror_internal(int err)
         case TSK_ERR_TABLES_NOT_INDEXED:
             ret = "Table collection must be indexed";
             break;
+        case TSK_ERR_TABLE_OVERFLOW:
+            ret = "Table too large; cannot allocate more than 2**31 rows.";
+            break;
+        case TSK_ERR_COLUMN_OVERFLOW:
+            ret = "Table column too large; cannot be more than 2**31 bytes.";
+            break;
 
         /* Limitations */
         case TSK_ERR_ONLY_INFINITE_SITES:

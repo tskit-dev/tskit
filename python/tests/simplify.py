@@ -98,7 +98,7 @@ class Simplifier(object):
     """
     def __init__(
             self, ts, sample, reduce_to_site_topology=False, filter_sites=True,
-            filter_populations=True, filter_individuals=True):
+            filter_populations=True, filter_individuals=True, keep_unary=False):
         self.ts = ts
         self.n = len(sample)
         self.reduce_to_site_topology = reduce_to_site_topology
@@ -106,6 +106,7 @@ class Simplifier(object):
         self.filter_sites = filter_sites
         self.filter_populations = filter_populations
         self.filter_individuals = filter_individuals
+        self.keep_unary = keep_unary
         self.num_mutations = ts.num_mutations
         self.input_sites = list(ts.sites())
         self.A_head = [None for _ in range(ts.num_nodes)]
@@ -260,6 +261,10 @@ class Simplifier(object):
                 if is_sample:
                     self.record_edge(left, right, output_id, ancestry_node)
                     ancestry_node = output_id
+                elif self.keep_unary:
+                    if output_id == -1:
+                        output_id = self.record_node(input_id)
+                    self.record_edge(left, right, output_id, ancestry_node)
             else:
                 if output_id == -1:
                     output_id = self.record_node(input_id)
@@ -269,6 +274,8 @@ class Simplifier(object):
             if is_sample and left != prev_right:
                 # Fill in any gaps in the ancestry for the sample
                 self.add_ancestry(input_id, prev_right, left, output_id)
+            if self.keep_unary:
+                ancestry_node = output_id
             self.add_ancestry(input_id, left, right, ancestry_node)
             prev_right = right
 
@@ -446,7 +453,22 @@ if __name__ == "__main__":
     # Simple CLI for running simplifier above.
     ts = tskit.load(sys.argv[1])
     samples = list(map(int, sys.argv[2:]))
-    s = Simplifier(ts, samples)
+
+    # When keep_unary = True
+    print('When keep_unary = True:')
+    s = Simplifier(ts, samples, keep_unary=True)
+    # s.print_state()
+    tss, _ = s.simplify()
+    tables = tss.dump_tables()
+    print("Output:")
+    print(tables.nodes)
+    print(tables.edges)
+    print(tables.sites)
+    print(tables.mutations)
+
+    # When keep_unary = False
+    print('\nWhen keep_unary = False:')
+    s = Simplifier(ts, samples, keep_unary=False)
     # s.print_state()
     tss, _ = s.simplify()
     tables = tss.dump_tables()

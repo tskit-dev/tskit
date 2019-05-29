@@ -1580,7 +1580,8 @@ class TableCollection(object):
             self, samples=None,
             filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
             reduce_to_site_topology=False,
-            filter_populations=True, filter_individuals=True, filter_sites=True):
+            filter_populations=True, filter_individuals=True, filter_sites=True,
+            keep_unary=False):
         """
         Simplifies the tables in place to retain only the information necessary
         to reconstruct the tree sequence describing the given ``samples``.
@@ -1621,6 +1622,9 @@ class TableCollection(object):
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: True)
+        :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
+            one child) that exist on the path from samples to root will be preserved
+            in the output. (Default: False)
         :return: A numpy array mapping node IDs in the input tables to their
             corresponding node IDs in the output tables.
         :rtype: numpy array (dtype=np.int32).
@@ -1635,11 +1639,14 @@ class TableCollection(object):
             flags = self.nodes.flags
             samples = np.where(
                 np.bitwise_and(flags, _tskit.NODE_IS_SAMPLE) != 0)[0].astype(np.int32)
+        else:
+            samples = to_np_int32(samples)
         return self.ll_tables.simplify(
             samples, filter_sites=filter_sites,
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
-            reduce_to_site_topology=reduce_to_site_topology)
+            reduce_to_site_topology=reduce_to_site_topology,
+            keep_unary=keep_unary)
 
     def sort(self, edge_start=0):
         """
@@ -1810,3 +1817,23 @@ def unpack_strings(packed, offset, encoding="utf8"):
     :rtype: list[str]
     """
     return [b.decode(encoding) for b in unpack_bytes(packed, offset)]
+
+
+def to_np_int32(int_array):
+    """
+    A few functions require arrays of type np.int32. To allow passing standard numpy
+    integer arrays (dtype=np.int64) we cast but check bounds to avoid wrap-around
+    conversion errors (numpy doesn't seem to provide this functionality)
+    """
+    int_array = np.array(int_array)
+    if int_array.size == 0:
+        return int_array.astype(np.int32)  # Allow empty arrays of any type
+    try:
+        return int_array.astype(np.int32, casting='safe')
+    except TypeError:
+        int32bounds = np.iinfo(np.int32)
+        if np.all(int_array >= int32bounds.min) and np.all(int_array <= int32bounds.max):
+            # Raises a TypeError when we try to convert from, e.g., a float.
+            return int_array.astype(np.int32, casting='same_kind')
+        else:
+            raise OverflowError("Cannot convert safely to int32 type")

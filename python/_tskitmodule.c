@@ -5410,14 +5410,15 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     int filter_sites = true;
     int filter_individuals = false;
     int filter_populations = false;
+    int keep_unary = false;
     int reduce_to_site_topology = false;
     static char *kwlist[] = {
         "samples", "filter_sites", "filter_populations", "filter_individuals",
-        "reduce_to_site_topology", NULL};
+        "reduce_to_site_topology", "keep_unary", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiii", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiii", kwlist,
             &samples, &filter_sites, &filter_populations, &filter_individuals,
-            &reduce_to_site_topology)) {
+            &reduce_to_site_topology, &keep_unary)) {
         goto out;
     }
     samples_array = (PyArrayObject *) PyArray_FROMANY(samples, NPY_INT32, 1, 1,
@@ -5438,6 +5439,9 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     if (reduce_to_site_topology) {
         options |= TSK_REDUCE_TO_SITE_TOPOLOGY;
+    }
+    if (keep_unary) {
+        options |= TSK_KEEP_UNARY;
     }
 
     /* Allocate a new array to hold the node map. */

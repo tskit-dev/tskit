@@ -24,6 +24,7 @@
 Test cases for stats calculations in tskit.
 """
 import unittest
+import io
 
 import numpy as np
 import msprime
@@ -336,21 +337,23 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
         trees = list(map(next, tree_iters))
         length = trees[0].interval[1] - trees[0].interval[0]
         for j, u in enumerate(focal):
+            focal_node_set = reference_set_map[u]
+            # delta(u) = 1 if u exists in any of the reference sets; 0 otherwise
+            delta = int(focal_node_set != -1)
             v = trees[0].parent(u)
             while v != tskit.NULL:
                 total = sum(tree.num_tracked_samples(v) for tree in trees)
-                if total > 1:
+                if total > delta:
                     break
                 v = trees[0].parent(v)
             if v != tskit.NULL:
-                focal_node_set = reference_set_map[u]
                 for k, tree in enumerate(trees):
                     # If the focal node is in the current set, we subtract its
                     # contribution from the numerator
                     n = tree.num_tracked_samples(v) - (k == focal_node_set)
                     # If the focal node is in *any* reference set, we subtract its
                     # contribution from the demoninator.
-                    A[j, k] += length * n / (total - int(focal_node_set != -1))
+                    A[j, k] += length * n / (total - delta)
                 L[j] += length
     # Normalise by the accumulated value for each focal node.
     index = L > 0
@@ -364,6 +367,36 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
     """
     Tests the TreeSequence.genealogical_nearest_neighbours method.
     """
+    #
+    #          8
+    #         / \
+    #        /   \
+    #       /     \
+    #      7       \
+    #     / \       6
+    #    /   5     / \
+    #   /   / \   /   \
+    #  4   0   1 2     3
+    small_tree_ex_nodes = """\
+    id      is_sample   population      time
+    0       1       0               0.00000000000000
+    1       1       0               0.00000000000000
+    2       1       0               0.00000000000000
+    3       1       0               0.00000000000000
+    4       1       0               0.00000000000000
+    5       0       0               0.14567111023387
+    6       0       0               0.21385545626353
+    7       0       0               0.43508024345063
+    8       0       0               1.60156352971203
+    """
+    small_tree_ex_edges = """\
+    id      left            right           parent  child
+    0       0.00000000      1.00000000      5       0,1
+    1       0.00000000      1.00000000      6       2,3
+    2       0.00000000      1.00000000      7       4,5
+    3       0.00000000      1.00000000      8       6,7
+    """
+
     def verify(self, ts, reference_sets, focal=None):
         if focal is None:
             focal = [u for refset in reference_sets for u in refset]
@@ -376,33 +409,34 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         self.assertEqual(A1.shape, A3.shape)
         self.assertTrue(np.allclose(A1, A2))
         self.assertTrue(np.allclose(A1, A3))
-        if all(ts.node(u).is_sample() for u in focal):
+        if ts.num_edges > 0 and all(ts.node(u).is_sample() for u in focal):
             # When the focal nodes are samples, we can assert some stronger properties.
-            fully_rooted = True
-            for tree in ts.trees():
-                if tree.num_roots > 1:
-                    fully_rooted = False
-                    break
-            if fully_rooted:
-                self.assertTrue(np.allclose(np.sum(A1, axis=1), 1))
-            else:
-                all_refs = [u for refset in reference_sets for u in refset]
-                # Any node that hits a root before meeting a descendent of the reference
-                # nodes must have total zero.
-                coalescence_found = np.array([False for _ in all_refs])
-                for tree in ts.trees(tracked_samples=all_refs):
-                    for j, u in enumerate(focal):
-                        while u != tskit.NULL:
-                            if tree.num_tracked_samples(u) > 1:
-                                coalescence_found[j] = True
-                                break
-                            u = tree.parent(u)
-                self.assertTrue(np.allclose(np.sum(A1[coalescence_found], axis=1), 1))
-                # Anything where there's no coalescence, ever is zero by convention.
-                self.assertTrue(
-                    np.allclose(
-                        np.sum(A1[np.logical_not(coalescence_found)], axis=1), 0))
+            self.assertTrue(np.allclose(np.sum(A1, axis=1), 1))
         return A1
+
+    def test_simple_example_all_samples(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0])
+        self.assertEqual(list(A[0]), [1, 0])
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [4])
+        self.assertEqual(list(A[0]), [1, 0])
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [2])
+        self.assertEqual(list(A[0]), [0, 1])
+        A = self.verify(ts, [[0, 2], [1, 3, 4]], [0])
+        self.assertEqual(list(A[0]), [0, 1])
+        A = self.verify(ts, [[0, 2], [1, 3, 4]], [4])
+        self.assertEqual(list(A[0]), [0.5, 0.5])
+
+    def test_simple_example_missing_samples(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
+        A = self.verify(ts, [[0, 1], [2, 4]], [3])
+        self.assertEqual(list(A[0]), [0, 1])
+        A = self.verify(ts, [[0, 1], [2, 4]], [2])
+        self.assertTrue(np.allclose(A[0], [2 / 3, 1 / 3]))
 
     def test_two_populations_high_migration(self):
         ts = msprime.simulate(
@@ -497,9 +531,7 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         samples = ts.samples()
         founders = [u for u in samples if ts.node(u).time > 0]
         samples = [u for u in samples if ts.node(u).time == 0]
-        A = self.verify(ts, [founders[:10], founders[10:]], samples)
-        # Because the founders are all isolated, the stat must be zero.
-        self.assertTrue(np.all(A == 0))
+        self.verify(ts, [founders[:10], founders[10:]], samples)
 
     def test_wright_fisher_unsimplified_multiple_roots(self):
         tables = wf.wf_sim(
@@ -556,37 +588,101 @@ def exact_genealogical_nearest_neighbours(ts, focal, reference_sets):
     tree_iters = [
         ts.trees(tracked_samples=reference_nodes) for reference_nodes in reference_sets]
     u = focal
+    focal_node_set = reference_set_map[u]
+    # delta(u) = 1 if u exists in any of the reference sets; 0 otherwise
+    delta = int(focal_node_set != -1)
     for _ in range(ts.num_trees):
         trees = list(map(next, tree_iters))
         v = trees[0].parent(u)
         while v != tskit.NULL:
             total = sum(tree.num_tracked_samples(v) for tree in trees)
-            if total > 1:
+            if total > delta:
                 break
             v = trees[0].parent(v)
         if v != tskit.NULL:
             # The length is only reported where the statistic is defined.
             L[trees[0].index] = trees[0].interval[1] - trees[0].interval[0]
-            focal_node_set = reference_set_map[u]
             for k, tree in enumerate(trees):
                 # If the focal node is in the current set, we subtract its
                 # contribution from the numerator
                 n = tree.num_tracked_samples(v) - (k == focal_node_set)
                 # If the focal node is in *any* reference set, we subtract its
                 # contribution from the demoninator.
-                A[k, tree.index] = n / (total - int(focal_node_set != -1))
+                A[k, tree.index] = n / (total - delta)
     return A, L
 
 
+def local_gnn(ts, focal, reference_sets):
+    # Temporary implementation of the treewise GNN.
+    reference_set_map = np.zeros(ts.num_nodes, dtype=int) - 1
+    for k, reference_set in enumerate(reference_sets):
+        for u in reference_set:
+            if reference_set_map[u] != -1:
+                raise ValueError("Duplicate value in reference sets")
+            reference_set_map[u] = k
+
+    K = len(reference_sets)
+    A = np.zeros((len(focal), ts.num_trees, K))
+    lefts = np.zeros(ts.num_trees, dtype=float)
+    rights = np.zeros(ts.num_trees, dtype=float)
+    parent = np.zeros(ts.num_nodes, dtype=int) - 1
+    sample_count = np.zeros((ts.num_nodes, K), dtype=int)
+
+    # Set the intitial conditions.
+    for j in range(K):
+        sample_count[reference_sets[j], j] = 1
+
+    for t, ((left, right), edges_out, edges_in) in enumerate(ts.edge_diffs()):
+        for edge in edges_out:
+            parent[edge.child] = -1
+            v = edge.parent
+            while v != -1:
+                sample_count[v] -= sample_count[edge.child]
+                v = parent[v]
+        for edge in edges_in:
+            parent[edge.child] = edge.parent
+            v = edge.parent
+            while v != -1:
+                sample_count[v] += sample_count[edge.child]
+                v = parent[v]
+
+        # Process this tree.
+        for j, u in enumerate(focal):
+            focal_reference_set = reference_set_map[u]
+            delta = int(focal_reference_set != -1)
+            p = parent[u]
+            lefts[t] = left
+            rights[t] = right
+            while p != tskit.NULL:
+                total = np.sum(sample_count[p])
+                if total > delta:
+                    break
+                p = parent[p]
+            if p != tskit.NULL:
+                scale = 1 / (total - delta)
+                for k, reference_set in enumerate(reference_sets):
+                    n = sample_count[p, k] - int(focal_reference_set == k)
+                    A[j, t, k] = n * scale
+    return (A, lefts, rights)
+
+
 class TestExactGenealogicalNearestNeighbours(TestGenealogicalNearestNeighbours):
+    # This is a work in progress - these tests will be adapted to use the
+    # treewise GNN when it's implemented.
 
     def verify(self, ts, reference_sets, focal=None):
         if focal is None:
             focal = [u for refset in reference_sets for u in refset]
         A = ts.genealogical_nearest_neighbours(focal, reference_sets)
 
+        G, lefts, rights = local_gnn(ts, focal, reference_sets)
+        for tree in ts.trees():
+            self.assertEqual(lefts[tree.index], tree.interval[0])
+            self.assertEqual(rights[tree.index], tree.interval[1])
+
         for j, u in enumerate(focal):
             T, L = exact_genealogical_nearest_neighbours(ts, u, reference_sets)
+            self.assertTrue(np.allclose(G[j], T.T))
             # Ignore the cases where the node has no GNNs
             if np.sum(L) > 0:
                 mean = np.sum(T * L, axis=1) / np.sum(L)

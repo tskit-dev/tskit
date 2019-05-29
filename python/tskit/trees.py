@@ -604,15 +604,21 @@ class Tree(object):
 
         >>> tree.time(tree.parent(u)) - tree.time(u)
 
-        Note that this is not related to the value returned by
-        :attr:`.length`, which describes the length of the interval
-        covered by the tree in genomic coordinates.
+        The branch length for a node that has no parent (e.g., a root) is
+        defined as zero.
+
+        Note that this is not related to the property :attr:`.length` which
+        is a deprecated alias for the genomic :attr:`.span` covered by a tree.
 
         :param int u: The node of interest.
         :return: The branch length from u to its parent.
         :rtype: float
         """
-        return self.time(self.get_parent(u)) - self.time(u)
+        ret = 0
+        parent = self.parent(u)
+        if parent != NULL:
+            ret = self.time(parent) - self.time(u)
+        return ret
 
     def get_total_branch_length(self):
         # Deprecated alias for total_branch_length
@@ -624,15 +630,14 @@ class Tree(object):
         Returns the sum of all the branch lengths in this tree (in
         units of generations). This is equivalent to
 
-        >>> sum(
-        >>>    tree.branch_length(u) for u in tree.nodes()
-        >>>    if u not in self.roots)
+        >>> sum(tree.branch_length(u) for u in tree.nodes())
+
+        Note that the branch lengths for root nodes are defined as zero.
 
         :return: The sum of all the branch lengths in this tree.
         :rtype: float
         """
-        return sum(
-            self.get_branch_length(u) for u in self.nodes() if u not in self.roots)
+        return sum(self.branch_length(u) for u in self.nodes())
 
     def get_mrca(self, u, v):
         # Deprecated alias for mrca
@@ -915,17 +920,22 @@ class Tree(object):
         return self._ll_tree.get_left(), self._ll_tree.get_right()
 
     def get_length(self):
-        # Deprecated alias for self.length
+        # Deprecated alias for self.span
         return self.length
 
     @property
     def length(self):
+        # Deprecated alias for self.span
+        return self.span
+
+    @property
+    def span(self):
         """
-        Returns the length of the genomic interval that this tree represents.
+        Returns the genomic distance that this tree spans.
         This is defined as :math:`r - l`, where :math:`(l, r)` is the genomic
         interval returned by :attr:`.interval`.
 
-        :return: The length of the genomic interval covered by this tree.
+        :return: The genomic distance covered by this tree.
         :rtype: int
         """
         left, right = self.get_interval()
@@ -959,7 +969,7 @@ class Tree(object):
             self, path=None, width=None, height=None,
             node_labels=None, node_colours=None,
             mutation_labels=None, mutation_colours=None,
-            format=None):
+            format=None, edge_colours=None):
         """
         Returns a drawing of this tree.
 
@@ -1004,17 +1014,32 @@ class Tree(object):
         :param map node_labels: If specified, show custom labels for the nodes
             that are present in the map. Any nodes not specified in the map will
             not have a node label.
-        :param map node_colours: If specified, show custom colours for nodes. (Only
-            supported in the SVG format.)
+        :param map node_colours: If specified, show custom colours for the nodes
+            given in the map. Any nodes not specified in the map will take the default
+            colour; a value of ``None`` is treated as transparent and hence the node
+            symbol is not plotted. (Only supported in the SVG format.)
+        :param map mutation_labels: If specified, show custom labels for the mutations
+            (specified by ID) that are present in the map. Any mutations not in the map
+            will not have a label. (Showing mutations is currently only supported in the
+            SVG format)
+        :param map mutation_colours: If specified, show custom colours for the mutations
+            given in the map (specified by ID). As for ``node_colours``, mutations not
+            present in the map take the default colour, and those mapping to ``None``
+            are not drawn. (Only supported in the SVG format.)
         :param str format: The format of the returned image. Currently supported
             are 'svg', 'ascii' and 'unicode'.
+        :param map edge_colours: If specified, show custom colours for the edge
+            joining each node in the map to its parent. As for ``node_colours``,
+            unspecified edges take the default colour, and ``None`` values result in the
+            edge being omitted. (Only supported in the SVG format.)
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
         output = drawing.draw_tree(
             self, format=format, width=width, height=height,
             node_labels=node_labels, node_colours=node_colours,
-            mutation_labels=mutation_labels, mutation_colours=mutation_colours)
+            mutation_labels=mutation_labels, mutation_colours=mutation_colours,
+            edge_colours=edge_colours)
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)
@@ -1876,7 +1901,7 @@ class TreeSequence(object):
     @classmethod
     def load(cls, path):
         ts = _tskit.TreeSequence()
-        ts.load(path)
+        ts.load(str(path))
         return TreeSequence(ts)
 
     @classmethod
@@ -1896,7 +1921,8 @@ class TreeSequence(object):
             warnings.warn(
                 "The zlib_compression option is no longer supported and is ignored",
                 RuntimeWarning)
-        self._ll_tree_sequence.dump(path)
+        # Convert the path to str to allow us use Pathlib inputs
+        self._ll_tree_sequence.dump(str(path))
 
     @property
     def tables(self):
@@ -2226,6 +2252,28 @@ class TreeSequence(object):
         """
         return self._ll_tree_sequence.get_num_migrations()
 
+    @property
+    def max_root_time(self):
+        """
+        Returns time of the oldest root in any of the trees in this tree sequence.
+        This is usually equal to ``np.max(ts.tables.nodes.time)`` but may not be
+        since there can be nodes that are not present in any tree. Consistent
+        with the definition of tree roots, if there are no edges in the tree
+        sequence we return the time of the oldest sample.
+
+        :return: The maximum time of a root in this tree sequence.
+        :rtype: float
+        """
+        ret = max(self.node(u).time for u in self.samples())
+        if self.num_edges > 0:
+            # Edges are guaranteed to be listed in parent-time order, so we can get the
+            # last one to get the oldest root.
+            edge = self.edge(self.num_edges - 1)
+            # However, we can have situations where there is a sample older than a
+            # 'proper' root
+            ret = max(ret, self.node(edge.parent).time)
+        return ret
+
     def migrations(self):
         """
         Returns an iterator over all the
@@ -2275,8 +2323,7 @@ class TreeSequence(object):
         :rtype: iter(:class:`.Edge`)
         """
         for j in range(self.num_edges):
-            left, right, parent, child = self._ll_tree_sequence.get_edge(j)
-            yield Edge(left=left, right=right, parent=parent, child=child)
+            yield self.edge(j)
 
     def edgesets(self):
         # TODO the order that these records are returned in is not well specified.
@@ -2615,25 +2662,65 @@ class TreeSequence(object):
         Computes for every node the mean number of samples in each of the
         `reference_sets` that descend from that node, averaged over the
         portions of the genome for which the node is ancestral to *any* sample.
-        The output is an array, `C[node, j]`, which reports the total length of
+        The output is an array, `C[node, j]`, which reports the total span of
         all genomes in `reference_sets[j]` that inherit from `node`, divided by
-        the total length of the genome on which `node` is an ancestor to any
+        the total span of the genome on which `node` is an ancestor to any
         sample in the tree sequence.
 
         .. note:: This interface *may change*, particularly the normalization by
             proportion of the genome that `node` is an ancestor to anyone.
 
-        :param iterable reference sets: A list of lists of node IDs.
+        :param iterable reference_sets: A list of lists of node IDs.
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
         return self._ll_tree_sequence.mean_descendants(reference_sets)
 
     def genealogical_nearest_neighbours(self, focal, reference_sets, num_threads=0):
+        """
+        Return the genealogical nearest neighbours (GNN) proportions for the given
+        focal nodes, with reference to two or more sets of interest, averaged over all
+        trees in the tree sequence.
+
+        The GNN proportions for a focal node in a single tree are given by first finding
+        the most recent common ancestral node :math:`a` between the focal node and any
+        other node present in the reference sets. The GNN proportion for a specific
+        reference set, :math:`S` is the number of nodes in :math:`S` that descend from
+        :math:`a`, as a proportion of the total number of descendant nodes in any of the
+        reference sets.
+
+        For example, consider a case with 2 reference sets, :math:`S_1` and :math:`S_2`.
+        For a given tree, :math:`a` is the node that includes at least one descendant in
+        :math:`S_1` or :math:`S_2` (not including the focal node). If the descendants of
+        :math:`a` include some nodes in :math:`S_1` but no nodes in :math:`S_2`, then the
+        GNN proportions for that tree will be 100% :math:`S_1` and 0% :math:`S_2`, or
+        :math:`[1.0, 0.0]`.
+
+        For a given focal node, the GNN proportions returned by this function are an
+        average of the GNNs for each tree, weighted by the genomic distance spanned by
+        that tree.
+
+        For an precise mathematical definition of GNN, see https://doi.org/10.1101/458067
+
+        .. note:: The reference sets need not include all the samples, hence the most
+            recent common ancestral node of the reference sets, :math:`a`, need not be
+            the immediate ancestor of the focal node. If the reference sets only comprise
+            sequences from relatively distant individuals, the GNN statistic may end up
+            as a measure of comparatively distant ancestry, even for tree sequences that
+            contain many closely related individuals.
+
+        :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
+        :param iterable reference_sets: A list of :math:`m` lists of node IDs.
+        :return: An :math:`n`  by :math:`m` array of focal nodes by GNN proportions.
+            Every focal node corresponds to a row. The numbers in each
+            row corresponding to the GNN proportion for each of the passed-in reference
+            sets. Rows therefore sum to one.
+        :rtype: numpy.ndarray
+        """
         # TODO this may not be a good name because there is another version of the
         # statistic which may be occasionally useful where we return the tree-by-tree
         # value. We could do this by adding an extra dimension to the returned array
-        # which would give the values tree-by-tree. The tree lengths can be computed
+        # which would give the values tree-by-tree. The tree spans can be computed
         # easily enough, *but* there may be occasions when the statistic isn't
         # defined over particular trees.
         #
@@ -2651,7 +2738,7 @@ class TreeSequence(object):
             splits = np.array_split(focal, num_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
                 arrays = pool.map(worker, splits)
-            return np.vstack(arrays)
+            return np.vstack(list(arrays))
 
     def individual(self, id_):
         """
@@ -2676,6 +2763,16 @@ class TreeSequence(object):
         return Node(
             id_=id_, flags=flags, time=time, population=population,
             individual=individual, metadata=metadata)
+
+    def edge(self, id_):
+        """
+        Returns the :ref:`edge <sec_edge_table_definition>` in this tree sequence
+        with the specified ID.
+
+        :rtype: :class:`.Edge`
+        """
+        (left, right, parent, child) = self._ll_tree_sequence.get_edge(id_)
+        return Edge(left=left, right=right, parent=parent, child=child)
 
     def mutation(self, id_):
         """
@@ -2759,16 +2856,55 @@ class TreeSequence(object):
         to the prefix ``msp_`` such that we would have the sample names
         ``msp_0``, ``msp_1`` and ``msp_2`` in the running example.
 
-        Example usage:
-
-        >>> with open("output.vcf", "w") as vcf_file:
-        >>>     tree_sequence.write_vcf(vcf_file, 2)
-
         .. warning::
             This output function does not currently use information in the
             :class:`IndividualTable`, and so will only correctly produce
             non-haploid output if the nodes corresponding to each individual
             are contiguous as described above.
+
+        Example usage:
+
+        .. code-block:: python
+
+            with open("output.vcf", "w") as vcf_file:
+                tree_sequence.write_vcf(vcf_file, 2)
+
+        The VCF output can also be compressed using the :mod:`gzip` module, if you wish:
+
+        .. code-block:: python
+
+            import gzip
+            with gzip.open("output.vcf.gz", "wt") as f:
+                ts.write_vcf(f)
+
+        However, this gzipped VCF may not be fully compatible with downstream tools
+        such as tabix, which may require the VCF use the specialised bgzip format.
+        A general way to convert VCF data to various formats is to pipe the text
+        produced by ``tskit`` into ``bcftools``, as done here:
+
+        .. code-block:: python
+
+            import os
+            import subprocess
+
+            read_fd, write_fd = os.pipe()
+            write_pipe = os.fdopen(write_fd, "w")
+            with open("output.bcf", "w") as bcf_file:
+                proc = subprocess.Popen(
+                    ["bcftools", "view", "-O", "b"], stdin=read_fd, stdout=bcf_file)
+                ts.write_vcf(write_pipe)
+                write_pipe.close()
+                os.close(read_fd)
+                proc.wait()
+                if proc.returncode != 0:
+                    raise RuntimeError("bcftools failed with status:", proc.returncode)
+
+        This can also be achieved on the command line use the ``tskit vcf`` command,
+        e.g.:
+
+        .. code-block:: bash
+
+            $ tskit vcf example.trees | bcftools view -O b > example.bcf
 
         :param File output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
@@ -2791,7 +2927,7 @@ class TreeSequence(object):
             map_nodes=False,
             reduce_to_site_topology=False,
             filter_populations=True, filter_individuals=True, filter_sites=True,
-            record_provenance=True):
+            record_provenance=True, keep_unary=False):
         """
         Returns a simplified tree sequence that retains only the history of
         the nodes given in the list ``samples``. If ``map_nodes`` is true,
@@ -2850,6 +2986,9 @@ class TreeSequence(object):
         :param bool record_provenance: If True, record details of this call to
             simplify in the returned tree sequence's provenance information
             (Default: True).
+        :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
+            one child) that exist on the path from samples to root will be preserved
+            in the output. (Default: False)
         :return: The simplified tree sequence, or (if ``map_nodes`` is True)
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
@@ -2866,7 +3005,8 @@ class TreeSequence(object):
             reduce_to_site_topology=reduce_to_site_topology,
             filter_populations=filter_populations,
             filter_individuals=filter_individuals,
-            filter_sites=filter_sites)
+            filter_sites=filter_sites,
+            keep_unary=keep_unary)
         if record_provenance:
             # TODO add simplify arguments here
             # TODO also make sure we convert all the arguments so that they are

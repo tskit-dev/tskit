@@ -43,9 +43,9 @@ const char *single_tree_ex_edges =
     "0  1   5   2,3\n"
     "0  1   6   4,5\n";
 const char *single_tree_ex_sites =
-    "0.1  0\n"
-    "0.2  0\n"
-    "0.3  0\n";
+    "0.125  0\n"
+    "0.25   0\n"
+    "0.5    0\n";
 const char *single_tree_ex_mutations =
     "0    2     1   -1\n"
     "1    4     1   -1\n"

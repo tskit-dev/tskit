@@ -35,6 +35,7 @@ import tempfile
 import unittest
 import warnings
 import uuid as _uuid
+import pathlib
 
 import numpy as np
 import msprime
@@ -214,8 +215,7 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
 
 def get_bottleneck_examples():
     """
-    Returns an iterator of example tree sequences with nonbinary
-    trees.
+    Returns an iterator of example tree sequences with nonbinary trees.
     """
     bottlenecks = [
         msprime.SimpleBottleneck(0.01, 0, proportion=0.05),
@@ -231,8 +231,7 @@ def get_bottleneck_examples():
 
 def get_back_mutation_examples():
     """
-    Returns an iterator of example tree sequences with nonbinary
-    trees.
+    Returns an iterator of example tree sequences with nonbinary trees.
     """
     ts = msprime.simulate(10, random_seed=1)
     for j in [1, 2, 3]:
@@ -381,14 +380,15 @@ class HighLevelTestCase(unittest.TestCase):
             if mrca != tskit.NULL:
                 self.assertEqual(st.get_time(mrca), st.get_tmrca(0, j))
 
-    def verify_tree_branch_lengths(self, st):
-        for j in range(st.get_sample_size()):
-            u = j
-            while st.get_parent(u) != tskit.NULL:
-                length = st.get_time(st.get_parent(u)) - st.get_time(u)
+    def verify_tree_branch_lengths(self, tree):
+        for u in tree.tree_sequence.samples():
+            while tree.parent(u) != tskit.NULL:
+                length = tree.time(tree.parent(u)) - tree.time(u)
                 self.assertGreater(length, 0.0)
-                self.assertEqual(st.get_branch_length(u), length)
-                u = st.get_parent(u)
+                self.assertEqual(tree.branch_length(u), length)
+                u = tree.parent(u)
+            self.assertEqual(tree.parent(u), tskit.NULL)
+            self.assertEqual(tree.branch_length(u), 0)
 
     def verify_tree_structure(self, st):
         roots = set()
@@ -1233,6 +1233,24 @@ class TestTreeSequence(HighLevelTestCase):
             for u in range(N):
                 self.assertEqual(ts.get_time(u), ts.node(u).time)
 
+    def test_max_root_time(self):
+        for ts in get_example_tree_sequences():
+            oldest = max(
+                max(tree.time(root) for root in tree.roots) for tree in ts.trees())
+            self.assertEqual(oldest, ts.max_root_time)
+
+    def test_max_root_time_corner_cases(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=2)
+        tables.nodes.add_row(flags=0, time=3)
+        self.assertEqual(tables.tree_sequence().max_root_time, 2)
+        tables.edges.add_row(0, 1, 1, 0)
+        self.assertEqual(tables.tree_sequence().max_root_time, 2)
+        tables.edges.add_row(0, 1, 3, 1)
+        self.assertEqual(tables.tree_sequence().max_root_time, 3)
+
     def test_write_vcf_interface(self):
         for ts in get_example_tree_sequences():
             n = ts.get_sample_size()
@@ -1481,6 +1499,15 @@ class TestTreeSequence(HighLevelTestCase):
         self.assertRaises(NotImplementedError, ts.get_num_records)
         self.assertRaises(NotImplementedError, ts.diffs)
         self.assertRaises(NotImplementedError, ts.newick_trees)
+
+    def test_dump_pathlib(self):
+        ts = msprime.simulate(5, random_seed=1)
+        path = pathlib.Path(self.temp_dir) / "tmp.trees"
+        self.assertTrue(path.exists)
+        self.assertTrue(path.is_file)
+        ts.dump(path)
+        other_ts = tskit.load(path)
+        self.assertEqual(ts.tables, other_ts.tables)
 
     def test_zlib_compression_warning(self):
         ts = msprime.simulate(5, random_seed=1)
@@ -1979,6 +2006,17 @@ class TestTree(HighLevelTestCase):
         self.assertGreater(bl, 0)
         self.assertEqual(t1.get_total_branch_length(), bl)
 
+    def test_branch_length_empty_tree(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.num_trees, 1)
+        tree = ts.first()
+        self.assertEqual(tree.branch_length(0), 0)
+        self.assertEqual(tree.branch_length(1), 0)
+        self.assertEqual(tree.total_branch_length, 0)
+
     def test_is_descendant(self):
 
         def is_descendant(tree, u, v):
@@ -2002,11 +2040,11 @@ class TestTree(HighLevelTestCase):
         self.assertEqual(t1.get_root(), t1.root)
         self.assertEqual(t1.get_index(), t1.index)
         self.assertEqual(t1.get_interval(), t1.interval)
-        self.assertEqual(t1.get_length(), t1.length)
         self.assertEqual(t1.get_sample_size(), t1.sample_size)
         self.assertEqual(t1.get_num_mutations(), t1.num_mutations)
         self.assertEqual(t1.get_parent_dict(), t1.parent_dict)
         self.assertEqual(t1.get_total_branch_length(), t1.total_branch_length)
+        self.assertEqual(t1.span, t1.interval[1] - t1.interval[0])
         # node properties
         root = t1.get_root()
         for node in t1.nodes():
@@ -2025,6 +2063,11 @@ class TestTree(HighLevelTestCase):
         for pair in pairs:
             self.assertEqual(t1.get_mrca(*pair), t1.mrca(*pair))
             self.assertEqual(t1.get_tmrca(*pair), t1.tmrca(*pair))
+
+    def test_deprecated_apis(self):
+        t1 = self.get_tree()
+        self.assertEqual(t1.get_length(), t1.span)
+        self.assertEqual(t1.length, t1.span)
 
     def test_seek_index(self):
         ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)

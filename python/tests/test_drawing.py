@@ -523,6 +523,41 @@ class TestDrawSvg(TestTreeDraw):
         for colour in colours.values():
             self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
 
+    def test_unplotted_node(self):
+        t = self.get_binary_tree()
+        colour = None
+        colours = {0: colour}
+        svg = t.draw(format="svg", node_colours=colours)
+        self.verify_basic_svg(svg)
+        nodes_in_tree = list(t.nodes())
+        self.assertEqual(svg.count('<circle'.format(colour)), len(nodes_in_tree)-1)
+
+    def test_one_edge_colour(self):
+        t = self.get_binary_tree()
+        colour = "rgb(0, 1, 2)"
+        colours = {0: colour}
+        svg = t.draw(format="svg", edge_colours=colours)
+        self.verify_basic_svg(svg)
+        self.assertEqual(svg.count('stroke="{}"'.format(colour)), 2)
+
+    def test_all_edges_colour(self):
+        t = self.get_binary_tree()
+        colours = {u: "rgb({u}, {u}, {u})".format(u=u) for u in t.nodes() if u != t.root}
+        svg = t.draw(format="svg", edge_colours=colours)
+        self.verify_basic_svg(svg)
+        for colour in colours.values():
+            self.assertEqual(svg.count('stroke="{}"'.format(colour)), 2)
+
+    def test_unplotted_edge(self):
+        t = self.get_binary_tree()
+        colour = None
+        colours = {0: colour}
+        svg = t.draw(format="svg", edge_colours=colours)
+        self.verify_basic_svg(svg)
+        nodes_in_tree = set(t.nodes())
+        non_root_nodes = nodes_in_tree - set([t.root])
+        self.assertEqual(svg.count('<line'), (len(non_root_nodes) - 1) * 2)
+
     def test_mutation_labels(self):
         t = self.get_binary_tree()
         labels = {u.id: "XXX" for u in t.mutations()}
@@ -561,3 +596,12 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg)
         for colour in colours.values():
             self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+
+    def test_unplotted_mutation(self):
+        t = self.get_binary_tree()
+        colour = None
+        colours = {0: colour}
+        svg = t.draw(format="svg", mutation_colours=colours)
+        self.verify_basic_svg(svg)
+        mutations_in_tree = list(t.mutations())
+        self.assertEqual(svg.count('<rect'), len(mutations_in_tree) - 1)

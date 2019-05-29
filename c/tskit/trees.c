@@ -209,7 +209,7 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
         if (ind != TSK_NULL) {
             node_array = self->individual_nodes[ind];
             assert(node_array - self->individual_nodes_mem
-                    < total_node_refs - node_count[ind]);
+                    < (tsk_id_t) (total_node_refs - node_count[ind]));
             node_array[node_count[ind]] = node;
             node_count[ind] += 1;
         }
@@ -632,9 +632,9 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
     double left, right, *A_row, scale, tree_length;
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
     double *restrict length = calloc(num_focal, sizeof(*length));
-    uint32_t *restrict ref_count = calloc(num_nodes * ((size_t) K), sizeof(*ref_count));
+    uint32_t *restrict ref_count = calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
     int16_t *restrict reference_set_map = malloc(num_nodes * sizeof(*reference_set_map));
-    uint32_t *restrict row, *restrict child_row, total;
+    uint32_t *restrict row, *restrict child_row, total, delta;
 
     /* We support a max of 8K focal sets */
     if (num_reference_sets == 0 || num_reference_sets > (INT16_MAX - 1)) {
@@ -727,19 +727,20 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
         /* Process this tree */
         for (j = 0; j < num_focal; j++) {
             u = focal[j];
+            focal_reference_set = reference_set_map[u];
+            delta = focal_reference_set != -1;
             p = parent[u];
             while (p != TSK_NULL) {
                 row = GET_2D_ROW(ref_count, K, p);
                 total = row[K - 1];
-                if (total > 1) {
+                if (total > delta) {
                     break;
                 }
                 p = parent[p];
             }
             if (p != TSK_NULL) {
                 length[j] += tree_length;
-                focal_reference_set = reference_set_map[u];
-                scale = tree_length / (total - (focal_reference_set != -1));
+                scale = tree_length / (total - delta);
                 A_row = GET_2D_ROW(ret_array, num_reference_sets, j);
                 for (k = 0; k < K - 1; k++) {
                     A_row[k] += row[k] * scale;

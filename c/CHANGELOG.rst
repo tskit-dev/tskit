@@ -1,4 +1,24 @@
 ---------------------
+[0.99.3] - 2019-XX-XX
+---------------------
+
+In development.
+
+**New features**
+
+- Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`
+  and :pr:`143`.
+
+---------------------
+[0.99.2] - 2019-03-27
+---------------------
+
+Bugfix release. Changes:
+
+- Fix incorrect errors on tbl_collection_dump (#132)
+- Catch table overflows (#157)
+
+---------------------
 [0.99.1] - 2019-01-24
 ---------------------
 
