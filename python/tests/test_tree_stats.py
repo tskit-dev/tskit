@@ -111,30 +111,39 @@ def general_branch_stats(ts, W, f, windows=None, polarised=False):
     for (left, right), edges_out, edges_in in ts.edge_diffs():
         for edge in edges_out:
             u = edge.child
-            # Need to make two passes up the tree here because we can't
-            # update the X values until we've removed all the f(X[u])
-            # values from s first.
-            while u != -1:
-                parent_u = parent[u]
-                if parent_u != -1:
-                    branch_length = time[parent_u] - time[u]
-                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                u = parent_u
+            v = edge.parent
+            branch_length = time[v] - time[u]
+            s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+
             u = edge.parent
             while u != -1:
+                branch_length = 0
+                if parent[u] != -1:
+                    branch_length = time[parent[u]] - time[u]
+                s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
                 X[u] -= X[edge.child]
+                s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
                 u = parent[u]
             parent[edge.child] = -1
+
         for edge in edges_in:
             parent[edge.child] = edge.parent
+
             u = edge.child
+            v = edge.parent
+            branch_length = time[v] - time[u]
+            s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+
+            u = edge.parent
             while u != -1:
-                parent_u = parent[u]
-                if parent_u != -1:
-                    branch_length = time[parent_u] - time[u]
-                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                    X[parent_u] += X[edge.child]
-                u = parent_u
+                branch_length = 0
+                if parent[u] != -1:
+                    branch_length = time[parent[u]] - time[u]
+                s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                X[u] += X[edge.child]
+                s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                u = parent[u]
+
         sigma[tree_index] = (right - left) * s
         tree_index += 1
 
@@ -242,8 +251,8 @@ def general_site_stats(ts, W, f, windows=None, polarised=False):
             while u != -1:
                 X[u] += X[edge.child]
                 u = parent[u]
-        assert left <= sites.position[site_index]
         while site_index < len(sites) and sites.position[site_index] < right:
+            assert left <= sites.position[site_index]
             ancestral_state = sites[site_index].ancestral_state
             state_map = collections.defaultdict(functools.partial(np.zeros, K))
             state_map[ancestral_state][:] = total
@@ -287,7 +296,7 @@ class TestGeneralBranchStats(unittest.TestCase):
         return sigma1
 
     def test_simple_identity_f_w_zeros(self):
-        ts = msprime.simulate(10, recombination_rate=3, random_seed=2)
+        ts = msprime.simulate(20, recombination_rate=3, random_seed=2)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
             sigma = self.run_stats(ts, W, lambda x: x, polarised=polarised)
@@ -295,26 +304,27 @@ class TestGeneralBranchStats(unittest.TestCase):
             self.assertTrue(np.all(sigma == 0))
 
     def test_simple_identity_f_w_ones(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+        ts = msprime.simulate(30, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
         sigma = self.run_stats(ts, W, lambda x: x, polarised=True)
         self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
         # A W of 1 for every node and identity f counts the samples in the subtree
         # if polarised is True.
+        # print(sigma)
         for tree in ts.trees():
             s = tree.span * sum(
                 tree.num_samples(u) * tree.branch_length(u) for u in tree.nodes())
             self.assertTrue(np.allclose(sigma[tree.index], s))
 
     def test_simple_cumsum_f_w_ones(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+        ts = msprime.simulate(20, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 8))
         for polarised in [True, False]:
             sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
             self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
 
     def test_windows_equal_to_ts_breakpoints(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+        ts = msprime.simulate(40, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 1))
         for polarised in [True, False]:
             sigma_no_windows = self.run_stats(
@@ -327,7 +337,7 @@ class TestGeneralBranchStats(unittest.TestCase):
             self.assertTrue(np.allclose(sigma_windows.shape, sigma_no_windows.shape))
 
     def test_simple_identity_f_w_zeros_windows(self):
-        ts = msprime.simulate(10, recombination_rate=3, random_seed=2)
+        ts = msprime.simulate(35, recombination_rate=3, random_seed=2)
         W = np.zeros((ts.num_samples, 3))
         windows = np.linspace(0, 1, num=11)
         for polarised in [True, False]:
@@ -346,7 +356,7 @@ class TestGeneralSiteStats(unittest.TestCase):
         return sigma1
 
     def test_identity_f_W_0_multiple_alleles(self):
-        ts = msprime.simulate(10, recombination_rate=0, random_seed=2)
+        ts = msprime.simulate(20, recombination_rate=0, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
@@ -355,7 +365,7 @@ class TestGeneralSiteStats(unittest.TestCase):
             self.assertTrue(np.all(sigma == 0))
 
     def test_identity_f_W_0_multiple_alleles_windows(self):
-        ts = msprime.simulate(10, recombination_rate=0, random_seed=2)
+        ts = msprime.simulate(34, recombination_rate=0, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.zeros((ts.num_samples, 3))
         windows = np.linspace(0, 1, num=11)
@@ -366,7 +376,7 @@ class TestGeneralSiteStats(unittest.TestCase):
             self.assertTrue(np.all(sigma == 0))
 
     def test_cumsum_f_W_1_multiple_alleles(self):
-        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        ts = msprime.simulate(32, recombination_rate=2, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.ones((ts.num_samples, 3))
         for polarised in [True, False]:
@@ -374,7 +384,7 @@ class TestGeneralSiteStats(unittest.TestCase):
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
     def test_cumsum_f_W_1_two_alleles(self):
-        ts = msprime.simulate(10, recombination_rate=2, mutation_rate=2, random_seed=1)
+        ts = msprime.simulate(42, recombination_rate=2, mutation_rate=2, random_seed=1)
         W = np.ones((ts.num_samples, 5))
         for polarised in [True, False]:
             sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))

@@ -195,6 +195,13 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
         tsk_id_t **reference_sets, size_t *reference_set_size, size_t num_reference_sets,
         tsk_flags_t options, double *ret_array);
 
+typedef int general_stat_func_t(size_t K, double *X, size_t M, double *Y, void *params);
+
+int tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
+        size_t K, double *W,
+        size_t M, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double **sigma,
+        tsk_flags_t options);
 
 /****************************************************************************/
 /* Tree */

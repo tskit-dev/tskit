@@ -947,6 +947,224 @@ out:
     return ret;
 }
 
+int
+tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
+        size_t K, double *W,
+        size_t M, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double **sigma_ret,
+        tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_id_t u, v;
+    size_t j, k, tree_index;
+    size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
+    const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
+    const double *restrict edge_left = self->tables->edges.left;
+    const double *restrict edge_right = self->tables->edges.right;
+    const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
+    const double *restrict time = self->tables->nodes.time;
+    const double sequence_length = self->tables->sequence_length;
+    tsk_id_t tj, tk, h;
+    double left, right, span, branch_length;
+    double *restrict X_u, *restrict X_v, *restrict X_child, *restrict W_u,
+           *restrict sigma_row, *restrict S_row;
+    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    double *restrict X = calloc(num_nodes * K, sizeof(*X));
+    double *restrict S = calloc(num_nodes * M, sizeof(*S));
+    double *restrict total_W = calloc(K, sizeof(*total_W));
+    double *restrict total_minus_Xu = calloc(K, sizeof(*total_minus_Xu));
+    double *restrict s = calloc(M, sizeof(*s));
+    double *restrict s_tmp = calloc(M, sizeof(*s_tmp));
+    double *restrict sigma = calloc(M * self->num_trees, sizeof(*sigma));
+    bool polarised = true;
+
+    if (parent == NULL || X == NULL || S == NULL || s == NULL || s_tmp == NULL
+            || sigma == NULL || total_minus_Xu == NULL || total_W == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, num_nodes * sizeof(*parent));
+
+    if (options != 0 || windows != NULL || num_windows > 0 || K < 1 || M < 1) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
+    /* Set the initial conditions */
+    for (j = 0; j < self->num_samples; j++) {
+        u = self->samples[j];
+        X_u = GET_2D_ROW(X, K, u);
+        W_u = GET_2D_ROW(W, K, j);
+        memcpy(X_u, W_u, K * sizeof(*X_u));
+        for (k = 0; k < K; k++) {
+            total_W[k] += W_u[k];
+        }
+    }
+
+    /* Iterate over the trees */
+    tj = 0;
+    tk = 0;
+    left = 0;
+    tree_index = 0;
+    while (tj < num_edges || left < sequence_length) {
+        while (tk < num_edges && edge_right[O[tk]] == left) {
+            h = O[tk];
+            tk++;
+
+            /* Remove the contribution to s */
+            u = edge_child[h];
+            v = edge_parent[h];
+            parent[u] = TSK_NULL;
+            while (v != TSK_NULL) {
+                branch_length = time[v] - time[u];
+                S_row = GET_2D_ROW(S, M, u);
+                for (k = 0; k < M; k++) {
+                    s[k] -= branch_length * S_row[k];
+                }
+                u = v;
+                v = parent[v];
+            }
+
+            /* Propagate X changes */
+            u = edge_child[h];
+            v = edge_parent[h];
+            X_u = GET_2D_ROW(X, K, u);
+            while (v != TSK_NULL) {
+                X_v = GET_2D_ROW(X, K, v);
+                S_row = GET_2D_ROW(S, M, v);
+                for (k = 0; k < K; k++) {
+                    X_v[k] -= X_u[k];
+                    S_row[k] = 0;
+                }
+                v = parent[v];
+            }
+            parent[u] = TSK_NULL;
+
+            /* parent[u] = -1 */
+            /* # Simpler to make two passes up the tree here. */
+            /* while v != -1: */
+            /*     branch_length = time[v] - time[u] */
+            /*     s -= branch_length * S[u] */
+            /*     u = v */
+            /*     v = parent[v] */
+            /* u = edge.child */
+            /* v = edge.parent */
+            /* while v != -1: */
+            /*     S[v] = 0 */
+            /*     X[v] -= X[u] */
+            /*     v = parent[v] */
+
+
+        }
+        while (tj < num_edges && edge_left[I[tj]] == left) {
+            h = I[tj];
+            tj++;
+            u = edge_child[h];
+            v = edge_parent[h];
+            parent[u] = v;
+
+            /* Propagate X changes */
+            u = edge_child[h];
+            v = edge_parent[h];
+            X_child = GET_2D_ROW(X, K, u);
+            while (v != TSK_NULL) {
+                S_row = GET_2D_ROW(S, M, u);
+                X_u = GET_2D_ROW(X, K, u);
+                X_v = GET_2D_ROW(X, K, v);
+                ret = f(K, X_u, M, S_row, f_params);
+                if (ret != 0) {
+                    goto out;
+                }
+                if (! polarised) {
+                    for (k = 0; k < K; k++) {
+                        total_minus_Xu[k] = total_W[k] - X_u[k];
+                    }
+                    ret = f(K, total_minus_Xu, M, s_tmp, f_params);
+                    if (ret != 0) {
+                        goto out;
+                    }
+                    for (k = 0; k < M; k++) {
+                        S_row[k] += s_tmp[k];
+                    }
+                }
+                branch_length = time[v] - time[u];
+                for (k = 0; k < M; k++) {
+                    s[k] += branch_length * S_row[k];
+                }
+
+                /* Update the X values */
+                for (k = 0; k < K; k++) {
+                    X_v[k] += X_child[k];
+                }
+                u = v;
+                v = parent[v];
+            }
+        }
+
+        right = sequence_length;
+        if (tj < num_edges) {
+            right = TSK_MIN(right, edge_left[I[tj]]);
+        }
+        if (tk < num_edges) {
+            right = TSK_MIN(right, edge_right[O[tk]]);
+        }
+
+        printf("X = \n");
+        for (k = 0; k < num_nodes; k++) {
+            printf("%d -> %f\n", (int) k, X[k]);
+
+        }
+        printf("S = \n");
+        for (k = 0; k < num_nodes; k++) {
+            printf("%d -> %f\n", (int) k, S[k]);
+
+        }
+        printf("s = %f\n", s[0]);
+        sigma_row = GET_2D_ROW(sigma, M, tree_index);
+        span = right - left;
+        for (k = 0; k < M; k++) {
+            sigma_row[k] = s[k] * span;
+        }
+
+        /* Move to the next tree */
+        left = right;
+        tree_index++;
+    }
+
+    *sigma_ret = sigma;
+    sigma = NULL;
+out:
+    /* Can't use msp_safe_free here because of restrict */
+    if (parent != NULL) {
+        free(parent);
+    }
+    if (X != NULL) {
+        free(X);
+    }
+    if (s != NULL) {
+        free(s);
+    }
+    if (s_tmp != NULL) {
+        free(s_tmp);
+    }
+    if (S != NULL) {
+        free(S);
+    }
+    if (sigma != NULL) {
+        free(sigma);
+    }
+    if (total_W != NULL) {
+        free(total_W);
+    }
+    if (total_minus_Xu != NULL) {
+        free(total_minus_Xu);
+    }
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node)
 {

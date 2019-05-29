@@ -338,6 +338,81 @@ verify_mean_descendants(tsk_treeseq_t *ts)
     free(C);
 }
 
+/* static int */
+/* general_stat_identity(size_t K, double *restrict X, size_t M, double *Y, void *params) */
+/* { */
+/*     size_t k; */
+/*     CU_ASSERT_FATAL(M == K); */
+/*     CU_ASSERT_FATAL(params == NULL); */
+
+/*     for (k = 0; k < K; k++) { */
+/*         printf("SETTING Y = %f\n", X[k]); */
+/*         Y[k] = X[k]; */
+/*     } */
+/*     return 0; */
+/* } */
+
+static void
+verify_general_branch_stats(tsk_treeseq_t *ts)
+{
+    CU_ASSERT_FATAL(ts != NULL);
+
+#if 0
+    int ret;
+    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    double *W = malloc(num_samples * sizeof(double));
+    tsk_id_t *stack = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(*stack));
+    tsk_id_t root, u, v;
+    int stack_top;
+    double s, branch_length;
+    double *sigma;
+    size_t j;
+    tsk_tree_t tree;
+    CU_ASSERT_FATAL(W != NULL);
+    CU_ASSERT_FATAL(stack != NULL);
+
+    for (j = 0; j < num_samples; j++) {
+        W[j] = 1;
+    }
+
+    ret = tsk_treeseq_general_branch_stats(ts, 1, W, 1, general_stat_identity, NULL,
+            0, NULL, &sigma, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_tree_init(&tree, ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+
+    for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
+        s = 0;
+        for (root = tree.left_root; root != TSK_NULL; root = tree.right_sib[root]) {
+            stack_top = 0;
+            stack[stack_top] = root;
+            while (stack_top >= 0) {
+                u = stack[stack_top];
+                stack_top--;
+
+                for (v = tree.right_child[u]; v != TSK_NULL; v = tree.left_sib[v]) {
+                    if (u != root) {
+                        branch_length = ts->tables->nodes.time[u];
+                        s += branch_length * tree.num_samples[v];
+                    }
+                    stack_top++;
+                    stack[stack_top] = v;
+                }
+            }
+        }
+        printf("sigma = %f s=%f\n", sigma[tree.index], s);
+    }
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+
+    free(stack);
+    tsk_tree_free(&tree);
+    free(W);
+    free(sigma);
+#endif
+}
+
 
 static void
 test_single_tree_ld(void)
@@ -380,6 +455,17 @@ test_single_tree_genealogical_nearest_neighbours(void)
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
     verify_genealogical_nearest_neighbours(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_general_branch_stats(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+    verify_general_branch_stats(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -480,6 +566,7 @@ main(int argc, char **argv)
         {"test_single_tree_mean_descendants", test_single_tree_mean_descendants},
         {"test_single_tree_genealogical_nearest_neighbours",
             test_single_tree_genealogical_nearest_neighbours},
+        {"test_single_tree_general_branch_stats", test_single_tree_general_branch_stats},
 
         {"test_paper_ex_ld", test_paper_ex_ld},
         {"test_paper_ex_pairwise_diversity", test_paper_ex_pairwise_diversity},
