@@ -204,8 +204,8 @@ class GeneralStatCalculator(object):
         n = [len(x) for x in sample_sets]
 
         def f(x):
-            return [float(x[i]*(n[j]-x[j]))
-                    for i in range(ns) for j in range(i, ns)]
+            return np.array([float(x[i]*(n[j]-x[j]))
+                             for i in range(ns) for j in range(i, ns)])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
         # move this division outside of f(x) so it only has to happen once
@@ -286,8 +286,8 @@ class GeneralStatCalculator(object):
         n = [len(x) for x in sample_sets]
 
         def f(x):
-            return [float(x[i] * (n[j] - x[j]) * (n[k] - x[k]))
-                    for i, j, k in indices]
+            return np.array([float(x[i] * (n[j] - x[j]) * (n[k] - x[k]))
+                             for i, j, k in indices])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
 
@@ -326,8 +326,8 @@ class GeneralStatCalculator(object):
         n = [len(x) for x in sample_sets]
 
         def f(x):
-            return [float(x[i] * (n[j] - x[j]) * (n[j] - x[j] - 1))
-                    for i, j in indices]
+            return np.array([float(x[i] * (n[j] - x[j]) * (n[j] - x[j] - 1))
+                             for i, j in indices])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
         for w in range(len(windows)-1):
@@ -362,7 +362,7 @@ class GeneralStatCalculator(object):
         n = [len(x) for x in sample_sets]
 
         def f(x):
-            return [float(z * (m - z) * (m - z - 1)) for m, z in zip(n, x)]
+            return np.array([float(z * (m - z) * (m - z - 1)) for m, z in zip(n, x)])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
         for w in range(len(windows)-1):
@@ -410,9 +410,9 @@ class GeneralStatCalculator(object):
         n = [len(x) for x in sample_sets]
 
         def f(x):
-            return [float(x[i] * x[k] * (n[j] - x[j]) * (n[l] - x[l])
-                          - x[i] * x[l] * (n[j] - x[j]) * (n[k] - x[k]))
-                    for i, j, k, l in indices]
+            return np.array([float(x[i] * x[k] * (n[j] - x[j]) * (n[l] - x[l])
+                                   - x[i] * x[l] * (n[j] - x[j]) * (n[k] - x[k]))
+                             for i, j, k, l in indices])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
         # move this division outside of f(x) so it only has to happen once
@@ -462,9 +462,9 @@ class GeneralStatCalculator(object):
         n = [len(x) for x in sample_sets]
 
         def f(x):
-            return [float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[k] - x[k])
-                          - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[k])
-                    for i, j, k in indices]
+            return np.array([float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[k] - x[k])
+                                   - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[k])
+                             for i, j, k in indices])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
         # move this division outside of f(x) so it only has to happen once
@@ -521,9 +521,9 @@ class GeneralStatCalculator(object):
                 raise ValueError("All sample_sets must have at least two samples.")
 
         def f(x):
-            return [float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[j] - x[j] - 1)
-                          - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[j])
-                    for i, j in indices]
+            return np.array([float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[j] - x[j] - 1)
+                                   - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[j])
+                             for i, j in indices])
 
         out = self.tree_stat_vector(sample_sets, weight_fun=f, windows=windows)
         # move this division outside of f(x) so it only has to happen once
@@ -552,32 +552,6 @@ class GeneralStatCalculator(object):
             raise ValueError("sample_sets should be of length 2.")
         return self.f2_vector(sample_sets, windows, indices=[(0, 1)])
 
-    def tree_stat(self, sample_sets, weight_fun):
-        '''
-        Here sample_sets is a list of lists of samples, and weight_fun is a function
-        whose argument is a list of integers of the same length as sample_sets
-        that returns a weight.  A branch in a tree is weighted by weight_fun(x),
-        where x[i] is the number of samples in sample_sets[i] below that
-        branch.  This finds the sum of all counted branches for each tree,
-        and averages this across the tree sequence, weighted by genomic length.
-        '''
-        out = self.tree_stat_vector(sample_sets, lambda x: [weight_fun(x)])
-        assert len(out) == 1 and len(out[0]) == 1
-        return out[0][0]
-
-    def tree_stat_windowed(self, sample_sets, weight_fun, windows=None):
-        '''
-        Here sample_sets is a list of lists of samples, and weight_fun is a function
-        whose argument is a list of integers of the same length as sample_sets
-        that returns a boolean.  A branch in a tree is weighted by weight_fun(x),
-        where x[i] is the number of samples in sample_sets[i] below that
-        branch.  This finds the sum of all counted branches for each tree,
-        and averages this across the tree sequence, weighted by genomic length.
-        '''
-        out = self.tree_stat_vector(sample_sets, lambda x: [weight_fun(x)], windows)
-        assert len(out[0]) == 1
-        return [x[0] for x in out]
-
 
 class BranchLengthStatCalculator(GeneralStatCalculator):
     """
@@ -593,7 +567,7 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
         statistics for.
     """
 
-    def tree_stat_vector(self, sample_sets, weight_fun, windows=None):
+    def tree_stat_vector(self, sample_sets, weight_fun, windows=None, polarised=False):
         '''
         Here sample_sets is a list of lists of samples, and weight_fun is a
         function whose argument is a list of integers of the same length as
@@ -611,7 +585,7 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
         of the statistics.
         '''
         if windows is None:
-            windows = (0, self.tree_sequence.sequence_length)
+            windows = np.array([0, self.tree_sequence.sequence_length])
         for U in sample_sets:
             if ((not isinstance(U, list)) or
                len(U) != len(set(U))):
@@ -631,92 +605,92 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
         for k in range(num_windows):
             if windows[k + 1] <= windows[k]:
                 raise ValueError("Windows must be increasing.")
-        # below we actually just keep track of x, not (x,xbar), so here's the
-        #   weighting function we actually use of just x:
-        num_sample_sets = len(sample_sets)
 
-        # this how we apply the weight function to both below the branch and
-        # above it
-        n = [len(x) for x in sample_sets]
+        W = np.array([[float(u in A) for A in sample_sets] for u in self.tree_sequence.samples()])
+        #####
+        # copied from general_branch_stats()
+        ts = self.tree_sequence
+        print(ts.tables)
+        f = weight_fun
+        n, K = W.shape
+        if n != ts.num_samples:
+            raise ValueError("First dimension of W must be number of samples")
+        # Hack to determine M
+        M = len(f(W[0]))
+        sigma = np.zeros((ts.num_trees, M))
+        X = np.zeros((ts.num_nodes, K))
+        X[ts.samples()] = W
+        total = np.sum(W, axis=0)
 
-        def wfn(x):
-            ax = [nn - xx for nn, xx in zip(n, x)]
-            return [a + b for a, b in zip(weight_fun(x), weight_fun(ax))]
+        tree_index = 0
+        time = ts.tables.nodes.time
+        parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
+        s = np.zeros(M)
+        tree = ts.first()  # For debugging
+        for (left, right), edges_out, edges_in in ts.edge_diffs():
+            print(tree.draw(format='unicode'))
+            print("X before:", X)
+            for edge in edges_out:
+                print("edge out:", edge)
+                u = edge.child
+                # Need to make two passes up the tree here because we can't
+                # update the X values until we've removed all the f(X[u])
+                # values from s first.
+                while u != -1:
+                    parent_u = parent[u]
+                    if parent_u != -1:
+                        branch_length = time[parent_u] - time[u]
+                        s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    u = parent_u
+                u = edge.parent
+                while u != -1:
+                    X[u] -= X[edge.child]
+                    u = parent[u]
+                parent[edge.child] = -1
+            print("  X now:", X)
+            for edge in edges_in:
+                print("edge in:", edge)
+                parent[edge.child] = edge.parent
+                u = edge.child
+                while u != -1:
+                    parent_u = parent[u]
+                    if parent_u != -1:
+                        branch_length = time[parent_u] - time[u]
+                        s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                        X[parent_u] += X[edge.child]
+                    u = parent_u
+            print("  X now:", X)
+            sigma[tree_index] = (right - left) * s
+            tree_index += 1
+            print("X after:", X)
 
-        # initialize
-        n_out = len(wfn([0 for a in range(num_sample_sets)]))
-
-        S = [[0.0 for j in range(n_out)] for _ in range(num_windows)]
-        L = [0.0 for j in range(n_out)]
-        N = self.tree_sequence.num_nodes
-        X = [[int(u in a) for a in sample_sets] for u in range(N)]
-        # we will essentially construct the tree
-        pi = [-1 for j in range(N)]
-        node_time = [self.tree_sequence.node(u).time for u in range(N)]
-        # keep track of where we are for the windows
-        chrom_pos = 0.0
-        # index of *left-hand* end of the current window
-        window_num = 0
-        for interval, records_out, records_in in self.tree_sequence.edge_diffs():
-            length = interval[1] - interval[0]
-            for sign, records in ((-1, records_out), (+1, records_in)):
-                for edge in records:
-                    dx = [0 for k in range(num_sample_sets)]
-                    if sign == +1:
-                        pi[edge.child] = edge.parent
-                    for k in range(num_sample_sets):
-                        dx[k] += sign * X[edge.child][k]
-                    w = wfn(X[edge.child])
-                    dt = (node_time[pi[edge.child]] - node_time[edge.child])
-                    for j in range(n_out):
-                        L[j] += sign * dt * w[j]
-                    if sign == -1:
-                        pi[edge.child] = -1
-                    old_w = wfn(X[edge.parent])
-                    for k in range(num_sample_sets):
-                        X[edge.parent][k] += dx[k]
-                    if pi[edge.parent] != -1:
-                        w = wfn(X[edge.parent])
-                        dt = (node_time[pi[edge.parent]] - node_time[edge.parent])
-                        for j in range(n_out):
-                            L[j] += dt * (w[j]-old_w[j])
-                    # propagate change up the tree
-                    u = pi[edge.parent]
-                    if u != -1:
-                        next_u = pi[u]
-                        while u != -1:
-                            old_w = wfn(X[u])
-                            for k in range(num_sample_sets):
-                                X[u][k] += dx[k]
-                            # need to update X for the root,
-                            # but the root does not have a branch length
-                            if next_u != -1:
-                                w = wfn(X[u])
-                                dt = (node_time[pi[u]] - node_time[u])
-                                for j in range(n_out):
-                                    L[j] += dt*(w[j] - old_w[j])
-                            u = next_u
-                            next_u = pi[next_u]
-            while chrom_pos + length >= windows[window_num + 1]:
-                # wrap up the last window
-                this_length = windows[window_num + 1] - chrom_pos
-                window_length = windows[window_num + 1] - windows[window_num]
-                for j in range(n_out):
-                    S[window_num][j] += L[j] * this_length
-                    S[window_num][j] /= window_length
-                length -= this_length
-                # start the next
-                if window_num < num_windows - 1:
-                    window_num += 1
-                    chrom_pos = windows[window_num]
-                else:
-                    # skips the else statement below
-                    break
+            # Debugging/development stuff from here.
+            if polarised:
+                s_other = np.sum([
+                    tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
+                assert np.allclose(s_other, s)
             else:
-                for j in range(n_out):
-                    S[window_num][j] += L[j] * length
-                chrom_pos += length
-        return S
+                s_other = np.sum([
+                    tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
+                    for u in tree.nodes()], axis=0)
+                assert np.allclose(s_other, s)
+            for u in tree.nodes():
+                assert tree.parent(u) == parent[u]
+            X2 = np.zeros((ts.num_nodes, K))
+            X2[ts.samples()] = W
+            for u in tree.nodes(order="postorder"):
+                # if tree.parent(u) >= 0:
+                #     X2[tree.parent(u)] += X2[u]
+                for v in tree.children(u):
+                    X2[u] += X2[v]
+            print("X should be:", X2)
+            assert np.allclose(X, X2)
+            tree.next()
+
+        if windows is None:
+            return sigma
+        else:
+            return windowed_tree_stat(ts, sigma, windows)
 
     def site_frequency_spectrum(self, sample_set, windows=None):
         '''
@@ -1079,3 +1053,30 @@ def get_derived_state(site, mut_id):
             if m.id == mut_id:
                 state = m.derived_state
     return state
+
+
+def windowed_tree_stat(ts, stat, windows):
+    A = np.zeros((len(windows) - 1, stat.shape[1]))
+    tree_breakpoints = np.array(list(ts.breakpoints()))
+    tree_index = 0
+    for j in range(len(windows) - 1):
+        w_left = windows[j]
+        w_right = windows[j + 1]
+        while True:
+            t_left = tree_breakpoints[tree_index]
+            t_right = tree_breakpoints[tree_index + 1]
+            left = max(t_left, w_left)
+            right = min(t_right, w_right)
+            A[j] += stat[tree_index] * max(0.0, (right - left) / (t_right - t_left))
+            assert left != right
+            if t_right <= w_right:
+                tree_index += 1
+                # TODO This is inelegant - should include this in the case below
+                if t_right == w_right:
+                    break
+            else:
+                break
+        # Normalise by the size of the window
+        A[j] /= w_right - w_left
+    return A
+
