@@ -3026,6 +3026,580 @@ class TreeSequence(object):
 
     ############################################
     #
+    # Statistics computation
+    #
+    ############################################
+
+    def general_stat(self, stat_type, W, f, windows=None, polarised=False):
+        if stat_type == "site":
+            return self.site_general_stat(W, f, windows=windows, polarised=polarised)
+        elif stat_type == "branch":
+            return self.branch_general_stat(W, f, windows=windows, polarised=polarised)
+        else:
+            raise ValueError("stat_type must be either 'site' or 'branch'.")
+
+    def sample_count_stats(self, stat_type, sample_sets, f, windows=None, polarised=False):
+        # helper function for common case where weights are indicators of sample sets
+        for U in sample_sets:
+            if ((not isinstance(U, list)) or
+               len(U) != len(set(U))):
+                raise ValueError(
+                    "elements of sample_sets must be lists without repeated elements.")
+            if len(U) == 0:
+                raise ValueError("elements of sample_sets cannot be empty.")
+            for u in U:
+                if not self.node(u).is_sample():
+                    raise ValueError("Not all elements of sample_sets are samples.")
+
+        W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
+        return self.general_stat(stat_type, W, f, windows=windows, polarised=polarised)
+
+    def tree_stat_vector(self, stat_type, sample_sets, weight_fun, windows=None,
+            polarised=False):
+        '''
+        Here sample_sets is a list of lists of samples, and weight_fun is a
+        function whose argument is a list of integers of the same length as
+        sample_sets that returns a list of numbers.  A branch in a tree is
+        weighted by weight_fun(x) + weight_fun(n-x), where x[i] is the number
+        of samples in sample_sets[i] below that branch, and n[i]-x[i] is the
+        number *not* below that branch.  This finds the sum of this weight for
+        all branches in each tree, and averages this across the tree sequence,
+        weighted by genomic length.
+
+        It does this separately for each window [windows[i], windows[i+1]) and
+        returns the values in a list.  Note that windows cannot be overlapping,
+        but overlapping windows can be achieved by (a) computing staistics on a
+        small window size and (b) averaging neighboring windows, by additivity
+        of the statistics.
+        '''
+        # This function is only here temporarily!!!
+        if windows is None:
+            windows = np.array([0, self.sequence_length])
+        num_windows = len(windows) - 1
+        if windows[0] != 0.0:
+            raise ValueError(
+                "Windows must start at the start of the sequence (at 0.0).")
+        if windows[-1] != self.sequence_length:
+            raise ValueError("Windows must extend to the end of the sequence.")
+        for k in range(num_windows):
+            if windows[k + 1] <= windows[k]:
+                raise ValueError("Windows must be increasing.")
+
+        return self.sample_count_stats(stat_type, sample_sets, weight_fun,
+                windows=windows, polarised=polarised)
+
+    # Branch statistics stuff
+    ############################################
+
+    def windowed_tree_stat(self, stat, windows):
+        A = np.zeros((len(windows) - 1, stat.shape[1]))
+        tree_breakpoints = np.array(list(self.breakpoints()))
+        tree_index = 0
+        for j in range(len(windows) - 1):
+            w_left = windows[j]
+            w_right = windows[j + 1]
+            while True:
+                t_left = tree_breakpoints[tree_index]
+                t_right = tree_breakpoints[tree_index + 1]
+                left = max(t_left, w_left)
+                right = min(t_right, w_right)
+                A[j] += stat[tree_index] * max(0.0, (right - left) / (t_right - t_left))
+                assert left != right
+                if t_right <= w_right:
+                    tree_index += 1
+                    # TODO This is inelegant - should include this in the case below
+                    if t_right == w_right:
+                        break
+                else:
+                    break
+            # Normalise by the size of the window
+            A[j] /= w_right - w_left
+        return A
+
+    def branch_general_stat(self, W, f, windows=None, polarised=False):
+        n, K = W.shape
+        if n != self.num_samples:
+            raise ValueError("First dimension of W must be number of samples")
+        # Hack to determine M
+        M = len(f(W[0]))
+        sigma = np.zeros((self.num_trees, M))
+        X = np.zeros((self.num_nodes, K))
+        X[self.samples()] = W
+        total = np.sum(W, axis=0)
+
+        tree_index = 0
+        time = self.tables.nodes.time
+        parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
+        s = np.zeros(M)
+        tree = self.first()  # For debugging
+        for (left, right), edges_out, edges_in in self.edge_diffs():
+            for edge in edges_out:
+                u = edge.child
+                v = edge.parent
+                branch_length = time[v] - time[u]
+                s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+
+                u = edge.parent
+                while u != -1:
+                    branch_length = 0
+                    if parent[u] != -1:
+                        branch_length = time[parent[u]] - time[u]
+                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    X[u] -= X[edge.child]
+                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    u = parent[u]
+                parent[edge.child] = -1
+
+            for edge in edges_in:
+                parent[edge.child] = edge.parent
+
+                u = edge.child
+                v = edge.parent
+                branch_length = time[v] - time[u]
+                s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+
+                u = edge.parent
+                while u != -1:
+                    branch_length = 0
+                    if parent[u] != -1:
+                        branch_length = time[parent[u]] - time[u]
+                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    X[u] += X[edge.child]
+                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    u = parent[u]
+
+            sigma[tree_index] = (right - left) * s
+            tree_index += 1
+
+            # # Debugging/development stuff from here.
+            # if polarised:
+            #     s_other = np.sum([
+            #         tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
+            #     assert np.allclose(s_other, s)
+            # else:
+            #     s_other = np.sum([
+            #         tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
+            #         for u in tree.nodes()], axis=0)
+            #     assert np.allclose(s_other, s)
+            # for u in tree.nodes():
+            #     assert tree.parent(u) == parent[u]
+            # X2 = np.zeros((self.num_nodes, K))
+            # X2[self.samples()] = W
+            # for u in tree.nodes(order="postorder"):
+            #     for v in tree.children(u):
+            #         X2[u] += X2[v]
+            # # print(X)
+            # # print(X2)
+            # assert np.allclose(X, X2)
+            # tree.next()
+
+        if windows is None:
+            return sigma
+        else:
+            return self.windowed_tree_stat(sigma, windows)
+
+    # Site statistics stuff
+    ############################################
+
+    def windowed_sitewise_stat(self, sigma, windows):
+        M = sigma.shape[1]
+        A = np.zeros((len(windows) - 1, M))
+        window = 0
+        for site in self.sites():
+            while windows[window + 1] <= site.position:
+                window += 1
+            assert windows[window] <= site.position < windows[window + 1]
+            A[window] += sigma[site.id]
+        diff = np.zeros((A.shape[0], 1))
+        diff[:, 0] = np.diff(windows).T
+        return A / diff
+
+    def site_general_stat(self, W, f, windows=None, polarised=False):
+        ###### moved from tests/test_tree_stats.py
+        n, K = W.shape
+        if n != self.num_samples:
+            raise ValueError("First dimension of W must be number of samples")
+        # Hack to determine M
+        M, = f(W[0]).shape
+        sigma = np.zeros((self.num_sites, M))
+        X = np.zeros((self.num_nodes, K))
+        X[self.samples()] = W
+        total = np.sum(W, axis=0)
+
+        site_index = 0
+        mutation_index = 0
+        sites = self.tables.sites
+        mutations = self.tables.mutations
+        parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
+        tree = self.first()  # For debugging
+        for (left, right), edges_out, edges_in in self.edge_diffs():
+            for edge in edges_out:
+                u = edge.parent
+                while u != -1:
+                    X[u] -= X[edge.child]
+                    u = parent[u]
+                parent[edge.child] = -1
+            for edge in edges_in:
+                parent[edge.child] = edge.parent
+                u = edge.parent
+                while u != -1:
+                    X[u] += X[edge.child]
+                    u = parent[u]
+            while site_index < len(sites) and sites.position[site_index] < right:
+                assert left <= sites.position[site_index]
+                ancestral_state = sites[site_index].ancestral_state
+                state_map = collections.defaultdict(functools.partial(np.zeros, K))
+                state_map[ancestral_state][:] = total
+                while (
+                        mutation_index < len(mutations)
+                        and mutations[mutation_index].site == site_index):
+                    mutation = mutations[mutation_index]
+                    state_map[mutation.derived_state] += X[mutation.node]
+                    if mutation.parent != -1:
+                        parent_state = mutations[mutation.parent].derived_state
+                        state_map[parent_state] -= X[mutation.node]
+                    else:
+                        state_map[ancestral_state] -= X[mutation.node]
+                    mutation_index += 1
+                if polarised:
+                    del state_map[ancestral_state]
+                for state, X_value in state_map.items():
+                    sigma[site_index] += f(X_value)
+                site_index += 1
+
+            # Debugging/development stuff.
+            assert (left, right) == tree.interval
+            for u in tree.nodes():
+                assert parent[u] == tree.parent(u)
+            tree.next()
+        if windows is None:
+            return sigma
+        else:
+            return self.windowed_sitewise_stat(sigma, windows)
+
+    # Statistics definitions
+    ############################################
+
+    def divergence(self, sample_sets, windows, stat_type="site"):
+        """
+        Finds the divergence between pairs of samples as described in
+        mean_pairwise_tmrca_matrix (which uses this function).  Returns the
+        upper triangle (including the diagonal) in row-major order, so if the
+        output is `x`, then:
+
+        >>> k=0
+        >>> for w in range(len(windows)-1):
+        >>>     for i in range(len(sample_sets)):
+        >>>         for j in range(i,len(sample_sets)):
+        >>>             trmca[i,j] = tmrca[j,i] = x[w][k]/2.0
+        >>>             k += 1
+
+        will fill out the matrix of mean TMRCAs in the `i`th window between (and
+        within) each group of samples in `sample_sets` in the matrix `tmrca`.
+        (This is because divergence is one-half TMRCA.) Alternatively, if
+        `names` labels the sample_sets, the output labels are:
+
+        >>> [".".join(names[i],names[j]) for i in range(len(names))
+        >>>         for j in range(i,len(names))]
+
+        :param list sample_sets: A list of sets of IDs of samples.
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :return: A list of the upper triangle of divergences in row-major
+            order, including the diagonal.
+        """
+        ns = len(sample_sets)
+        n = [len(x) for x in sample_sets]
+
+        def f(x):
+            return np.array([float(x[i]*(n[j]-x[j]))
+                             for i in range(ns) for j in range(i, ns)])
+
+        out = self.sample_count_stats(stat_type,
+                sample_sets, f, windows=windows, polarised=False)
+
+        # move this division outside of f(x) so it only has to happen once
+        # corrects the diagonal for self comparisons
+        # and note factor of two for tree length -> real time
+        for w in range(len(windows)-1):
+            k = 0
+            for i in range(ns):
+                for j in range(i, ns):
+                    if i == j:
+                        if n[i] == 1:
+                            out[w][k] = np.nan
+                        else:
+                            out[w][k] /= float(n[i] * (n[i] - 1))
+                    else:
+                        out[w][k] /= float(n[i] * n[j])
+                    k += 1
+
+        return out
+
+    def divergence_matrix(self, sample_sets, windows, stat_type="site"):
+        """
+        Finds the mean divergence  between pairs of samples from each set of
+        samples and in each window. Returns a numpy array indexed by (window,
+        sample_set, sample_set).  Diagonal entries are corrected so that the
+        value gives the mean divergence for *distinct* samples, but it is not
+        checked whether the sample_sets are disjoint (so offdiagonals are not
+        corrected).  For this reason, if an element of `sample_sets` has only
+        one element, the corresponding diagonal will be NaN.
+
+        The mean divergence between two samples is defined to be the mean: (as
+        a TreeStat) length of all edges separating them in the tree, or (as a
+        SiteStat) density of segregating sites, at a uniformly chosen position
+        on the genome.
+
+        :param list sample_sets: A list of sets of IDs of samples.
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :return: A list of the upper triangle of mean TMRCA values in row-major
+            order, including the diagonal.
+        """
+        x = self.divergence(sample_sets, windows, stat_type=stat_type)
+        ns = len(sample_sets)
+        nw = len(windows) - 1
+        A = np.ones((nw, ns, ns), dtype=float)
+        for w in range(nw):
+            k = 0
+            for i in range(ns):
+                for j in range(i, ns):
+                    A[w, i, j] = A[w, j, i] = x[w][k]
+                    k += 1
+        return A
+
+    def Y3(self, sample_sets, windows, indices, stat_type="site"):
+        """
+        Finds the 'Y' statistic between three sample_sets.  The sample_sets should
+        be disjoint (the computation works fine, but if not the result depends
+        on the amount of overlap).  If the sample_sets are A, B, and C, then the
+        result gives the mean total length of any edge in the tree between a
+        and the most recent common ancestor of b and c, where a, b, and c are
+        random draws from A, B, and C respectively; or the density of mutations
+        segregating a|bc.
+
+        The result is, for each window, a vector whose k-th entry is
+            Y(sample_sets[indices[k][0]], sample_sets[indices[k][1]],
+              sample_sets[indices[k][2]]).
+
+        :param list sample_sets: A list of *three* lists of IDs of samples: (A,B,C).
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :param list indices: A list of triples of indices of sample_sets.
+        :return: A list of numeric vectors of length equal to the length of
+            indices, computed separately on each window.
+        """
+        for u in indices:
+            if not len(u) == 3:
+                raise ValueError("All indices should be of length 3.")
+        n = [len(x) for x in sample_sets]
+
+        def f(x):
+            return np.array([float(x[i] * (n[j] - x[j]) * (n[k] - x[k]))
+                             for i, j, k in indices])
+
+        out = self.sample_count_stats(stat_type,
+                sample_sets, f, windows=windows)
+
+        # move this division outside of f(x) so it only has to happen once
+        # corrects the diagonal for self comparisons
+        for w in range(len(windows)-1):
+            for u in range(len(indices)):
+                out[w][u] /= float(n[indices[u][0]] * n[indices[u][1]]
+                                   * n[indices[u][2]])
+
+        return out
+
+    def Y2(self, sample_sets, windows, indices, stat_type="site"):
+        """
+        Finds the 'Y' statistic for two groups of samples in sample_sets.
+        The sample_sets should be disjoint (the computation works fine, but if
+        not the result depends on the amount of overlap).
+        If the sample_sets are A and B then the result gives the mean total length
+        of any edge in the tree between a and the most recent common ancestor of
+        b and c, where a, b, and c are random draws from A, B, and B
+        respectively (without replacement).
+
+        The result is, for each window, a vector whose k-th entry is
+            Y2(sample_sets[indices[k][0]], sample_sets[indices[k][1]]).
+
+        :param list sample_sets: A list of lists of IDs of leaves.
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :param list indices: A list of pairs of indices of sample_sets.
+        :return: A list of numeric vectors of length equal to the length of
+            indices, computed separately on each window.
+        """
+        for u in indices:
+            if not len(u) == 2:
+                raise ValueError("All indices should be of length 2.")
+        n = [len(x) for x in sample_sets]
+
+        def f(x):
+            return np.array([float(x[i] * (n[j] - x[j]) * (n[j] - x[j] - 1))
+                             for i, j in indices])
+
+        out = self.sample_count_stats(stat_type,
+                sample_sets, f, windows=windows)
+        for w in range(len(windows)-1):
+            for u in range(len(indices)):
+                out[w][u] /= float(n[indices[u][0]] * n[indices[u][1]]
+                                   * (n[indices[u][1]]-1))
+
+        return out
+
+    def Y1(self, sample_sets, windows, stat_type="site"):
+        """
+        Finds the 'Y1' statistic within each set of samples in sample_sets. The
+        sample_sets should be disjoint (the computation works fine, but if not
+        the result depends on the amount of overlap).  For the sample set A, the
+        result gives the mean total length of any edge in the tree between a
+        and the most recent common ancestor of b and c, where a, b, and c are
+        random draws from A, without replacement.
+
+        The result is, for each window, a vector whose k-th entry is
+            Y1(sample_sets[k]).
+
+        :param list sample_sets: A list of sets of IDs of samples, each of length
+            at least 3.
+        :param iterable windows: The breakpoints of the windows (including
+            start and end, so has one more entry than number of windows).
+        :return: A list of numeric vectors of length equal to the length of
+            sample_sets, computed separately on each window.
+        """
+        for x in sample_sets:
+            if len(x) < 3:
+                raise ValueError("All sample_sets should be of length at least 3.")
+        n = [len(x) for x in sample_sets]
+
+        def f(x):
+            return np.array([float(z * (m - z) * (m - z - 1)) for m, z in zip(n, x)])
+
+        out = self.sample_count_stats(stat_type,
+                sample_sets, f, windows=windows)
+        for w in range(len(windows)-1):
+            for u in range(len(sample_sets)):
+                out[w][u] /= float(n[u] * (n[u]-1) * (n[u]-2))
+
+        return out
+
+    def f4(self, sample_sets, windows, indices, stat_type="site"):
+        """
+        Finds the Patterson's f4 statistics between multiple subsets of four
+        groups of sample_sets. The sample_sets should be disjoint (the computation
+        works fine, but if not the result depends on the amount of overlap).
+
+        :param list sample_sets: A list of four sets of IDs of samples: (A,B,C,D)
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :param list indices: A list of 4-tuples of indices of sample_sets.
+        :return: A list of values of f4(A,B;C,D) of length equal to the length of
+            indices, computed separately on each window.
+        """
+        for u in indices:
+            if not len(u) == 4:
+                raise ValueError("All tuples in indices should be of length 4.")
+        n = [len(x) for x in sample_sets]
+
+        def f(x):
+            return np.array([float(x[i] * x[k] * (n[j] - x[j]) * (n[l] - x[l])
+                                   - x[i] * x[l] * (n[j] - x[j]) * (n[k] - x[k]))
+                             for i, j, k, l in indices])
+
+
+        out = self.sample_count_stats(stat_type,
+                    sample_sets, f, windows=windows)
+        # move this division outside of f(x) so it only has to happen once
+        # corrects the diagonal for self comparisons
+        for w in range(len(windows)-1):
+            for u in range(len(indices)):
+                out[w][u] /= float(n[indices[u][0]] * n[indices[u][1]]
+                                   * n[indices[u][2]] * n[indices[u][3]])
+
+        return out
+
+    def f3(self, sample_sets, windows, indices, stat_type="site"):
+        """
+        Finds the Patterson's f3 statistics between multiple subsets of three
+        groups of samples in sample_sets. The sample_sets should be disjoint (the
+        computation works fine, but if not the result depends on the amount of
+        overlap).
+
+        f3(A;B,C) is f4(A,B;A,C) corrected to not include self comparisons.
+
+        If A does not contain at least three samples, the result is NaN.
+
+        :param list sample_sets: A list of sets of IDs of samples.
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :param list indices: A list of triples of indices of sample_sets.
+        :return: A list of values of f3(A,B,C) computed separately on each window.
+        """
+        for u in indices:
+            if not len(u) == 3:
+                raise ValueError("All tuples in indices should be of length 3.")
+        n = [len(x) for x in sample_sets]
+
+        def f(x):
+            return np.array([float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[k] - x[k])
+                                   - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[k])
+                             for i, j, k in indices])
+
+        out = self.sample_count_stats(stat_type,
+                    sample_sets, f, windows=windows)
+        # move this division outside of f(x) so it only has to happen once
+        for w in range(len(windows)-1):
+            for u in range(len(indices)):
+                if n[indices[u][0]] == 1:
+                    out[w][u] = np.nan
+                else:
+                    out[w][u] /= float(n[indices[u][0]] * (n[indices[u][0]]-1)
+                                       * n[indices[u][1]] * n[indices[u][2]])
+
+        return out
+
+    def f2(self, sample_sets, windows, indices, stat_type="site"):
+        """
+        Finds the Patterson's f2 statistics between multiple subsets of pairs
+        of samples in sample_sets. The sample_sets should be disjoint (the
+        computation works fine, but if not the result depends on the amount of
+        overlap).
+
+        f2(A;B) is f4(A,B;A,B) corrected to not include self comparisons.
+
+        :param list sample_sets: A list of sets of IDs of samples, each having at
+            least two samples.
+        :param iterable windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :param list indices: A list of pairs of indices of sample_sets.
+        :return: A list of values of f2(A,C) computed separately on each window.
+        """
+        for u in indices:
+            if not len(u) == 2:
+                raise ValueError("All tuples in indices should be of length 2.")
+        n = [len(x) for x in sample_sets]
+        for xlen in n:
+            if not xlen > 1:
+                raise ValueError("All sample_sets must have at least two samples.")
+
+        def f(x):
+            return np.array([float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[j] - x[j] - 1)
+                                   - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[j])
+                             for i, j in indices])
+
+        out = self.sample_count_stats(stat_type,
+                        sample_sets, f, windows=windows)
+        # move this division outside of f(x) so it only has to happen once
+        for w in range(len(windows)-1):
+            for u in range(len(indices)):
+                out[w][u] /= float(n[indices[u][0]] * (n[indices[u][0]]-1)
+                                   * n[indices[u][1]] * (n[indices[u][1]] - 1))
+
+        return out
+
+    ############################################
+    #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a
     # later release.
     #

@@ -26,6 +26,10 @@ import threading
 import struct
 import sys
 
+# PROBABLY TEMPORARY:
+import collections
+import functools
+
 import numpy as np
 
 import _tskit
@@ -607,11 +611,37 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
                 raise ValueError("Windows must be increasing.")
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.tree_sequence.samples()])
+        return self.general_stat(W, weight_fun, windows=windows, polarised=polarised)
+
+    def windowed_tree_stat(self, stat, windows):
+        A = np.zeros((len(windows) - 1, stat.shape[1]))
+        tree_breakpoints = np.array(list(self.tree_sequence.breakpoints()))
+        tree_index = 0
+        for j in range(len(windows) - 1):
+            w_left = windows[j]
+            w_right = windows[j + 1]
+            while True:
+                t_left = tree_breakpoints[tree_index]
+                t_right = tree_breakpoints[tree_index + 1]
+                left = max(t_left, w_left)
+                right = min(t_right, w_right)
+                A[j] += stat[tree_index] * max(0.0, (right - left) / (t_right - t_left))
+                assert left != right
+                if t_right <= w_right:
+                    tree_index += 1
+                    # TODO This is inelegant - should include this in the case below
+                    if t_right == w_right:
+                        break
+                else:
+                    break
+            # Normalise by the size of the window
+            A[j] /= w_right - w_left
+        return A
+
+    def general_stat(self, W, f, windows=None, polarised=False):
         #####
-        # copied from general_branch_stats()
+        # moved from tests/test_tree_stats.py:general_branch_stats()
         ts = self.tree_sequence
-        print(ts.tables)
-        f = weight_fun
         n, K = W.shape
         if n != ts.num_samples:
             raise ValueError("First dimension of W must be number of samples")
@@ -628,69 +658,70 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
         s = np.zeros(M)
         tree = ts.first()  # For debugging
         for (left, right), edges_out, edges_in in ts.edge_diffs():
-            print(tree.draw(format='unicode'))
-            print("X before:", X)
             for edge in edges_out:
-                print("edge out:", edge)
                 u = edge.child
-                # Need to make two passes up the tree here because we can't
-                # update the X values until we've removed all the f(X[u])
-                # values from s first.
-                while u != -1:
-                    parent_u = parent[u]
-                    if parent_u != -1:
-                        branch_length = time[parent_u] - time[u]
-                        s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                    u = parent_u
+                v = edge.parent
+                branch_length = time[v] - time[u]
+                s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+
                 u = edge.parent
                 while u != -1:
+                    branch_length = 0
+                    if parent[u] != -1:
+                        branch_length = time[parent[u]] - time[u]
+                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
                     X[u] -= X[edge.child]
+                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
                     u = parent[u]
                 parent[edge.child] = -1
-            print("  X now:", X)
+
             for edge in edges_in:
-                print("edge in:", edge)
                 parent[edge.child] = edge.parent
+
                 u = edge.child
+                v = edge.parent
+                branch_length = time[v] - time[u]
+                s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+
+                u = edge.parent
                 while u != -1:
-                    parent_u = parent[u]
-                    if parent_u != -1:
-                        branch_length = time[parent_u] - time[u]
-                        s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                        X[parent_u] += X[edge.child]
-                    u = parent_u
-            print("  X now:", X)
+                    branch_length = 0
+                    if parent[u] != -1:
+                        branch_length = time[parent[u]] - time[u]
+                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    X[u] += X[edge.child]
+                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
+                    u = parent[u]
+
             sigma[tree_index] = (right - left) * s
             tree_index += 1
-            print("X after:", X)
 
-            # Debugging/development stuff from here.
-            if polarised:
-                s_other = np.sum([
-                    tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
-                assert np.allclose(s_other, s)
-            else:
-                s_other = np.sum([
-                    tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
-                    for u in tree.nodes()], axis=0)
-                assert np.allclose(s_other, s)
-            for u in tree.nodes():
-                assert tree.parent(u) == parent[u]
-            X2 = np.zeros((ts.num_nodes, K))
-            X2[ts.samples()] = W
-            for u in tree.nodes(order="postorder"):
-                # if tree.parent(u) >= 0:
-                #     X2[tree.parent(u)] += X2[u]
-                for v in tree.children(u):
-                    X2[u] += X2[v]
-            print("X should be:", X2)
-            assert np.allclose(X, X2)
-            tree.next()
+            # # Debugging/development stuff from here.
+            # if polarised:
+            #     s_other = np.sum([
+            #         tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
+            #     assert np.allclose(s_other, s)
+            # else:
+            #     s_other = np.sum([
+            #         tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
+            #         for u in tree.nodes()], axis=0)
+            #     assert np.allclose(s_other, s)
+            # for u in tree.nodes():
+            #     assert tree.parent(u) == parent[u]
+            # X2 = np.zeros((ts.num_nodes, K))
+            # X2[ts.samples()] = W
+            # for u in tree.nodes(order="postorder"):
+            #     for v in tree.children(u):
+            #         X2[u] += X2[v]
+            # # print(X)
+            # # print(X2)
+            # assert np.allclose(X, X2)
+            # tree.next()
 
         if windows is None:
             return sigma
         else:
-            return windowed_tree_stat(ts, sigma, windows)
+            return self.windowed_tree_stat(sigma, windows)
 
     def site_frequency_spectrum(self, sample_set, windows=None):
         '''
@@ -814,7 +845,7 @@ class SiteStatCalculator(GeneralStatCalculator):
     def __init__(self, tree_sequence):
         self.tree_sequence = tree_sequence
 
-    def tree_stat_vector(self, sample_sets, weight_fun, windows=None):
+    def tree_stat_vector(self, sample_sets, weight_fun, windows=None, polarised=False):
         '''
         Here sample_sets is a list of lists of samples, and weight_fun is a
         function whose argument is a list of integers of the same length as
@@ -850,88 +881,86 @@ class SiteStatCalculator(GeneralStatCalculator):
         for k in range(num_windows):
             if windows[k + 1] <= windows[k]:
                 raise ValueError("Windows must be increasing.")
-        num_sample_sets = len(sample_sets)
-        num_sites = self.tree_sequence.num_sites
-        n = [len(x) for x in sample_sets]
-        n_out = len(weight_fun([0 for a in range(num_sample_sets)]))
-        # we store the final answers here
-        S = [[0.0 for j in range(n_out)] for _ in range(num_windows)]
-        if num_sites == 0:
-            return S
-        N = self.tree_sequence.num_nodes
-        # initialize: with no tree, each node is either in a sample set or not
-        X = [[int(u in a) for a in sample_sets] for u in range(N)]
-        # we will construct the tree here
-        pi = [-1 for j in range(N)]
-        # keep track of which site we're looking at
-        sites = self.tree_sequence.sites()
-        ns = 0  # this will record number of sites seen so far
-        s = next(sites)
-        # index of *left-hand* end of the current window
-        window_num = 0
-        while s.position > windows[window_num + 1]:
-            window_num += 1
-        for interval, records_out, records_in in self.tree_sequence.edge_diffs():
-            # if we've done all the sites then stop
-            if ns == num_sites:
-                break
-            # update the tree
-            for sign, records in ((-1, records_out), (+1, records_in)):
-                for edge in records:
-                    dx = [0 for k in range(num_sample_sets)]
-                    if sign == +1:
-                        pi[edge.child] = edge.parent
-                    for k in range(num_sample_sets):
-                        dx[k] += sign * X[edge.child][k]
-                    if sign == -1:
-                        pi[edge.child] = -1
-                    for k in range(num_sample_sets):
-                        X[edge.parent][k] += dx[k]
-                    # propagate change up the tree
-                    u = pi[edge.parent]
-                    if u != -1:
-                        next_u = pi[u]
-                        while u != -1:
-                            for k in range(num_sample_sets):
-                                X[u][k] += dx[k]
-                            u = next_u
-                            next_u = pi[next_u]
-            # loop over sites in this tree
-            while s.position < interval[1]:
-                if s.position > windows[window_num + 1]:
-                    # finalize this window and move to the next
-                    window_length = windows[window_num + 1] - windows[window_num]
-                    for j in range(n_out):
-                        S[window_num][j] /= window_length
-                    # may need to advance through empty windows
-                    while s.position > windows[window_num + 1]:
-                        window_num += 1
-                nm = len(s.mutations)
-                if nm > 0:
-                    U = {s.ancestral_state: list(n)}
-                    for mut in s.mutations:
-                        if mut.derived_state not in U:
-                            U[mut.derived_state] = [0 for _ in range(num_sample_sets)]
-                        for k in range(num_sample_sets):
-                            U[mut.derived_state][k] += X[mut.node][k]
-                        parent_state = get_derived_state(s, mut.parent)
-                        if parent_state not in U:
-                            U[parent_state] = [0 for _ in range(num_sample_sets)]
-                        for k in range(num_sample_sets):
-                            U[parent_state][k] -= X[mut.node][k]
-                    for a in U:
-                        w = weight_fun(U[a])
-                        for j in range(n_out):
-                            S[window_num][j] += w[j]
-                ns += 1
-                if ns == num_sites:
-                    break
-                s = next(sites)
-        # wrap up the final window
-        window_length = windows[window_num + 1] - windows[window_num]
-        for j in range(n_out):
-            S[window_num][j] /= window_length
-        return S
+
+        W = np.array([[float(u in A) for A in sample_sets] for u in self.tree_sequence.samples()])
+        return self.general_stat(W, weight_fun, windows=windows, polarised=polarised)
+
+    def windowed_sitewise_stat(self, sigma, windows):
+        M = sigma.shape[1]
+        A = np.zeros((len(windows) - 1, M))
+        window = 0
+        for site in self.tree_sequence.sites():
+            while windows[window + 1] <= site.position:
+                window += 1
+            assert windows[window] <= site.position < windows[window + 1]
+            A[window] += sigma[site.id]
+        diff = np.zeros((A.shape[0], 1))
+        diff[:, 0] = np.diff(windows).T
+        return A / diff
+
+    def general_stat(self, W, f, windows=None, polarised=False):
+        ###### moved from tests/test_tree_stats.py
+        ts = self.tree_sequence
+        n, K = W.shape
+        if n != ts.num_samples:
+            raise ValueError("First dimension of W must be number of samples")
+        # Hack to determine M
+        M, = f(W[0]).shape
+        sigma = np.zeros((ts.num_sites, M))
+        X = np.zeros((ts.num_nodes, K))
+        X[ts.samples()] = W
+        total = np.sum(W, axis=0)
+
+        site_index = 0
+        mutation_index = 0
+        sites = ts.tables.sites
+        mutations = ts.tables.mutations
+        parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
+        tree = ts.first()  # For debugging
+        for (left, right), edges_out, edges_in in ts.edge_diffs():
+            for edge in edges_out:
+                u = edge.parent
+                while u != -1:
+                    X[u] -= X[edge.child]
+                    u = parent[u]
+                parent[edge.child] = -1
+            for edge in edges_in:
+                parent[edge.child] = edge.parent
+                u = edge.parent
+                while u != -1:
+                    X[u] += X[edge.child]
+                    u = parent[u]
+            while site_index < len(sites) and sites.position[site_index] < right:
+                assert left <= sites.position[site_index]
+                ancestral_state = sites[site_index].ancestral_state
+                state_map = collections.defaultdict(functools.partial(np.zeros, K))
+                state_map[ancestral_state][:] = total
+                while (
+                        mutation_index < len(mutations)
+                        and mutations[mutation_index].site == site_index):
+                    mutation = mutations[mutation_index]
+                    state_map[mutation.derived_state] += X[mutation.node]
+                    if mutation.parent != -1:
+                        parent_state = mutations[mutation.parent].derived_state
+                        state_map[parent_state] -= X[mutation.node]
+                    else:
+                        state_map[ancestral_state] -= X[mutation.node]
+                    mutation_index += 1
+                if polarised:
+                    del state_map[ancestral_state]
+                for state, X_value in state_map.items():
+                    sigma[site_index] += f(X_value)
+                site_index += 1
+
+            # Debugging/development stuff.
+            assert (left, right) == tree.interval
+            for u in tree.nodes():
+                assert parent[u] == tree.parent(u)
+            tree.next()
+        if windows is None:
+            return sigma
+        else:
+            return self.windowed_sitewise_stat(sigma, windows)
 
     def site_frequency_spectrum(self, sample_set, windows=None):
         '''
@@ -1053,30 +1082,4 @@ def get_derived_state(site, mut_id):
             if m.id == mut_id:
                 state = m.derived_state
     return state
-
-
-def windowed_tree_stat(ts, stat, windows):
-    A = np.zeros((len(windows) - 1, stat.shape[1]))
-    tree_breakpoints = np.array(list(ts.breakpoints()))
-    tree_index = 0
-    for j in range(len(windows) - 1):
-        w_left = windows[j]
-        w_right = windows[j + 1]
-        while True:
-            t_left = tree_breakpoints[tree_index]
-            t_right = tree_breakpoints[tree_index + 1]
-            left = max(t_left, w_left)
-            right = min(t_right, w_right)
-            A[j] += stat[tree_index] * max(0.0, (right - left) / (t_right - t_left))
-            assert left != right
-            if t_right <= w_right:
-                tree_index += 1
-                # TODO This is inelegant - should include this in the case below
-                if t_right == w_right:
-                    break
-            else:
-                break
-        # Normalise by the size of the window
-        A[j] /= w_right - w_left
-    return A
 
