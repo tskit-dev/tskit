@@ -947,6 +947,58 @@ out:
     return ret;
 }
 
+static inline void
+update_X(double *X, size_t K, tsk_id_t dest, tsk_id_t source, int sign)
+{
+    size_t k;
+    double *X_dest = GET_2D_ROW(X, K, dest);
+    double *X_source = GET_2D_ROW(X, K, source);
+
+    for (k = 0; k < K; k++) {
+        X_dest[k] += sign * X_source[k];
+    }
+}
+
+static inline void
+update_s(double *s, size_t M, double *X, size_t K,
+        general_stat_func_t *f, void *f_params, tsk_id_t u, tsk_id_t v,
+        const double *time, double *total_W, bool polarised, int sign)
+{
+    int ret;
+    size_t k, m;
+    double *X_u = GET_2D_ROW(X, K, u);
+    double branch_length;
+    /* This is a Bad Idea - we would have quite a large M resulting in
+     * stack overflow */
+    double F[M], F_tmp[M], total_minus_Xu[M];
+
+    /* s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u])) */
+
+    if (v == TSK_NULL) {
+        /* A branch length of zero means no update to s */
+        return;
+    }
+    ret = f(K, X_u, M, F, f_params);
+    assert(ret == 0);  /* FIXME */
+
+    if (! polarised) {
+        for (k = 0; k < K; k++) {
+            total_minus_Xu[k] = total_W[k] - X_u[k];
+        }
+        ret = f(K, total_minus_Xu, M, F_tmp, f_params);
+        assert(ret == 0);  /* FIXME */
+        for (m = 0; m < M; m++) {
+            F[m] += F_tmp[m];
+        }
+    }
+    branch_length = time[v] - time[u];
+    for (m = 0; m < M; m++) {
+        s[m] += sign * branch_length * F[m];
+    }
+}
+
+/* TODO: update this to take the windows as a mandatory parameter
+ * and the output memory as a parameter also */
 int
 tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
         size_t K, double *W,
@@ -968,9 +1020,8 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
     const double *restrict time = self->tables->nodes.time;
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t tj, tk, h;
-    double left, right, span, branch_length;
-    double *restrict X_u, *restrict X_v, *restrict X_child, *restrict W_u,
-           *restrict sigma_row, *restrict S_row;
+    double left, right, span;
+    double *restrict X_u, *restrict W_u, *restrict sigma_row;
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
     double *restrict X = calloc(num_nodes * K, sizeof(*X));
     double *restrict S = calloc(num_nodes * M, sizeof(*S));
@@ -979,7 +1030,7 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
     double *restrict s = calloc(M, sizeof(*s));
     double *restrict s_tmp = calloc(M, sizeof(*s_tmp));
     double *restrict sigma = calloc(M * self->num_trees, sizeof(*sigma));
-    bool polarised = true;
+    bool polarised = false;
 
     if (parent == NULL || X == NULL || S == NULL || s == NULL || s_tmp == NULL
             || sigma == NULL || total_minus_Xu == NULL || total_W == NULL) {
@@ -988,9 +1039,13 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
     }
     memset(parent, 0xff, num_nodes * sizeof(*parent));
 
-    if (options != 0 || windows != NULL || num_windows > 0 || K < 1 || M < 1) {
+    if (windows != NULL || num_windows > 0 || K < 1 || M < 1) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
+    }
+
+    if (options & TSK_STAT_POLARISED) {
+        polarised = true;
     }
 
     /* Set the initial conditions */
@@ -1014,93 +1069,34 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
             h = O[tk];
             tk++;
 
-            /* Remove the contribution to s */
             u = edge_child[h];
             v = edge_parent[h];
-            parent[u] = TSK_NULL;
-            while (v != TSK_NULL) {
-                branch_length = time[v] - time[u];
-                S_row = GET_2D_ROW(S, M, u);
-                for (k = 0; k < M; k++) {
-                    s[k] -= branch_length * S_row[k];
-                }
+            update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+            u = v;
+            while (u != TSK_NULL) {
+                v = parent[u];
+                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+                update_X(X, K, u, edge_child[h], -1);
+                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
                 u = v;
-                v = parent[v];
             }
-
-            /* Propagate X changes */
-            u = edge_child[h];
-            v = edge_parent[h];
-            X_u = GET_2D_ROW(X, K, u);
-            while (v != TSK_NULL) {
-                X_v = GET_2D_ROW(X, K, v);
-                S_row = GET_2D_ROW(S, M, v);
-                for (k = 0; k < K; k++) {
-                    X_v[k] -= X_u[k];
-                    S_row[k] = 0;
-                }
-                v = parent[v];
-            }
-            parent[u] = TSK_NULL;
-
-            /* parent[u] = -1 */
-            /* # Simpler to make two passes up the tree here. */
-            /* while v != -1: */
-            /*     branch_length = time[v] - time[u] */
-            /*     s -= branch_length * S[u] */
-            /*     u = v */
-            /*     v = parent[v] */
-            /* u = edge.child */
-            /* v = edge.parent */
-            /* while v != -1: */
-            /*     S[v] = 0 */
-            /*     X[v] -= X[u] */
-            /*     v = parent[v] */
-
-
+            parent[edge_child[h]] = TSK_NULL;
         }
+
         while (tj < num_edges && edge_left[I[tj]] == left) {
             h = I[tj];
             tj++;
             u = edge_child[h];
             v = edge_parent[h];
             parent[u] = v;
-
-            /* Propagate X changes */
-            u = edge_child[h];
-            v = edge_parent[h];
-            X_child = GET_2D_ROW(X, K, u);
-            while (v != TSK_NULL) {
-                S_row = GET_2D_ROW(S, M, u);
-                X_u = GET_2D_ROW(X, K, u);
-                X_v = GET_2D_ROW(X, K, v);
-                ret = f(K, X_u, M, S_row, f_params);
-                if (ret != 0) {
-                    goto out;
-                }
-                if (! polarised) {
-                    for (k = 0; k < K; k++) {
-                        total_minus_Xu[k] = total_W[k] - X_u[k];
-                    }
-                    ret = f(K, total_minus_Xu, M, s_tmp, f_params);
-                    if (ret != 0) {
-                        goto out;
-                    }
-                    for (k = 0; k < M; k++) {
-                        S_row[k] += s_tmp[k];
-                    }
-                }
-                branch_length = time[v] - time[u];
-                for (k = 0; k < M; k++) {
-                    s[k] += branch_length * S_row[k];
-                }
-
-                /* Update the X values */
-                for (k = 0; k < K; k++) {
-                    X_v[k] += X_child[k];
-                }
+            update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+            u = v;
+            while (u != TSK_NULL) {
+                v = parent[u];
+                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+                update_X(X, K, u, edge_child[h], +1);
+                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
                 u = v;
-                v = parent[v];
             }
         }
 
@@ -1112,17 +1108,17 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
             right = TSK_MIN(right, edge_right[O[tk]]);
         }
 
-        printf("X = \n");
-        for (k = 0; k < num_nodes; k++) {
-            printf("%d -> %f\n", (int) k, X[k]);
+/*         printf("X = \n"); */
+/*         for (k = 0; k < num_nodes; k++) { */
+/*             printf("%d -> %f\n", (int) k, X[k]); */
 
-        }
-        printf("S = \n");
-        for (k = 0; k < num_nodes; k++) {
-            printf("%d -> %f\n", (int) k, S[k]);
+/*         } */
+/*         printf("S = \n"); */
+/*         for (k = 0; k < num_nodes; k++) { */
+/*             printf("%d -> %f\n", (int) k, S[k]); */
 
-        }
-        printf("s = %f\n", s[0]);
+/*         } */
+/*         printf("s = %f\n", s[0]); */
         sigma_row = GET_2D_ROW(sigma, M, tree_index);
         span = right - left;
         for (k = 0; k < M; k++) {
@@ -1164,6 +1160,56 @@ out:
     }
     return ret;
 }
+
+
+/* TODO: implement this API */
+/* int */
+/* tsk_treeseq_node_divergence(tsk_treeseq_t *self, */
+/*         tsk_id_t **sample_sets, size_t num_sample_sets, size_t *sample_set_sizes, */
+/*         size_t *index_pairs, size_t num_index_pairs, */
+/*         double *windows, size_t num_windows, tsk_flags_t options) */
+/* { */
+
+/* } */
+
+/* int */
+/* tsk_treeseq_site_divergence(tsk_treeseq_t *self, */
+/*         tsk_id_t **sample_sets, size_t num_sample_sets, size_t *sample_set_sizes, */
+/*         size_t *index_pairs, size_t num_index_pairs, */
+/*         double *windows, size_t num_windows, tsk_flags_t options) */
+/* { */
+
+/* } */
+
+/* int */
+/* tsk_treeseq_branch_divergence(tsk_treeseq_t *self, */
+/*         tsk_id_t **sample_sets, size_t num_sample_sets, size_t *sample_set_sizes, */
+/*         size_t *index_pairs, size_t num_index_pairs, */
+/*         double *windows, size_t num_windows, tsk_flags_t options) */
+/* { */
+
+/* } */
+
+
+
+/* Functions to be added :
+ *
+ *
+int tsk_treeseq_Fst(tsk_treeseq_t *self, ..., options)
+int tsk_treeseq_divergence(tsk_treeseq_t *self, ..., options)
+int tsk_treeseq_diveristy(tsk_treeseq_t *self, ..., options)
+int tsk_treeseq_f4(tsk_treeseq_t *self, ..., options)
+
+Each of these can have TSK_STAT_BRANCH | TSK_STAT_NODE as arguments,
+which will invoke the approprate code path. We'll want a tsk_general_stat
+function which does this demultiplexing, as well as allocating the
+appropriate windows.
+
+Each of these will take windows/num_windows as an optional parameter
+and if NULL, allocate the appropriate windows automatically. This
+will be
+*/
+
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node)

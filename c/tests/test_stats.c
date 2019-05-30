@@ -338,26 +338,24 @@ verify_mean_descendants(tsk_treeseq_t *ts)
     free(C);
 }
 
-/* static int */
-/* general_stat_identity(size_t K, double *restrict X, size_t M, double *Y, void *params) */
-/* { */
-/*     size_t k; */
-/*     CU_ASSERT_FATAL(M == K); */
-/*     CU_ASSERT_FATAL(params == NULL); */
+static int
+general_stat_identity(size_t K, double *restrict X, size_t M, double *Y, void *params)
+{
+    size_t k;
+    CU_ASSERT_FATAL(M == K);
+    CU_ASSERT_FATAL(params == NULL);
 
-/*     for (k = 0; k < K; k++) { */
-/*         printf("SETTING Y = %f\n", X[k]); */
-/*         Y[k] = X[k]; */
-/*     } */
-/*     return 0; */
-/* } */
+    for (k = 0; k < K; k++) {
+        Y[k] = X[k];
+    }
+    return 0;
+}
 
 static void
 verify_general_branch_stats(tsk_treeseq_t *ts)
 {
     CU_ASSERT_FATAL(ts != NULL);
 
-#if 0
     int ret;
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(num_samples * sizeof(double));
@@ -376,10 +374,10 @@ verify_general_branch_stats(tsk_treeseq_t *ts)
     }
 
     ret = tsk_treeseq_general_branch_stats(ts, 1, W, 1, general_stat_identity, NULL,
-            0, NULL, &sigma, 0);
+            0, NULL, &sigma, TSK_STAT_POLARISED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_tree_init(&tree, ts, 0);
+    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_COUNTS);
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
@@ -392,27 +390,26 @@ verify_general_branch_stats(tsk_treeseq_t *ts)
                 stack_top--;
 
                 for (v = tree.right_child[u]; v != TSK_NULL; v = tree.left_sib[v]) {
-                    if (u != root) {
-                        branch_length = ts->tables->nodes.time[u];
-                        s += branch_length * tree.num_samples[v];
-                    }
+                    branch_length = ts->tables->nodes.time[u] - ts->tables->nodes.time[v];
+                    /* printf("u = %d v= %d s = %d bl = %f \n", u, v, tree.num_samples[v], */
+                    /*         branch_length); */
+                    s += branch_length * tree.num_samples[v];
                     stack_top++;
                     stack[stack_top] = v;
                 }
             }
         }
-        printf("sigma = %f s=%f\n", sigma[tree.index], s);
+        /* TODO: not sure if this is correct */
+        /* printf("result = %f %f\n", sigma[tree.index], s); */
+        CU_ASSERT_EQUAL_FATAL(sigma[tree.index], s);
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-
 
     free(stack);
     tsk_tree_free(&tree);
     free(W);
     free(sigma);
-#endif
 }
-
 
 static void
 test_single_tree_ld(void)
@@ -514,6 +511,17 @@ test_paper_ex_genealogical_nearest_neighbours(void)
 }
 
 static void
+test_paper_ex_general_branch_stats(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_general_branch_stats(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_nonbinary_ex_ld(void)
 {
     tsk_treeseq_t ts;
@@ -557,6 +565,17 @@ test_nonbinary_ex_genealogical_nearest_neighbours(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_nonbinary_ex_general_brach_stats(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
+            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+    verify_general_branch_stats(&ts);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -573,13 +592,14 @@ main(int argc, char **argv)
         {"test_paper_ex_mean_descendants", test_paper_ex_mean_descendants},
         {"test_paper_ex_genealogical_nearest_neighbours",
             test_paper_ex_genealogical_nearest_neighbours},
+        {"test_paper_ex_general_branch_stats", test_paper_ex_general_branch_stats},
 
         {"test_nonbinary_ex_ld", test_nonbinary_ex_ld},
         {"test_nonbinary_ex_pairwise_diversity", test_nonbinary_ex_pairwise_diversity},
         {"test_nonbinary_ex_mean_descendants", test_nonbinary_ex_mean_descendants},
         {"test_nonbinary_ex_genealogical_nearest_neighbours",
             test_nonbinary_ex_genealogical_nearest_neighbours},
-
+        {"test_nonbinary_ex_general_brach_stats", test_nonbinary_ex_general_brach_stats},
 
         {NULL, NULL},
     };

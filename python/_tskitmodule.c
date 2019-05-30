@@ -6436,6 +6436,73 @@ out:
     return ret;
 }
 
+
+/* Work in progress version of the general stat function. This stat function
+ * is just to get something working. We'd like to provide a Python function
+ * here at some point. */
+static int
+general_stat_func(size_t K, double *X, size_t M, double *Y, void *params)
+{
+    size_t m;
+    assert(K == M);
+
+    for (m = 0; m < M; m++) {
+        Y[m] = X[m];
+    }
+    return 0;
+}
+
+static PyObject *
+TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = {"weights", "summary_func", "output_dim", "polarised", NULL};
+    PyObject *weights = NULL;
+    PyObject *summary_func = NULL;
+    PyArrayObject *weights_array = NULL;
+    int polarised = 0;
+    unsigned int output_dim;
+    double *result = NULL;
+    npy_intp *w_shape;
+    int err;
+    tsk_flags_t options = 0;
+
+    if (TreeSequence_check_tree_sequence(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOI|i", kwlist,
+            &weights, &summary_func, &output_dim, &polarised)) {
+        goto out;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
+    }
+    weights_array = (PyArrayObject *) PyArray_FROMANY(weights, NPY_FLOAT64,
+            2, 2, NPY_ARRAY_IN_ARRAY);
+    if (weights_array == NULL) {
+        goto out;
+    }
+    w_shape = PyArray_DIMS(weights_array);
+    if (w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+        PyErr_SetString(PyExc_ValueError, "First dimension must be num_samples");
+        goto out;
+    }
+    /* FIXME: The lowlevel API needs to be updated to take windows as an argument
+     * and the returned memory as a parameter. */
+    err = tsk_treeseq_general_branch_stats(self->tree_sequence,
+            w_shape[1], PyArray_DATA(weights_array),
+            output_dim, general_stat_func, NULL,
+            0, NULL,
+            &result, options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+out:
+    Py_XDECREF(weights_array);
+    return ret;
+}
+
 static PyObject *
 TreeSequence_get_num_mutations(TreeSequence  *self)
 {
@@ -6616,6 +6683,9 @@ static PyMethodDef TreeSequence_methods[] = {
     {"mean_descendants",
         (PyCFunction) TreeSequence_mean_descendants,
         METH_VARARGS|METH_KEYWORDS, "Returns the mean number of nodes descending from each node." },
+    {"general_branch_stats",
+        (PyCFunction) TreeSequence_general_branch_stats,
+        METH_VARARGS|METH_KEYWORDS, "Runs the general branch stats algorithm for a give f." },
     {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix, METH_NOARGS,
         "Returns the genotypes matrix." },
     {NULL}  /* Sentinel */

@@ -31,6 +31,7 @@ import random
 import tempfile
 import unittest
 
+import numpy as np
 import msprime
 
 import _tskit
@@ -381,6 +382,28 @@ class TestTreeSequence(LowLevelTestCase):
             focal = ts.get_samples()
             A = ts.mean_descendants([focal[2:], focal[:2]])
             self.assertEqual(A.shape, (ts.get_num_nodes(), 2))
+
+
+class TestGeneralStatsInterface(LowLevelTestCase):
+    """
+    Tests for the general stats interface.
+    """
+    def test_basic_example(self):
+        ts = self.get_example_tree_sequence()
+        W = np.zeros((ts.get_num_samples(), 1))
+        ts.general_branch_stats(W, lambda x: np.cumsum(x), 1)
+
+    def test_W_errors(self):
+        ts = self.get_example_tree_sequence()
+        n = ts.get_num_samples()
+        for bad_array in [[], [0, 1], [[[[]], [[]]]], np.zeros((10, 3, 4))]:
+            with self.assertRaises(ValueError):
+                ts.general_branch_stats(bad_array, lambda x: x, 1)
+
+        for bad_size in [n - 1, n + 1, 0]:
+            W = np.zeros((bad_size, 1))
+            with self.assertRaises(ValueError):
+                ts.general_branch_stats(W, lambda x: x, 1)
 
 
 class TestTreeDiffIterator(LowLevelTestCase):

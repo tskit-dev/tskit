@@ -3280,7 +3280,7 @@ class TreeSequence(object):
     # Statistics definitions
     ############################################
 
-    def divergence(self, sample_sets, windows, stat_type="site"):
+    def divergence(self, sample_sets, indices=None, windows=None, stat_type="site"):
         """
         Finds the divergence between pairs of samples as described in
         mean_pairwise_tmrca_matrix (which uses this function).  Returns the
@@ -3308,6 +3308,22 @@ class TreeSequence(object):
         :return: A list of the upper triangle of divergences in row-major
             order, including the diagonal.
         """
+        if stat_type == "node":
+            if indices is not None:
+                raise ValueError("cannot specify more than one statistic with nodes")
+        if indices is None:
+            if len(sample_sets) != 2:
+                raise ValueError("Must have 2 sample sets.")
+            indices = [(0, 1)]
+
+        windows = parse_windows(windows, stat_type)
+        if stat_type == "node":
+            return self.ll_tree_sequence.node_divergence(sample_sets, windows)
+        elif stat_type == "site":
+            return self.ll_tree_sequence.site_divergence(sample_sets, indices, windows)
+        else:
+            return self.ll_tree_sequence.branch_divergence(sample_sets, indices, windows)
+
         ns = len(sample_sets)
         n = [len(x) for x in sample_sets]
 

@@ -39,6 +39,8 @@ extern "C" {
 #define TSK_SAMPLE_COUNTS  (1 << 0)
 #define TSK_SAMPLE_LISTS   (1 << 1)
 
+#define TSK_STAT_POLARISED (1 << 0)
+
 #define TSK_DIR_FORWARD 1
 #define TSK_DIR_REVERSE -1
 
