@@ -31,7 +31,6 @@
 
 #include <tskit/trees.h>
 
-
 /* ======================================================== *
  * tree sequence
  * ======================================================== */
@@ -959,51 +958,61 @@ update_X(double *X, size_t K, tsk_id_t dest, tsk_id_t source, int sign)
     }
 }
 
-static inline void
+static inline int
 update_s(double *s, size_t M, double *X, size_t K,
         general_stat_func_t *f, void *f_params, tsk_id_t u, tsk_id_t v,
-        const double *time, double *total_W, bool polarised, int sign)
+        const double *time, double *total_W,
+        bool polarised, int sign)
 {
-    int ret;
+    int ret = 0;
     size_t k, m;
     double *X_u = GET_2D_ROW(X, K, u);
     double branch_length;
-    /* This is a Bad Idea - we would have quite a large M resulting in
-     * stack overflow */
-    double F[M], F_tmp[M], total_minus_Xu[M];
+    double *total_minus_Xu = malloc(K * sizeof(*total_minus_Xu));
+    double *F = malloc(M * sizeof(*F));
+    double *F_tmp = malloc(M * sizeof(*F_tmp));
 
     /* s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u])) */
-
-    if (v == TSK_NULL) {
-        /* A branch length of zero means no update to s */
-        return;
+    if (F == NULL || F_tmp == NULL || total_minus_Xu == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
     }
-    ret = f(K, X_u, M, F, f_params);
-    assert(ret == 0);  /* FIXME */
 
-    if (! polarised) {
-        for (k = 0; k < K; k++) {
-            total_minus_Xu[k] = total_W[k] - X_u[k];
+    /* A branch length of zero means no update to s */
+    if (v != TSK_NULL) {
+        ret = f(K, X_u, M, F, f_params);
+        if (ret != 0) {
+            goto out;
         }
-        ret = f(K, total_minus_Xu, M, F_tmp, f_params);
-        assert(ret == 0);  /* FIXME */
+        if (! polarised) {
+            for (k = 0; k < K; k++) {
+                total_minus_Xu[k] = total_W[k] - X_u[k];
+            }
+            ret = f(K, total_minus_Xu, M, F_tmp, f_params);
+            if (ret != 0) {
+                goto out;
+            }
+            for (m = 0; m < M; m++) {
+                F[m] += F_tmp[m];
+            }
+        }
+        branch_length = time[v] - time[u];
         for (m = 0; m < M; m++) {
-            F[m] += F_tmp[m];
+            s[m] += sign * branch_length * F[m];
         }
     }
-    branch_length = time[v] - time[u];
-    for (m = 0; m < M; m++) {
-        s[m] += sign * branch_length * F[m];
-    }
+out:
+    tsk_safe_free(F);
+    tsk_safe_free(F_tmp);
+    tsk_safe_free(total_minus_Xu);
+    return ret;
 }
 
-/* TODO: update this to take the windows as a mandatory parameter
- * and the output memory as a parameter also */
 int
 tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
         size_t K, double *W,
         size_t M, general_stat_func_t *f, void *f_params,
-        size_t num_windows, double *windows, double **sigma_ret,
+        size_t num_windows, double *windows, double *sigma,
         tsk_flags_t options)
 {
     int ret = 0;
@@ -1019,21 +1028,16 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
     const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double *restrict time = self->tables->nodes.time;
     const double sequence_length = self->tables->sequence_length;
+    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
     tsk_id_t tj, tk, h;
     double left, right, span;
-    double *restrict X_u, *restrict W_u, *restrict sigma_row;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
-    double *restrict X = calloc(num_nodes * K, sizeof(*X));
-    double *restrict S = calloc(num_nodes * M, sizeof(*S));
-    double *restrict total_W = calloc(K, sizeof(*total_W));
-    double *restrict total_minus_Xu = calloc(K, sizeof(*total_minus_Xu));
-    double *restrict s = calloc(M, sizeof(*s));
-    double *restrict s_tmp = calloc(M, sizeof(*s_tmp));
-    double *restrict sigma = calloc(M * self->num_trees, sizeof(*sigma));
+    double *X_u, *W_u, *sigma_row;
+    double *X = calloc(num_nodes * K, sizeof(*X));
+    double *total_W = calloc(K, sizeof(*total_W));
+    double *s = calloc(M, sizeof(*s));
     bool polarised = false;
 
-    if (parent == NULL || X == NULL || S == NULL || s == NULL || s_tmp == NULL
-            || sigma == NULL || total_minus_Xu == NULL || total_W == NULL) {
+    if (parent == NULL || X == NULL || s == NULL || total_W == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
@@ -1071,13 +1075,16 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
 
             u = edge_child[h];
             v = edge_parent[h];
-            update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+            ret = update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+            if (ret != 0) { goto out; }
             u = v;
             while (u != TSK_NULL) {
                 v = parent[u];
-                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+                ret = update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+                if (ret != 0) { goto out; }
                 update_X(X, K, u, edge_child[h], -1);
-                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+                ret = update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+                if (ret != 0) { goto out; }
                 u = v;
             }
             parent[edge_child[h]] = TSK_NULL;
@@ -1089,13 +1096,16 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
             u = edge_child[h];
             v = edge_parent[h];
             parent[u] = v;
-            update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+            ret = update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+            if (ret != 0) { goto out; }
             u = v;
             while (u != TSK_NULL) {
                 v = parent[u];
-                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+                ret = update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, -1);
+                if (ret != 0) { goto out; }
                 update_X(X, K, u, edge_child[h], +1);
-                update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+                ret = update_s(s, M, X, K, f, f_params, u, v, time, total_W, polarised, +1);
+                if (ret != 0) { goto out; }
                 u = v;
             }
         }
@@ -1108,17 +1118,11 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
             right = TSK_MIN(right, edge_right[O[tk]]);
         }
 
-/*         printf("X = \n"); */
-/*         for (k = 0; k < num_nodes; k++) { */
-/*             printf("%d -> %f\n", (int) k, X[k]); */
-
-/*         } */
-/*         printf("S = \n"); */
-/*         for (k = 0; k < num_nodes; k++) { */
-/*             printf("%d -> %f\n", (int) k, S[k]); */
-
-/*         } */
-/*         printf("s = %f\n", s[0]); */
+        /* printf("X = \n"); */
+        /* for (k = 0; k < num_nodes; k++) { */
+        /*     printf("%d -> %f\n", (int) k, X[k]); */
+        /* } */
+        /* printf("s = %f\n", s[0]); */
         sigma_row = GET_2D_ROW(sigma, M, tree_index);
         span = right - left;
         for (k = 0; k < M; k++) {
@@ -1129,35 +1133,14 @@ tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
         left = right;
         tree_index++;
     }
-
-    *sigma_ret = sigma;
-    sigma = NULL;
 out:
     /* Can't use msp_safe_free here because of restrict */
     if (parent != NULL) {
         free(parent);
     }
-    if (X != NULL) {
-        free(X);
-    }
-    if (s != NULL) {
-        free(s);
-    }
-    if (s_tmp != NULL) {
-        free(s_tmp);
-    }
-    if (S != NULL) {
-        free(S);
-    }
-    if (sigma != NULL) {
-        free(sigma);
-    }
-    if (total_W != NULL) {
-        free(total_W);
-    }
-    if (total_minus_Xu != NULL) {
-        free(total_minus_Xu);
-    }
+    tsk_safe_free(X);
+    tsk_safe_free(s);
+    tsk_safe_free(total_W);
     return ret;
 }
 

@@ -104,10 +104,10 @@ class LowLevelTestCase(unittest.TestCase):
             if j > n:
                 self.assertGreaterEqual(num_children[j], 2)
 
-    def get_example_tree_sequence(self, sample_size=10, length=1):
+    def get_example_tree_sequence(self, sample_size=10, length=1, random_seed=1):
         ts = msprime.simulate(
-            sample_size, recombination_rate=0.1, mutation_rate=1, random_seed=1,
-            length=length)
+            sample_size, recombination_rate=0.1, mutation_rate=1,
+            random_seed=random_seed, length=length)
         return ts.ll_tree_sequence
 
     def get_example_tree_sequences(self):
@@ -138,6 +138,7 @@ class LowLevelTestCase(unittest.TestCase):
             self.assertRaises(StopIteration, next, iterator)
 
 
+@unittest.skip("TMP")
 class TestTableCollection(LowLevelTestCase):
     """
     Tests for the low-level TableCollection class
@@ -171,6 +172,7 @@ class TestTableCollection(LowLevelTestCase):
             self.assertEqual(tables.sequence_length, value)
 
 
+@unittest.skip("TMP")
 class TestTreeSequence(LowLevelTestCase):
     """
     Tests for the low-level interface for the TreeSequence.
@@ -391,7 +393,35 @@ class TestGeneralStatsInterface(LowLevelTestCase):
     def test_basic_example(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
-        ts.general_branch_stats(W, lambda x: np.cumsum(x), 1)
+        sigma = ts.general_branch_stats(W, lambda x: np.cumsum(x), 1)
+        self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
+
+    def test_non_numpy_return(self):
+        ts = self.get_example_tree_sequence()
+        W = np.ones((ts.get_num_samples(), 3))
+        sigma = ts.general_branch_stats(W, lambda x: [sum(x)], 1)
+        self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
+        sigma = ts.general_branch_stats(W, lambda x: [2, 2], 2)
+        self.assertEqual(sigma.shape, (ts.get_num_trees(), 2))
+
+    def test_complicated_numpy_function(self):
+        ts = self.get_example_tree_sequence(sample_size=20, length=30, random_seed=325)
+        W = np.zeros((ts.get_num_samples(), 4))
+
+        def f(x):
+            y = np.sum(x * x), np.prod(x + np.arange(x.shape[0]))
+            return y
+        sigma = ts.general_branch_stats(W, f, 2)
+        self.assertEqual(sigma.shape, (ts.get_num_trees(), 2))
+
+    def test_input_dims(self):
+        ts = self.get_example_tree_sequence()
+        for k in range(1, 20):
+            W = np.zeros((ts.get_num_samples(), k))
+            sigma = ts.general_branch_stats(W, lambda x: np.cumsum(x), k)
+            self.assertEqual(sigma.shape, (ts.get_num_trees(), k))
+            sigma = ts.general_branch_stats(W, lambda x: [np.sum(x)], 1)
+            self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
 
     def test_W_errors(self):
         ts = self.get_example_tree_sequence()
@@ -404,6 +434,41 @@ class TestGeneralStatsInterface(LowLevelTestCase):
             W = np.zeros((bad_size, 1))
             with self.assertRaises(ValueError):
                 ts.general_branch_stats(W, lambda x: x, 1)
+
+    def test_summary_func_errors(self):
+        ts = self.get_example_tree_sequence()
+        W = np.zeros((ts.get_num_samples(), 1))
+        for bad_type in ["sdf", 1, {}]:
+            with self.assertRaises(TypeError):
+                ts.general_branch_stats(W, bad_type, 1)
+
+        # Wrong numbers of arguments to f
+        with self.assertRaises(TypeError):
+            ts.general_branch_stats(W, lambda: 0, 1)
+        with self.assertRaises(TypeError):
+            ts.general_branch_stats(W, lambda x, y: None, 1)
+
+        # Exceptions within f are correctly raised.
+        for exception in [ValueError, TypeError]:
+            def f(x):
+                raise exception("test")
+            with self.assertRaises(exception):
+                ts.general_branch_stats(W, f, 1)
+
+        # Wrong output dimensions
+        for bad_array in [[1, 1], range(10)]:
+            with self.assertRaises(ValueError):
+                ts.general_branch_stats(W, lambda x: bad_array, 1)
+        with self.assertRaises(ValueError):
+            ts.general_branch_stats(W, lambda x: [1], 2)
+
+        # Bad arrays returned from f
+        for bad_array in [["sdf"], 0, "w4", None]:
+            with self.assertRaises(ValueError):
+                ts.general_branch_stats(W, lambda x: bad_array, 1)
+
+        ts.general_branch_stats(W, lambda x: [1, 1], 2)
+
 
 
 class TestTreeDiffIterator(LowLevelTestCase):

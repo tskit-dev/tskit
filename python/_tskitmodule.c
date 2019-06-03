@@ -6436,20 +6436,56 @@ out:
     return ret;
 }
 
+/* Error value returned from summary_func callback if an error occured.
+ * This is chosen so that it is not a valid tskit error code and so can
+ * never be mistaken for a different error */
+#define TSK_PYTHON_CALLBACK_ERROR (-100000)
 
-/* Work in progress version of the general stat function. This stat function
- * is just to get something working. We'd like to provide a Python function
- * here at some point. */
+/* Run the Python callable that takes X as parameter and must return a
+ * 1D array of length M that we copy in to the Y array */
 static int
 general_stat_func(size_t K, double *X, size_t M, double *Y, void *params)
 {
-    size_t m;
-    assert(K == M);
+    int ret = TSK_PYTHON_CALLBACK_ERROR;
+    PyObject *callable = (PyObject *) params;
+    PyObject *arglist = NULL;
+    PyObject *result = NULL;
+    PyArrayObject *X_array = NULL;
+    PyArrayObject *Y_array = NULL;
+    npy_intp X_dims = (npy_intp) K;
+    npy_intp *Y_dims;
 
-    for (m = 0; m < M; m++) {
-        Y[m] = X[m];
+    X_array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &X_dims, NPY_FLOAT64, X);
+    if (X_array == NULL) {
+        goto out;
     }
-    return 0;
+    arglist = Py_BuildValue("(O)", X_array);
+    if (arglist == NULL) {
+        goto out;
+    }
+    result = PyObject_CallObject(callable, arglist);
+    if (result == NULL) {
+        goto out;
+    }
+    Y_array = (PyArrayObject *) PyArray_FromAny(result, PyArray_DescrFromType(NPY_FLOAT64),
+            1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+    if (Y_array == NULL) {
+        goto out;
+    }
+    Y_dims = PyArray_DIMS(Y_array);
+    if (Y_dims[0] != (npy_intp) M) {
+        PyErr_SetString(PyExc_ValueError, "Incorrect callback output dimensions");
+        goto out;
+    }
+    /* Copy the contents of the return Y array into Y */
+    memcpy(Y, PyArray_DATA(Y_array), M * sizeof(*Y));
+    ret = 0;
+out:
+    Py_XDECREF(X_array);
+    Py_XDECREF(arglist);
+    Py_XDECREF(result);
+    Py_XDECREF(Y_array);
+    return ret;
 }
 
 static PyObject *
@@ -6460,10 +6496,10 @@ TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *
     PyObject *weights = NULL;
     PyObject *summary_func = NULL;
     PyArrayObject *weights_array = NULL;
+    PyArrayObject *result_array = NULL;
     int polarised = 0;
     unsigned int output_dim;
-    double *result = NULL;
-    npy_intp *w_shape;
+    npy_intp result_shape[2], *w_shape;
     int err;
     tsk_flags_t options = 0;
 
@@ -6474,6 +6510,12 @@ TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *
             &weights, &summary_func, &output_dim, &polarised)) {
         goto out;
     }
+    Py_INCREF(summary_func);
+    if (!PyCallable_Check(summary_func)) {
+        PyErr_SetString(PyExc_TypeError, "summary_func must be callable");
+        goto out;
+    }
+
     if (polarised) {
         options |= TSK_STAT_POLARISED;
     }
@@ -6487,19 +6529,31 @@ TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *
         PyErr_SetString(PyExc_ValueError, "First dimension must be num_samples");
         goto out;
     }
-    /* FIXME: The lowlevel API needs to be updated to take windows as an argument
-     * and the returned memory as a parameter. */
+
+    result_shape[0] = tsk_treeseq_get_num_trees(self->tree_sequence);
+    result_shape[1] = output_dim;
+    result_array = (PyArrayObject *) PyArray_SimpleNew(2, result_shape, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+
     err = tsk_treeseq_general_branch_stats(self->tree_sequence,
             w_shape[1], PyArray_DATA(weights_array),
-            output_dim, general_stat_func, NULL,
+            output_dim, general_stat_func, summary_func,
             0, NULL,
-            &result, options);
-    if (err != 0) {
+            PyArray_DATA(result_array), options);
+    if (err == TSK_PYTHON_CALLBACK_ERROR) {
+        goto out;
+    } else if (err != 0) {
         handle_library_error(err);
         goto out;
     }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
 out:
+    Py_XDECREF(summary_func);
     Py_XDECREF(weights_array);
+    Py_XDECREF(result_array);
     return ret;
 }
 
