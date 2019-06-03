@@ -265,7 +265,7 @@ class PythonBranchStatCalculator(object):
                     for y in Y:
                         SS += path_length(tr, x, y)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            out[j] =  S/((end-begin)*len(X)*len(Y))
+            out[j] = S/((end-begin)*len(X)*len(Y))
         return out
 
     def diversity(self, X, windows=None):
@@ -513,7 +513,8 @@ class PythonBranchStatCalculator(object):
             if max([U.count(x) for x in set(U)]) > 1:
                 raise ValueError("elements of sample_sets",
                                  "cannot contain repeated elements.")
-        W = np.array([[float(u in A) for A in sample_sets] for u in self.tree_sequence.samples()])
+        W = np.array([[float(u in A) for A in sample_sets]
+                      for u in self.tree_sequence.samples()])
         S = self.naive_general_stat(W, f, windows=windows)
         return S
 
@@ -834,7 +835,7 @@ class PythonSiteStatCalculator(object):
                 if polarised:
                     del state_map[site.ancestral_state]
                 sigma[site.id] += sum(map(f, state_map.values()))
-        if type(windows) == type("") and windows == "sitewise":
+        if isinstance(windows, str) and windows == "sitewise":
             return sigma
         else:
             return self.tree_sequence.windowed_sitewise_stat(sigma, windows)
@@ -976,7 +977,8 @@ class TestGeneralSiteStats(StatsTestCase):
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: x, windows="sitewise", polarised=polarised)
+            sigma = self.run_stats(ts, W, lambda x: x, windows="sitewise",
+                                   polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
 
@@ -1070,14 +1072,15 @@ class GeneralStatsTestCase(StatsTestCase):
                           windows=[0.0, 0.8*ts.sequence_length])
         self.assertRaises(ValueError, ts.sample_count_stats,
                           self.stat_type, [samples[0:2], samples[2:4]], f,
-                          windows=[0.0, 0.8*ts.sequence_length, 0.4*ts.sequence_length,
-                                   ts.sequence_length])
+                          windows=[0.0, 0.8*ts.sequence_length,
+                                   0.4*ts.sequence_length, ts.sequence_length])
 
     def check_sfs_interface(self, ts):
         samples = ts.samples()
 
         # empty sample sets will raise an error
-        self.assertRaises(ValueError, ts.site_frequency_spectrum, [], self.stat_type)
+        self.assertRaises(ValueError, ts.site_frequency_spectrum, [],
+                          self.stat_type)
         # sample_sets must be lists without repeated elements
         self.assertRaises(ValueError, ts.site_frequency_spectrum,
                           [samples[2], samples[2]], self.stat_type)
@@ -1086,9 +1089,11 @@ class GeneralStatsTestCase(StatsTestCase):
                           [samples[0], max(samples)+1], self.stat_type)
         # windows must start at 0.0, be increasing, and extend to the end
         self.assertRaises(ValueError, ts.site_frequency_spectrum,
-                          samples[0:2], [0.1, ts.sequence_length], self.stat_type)
+                          samples[0:2], [0.1, ts.sequence_length],
+                          self.stat_type)
         self.assertRaises(ValueError, ts.site_frequency_spectrum,
-                          samples[0:2], [0.0, 0.8*ts.sequence_length], self.stat_type)
+                          samples[0:2], [0.0, 0.8*ts.sequence_length],
+                          self.stat_type)
         self.assertRaises(ValueError, ts.site_frequency_spectrum, samples[0:2],
                           [0.0, 0.8*ts.sequence_length, 0.4*ts.sequence_length,
                            ts.sequence_length], self.stat_type)
@@ -1159,9 +1164,12 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         # 0.0   0     1       2        1   0   2       0   1       2
         #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 1.0)
         #
-        branch_true_diversity_01 = 2*(1 * (0.2-0) + 0.5 * (0.8-0.2) + 0.7 * (1.0-0.8))
-        branch_true_diversity_02 = 2*(1 * (0.2-0) + 0.4 * (0.8-0.2) + 0.7 * (1.0-0.8))
-        branch_true_diversity_12 = 2*(0.5 * (0.2-0) + 0.5 * (0.8-0.2) + 0.5 * (1.0-0.8))
+        branch_true_diversity_01 = 2*(1 * (0.2-0) +
+                                      0.5 * (0.8-0.2) + 0.7 * (1.0-0.8))
+        branch_true_diversity_02 = 2*(1 * (0.2-0) +
+                                      0.4 * (0.8-0.2) + 0.7 * (1.0-0.8))
+        branch_true_diversity_12 = 2*(0.5 * (0.2-0) +
+                                      0.5 * (0.8-0.2) + 0.5 * (1.0-0.8))
         branch_true_Y = 0.2*(1 + 0.5) + 0.6*(0.4) + 0.2*(0.7+0.2)
         site_true_Y = 3 + 0 + 1
 
@@ -1211,7 +1219,8 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         9       2       1
         """)
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False)
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
+            strict=False)
         py_bsc = PythonBranchStatCalculator(ts)
         py_ssc = PythonSiteStatCalculator(ts)
 
@@ -1220,7 +1229,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         n = [len(a) for a in A]
 
         def f(x):
-            return np.array([float(x[0]*(n[1]-x[1]) + (n[0]-x[0])*x[1])/float(2*n[0]*n[1])])
+            return np.array([float(x[0]*(n[1]-x[1]) + (n[0]-x[0])*x[1])/(2*n[0]*n[1])])
 
         # tree lengths:
         self.assertAlmostEqual(py_bsc.divergence([0], [1]),
@@ -1229,8 +1238,9 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
                                branch_true_diversity_01)
         self.assertAlmostEqual(ts.sample_count_stats("branch", A, f)[0][0],
                                branch_true_diversity_01)
-        self.assertAlmostEqual(ts.diversity([[0, 1]], stat_type="branch")[0][0],
-                               branch_true_diversity_01)
+        self.assertAlmostEqual(
+                ts.diversity([[0, 1]], stat_type="branch")[0][0],
+                branch_true_diversity_01)
 
         # mean diversity between [0, 1] and [0, 2]:
         branch_true_mean_diversity = (0 + branch_true_diversity_02
@@ -1258,20 +1268,26 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
                                    or ((x[0] == 0) and (x[1] == 2)))/2.0])
 
         # tree lengths:
-        bts_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], stat_type="branch")[0][0]
+        bts_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0],
+                      stat_type="branch")[0][0]
         py_bsc_Y = py_bsc.Y3([0], [1], [2], windows=[0.0, 1.0])
         self.assertArrayAlmostEqual(bts_Y, branch_true_Y)
         self.assertArrayAlmostEqual(py_bsc_Y, branch_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stats("branch", A, f)[0][0], branch_true_Y)
-        self.assertArrayAlmostEqual(py_bsc.sample_count_stats(A, f)[0][0], branch_true_Y)
+        self.assertArrayAlmostEqual(ts.sample_count_stats("branch", A, f)[0][0],
+                                    branch_true_Y)
+        self.assertArrayAlmostEqual(py_bsc.sample_count_stats(A, f)[0][0],
+                                    branch_true_Y)
 
         # sites, Y:
-        sts_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], stat_type="site")[0][0]
+        sts_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0],
+                      stat_type="site")[0][0]
         py_ssc_Y = py_ssc.Y3([0], [1], [2], windows=[0.0, 1.0])
         self.assertArrayAlmostEqual(sts_Y, site_true_Y)
         self.assertArrayAlmostEqual(py_ssc_Y, site_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stats("site", A, f)[0][0], site_true_Y)
-        self.assertArrayAlmostEqual(py_ssc.sample_count_stats(A, f)[0][0], site_true_Y)
+        self.assertArrayAlmostEqual(ts.sample_count_stats("site", A, f)[0][0],
+                                    site_true_Y)
+        self.assertArrayAlmostEqual(py_ssc.sample_count_stats(A, f)[0][0],
+                                    site_true_Y)
 
     def test_case_odds_and_ends(self):
         # Tests having (a) the first site after the first window, and
@@ -1298,11 +1314,13 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         0       1       2               -1
         """)
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False)
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
+            strict=False)
         py_ssc = PythonSiteStatCalculator(ts)
 
-        py_div = np.array([[np.nan, py_ssc.divergence([0], [1], windows=[0.0, 0.5])[0], np.nan],
-                          [np.nan, py_ssc.divergence([0], [1], windows=[0.5, 1.0])[0], np.nan]])
+        py_div = np.array(
+                  [[np.nan, py_ssc.divergence([0], [1], windows=[0.0, 0.5])[0], np.nan],
+                   [np.nan, py_ssc.divergence([0], [1], windows=[0.5, 1.0])[0], np.nan]])
         div = ts.divergence([[0], [1]], indices=[(0, 0), (0, 1), (1, 1)],
                             windows=[0.0, 0.5, 1.0], stat_type="site")
         self.assertArrayEqual(py_div[0], div[0])
@@ -1328,7 +1346,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         # f4(0, 3, 2, 1): (0 -> 3)(2 -> 1)
         branch_true_f4_0321 = (0.1 * 0.2 + (0.1 + 0.1) * 0.6 + 0.1 * 1.7) / 2.5
         # f2([0,2], [1,3]) = (1/2) (f4(0,1,2,3) + f4(0,3,2,1))
-        branch_true_f2_02_13 = (branch_true_f4_0123 + branch_true_f4_0321) / 2.0
+        branch_true_f2_02_13 = (branch_true_f4_0123 + branch_true_f4_0321) / 2
 
         nodes = io.StringIO("""\
         id      is_sample   time
@@ -1359,7 +1377,8 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         site    node    derived_state   parent
         """)
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False)
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
+            strict=False)
         py_bsc = PythonBranchStatCalculator(ts)
 
         A = [[0], [1], [2], [3]]
@@ -1444,48 +1463,60 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         # Here are the trees:
         # t                  |              |              |             |
         #
-        # 0       --3--      |     --3--    |     --3--    |    --3--    |    --3--
-        #        /  |  \     |    /  |  \   |    /     \   |   /     \   |   /     \
-        # 1     4   |   5    |   4   |   5  |   4       5  |  4       5  |  4       5
-        #       |\ / \ /|    |   |\   \     |   |\     /   |  |\     /   |  |\     /|
-        # 2     | 6   7 |    |   | 6   7    |   | 6   7    |  | 6   7    |  | 6   7 |
-        #       | |\ /| |    |   *  \  |    |   |  \  |    |  |  \       |  |  \    | ...
-        # 3     | | 8 | |    |   |   8 *    |   |   8 |    |  |   8      |  |   8   |
-        #       | |/ \| |    |   |  /  |    |   |  /  |    |  |  / \     |  |  / \  |
-        # 4     | 9  10 |    |   * 9  10    |   | 9  10    |  | 9  10    |  | 9  10 |
-        #       |/ \ / \|    |   |  \   \   |   |  \   \   |  |  \   \   |  |  \    |
-        # 5     0   1   2    |   0   1   2  |   0   1   2  |  0   1   2  |  0   1   2
+        # 0       --3--      |     --3--    |     --3--    |    --3--    |
+        #        /  |  \     |    /  |  \   |    /     \   |   /     \   |
+        # 1     4   |   5    |   4   |   5  |   4       5  |  4       5  |
+        #       |\ / \ /|    |   |\   \     |   |\     /   |  |\     /   |
+        # 2     | 6   7 |    |   | 6   7    |   | 6   7    |  | 6   7    |
+        #       | |\ /| |    |   *  \  |    |   |  \  |    |  |  \       | ...
+        # 3     | | 8 | |    |   |   8 *    |   |   8 |    |  |   8      |
+        #       | |/ \| |    |   |  /  |    |   |  /  |    |  |  / \     |
+        # 4     | 9  10 |    |   * 9  10    |   | 9  10    |  | 9  10    |
+        #       |/ \ / \|    |   |  \   \   |   |  \   \   |  |  \   \   |
+        # 5     0   1   2    |   0   1   2  |   0   1   2  |  0   1   2  |
         #
-        #                    |   0.0 - 0.1  |   0.1 - 0.2  |  0.2 - 0.4  |  0.4 - 0.5
+        #                    |   0.0 - 0.1  |   0.1 - 0.2  |  0.2 - 0.4  |
         # ... continued:
-        # t                  |             |             |             |
+        # t                 |             |             |
         #
-        # 0         --3--    |    --3--    |    --3--    |    --3--    |    --3--
-        #          /     \   |   /     \   |   /     \   |   /     \   |   /  |  \
-        # 1       4       5  |  4       5  |  4       5  |  4       5  |  4   |   5
-        #         |\     /|  |   \     /|  |   \     /|  |   \     /|  |     /   /|
-        # 2       | 6   7 |  |    6   7 |  |    6   7 |  |    6   7 |  |    6   7 |
-        #         |  *    *  |     \    |  |       *  |  |    |  /  |  |    |  /  |
-        # 3  ...  |   8   |  |      8   |  |      8   |  |    | 8   |  |    | 8   |
-        #         |  / \  |  |     / \  |  |     * \  |  |    |  \  |  |    |  \  |
-        # 4       | 9  10 |  |    9  10 |  |    9  10 |  |    9  10 |  |    9  10 |
-        #         |    /  |  |   /   /  |  |   /   /  |  |   /   /  |  |   /   /  |
-        # 5       0   1   2  |  0   1   2  |  0   1   2  |  0   1   2  |  0   1   2
+        # 0         --3--   |    --3--    |    --3--    |
+        #          /     \  |   /     \   |   /     \   |
+        # 1       4       5 |  4       5  |  4       5  |
+        #         |\     /| |  |\     /|  |   \     /|  |
+        # 2       | 6   7 | |  | 6   7 |  |    6   7 |  |
+        #         |  \    | |  |  *    *  |     \    |  |
+        # 3 ...   |   8   | |  |   8   |  |      8   |  | ...
+        #         |  / \  | |  |  / \  |  |     / \  |  |
+        # 4       | 9  10 | |  | 9  10 |  |    9  10 |  |
+        #         |  \    | |  |    /  |  |   /   /  |  |
+        # 5       0   1   2 |  0   1   2  |  0   1   2  |
         #
-        #         0.5 - 0.6  |  0.6 - 0.7  |  0.7 - 0.8  |  0.8 - 0.9  |  0.9 - 1.0
+        #         0.4 - 0.5 |  0.5 - 0.6  |  0.6 - 0.7  |
+        # ... continued:
+        # t                   |             |
+        #
+        # 0          --3--    |    --3--    |    --3--
+        #           /     \   |   /     \   |   /  |  \
+        # 1        4       5  |  4       5  |  4   |   5
+        #           \     /|  |   \     /|  |     /   /|
+        # 2          6   7 |  |    6   7 |  |    6   7 |
+        #               *  |  |    |  /  |  |    |  /  |
+        # 3  ...       8   |  |    | 8   |  |    | 8   |
+        #             * \  |  |    |  \  |  |    |  \  |
+        # 4          9  10 |  |    9  10 |  |    9  10 |
+        #           /   /  |  |   /   /  |  |   /   /  |
+        # 5        0   1   2  |  0   1   2  |  0   1   2
+        #
+        #          0.7 - 0.8  |  0.8 - 0.9  |  0.9 - 1.0
         #
         # Above, subsequent mutations are backmutations.
 
         # divergence betw 0 and 1
         branch_true_diversity_01 = 2*(0.6*4 + 0.2*2 + 0.2*5)
-        # divergence betw 1 and 2
-        branch_true_diversity_12 = 2*(0.2*5 + 0.2*2 + 0.3*5 + 0.3*4)
-        # divergence betw 0 and 2
-        branch_true_diversity_02 = 2*(0.2*5 + 0.2*4 + 0.3*5 + 0.1*4 + 0.2*5)
-        # mean divergence between 0, 1 and 0, 2
-        branch_true_mean_diversity = (
-            0 + branch_true_diversity_02 + branch_true_diversity_01
-            + branch_true_diversity_12) / 4
+        # # divergence betw 1 and 2
+        # branch_true_diversity_12 = 2*(0.2*5 + 0.2*2 + 0.3*5 + 0.3*4)
+        # # divergence betw 0 and 2
+        # branch_true_diversity_02 = 2*(0.2*5 + 0.2*4 + 0.3*5 + 0.1*4 + 0.2*5)
         # Y(0;1, 2)
         branch_true_Y = 0.2*4 + 0.2*(4+2) + 0.2*4 + 0.2*2 + 0.2*(5+1)
 
@@ -1546,7 +1577,8 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         2       9       0               5
         """)
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False)
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
+            strict=False)
         py_bsc = PythonBranchStatCalculator(ts)
         py_ssc = PythonSiteStatCalculator(ts)
 
@@ -1559,11 +1591,12 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         # tree lengths:
         self.assertArrayAlmostEqual(py_bsc.diversity([0], [1]),
                                     branch_true_diversity_01)
-        self.assertArrayAlmostEqual(ts.sample_count_stats("branch", A, f)[0][0],
-                                    branch_true_diversity_01)
-        self.assertArrayAlmostEqual(py_bsc.sample_count_stats(A, f)[0][0],
-                                    branch_true_diversity_01)
-
+        self.assertArrayAlmostEqual(
+                ts.sample_count_stats("branch", A, f)[0][0],
+                branch_true_diversity_01)
+        self.assertArrayAlmostEqual(
+                py_bsc.sample_count_stats(A, f)[0][0],
+                branch_true_diversity_01)
 
         # Y-statistic for (0/12)
         A = [[0], [1, 2]]
@@ -1574,16 +1607,21 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
 
         # tree lengths:
         self.assertArrayAlmostEqual(py_bsc.Y3([0], [1], [2]), branch_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stats("branch", A, f)[0][0], branch_true_Y)
-        self.assertArrayAlmostEqual(py_bsc.sample_count_stats(A, f)[0][0], branch_true_Y)
+        self.assertArrayAlmostEqual(ts.sample_count_stats("branch", A, f)[0][0],
+                                    branch_true_Y)
+        self.assertArrayAlmostEqual(py_bsc.sample_count_stats(A, f)[0][0],
+                                    branch_true_Y)
 
         # sites:
-        site_tsc_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], stat_type="site")[0][0]
+        site_tsc_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0],
+                           stat_type="site")[0][0]
         py_ssc_Y = py_ssc.Y3([0], [1], [2], windows=[0.0, 1.0])
         self.assertAlmostEqual(site_tsc_Y, site_true_Y)
         self.assertAlmostEqual(py_ssc_Y, site_true_Y)
-        self.assertAlmostEqual(ts.sample_count_stats("site", A, f)[0][0], site_true_Y)
-        self.assertAlmostEqual(py_ssc.sample_count_stats(A, f)[0][0], site_true_Y)
+        self.assertAlmostEqual(ts.sample_count_stats("site", A, f)[0][0],
+                               site_true_Y)
+        self.assertAlmostEqual(py_ssc.sample_count_stats(A, f)[0][0],
+                               site_true_Y)
 
     def test_small_sim(self):
         orig_ts = msprime.simulate(4, random_seed=self.random_seed,
@@ -1595,16 +1633,20 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
         py_ssc = PythonSiteStatCalculator(ts)
 
         A = [[0], [1], [2]]
-        self.assertAlmostEqual(ts.Y3(A, windows=[0.0, 1.0], stat_type="branch")[0][0],
-                               py_bsc.Y3(*A))
-        self.assertAlmostEqual(ts.Y3(A, windows=[0.0, 1.0], stat_type="site")[0][0],
-                               py_ssc.Y3(*A))
+        self.assertAlmostEqual(
+                ts.Y3(A, windows=[0.0, 1.0], stat_type="branch")[0][0],
+                py_bsc.Y3(*A))
+        self.assertAlmostEqual(
+                ts.Y3(A, windows=[0.0, 1.0], stat_type="site")[0][0],
+                py_ssc.Y3(*A))
 
         A = [[0], [1, 2]]
-        self.assertAlmostEqual(ts.Y2(A, windows=[0.0, 1.0], stat_type="branch")[0][0],
-                               py_bsc.Y2(*A))
-        self.assertAlmostEqual(ts.Y2(A, windows=[0.0, 1.0], stat_type="site")[0][0],
-                               py_ssc.Y2(*A))
+        self.assertAlmostEqual(
+                ts.Y2(A, windows=[0.0, 1.0], stat_type="branch")[0][0],
+                py_bsc.Y2(*A))
+        self.assertAlmostEqual(
+                ts.Y2(A, windows=[0.0, 1.0], stat_type="site")[0][0],
+                py_ssc.Y2(*A))
 
 
 class BranchStatsTestCase(GeneralStatsTestCase):
@@ -1629,9 +1671,11 @@ class BranchStatsTestCase(GeneralStatsTestCase):
         A = [samples[0:3], samples[3:5], samples[5:6]]
         windows = [0.0, ts.sequence_length/2, ts.sequence_length]
         indices = [(i, j) for i in range(len(A)) for j in range(i, len(A))]
-        ts_values = ts.divergence(A, indices=indices, windows=windows, stat_type="branch")
+        ts_values = ts.divergence(A, indices=indices, windows=windows,
+                                  stat_type="branch")
         ts_matrix_values = ts.divergence_matrix(A, windows, stat_type="branch")
-        self.assertListEqual([len(x) for x in ts_values], [len(samples), len(samples)])
+        self.assertListEqual([len(x) for x in ts_values],
+                             [len(samples), len(samples)])
         assert(len(A[2]) == 1)
         for x in ts_values:
             self.assertTrue(np.isnan(x[5]))
@@ -1656,13 +1700,15 @@ class BranchStatsTestCase(GeneralStatsTestCase):
             self.assertArrayAlmostEqual(here_values[k], ts_matrix_values[k])
 
     def test_errors(self):
-        ts = msprime.simulate(10, random_seed=self.random_seed, recombination_rate=10)
+        ts = msprime.simulate(10, random_seed=self.random_seed,
+                              recombination_rate=10)
         self.assertRaises(ValueError,
                           ts.divergence, [[0], [11]],
                           windows=[0, ts.sequence_length], stat_type="branch")
         self.assertRaises(ValueError,
                           ts.divergence, [[0], [1]],
-                          windows=[0.0, 2.0, 1.0, ts.sequence_length], stat_type="branch")
+                          windows=[0.0, 2.0, 1.0, ts.sequence_length],
+                          stat_type="branch")
         # errors if indices aren't of the right length
         self.assertRaises(ValueError,
                           ts.Y3, [[0], [1], [2]], indices=[(0, 1)],
@@ -1739,7 +1785,8 @@ class SiteStatsTestCase(GeneralStatsTestCase):
         for mpn in [False, True]:
             for num_sites in [10, 100]:
                 mut_ts = tsutil.jukes_cantor(ts, num_sites=num_sites, mu=3,
-                                             multiple_per_node=mpn, seed=self.random_seed)
+                                             multiple_per_node=mpn,
+                                             seed=self.random_seed)
                 yield mut_ts
 
     def check_pairwise_diversity_mutations(self, ts):
@@ -1749,13 +1796,16 @@ class SiteStatsTestCase(GeneralStatsTestCase):
         n = [len(a) for a in A]
 
         def f(x):
-            return np.array([float(x[0]*(n[1]-x[1]) + (n[0]-x[0])*x[1])/float(2*n[0]*n[1])])
+            return np.array([float(x[0]*(n[1]-x[1]) + (n[0]-x[0])*x[1])
+                             / (2*n[0]*n[1])])
 
         self.assertAlmostEqual(
-            py_tsc.sample_count_stats(A, f).flatten(), ts.pairwise_diversity(samples=samples))
+            py_tsc.sample_count_stats(A, f).flatten(),
+            ts.pairwise_diversity(samples=samples))
 
     def test_pairwise_diversity(self):
-        ts = msprime.simulate(20, random_seed=self.random_seed, recombination_rate=100)
+        ts = msprime.simulate(20, random_seed=self.random_seed,
+                              recombination_rate=100)
         self.check_pairwise_diversity_mutations(ts)
 
     def test_site_f_stats(self):

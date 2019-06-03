@@ -610,7 +610,8 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
             if windows[k + 1] <= windows[k]:
                 raise ValueError("Windows must be increasing.")
 
-        W = np.array([[float(u in A) for A in sample_sets] for u in self.tree_sequence.samples()])
+        W = np.array([[float(u in A) for A in sample_sets]
+                      for u in self.tree_sequence.samples()])
         return self.general_stat(W, weight_fun, windows=windows, polarised=polarised)
 
     def windowed_tree_stat(self, stat, windows):
@@ -639,8 +640,7 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
         return A
 
     def general_stat(self, W, f, windows=None, polarised=False):
-        #####
-        # moved from tests/test_tree_stats.py:general_branch_stats()
+
         ts = self.tree_sequence
         n, K = W.shape
         if n != ts.num_samples:
@@ -656,7 +656,7 @@ class BranchLengthStatCalculator(GeneralStatCalculator):
         time = ts.tables.nodes.time
         parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
         s = np.zeros(M)
-        tree = ts.first()  # For debugging
+        # tree = ts.first()  # For debugging
         for (left, right), edges_out, edges_in in ts.edge_diffs():
             for edge in edges_out:
                 u = edge.child
@@ -882,7 +882,8 @@ class SiteStatCalculator(GeneralStatCalculator):
             if windows[k + 1] <= windows[k]:
                 raise ValueError("Windows must be increasing.")
 
-        W = np.array([[float(u in A) for A in sample_sets] for u in self.tree_sequence.samples()])
+        W = np.array([[float(u in A) for A in sample_sets]
+                      for u in self.tree_sequence.samples()])
         return self.general_stat(W, weight_fun, windows=windows, polarised=polarised)
 
     def windowed_sitewise_stat(self, sigma, windows):
@@ -899,7 +900,6 @@ class SiteStatCalculator(GeneralStatCalculator):
         return A / diff
 
     def general_stat(self, W, f, windows=None, polarised=False):
-        ###### moved from tests/test_tree_stats.py
         ts = self.tree_sequence
         n, K = W.shape
         if n != ts.num_samples:
@@ -1082,4 +1082,3 @@ def get_derived_state(site, mut_id):
             if m.id == mut_id:
                 state = m.derived_state
     return state
-

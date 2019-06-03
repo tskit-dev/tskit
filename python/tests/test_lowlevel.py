@@ -470,7 +470,6 @@ class TestGeneralStatsInterface(LowLevelTestCase):
         ts.general_branch_stats(W, lambda x: [1, 1], 2)
 
 
-
 class TestTreeDiffIterator(LowLevelTestCase):
     """
     Tests for the low-level tree diff iterator.

@@ -3038,7 +3038,8 @@ class TreeSequence(object):
         else:
             raise ValueError("stat_type must be either 'site' or 'branch'.")
 
-    def sample_count_stats(self, stat_type, sample_sets, f, windows=None, polarised=False):
+    def sample_count_stats(self, stat_type, sample_sets, f, windows=None,
+                           polarised=False):
         '''
         Here sample_sets is a list of lists of samples, and weight_fun is a
         function whose argument is a list of integers of the same length as
@@ -3089,7 +3090,7 @@ class TreeSequence(object):
             int_indices = np.array(indices, dtype='int64')
             assert(np.max(np.abs(indices - int_indices)) == 0)
             indices = int_indices
-        except:
+        except AssertionError:
             raise ValueError("All indices must be of length {}.".format(index_length))
         for x in sample_sets:
             if len(x) < min_sample_set_length:
@@ -3104,8 +3105,8 @@ class TreeSequence(object):
         if windows is "treewise":
             windows = self.breakpoints()
         if windows is "sitewise":
-           # breakpoints are at 0.0 and midway between sites and at the end
-            x = np.concatenate([[-1], self.tables.sites.position, 
+            # breakpoints are at 0.0 and midway between sites and at the end
+            x = np.concatenate([[-1], self.tables.sites.position,
                                [self.sequence_length + 1]])
             windows = x[:-1] + np.diff(x)/2
             windows[0] = 0.0
@@ -3117,16 +3118,16 @@ class TreeSequence(object):
             assert(windows[0] >= 0.0)
             assert(windows[-1] <= self.sequence_length)
             assert(np.all(np.diff(windows) >= 0.0))
-        except:
+        except BaseException:
             raise ValueError("windows must be an iterable of increasing positions" +
                              "between 0 and sequence_length")
         return windows
-
 
     # Branch statistics stuff
     ############################################
 
     def windowed_tree_stat(self, stat, windows):
+
         A = np.zeros((len(windows) - 1, stat.shape[1]))
         tree_breakpoints = np.array(list(self.breakpoints()))
         tree_index = 0
@@ -3169,7 +3170,7 @@ class TreeSequence(object):
         time = self.tables.nodes.time
         parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
         s = np.zeros(M)
-        tree = self.first()  # For debugging
+        # tree = self.first()  # For debugging
         for (left, right), edges_out, edges_in in self.edge_diffs():
             for edge in edges_out:
                 u = edge.child
@@ -3257,7 +3258,6 @@ class TreeSequence(object):
         """
         normalize_windows = (windows is not "sitewise")
         windows = self.parse_windows(windows)
-        ###### moved from tests/test_tree_stats.py
         n, K = W.shape
         if n != self.num_samples:
             raise ValueError("First dimension of W must be number of samples")
@@ -3273,7 +3273,7 @@ class TreeSequence(object):
         sites = self.tables.sites
         mutations = self.tables.mutations
         parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
-        tree = self.first()  # For debugging
+        # tree = self.first()  # For debugging
         for (left, right), edges_out, edges_in in self.edge_diffs():
             for edge in edges_out:
                 u = edge.parent
@@ -3330,9 +3330,9 @@ class TreeSequence(object):
         What is computed depends on ``stat_type``:
 
         "site"
-            Mean pairwise genetic diversity: the average across distinct, randomly chosen
-            pairs of chromosomes, of the density of sites at which the two carry different
-            alleles, per unit of chromosome length.
+            Mean pairwise genetic diversity: the average across distinct,
+            randomly chosen pairs of chromosomes, of the density of sites at
+            which the two carry different alleles, per unit of chromosome length.
 
         "branch"
             Mean distance in the tree: the average across distinct, randomly chosen pairs
@@ -3342,7 +3342,7 @@ class TreeSequence(object):
         "node"
             For each node, the proportion of genome on which the node is an ancestor to
             only one of a random pair from the sample set, averaged over choices of pair.
-        
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
         :param list indices: A list of 1-tuples, or None, in which case the ``k``th
@@ -3361,8 +3361,8 @@ class TreeSequence(object):
             return np.array([float(x[i]*(n[i]-x[i]))
                              for i in range(len(sample_sets))])
 
-        out = self.sample_count_stats(stat_type,
-                sample_sets, f, windows=windows, polarised=False)
+        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows,
+                                      polarised=False)
         denom = np.array([n[i] * (n[i] - 1) for i in indices])
         out /= denom
         return out
@@ -3391,8 +3391,9 @@ class TreeSequence(object):
 
         "node"
             For each node, the proportion of genome on which the node is an ancestor to
-            only one of a random pair (one from each sample set), averaged over choices of pair.
-        
+            only one of a random pair (one from each sample set), averaged over
+            choices of pair.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
         :param list indices: A list of 2-tuples, or None.
@@ -3411,7 +3412,6 @@ class TreeSequence(object):
         else:
             return self.ll_tree_sequence.branch_divergence(sample_sets, indices, windows)
 
-        ns = len(sample_sets)
         n = [len(x) for x in sample_sets]
 
         def f(x):
@@ -3466,7 +3466,7 @@ class TreeSequence(object):
         Computes the 'Y' statistic between triples of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indices``, ``windows``, and ``stat_type`` and return value. Operates
-        on ``k = 3`` sample sets at a time. 
+        on ``k = 3`` sample sets at a time.
 
         What is computed depends on ``stat_type``. Each is an average across
         randomly chosen trios of samples ``(a, b, c)``, one from each sample set:
@@ -3482,7 +3482,7 @@ class TreeSequence(object):
         "node"
             For each node, the average proportion of the window on which ``a``
             inherits from that node but ``b`` and ``c`` do not, or vice-versa.
-        
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
         :param list indices: A list of 3-tuples, or None.
@@ -3510,14 +3510,14 @@ class TreeSequence(object):
         Computes the 'Y2' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indices``, ``windows``, and ``stat_type`` and return value. Operates
-        on ``k = 2`` sample sets at a time. 
+        on ``k = 2`` sample sets at a time.
 
         What is computed depends on ``stat_type``. Each is computed exactly as
         ``Y3``, except that the average across randomly chosen trios of samples
         ``(a, b1, b2)``, where ``a`` is chosen from the first sample set, and
         ``b1, b2`` are chosen (without replacement) from the second sample set.
         See :ref:``Y3`` for more details.
-        
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
         :param list indices: A list of 2-tuples, or None.
@@ -3534,8 +3534,7 @@ class TreeSequence(object):
             return np.array([float(x[i] * (n[j] - x[j]) * (n[j] - x[j] - 1))
                              for i, j in indices])
 
-        out = self.sample_count_stats(stat_type,
-                sample_sets, f, windows=windows)
+        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
 
         denom = np.array([n[i] * n[j] * (n[j] - 1) for i, j in indices])
         out /= denom
@@ -3546,7 +3545,7 @@ class TreeSequence(object):
         Computes the 'Y1' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indices``, ``windows``, and ``stat_type`` and return value. Operates
-        on ``k = 1`` sample sets at a time. 
+        on ``k = 1`` sample sets at a time.
 
         What is computed depends on ``stat_type``. Each is computed exactly as
         ``Y3``, except that the average is across a randomly chosen trio of
@@ -3566,7 +3565,8 @@ class TreeSequence(object):
         n = np.array([len(x) for x in sample_sets])
 
         def f(x):
-            return np.array([float(x[i] * (n[i] - x[i]) * (n[i] - x[i] - 1)) for i, in indices])
+            return np.array([float(x[i] * (n[i] - x[i]) * (n[i] - x[i] - 1))
+                             for i, in indices])
 
         out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
         denom = np.array([n[i] * (n[i] - 1) * (n[i] - 2) for i in indices])
@@ -3578,7 +3578,7 @@ class TreeSequence(object):
         Computes Patterson's f4 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indices``, ``windows``,
         and ``stat_type`` and return value. Operates on ``k = 4`` sample sets
-        at a time. 
+        at a time.
 
         What is computed depends on ``stat_type``. Each is an average across
         randomly chosen set of four samples ``(a, b; c, d)``, one from each sample set:
@@ -3599,7 +3599,7 @@ class TreeSequence(object):
             inherit from that node but ``b`` and ``d`` do not, or vice-versa,
             minus the average proportion of the window on which ``a`` anc ``d``
             inherit from that node but ``b`` and ``c`` do not, or vice-versa.
-        
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
         :param list indices: A list of 4-tuples, or None.
@@ -3616,9 +3616,8 @@ class TreeSequence(object):
             return np.array([float(x[i] * x[k] * (n[j] - x[j]) * (n[l] - x[l])
                                    - x[i] * x[l] * (n[j] - x[j]) * (n[k] - x[k]))
                              for i, j, k, l in indices])
-        
-        out = self.sample_count_stats(stat_type,
-                    sample_sets, f, windows=windows)
+
+        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
         denom = np.array([n[i] * n[j] * n[k] * n[l] for i, j, k, l in indices])
         out /= denom
         return out
@@ -3628,7 +3627,7 @@ class TreeSequence(object):
         Computes Patterson's f3 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indices``, ``windows``,
         and ``stat_type`` and return value. Operates on ``k = 3`` sample sets
-        at a time. 
+        at a time.
 
         What is computed depends on ``stat_type``. Each works exactly as
         :ref:``f4``, except the average is across randomly chosen set of four
@@ -3653,8 +3652,7 @@ class TreeSequence(object):
                                    - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[k])
                              for i, j, k in indices])
 
-        out = self.sample_count_stats(stat_type,
-                    sample_sets, f, windows=windows)
+        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
         denom = np.array([n[i] * (n[i] - 1) * n[j] * n[k] for i, j, k in indices])
         out /= denom
         return out
@@ -3664,7 +3662,7 @@ class TreeSequence(object):
         Computes Patterson's f3 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indices``, ``windows``,
         and ``stat_type`` and return value. Operates on ``k = 3`` sample sets
-        at a time. 
+        at a time.
 
         What is computed depends on ``stat_type``. Each works exactly as
         :ref:``f4``, except the average is across randomly chosen set of four
@@ -3745,4 +3743,3 @@ class TreeSequence(object):
         raise NotImplementedError(
             "This method is no longer supported. Please use the Tree.newick"
             " method instead")
-
