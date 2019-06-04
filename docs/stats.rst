@@ -4,14 +4,14 @@
 General, windowed statistics
 ############################
 
-There is a unified interface for computing many types of summary statistics from tree sequences. 
-These are implemented in a flexible way that 
--- like the tree sequence itself -- 
+There is a unified interface for computing many types of summary statistics from tree sequences.
+These are implemented in a flexible way that
+-- like the tree sequence itself --
 exploits the duality between mutations and branches in the trees
-to compute statistics from both genome sequence 
+to compute statistics from both genome sequence
 (whose definition does not depend on the trees)
 and from the underlying trees (whose definition does not depend on the genome sequence).
-Furthermore, these statistics have a common interface to easily compute 
+Furthermore, these statistics have a common interface to easily compute
 (a) averaged statistics in windows along the genome,
 and (b) summary statistics of many combinations of sets of samples simultaneously.
 All statistics return a two-dimensional numpy array,
@@ -40,14 +40,14 @@ node
 These three examples can all be answered in the same way with the tree sequence:
 first, draw all the paths from one genome to the other through the tree sequence
 (back up to their common ancestor and back down in each marginal tree).
-Then, 
+Then,
 (``site``) count the number of mutations falling on the paths,
 (``branch``) measure the length of the paths, or
 (``node``) count how often the path goes through each node.
 There is more discussion of this correspondence in the paper describing these statistics,
 and precise definitions are given in each statistic.
 
-One important thing to know is that ``node`` statistics have somewhat different output. 
+One important thing to know is that ``node`` statistics have somewhat different output.
 While ``site`` and ``branch`` statistics naturally return one number
 for each collection of nodes (described more below),
 the ``node`` statistics return one number **for each node** (and for each window).
@@ -99,11 +99,11 @@ There are some useful defaults:
 Sample sets and indices
 ***********************
 
-Many standard population genetics statistics 
+Many standard population genetics statistics
 are defined with respect to some number of groups of genomes,
 usually called "populations".
 (However, it's clear from the correspondence to descriptors of tree shape
-that the definitions can usefully describe *something* 
+that the definitions can usefully describe *something*
 even if the groups of samples don't come from "separate populations" in some sense.)
 Basically, statistics defined in terms of sample sets can use the frequency of any allele
 in each of the sample sets when computing the statistic.
@@ -114,7 +114,7 @@ Then, if ``p[i]`` is the derived allele frequency in sample set ``i``,
 under the hood we (essentially) compute the divergency between sample sets ``i`` and ``j``
 by averaging ``p[i] * (1 - p[j]) + (1 - p[i]) * p[j]`` across the genome.
 
-So, what if you 
+So, what if you
 have samples from each of 10 populations,
 and want to compute **all** fourty-five pairwise divergences?
 You could call ``divergence`` fourty-five times, but this would be tedious
@@ -122,8 +122,8 @@ and would be inefficient, because the allele frequencies for one population
 gets used in computing many of those values.
 So, statistics that take a ``sample_sets`` argument also take an ``indices`` argument,
 which for a statistic that operates on ``k`` sample sets will be a list of ``k``-tuples.
-If ``indices`` is a length ``n`` list of ``k``-tuples, 
-then the output will have ``n`` columns, 
+If ``indices`` is a length ``n`` list of ``k``-tuples,
+then the output will have ``n`` columns,
 and the ``j``-th column will contain values of the statistic computed on
 ``(sample_sets[indices[j][0]], sample_sets[indices[j][1]], ..., sample_sets[indices[j][k]])``.
 
@@ -147,20 +147,23 @@ There are some useful defaults:
    something summed across all nodes), it is an error to specify ``indices`` when computing
    a node statistic (and so, you need to have exactly ``k`` sample sets).
 
-********************
-Statistics functions
-********************
+.. Commenting these out for now as they are duplicates of the methods in the TreeSequence
+   and sphinx is unhappy.
 
-.. autofunction:: tskit.TreeSequence.diversity
+.. ********************
+.. Statistics functions
+.. ********************
 
-.. autofunction:: tskit.TreeSequence.divergence
+.. .. autofunction:: tskit.TreeSequence.diversity
 
-.. autofunction:: tskit.TreeSequence.f4
+.. .. autofunction:: tskit.TreeSequence.divergence
 
-.. autofunction:: tskit.TreeSequence.f3
+.. .. autofunction:: tskit.TreeSequence.f4
 
-.. autofunction:: tskit.TreeSequence.f2
+.. .. autofunction:: tskit.TreeSequence.f3
 
-.. autofunction:: tskit.TreeSequence.Y3
+.. .. autofunction:: tskit.TreeSequence.f2
 
-.. autofunction:: tskit.TreeSequence.Y2
+.. .. autofunction:: tskit.TreeSequence.Y3
+
+.. .. autofunction:: tskit.TreeSequence.Y2

@@ -6136,6 +6136,31 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_breakpoints(TreeSequence  *self)
+{
+    PyObject *ret = NULL;
+    double *breakpoints;
+    PyArrayObject *array = NULL;
+    npy_intp dims;
+
+    if (TreeSequence_check_tree_sequence(self) != 0) {
+        goto out;
+    }
+    breakpoints = tsk_treeseq_get_breakpoints(self->tree_sequence);
+    dims = tsk_treeseq_get_num_trees(self->tree_sequence) + 1;
+    array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_FLOAT64);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), breakpoints, dims * sizeof(*breakpoints));
+    ret = (PyObject *) array;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_file_uuid(TreeSequence  *self)
 {
     PyObject *ret = NULL;
@@ -6489,25 +6514,29 @@ out:
 }
 
 static PyObject *
-TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *kwds)
+TreeSequence_branch_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = {"weights", "summary_func", "output_dim", "polarised", NULL};
+    static char *kwlist[] = {"weights", "summary_func", "output_dim", "windows",
+        "polarised", NULL};
     PyObject *weights = NULL;
     PyObject *summary_func = NULL;
+    PyObject *windows = NULL;
     PyArrayObject *weights_array = NULL;
+    PyArrayObject *windows_array = NULL;
     PyArrayObject *result_array = NULL;
     int polarised = 0;
+    size_t num_windows;
     unsigned int output_dim;
-    npy_intp result_shape[2], *w_shape;
+    npy_intp result_shape[2], *w_shape, *windows_shape;
     int err;
     tsk_flags_t options = 0;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOI|i", kwlist,
-            &weights, &summary_func, &output_dim, &polarised)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOIO|i", kwlist,
+            &weights, &summary_func, &output_dim, &windows, &polarised)) {
         goto out;
     }
     Py_INCREF(summary_func);
@@ -6530,17 +6559,28 @@ TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *
         goto out;
     }
 
-    result_shape[0] = tsk_treeseq_get_num_trees(self->tree_sequence);
+    windows_array = (PyArrayObject *) PyArray_FROMANY(windows, NPY_FLOAT64,
+            1, 1, NPY_ARRAY_IN_ARRAY);
+    if (windows_array == NULL) {
+        goto out;
+    }
+    windows_shape = PyArray_DIMS(windows_array);
+    if (windows_shape[0] < 2) {
+        PyErr_SetString(PyExc_ValueError, "Windows array must have at least 2 elements");
+        goto out;
+    }
+    num_windows = windows_shape[0] - 1;
+    result_shape[0] = num_windows;
     result_shape[1] = output_dim;
     result_array = (PyArrayObject *) PyArray_SimpleNew(2, result_shape, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
     }
 
-    err = tsk_treeseq_general_branch_stats(self->tree_sequence,
+    err = tsk_treeseq_general_branch_stat(self->tree_sequence,
             w_shape[1], PyArray_DATA(weights_array),
             output_dim, general_stat_func, summary_func,
-            0, NULL,
+            num_windows, PyArray_DATA(windows_array),
             PyArray_DATA(result_array), options);
     if (err == TSK_PYTHON_CALLBACK_ERROR) {
         goto out;
@@ -6553,6 +6593,7 @@ TreeSequence_general_branch_stats(TreeSequence *self, PyObject *args, PyObject *
 out:
     Py_XDECREF(summary_func);
     Py_XDECREF(weights_array);
+    Py_XDECREF(windows_array);
     Py_XDECREF(result_array);
     return ret;
 }
@@ -6714,6 +6755,8 @@ static PyMethodDef TreeSequence_methods[] = {
         METH_NOARGS, "Returns the number of trees in the tree sequence." },
     {"get_sequence_length", (PyCFunction) TreeSequence_get_sequence_length,
         METH_NOARGS, "Returns the sequence length in bases." },
+    {"get_breakpoints", (PyCFunction) TreeSequence_get_breakpoints,
+        METH_NOARGS, "Returns the tree breakpoints as a numpy array." },
     {"get_file_uuid", (PyCFunction) TreeSequence_get_file_uuid,
         METH_NOARGS, "Returns the UUID of the underlying file, if present." },
     {"get_num_sites", (PyCFunction) TreeSequence_get_num_sites,
@@ -6737,8 +6780,8 @@ static PyMethodDef TreeSequence_methods[] = {
     {"mean_descendants",
         (PyCFunction) TreeSequence_mean_descendants,
         METH_VARARGS|METH_KEYWORDS, "Returns the mean number of nodes descending from each node." },
-    {"general_branch_stats",
-        (PyCFunction) TreeSequence_general_branch_stats,
+    {"branch_general_stat",
+        (PyCFunction) TreeSequence_branch_general_stat,
         METH_VARARGS|METH_KEYWORDS, "Runs the general branch stats algorithm for a give f." },
     {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix, METH_NOARGS,
         "Returns the genotypes matrix." },

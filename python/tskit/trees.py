@@ -2435,22 +2435,29 @@ class TreeSequence(object):
         for j in range(self.num_provenances):
             yield self.provenance(j)
 
-    def breakpoints(self):
+    def breakpoints(self, as_array=False):
         """
-        Returns an iterator over the breakpoints along the chromosome,
-        including the two extreme points 0 and L. This is equivalent to
+        Returns the breakpoints along the chromosome, including the two extreme points
+        0 and L. This is equivalent to
 
-        >>> [0] + [t.get_interval()[1] for t in self.trees()]
+        >>> iter([0] + [t.interval[1] for t in self.trees()])
 
-        although we do not build an explicit list.
+        By default we return an iterator over the breakpoints as Python float objects;
+        if ``as_array`` is True we return them as a numpy array.
 
-        :return: An iterator over all the breakpoints along the simulated
-            sequence.
-        :rtype: iter
+        Note that the ``as_array`` form will be more efficient and convenient in most
+        cases; the default iterator behavious is mainly kept to ensure compatability
+        with existing code.
+
+        :param bool as_array: If True, return the breakpoints as a numpy array.
+        :return: The breakpoints defined by the tree intervals along the sequence.
+        :rtype: iter or array
         """
-        yield 0
-        for t in self.trees():
-            yield t.interval[1]
+        breakpoints = self.ll_tree_sequence.get_breakpoints()
+        if not as_array:
+            # Convert to Python floats for backward compatibility.
+            breakpoints = map(float, breakpoints)
+        return breakpoints
 
     def at(self, position):
         """
@@ -3100,11 +3107,13 @@ class TreeSequence(object):
 
     def parse_windows(self, windows):
         # here's one way to get the common code into each function
+        # Note: need to make sure windows is a string or we try to compare the
+        # target with a numpy array elementwise.
         if windows is None:
             windows = [0.0, self.sequence_length]
-        if windows is "treewise":
+        elif isinstance(windows, str) and windows == "treewise":
             windows = self.breakpoints()
-        if windows is "sitewise":
+        elif isinstance(windows, str) and windows == "sitewise":
             # breakpoints are at 0.0 and midway between sites and at the end
             x = np.concatenate([[-1], self.tables.sites.position,
                                [self.sequence_length + 1]])
@@ -3126,111 +3135,11 @@ class TreeSequence(object):
     # Branch statistics stuff
     ############################################
 
-    def windowed_tree_stat(self, stat, windows):
-
-        A = np.zeros((len(windows) - 1, stat.shape[1]))
-        tree_breakpoints = np.array(list(self.breakpoints()))
-        tree_index = 0
-        for j in range(len(windows) - 1):
-            w_left = windows[j]
-            w_right = windows[j + 1]
-            while True:
-                t_left = tree_breakpoints[tree_index]
-                t_right = tree_breakpoints[tree_index + 1]
-                left = max(t_left, w_left)
-                right = min(t_right, w_right)
-                A[j] += stat[tree_index] * max(0.0, (right - left)/(t_right - t_left))
-                assert left != right
-                if t_right <= w_right:
-                    tree_index += 1
-                    # TODO This is inelegant - should include this in the case below
-                    if t_right == w_right:
-                        break
-                else:
-                    break
-        # need to re-normalize by window lengths
-        window_lengths = np.diff(windows)
-        for j in range(len(windows) - 1):
-            A[j] /= window_lengths[j]
-        return A
-
     def branch_general_stat(self, W, f, windows=None, polarised=False):
+        output_dim = f(W[0]).shape[0]
         windows = self.parse_windows(windows)
-        n, K = W.shape
-        if n != self.num_samples:
-            raise ValueError("First dimension of W must be number of samples")
-        # Hack to determine M
-        M = len(f(W[0]))
-        sigma = np.zeros((self.num_trees, M))
-        X = np.zeros((self.num_nodes, K))
-        X[self.samples()] = W
-        total = np.sum(W, axis=0)
-
-        tree_index = 0
-        time = self.tables.nodes.time
-        parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
-        s = np.zeros(M)
-        # tree = self.first()  # For debugging
-        for (left, right), edges_out, edges_in in self.edge_diffs():
-            for edge in edges_out:
-                u = edge.child
-                v = edge.parent
-                branch_length = time[v] - time[u]
-                s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-
-                u = edge.parent
-                while u != -1:
-                    branch_length = 0
-                    if parent[u] != -1:
-                        branch_length = time[parent[u]] - time[u]
-                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                    X[u] -= X[edge.child]
-                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                    u = parent[u]
-                parent[edge.child] = -1
-
-            for edge in edges_in:
-                parent[edge.child] = edge.parent
-
-                u = edge.child
-                v = edge.parent
-                branch_length = time[v] - time[u]
-                s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-
-                u = edge.parent
-                while u != -1:
-                    branch_length = 0
-                    if parent[u] != -1:
-                        branch_length = time[parent[u]] - time[u]
-                    s -= branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                    X[u] += X[edge.child]
-                    s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u]))
-                    u = parent[u]
-
-            sigma[tree_index] = (right - left) * s
-            tree_index += 1
-
-            # # Debugging/development stuff from here.
-            # if polarised:
-            #     s_other = np.sum([
-            #         tree.branch_length(u) * f(X[u]) for u in tree.nodes()], axis=0)
-            #     assert np.allclose(s_other, s)
-            # else:
-            #     s_other = np.sum([
-            #         tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
-            #         for u in tree.nodes()], axis=0)
-            #     assert np.allclose(s_other, s)
-            # for u in tree.nodes():
-            #     assert tree.parent(u) == parent[u]
-            # X2 = np.zeros((self.num_nodes, K))
-            # X2[self.samples()] = W
-            # for u in tree.nodes(order="postorder"):
-            #     for v in tree.children(u):
-            #         X2[u] += X2[v]
-            # assert np.allclose(X, X2)
-            # tree.next()
-
-        return self.windowed_tree_stat(sigma, windows)
+        return self.ll_tree_sequence.branch_general_stat(
+            W, f, output_dim, windows, polarised)
 
     # Site statistics stuff
     ############################################
@@ -3256,7 +3165,7 @@ class TreeSequence(object):
         because if we output by site we don't want to normalize by length of the window.
         Solution: we pass an argument "normalize", to the windowing function.
         """
-        normalize_windows = (windows is not "sitewise")
+        normalize_windows = not (isinstance(windows, str) and windows == "sitewise")
         windows = self.parse_windows(windows)
         n, K = W.shape
         if n != self.num_samples:
@@ -3345,8 +3254,8 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 1-tuples, or None, in which case the ``k``th
-            returned value will be the diversity within the ``k``th sample set
+        :param list indices: A list of 1-tuples, or None, in which case the ``k`` th
+            returned value will be the diversity within the ``k`` th sample set
             (you probably want to leave this at None, the default).
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.

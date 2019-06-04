@@ -155,6 +155,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
     size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
     size_t num_sites = tsk_treeseq_get_num_sites(ts);
     size_t num_mutations = tsk_treeseq_get_num_mutations(ts);
+    double *breakpoints = tsk_treeseq_get_breakpoints(ts);
 
     ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
@@ -168,6 +169,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
         CU_ASSERT_EQUAL(j, (tsk_id_t) tree.index);
         tsk_tree_print_state(&tree, _devnull);
         /* tsk_tree_print_state(&tree, stdout); */
+        CU_ASSERT_EQUAL(tree.left, breakpoints[j]);
         for (u = 0; u < (tsk_id_t) num_nodes; u++) {
             ret = tsk_tree_get_parent(&tree, u, &v);
             CU_ASSERT_EQUAL(ret, 0);
@@ -190,6 +192,7 @@ verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t* parents)
     CU_ASSERT_EQUAL(site_index, num_sites);
     CU_ASSERT_EQUAL(mutation_index, num_mutations);
     CU_ASSERT_EQUAL(tree.index, -1);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(ts), breakpoints[j]);
 
     tsk_tree_free(&tree);
 }

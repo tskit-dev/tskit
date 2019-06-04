@@ -51,6 +51,8 @@ typedef struct {
     tsk_size_t num_trees;
     tsk_size_t num_samples;
     tsk_id_t *samples;
+    /* Breakpoints along the sequence, including 0 and L. */
+    double *breakpoints;
     /* If a node is a sample, map to its index in the samples list */
     tsk_id_t *sample_index_map;
     /* Map individuals to the list of nodes that reference them */
@@ -162,6 +164,7 @@ tsk_size_t tsk_treeseq_get_num_trees(tsk_treeseq_t *self);
 tsk_size_t tsk_treeseq_get_num_samples(tsk_treeseq_t *self);
 char * tsk_treeseq_get_file_uuid(tsk_treeseq_t *self);
 double tsk_treeseq_get_sequence_length(tsk_treeseq_t *self);
+double * tsk_treeseq_get_breakpoints(tsk_treeseq_t *self);
 bool tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u);
 
 int tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node);
@@ -199,7 +202,7 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
 
 typedef int general_stat_func_t(size_t K, double *X, size_t M, double *Y, void *params);
 
-int tsk_treeseq_general_branch_stats(tsk_treeseq_t *self,
+int tsk_treeseq_general_branch_stat(tsk_treeseq_t *self,
         size_t K, double *W,
         size_t M, general_stat_func_t *f, void *f_params,
         size_t num_windows, double *windows, double *sigma,

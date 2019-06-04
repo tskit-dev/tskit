@@ -316,6 +316,14 @@ tsk_strerror_internal(int err)
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
             ret = "Only binary mutations are supported for this operation";
             break;
+
+        /* Stats errors */
+        case TSK_ERR_BAD_NUM_WINDOWS:
+            ret = "Must have at least one window, [0, L]";
+            break;
+        case TSK_ERR_BAD_WINDOWS:
+            ret = "Windows must be increasing list [0, ..., L]";
+            break;
     }
     return ret;
 }
