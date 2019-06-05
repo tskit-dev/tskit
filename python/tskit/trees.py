@@ -3042,6 +3042,8 @@ class TreeSequence(object):
             return self.site_general_stat(W, f, windows=windows, polarised=polarised)
         elif stat_type == "branch":
             return self.branch_general_stat(W, f, windows=windows, polarised=polarised)
+        elif stat_type == "node":
+            return self.node_general_stat(W, f, windows=windows, polarised=polarised)
         else:
             raise ValueError("stat_type must be either 'site' or 'branch'.")
 
@@ -3140,6 +3142,83 @@ class TreeSequence(object):
         windows = self.parse_windows(windows)
         return self.ll_tree_sequence.branch_general_stat(
             W, f, output_dim, windows, polarised)
+
+    # Node statistics stuff
+    ############################################
+
+    def node_general_stat(self, sample_weights, summary_func, windows=None,
+                          polarised=False):
+        """
+        Efficient implementation of the algorithm used as the basis for the
+        underlying C version.
+        """
+        n, state_dim = sample_weights.shape
+        windows = self.parse_windows(windows)
+        num_windows = windows.shape[0] - 1
+
+        assert(len(summary_func(sample_weights[0])) == 1)
+        result_dim = self.num_nodes
+        result = np.zeros((num_windows, result_dim))
+        state = np.zeros((self.num_nodes, state_dim))
+        state[self.samples()] = sample_weights
+        total_weight = np.sum(sample_weights, axis=0)
+
+        def node_summary(u):
+            s = summary_func(state[u])
+            if not polarised:
+                s += summary_func(total_weight - state[u])
+            return s[0]
+
+        tree_index = 0
+        window_index = 0
+        parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
+        # contains summary_func(state[u]) for each node
+        current_values = np.zeros(result_dim)
+        for u in self.samples():
+            current_values[u] = node_summary(u)
+        # contains the sum of current_values[u] weighted by sequence length
+        running_sum = np.zeros(result_dim)
+        # contains the location of the last time we added to running_sum[u]
+        last_update = np.zeros(result_dim)
+        for (t_left, t_right), edges_out, edges_in in self.edge_diffs():
+
+            for edge in edges_out:
+                u = edge.parent
+                while u != -1:
+                    running_sum[u] += (t_left - last_update[u]) * current_values[u]
+                    last_update[u] = t_left
+                    state[u] -= state[edge.child]
+                    current_values[u] = node_summary(u)
+                    u = parent[u]
+                parent[edge.child] = -1
+
+            for edge in edges_in:
+                parent[edge.child] = edge.parent
+                u = edge.parent
+                while u != -1:
+                    running_sum[u] += (t_left - last_update[u]) * current_values[u]
+                    last_update[u] = t_left
+                    state[u] += state[edge.child]
+                    current_values[u] = node_summary(u)
+                    u = parent[u]
+
+            # Update the windows
+            while window_index < num_windows and windows[window_index + 1] <= t_right:
+                w_right = windows[window_index + 1]
+                right = min(t_right, w_right)
+
+                running_sum += (right - last_update) * current_values
+                result[window_index] = running_sum
+                running_sum = (t_right - w_right) * current_values
+                last_update = np.repeat(t_right, result_dim)
+                window_index += 1
+
+            tree_index += 1
+
+        assert window_index == windows.shape[0] - 1
+        for j in range(num_windows):
+            result[j] /= windows[j + 1] - windows[j]
+        return result
 
     # Site statistics stuff
     ############################################
@@ -3315,7 +3394,8 @@ class TreeSequence(object):
         sample_sets, indices = self.check_input(sample_sets, indices, 2)
         windows = self.parse_windows(windows)
         if stat_type == "node":
-            return self.ll_tree_sequence.node_divergence(sample_sets, windows)
+            # return self.ll_tree_sequence.node_divergence(sample_sets, windows)
+            pass
         elif stat_type == "site":
             return self.ll_tree_sequence.site_divergence(sample_sets, indices, windows)
         else:
@@ -3333,7 +3413,9 @@ class TreeSequence(object):
         zeros = (denom == 0)
         denom[zeros] = 1.0
         out /= denom
-        out[:, zeros] = np.nan
+        # TODO: sort this out tidily
+        if stat_type != "node":
+            out[:, zeros] = np.nan
         return out
 
     def divergence_matrix(self, sample_sets, windows=None, stat_type="site"):

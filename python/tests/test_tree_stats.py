@@ -347,6 +347,96 @@ def branch_general_stat(ts, sample_weights, summary_func, windows=None, polarise
     return result
 
 
+class PythonNodeStatCalculator(object):
+    """
+    Python implementations of various "node" statistics --
+    inefficient but more clear what they are doing.
+    """
+
+    def __init__(self, tree_sequence):
+        self.tree_sequence = tree_sequence
+
+    def divergence(self, X, Y, windows=None):
+        if windows is None:
+            windows = [0.0, self.tree_sequence.sequence_length]
+        out = np.zeros((len(windows) - 1, self.tree_sequence.num_nodes))
+        tX = len(X)
+        tY = len(Y)
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(self.tree_sequence.num_nodes)
+            for t1, t2 in zip(self.tree_sequence.trees(tracked_samples=X),
+                              self.tree_sequence.trees(tracked_samples=Y)):
+                if t1.interval[1] <= begin:
+                    continue
+                if t1.interval[0] >= end:
+                    break
+                SS = np.zeros(self.tree_sequence.num_nodes)
+                for u in t1.nodes():
+                    # count number of pairwise paths going through u
+                    nX = t1.num_tracked_samples(u)
+                    nY = t2.num_tracked_samples(u)
+                    SS[u] += nX * (tY - nY) + (tX - nX) * nY
+                S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+            out[j] = S/((end-begin)*len(X)*len(Y))
+        return out
+
+    def diversity(self, X, windows=None):
+        if windows is None:
+            windows = [0.0, self.tree_sequence.sequence_length]
+        out = np.zeros((len(windows) - 1, self.tree_sequence.num_nodes))
+        tX = len(X)
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(self.tree_sequence.num_nodes)
+            for tr in self.tree_sequence.trees(tracked_samples=X):
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = np.zeros(self.tree_sequence.num_nodes)
+                for u in tr.nodes():
+                    # count number of pairwise paths going through u
+                    n = tr.num_tracked_samples(u)
+                    SS[u] += n * (tX - n)
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            out[j] = 2 * S/((end-begin) * len(X) * (len(X) - 1))
+        return out
+
+    def naive_general_stat(self, W, f, windows=None, polarised=False):
+        if windows is None:
+            windows = [0.0, self.tree_sequence.sequence_length]
+        n, K = W.shape
+        if n != self.tree_sequence.num_samples:
+            raise ValueError("First dimension of W must be number of samples")
+        M = self.tree_sequence.num_nodes
+        total = np.sum(W, axis=0)
+
+        sigma = np.zeros((self.tree_sequence.num_trees, M))
+        for tree in self.tree_sequence.trees():
+            X = np.zeros((self.tree_sequence.num_nodes, K))
+            X[self.tree_sequence.samples()] = W
+            for u in tree.nodes(order="postorder"):
+                for v in tree.children(u):
+                    X[u] += X[v]
+            if polarised:
+                s = np.array([f(X[u])
+                              for u in range(self.tree_sequence.num_nodes)])
+            else:
+                s = np.array([f(X[u]) + f(total - X[u])
+                              for u in range(self.tree_sequence.num_nodes)])
+            sigma[tree.index] = s * tree.span
+        if isinstance(windows, str) and windows == "treewise":
+            # need to average across the windows
+            for j, tree in enumerate(self.tree_sequence.trees()):
+                sigma[j] /= tree.span
+            return sigma
+        else:
+            return windowed_tree_stat(self.tree_sequence, sigma, windows)
+
+
 class PythonBranchStatCalculator(object):
     """
     Python implementations of various ("tree") branch-length statistics -
@@ -1173,6 +1263,38 @@ class TestGeneralSiteStats(StatsTestCase):
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
 
+class TestGeneralNodeStats(StatsTestCase):
+
+    def run_stats(self, ts, W, f, windows=None, polarised=False):
+        py_ssc = PythonNodeStatCalculator(ts)
+        sigma1 = py_ssc.naive_general_stat(W, f, windows, polarised=polarised)
+        sigma2 = ts.general_stat("node", W, f, windows, polarised=polarised)
+        self.assertEqual(sigma1.shape, sigma2.shape)
+        self.assertArrayAlmostEqual(sigma1, sigma2)
+        return sigma1
+
+    def test_simple_sum_f_w_zeros(self):
+        ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
+        W = np.zeros((ts.num_samples, 3))
+        for polarised in [True, False]:
+            sigma = self.run_stats(ts, W, lambda x: sum(x), windows="treewise",
+                                   polarised=polarised)
+            self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes))
+            self.assertTrue(np.all(sigma == 0))
+
+    def test_simple_sum_f_w_ones(self):
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+        W = np.ones((ts.num_samples, 2))
+        sigma = self.run_stats(ts, W, lambda x: sum(x),
+                               windows="treewise", polarised=True)
+        self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes))
+        # A W of 1 for every node and f(x)=sum(x) counts the samples in the subtree
+        # times 2 if polarised is True.
+        for tree in ts.trees():
+            s = np.array([tree.num_samples(u) for u in range(ts.num_nodes)])
+            self.assertArrayAlmostEqual(sigma[tree.index], 2*s)
+
+
 class GeneralStatsTestCase(StatsTestCase):
     """
     Tests of statistic computation.  Derived classes should have an attribute
@@ -1310,6 +1432,16 @@ class GeneralStatsTestCase(StatsTestCase):
         self.compare_stats(ts, py_tsc.Y1, ts.Y1,
                            self.stat_type, A, 0)
 
+    def check_divergence(self, ts):
+        samples = self.rng.sample(list(ts.samples()), 12)
+        A = [[samples[0], samples[1], samples[6]],
+             [samples[2], samples[3], samples[7]],
+             [samples[4], samples[5], samples[8]],
+             [samples[9], samples[10], samples[11]]]
+        py_tsc = self.py_stat_class(ts)
+        self.compare_stats(ts, py_tsc.divergence, ts.divergence, A, 2)
+        self.compare_stats(ts, py_tsc.diversity, ts.diversity, A, 1)
+
 
 class SpecificTreesTestCase(GeneralStatsTestCase):
     seed = 21
@@ -1335,6 +1467,14 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
                                       0.5 * (0.8-0.2) + 0.5 * (1.0-0.8))
         branch_true_Y = 0.2*(1 + 0.5) + 0.6*(0.4) + 0.2*(0.7+0.2)
         site_true_Y = 3 + 0 + 1
+        node_true_diversity_012 = np.array([
+                0.2 * np.array([2, 2, 2, 0, 2, 0, 0]) +
+                0.6 * np.array([2, 2, 2, 2, 0, 0, 0]) +
+                0.2 * np.array([2, 2, 2, 0, 2, 0, 0])]) / 3
+        node_true_divergence_0_12 = np.array([
+                0.2 * np.array([2, 1, 1, 0, 2, 0, 0]) +
+                0.6 * np.array([2, 1, 1, 1, 0, 0, 0]) +
+                0.2 * np.array([2, 1, 1, 0, 2, 0, 0])]) / 2
 
         nodes = io.StringIO("""\
         id      is_sample   time
@@ -1386,6 +1526,7 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
             strict=False)
         py_bsc = PythonBranchStatCalculator(ts)
         py_ssc = PythonSiteStatCalculator(ts)
+        py_nsc = PythonNodeStatCalculator(ts)
 
         # diversity between 0 and 1
         A = [[0], [1]]
@@ -1451,6 +1592,17 @@ class SpecificTreesTestCase(GeneralStatsTestCase):
                                     site_true_Y)
         self.assertArrayAlmostEqual(py_ssc.sample_count_stats(A, f)[0][0],
                                     site_true_Y)
+
+        # nodes, diversity in [0,1,2]
+        nodes_div_012 = ts.diversity([[0, 1, 2]], stat_type="node")
+        py_nodes_div_012 = py_nsc.diversity([0, 1, 2])
+        self.assertArrayAlmostEqual(nodes_div_012, node_true_diversity_012)
+        self.assertArrayAlmostEqual(py_nodes_div_012, node_true_diversity_012)
+        # nodes, divergence [0] to [1,2]
+        nodes_div_0_12 = ts.divergence([[0], [1, 2]], indices=[(0, 1)], stat_type="node")
+        py_nodes_div_0_12 = py_nsc.divergence([0], [1, 2])
+        self.assertArrayAlmostEqual(nodes_div_0_12, node_true_divergence_0_12)
+        self.assertArrayAlmostEqual(py_nodes_div_0_12, node_true_divergence_0_12)
 
     @unittest.skip("Skip divergence")
     def test_case_odds_and_ends(self):
@@ -1985,3 +2137,38 @@ class SiteStatsTestCase(GeneralStatsTestCase):
     def test_site_sfs(self):
         for ts in self.get_ts():
             self.check_sfs(ts)
+
+
+class NodeStatsTestCase(GeneralStatsTestCase):
+    """
+    Tests of node statistic computation.
+    """
+
+    def setUp(self):
+        self.rng = random.Random(self.random_seed)
+        self.stat_type = "node"
+        self.py_stat_class = PythonNodeStatCalculator
+
+    def get_ts(self):
+        for N in [12, 15, 20]:
+            yield msprime.simulate(N, random_seed=self.random_seed,
+                                   recombination_rate=10)
+
+    def compare_stats(self, ts, py_fn, ts_fn,
+                      sample_sets, index_length):
+        # will compare py_fn() to ts_fn(..., stat_type)
+        assert(len(sample_sets) >= index_length)
+        windows = [k * ts.sequence_length / 20 for k in
+                   [0] + sorted(self.rng.sample(range(1, 20), 4)) + [20]]
+        indices = [self.rng.sample(range(len(sample_sets)), max(1, index_length))
+                   for _ in range(5)]
+        for idx in indices:
+            ssets = [sample_sets[i] for i in idx]
+            ts_vals = ts_fn(ssets, windows=windows, stat_type=self.stat_type)
+            self.assertEqual((len(windows) - 1, ts.num_nodes), ts_vals.shape)
+            py_vals = py_fn(*ssets, windows)
+            self.assertArrayAlmostEqual(py_vals, ts_vals)
+
+    def test_node_diversity(self):
+        for ts in self.get_ts():
+            self.check_divergence(ts)
