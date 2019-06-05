@@ -3140,8 +3140,9 @@ class TreeSequence(object):
     def branch_general_stat(self, W, f, windows=None, polarised=False):
         output_dim = f(W[0]).shape[0]
         windows = self.parse_windows(windows)
-        return self.ll_tree_sequence.branch_general_stat(
-            W, f, output_dim, windows, polarised)
+        return self.ll_tree_sequence.general_stat(
+            W, f, output_dim, windows, polarised=polarised, span_normalised=True,
+            mode="branch")
 
     # Node statistics stuff
     ############################################
@@ -3223,89 +3224,18 @@ class TreeSequence(object):
     # Site statistics stuff
     ############################################
 
-    def windowed_sitewise_stat(self, sigma, windows, normalize=True):
-        M = sigma.shape[1]
-        A = np.zeros((len(windows) - 1, M))
-        window = 0
-        for site in self.sites():
-            while windows[window + 1] <= site.position:
-                window += 1
-            assert windows[window] <= site.position < windows[window + 1]
-            A[window] += sigma[site.id]
-        if normalize:
-            diff = np.zeros((A.shape[0], 1))
-            diff[:, 0] = np.diff(windows).T
-            A /= diff
-        return A
-
     def site_general_stat(self, W, f, windows=None, polarised=False):
-        """
-        Problem: 'sitewise' is different that the other windowing options
-        because if we output by site we don't want to normalize by length of the window.
-        Solution: we pass an argument "normalize", to the windowing function.
-        """
-        normalize_windows = not (isinstance(windows, str) and windows == "sitewise")
+        output_dim = f(W[0]).shape[0]
+        span_normalised = not (isinstance(windows, str) and windows == "sitewise")
+        # We always want to normalise by the window span *unless* we want the sitewise
+        # output.
         windows = self.parse_windows(windows)
-        n, K = W.shape
-        if n != self.num_samples:
-            raise ValueError("First dimension of W must be number of samples")
-        # Hack to determine M
-        M, = f(W[0]).shape
-        sigma = np.zeros((self.num_sites, M))
-        X = np.zeros((self.num_nodes, K))
-        X[self.samples()] = W
-        total = np.sum(W, axis=0)
-
-        site_index = 0
-        mutation_index = 0
-        sites = self.tables.sites
-        mutations = self.tables.mutations
-        parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
-        # tree = self.first()  # For debugging
-        for (left, right), edges_out, edges_in in self.edge_diffs():
-            for edge in edges_out:
-                u = edge.parent
-                while u != -1:
-                    X[u] -= X[edge.child]
-                    u = parent[u]
-                parent[edge.child] = -1
-            for edge in edges_in:
-                parent[edge.child] = edge.parent
-                u = edge.parent
-                while u != -1:
-                    X[u] += X[edge.child]
-                    u = parent[u]
-            while site_index < len(sites) and sites.position[site_index] < right:
-                assert left <= sites.position[site_index]
-                ancestral_state = sites[site_index].ancestral_state
-                state_map = collections.defaultdict(functools.partial(np.zeros, K))
-                state_map[ancestral_state][:] = total
-                while (
-                        mutation_index < len(mutations)
-                        and mutations[mutation_index].site == site_index):
-                    mutation = mutations[mutation_index]
-                    state_map[mutation.derived_state] += X[mutation.node]
-                    if mutation.parent != -1:
-                        parent_state = mutations[mutation.parent].derived_state
-                        state_map[parent_state] -= X[mutation.node]
-                    else:
-                        state_map[ancestral_state] -= X[mutation.node]
-                    mutation_index += 1
-                if polarised:
-                    del state_map[ancestral_state]
-                for state, X_value in state_map.items():
-                    sigma[site_index] += f(X_value)
-                site_index += 1
-
-            # # Debugging/development stuff.
-            # assert (left, right) == tree.interval
-            # for u in tree.nodes():
-            #     assert parent[u] == tree.parent(u)
-            # tree.next()
-
-        return self.windowed_sitewise_stat(sigma, windows, normalize=normalize_windows)
+        return self.ll_tree_sequence.general_stat(
+            W, f, output_dim, windows, polarised=polarised,
+            span_normalised=span_normalised, mode="site")
 
     # Statistics definitions
+
     ############################################
 
     def diversity(self, sample_sets, indices=None, windows=None, stat_type="site"):
@@ -3342,18 +3272,27 @@ class TreeSequence(object):
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 1, 2)
-        n = np.array([len(x) for x in sample_sets])
+        if stat_type == "node":
+            # node mode not supported yet in C code so reverting to Python.
+            sample_sets, indices = self.check_input(sample_sets, indices, 1, 2)
+            n = np.array([len(x) for x in sample_sets])
 
-        def f(x):
-            return np.array([float(x[i]*(n[i]-x[i]))
-                             for i in range(len(sample_sets))])
+            def f(x):
+                return np.array([float(x[i]*(n[i]-x[i]))
+                                 for i in range(len(sample_sets))])
 
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows,
-                                      polarised=False)
-        denom = np.array([n[i] * (n[i] - 1) for i in indices])
-        out /= denom
-        return out
+            out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows,
+                                          polarised=False)
+            denom = np.array([n[i] * (n[i] - 1) for i in indices])
+            out /= denom
+            return out
+        else:
+            # TODO Ignoring indices for now - is this really necessary here?
+            sample_set_sizes = [len(sample_set) for sample_set in sample_sets]
+            flattened = tables.to_np_int32(np.hstack(sample_sets))
+            windows = self.parse_windows(windows)
+            return self.ll_tree_sequence.diversity(
+                sample_set_sizes, flattened, windows, mode=stat_type)
 
     def divergence(self, sample_sets, indices=None, windows=None, stat_type="site"):
         """

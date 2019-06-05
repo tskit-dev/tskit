@@ -16,6 +16,7 @@ import tests.test_lowlevel as test_lowlevel
 import tests.test_vcf as test_vcf
 import tests.test_threads as test_threads
 import tests.test_stats as test_stats
+import tests.test_tree_stats as test_tree_stats
 import tests.test_tables as test_tables
 import tests.test_topology as test_topology
 import tests.test_file_format as test_file_format
@@ -29,6 +30,7 @@ def main():
         "vcf": test_vcf,
         "threads": test_threads,
         "stats": test_stats,
+        "tree_stats": test_tree_stats,
         "tables": test_tables,
         "file_format": test_file_format,
         "topology": test_topology,

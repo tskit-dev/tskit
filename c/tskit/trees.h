@@ -39,7 +39,13 @@ extern "C" {
 #define TSK_SAMPLE_COUNTS  (1 << 0)
 #define TSK_SAMPLE_LISTS   (1 << 1)
 
-#define TSK_STAT_POLARISED (1 << 0)
+#define TSK_STAT_SITE               (1 << 0)
+#define TSK_STAT_BRANCH             (1 << 1)
+#define TSK_STAT_NODE               (1 << 2)
+
+/* Leave room for other stat types */
+#define TSK_STAT_POLARISED          (1 << 10)
+#define TSK_STAT_SPAN_NORMALISE     (1 << 11)
 
 #define TSK_DIR_FORWARD 1
 #define TSK_DIR_REVERSE -1
@@ -200,13 +206,32 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
         tsk_id_t **reference_sets, size_t *reference_set_size, size_t num_reference_sets,
         tsk_flags_t options, double *ret_array);
 
+/* TODO change all these size_t's to tsk_size_t */
+
 typedef int general_stat_func_t(size_t K, double *X, size_t M, double *Y, void *params);
 
-int tsk_treeseq_general_branch_stat(tsk_treeseq_t *self,
+int tsk_treeseq_general_stat(tsk_treeseq_t *self,
         size_t K, double *W,
         size_t M, general_stat_func_t *f, void *f_params,
         size_t num_windows, double *windows, double *sigma,
         tsk_flags_t options);
+
+int tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
+        size_t K, double *W,
+        size_t M, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double *sigma,
+        tsk_flags_t options);
+
+int tsk_treeseq_site_general_stat(tsk_treeseq_t *self,
+        size_t K, double *W,
+        size_t M, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double *sigma,
+        tsk_flags_t options);
+
+int tsk_treeseq_diversity(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
 
 /****************************************************************************/
 /* Tree */

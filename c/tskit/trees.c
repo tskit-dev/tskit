@@ -542,6 +542,23 @@ tsk_treeseq_get_breakpoints(tsk_treeseq_t *self)
     return self->breakpoints;
 }
 
+/* TODO these two functions should be changed to look the same, i.e,
+ * just return the pointer. We can't have an error and the contract
+ * doesn't change anyway. */
+int TSK_WARN_UNUSED
+tsk_treeseq_get_samples(tsk_treeseq_t *self, tsk_id_t **samples)
+{
+    *samples = self->samples;
+    return 0;
+}
+
+int TSK_WARN_UNUSED
+tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self, tsk_id_t **sample_index_map)
+{
+    *sample_index_map = self->sample_index_map;
+    return 0;
+}
+
 bool
 tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u)
 {
@@ -1047,7 +1064,7 @@ out:
 }
 
 int
-tsk_treeseq_general_branch_stat(tsk_treeseq_t *self,
+tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
         size_t state_dim, double *sample_weights,
         size_t result_dim, general_stat_func_t *f, void *f_params,
         size_t num_windows, double *windows, double *result,
@@ -1212,13 +1229,15 @@ tsk_treeseq_general_branch_stat(tsk_treeseq_t *self,
         tree_index++;
     }
     assert(window_index == num_windows);
-
-    /* Normalise by window length */
-    for (window_index = 0; window_index < num_windows; window_index++) {
-        scale = windows[window_index + 1] - windows[window_index];
-        result_row = GET_2D_ROW(result, result_dim, window_index);
-        for (k = 0; k < result_dim; k++) {
-            result_row[k] /= scale;
+    if (options & TSK_STAT_SPAN_NORMALISE) {
+        /* TODO the semantics aren't quite right at the moment - should we be
+         * weighting by the span above if this isn't being done? */
+        for (window_index = 0; window_index < num_windows; window_index++) {
+            scale = windows[window_index + 1] - windows[window_index];
+            result_row = GET_2D_ROW(result, result_dim, window_index);
+            for (k = 0; k < result_dim; k++) {
+                result_row[k] /= scale;
+            }
         }
     }
 out:
@@ -1232,6 +1251,363 @@ out:
     return ret;
 }
 
+static int
+compute_site_result(tsk_site_t *site, double *state, size_t state_dim,
+        size_t result_dim, general_stat_func_t *f, void *f_params,
+        double *total_weight, bool polarised, double *result)
+{
+    int ret = 0;
+    size_t k;
+    tsk_mutation_t mutation, parent_mut;
+    tsk_size_t mutation_index, allele, num_alleles, alt_allele_length;
+    double *result_tmp = calloc(result_dim, sizeof(*result_tmp));
+    /* The allele table */
+    size_t max_alleles = site->mutations_length + 1;
+    const char **alleles = malloc(max_alleles * sizeof(*alleles));
+    tsk_size_t *allele_lengths = calloc(max_alleles, sizeof(*allele_lengths));
+    double *allele_states = calloc(max_alleles * state_dim, sizeof(*allele_states));
+    double *allele_row, *state_row;
+    const char *alt_allele;
+
+    if (result_tmp == NULL || alleles == NULL || allele_lengths == NULL
+            || allele_states == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(result, 0, result_dim * sizeof(*result));
+
+    assert(state != NULL);
+    alleles[0] = site->ancestral_state;
+    allele_lengths[0] = site->ancestral_state_length;
+    memcpy(allele_states, total_weight, state_dim * sizeof(*allele_states));
+    num_alleles = 1;
+
+    for (mutation_index = 0; mutation_index < site->mutations_length; mutation_index++) {
+        mutation = site->mutations[mutation_index];
+        /* Compute the allele index for this derived state value. */
+        allele = 0;
+        while (allele < num_alleles) {
+            if (mutation.derived_state_length == allele_lengths[allele]
+                    && memcmp(mutation.derived_state, alleles[allele],
+                        allele_lengths[allele]) == 0) {
+                break;
+            }
+            allele++;
+        }
+        if (allele == num_alleles) {
+            assert(allele < max_alleles);
+            alleles[allele] = mutation.derived_state;
+            allele_lengths[allele] = mutation.derived_state_length;
+            num_alleles++;
+        }
+
+        /* Add the state for the the mutation's node to this allele */
+        state_row = GET_2D_ROW(state, state_dim, mutation.node);
+        allele_row = GET_2D_ROW(allele_states, state_dim, allele);
+        for (k = 0; k < state_dim; k++) {
+            allele_row[k] += state_row[k];
+        }
+
+        /* Get the index for the alternate allele that we must substract from */
+        alt_allele = site->ancestral_state;
+        alt_allele_length = site->ancestral_state_length;
+        if (mutation.parent != TSK_NULL) {
+            parent_mut = site->mutations[mutation.parent - site->mutations[0].id];
+            alt_allele = parent_mut.derived_state;
+            alt_allele_length = parent_mut.derived_state_length;
+        }
+        allele = 0;
+        while (allele < num_alleles) {
+            if (alt_allele_length == allele_lengths[allele]
+                    && memcmp(alt_allele, alleles[allele], allele_lengths[allele]) == 0) {
+                break;
+            }
+            allele++;
+        }
+        assert(allele < num_alleles);
+
+        allele_row = GET_2D_ROW(allele_states, state_dim, allele);
+        for (k = 0; k < state_dim; k++) {
+            allele_row[k] -= state_row[k];
+        }
+    }
+
+    /* Sum over the allele weights. Skip the ancestral state if this is a polarised stat */
+    for (allele = polarised? 1: 0; allele < num_alleles; allele++) {
+        ret = f(state_dim, GET_2D_ROW(allele_states, state_dim, allele),
+                result_dim, result_tmp, f_params);
+        if (ret != 0) {
+            goto out;
+        }
+        for (k = 0; k < result_dim; k++) {
+            result[k] += result_tmp[k];
+        }
+    }
+
+out:
+    tsk_safe_free(result_tmp);
+    tsk_safe_free(alleles);
+    tsk_safe_free(allele_lengths);
+    tsk_safe_free(allele_states);
+    return ret;
+}
+
+int
+tsk_treeseq_site_general_stat(tsk_treeseq_t *self,
+        size_t state_dim, double *sample_weights,
+        size_t result_dim, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double *result,
+        tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_id_t u, v;
+    size_t j, k, tree_site, tree_index, window_index;
+    size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
+    const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
+    const double *restrict edge_left = self->tables->edges.left;
+    const double *restrict edge_right = self->tables->edges.right;
+    const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
+    const double sequence_length = self->tables->sequence_length;
+    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    tsk_site_t *site;
+    tsk_id_t tj, tk, h;
+    double t_left, t_right, scale;
+    double *state_u, *weight_u, *result_row;
+    double *state = calloc(num_nodes * state_dim, sizeof(*state));
+    double *total_weight = calloc(state_dim, sizeof(*total_weight));
+    double *site_result = calloc(result_dim, sizeof(*site_result));
+    bool polarised = false;
+    double default_windows[] = {0, self->tables->sequence_length};
+
+    if (parent == NULL || state == NULL || total_weight == NULL || site_result == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, num_nodes * sizeof(*parent));
+
+    if (state_dim < 1 || result_dim < 1) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    if (windows == NULL) {
+        num_windows = 1;
+        windows = default_windows;
+    } else {
+        ret = tsk_treeseq_check_windows(self, num_windows, windows);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (options & TSK_STAT_POLARISED) {
+        polarised = true;
+    }
+
+    /* Set the initial conditions */
+    for (j = 0; j < self->num_samples; j++) {
+        u = self->samples[j];
+        state_u = GET_2D_ROW(state, state_dim, u);
+        weight_u = GET_2D_ROW(sample_weights, state_dim, j);
+        memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
+        for (k = 0; k < state_dim; k++) {
+            total_weight[k] += weight_u[k];
+        }
+    }
+    memset(result, 0, num_windows * result_dim * sizeof(*result));
+
+    /* Iterate over the trees */
+    tj = 0;
+    tk = 0;
+    t_left = 0;
+    tree_index = 0;
+    window_index = 0;
+    while (tj < num_edges || t_left < sequence_length) {
+        while (tk < num_edges && edge_right[O[tk]] == t_left) {
+            h = O[tk];
+            tk++;
+            u = edge_child[h];
+            v = edge_parent[h];
+            while (v != TSK_NULL) {
+                update_state(state, state_dim, v, u, -1);
+                v = parent[v];
+            }
+            parent[u] = TSK_NULL;
+        }
+
+        while (tj < num_edges && edge_left[I[tj]] == t_left) {
+            h = I[tj];
+            tj++;
+            u = edge_child[h];
+            v = edge_parent[h];
+            parent[u] = v;
+            while (v != TSK_NULL) {
+                update_state(state, state_dim, v, u, +1);
+                v = parent[v];
+            }
+        }
+        t_right = sequence_length;
+        if (tj < num_edges) {
+            t_right = TSK_MIN(t_right, edge_left[I[tj]]);
+        }
+        if (tk < num_edges) {
+            t_right = TSK_MIN(t_right, edge_right[O[tk]]);
+        }
+
+        /* Update the sites */
+        for (tree_site = 0; tree_site < self->tree_sites_length[tree_index]; tree_site++) {
+            site = self->tree_sites[tree_index] + tree_site;
+            ret = compute_site_result(site, state, state_dim, result_dim, f, f_params,
+                    total_weight, polarised, site_result);
+            if (ret != 0) {
+                goto out;
+            }
+
+            while (windows[window_index + 1] <= site->position) {
+                window_index++;
+                assert(window_index < num_windows);
+            }
+            assert(windows[window_index] <= site->position);
+            assert(site->position < windows[window_index + 1]);
+            result_row = GET_2D_ROW(result, result_dim, window_index);
+            for (k = 0; k < result_dim; k++) {
+                result_row[k] += site_result[k];
+            }
+        }
+        tree_index++;
+        t_left = t_right;
+    }
+    if (options & TSK_STAT_SPAN_NORMALISE) {
+        for (window_index = 0; window_index < num_windows; window_index++) {
+            scale = windows[window_index + 1] - windows[window_index];
+            result_row = GET_2D_ROW(result, result_dim, window_index);
+            for (k = 0; k < result_dim; k++) {
+                result_row[k] /= scale;
+            }
+        }
+    }
+out:
+    /* Can't use msp_safe_free here because of restrict */
+    if (parent != NULL) {
+        free(parent);
+    }
+    tsk_safe_free(state);
+    tsk_safe_free(total_weight);
+    tsk_safe_free(site_result);
+    return ret;
+}
+
+int
+tsk_treeseq_general_stat(tsk_treeseq_t *self,
+        size_t state_dim, double *sample_weights,
+        size_t result_dim, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double *result,
+        tsk_flags_t options)
+{
+    int ret = 0;
+
+    if (options & TSK_STAT_SITE) {
+        ret = tsk_treeseq_site_general_stat(self,
+                state_dim, sample_weights, result_dim, f, f_params,
+                num_windows, windows, result, options);
+    } else if (options & TSK_STAT_BRANCH) {
+        ret = tsk_treeseq_branch_general_stat(self,
+                state_dim, sample_weights, result_dim, f, f_params,
+                num_windows, windows, result, options);
+    } else {
+        ret = TSK_ERR_GENERIC;
+    }
+    return ret;
+}
+
+typedef struct {
+    tsk_id_t *sample_sets;
+    tsk_size_t num_sample_sets;
+    tsk_size_t *sample_set_sizes;
+    /* This is a bad name - we might not necessarily have pairs but singles/triples */
+    tsk_size_t *index_pairs;
+    tsk_size_t num_index_pairs;
+} sample_count_stat_params_t;
+
+static int
+tsk_treeseq_sample_count_stat(tsk_treeseq_t *self,
+        tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+        tsk_size_t *index_pairs, tsk_size_t num_index_pairs, general_stat_func_t *f,
+        tsk_size_t num_windows, double *windows, double *result,
+        tsk_flags_t options)
+{
+    int ret = 0;
+    const size_t num_samples = self->num_samples;
+    const tsk_id_t num_nodes = (tsk_id_t) self->tables->nodes.num_rows;
+    size_t j, k, l;
+    tsk_id_t u, sample_index;
+    double *weights = calloc(num_samples * num_sample_sets, sizeof(*weights));
+    double *weight_row;
+    sample_count_stat_params_t args = {
+        .sample_sets = sample_sets,
+        .num_sample_sets = num_sample_sets,
+        .sample_set_sizes = sample_set_sizes,
+        .index_pairs = index_pairs,
+        .num_index_pairs = num_index_pairs
+    };
+
+    if (weights == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    j = 0;
+    for (k = 0; k < num_sample_sets; k++) {
+        for (l = 0; l < sample_set_sizes[k]; l++) {
+            u = sample_sets[j];
+            if (u < 0 || u >= num_nodes) {
+                ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+                goto out;
+            }
+            sample_index = self->sample_index_map[u];
+            if (sample_index == TSK_NULL) {
+                ret = TSK_ERR_BAD_SAMPLES;
+                goto out;
+            }
+            weight_row = GET_2D_ROW(weights, num_sample_sets, sample_index);
+            weight_row[k] = 1;
+            j++;
+        }
+    }
+    ret =  tsk_treeseq_general_stat(self,
+        num_sample_sets, weights, num_sample_sets, f, &args,
+        num_windows, windows, result, options);
+out:
+    tsk_safe_free(weights);
+    return ret;
+}
+
+static int
+diversity_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result_dim),
+        double *result, void *params)
+{
+    sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
+    const double *x = state;
+    double n;
+    size_t j;
+
+    for (j = 0; j < state_dim; j++) {
+        n = (double) args.sample_set_sizes[j];
+        result[j] = x[j] * (n - x[j]) / (n * (n - 1));
+    }
+    return 0;
+}
+
+int
+tsk_treeseq_diversity(tsk_treeseq_t *self,
+        tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+{
+    return  tsk_treeseq_sample_count_stat(self,
+        num_sample_sets, sample_set_sizes, sample_sets, NULL, 0,
+        diversity_summary_func, num_windows, windows, result, options);
+}
 
 /* TODO: implement this API */
 /* int */
@@ -1347,20 +1723,6 @@ int TSK_WARN_UNUSED
 tsk_treeseq_get_provenance(tsk_treeseq_t *self, tsk_id_t index, tsk_provenance_t *provenance)
 {
    return tsk_provenance_table_get_row(&self->tables->provenances, index, provenance);
-}
-
-int TSK_WARN_UNUSED
-tsk_treeseq_get_samples(tsk_treeseq_t *self, tsk_id_t **samples)
-{
-    *samples = self->samples;
-    return 0;
-}
-
-int TSK_WARN_UNUSED
-tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self, tsk_id_t **sample_index_map)
-{
-    *sample_index_map = self->sample_index_map;
-    return 0;
 }
 
 int TSK_WARN_UNUSED

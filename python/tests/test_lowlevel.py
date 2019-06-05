@@ -384,32 +384,149 @@ class TestTreeSequence(LowLevelTestCase):
             self.assertEqual(A.shape, (ts.get_num_nodes(), 2))
 
 
-class TestGeneralStatsInterface(LowLevelTestCase):
+class TestStatsInterface(LowLevelTestCase):
+    """
+    Tests for the interface on specific stats.
+    """
+
+    def check_mode_errors(self, f):
+        for bad_mode in ["", "not a mode", "SITE", "x" * 8192]:
+            with self.assertRaises(ValueError):
+                f(mode=bad_mode)
+
+        for bad_type in [123, {}, None]:
+            with self.assertRaises(TypeError):
+                f(mode=bad_type)
+
+    def check_window_errors(self, ts, f):
+        for bad_array in ["asdf", None, [[[[]], [[]]]], np.zeros((10, 3, 4))]:
+            with self.assertRaises(ValueError):
+                f(bad_array)
+
+        for bad_windows in [[], [0]]:
+            with self.assertRaises(ValueError):
+                f(bad_windows)
+        L = ts.get_sequence_length()
+        bad_windows = [
+            [L, 0], [0.1, L], [-1, L], [0, L + 0.1], [0, 0.1, 0.1, L],
+            [0, -1, L], [0, 0.1, 0.05, 0.2, L]]
+        for bad_window in bad_windows:
+            with self.assertRaises(_tskit.LibraryError):
+                f(bad_window)
+
+    def check_windows_output(self, ts, f):
+        for num_windows in range(1, 10):
+            windows = np.linspace(0, ts.get_sequence_length(), num=num_windows + 1)
+            self.assertEqual(windows.shape[0], num_windows + 1)
+            sigma = f(windows)
+            self.assertEqual(sigma.shape, (num_windows, 1))
+
+
+class TestDiversity(TestStatsInterface):
+    """
+    Tests for the divergence method.
+    """
+
+    def test_basic_example(self):
+        ts = self.get_example_tree_sequence()
+        pi = ts.diversity(
+            [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()])
+        self.assertEqual(pi.shape, (1, 1))
+
+    def test_output_dims(self):
+        ts = self.get_example_tree_sequence()
+        samples = ts.get_samples()
+        windows = [0, ts.get_sequence_length()]
+        n = len(samples)
+        pi = ts.diversity([n], samples, windows)
+        self.assertEqual(pi.shape, (1, 1))
+        pi = ts.diversity([2, n - 2], samples, windows)
+        self.assertEqual(pi.shape, (1, 2))
+        pi = ts.diversity([2, 2, n - 4], samples, windows)
+        self.assertEqual(pi.shape, (1, 3))
+        pi = ts.diversity(np.ones(n).astype(np.uint32), samples, windows)
+        self.assertEqual(pi.shape, (1, n))
+
+    def test_mode_errors(self):
+        ts = self.get_example_tree_sequence()
+
+        def f(mode):
+            return ts.diversity(
+                [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()],
+                mode=mode)
+        self.check_mode_errors(f)
+
+    def test_window_errors(self):
+        ts = self.get_example_tree_sequence()
+
+        def f(windows):
+            return ts.diversity([ts.get_num_samples()], ts.get_samples(), windows)
+        self.check_window_errors(ts, f)
+
+    def test_windows_output(self):
+        ts = self.get_example_tree_sequence()
+
+        def f(windows):
+            return ts.diversity([ts.get_num_samples()], ts.get_samples(), windows)
+        self.check_windows_output(ts, f)
+
+    def test_bad_sample_sets(self):
+        ts = self.get_example_tree_sequence()
+        windows = ts.get_breakpoints()
+        with self.assertRaises(_tskit.LibraryError):
+            ts.diversity([], [], windows)
+
+        n = ts.get_num_samples()
+        for bad_set_sizes in [[], [1], [n - 1], [n + 1], [n - 3, 1, 1], [1, n - 2]]:
+            with self.assertRaises(ValueError):
+                ts.diversity(bad_set_sizes, ts.get_samples(), windows)
+
+        N = ts.get_num_nodes()
+        for bad_node in [-1, N, N + 1, -N]:
+            with self.assertRaises(_tskit.LibraryError):
+                ts.diversity([2], [0, bad_node], windows)
+
+        for bad_sample in [n, n + 1, N - 1]:
+            with self.assertRaises(_tskit.LibraryError):
+                ts.diversity([2], [0, bad_sample], windows)
+
+
+class TestGeneralStatsInterface(TestStatsInterface):
     """
     Tests for the general stats interface.
     """
+    def test_mode_errors(self):
+        ts = self.get_example_tree_sequence()
+        W = np.zeros((ts.get_num_samples(), 1))
+
+        def f(mode):
+            return ts.general_stat(
+                W, lambda x: np.cumsum(x), 1, ts.get_breakpoints(), mode=mode)
+        self.check_mode_errors(f)
+
     def test_basic_example(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
-        sigma = ts.branch_general_stat(
-            W, lambda x: np.cumsum(x), 1, ts.get_breakpoints())
+        sigma = ts.general_stat(
+            W, lambda x: np.cumsum(x), 1, ts.get_breakpoints(), mode="branch")
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
 
     def test_windows_output(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
-        for num_windows in range(1, 10):
-            windows = np.linspace(0, ts.get_sequence_length(), num=num_windows + 1)
-            self.assertEqual(windows.shape[0], num_windows + 1)
-            sigma = ts.branch_general_stat(W, lambda x: np.cumsum(x), 1, windows)
-            self.assertEqual(sigma.shape, (num_windows, 1))
+
+        def f(windows):
+            return ts.general_stat(W, lambda x: np.cumsum(x), 1, windows, mode="branch")
+        self.check_windows_output(ts, f)
 
     def test_non_numpy_return(self):
         ts = self.get_example_tree_sequence()
         W = np.ones((ts.get_num_samples(), 3))
-        sigma = ts.branch_general_stat(W, lambda x: [sum(x)], 1, ts.get_breakpoints())
+        sigma = ts.general_stat(
+            W, lambda x: [sum(x)], 1, ts.get_breakpoints(), mode="branch")
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
-        sigma = ts.branch_general_stat(W, lambda x: [2, 2], 2, ts.get_breakpoints())
+        sigma = ts.general_stat(
+            W, lambda x: [2, 2], 2, ts.get_breakpoints(), mode="branch")
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 2))
 
     def test_complicated_numpy_function(self):
@@ -419,18 +536,18 @@ class TestGeneralStatsInterface(LowLevelTestCase):
         def f(x):
             y = np.sum(x * x), np.prod(x + np.arange(x.shape[0]))
             return y
-        sigma = ts.branch_general_stat(W, f, 2, ts.get_breakpoints())
+        sigma = ts.general_stat(W, f, 2, ts.get_breakpoints(), mode="branch")
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 2))
 
     def test_input_dims(self):
         ts = self.get_example_tree_sequence()
         for k in range(1, 20):
             W = np.zeros((ts.get_num_samples(), k))
-            sigma = ts.branch_general_stat(
-                W, lambda x: np.cumsum(x), k, ts.get_breakpoints())
+            sigma = ts.general_stat(
+                W, lambda x: np.cumsum(x), k, ts.get_breakpoints(), mode="branch")
             self.assertEqual(sigma.shape, (ts.get_num_trees(), k))
-            sigma = ts.branch_general_stat(
-                W, lambda x: [np.sum(x)], 1, ts.get_breakpoints())
+            sigma = ts.general_stat(
+                W, lambda x: [np.sum(x)], 1, ts.get_breakpoints(), mode="branch")
             self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
 
     def test_W_errors(self):
@@ -438,62 +555,52 @@ class TestGeneralStatsInterface(LowLevelTestCase):
         n = ts.get_num_samples()
         for bad_array in [[], [0, 1], [[[[]], [[]]]], np.zeros((10, 3, 4))]:
             with self.assertRaises(ValueError):
-                ts.branch_general_stat(bad_array, lambda x: x, 1, ts.get_breakpoints())
+                ts.general_stat(bad_array, lambda x: x, 1, ts.get_breakpoints())
 
         for bad_size in [n - 1, n + 1, 0]:
             W = np.zeros((bad_size, 1))
             with self.assertRaises(ValueError):
-                ts.branch_general_stat(W, lambda x: x, 1, ts.get_breakpoints())
+                ts.general_stat(W, lambda x: x, 1, ts.get_breakpoints())
 
     def test_window_errors(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 4))
-        for bad_array in ["asdf", None, [[[[]], [[]]]], np.zeros((10, 3, 4))]:
-            with self.assertRaises(ValueError):
-                ts.branch_general_stat(W, lambda x: x, 1, windows=bad_array)
 
-        for bad_windows in [[], [0]]:
-            with self.assertRaises(ValueError):
-                ts.branch_general_stat(W, lambda x: x, 1, windows=bad_windows)
-        L = ts.get_sequence_length()
-        bad_windows = [
-            [L, 0], [0.1, L], [-1, L], [0, L + 0.1], [0, 0.1, 0.1, L],
-            [0, -1, L], [0, 0.1, 0.05, 0.2, L]]
-        for bad_window in bad_windows:
-            with self.assertRaises(_tskit.LibraryError):
-                ts.branch_general_stat(W, lambda x: x, 1, windows=bad_window)
+        def f(windows):
+            return ts.general_stat(W, lambda x: x, 1, windows=windows)
+        self.check_window_errors(ts, f)
 
     def test_summary_func_errors(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
         for bad_type in ["sdf", 1, {}]:
             with self.assertRaises(TypeError):
-                ts.branch_general_stat(W, bad_type, 1, ts.get_breakpoints())
+                ts.general_stat(W, bad_type, 1, ts.get_breakpoints())
 
         # Wrong numbers of arguments to f
         with self.assertRaises(TypeError):
-            ts.branch_general_stat(W, lambda: 0, 1, ts.get_breakpoints())
+            ts.general_stat(W, lambda: 0, 1, ts.get_breakpoints())
         with self.assertRaises(TypeError):
-            ts.branch_general_stat(W, lambda x, y: None, 1, ts.get_breakpoints())
+            ts.general_stat(W, lambda x, y: None, 1, ts.get_breakpoints())
 
         # Exceptions within f are correctly raised.
         for exception in [ValueError, TypeError]:
             def f(x):
                 raise exception("test")
             with self.assertRaises(exception):
-                ts.branch_general_stat(W, f, 1, ts.get_breakpoints())
+                ts.general_stat(W, f, 1, ts.get_breakpoints())
 
         # Wrong output dimensions
         for bad_array in [[1, 1], range(10)]:
             with self.assertRaises(ValueError):
-                ts.branch_general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
+                ts.general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
         with self.assertRaises(ValueError):
-            ts.branch_general_stat(W, lambda x: [1], 2, ts.get_breakpoints())
+            ts.general_stat(W, lambda x: [1], 2, ts.get_breakpoints())
 
         # Bad arrays returned from f
         for bad_array in [["sdf"], 0, "w4", None]:
             with self.assertRaises(ValueError):
-                ts.branch_general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
+                ts.general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
 
 
 class TestTreeDiffIterator(LowLevelTestCase):
