@@ -317,7 +317,7 @@ class TestMeanDescendants(unittest.TestCase):
 
 
 def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
-    # Make sure everyhing is a sample so we can use the tracked_samples option.
+    # Make sure everything is a sample so we can use the tracked_samples option.
     # This is a limitation of the current API.
     tables = ts.dump_tables()
     tables.nodes.set_columns(
@@ -340,7 +340,7 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
             focal_node_set = reference_set_map[u]
             # delta(u) = 1 if u exists in any of the reference sets; 0 otherwise
             delta = int(focal_node_set != -1)
-            v = trees[0].parent(u)
+            v = u
             while v != tskit.NULL:
                 total = sum(tree.num_tracked_samples(v) for tree in trees)
                 if total > delta:
@@ -437,6 +437,26 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         self.assertEqual(list(A[0]), [0, 1])
         A = self.verify(ts, [[0, 1], [2, 4]], [2])
         self.assertTrue(np.allclose(A[0], [2 / 3, 1 / 3]))
+
+    def test_simple_example_internal_focal_node(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
+        focal = [7]  # An internal node
+        reference_sets = [[4, 0, 1], [2, 3]]
+        GNN = naive_genealogical_nearest_neighbours(ts, focal, reference_sets)
+        self.assertTrue(np.allclose(GNN[0], np.array([1.0, 0.0])))
+        GNN = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
+        self.assertTrue(np.allclose(GNN[0], np.array([1.0, 0.0])))
+        GNN = ts.genealogical_nearest_neighbours(focal, reference_sets)
+        self.assertTrue(np.allclose(GNN[0], np.array([1.0, 0.0])))
+        focal = [8]  # The root
+        GNN = naive_genealogical_nearest_neighbours(ts, focal, reference_sets)
+        self.assertTrue(np.allclose(GNN[0], np.array([0.6, 0.4])))
+        GNN = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
+        self.assertTrue(np.allclose(GNN[0], np.array([0.6, 0.4])))
+        GNN = ts.genealogical_nearest_neighbours(focal, reference_sets)
+        self.assertTrue(np.allclose(GNN[0], np.array([0.6, 0.4])))
 
     def test_two_populations_high_migration(self):
         ts = msprime.simulate(

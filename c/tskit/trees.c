@@ -729,7 +729,7 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
             u = focal[j];
             focal_reference_set = reference_set_map[u];
             delta = focal_reference_set != -1;
-            p = parent[u];
+            p = u;
             while (p != TSK_NULL) {
                 row = GET_2D_ROW(ref_count, K, p);
                 total = row[K - 1];
