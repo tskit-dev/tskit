@@ -324,6 +324,24 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_WINDOWS:
             ret = "Windows must be increasing list [0, ..., L]";
             break;
+        case TSK_ERR_MULTIPLE_STAT_MODES:
+            ret = "Cannot specify more than one stats mode.";
+            break;
+        case TSK_ERR_BAD_STATE_DIMS:
+            ret = "Must have state dimension >= 1";
+            break;
+        case TSK_ERR_BAD_RESULT_DIMS:
+            ret = "Must have result dimension >= 1";
+            break;
+        case TSK_ERR_INSUFFICIENT_SAMPLE_SETS:
+            ret = "Insufficient sample sets provided.";
+            break;
+        case TSK_ERR_INSUFFICIENT_SET_INDEX_PAIRS:
+            ret = "Insufficient sample set index pairs provided.";
+            break;
+        case TSK_ERR_BAD_SAMPLE_SET_INDEX:
+            ret = "Sample set index out of bounds";
+            break;
     }
     return ret;
 }

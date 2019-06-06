@@ -633,6 +633,8 @@ out:
 
 #define GET_2D_ROW(array, row_len, row) (array + (((size_t) (row_len)) * (size_t) row))
 
+/* TODO flatten the reference sets input here and follow the same pattern used
+ * in diversity, divergence, etc. */
 int TSK_WARN_UNUSED
 tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
         tsk_id_t *focal, size_t num_focal,
@@ -1063,7 +1065,7 @@ out:
     return ret;
 }
 
-int
+static int
 tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
         size_t state_dim, double *sample_weights,
         size_t result_dim, general_stat_func_t *f, void *f_params,
@@ -1091,27 +1093,12 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
     double *total_weight = calloc(state_dim, sizeof(*total_weight));
     double *running_sum = calloc(result_dim, sizeof(*running_sum));
     bool polarised = false;
-    double default_windows[] = {0, self->tables->sequence_length};
 
     if (parent == NULL || state == NULL || running_sum == NULL || total_weight == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     memset(parent, 0xff, num_nodes * sizeof(*parent));
-
-    if (state_dim < 1 || result_dim < 1) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
-    if (windows == NULL) {
-        num_windows = 1;
-        windows = default_windows;
-    } else {
-        ret = tsk_treeseq_check_windows(self, num_windows, windows);
-        if (ret != 0) {
-            goto out;
-        }
-    }
 
     if (options & TSK_STAT_POLARISED) {
         polarised = true;
@@ -1352,7 +1339,7 @@ out:
     return ret;
 }
 
-int
+static int
 tsk_treeseq_site_general_stat(tsk_treeseq_t *self,
         size_t state_dim, double *sample_weights,
         size_t result_dim, general_stat_func_t *f, void *f_params,
@@ -1380,7 +1367,6 @@ tsk_treeseq_site_general_stat(tsk_treeseq_t *self,
     double *total_weight = calloc(state_dim, sizeof(*total_weight));
     double *site_result = calloc(result_dim, sizeof(*site_result));
     bool polarised = false;
-    double default_windows[] = {0, self->tables->sequence_length};
 
     if (parent == NULL || state == NULL || total_weight == NULL || site_result == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -1388,19 +1374,6 @@ tsk_treeseq_site_general_stat(tsk_treeseq_t *self,
     }
     memset(parent, 0xff, num_nodes * sizeof(*parent));
 
-    if (state_dim < 1 || result_dim < 1) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
-    if (windows == NULL) {
-        num_windows = 1;
-        windows = default_windows;
-    } else {
-        ret = tsk_treeseq_check_windows(self, num_windows, windows);
-        if (ret != 0) {
-            goto out;
-        }
-    }
     if (options & TSK_STAT_POLARISED) {
         polarised = true;
     }
@@ -1506,18 +1479,64 @@ tsk_treeseq_general_stat(tsk_treeseq_t *self,
         tsk_flags_t options)
 {
     int ret = 0;
+    bool stat_site = !!(options & TSK_STAT_SITE);
+    bool stat_branch = !!(options & TSK_STAT_BRANCH);
+    double default_windows[] = {0, self->tables->sequence_length};
 
-    if (options & TSK_STAT_SITE) {
+    /* If no mode is specified, we default to site mode */
+    if (! (stat_site || stat_branch)) {
+        stat_site = true;
+    }
+    /* It's an error to specify more than one mode */
+    if (stat_site && stat_branch) {
+        ret = TSK_ERR_MULTIPLE_STAT_MODES;
+        goto out;
+    }
+
+    if (state_dim < 1) {
+        ret = TSK_ERR_BAD_STATE_DIMS;
+        goto out;
+    }
+    if (result_dim < 1) {
+        ret = TSK_ERR_BAD_RESULT_DIMS;
+        goto out;
+    }
+    if (windows == NULL) {
+        num_windows = 1;
+        windows = default_windows;
+    } else {
+        ret = tsk_treeseq_check_windows(self, num_windows, windows);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    if (stat_site) {
         ret = tsk_treeseq_site_general_stat(self,
                 state_dim, sample_weights, result_dim, f, f_params,
                 num_windows, windows, result, options);
-    } else if (options & TSK_STAT_BRANCH) {
+    } else {
         ret = tsk_treeseq_branch_general_stat(self,
                 state_dim, sample_weights, result_dim, f, f_params,
                 num_windows, windows, result, options);
-    } else {
-        ret = TSK_ERR_GENERIC;
     }
+out:
+    return ret;
+}
+
+static int
+check_set_indexes(tsk_size_t num_sets, tsk_size_t num_set_indexes, tsk_id_t *set_indexes)
+{
+    int ret = 0;
+    tsk_size_t j;
+
+    for (j = 0; j < num_set_indexes; j++) {
+        if (set_indexes[j] < 0 || set_indexes[j] >= (tsk_id_t) num_sets) {
+            ret = TSK_ERR_BAD_SAMPLE_SET_INDEX;
+            goto out;
+        }
+    }
+out:
     return ret;
 }
 
@@ -1525,15 +1544,13 @@ typedef struct {
     tsk_id_t *sample_sets;
     tsk_size_t num_sample_sets;
     tsk_size_t *sample_set_sizes;
-    /* This is a bad name - we might not necessarily have pairs but singles/triples */
-    tsk_size_t *index_pairs;
-    tsk_size_t num_index_pairs;
+    tsk_id_t *set_indexes;
 } sample_count_stat_params_t;
 
 static int
 tsk_treeseq_sample_count_stat(tsk_treeseq_t *self,
         tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
-        tsk_size_t *index_pairs, tsk_size_t num_index_pairs, general_stat_func_t *f,
+        tsk_size_t result_dim, tsk_id_t *set_indexes, general_stat_func_t *f,
         tsk_size_t num_windows, double *windows, double *result,
         tsk_flags_t options)
 {
@@ -1542,16 +1559,21 @@ tsk_treeseq_sample_count_stat(tsk_treeseq_t *self,
     const tsk_id_t num_nodes = (tsk_id_t) self->tables->nodes.num_rows;
     size_t j, k, l;
     tsk_id_t u, sample_index;
-    double *weights = calloc(num_samples * num_sample_sets, sizeof(*weights));
+    double *weights = NULL;
     double *weight_row;
     sample_count_stat_params_t args = {
         .sample_sets = sample_sets,
         .num_sample_sets = num_sample_sets,
         .sample_set_sizes = sample_set_sizes,
-        .index_pairs = index_pairs,
-        .num_index_pairs = num_index_pairs
+        .set_indexes = set_indexes
     };
 
+    if (num_sample_sets == 0) {
+        ret = TSK_ERR_INSUFFICIENT_SAMPLE_SETS;
+        goto out;
+    }
+
+    weights = calloc(num_samples * num_sample_sets, sizeof(*weights));
     if (weights == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -1576,7 +1598,7 @@ tsk_treeseq_sample_count_stat(tsk_treeseq_t *self,
         }
     }
     ret =  tsk_treeseq_general_stat(self,
-        num_sample_sets, weights, num_sample_sets, f, &args,
+        num_sample_sets, weights, result_dim, f, &args,
         num_windows, windows, result, options);
 out:
     tsk_safe_free(weights);
@@ -1594,6 +1616,7 @@ diversity_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result
 
     for (j = 0; j < state_dim; j++) {
         n = (double) args.sample_set_sizes[j];
+        /* TODO: what happens when n is zero ? */
         result[j] = x[j] * (n - x[j]) / (n * (n - 1));
     }
     return 0;
@@ -1605,58 +1628,61 @@ tsk_treeseq_diversity(tsk_treeseq_t *self,
         tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
 {
     return  tsk_treeseq_sample_count_stat(self,
-        num_sample_sets, sample_set_sizes, sample_sets, NULL, 0,
+        num_sample_sets, sample_set_sizes, sample_sets, num_sample_sets, NULL,
         diversity_summary_func, num_windows, windows, result, options);
 }
 
-/* TODO: implement this API */
-/* int */
-/* tsk_treeseq_node_divergence(tsk_treeseq_t *self, */
-/*         tsk_id_t **sample_sets, size_t num_sample_sets, size_t *sample_set_sizes, */
-/*         size_t *index_pairs, size_t num_index_pairs, */
-/*         double *windows, size_t num_windows, tsk_flags_t options) */
-/* { */
+static int
+divergence_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+        double *result, void *params)
+{
+    sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
+    const double *x = state;
+    double ni, nj, denom;
+    tsk_id_t i, j;
+    size_t k;
 
-/* } */
+    for (k = 0; k < result_dim; k++) {
+        i = args.set_indexes[2 * k];
+        j = args.set_indexes[2 * k + 1];
+        ni = args.sample_set_sizes[i];
+        nj = args.sample_set_sizes[j];
+        /* TODO: what do we do when this is 0? */
+        denom = ni * (nj - (i == j));
+        result[k] = x[i] * (nj - x[j]) / denom;
+    }
+    return 0;
+}
 
-/* int */
-/* tsk_treeseq_site_divergence(tsk_treeseq_t *self, */
-/*         tsk_id_t **sample_sets, size_t num_sample_sets, size_t *sample_set_sizes, */
-/*         size_t *index_pairs, size_t num_index_pairs, */
-/*         double *windows, size_t num_windows, tsk_flags_t options) */
-/* { */
+int
+tsk_treeseq_divergence(tsk_treeseq_t *self,
+        tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+        tsk_size_t num_set_index_pairs, tsk_id_t *set_index_pairs,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+{
+    int ret = 0;
 
-/* } */
+    if (num_sample_sets < 2) {
+        ret = TSK_ERR_INSUFFICIENT_SAMPLE_SETS;
+        goto out;
+    }
+    if (num_set_index_pairs < 1) {
+        ret = TSK_ERR_INSUFFICIENT_SET_INDEX_PAIRS;
+        goto out;
+    }
+    ret = check_set_indexes(num_sample_sets, 2 * num_set_index_pairs, set_index_pairs);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_sample_count_stat(self,
+        num_sample_sets, sample_set_sizes, sample_sets,
+        num_set_index_pairs, set_index_pairs,
+        divergence_summary_func, num_windows, windows, result, options);
+out:
+    return ret;
+}
 
-/* int */
-/* tsk_treeseq_branch_divergence(tsk_treeseq_t *self, */
-/*         tsk_id_t **sample_sets, size_t num_sample_sets, size_t *sample_set_sizes, */
-/*         size_t *index_pairs, size_t num_index_pairs, */
-/*         double *windows, size_t num_windows, tsk_flags_t options) */
-/* { */
-
-/* } */
-
-
-
-/* Functions to be added :
- *
- *
-int tsk_treeseq_Fst(tsk_treeseq_t *self, ..., options)
-int tsk_treeseq_divergence(tsk_treeseq_t *self, ..., options)
-int tsk_treeseq_diveristy(tsk_treeseq_t *self, ..., options)
-int tsk_treeseq_f4(tsk_treeseq_t *self, ..., options)
-
-Each of these can have TSK_STAT_BRANCH | TSK_STAT_NODE as arguments,
-which will invoke the approprate code path. We'll want a tsk_general_stat
-function which does this demultiplexing, as well as allocating the
-appropriate windows.
-
-Each of these will take windows/num_windows as an optional parameter
-and if NULL, allocate the appropriate windows automatically. This
-will be
-*/
-
+/* Error-raising getter functions */
 
 int TSK_WARN_UNUSED
 tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node)

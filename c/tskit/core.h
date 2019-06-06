@@ -202,6 +202,12 @@ of tskit.
 /* Stats errors */
 #define TSK_ERR_BAD_NUM_WINDOWS                                     -900
 #define TSK_ERR_BAD_WINDOWS                                         -901
+#define TSK_ERR_MULTIPLE_STAT_MODES                                 -902
+#define TSK_ERR_BAD_STATE_DIMS                                      -903
+#define TSK_ERR_BAD_RESULT_DIMS                                     -904
+#define TSK_ERR_INSUFFICIENT_SAMPLE_SETS                            -905
+#define TSK_ERR_INSUFFICIENT_SET_INDEX_PAIRS                        -906
+#define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
 
 
 /* This bit is 0 for any errors originating from kastore */

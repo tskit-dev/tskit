@@ -3330,32 +3330,34 @@ class TreeSequence(object):
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 2)
-        windows = self.parse_windows(windows)
-        # # not implemented:
-        # if stat_type == "node":
-        #     return self.ll_tree_sequence.node_divergence(sample_sets, windows)
-        # elif stat_type == "site":
-        #     return self.ll_tree_sequence.site_divergence(sample_sets, indices, windows)
-        # else:
-        #   return self.ll_tree_sequence.branch_divergence(sample_sets, indices, windows)
+        if stat_type == "node":
+            sample_sets, indices = self.check_input(sample_sets, indices, 2)
+            windows = self.parse_windows(windows)
 
-        n = [len(x) for x in sample_sets]
+            n = [len(x) for x in sample_sets]
 
-        def f(x):
-            return np.array([float(x[i] * (n[j] - x[j]))
-                             for i, j in indices])
+            def f(x):
+                return np.array([float(x[i] * (n[j] - x[j]))
+                                 for i, j in indices])
 
-        out = self.sample_count_stats(stat_type, sample_sets, f,
-                                      windows=windows, polarised=False)
-        denom = np.array([n[i] * (n[j] - (i == j)) for i, j in indices])
-        zeros = (denom == 0)
-        denom[zeros] = 1.0
-        out /= denom
-        # TODO: sort this out tidily
-        if stat_type != "node":
-            out[:, zeros] = np.nan
-        return out
+            out = self.sample_count_stats(stat_type, sample_sets, f,
+                                          windows=windows, polarised=False)
+            denom = np.array([n[i] * (n[j] - (i == j)) for i, j in indices])
+            zeros = (denom == 0)
+            denom[zeros] = 1.0
+            out /= denom
+            # TODO: sort this out tidily
+            if stat_type != "node":
+                out[:, zeros] = np.nan
+            return out
+        else:
+            sample_set_sizes = [len(sample_set) for sample_set in sample_sets]
+            flattened = tables.to_np_int32(np.hstack(sample_sets))
+            windows = self.parse_windows(windows)
+            return self.ll_tree_sequence.divergence(
+                sample_set_sizes, flattened,
+                set_indexes=tables.to_np_int32(indices),
+                windows=windows, mode=stat_type)
 
     def divergence_matrix(self, sample_sets, windows=None, stat_type="site"):
         """

@@ -193,6 +193,7 @@ int tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self,
 int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples,
         tsk_size_t num_samples, tsk_flags_t options, tsk_treeseq_t *output,
         tsk_id_t *node_map);
+
 /* TODO do these belong in trees or stats? They should probably be in stats.
  * Keep them here for now until we figure out the correct interface.
  */
@@ -216,20 +217,13 @@ int tsk_treeseq_general_stat(tsk_treeseq_t *self,
         size_t num_windows, double *windows, double *sigma,
         tsk_flags_t options);
 
-int tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
-        size_t K, double *W,
-        size_t M, general_stat_func_t *f, void *f_params,
-        size_t num_windows, double *windows, double *sigma,
-        tsk_flags_t options);
-
-int tsk_treeseq_site_general_stat(tsk_treeseq_t *self,
-        size_t K, double *W,
-        size_t M, general_stat_func_t *f, void *f_params,
-        size_t num_windows, double *windows, double *sigma,
-        tsk_flags_t options);
-
 int tsk_treeseq_diversity(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+int tsk_treeseq_divergence(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_set_index_pairs, tsk_id_t *set_index_pairs,
     tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
 
 

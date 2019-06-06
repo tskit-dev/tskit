@@ -6532,6 +6532,34 @@ parse_stats_mode(char *mode, tsk_flags_t *ret)
     return 0;
 }
 
+static int
+parse_windows(PyObject *windows, PyArrayObject **ret_windows_array,
+        tsk_size_t *ret_num_windows)
+{
+    int ret = -1;
+    tsk_size_t num_windows = 0;
+    PyArrayObject *windows_array = NULL;
+    npy_intp *shape;
+
+    windows_array = (PyArrayObject *) PyArray_FROMANY(windows, NPY_FLOAT64,
+            1, 1, NPY_ARRAY_IN_ARRAY);
+    if (windows_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(windows_array);
+    if (shape[0] < 2) {
+        PyErr_SetString(PyExc_ValueError, "Windows array must have at least 2 elements");
+        goto out;
+    }
+    num_windows = shape[0] - 1;
+
+    ret = 0;
+out:
+    *ret_num_windows = num_windows;
+    *ret_windows_array = windows_array;
+    return ret;
+}
+
 static PyObject *
 TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
@@ -6547,9 +6575,9 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
     char *mode = NULL;
     int polarised = 0;
     int span_normalised = 0;
-    size_t num_windows;
+    tsk_size_t num_windows;
     unsigned int output_dim;
-    npy_intp result_shape[2], *w_shape, *windows_shape;
+    npy_intp result_shape[2], *w_shape;
     tsk_flags_t options = 0;
     int err;
 
@@ -6559,6 +6587,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOIO|sii", kwlist,
             &weights, &summary_func, &output_dim, &windows, &mode,
             &polarised, &span_normalised)) {
+        Py_XINCREF(summary_func);
         goto out;
     }
     Py_INCREF(summary_func);
@@ -6575,6 +6604,10 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (span_normalised) {
         options |= TSK_STAT_SPAN_NORMALISE;
     }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+
     weights_array = (PyArrayObject *) PyArray_FROMANY(weights, NPY_FLOAT64,
             2, 2, NPY_ARRAY_IN_ARRAY);
     if (weights_array == NULL) {
@@ -6586,17 +6619,6 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
         goto out;
     }
 
-    windows_array = (PyArrayObject *) PyArray_FROMANY(windows, NPY_FLOAT64,
-            1, 1, NPY_ARRAY_IN_ARRAY);
-    if (windows_array == NULL) {
-        goto out;
-    }
-    windows_shape = PyArray_DIMS(windows_array);
-    if (windows_shape[0] < 2) {
-        PyErr_SetString(PyExc_ValueError, "Windows array must have at least 2 elements");
-        goto out;
-    }
-    num_windows = windows_shape[0] - 1;
     result_shape[0] = num_windows;
     result_shape[1] = output_dim;
     result_array = (PyArrayObject *) PyArray_SimpleNew(2, result_shape, NPY_FLOAT64);
@@ -6625,38 +6647,19 @@ out:
     return ret;
 }
 
-static PyObject *
-TreeSequence_diversity(TreeSequence *self, PyObject *args, PyObject *kwds)
+static int
+parse_sample_sets(PyObject *sample_set_sizes, PyArrayObject **ret_sample_set_sizes_array,
+        PyObject *sample_sets, PyArrayObject **ret_sample_sets_array,
+        tsk_size_t *ret_num_sample_sets)
 {
-    PyObject *ret = NULL;
-    static char *kwlist[] = {"sample_set_sizes", "samples_sets", "windows", "mode",
-        NULL};
-    PyObject *sample_set_sizes = NULL;
-    PyObject *sample_sets = NULL;
-    PyObject *windows = NULL;
-    char *mode = NULL;
+    int ret = -1;
     PyArrayObject *sample_set_sizes_array = NULL;
     PyArrayObject *sample_sets_array = NULL;
-    PyArrayObject *windows_array = NULL;
-    PyArrayObject *result_array = NULL;
-    uint32_t *a, sum;
-    tsk_size_t j, num_windows, num_sample_sets;
-    npy_intp result_shape[2], *shape;
-    tsk_flags_t options = 0;
-    int err;
+    npy_intp *shape;
+    tsk_size_t num_sample_sets = 0;
+    tsk_size_t j, sum;
+    uint32_t *a;
 
-    if (TreeSequence_check_tree_sequence(self) != 0) {
-        goto out;
-    }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|s", kwlist,
-            &sample_set_sizes, &sample_sets, &windows, &mode)) {
-        goto out;
-    }
-    if (parse_stats_mode(mode, &options) != 0) {
-        goto out;
-    }
-    /* TODO this should always be span normalised? */
-    options |= TSK_STAT_SPAN_NORMALISE;
     sample_set_sizes_array = (PyArrayObject *) PyArray_FROMANY(sample_set_sizes,
             NPY_UINT32, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (sample_set_sizes_array == NULL) {
@@ -6683,18 +6686,56 @@ TreeSequence_diversity(TreeSequence *self, PyObject *args, PyObject *kwds)
                 "Sum of sample_set_sizes must equal length of sample_sets array");
         goto out;
     }
+    ret = 0;
+out:
+    *ret_sample_set_sizes_array = sample_set_sizes_array;
+    *ret_sample_sets_array = sample_sets_array;
+    *ret_num_sample_sets = num_sample_sets;
+    return ret;
+}
 
-    windows_array = (PyArrayObject *) PyArray_FROMANY(windows, NPY_FLOAT64,
-            1, 1, NPY_ARRAY_IN_ARRAY);
-    if (windows_array == NULL) {
+
+static PyObject *
+TreeSequence_diversity(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = {"sample_set_sizes", "sample_sets", "windows", "mode",
+        "span_normalise", NULL};
+    PyObject *sample_set_sizes = NULL;
+    PyObject *sample_sets = NULL;
+    PyObject *windows = NULL;
+    char *mode = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *result_array = NULL;
+    tsk_size_t num_windows, num_sample_sets;
+    npy_intp result_shape[2];
+    tsk_flags_t options = 0;
+    int span_normalise = 1;
+    int err;
+
+    if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    shape = PyArray_DIMS(windows_array);
-    if (shape[0] < 2) {
-        PyErr_SetString(PyExc_ValueError, "Windows array must have at least 2 elements");
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|si", kwlist,
+            &sample_set_sizes, &sample_sets, &windows, &mode, &span_normalise)) {
         goto out;
     }
-    num_windows = shape[0] - 1;
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (span_normalise) {
+        options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (parse_sample_sets(
+            sample_set_sizes, &sample_set_sizes_array,
+            sample_sets, &sample_sets_array, &num_sample_sets) != 0) {
+        goto out;
+    }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
 
     result_shape[0] = num_windows;
     result_shape[1] = num_sample_sets;
@@ -6716,6 +6757,90 @@ TreeSequence_diversity(TreeSequence *self, PyObject *args, PyObject *kwds)
 out:
     Py_XDECREF(sample_set_sizes_array);
     Py_XDECREF(sample_sets_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(result_array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_divergence(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = {"sample_set_sizes", "sample_sets", "set_indexes",
+        "windows", "mode", "span_normalise", NULL};
+    PyObject *sample_set_sizes = NULL;
+    PyObject *sample_sets = NULL;
+    PyObject *set_indexes = NULL;
+    PyObject *windows = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    PyArrayObject *set_indexes_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *result_array = NULL;
+    tsk_size_t num_windows, num_sample_sets, num_set_indexes;
+    npy_intp result_shape[2], *shape;
+    tsk_flags_t options = 0;
+    char *mode = NULL;
+    int span_normalise = 1;
+    int err;
+
+    if (TreeSequence_check_tree_sequence(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|si", kwlist,
+            &sample_set_sizes, &sample_sets, &set_indexes,
+            &windows, &mode, &span_normalise)) {
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (span_normalise) {
+        options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (parse_sample_sets(
+            sample_set_sizes, &sample_set_sizes_array,
+            sample_sets, &sample_sets_array, &num_sample_sets) != 0) {
+        goto out;
+    }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+
+    set_indexes_array = (PyArrayObject *) PyArray_FROMANY(set_indexes, NPY_INT32,
+            2, 2, NPY_ARRAY_IN_ARRAY);
+    if (set_indexes_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(set_indexes_array);
+    if (shape[0] < 1 || shape[1] != 2) {
+        PyErr_SetString(PyExc_ValueError, "Input must be a k x 2 array.");
+        goto out;
+    }
+    num_set_indexes = shape[0];
+
+    result_shape[0] = num_windows;
+    result_shape[1] = num_set_indexes;
+    result_array = (PyArrayObject *) PyArray_SimpleNew(2, result_shape, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+    err = tsk_treeseq_divergence(self->tree_sequence,
+        num_sample_sets, PyArray_DATA(sample_set_sizes_array),
+        PyArray_DATA(sample_sets_array),
+        num_set_indexes, PyArray_DATA(set_indexes_array),
+        num_windows, PyArray_DATA(windows_array),
+        PyArray_DATA(result_array), options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
+    Py_XDECREF(set_indexes_array);
     Py_XDECREF(windows_array);
     Py_XDECREF(result_array);
     return ret;
@@ -6905,10 +7030,14 @@ static PyMethodDef TreeSequence_methods[] = {
         METH_VARARGS|METH_KEYWORDS, "Returns the mean number of nodes descending from each node." },
     {"general_stat",
         (PyCFunction) TreeSequence_general_stat,
-        METH_VARARGS|METH_KEYWORDS, "Runs the general stats algorithm for a give f." },
+        METH_VARARGS|METH_KEYWORDS,
+        "Runs the general stats algorithm for a given summary function." },
     {"diversity",
         (PyCFunction) TreeSequence_diversity,
         METH_VARARGS|METH_KEYWORDS, "Computes diversity within sample sets." },
+    {"divergence",
+        (PyCFunction) TreeSequence_divergence,
+        METH_VARARGS|METH_KEYWORDS, "Computes diveregence between sample sets." },
     {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix, METH_NOARGS,
         "Returns the genotypes matrix." },
     {NULL}  /* Sentinel */

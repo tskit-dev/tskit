@@ -384,48 +384,87 @@ class TestTreeSequence(LowLevelTestCase):
             self.assertEqual(A.shape, (ts.get_num_nodes(), 2))
 
 
-class TestStatsInterface(LowLevelTestCase):
+class StatsInterfaceMixin(object):
     """
     Tests for the interface on specific stats.
     """
 
-    def check_mode_errors(self, f):
+    def test_mode_errors(self):
+        _, f, params = self.get_example()
         for bad_mode in ["", "not a mode", "SITE", "x" * 8192]:
             with self.assertRaises(ValueError):
-                f(mode=bad_mode)
+                f(mode=bad_mode, **params)
 
-        for bad_type in [123, {}, None]:
+        for bad_type in [123, {}, None, [[]]]:
             with self.assertRaises(TypeError):
-                f(mode=bad_type)
+                f(mode=bad_type, **params)
 
-    def check_window_errors(self, ts, f):
+    def test_window_errors(self):
+        ts, f, params = self.get_example()
+        del params["windows"]
         for bad_array in ["asdf", None, [[[[]], [[]]]], np.zeros((10, 3, 4))]:
             with self.assertRaises(ValueError):
-                f(bad_array)
+                f(windows=bad_array, **params)
 
         for bad_windows in [[], [0]]:
             with self.assertRaises(ValueError):
-                f(bad_windows)
+                f(windows=bad_windows, **params)
         L = ts.get_sequence_length()
         bad_windows = [
             [L, 0], [0.1, L], [-1, L], [0, L + 0.1], [0, 0.1, 0.1, L],
             [0, -1, L], [0, 0.1, 0.05, 0.2, L]]
         for bad_window in bad_windows:
             with self.assertRaises(_tskit.LibraryError):
-                f(bad_window)
+                f(windows=bad_window, **params)
 
-    def check_windows_output(self, ts, f):
+    def test_windows_output(self):
+        ts, f, params = self.get_example()
+        del params["windows"]
         for num_windows in range(1, 10):
             windows = np.linspace(0, ts.get_sequence_length(), num=num_windows + 1)
             self.assertEqual(windows.shape[0], num_windows + 1)
-            sigma = f(windows)
-            self.assertEqual(sigma.shape, (num_windows, 1))
+            sigma = f(windows=windows, **params)
+            self.assertEqual(sigma.shape[0], num_windows)
 
 
-class TestDiversity(TestStatsInterface):
+class SampleSetMixin(StatsInterfaceMixin):
+
+    def test_bad_sample_sets(self):
+        ts, f, params = self.get_example()
+        del params["sample_set_sizes"]
+        del params["sample_sets"]
+
+        with self.assertRaises(_tskit.LibraryError):
+            f(sample_sets=[], sample_set_sizes=[], **params)
+
+        n = ts.get_num_samples()
+        samples = ts.get_samples()
+        for bad_set_sizes in [[], [1], [n - 1], [n + 1], [n - 3, 1, 1], [1, n - 2]]:
+            with self.assertRaises(ValueError):
+                f(sample_set_sizes=bad_set_sizes, sample_sets=samples, **params)
+
+        N = ts.get_num_nodes()
+        for bad_node in [-1, N, N + 1, -N]:
+            with self.assertRaises(_tskit.LibraryError):
+                f(sample_set_sizes=[2], sample_sets=[0, bad_node], **params)
+
+        for bad_sample in [n, n + 1, N - 1]:
+            with self.assertRaises(_tskit.LibraryError):
+                f(sample_set_sizes=[2], sample_sets=[0, bad_sample], **params)
+
+
+class TestDiversity(LowLevelTestCase, SampleSetMixin):
     """
-    Tests for the divergence method.
+    Tests for the diversity method.
     """
+
+    def get_example(self):
+        ts = self.get_example_tree_sequence()
+        params = {
+            "sample_set_sizes": [ts.get_num_samples()],
+            "sample_sets": ts.get_samples(),
+            "windows": [0, ts.get_sequence_length()]}
+        return ts, ts.diversity, params
 
     def test_basic_example(self):
         ts = self.get_example_tree_sequence()
@@ -441,68 +480,80 @@ class TestDiversity(TestStatsInterface):
         pi = ts.diversity([n], samples, windows)
         self.assertEqual(pi.shape, (1, 1))
         pi = ts.diversity([2, n - 2], samples, windows)
+
         self.assertEqual(pi.shape, (1, 2))
         pi = ts.diversity([2, 2, n - 4], samples, windows)
         self.assertEqual(pi.shape, (1, 3))
         pi = ts.diversity(np.ones(n).astype(np.uint32), samples, windows)
         self.assertEqual(pi.shape, (1, n))
 
-    def test_mode_errors(self):
+
+class TestDivergence(LowLevelTestCase, SampleSetMixin):
+    """
+    Tests for the divergence method.
+    """
+
+    def get_example(self):
         ts = self.get_example_tree_sequence()
+        params = {
+            "sample_set_sizes": [2, ts.get_num_samples() - 2],
+            "sample_sets": ts.get_samples(),
+            "set_indexes": [[0, 1]],
+            "windows": [0, ts.get_sequence_length()]}
+        return ts, ts.divergence, params
 
-        def f(mode):
-            return ts.diversity(
-                [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()],
-                mode=mode)
-        self.check_mode_errors(f)
-
-    def test_window_errors(self):
+    def test_basic_example(self):
         ts = self.get_example_tree_sequence()
+        div = ts.divergence(
+            [2, ts.get_num_samples() - 2],
+            ts.get_samples(),
+            [[0, 1]],
+            windows=[0, ts.get_sequence_length()])
+        self.assertEqual(div.shape, (1, 1))
 
-        def f(windows):
-            return ts.diversity([ts.get_num_samples()], ts.get_samples(), windows)
-        self.check_window_errors(ts, f)
-
-    def test_windows_output(self):
+    def test_output_dims(self):
         ts = self.get_example_tree_sequence()
+        samples = ts.get_samples()
+        windows = [0, ts.get_sequence_length()]
+        n = len(samples)
+        div = ts.divergence([2, 2, n - 4], samples, [[0, 1]], windows)
+        self.assertEqual(div.shape, (1, 1))
+        div = ts.divergence([2, 2, n - 4], samples, [[0, 1], [1, 2]], windows)
+        self.assertEqual(div.shape, (1, 2))
+        div = ts.divergence([2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows)
+        self.assertEqual(div.shape, (1, 3))
 
-        def f(windows):
-            return ts.diversity([ts.get_num_samples()], ts.get_samples(), windows)
-        self.check_windows_output(ts, f)
-
-    def test_bad_sample_sets(self):
+    def test_set_index_errors(self):
         ts = self.get_example_tree_sequence()
-        windows = ts.get_breakpoints()
-        with self.assertRaises(_tskit.LibraryError):
-            ts.diversity([], [], windows)
+        samples = ts.get_samples()
+        windows = [0, ts.get_sequence_length()]
+        n = len(samples)
 
-        n = ts.get_num_samples()
-        for bad_set_sizes in [[], [1], [n - 1], [n + 1], [n - 3, 1, 1], [1, n - 2]]:
+        def f(set_indexes):
+            ts.divergence([2, 2, n - 4], samples, set_indexes, windows)
+
+        for bad_array in ["wer", {}, [[[], []], [[], []]]]:
             with self.assertRaises(ValueError):
-                ts.diversity(bad_set_sizes, ts.get_samples(), windows)
-
-        N = ts.get_num_nodes()
-        for bad_node in [-1, N, N + 1, -N]:
-            with self.assertRaises(_tskit.LibraryError):
-                ts.diversity([2], [0, bad_node], windows)
-
-        for bad_sample in [n, n + 1, N - 1]:
-            with self.assertRaises(_tskit.LibraryError):
-                ts.diversity([2], [0, bad_sample], windows)
+                f(bad_array)
+        for bad_dim in [[[]], [[1], [1]]]:
+            with self.assertRaises(ValueError):
+                f(bad_dim)
 
 
-class TestGeneralStatsInterface(TestStatsInterface):
+class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
     """
     Tests for the general stats interface.
     """
-    def test_mode_errors(self):
+    def get_example(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
-
-        def f(mode):
-            return ts.general_stat(
-                W, lambda x: np.cumsum(x), 1, ts.get_breakpoints(), mode=mode)
-        self.check_mode_errors(f)
+        params = {
+            "weights": W,
+            "summary_func": lambda x: np.cumsum(x),
+            "output_dim": 1,
+            "windows": ts.get_breakpoints()
+        }
+        return ts, ts.general_stat, params
 
     def test_basic_example(self):
         ts = self.get_example_tree_sequence()
@@ -510,14 +561,6 @@ class TestGeneralStatsInterface(TestStatsInterface):
         sigma = ts.general_stat(
             W, lambda x: np.cumsum(x), 1, ts.get_breakpoints(), mode="branch")
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
-
-    def test_windows_output(self):
-        ts = self.get_example_tree_sequence()
-        W = np.zeros((ts.get_num_samples(), 1))
-
-        def f(windows):
-            return ts.general_stat(W, lambda x: np.cumsum(x), 1, windows, mode="branch")
-        self.check_windows_output(ts, f)
 
     def test_non_numpy_return(self):
         ts = self.get_example_tree_sequence()
@@ -561,14 +604,6 @@ class TestGeneralStatsInterface(TestStatsInterface):
             W = np.zeros((bad_size, 1))
             with self.assertRaises(ValueError):
                 ts.general_stat(W, lambda x: x, 1, ts.get_breakpoints())
-
-    def test_window_errors(self):
-        ts = self.get_example_tree_sequence()
-        W = np.zeros((ts.get_num_samples(), 4))
-
-        def f(windows):
-            return ts.general_stat(W, lambda x: x, 1, windows=windows)
-        self.check_window_errors(ts, f)
 
     def test_summary_func_errors(self):
         ts = self.get_example_tree_sequence()
