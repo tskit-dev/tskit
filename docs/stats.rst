@@ -66,7 +66,7 @@ then the statistic will be computed separately in each of the ``n`` windows,
 and the ``k``-th row of the output will report the values of the statistic
 in the ``k``-th window, i.e., between ``windows[k]`` and ``windows[k+1]``.
 
-All windowed statistics return **averages** across the relevant windows,
+All windowed statistics by default return **averages** within each of the windows,
 so the values are comparable between windows, even of different lengths.
 (However, shorter windows may be noisier.)
 Suppose for instance  that you compute some statistic with ``windows = [a, b, c]``
@@ -76,10 +76,10 @@ Then, computing the same statistic with ``windows = [a, c]``
 would be equivalent to averaging the rows of ``S``,
 obtaining ``((b - a) * S[0] + (c - b) * S[1]) / (c - a)``.
 
-There are some useful defaults:
+There are some shortcuts to other useful options:
 
 ``windows = None``
-   This is equivalent to passing ``windows = [0.0, ts.sequence_length]``.
+   This is the default, and equivalent to passing ``windows = [0.0, ts.sequence_length]``.
    The output will still be a two-dimensional array, but with only one row.
 
 ``windows = "treewise"``
@@ -89,8 +89,42 @@ There are some useful defaults:
 
 ``windows = "sitewise"``
    This says to output one set of values for **each site**.
-   This is the only windowing option that does *not* return an average across some region
+   This is windowing option does *not* return an average across some region
    (because sites occupy single points, not regions).
+
+Furthermore, there is an option, ``unnormalized``,
+that returns the **sum** of the relevant statistic across each window rather than the average.
+The statistic that is returned by default is an average because we divide by
+rather than normalizing (i.e., dividing) by the length of the window.
+As above, if the statistic ``S`` was computed with ``unnormalized=True``,
+then the value obtained with ``windows = [a, c]`` would be equal to ``S[0] + S[1]``.
+However, you probably want the (default) normalized version:
+don't get unnormalized values unless you're sure that's what you want.
+
+To explain normalization a bit more:
+a good way to think about these statistics in general
+is that they all have a way of summarizing something **locally**,
+i.e., at each point along the genome,
+and this summary is then **averaged** across each window.
+For instance, pairwise sequence divergence between two samples
+is the density of sites that differ between them;
+this is computed for each window by counting up the number of sites
+at which the two differ, and dividing by the total length of the window.
+Branch statistics do just the same thing,
+except that we average over **all** locations on the sequence,
+not just the locations of mutations.
+So, usually "divergence" gives us the average number of differing sites
+per unit of genome length; but if we set ``unnormalized=True``
+then we'd just obtain the number of differing sites per window.
+
+And, a final note about "length": in tree sequences produced by ``msprime``
+coordinates along the sequence are **continuous**,
+so the the "lengths" used here may not correspond to distance along the genome in (say) base pairs.
+For instance, pairwise sequence divergence is usually a number between 0 and 1
+because it is the proportion of bases that differ;
+this will only be true if length is measured in base pairs
+(which you ensure in ``msprime`` by setting recombination and mutation rates equal to the values
+in units of crossovers and mutations per base pair, respectively).
 
 
 .. _sec_general_stats_sample_sets:
@@ -131,21 +165,27 @@ To recap: ``indices`` must be a list of tuples, each of length ``k``,
 of integers between ``0`` and ``len(sample-sets)``.
 The appropriate value of ``k`` depends on the statistic.
 
-There are some useful defaults:
+Here are some additional special cases:
 
 ``indices = None``
-   If the statistic summarizes only one sample set at a time (``k = 1`` in the notation above),
-   then this will compute the statistic separately on each sample set
-   (and so is equivalent to passing ``indices = [[0], [1], ..., [len(sample_sets)]]``).
    If the statistic takes ``k`` inputs for ``k > 1``,
    and there are exactly ``k`` lists in ``sample_sets``,
    then this will compute just one statistic, and is equivalent to passing
    ``indices = [(0, 1, ..., k-1)]``.
+   If there are not exactly ``k`` sample sets, this will throw an error.
 
-``stat_type = "node"``:
+``k=1`` does not allow ``indices``:
+   Statistics that operate on one sample set at a time (i.e., ``k=1``)
+   do **not** take the ``indexes`` argument,
+   and instead just return the value of the statistic separately for each of ``sample_sets``
+   in the order they are given.
+   (This would be equivalent to passing ``indices = [[0], [1], ..., [len(sample_sets)]]``,
+   were that allowed.)
+
+``stat_type = "node"`` does not allow ``indices``:
    Since node statistics output one value per node (unlike the other types, which output
    something summed across all nodes), it is an error to specify ``indices`` when computing
-   a node statistic (and so, you need to have exactly ``k`` sample sets).
+   a node statistic (consequently, you need to have exactly ``k`` sample sets).
 
 .. Commenting these out for now as they are duplicates of the methods in the TreeSequence
    and sphinx is unhappy.
