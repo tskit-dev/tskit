@@ -3084,10 +3084,10 @@ class TreeSequence(object):
         # This doesn't have to be a method of the tree sequence currently
         # but that might be useful in the future?
         if indices is None:
-            if not len(sample_sets) == index_length:
-                raise ValueError("If indices is not given," +
-                                 "there must be {} sample sets.".format(index_length))
             if index_length > 1:
+                if not len(sample_sets) == index_length:
+                    raise ValueError("If indices is not given, there " +
+                                     "must be {} sample sets.".format(index_length))
                 # default to just doing a single statistic defined by the sample sets
                 indices = [tuple(range(index_length))]
             else:
@@ -3103,7 +3103,7 @@ class TreeSequence(object):
             raise ValueError("All indices must be of length {}.".format(index_length))
         for x in sample_sets:
             if len(x) < min_sample_set_length:
-                raise ValueError("All sample_sets must be of length" +
+                raise ValueError("All sample_sets must be of length " +
                                  "at least {}.".format(min_sample_set_length))
         return sample_sets, indices
 
@@ -3332,13 +3332,13 @@ class TreeSequence(object):
         """
         sample_sets, indices = self.check_input(sample_sets, indices, 2)
         windows = self.parse_windows(windows)
-        if stat_type == "node":
-            # return self.ll_tree_sequence.node_divergence(sample_sets, windows)
-            pass
-        elif stat_type == "site":
-            return self.ll_tree_sequence.site_divergence(sample_sets, indices, windows)
-        else:
-            return self.ll_tree_sequence.branch_divergence(sample_sets, indices, windows)
+        # # not implemented:
+        # if stat_type == "node":
+        #     return self.ll_tree_sequence.node_divergence(sample_sets, windows)
+        # elif stat_type == "site":
+        #     return self.ll_tree_sequence.site_divergence(sample_sets, indices, windows)
+        # else:
+        #   return self.ll_tree_sequence.branch_divergence(sample_sets, indices, windows)
 
         n = [len(x) for x in sample_sets]
 
@@ -3499,7 +3499,7 @@ class TreeSequence(object):
                              for i, in indices])
 
         out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-        denom = np.array([n[i] * (n[i] - 1) * (n[i] - 2) for i in indices])
+        denom = np.array([n[i] * (n[i] - 1) * (n[i] - 2) for i, in indices])
         out /= denom
         return out
 

@@ -6655,6 +6655,8 @@ TreeSequence_diversity(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (parse_stats_mode(mode, &options) != 0) {
         goto out;
     }
+    /* TODO this should always be span normalised? */
+    options |= TSK_STAT_SPAN_NORMALISE;
     sample_set_sizes_array = (PyArrayObject *) PyArray_FROMANY(sample_set_sizes,
             NPY_UINT32, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (sample_set_sizes_array == NULL) {
