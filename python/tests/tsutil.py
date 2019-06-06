@@ -692,7 +692,7 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
     parent = np.zeros(ts.num_nodes, dtype=int) - 1
     sample_count = np.zeros((ts.num_nodes, K), dtype=int)
 
-    # Set the intitial conditions.
+    # Set the initial conditions.
     for j in range(K):
         sample_count[reference_sets[j], j] = 1
 
@@ -714,7 +714,7 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
         for j, u in enumerate(focal):
             focal_reference_set = reference_set_map[u]
             delta = int(focal_reference_set != -1)
-            p = parent[u]
+            p = u
             while p != tskit.NULL:
                 total = np.sum(sample_count[p])
                 if total > delta:
