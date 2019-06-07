@@ -365,7 +365,8 @@ verify_window_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
     int ret;
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = calloc(num_samples,  sizeof(double));
-    double *sigma = calloc(1, sizeof(double));
+    /* node mode requires this much space at least */
+    double *sigma = calloc(tsk_treeseq_get_num_nodes(ts), sizeof(double));
     double windows[] = {0, 0, 0};
     tsk_flags_t options = mode;
 
@@ -411,7 +412,8 @@ verify_summary_func_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
     int ret;
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = calloc(num_samples,  sizeof(double));
-    double *sigma = calloc(1, sizeof(double));
+    /* We need this much space for NODE mode */
+    double *sigma = calloc(tsk_treeseq_get_num_nodes(ts), sizeof(double));
     int j;
     general_stat_error_params_t params;
     CU_ASSERT_FATAL(W != NULL);
@@ -457,7 +459,7 @@ static void
 verify_branch_general_stat_errors(tsk_treeseq_t *ts)
 {
     verify_summary_func_errors(ts, TSK_STAT_BRANCH);
-    verify_window_errors(ts, TSK_STAT_SITE);
+    verify_window_errors(ts, TSK_STAT_BRANCH);
 }
 
 static void
@@ -468,7 +470,19 @@ verify_site_general_stat_errors(tsk_treeseq_t *ts)
 }
 
 static void
-verify_diversity_errors(tsk_treeseq_t *ts)
+verify_node_general_stat_errors(tsk_treeseq_t *ts)
+{
+    verify_window_errors(ts, TSK_STAT_NODE);
+    verify_summary_func_errors(ts, TSK_STAT_NODE);
+}
+
+
+typedef int one_way_stat_method(tsk_treeseq_t *self,
+        tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+static void
+verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_stat_method *method)
 {
     int ret;
     tsk_id_t num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(ts);
@@ -476,36 +490,43 @@ verify_diversity_errors(tsk_treeseq_t *ts)
     tsk_size_t sample_set_sizes = 4;
     double result;
 
-    ret = tsk_treeseq_diversity(ts, 0, &sample_set_sizes, samples, 0, NULL,
-            &result, 0);
+    ret = method(ts, 0, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
     samples[0] = TSK_NULL;
-    ret = tsk_treeseq_diversity(ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     samples[0] = -10;
-    ret = tsk_treeseq_diversity(ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     samples[0] = num_nodes;
-    ret = tsk_treeseq_diversity(ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     samples[0] = num_nodes + 1;
-    ret = tsk_treeseq_diversity(ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     samples[0] = num_nodes - 1;
-    ret = tsk_treeseq_diversity(ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLES);
 
+    samples[0] = 1;
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+
+    samples[0] = 0;
+    sample_set_sizes = 0;
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
 }
 
+typedef int general_sample_stat_method(tsk_treeseq_t *self,
+        tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+        tsk_size_t num_indexes, tsk_id_t *indexes,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
 static void
-verify_divergence_errors(tsk_treeseq_t *ts)
+verify_two_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *method)
 {
     int ret;
     tsk_id_t samples[] = {0, 1, 2, 3};
@@ -513,27 +534,97 @@ verify_divergence_errors(tsk_treeseq_t *ts)
     tsk_id_t set_indexes[] = {0, 1};
     double result;
 
-    ret = tsk_treeseq_divergence(ts, 0, sample_set_sizes, samples,
+    ret = method(ts, 0, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = tsk_treeseq_divergence(ts, 1, sample_set_sizes, samples,
+    ret = method(ts, 1, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
-    ret = tsk_treeseq_divergence(ts, 2, sample_set_sizes, samples,
+    ret = method(ts, 2, sample_set_sizes, samples,
             0, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SET_INDEX_PAIRS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
 
     set_indexes[0] = -1;
-    ret = tsk_treeseq_divergence(ts, 2, sample_set_sizes, samples,
+    ret = method(ts, 2, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     set_indexes[0] = 0;
     set_indexes[1] = 2;
-    ret = tsk_treeseq_divergence(ts, 2, sample_set_sizes, samples,
+    ret = method(ts, 2, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
+}
 
+static void
+verify_three_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *method)
+{
+    int ret;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {1, 1, 2};
+    tsk_id_t set_indexes[] = {0, 1, 2};
+    double result;
+
+    ret = method(ts, 0, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+    ret = method(ts, 1, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+    ret = method(ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+
+    ret = method(ts, 3, sample_set_sizes, samples,
+            0, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
+
+    set_indexes[0] = -1;
+    ret = method(ts, 3, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
+    set_indexes[0] = 0;
+    set_indexes[1] = 3;
+    ret = method(ts, 3, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
+}
+
+static void
+verify_four_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *method)
+{
+    int ret;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {1, 1, 1, 1};
+    tsk_id_t set_indexes[] = {0, 1, 2, 3};
+    double result;
+
+    ret = method(ts, 0, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+    ret = method(ts, 1, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+    ret = method(ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+    ret = method(ts, 3, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
+
+    ret = method(ts, 4, sample_set_sizes, samples,
+            0, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
+
+    set_indexes[0] = -1;
+    ret = method(ts, 4, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
+    set_indexes[0] = 0;
+    set_indexes[1] = 4;
+    ret = method(ts, 4, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
 }
 
 static int
@@ -631,7 +722,8 @@ verify_general_stat_dims(tsk_treeseq_t *ts, size_t K, size_t M, tsk_flags_t opti
     int ret;
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(K * num_samples * sizeof(double));
-    double *sigma = malloc(M * sizeof(*sigma));
+    /* We need this much space for NODE mode; no harm for other modes. */
+    double *sigma = calloc(tsk_treeseq_get_num_nodes(ts) * M, sizeof(double));
     size_t j, k;
     CU_ASSERT_FATAL(W != NULL);
 
@@ -654,7 +746,9 @@ verify_general_stat_windows(tsk_treeseq_t *ts, size_t num_windows, tsk_flags_t o
     int ret;
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(num_samples * sizeof(double));
-    double *sigma = malloc(num_windows * sizeof(*sigma));
+    size_t M = 5;
+    /* We need this much space for NODE mode; no harm for other modes. */
+    double *sigma = calloc(M * tsk_treeseq_get_num_nodes(ts) * num_windows, sizeof(double));
     double *windows = malloc((num_windows + 1) * sizeof(*windows));
     double L = tsk_treeseq_get_sequence_length(ts);
     size_t j;
@@ -670,7 +764,7 @@ verify_general_stat_windows(tsk_treeseq_t *ts, size_t num_windows, tsk_flags_t o
     for (j = 1; j < num_windows; j++) {
         windows[j] = ((double) j) * L / (double) num_windows;
     }
-    ret = tsk_treeseq_general_stat(ts, 1, W, 1, general_stat_sum, NULL,
+    ret = tsk_treeseq_general_stat(ts, 1, W, M, general_stat_sum, NULL,
             num_windows, windows, sigma, options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -680,54 +774,56 @@ verify_general_stat_windows(tsk_treeseq_t *ts, size_t num_windows, tsk_flags_t o
 }
 
 static void
-verify_branch_general_stat(tsk_treeseq_t *ts)
+verify_default_general_stat(tsk_treeseq_t *ts)
 {
-    CU_ASSERT_FATAL(ts != NULL);
-    verify_branch_general_stat_identity(ts);
-    verify_general_stat_dims(ts, 4, 2, TSK_STAT_BRANCH);
-    verify_general_stat_dims(ts, 4, 2, TSK_STAT_BRANCH|TSK_STAT_POLARISED);
-    verify_general_stat_dims(ts, 1, 20, TSK_STAT_BRANCH);
-    verify_general_stat_dims(ts, 1, 20, TSK_STAT_BRANCH|TSK_STAT_POLARISED);
-    verify_general_stat_dims(ts, 100, 1, TSK_STAT_BRANCH);
-    verify_general_stat_dims(ts, 100, 1, TSK_STAT_BRANCH|TSK_STAT_POLARISED);
-    verify_general_stat_dims(ts, 10, 12, TSK_STAT_BRANCH);
-    verify_general_stat_dims(ts, 10, 12, TSK_STAT_BRANCH|TSK_STAT_POLARISED);
-    verify_general_stat_windows(ts, 1, TSK_STAT_BRANCH);
-    verify_general_stat_windows(ts, 1, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 2, TSK_STAT_BRANCH);
-    verify_general_stat_windows(ts, 2, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 3, TSK_STAT_BRANCH);
-    verify_general_stat_windows(ts, 3, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 10, TSK_STAT_BRANCH);
-    verify_general_stat_windows(ts, 10, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 100, TSK_STAT_BRANCH);
-    verify_general_stat_windows(ts, 100, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
+    int ret;
+    size_t K = 2;
+    size_t M = 1;
+    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    double *W = malloc(K * num_samples * sizeof(double));
+    double sigma1, sigma2;
+    size_t j, k;
+    CU_ASSERT_FATAL(W != NULL);
+
+    for (j = 0; j < num_samples; j++) {
+        for (k = 0; k < K; k++) {
+            W[j * K + k] = 1;
+        }
+    }
+    ret = tsk_treeseq_general_stat(ts, K, W, M, general_stat_sum, NULL,
+            0, NULL, &sigma1, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_general_stat(ts, K, W, M, general_stat_sum, NULL,
+            0, NULL, &sigma2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(sigma1, sigma2);
+    free(W);
 }
 
 static void
-verify_site_general_stat(tsk_treeseq_t *ts)
+verify_general_stat(tsk_treeseq_t *ts, tsk_flags_t mode)
 {
     CU_ASSERT_FATAL(ts != NULL);
-    verify_general_stat_dims(ts, 4, 2, TSK_STAT_SITE);
-    verify_general_stat_dims(ts, 4, 2, TSK_STAT_SITE|TSK_STAT_POLARISED);
-    verify_general_stat_dims(ts, 1, 20, TSK_STAT_SITE);
-    verify_general_stat_dims(ts, 1, 20, TSK_STAT_SITE|TSK_STAT_POLARISED);
-    verify_general_stat_dims(ts, 100, 1, TSK_STAT_SITE);
-    verify_general_stat_dims(ts, 100, 1, TSK_STAT_SITE|TSK_STAT_POLARISED);
-    verify_general_stat_dims(ts, 10, 12, TSK_STAT_SITE);
-    verify_general_stat_dims(ts, 10, 12, TSK_STAT_SITE|TSK_STAT_POLARISED);
-    verify_general_stat_windows(ts, 1, TSK_STAT_SITE);
-    verify_general_stat_windows(ts, 1, TSK_STAT_SITE|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 2, TSK_STAT_SITE);
-    verify_general_stat_windows(ts, 2, TSK_STAT_SITE|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 3, TSK_STAT_SITE);
-    verify_general_stat_windows(ts, 3, TSK_STAT_SITE|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 10, TSK_STAT_SITE);
-    verify_general_stat_windows(ts, 10, TSK_STAT_SITE|TSK_STAT_SPAN_NORMALISE);
-    verify_general_stat_windows(ts, 100, TSK_STAT_SITE);
-    verify_general_stat_windows(ts, 100, TSK_STAT_SITE|TSK_STAT_SPAN_NORMALISE);
+    verify_general_stat_dims(ts, 4, 2, mode);
+    verify_general_stat_dims(ts, 4, 2, mode|TSK_STAT_POLARISED);
+    verify_general_stat_dims(ts, 1, 20, mode);
+    verify_general_stat_dims(ts, 1, 20, mode|TSK_STAT_POLARISED);
+    verify_general_stat_dims(ts, 100, 1, mode);
+    verify_general_stat_dims(ts, 100, 1, mode|TSK_STAT_POLARISED);
+    verify_general_stat_dims(ts, 10, 12, mode);
+    verify_general_stat_dims(ts, 10, 12, mode|TSK_STAT_POLARISED);
+    verify_general_stat_windows(ts, 1, mode);
+    verify_general_stat_windows(ts, 1, mode|TSK_STAT_SPAN_NORMALISE);
+    verify_general_stat_windows(ts, 2, mode);
+    verify_general_stat_windows(ts, 2, mode|TSK_STAT_SPAN_NORMALISE);
+    verify_general_stat_windows(ts, 3, mode);
+    verify_general_stat_windows(ts, 3, mode|TSK_STAT_SPAN_NORMALISE);
+    verify_general_stat_windows(ts, 10, mode);
+    verify_general_stat_windows(ts, 10, mode|TSK_STAT_SPAN_NORMALISE);
+    verify_general_stat_windows(ts, 100, mode);
+    verify_general_stat_windows(ts, 100, mode|TSK_STAT_SPAN_NORMALISE);
 }
-
 
 static void
 test_general_stat_input_errors(void)
@@ -752,6 +848,12 @@ test_general_stat_input_errors(void)
     /* Multiple stats*/
     ret = tsk_treeseq_general_stat(&ts, 1, &W, 1, general_stat_sum, NULL,
             0, NULL, &result, TSK_STAT_SITE|TSK_STAT_BRANCH);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
+    ret = tsk_treeseq_general_stat(&ts, 1, &W, 1, general_stat_sum, NULL,
+            0, NULL, &result, TSK_STAT_SITE|TSK_STAT_NODE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
+    ret = tsk_treeseq_general_stat(&ts, 1, &W, 1, general_stat_sum, NULL,
+            0, NULL, &result, TSK_STAT_BRANCH|TSK_STAT_NODE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
 
     tsk_treeseq_free(&ts);
@@ -802,48 +904,31 @@ test_single_tree_genealogical_nearest_neighbours(void)
 }
 
 static void
-test_single_tree_branch_general_stat(void)
+test_single_tree_general_stat(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
-    verify_branch_general_stat(&ts);
+    verify_branch_general_stat_identity(&ts);
+    verify_default_general_stat(&ts);
+    verify_general_stat(&ts, TSK_STAT_BRANCH);
+    verify_general_stat(&ts, TSK_STAT_SITE);
+    verify_general_stat(&ts, TSK_STAT_NODE);
     tsk_treeseq_free(&ts);
 }
 
 static void
-test_single_tree_branch_general_stat_errors(void)
+test_single_tree_general_stat_errors(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
     verify_branch_general_stat_errors(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_single_tree_site_general_stat(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
-            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
-    verify_site_general_stat(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_single_tree_site_general_stat_errors(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
-            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
     verify_site_general_stat_errors(&ts);
+    verify_node_general_stat_errors(&ts);
     tsk_treeseq_free(&ts);
-
 }
 
 static void
@@ -891,46 +976,30 @@ test_paper_ex_genealogical_nearest_neighbours(void)
 }
 
 static void
-test_paper_ex_branch_general_stat(void)
+test_paper_ex_general_stat(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
-    verify_branch_general_stat(&ts);
+    verify_branch_general_stat_identity(&ts);
+    verify_default_general_stat(&ts);
+    verify_general_stat(&ts, TSK_STAT_BRANCH);
+    verify_general_stat(&ts, TSK_STAT_SITE);
+    verify_general_stat(&ts, TSK_STAT_NODE);
     tsk_treeseq_free(&ts);
 }
 
 static void
-test_paper_ex_branch_general_stat_errors(void)
+test_paper_ex_general_stat_errors(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
     verify_branch_general_stat_errors(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_paper_ex_site_general_stat(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
-            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
-    verify_site_general_stat(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_paper_ex_site_general_stat_errors(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
-            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
     verify_site_general_stat_errors(&ts);
+    verify_node_general_stat_errors(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -941,12 +1010,12 @@ test_paper_ex_diversity_errors(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
-    verify_diversity_errors(&ts);
+    verify_one_way_stat_func_errors(&ts, tsk_treeseq_diversity);
     tsk_treeseq_free(&ts);
 }
 
 static void
-test_paper_ex_site_diversity(void)
+test_paper_ex_diversity(void)
 {
     tsk_treeseq_t ts;
     tsk_id_t samples[] = {0, 1, 2, 3};
@@ -968,13 +1037,41 @@ test_paper_ex_site_diversity(void)
 }
 
 static void
+test_paper_ex_Y1_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_one_way_stat_func_errors(&ts, tsk_treeseq_Y1);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_Y1(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes = 4;
+    double result;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_paper_ex_divergence_errors(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
-    verify_divergence_errors(&ts);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_divergence);
     tsk_treeseq_free(&ts);
 }
 
@@ -992,6 +1089,156 @@ test_paper_ex_divergence(void)
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
 
     ret = tsk_treeseq_divergence(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_Y2_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_Y2);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_Y2(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {2, 2};
+    tsk_id_t set_indexes[] = {0, 1};
+    double result;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_Y2(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_f2_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_f2);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_f2(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {2, 2};
+    tsk_id_t set_indexes[] = {0, 1};
+    double result;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_Y3_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_three_way_stat_func_errors(&ts, tsk_treeseq_Y3);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_Y3(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {2, 1, 1};
+    tsk_id_t set_indexes[] = {0, 1, 2};
+    double result;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_Y3(&ts, 3, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_f3_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_three_way_stat_func_errors(&ts, tsk_treeseq_f3);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_f3(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {2, 1, 1};
+    tsk_id_t set_indexes[] = {0, 1, 2};
+    double result;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_f3(&ts, 3, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_f4_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_four_way_stat_func_errors(&ts, tsk_treeseq_f4);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_f4(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {1, 1, 1, 1};
+    tsk_id_t set_indexes[] = {0, 1, 2, 3};
+    double result;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_f4(&ts, 4, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
@@ -1042,49 +1289,32 @@ test_nonbinary_ex_genealogical_nearest_neighbours(void)
 }
 
 static void
-test_nonbinary_ex_branch_general_stat(void)
+test_nonbinary_ex_general_stat(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
             NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
-    verify_branch_general_stat(&ts);
+    verify_branch_general_stat_identity(&ts);
+    verify_default_general_stat(&ts);
+    verify_general_stat(&ts, TSK_STAT_BRANCH);
+    verify_general_stat(&ts, TSK_STAT_SITE);
+    verify_general_stat(&ts, TSK_STAT_NODE);
     tsk_treeseq_free(&ts);
 }
 
 static void
-test_nonbinary_ex_branch_general_stat_errors(void)
+test_nonbinary_ex_general_stat_errors(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
             NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
     verify_branch_general_stat_errors(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_nonbinary_ex_site_general_stat(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
-            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
-    verify_site_general_stat(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_nonbinary_ex_site_general_stat_errors(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
-            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
     verify_site_general_stat_errors(&ts);
+    verify_node_general_stat_errors(&ts);
     tsk_treeseq_free(&ts);
 }
-
 
 int
 main(int argc, char **argv)
@@ -1097,41 +1327,40 @@ main(int argc, char **argv)
         {"test_single_tree_mean_descendants", test_single_tree_mean_descendants},
         {"test_single_tree_genealogical_nearest_neighbours",
             test_single_tree_genealogical_nearest_neighbours},
-        {"test_single_tree_branch_general_stat", test_single_tree_branch_general_stat},
-        {"test_single_tree_branch_general_stat_errors",
-            test_single_tree_branch_general_stat_errors},
-        {"test_single_tree_site_general_stat", test_single_tree_site_general_stat},
-        {"test_single_tree_site_general_stat_errors",
-            test_single_tree_site_general_stat_errors},
+        {"test_single_tree_general_stat", test_single_tree_general_stat},
+        {"test_single_tree_general_stat_errors", test_single_tree_general_stat_errors},
 
         {"test_paper_ex_ld", test_paper_ex_ld},
         {"test_paper_ex_pairwise_diversity", test_paper_ex_pairwise_diversity},
         {"test_paper_ex_mean_descendants", test_paper_ex_mean_descendants},
         {"test_paper_ex_genealogical_nearest_neighbours",
             test_paper_ex_genealogical_nearest_neighbours},
-        {"test_paper_ex_branch_general_stat", test_paper_ex_branch_general_stat},
-        {"test_paper_ex_branch_general_stat_errors",
-            test_paper_ex_branch_general_stat_errors},
-        {"test_paper_ex_site_general_stat", test_paper_ex_site_general_stat},
-        {"test_paper_ex_site_general_stat_errors",
-            test_paper_ex_site_general_stat_errors},
+        {"test_paper_ex_general_stat_errors", test_paper_ex_general_stat_errors},
+        {"test_paper_ex_general_stat", test_paper_ex_general_stat},
         {"test_paper_ex_diversity_errors", test_paper_ex_diversity_errors},
-        {"test_paper_ex_site_diversity", test_paper_ex_site_diversity},
+        {"test_paper_ex_diversity", test_paper_ex_diversity},
+        {"test_paper_ex_Y1_errors", test_paper_ex_Y1_errors},
+        {"test_paper_ex_Y1", test_paper_ex_Y1},
         {"test_paper_ex_divergence_errors", test_paper_ex_divergence_errors},
         {"test_paper_ex_divergence", test_paper_ex_divergence},
+        {"test_paper_ex_Y2_errors", test_paper_ex_Y2_errors},
+        {"test_paper_ex_Y2", test_paper_ex_Y2},
+        {"test_paper_ex_f2_errors", test_paper_ex_f2_errors},
+        {"test_paper_ex_f2", test_paper_ex_f2},
+        {"test_paper_ex_Y3_errors", test_paper_ex_Y3_errors},
+        {"test_paper_ex_Y3", test_paper_ex_Y3},
+        {"test_paper_ex_f3_errors", test_paper_ex_f3_errors},
+        {"test_paper_ex_f3", test_paper_ex_f3},
+        {"test_paper_ex_f4_errors", test_paper_ex_f4_errors},
+        {"test_paper_ex_f4", test_paper_ex_f4},
 
         {"test_nonbinary_ex_ld", test_nonbinary_ex_ld},
         {"test_nonbinary_ex_pairwise_diversity", test_nonbinary_ex_pairwise_diversity},
         {"test_nonbinary_ex_mean_descendants", test_nonbinary_ex_mean_descendants},
         {"test_nonbinary_ex_genealogical_nearest_neighbours",
             test_nonbinary_ex_genealogical_nearest_neighbours},
-        {"test_nonbinary_ex_branch_general_stat", test_nonbinary_ex_branch_general_stat},
-        {"test_nonbinary_ex_branch_general_stat_errors",
-            test_nonbinary_ex_branch_general_stat_errors},
-        {"test_nonbinary_ex_site_general_stat", test_nonbinary_ex_site_general_stat},
-        {"test_nonbinary_ex_site_general_stat_errors",
-            test_nonbinary_ex_site_general_stat_errors},
-
+        {"test_nonbinary_ex_general_stat", test_nonbinary_ex_general_stat},
+        {"test_nonbinary_ex_general_stat_errors", test_nonbinary_ex_general_stat_errors},
 
         {NULL, NULL},
     };

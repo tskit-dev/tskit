@@ -206,8 +206,9 @@ of tskit.
 #define TSK_ERR_BAD_STATE_DIMS                                      -903
 #define TSK_ERR_BAD_RESULT_DIMS                                     -904
 #define TSK_ERR_INSUFFICIENT_SAMPLE_SETS                            -905
-#define TSK_ERR_INSUFFICIENT_SET_INDEX_PAIRS                        -906
+#define TSK_ERR_INSUFFICIENT_INDEX_TUPLES                           -906
 #define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
+#define TSK_ERR_EMPTY_SAMPLE_SET                                    -908
 
 
 /* This bit is 0 for any errors originating from kastore */

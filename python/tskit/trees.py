@@ -3037,18 +3037,22 @@ class TreeSequence(object):
     #
     ############################################
 
-    def general_stat(self, stat_type, W, f, windows=None, polarised=False):
-        if stat_type == "site":
-            return self.site_general_stat(W, f, windows=windows, polarised=polarised)
-        elif stat_type == "branch":
-            return self.branch_general_stat(W, f, windows=windows, polarised=polarised)
-        elif stat_type == "node":
-            return self.node_general_stat(W, f, windows=windows, polarised=polarised)
-        else:
-            raise ValueError("stat_type must be either 'site' or 'branch'.")
+    def general_stat(self, W, f, windows=None, polarised=False, mode=None):
+        if mode is None:
+            mode = "site"
+        # We always want to normalise by the window span *unless* we want the
+        # sitewise output.
+        span_normalised = True
+        if mode == "site":
+            span_normalised = not (isinstance(windows, str) and windows == "sitewise")
+        output_dim = f(W[0]).shape[0]
+        windows = self.parse_windows(windows)
+        return self.ll_tree_sequence.general_stat(
+            W, f, output_dim, windows, polarised=polarised,
+            span_normalised=span_normalised, mode=mode)
 
-    def sample_count_stats(self, stat_type, sample_sets, f, windows=None,
-                           polarised=False):
+    def sample_count_stat(
+            self, sample_sets, f, windows=None, polarised=False, mode=None):
         '''
         Here sample_sets is a list of lists of samples, and weight_fun is a
         function whose argument is a list of integers of the same length as
@@ -3067,8 +3071,7 @@ class TreeSequence(object):
         '''
         # helper function for common case where weights are indicators of sample sets
         for U in sample_sets:
-            if ((not isinstance(U, list)) or
-               len(U) != len(set(U))):
+            if len(U) != len(set(U)):
                 raise ValueError(
                     "elements of sample_sets must be lists without repeated elements.")
             if len(U) == 0:
@@ -3078,43 +3081,15 @@ class TreeSequence(object):
                     raise ValueError("Not all elements of sample_sets are samples.")
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
-        return self.general_stat(stat_type, W, f, windows=windows, polarised=polarised)
-
-    def check_input(self, sample_sets, indices, index_length, min_sample_set_length=1):
-        # This doesn't have to be a method of the tree sequence currently
-        # but that might be useful in the future?
-        if indices is None:
-            if index_length > 1:
-                if not len(sample_sets) == index_length:
-                    raise ValueError("If indices is not given, there " +
-                                     "must be {} sample sets.".format(index_length))
-                # default to just doing a single statistic defined by the sample sets
-                indices = [tuple(range(index_length))]
-            else:
-                # default to doing one statistic per sample set
-                indices = [(k,) for k in range(len(sample_sets))]
-        try:
-            for u in indices:
-                assert(len(u) == index_length)
-            int_indices = np.array(indices, dtype='int64')
-            assert(np.max(np.abs(indices - int_indices)) == 0)
-            indices = int_indices
-        except AssertionError:
-            raise ValueError("All indices must be of length {}.".format(index_length))
-        for x in sample_sets:
-            if len(x) < min_sample_set_length:
-                raise ValueError("All sample_sets must be of length " +
-                                 "at least {}.".format(min_sample_set_length))
-        return sample_sets, indices
+        return self.general_stat(W, f, windows=windows, polarised=polarised, mode=mode)
 
     def parse_windows(self, windows):
-        # here's one way to get the common code into each function
         # Note: need to make sure windows is a string or we try to compare the
         # target with a numpy array elementwise.
         if windows is None:
             windows = [0.0, self.sequence_length]
         elif isinstance(windows, str) and windows == "treewise":
-            windows = self.breakpoints()
+            windows = self.breakpoints(as_array=True)
         elif isinstance(windows, str) and windows == "sitewise":
             # breakpoints are at 0.0 and midway between sites and at the end
             x = np.concatenate([[-1], self.tables.sites.position,
@@ -3122,130 +3097,45 @@ class TreeSequence(object):
             windows = x[:-1] + np.diff(x)/2
             windows[0] = 0.0
             windows[-1] = self.sequence_length
-        # check validity
-        try:
-            windows = np.fromiter(windows, dtype='float')
-            assert(len(windows) > 1)
-            assert(windows[0] >= 0.0)
-            assert(windows[-1] <= self.sequence_length)
-            assert(np.all(np.diff(windows) >= 0.0))
-        except BaseException:
-            raise ValueError("windows must be an iterable of increasing positions" +
-                             "between 0 and sequence_length")
-        return windows
+        return np.array(windows)
 
-    # Branch statistics stuff
     ############################################
-
-    def branch_general_stat(self, W, f, windows=None, polarised=False):
-        output_dim = f(W[0]).shape[0]
-        windows = self.parse_windows(windows)
-        return self.ll_tree_sequence.general_stat(
-            W, f, output_dim, windows, polarised=polarised, span_normalised=True,
-            mode="branch")
-
-    # Node statistics stuff
-    ############################################
-
-    def node_general_stat(self, sample_weights, summary_func, windows=None,
-                          polarised=False):
-        """
-        Efficient implementation of the algorithm used as the basis for the
-        underlying C version.
-        """
-        n, state_dim = sample_weights.shape
-        windows = self.parse_windows(windows)
-        num_windows = windows.shape[0] - 1
-
-        assert(len(summary_func(sample_weights[0])) == 1)
-        result_dim = self.num_nodes
-        result = np.zeros((num_windows, result_dim))
-        state = np.zeros((self.num_nodes, state_dim))
-        state[self.samples()] = sample_weights
-        total_weight = np.sum(sample_weights, axis=0)
-
-        def node_summary(u):
-            s = summary_func(state[u])
-            if not polarised:
-                s += summary_func(total_weight - state[u])
-            return s[0]
-
-        tree_index = 0
-        window_index = 0
-        parent = np.zeros(self.num_nodes, dtype=np.int32) - 1
-        # contains summary_func(state[u]) for each node
-        current_values = np.zeros(result_dim)
-        for u in self.samples():
-            current_values[u] = node_summary(u)
-        # contains the sum of current_values[u] weighted by sequence length
-        running_sum = np.zeros(result_dim)
-        # contains the location of the last time we added to running_sum[u]
-        last_update = np.zeros(result_dim)
-        for (t_left, t_right), edges_out, edges_in in self.edge_diffs():
-
-            for edge in edges_out:
-                u = edge.parent
-                while u != -1:
-                    running_sum[u] += (t_left - last_update[u]) * current_values[u]
-                    last_update[u] = t_left
-                    state[u] -= state[edge.child]
-                    current_values[u] = node_summary(u)
-                    u = parent[u]
-                parent[edge.child] = -1
-
-            for edge in edges_in:
-                parent[edge.child] = edge.parent
-                u = edge.parent
-                while u != -1:
-                    running_sum[u] += (t_left - last_update[u]) * current_values[u]
-                    last_update[u] = t_left
-                    state[u] += state[edge.child]
-                    current_values[u] = node_summary(u)
-                    u = parent[u]
-
-            # Update the windows
-            while window_index < num_windows and windows[window_index + 1] <= t_right:
-                w_right = windows[window_index + 1]
-                right = min(t_right, w_right)
-
-                running_sum += (right - last_update) * current_values
-                result[window_index] = running_sum
-                running_sum = (t_right - w_right) * current_values
-                last_update = np.repeat(t_right, result_dim)
-                window_index += 1
-
-            tree_index += 1
-
-        assert window_index == windows.shape[0] - 1
-        for j in range(num_windows):
-            result[j] /= windows[j + 1] - windows[j]
-        return result
-
-    # Site statistics stuff
-    ############################################
-
-    def site_general_stat(self, W, f, windows=None, polarised=False):
-        output_dim = f(W[0]).shape[0]
-        span_normalised = not (isinstance(windows, str) and windows == "sitewise")
-        # We always want to normalise by the window span *unless* we want the sitewise
-        # output.
-        windows = self.parse_windows(windows)
-        return self.ll_tree_sequence.general_stat(
-            W, f, output_dim, windows, polarised=polarised,
-            span_normalised=span_normalised, mode="site")
-
     # Statistics definitions
-
     ############################################
 
-    def diversity(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None, mode=None):
+        sample_set_sizes = np.array(
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
+        if np.any(sample_set_sizes == 0):
+            raise ValueError("Samples sets must contain at least one element")
+        flattened = tables.to_np_int32(np.hstack(sample_sets))
+        windows = self.parse_windows(windows)
+        return ll_method(sample_set_sizes, flattened, windows=windows, mode=mode)
+
+    def __k_way_sample_set_stat(
+            self, ll_method, k, sample_sets, indexes=None, windows=None, mode=None):
+        sample_set_sizes = np.array(
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
+        if np.any(sample_set_sizes == 0):
+            raise ValueError("Samples sets must contain at least one element")
+        flattened = tables.to_np_int32(np.hstack(sample_sets))
+        windows = self.parse_windows(windows)
+        if indexes is None:
+            indexes = [np.arange(k, dtype=np.int32)]
+        indexes = tables.to_np_int32(indexes)
+        if len(indexes.shape) != 2:
+            raise ValueError("Indexes must be convertable to a 2D numpy array")
+        return ll_method(
+            sample_set_sizes, flattened, indexes, windows=windows, mode=mode)
+
+    def diversity(self, sample_sets, windows=None, mode="site"):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
         sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``indices``, ``windows``, and ``stat_type`` and return value.
+        details of ``indexes``, ``windows``, and ``mode`` and return value.
         Operates on ``k = 1`` sample set at a time.
 
-        What is computed depends on ``stat_type``:
+        What is computed depends on ``mode``:
 
         "site"
             Mean pairwise genetic diversity: the average across distinct,
@@ -3263,46 +3153,27 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 1-tuples, or None, in which case the ``k`` th
+        :param list indexes: A list of 1-tuples, or None, in which case the ``k`` th
             returned value will be the diversity within the ``k`` th sample set
             (you probably want to leave this at None, the default).
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        if stat_type == "node":
-            # node mode not supported yet in C code so reverting to Python.
-            sample_sets, indices = self.check_input(sample_sets, indices, 1, 2)
-            n = np.array([len(x) for x in sample_sets])
+        return self.__one_way_sample_set_stat(
+            self._ll_tree_sequence.diversity, sample_sets, windows=windows, mode=mode)
 
-            def f(x):
-                return np.array([float(x[i]*(n[i]-x[i]))
-                                 for i in range(len(sample_sets))])
-
-            out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows,
-                                          polarised=False)
-            denom = np.array([n[i] * (n[i] - 1) for i in indices])
-            out /= denom
-            return out
-        else:
-            # TODO Ignoring indices for now - is this really necessary here?
-            sample_set_sizes = [len(sample_set) for sample_set in sample_sets]
-            flattened = tables.to_np_int32(np.hstack(sample_sets))
-            windows = self.parse_windows(windows)
-            return self.ll_tree_sequence.diversity(
-                sample_set_sizes, flattened, windows, mode=stat_type)
-
-    def divergence(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def divergence(self, sample_sets, indexes=None, windows=None, mode="site"):
         """
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``indices``, ``windows``, and ``stat_type`` and return value.
+        details of ``indexes``, ``windows``, and ``mode`` and return value.
         Operates on ``k = 2`` sample sets at a time. As a special case, an index
         `(j, j)` will compute the :ref:``diversity`` of ``sample_set[i]``.
 
-        What is computed depends on ``stat_type``:
+        What is computed depends on ``mode``:
 
         "site"
             Mean pairwise genetic divergence: the average across distinct,
@@ -3323,84 +3194,60 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 2-tuples, or None.
+        :param list indexes: A list of 2-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        if stat_type == "node":
-            sample_sets, indices = self.check_input(sample_sets, indices, 2)
-            windows = self.parse_windows(windows)
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.divergence, 2, sample_sets, indexes=indexes,
+            windows=windows, mode=mode)
 
-            n = [len(x) for x in sample_sets]
+    # JK: commenting this out for now to get the other methods well tested.
+    # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
+    #     """
+    #     Finds the mean divergence  between pairs of samples from each set of
+    #     samples and in each window. Returns a numpy array indexed by (window,
+    #     sample_set, sample_set).  Diagonal entries are corrected so that the
+    #     value gives the mean divergence for *distinct* samples, but it is not
+    #     checked whether the sample_sets are disjoint (so offdiagonals are not
+    #     corrected).  For this reason, if an element of `sample_sets` has only
+    #     one element, the corresponding diagonal will be NaN.
 
-            def f(x):
-                return np.array([float(x[i] * (n[j] - x[j]))
-                                 for i, j in indices])
+    #     The mean divergence between two samples is defined to be the mean: (as
+    #     a TreeStat) length of all edges separating them in the tree, or (as a
+    #     SiteStat) density of segregating sites, at a uniformly chosen position
+    #     on the genome.
 
-            out = self.sample_count_stats(stat_type, sample_sets, f,
-                                          windows=windows, polarised=False)
-            denom = np.array([n[i] * (n[j] - (i == j)) for i, j in indices])
-            zeros = (denom == 0)
-            denom[zeros] = 1.0
-            out /= denom
-            # TODO: sort this out tidily
-            if stat_type != "node":
-                out[:, zeros] = np.nan
-            return out
-        else:
-            sample_set_sizes = [len(sample_set) for sample_set in sample_sets]
-            flattened = tables.to_np_int32(np.hstack(sample_sets))
-            windows = self.parse_windows(windows)
-            return self.ll_tree_sequence.divergence(
-                sample_set_sizes, flattened,
-                set_indexes=tables.to_np_int32(indices),
-                windows=windows, mode=stat_type)
+    #     :param list sample_sets: A list of sets of IDs of samples.
+    #     :param iterable windows: The breakpoints of the windows (including start
+    #         and end, so has one more entry than number of windows).
+    #     :return: A list of the upper triangle of mean TMRCA values in row-major
+    #         order, including the diagonal.
+    #     """
+    #     ns = len(sample_sets)
+    #     indexes = [(i, j) for i in range(ns) for j in range(i, ns)]
+    #     x = self.divergence(sample_sets, indexes, windows, mode=mode)
+    #     nw = len(windows) - 1
+    #     A = np.ones((nw, ns, ns), dtype=float)
+    #     for w in range(nw):
+    #         k = 0
+    #         for i in range(ns):
+    #             for j in range(i, ns):
+    #                 A[w, i, j] = A[w, j, i] = x[w][k]
+    #                 k += 1
+    #     return A
 
-    def divergence_matrix(self, sample_sets, windows=None, stat_type="site"):
-        """
-        Finds the mean divergence  between pairs of samples from each set of
-        samples and in each window. Returns a numpy array indexed by (window,
-        sample_set, sample_set).  Diagonal entries are corrected so that the
-        value gives the mean divergence for *distinct* samples, but it is not
-        checked whether the sample_sets are disjoint (so offdiagonals are not
-        corrected).  For this reason, if an element of `sample_sets` has only
-        one element, the corresponding diagonal will be NaN.
-
-        The mean divergence between two samples is defined to be the mean: (as
-        a TreeStat) length of all edges separating them in the tree, or (as a
-        SiteStat) density of segregating sites, at a uniformly chosen position
-        on the genome.
-
-        :param list sample_sets: A list of sets of IDs of samples.
-        :param iterable windows: The breakpoints of the windows (including start
-            and end, so has one more entry than number of windows).
-        :return: A list of the upper triangle of mean TMRCA values in row-major
-            order, including the diagonal.
-        """
-        ns = len(sample_sets)
-        indices = [(i, j) for i in range(ns) for j in range(i, ns)]
-        x = self.divergence(sample_sets, indices, windows, stat_type=stat_type)
-        nw = len(windows) - 1
-        A = np.ones((nw, ns, ns), dtype=float)
-        for w in range(nw):
-            k = 0
-            for i in range(ns):
-                for j in range(i, ns):
-                    A[w, i, j] = A[w, j, i] = x[w][k]
-                    k += 1
-        return A
-
-    def Y3(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def Y3(self, sample_sets, indexes=None, windows=None, mode="site"):
         """
         Computes the 'Y' statistic between triples of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indices``, ``windows``, and ``stat_type`` and return value. Operates
+        ``indexes``, ``windows``, and ``mode`` and return value. Operates
         on ``k = 3`` sample sets at a time.
 
-        What is computed depends on ``stat_type``. Each is an average across
+        What is computed depends on ``mode``. Each is an average across
         randomly chosen trios of samples ``(a, b, c)``, one from each sample set:
 
         "site"
@@ -3417,34 +3264,25 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 3-tuples, or None.
+        :param list indexes: A list of 3-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 3)
-        n = np.array([len(x) for x in sample_sets])
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.Y3, 3, sample_sets, indexes=indexes, windows=windows,
+            mode=mode)
 
-        def f(x):
-            return np.array([float(x[i] * (n[j] - x[j]) * (n[k] - x[k]))
-                             for i, j, k in indices])
-
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-
-        denom = np.array([n[i] * n[j] * n[k] for i, j, k in indices])
-        out /= denom
-        return out
-
-    def Y2(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def Y2(self, sample_sets, indexes=None, windows=None, mode="site"):
         """
         Computes the 'Y2' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indices``, ``windows``, and ``stat_type`` and return value. Operates
+        ``indexes``, ``windows``, and ``mode`` and return value. Operates
         on ``k = 2`` sample sets at a time.
 
-        What is computed depends on ``stat_type``. Each is computed exactly as
+        What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average across randomly chosen trios of samples
         ``(a, b1, b2)``, where ``a`` is chosen from the first sample set, and
         ``b1, b2`` are chosen (without replacement) from the second sample set.
@@ -3452,67 +3290,49 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 2-tuples, or None.
+        :param list indexes: A list of 2-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 2)
-        n = np.array([len(x) for x in sample_sets])
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.Y2, 2, sample_sets, indexes=indexes, windows=windows,
+            mode=mode)
 
-        def f(x):
-            return np.array([float(x[i] * (n[j] - x[j]) * (n[j] - x[j] - 1))
-                             for i, j in indices])
-
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-
-        denom = np.array([n[i] * n[j] * (n[j] - 1) for i, j in indices])
-        out /= denom
-        return out
-
-    def Y1(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def Y1(self, sample_sets, windows=None, mode="site"):
         """
         Computes the 'Y1' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indices``, ``windows``, and ``stat_type`` and return value. Operates
+        ``indexes``, ``windows``, and ``mode`` and return value. Operates
         on ``k = 1`` sample sets at a time.
 
-        What is computed depends on ``stat_type``. Each is computed exactly as
+        What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average is across a randomly chosen trio of
         samples ``(a1, a2, a3)`` all chosen from the same sample set. See
         :ref:``Y3`` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 1-tuples, or None.
+        :param list indexes: A list of 1-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 1, 3)
-        n = np.array([len(x) for x in sample_sets])
+        return self.__one_way_sample_set_stat(
+            self._ll_tree_sequence.Y1, sample_sets, windows=windows, mode=mode)
 
-        def f(x):
-            return np.array([float(x[i] * (n[i] - x[i]) * (n[i] - x[i] - 1))
-                             for i, in indices])
-
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-        denom = np.array([n[i] * (n[i] - 1) * (n[i] - 2) for i, in indices])
-        out /= denom
-        return out
-
-    def f4(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def f4(self, sample_sets, indexes=None, windows=None, mode="site"):
         """
         Computes Patterson's f4 statistic between four groups of sample_sets.
-        See :ref:`sec_general_stats` for details of ``indices``, ``windows``,
-        and ``stat_type`` and return value. Operates on ``k = 4`` sample sets
+        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
+        and ``mode`` and return value. Operates on ``k = 4`` sample sets
         at a time.
 
-        What is computed depends on ``stat_type``. Each is an average across
+        What is computed depends on ``mode``. Each is an average across
         randomly chosen set of four samples ``(a, b; c, d)``, one from each sample set:
 
         "site"
@@ -3534,34 +3354,25 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 4-tuples, or None.
+        :param list indexes: A list of 4-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 4, 1)
-        n = np.array([len(x) for x in sample_sets])
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.f4, 4, sample_sets, indexes=indexes, windows=windows,
+            mode=mode)
 
-        def f(x):
-            return np.array([float(x[i] * x[k] * (n[j] - x[j]) * (n[l] - x[l])
-                                   - x[i] * x[l] * (n[j] - x[j]) * (n[k] - x[k]))
-                             for i, j, k, l in indices])
-
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-        denom = np.array([n[i] * n[j] * n[k] * n[l] for i, j, k, l in indices])
-        out /= denom
-        return out
-
-    def f3(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def f3(self, sample_sets, indexes=None, windows=None, mode="site"):
         """
         Computes Patterson's f3 statistic between four groups of sample_sets.
-        See :ref:`sec_general_stats` for details of ``indices``, ``windows``,
-        and ``stat_type`` and return value. Operates on ``k = 3`` sample sets
+        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
+        and ``mode`` and return value. Operates on ``k = 3`` sample sets
         at a time.
 
-        What is computed depends on ``stat_type``. Each works exactly as
+        What is computed depends on ``mode``. Each works exactly as
         :ref:``f4``, except the average is across randomly chosen set of four
         samples ``(a1, b; a2, c)``, with `a1` and `a2` both chosen (without
         replacement) from the first sample set. See :ref:``f4`` for more
@@ -3569,34 +3380,25 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 3-tuples, or None.
+        :param list indexes: A list of 3-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 3, 1)
-        n = [len(x) for x in sample_sets]
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.f3, 3, sample_sets, indexes=indexes, windows=windows,
+            mode=mode)
 
-        def f(x):
-            return np.array([float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[k] - x[k])
-                                   - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[k])
-                             for i, j, k in indices])
-
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-        denom = np.array([n[i] * (n[i] - 1) * n[j] * n[k] for i, j, k in indices])
-        out /= denom
-        return out
-
-    def f2(self, sample_sets, indices=None, windows=None, stat_type="site"):
+    def f2(self, sample_sets, indexes=None, windows=None, mode="site"):
         """
         Computes Patterson's f3 statistic between four groups of sample_sets.
-        See :ref:`sec_general_stats` for details of ``indices``, ``windows``,
-        and ``stat_type`` and return value. Operates on ``k = 3`` sample sets
+        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
+        and ``mode`` and return value. Operates on ``k = 3`` sample sets
         at a time.
 
-        What is computed depends on ``stat_type``. Each works exactly as
+        What is computed depends on ``mode``. Each works exactly as
         :ref:``f4``, except the average is across randomly chosen set of four
         samples ``(a1, b1; a2, b2)``, with `a1` and `a2` both chosen (without
         replacement) from the first sample set and ``b1`` and ``b2`` chosen
@@ -3606,25 +3408,16 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indices: A list of 2-tuples, or None.
+        :param list indexes: A list of 2-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
-        :param str stat_type: A string giving the "type" of the statistic to be computed
+        :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        sample_sets, indices = self.check_input(sample_sets, indices, 2, 2)
-        n = [len(x) for x in sample_sets]
-
-        def f(x):
-            return np.array([float(x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[j] - x[j] - 1)
-                                   - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[j])
-                             for i, j in indices])
-
-        out = self.sample_count_stats(stat_type, sample_sets, f, windows=windows)
-        denom = np.array([n[i] * (n[i] - 1) * n[j] * (n[j] - 1) for i, j in indices])
-        out /= denom
-        return out
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
+            mode=mode)
 
     ############################################
     #

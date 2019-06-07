@@ -277,7 +277,7 @@ tsk_strerror_internal(int err)
 
         /* Sample errors */
         case TSK_ERR_DUPLICATE_SAMPLE:
-            ret = "Duplicate value provided in tracked leaf list";
+            ret = "Duplicate sample value";
             break;
         case TSK_ERR_BAD_SAMPLES:
             ret = "Bad sample configuration provided";
@@ -336,11 +336,14 @@ tsk_strerror_internal(int err)
         case TSK_ERR_INSUFFICIENT_SAMPLE_SETS:
             ret = "Insufficient sample sets provided.";
             break;
-        case TSK_ERR_INSUFFICIENT_SET_INDEX_PAIRS:
-            ret = "Insufficient sample set index pairs provided.";
+        case TSK_ERR_INSUFFICIENT_INDEX_TUPLES:
+            ret = "Insufficient sample set index tuples provided.";
             break;
         case TSK_ERR_BAD_SAMPLE_SET_INDEX:
             ret = "Sample set index out of bounds";
+            break;
+        case TSK_ERR_EMPTY_SAMPLE_SET:
+            ret = "Samples cannot be empty";
             break;
     }
     return ret;
