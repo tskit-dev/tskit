@@ -245,7 +245,7 @@ def path_length(tr, x, y):
 # Branch general stat algorithms
 ##############################
 
-def windowed_tree_stat(ts, stat, windows):
+def windowed_tree_stat(ts, stat, windows, span_normalise=True):
     shape = list(stat.shape)
     shape[0] = len(windows) - 1
     A = np.zeros(shape)
@@ -270,14 +270,16 @@ def windowed_tree_stat(ts, stat, windows):
                     break
             else:
                 break
-    # re-normalize by window lengths
-    window_lengths = np.diff(windows)
-    for j in range(len(windows) - 1):
-        A[j] /= window_lengths[j]
+    if span_normalise:
+        # re-normalize by window lengths
+        window_lengths = np.diff(windows)
+        for j in range(len(windows) - 1):
+            A[j] /= window_lengths[j]
     return A
 
 
-def naive_branch_general_stat(ts, w, f, windows=None, polarised=False):
+def naive_branch_general_stat(ts, w, f, windows=None, polarised=False,
+                              span_normalise=True):
     if windows is None:
         windows = [0.0, ts.sequence_length]
     n, k = w.shape
@@ -299,16 +301,18 @@ def naive_branch_general_stat(ts, w, f, windows=None, polarised=False):
                 tree.branch_length(u) * (f(x[u]) + f(total - x[u]))
                 for u in tree.nodes())
         sigma[tree.index] = s * tree.span
-    if isinstance(windows, str) and windows == "treewise":
+    if isinstance(windows, str) and windows == "trees":
         # need to average across the windows
-        for j, tree in enumerate(ts.trees()):
-            sigma[j] /= tree.span
+        if span_normalise:
+            for j, tree in enumerate(ts.trees()):
+                sigma[j] /= tree.span
         return sigma
     else:
-        return windowed_tree_stat(ts, sigma, windows)
+        return windowed_tree_stat(ts, sigma, windows, span_normalise=span_normalise)
 
 
-def branch_general_stat(ts, sample_weights, summary_func, windows=None, polarised=False):
+def branch_general_stat(ts, sample_weights, summary_func, windows=None,
+                        polarised=False, span_normalise=True):
     """
     Efficient implementation of the algorithm used as the basis for the
     underlying C version.
@@ -383,8 +387,9 @@ def branch_general_stat(ts, sample_weights, summary_func, windows=None, polarise
 
     # print("window_index:", window_index, windows.shape)
     assert window_index == windows.shape[0] - 1
-    for j in range(num_windows):
-        result[j] /= windows[j + 1] - windows[j]
+    if span_normalise:
+        for j in range(num_windows):
+            result[j] /= windows[j + 1] - windows[j]
     return result
 
 
@@ -392,7 +397,7 @@ def branch_general_stat(ts, sample_weights, summary_func, windows=None, polarise
 # Site general stat algorithms
 ##############################
 
-def windowed_sitewise_stat(ts, sigma, windows, normalise=True):
+def windowed_sitewise_stat(ts, sigma, windows, span_normalise=True):
     M = sigma.shape[1]
     A = np.zeros((len(windows) - 1, M))
     window = 0
@@ -401,14 +406,15 @@ def windowed_sitewise_stat(ts, sigma, windows, normalise=True):
             window += 1
         assert windows[window] <= site.position < windows[window + 1]
         A[window] += sigma[site.id]
-    if normalise:
+    if span_normalise:
         diff = np.zeros((A.shape[0], 1))
         diff[:, 0] = np.diff(windows).T
         A /= diff
     return A
 
 
-def naive_site_general_stat(ts, W, f, windows=None, polarised=False):
+def naive_site_general_stat(ts, W, f, windows=None, polarised=False,
+                            span_normalise=True):
     n, K = W.shape
     # Hack to determine M
     M = len(f(W[0]))
@@ -432,19 +438,18 @@ def naive_site_general_stat(ts, W, f, windows=None, polarised=False):
             if polarised:
                 del state_map[site.ancestral_state]
             sigma[site.id] += sum(map(f, state_map.values()))
-    normalise_windows = not (isinstance(windows, str) and windows == "sitewise")
     return windowed_sitewise_stat(
         ts, sigma, ts.parse_windows(windows),
-        normalise=normalise_windows)
+        span_normalise=span_normalise)
 
 
-def site_general_stat(ts, sample_weights, summary_func, windows=None, polarised=False):
+def site_general_stat(ts, sample_weights, summary_func, windows=None, polarised=False,
+                      span_normalise=True):
     """
-    Problem: 'sitewise' is different that the other windowing options
+    Problem: 'sites' is different that the other windowing options
     because if we output by site we don't want to normalize by length of the window.
     Solution: we pass an argument "normalize", to the windowing function.
     """
-    normalise_windows = not (isinstance(windows, str) and windows == "sitewise")
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
     n, state_dim = sample_weights.shape
@@ -503,7 +508,7 @@ def site_general_stat(ts, sample_weights, summary_func, windows=None, polarised=
             assert windows[window_index] <= pos < windows[window_index + 1]
             result[window_index] += site_result
             site_index += 1
-    if normalise_windows:
+    if span_normalise:
         for j in range(num_windows):
             span = windows[j + 1] - windows[j]
             result[j] /= span
@@ -515,7 +520,8 @@ def site_general_stat(ts, sample_weights, summary_func, windows=None, polarised=
 ##############################
 
 
-def naive_node_general_stat(ts, W, f, windows=None, polarised=False):
+def naive_node_general_stat(ts, W, f, windows=None, polarised=False,
+                            span_normalise=True):
     windows = ts.parse_windows(windows)
     n, K = W.shape
     M = f(W[0]).shape[0]
@@ -533,10 +539,11 @@ def naive_node_general_stat(ts, W, f, windows=None, polarised=False):
             if not polarised:
                 s[u] += f(total - X[u])
         sigma[tree.index] = s * tree.span
-    return windowed_tree_stat(ts, sigma, windows)
+    return windowed_tree_stat(ts, sigma, windows, span_normalise=span_normalise)
 
 
-def node_general_stat(ts, sample_weights, summary_func, windows=None, polarised=False):
+def node_general_stat(ts, sample_weights, summary_func, windows=None, polarised=False,
+                      span_normalise=True):
     """
     Efficient implementation of the algorithm used as the basis for the
     underlying C version.
@@ -600,14 +607,15 @@ def node_general_stat(ts, sample_weights, summary_func, windows=None, polarised=
         tree_index += 1
 
     assert window_index == windows.shape[0] - 1
-    for j in range(num_windows):
-        result[j] /= windows[j + 1] - windows[j]
+    if span_normalise:
+        for j in range(num_windows):
+            result[j] /= windows[j + 1] - windows[j]
     return result
 
 
 def general_stat(
         ts, sample_weights, summary_func, windows=None, polarised=False,
-        mode="site"):
+        mode="site", span_normalise=True):
     """
     General iterface for algorithms above. Directly corresponds to the interface
     for TreeSequence.general_stat.
@@ -617,7 +625,8 @@ def general_stat(
         "node": node_general_stat,
         "branch": branch_general_stat}
     return method_map[mode](
-        ts, sample_weights, summary_func, windows=windows, polarised=polarised)
+        ts, sample_weights, summary_func, windows=windows, polarised=polarised,
+        span_normalise=span_normalise)
 
 
 def upper_tri_to_matrix(x):
@@ -908,17 +917,22 @@ class SampleSetStatsMixin(object):
 
         W = np.array(
             [[u in A for A in sample_sets] for u in ts.samples()], dtype=float)
-        sigma1 = ts.general_stat(W, summary_func, windows, mode=self.mode)
-        sigma2 = general_stat(ts, W, summary_func, windows, mode=self.mode)
-        sigma3 = ts_method(sample_sets, windows=windows, mode=self.mode)
-        sigma4 = definition(ts, sample_sets, windows=windows, mode=self.mode)
+        for sn in [True, False]:
+            sigma1 = ts.general_stat(W, summary_func, windows, mode=self.mode,
+                                     span_normalise=sn)
+            sigma2 = general_stat(ts, W, summary_func, windows, mode=self.mode,
+                                  span_normalise=sn)
+            sigma3 = ts_method(sample_sets, windows=windows, mode=self.mode,
+                               span_normalise=sn)
+            sigma4 = definition(ts, sample_sets, windows=windows, mode=self.mode,
+                                span_normalise=sn)
 
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
-        self.assertEqual(sigma1.shape, sigma4.shape)
-        self.assertArrayAlmostEqual(sigma1, sigma2)
-        self.assertArrayAlmostEqual(sigma1, sigma3)
-        self.assertArrayAlmostEqual(sigma1, sigma4)
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertEqual(sigma1.shape, sigma3.shape)
+            self.assertEqual(sigma1.shape, sigma4.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+            self.assertArrayAlmostEqual(sigma1, sigma3)
+            self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
 class KWaySampleSetStatsMixin(SampleSetStatsMixin):
@@ -988,7 +1002,7 @@ class FourWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 # Diversity
 ############################################
 
-def site_diversity(ts, sample_sets, windows=None):
+def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(sample_sets)))
     samples = ts.samples()
@@ -1008,13 +1022,15 @@ def site_diversity(ts, sample_sets, windows=None):
                             if haps[x_index][k] != haps[y_index][k]:
                                 # x|y
                                 S += 1
-            denom = (end - begin) * len(X) * (len(X) - 1)
+            denom = len(X) * (len(X) - 1)
+            if span_normalise:
+                denom *= end - begin
             if denom > 0:
                 out[j][i] = S / denom
     return out
 
 
-def branch_diversity(ts, sample_sets, windows=None):
+def branch_diversity(ts, sample_sets, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(sample_sets)))
     for j in range(len(windows) - 1):
@@ -1032,13 +1048,15 @@ def branch_diversity(ts, sample_sets, windows=None):
                     for y in set(X) - set([x]):
                         SS += path_length(tr, x, y)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            denom = (end - begin) * len(X) * (len(X) - 1)
+            denom = len(X) * (len(X) - 1)
+            if span_normalise:
+                denom *= end - begin
             if denom > 0:
                 out[j][i] = S / denom
     return out
 
 
-def node_diversity(ts, sample_sets, windows=None):
+def node_diversity(ts, sample_sets, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     K = len(sample_sets)
     out = np.zeros((len(windows) - 1, ts.num_nodes, K))
@@ -1060,11 +1078,14 @@ def node_diversity(ts, sample_sets, windows=None):
                     n = tr.num_tracked_samples(u)
                     SS[u] += n * (tX - n)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            out[j, :, k] = 2 * S/((end - begin) * len(X) * (len(X) - 1))
+            denom = len(X) * (len(X) - 1)
+            if span_normalise:
+                denom *= end - begin
+            out[j, :, k] = 2 * S / denom
     return out
 
 
-def diversity(ts, sample_sets, windows=None, mode="site"):
+def diversity(ts, sample_sets, windows=None, mode="site", span_normalise=True):
     """
     Computes average pairwise diversity between two random choices from x
     over the window specified.
@@ -1073,7 +1094,8 @@ def diversity(ts, sample_sets, windows=None, mode="site"):
         "site": site_diversity,
         "node": node_diversity,
         "branch": branch_diversity}
-    return method_map[mode](ts, sample_sets, windows=windows)
+    return method_map[mode](ts, sample_sets, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class TestDiversity(StatsTestCase, SampleSetStatsMixin):
@@ -1109,7 +1131,7 @@ class TestSiteDiversity(TestDiversity, MutatedTopologyExamplesMixin):
 # Y1
 ############################################
 
-def branch_Y1(ts, sample_sets, windows=None):
+def branch_Y1(ts, sample_sets, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(sample_sets)))
     for j in range(len(windows) - 1):
@@ -1144,11 +1166,14 @@ def branch_Y1(ts, sample_sets, windows=None):
                                 #  / /\
                                 # z x  y
                                 S += path_length(tr, x, xy_mrca) * this_length
-            out[j][i] = S/((end - begin) * len(X) * (len(X)-1) * (len(X)-2))
+            denom = len(X) * (len(X)-1) * (len(X)-2)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def site_Y1(ts, sample_sets, windows=None):
+def site_Y1(ts, sample_sets, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(sample_sets)))
     samples = ts.samples()
@@ -1173,17 +1198,21 @@ def site_Y1(ts, sample_sets, windows=None):
                                 if condition:
                                     # x|yz
                                     S += 1
-            out[j][i] = S/((end - begin) * len(X) * (len(X) - 1) * (len(X) - 2))
+            denom = len(X) * (len(X)-1) * (len(X)-2)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def Y1(ts, sample_sets, windows=None, mode="site"):
+def Y1(ts, sample_sets, windows=None, mode="site", span_normalise=True):
     windows = ts.parse_windows(windows)
     method_map = {
         "site": site_Y1,
         # "node": node_Y1, NOT DEFINED
         "branch": branch_Y1}
-    return method_map[mode](ts, sample_sets, windows=windows)
+    return method_map[mode](ts, sample_sets, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class TestY1(StatsTestCase, SampleSetStatsMixin):
@@ -1233,7 +1262,7 @@ class TestSiteY1(TestY1, MutatedTopologyExamplesMixin):
 # Divergence
 ############################################
 
-def site_divergence(ts, sample_sets, indexes, windows=None):
+def site_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True):
     out = np.zeros((len(windows) - 1, len(indexes)))
     samples = ts.samples()
     for j in range(len(windows) - 1):
@@ -1254,11 +1283,14 @@ def site_divergence(ts, sample_sets, indexes, windows=None):
                             if haps[x_index][k] != haps[y_index][k]:
                                 # x|y
                                 S += 1
-            out[j][i] = S/((end - begin) * len(X) * len(Y))
+            denom = len(X) * len(Y)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def branch_divergence(ts, sample_sets, indexes, windows=None):
+def branch_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True):
     out = np.zeros((len(windows) - 1, len(indexes)))
     for j in range(len(windows) - 1):
         begin = windows[j]
@@ -1277,11 +1309,14 @@ def branch_divergence(ts, sample_sets, indexes, windows=None):
                     for y in Y:
                         SS += path_length(tr, x, y)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            out[j][i] = S/((end-begin)*len(X)*len(Y))
+            denom = len(X) * len(Y)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def node_divergence(ts, sample_sets, indexes, windows=None):
+def node_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True):
     out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
     for i, (ix, iy) in enumerate(indexes):
         X = sample_sets[ix]
@@ -1305,12 +1340,15 @@ def node_divergence(ts, sample_sets, indexes, windows=None):
                     nY = t2.num_tracked_samples(u)
                     SS[u] += nX * (tY - nY) + (tX - nX) * nY
                 S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
-            denom = (end - begin) * len(X) * len(Y)
+            denom = len(X) * len(Y)
+            if span_normalise:
+                denom *= (end - begin)
             out[j, :, i] = S / denom
     return out
 
 
-def divergence(ts, sample_sets, indexes=None, windows=None, mode="site"):
+def divergence(ts, sample_sets, indexes=None, windows=None, mode="site",
+               span_normalise=True):
     """
     Computes average pairwise divergence between two random choices from x
     over the window specified.
@@ -1322,7 +1360,8 @@ def divergence(ts, sample_sets, indexes=None, windows=None, mode="site"):
         "site": site_divergence,
         "node": node_divergence,
         "branch": branch_divergence}
-    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows)
+    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class TestDivergence(StatsTestCase, TwoWaySampleSetStatsMixin):
@@ -1362,7 +1401,7 @@ class TestSiteDivergence(TestDivergence, MutatedTopologyExamplesMixin):
 # Y2
 ############################################
 
-def branch_Y2(ts, sample_sets, indexes, windows=None):
+def branch_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     for j in range(len(windows) - 1):
@@ -1399,11 +1438,14 @@ def branch_Y2(ts, sample_sets, indexes, windows=None):
                                 #  / /\
                                 # z x  y
                                 S += path_length(tr, x, xy_mrca) * this_length
-            out[j][i] = S/((end - begin) * len(X) * len(Y) * (len(Y)-1))
+            denom = len(X) * len(Y) * (len(Y)-1)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def site_Y2(ts, sample_sets, indexes, windows=None):
+def site_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     samples = ts.samples()
     out = np.zeros((len(windows) - 1, len(indexes)))
@@ -1430,11 +1472,14 @@ def site_Y2(ts, sample_sets, indexes, windows=None):
                                 if condition:
                                     # x|yz
                                     S += 1
-            out[j][i] = S/((end - begin) * len(X) * len(Y) * (len(Y) - 1))
+            denom = len(X) * len(Y) * (len(Y)-1)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def Y2(ts, sample_sets, indexes=None, windows=None, mode="site"):
+def Y2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
     windows = ts.parse_windows(windows)
 
     windows = ts.parse_windows(windows)
@@ -1444,7 +1489,8 @@ def Y2(ts, sample_sets, indexes=None, windows=None, mode="site"):
         "site": site_Y2,
         # "node": node_Y2,
         "branch": branch_Y2}
-    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows)
+    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class TestY2(StatsTestCase, TwoWaySampleSetStatsMixin):
@@ -1495,7 +1541,7 @@ class TestSiteY2(TestY2, MutatedTopologyExamplesMixin):
 # Y3
 ############################################
 
-def branch_Y3(ts, sample_sets, indexes, windows=None):
+def branch_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     for j in range(len(windows) - 1):
@@ -1533,11 +1579,14 @@ def branch_Y3(ts, sample_sets, indexes, windows=None):
                                 #  / /\
                                 # z x  y
                                 S += path_length(tr, x, xy_mrca) * this_length
-            out[j][i] = S/((end - begin) * len(X) * len(Y) * len(Z))
+            denom = len(X) * len(Y) * len(Z)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def site_Y3(ts, sample_sets, indexes, windows=None):
+def site_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     haps = ts.genotype_matrix().T
@@ -1563,11 +1612,14 @@ def site_Y3(ts, sample_sets, indexes, windows=None):
                                    and (haps[x_index][k] != haps[z_index][k])):
                                     # x|yz
                                     S += 1
-            out[j][i] = S/((end - begin) * len(X) * len(Y) * len(Z))
+            denom = len(X) * len(Y) * len(Z)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def Y3(ts, sample_sets, indexes=None, windows=None, mode="site"):
+def Y3(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
     windows = ts.parse_windows(windows)
     if indexes is None:
         indexes = [(0, 1, 2)]
@@ -1575,7 +1627,8 @@ def Y3(ts, sample_sets, indexes=None, windows=None, mode="site"):
         "site": site_Y3,
         # "node": node_Y3,
         "branch": branch_Y3}
-    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows)
+    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class TestY3(StatsTestCase, ThreeWaySampleSetStatsMixin):
@@ -1625,7 +1678,7 @@ class TestSiteY3(TestY3, MutatedTopologyExamplesMixin):
 # f2
 ############################################
 
-def branch_f2(ts, sample_sets, indexes, windows=None):
+def branch_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
     # this is f4(A,B;A,B) but drawing distinct samples from A and B
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
@@ -1650,12 +1703,14 @@ def branch_f2(ts, sample_sets, indexes, windows=None):
                                 SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
                                 SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
                 S += SS * this_length
-            out[j][i] = S / ((end - begin) * len(A) * (len(A) - 1)
-                             * len(B) * (len(B) - 1))
+            denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def site_f2(ts, sample_sets, indexes, windows=None):
+def site_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     samples = ts.samples()
@@ -1688,12 +1743,14 @@ def site_f2(ts, sample_sets, indexes, windows=None):
                                           and (haps[a_index][k] != haps[b_index][k])):
                                         # ad|bc
                                         S -= 1
-            out[j][i] = S / ((end - begin) * len(A) * len(B)
-                             * (len(A) - 1) * (len(B) - 1))
+            denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def f2(ts, sample_sets, indexes=None, windows=None, mode="site"):
+def f2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
     """
     Patterson's f2 statistic definitions.
     """
@@ -1704,7 +1761,8 @@ def f2(ts, sample_sets, indexes=None, windows=None, mode="site"):
         "site": site_f2,
         # "node": node_Y2,
         "branch": branch_f2}
-    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows)
+    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class Testf2(StatsTestCase, TwoWaySampleSetStatsMixin):
@@ -1757,7 +1815,7 @@ class TestSitef2(Testf2, MutatedTopologyExamplesMixin):
 # f3
 ############################################
 
-def branch_f3(ts, sample_sets, indexes, windows=None):
+def branch_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
     # this is f4(A,B;A,C) but drawing distinct samples from A
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
@@ -1783,11 +1841,14 @@ def branch_f3(ts, sample_sets, indexes, windows=None):
                                 SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
                                 SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
                 S += SS * this_length
-            out[j][i] = S / ((end - begin) * len(A) * (len(A) - 1) * len(B) * len(C))
+            denom = len(A) * (len(A) - 1) * len(B) * len(C)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def site_f3(ts, sample_sets, indexes, windows=None):
+def site_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     samples = ts.samples()
@@ -1821,11 +1882,14 @@ def site_f3(ts, sample_sets, indexes, windows=None):
                                           and (haps[a_index][k] != haps[b_index][k])):
                                         # ad|bc
                                         S -= 1
-            out[j][i] = S / ((end - begin) * len(A) * len(B) * len(C) * (len(A) - 1))
+            denom = len(A) * (len(A) - 1) * len(B) * len(C)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def f3(ts, sample_sets, indexes=None, windows=None, mode="site"):
+def f3(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
     """
     Patterson's f3 statistic definitions.
     """
@@ -1836,7 +1900,8 @@ def f3(ts, sample_sets, indexes=None, windows=None, mode="site"):
         "site": site_f3,
         # "node": node_Y2,
         "branch": branch_f3}
-    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows)
+    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class Testf3(StatsTestCase, ThreeWaySampleSetStatsMixin):
@@ -1887,10 +1952,10 @@ class TestSitef3(Testf3, MutatedTopologyExamplesMixin):
 
 
 ############################################
-# f3
+# f4
 ############################################
 
-def branch_f4(ts, sample_sets, indexes, windows=None):
+def branch_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     for j in range(len(windows) - 1):
@@ -1916,11 +1981,14 @@ def branch_f4(ts, sample_sets, indexes, windows=None):
                                 SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
                                 SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
                 S += SS * this_length
-            out[j][i] = S / ((end - begin) * len(A) * len(B) * len(C) * len(D))
+            denom = len(A) * len(B) * len(C) * len(D)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def site_f4(ts, sample_sets, indexes, windows=None):
+def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     samples = ts.samples()
     haps = ts.genotype_matrix().T
@@ -1955,11 +2023,14 @@ def site_f4(ts, sample_sets, indexes, windows=None):
                                           and (haps[a_index][k] != haps[b_index][k])):
                                         # ad|bc
                                         S -= 1
-            out[j][i] = S / ((end - begin) * len(A) * len(B) * len(C) * len(D))
+            denom = len(A) * len(B) * len(C) * len(D)
+            if span_normalise:
+                denom *= (end - begin)
+            out[j][i] = S / denom
     return out
 
 
-def f4(ts, sample_sets, indexes=None, windows=None, mode="site"):
+def f4(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
     """
     Patterson's f4 statistic definitions.
     """
@@ -1969,7 +2040,8 @@ def f4(ts, sample_sets, indexes=None, windows=None, mode="site"):
         "site": site_f4,
         # "node": node_f4,
         "branch": branch_f4}
-    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows)
+    return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
+                            span_normalise=span_normalise)
 
 
 class Testf4(StatsTestCase, FourWaySampleSetStatsMixin):
@@ -2372,7 +2444,7 @@ class TestGeneralBranchStats(StatsTestCase):
         ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
-            sigma = self.compare_general_stat(ts, W, lambda x: x, windows="treewise",
+            sigma = self.compare_general_stat(ts, W, lambda x: x, windows="trees",
                                               polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
@@ -2380,7 +2452,7 @@ class TestGeneralBranchStats(StatsTestCase):
     def test_simple_identity_f_w_ones(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
-        sigma = self.compare_general_stat(ts, W, lambda x: x, windows="treewise",
+        sigma = self.compare_general_stat(ts, W, lambda x: x, windows="trees",
                                           polarised=True)
         self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
         # A W of 1 for every node and identity f counts the samples in the subtree
@@ -2394,7 +2466,7 @@ class TestGeneralBranchStats(StatsTestCase):
         W = np.ones((ts.num_samples, 8))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows="treewise", polarised=polarised)
+                ts, W, lambda x: np.cumsum(x), windows="trees", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
 
     def test_simple_cumsum_f_w_ones_many_windows(self):
@@ -2410,7 +2482,7 @@ class TestGeneralBranchStats(StatsTestCase):
         W = np.ones((ts.num_samples, 1))
         for polarised in [True, False]:
             sigma_no_windows = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows="treewise", polarised=polarised)
+                ts, W, lambda x: np.cumsum(x), windows="trees", polarised=polarised)
             self.assertEqual(sigma_no_windows.shape, (ts.num_trees, W.shape[1]))
             sigma_windows = self.compare_general_stat(
                 ts, W, lambda x: np.cumsum(x), windows=ts.breakpoints(as_array=True),
@@ -2459,7 +2531,7 @@ class TestGeneralSiteStats(StatsTestCase):
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
-            sigma = self.compare_general_stat(ts, W, lambda x: x, windows="sitewise",
+            sigma = self.compare_general_stat(ts, W, lambda x: x, windows="sites",
                                               polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
@@ -2481,7 +2553,7 @@ class TestGeneralSiteStats(StatsTestCase):
         W = np.ones((ts.num_samples, 3))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(ts, W, lambda x: np.cumsum(x),
-                                              windows="sitewise", polarised=polarised)
+                                              windows="sites", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
     def test_cumsum_f_W_1_two_alleles(self):
@@ -2489,7 +2561,7 @@ class TestGeneralSiteStats(StatsTestCase):
         W = np.ones((ts.num_samples, 5))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows="sitewise", polarised=polarised)
+                ts, W, lambda x: np.cumsum(x), windows="sites", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
 
@@ -2512,7 +2584,7 @@ class TestGeneralNodeStats(StatsTestCase):
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: x, windows="treewise", polarised=polarised)
+                ts, W, lambda x: x, windows="trees", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 3))
             self.assertTrue(np.all(sigma == 0))
 
@@ -2520,7 +2592,7 @@ class TestGeneralNodeStats(StatsTestCase):
         ts = msprime.simulate(44, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
         sigma = self.compare_general_stat(
-            ts, W, lambda x: np.array([sum(x)]), windows="treewise", polarised=True)
+            ts, W, lambda x: np.array([sum(x)]), windows="trees", polarised=True)
         self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
         # Drop the last dimension
         sigma = sigma.reshape((ts.num_trees, ts.num_nodes))

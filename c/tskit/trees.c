@@ -1850,7 +1850,7 @@ tsk_treeseq_diversity(tsk_treeseq_t *self,
         tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
         tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
 {
-    return  tsk_treeseq_sample_count_stat(self,
+    return tsk_treeseq_sample_count_stat(self,
         num_sample_sets, sample_set_sizes, sample_sets, num_sample_sets, NULL,
         diversity_summary_func, num_windows, windows, result, options);
 }
@@ -1879,7 +1879,7 @@ tsk_treeseq_Y1(tsk_treeseq_t *self,
         tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
         tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
 {
-    return  tsk_treeseq_sample_count_stat(self,
+    return tsk_treeseq_sample_count_stat(self,
         num_sample_sets, sample_set_sizes, sample_sets, num_sample_sets, NULL,
         Y1_summary_func, num_windows, windows, result, options);
 }

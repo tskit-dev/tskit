@@ -3037,45 +3037,26 @@ class TreeSequence(object):
     #
     ############################################
 
-    def general_stat(self, W, f, windows=None, polarised=False, mode=None):
+    def general_stat(self, W, f, windows=None, polarised=False, mode=None,
+                     span_normalise=True):
         if mode is None:
             mode = "site"
-        # We always want to normalise by the window span *unless* we want the
-        # sitewise output.
-        span_normalised = True
-        if mode == "site":
-            span_normalised = not (isinstance(windows, str) and windows == "sitewise")
         output_dim = f(W[0]).shape[0]
         windows = self.parse_windows(windows)
         return self.ll_tree_sequence.general_stat(
             W, f, output_dim, windows, polarised=polarised,
-            span_normalised=span_normalised, mode=mode)
+            span_normalise=span_normalise, mode=mode)
 
     def sample_count_stat(
-            self, sample_sets, f, windows=None, polarised=False, mode=None):
-        '''
-        Here sample_sets is a list of lists of samples, and weight_fun is a
-        function whose argument is a list of integers of the same length as
-        sample_sets that returns a list of numbers.  A branch in a tree is
-        weighted by weight_fun(x) + weight_fun(n-x), where x[i] is the number
-        of samples in sample_sets[i] below that branch, and n[i]-x[i] is the
-        number *not* below that branch.  This finds the sum of this weight for
-        all branches in each tree, and averages this across the tree sequence,
-        weighted by genomic length.
-
-        It does this separately for each window [windows[i], windows[i+1]) and
-        returns the values in a list.  Note that windows cannot be overlapping,
-        but overlapping windows can be achieved by (a) computing staistics on a
-        small window size and (b) averaging neighboring windows, by additivity
-        of the statistics.
-        '''
+            self, sample_sets, f, windows=None, polarised=False, mode=None,
+            span_normalise=True):
         # helper function for common case where weights are indicators of sample sets
         for U in sample_sets:
             if len(U) != len(set(U)):
                 raise ValueError(
-                    "elements of sample_sets must be lists without repeated elements.")
+                    "Elements of sample_sets must be lists without repeated elements.")
             if len(U) == 0:
-                raise ValueError("elements of sample_sets cannot be empty.")
+                raise ValueError("Elements of sample_sets cannot be empty.")
             for u in U:
                 if not self.node(u).is_sample():
                     raise ValueError("Not all elements of sample_sets are samples.")
@@ -3088,9 +3069,9 @@ class TreeSequence(object):
         # target with a numpy array elementwise.
         if windows is None:
             windows = [0.0, self.sequence_length]
-        elif isinstance(windows, str) and windows == "treewise":
+        elif isinstance(windows, str) and windows == "trees":
             windows = self.breakpoints(as_array=True)
-        elif isinstance(windows, str) and windows == "sitewise":
+        elif isinstance(windows, str) and windows == "sites":
             # breakpoints are at 0.0 and midway between sites and at the end
             x = np.concatenate([[-1], self.tables.sites.position,
                                [self.sequence_length + 1]])
@@ -3103,17 +3084,20 @@ class TreeSequence(object):
     # Statistics definitions
     ############################################
 
-    def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None, mode=None):
+    def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
+                                  mode=None, span_normalise=True):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
             raise ValueError("Samples sets must contain at least one element")
         flattened = tables.to_np_int32(np.hstack(sample_sets))
         windows = self.parse_windows(windows)
-        return ll_method(sample_set_sizes, flattened, windows=windows, mode=mode)
+        return ll_method(sample_set_sizes, flattened, windows=windows,
+                         mode=mode, span_normalise=span_normalise)
 
     def __k_way_sample_set_stat(
-            self, ll_method, k, sample_sets, indexes=None, windows=None, mode=None):
+            self, ll_method, k, sample_sets, indexes=None, windows=None,
+            mode=None, span_normalise=True):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
@@ -3126,9 +3110,11 @@ class TreeSequence(object):
         if len(indexes.shape) != 2:
             raise ValueError("Indexes must be convertable to a 2D numpy array")
         return ll_method(
-            sample_set_sizes, flattened, indexes, windows=windows, mode=mode)
+            sample_set_sizes, flattened, indexes, windows=windows,
+            mode=mode, span_normalise=span_normalise)
 
-    def diversity(self, sample_sets, windows=None, mode="site"):
+    def diversity(self, sample_sets, windows=None, mode="site",
+                  span_normalise=True):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
         sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
@@ -3153,19 +3139,20 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indexes: A list of 1-tuples, or None, in which case the ``k`` th
-            returned value will be the diversity within the ``k`` th sample set
-            (you probably want to leave this at None, the default).
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__one_way_sample_set_stat(
-            self._ll_tree_sequence.diversity, sample_sets, windows=windows, mode=mode)
+            self._ll_tree_sequence.diversity, sample_sets, windows=windows,
+            mode=mode, span_normalise=span_normalise)
 
-    def divergence(self, sample_sets, indexes=None, windows=None, mode="site"):
+    def divergence(self, sample_sets, indexes=None, windows=None, mode="site",
+                   span_normalise=True):
         """
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
@@ -3199,11 +3186,13 @@ class TreeSequence(object):
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.divergence, 2, sample_sets, indexes=indexes,
-            windows=windows, mode=mode)
+            windows=windows, mode=mode, span_normalise=span_normalise)
 
     # JK: commenting this out for now to get the other methods well tested.
     # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
@@ -3240,7 +3229,8 @@ class TreeSequence(object):
     #                 k += 1
     #     return A
 
-    def Y3(self, sample_sets, indexes=None, windows=None, mode="site"):
+    def Y3(self, sample_sets, indexes=None, windows=None, mode="site",
+           span_normalise=True):
         """
         Computes the 'Y' statistic between triples of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
@@ -3269,13 +3259,16 @@ class TreeSequence(object):
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.Y3, 3, sample_sets, indexes=indexes, windows=windows,
-            mode=mode)
+            mode=mode, span_normalise=span_normalise)
 
-    def Y2(self, sample_sets, indexes=None, windows=None, mode="site"):
+    def Y2(self, sample_sets, indexes=None, windows=None, mode="site",
+           span_normalise=True):
         """
         Computes the 'Y2' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
@@ -3295,13 +3288,15 @@ class TreeSequence(object):
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.Y2, 2, sample_sets, indexes=indexes, windows=windows,
-            mode=mode)
+            mode=mode, span_normalise=span_normalise)
 
-    def Y1(self, sample_sets, windows=None, mode="site"):
+    def Y1(self, sample_sets, windows=None, mode="site", span_normalise=True):
         """
         Computes the 'Y1' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
@@ -3310,22 +3305,25 @@ class TreeSequence(object):
 
         What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average is across a randomly chosen trio of
-        samples ``(a1, a2, a3)`` all chosen from the same sample set. See
-        :ref:``Y3`` for more details.
+        samples ``(a1, a2, a3)`` all chosen without replacement from the same
+        sample set. See :ref:``Y3`` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute diversity within.
-        :param list indexes: A list of 1-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__one_way_sample_set_stat(
-            self._ll_tree_sequence.Y1, sample_sets, windows=windows, mode=mode)
+            self._ll_tree_sequence.Y1, sample_sets, windows=windows,
+            mode=mode, span_normalise=span_normalise)
 
-    def f4(self, sample_sets, indexes=None, windows=None, mode="site"):
+    def f4(self, sample_sets, indexes=None, windows=None, mode="site",
+           span_normalise=True):
         """
         Computes Patterson's f4 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
@@ -3359,13 +3357,16 @@ class TreeSequence(object):
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.f4, 4, sample_sets, indexes=indexes, windows=windows,
-            mode=mode)
+            mode=mode, span_normalise=span_normalise)
 
-    def f3(self, sample_sets, indexes=None, windows=None, mode="site"):
+    def f3(self, sample_sets, indexes=None, windows=None, mode="site",
+           span_normalise=True):
         """
         Computes Patterson's f3 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
@@ -3385,13 +3386,16 @@ class TreeSequence(object):
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.f3, 3, sample_sets, indexes=indexes, windows=windows,
-            mode=mode)
+            mode=mode, span_normalise=span_normalise)
 
-    def f2(self, sample_sets, indexes=None, windows=None, mode="site"):
+    def f2(self, sample_sets, indexes=None, windows=None, mode="site",
+           span_normalise=True):
         """
         Computes Patterson's f3 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
@@ -3413,11 +3417,13 @@ class TreeSequence(object):
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
-            mode=mode)
+            mode=mode, span_normalise=span_normalise)
 
     ############################################
     #

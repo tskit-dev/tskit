@@ -8,23 +8,23 @@ There is a unified interface for computing many types of summary statistics from
 These are implemented in a flexible way that
 -- like the tree sequence itself --
 exploits the duality between mutations and branches in the trees
-to compute statistics from both genome sequence
+to compute statistics of both genome sequence
 (whose definition does not depend on the trees)
-and from the underlying trees (whose definition does not depend on the genome sequence).
+and of the underlying trees (whose definition does not depend on the genome sequence).
 Furthermore, these statistics have a common interface to easily compute
 (a) averaged statistics in windows along the genome,
 and (b) summary statistics of many combinations of sets of samples simultaneously.
-All statistics return a two-dimensional numpy array,
+All methods return numpy arrays,
 whose rows correspond to the windows along the genome,
-and whose columns are determined by the statistic.
+and whose remaining dimensions are determined by the statistic.
 
 .. _sec_general_stats_type:
 
 **************
-Statistic type
+Statistic mode
 **************
 
-There are three types of statistic: ``site``, ``branch``, and ``node``,
+There are three **modes** of statistic: ``site``, ``branch``, and ``node``,
 that each summarize aspects of the tree sequence in different but related ways.
 Roughly speaking, these answer the following sorts of question:
 
@@ -35,7 +35,7 @@ branch
    How long since these genomes' common ancestor?
 
 node
-   On how much of the genome is each nodes an ancestors of only one of these genomes, but not both?
+   On how much of the genome is each node an ancestor of only one of these genomes, but not both?
 
 These three examples can all be answered in the same way with the tree sequence:
 first, draw all the paths from one genome to the other through the tree sequence
@@ -49,9 +49,13 @@ and precise definitions are given in each statistic.
 
 One important thing to know is that ``node`` statistics have somewhat different output.
 While ``site`` and ``branch`` statistics naturally return one number
-for each collection of nodes (described more below),
-the ``node`` statistics return one number **for each node** (and for each window).
+for each portion of the genome (and thus incorporates information about many nodes: see below),
+the ``node`` statistics return one number **for each node** in the tree sequence (and for each window).
 There can be a lot of nodes in the tree sequence, so beware.
+
+Also remember that in a tree sequence the "sites" are usually just the **variant** sites,
+e.g., the sites of the SNPs.
+(Although tree sequence may in principle have monomorphic sites, those produced by simulation usually don't.)
 
 .. _sec_general_stats_windowing:
 
@@ -64,7 +68,7 @@ which defines a collection of contiguous windows along the genome.
 If ``windows`` is a list of ``n+1`` increasing numbers between 0 and the ``sequence_length``,
 then the statistic will be computed separately in each of the ``n`` windows,
 and the ``k``-th row of the output will report the values of the statistic
-in the ``k``-th window, i.e., between ``windows[k]`` and ``windows[k+1]``.
+in the ``k``-th window, i.e., from (and including) ``windows[k]`` to (but not including) ``windows[k+1]``.
 
 All windowed statistics by default return **averages** within each of the windows,
 so the values are comparable between windows, even of different lengths.
@@ -82,24 +86,30 @@ There are some shortcuts to other useful options:
    This is the default, and equivalent to passing ``windows = [0.0, ts.sequence_length]``.
    The output will still be a two-dimensional array, but with only one row.
 
-``windows = "treewise"``
+``windows = "trees"``
    This says that you want statistics computed separately on the portion of the genome
    spanned by each tree, so is equivalent to passing ``windows = ts.breakpoints()``.
    (Beware: there can be a lot of trees!)
 
-``windows = "sitewise"``
-   This says to output one set of values for **each site**.
-   This is windowing option does *not* return an average across some region
-   (because sites occupy single points, not regions).
+``windows = "sites"``
+   This says to output one set of values for **each site**,
+   and is equivalent to passing ``windows = [s.position for s in ts.sites()] + [ts.sequence_length]``.
+   This will return one statistic for each site (beware!);
+   since the windows are all different sizes you probably want to also pass
+   ``span_normalise=False`` (see below).
 
-Furthermore, there is an option, ``unnormalized``,
-that returns the **sum** of the relevant statistic across each window rather than the average.
+Furthermore, there is an option, ``span_normalise`` (default ``True``),
+that if ``False`` returns the **sum** of the relevant statistic across each window rather than the average.
 The statistic that is returned by default is an average because we divide by
 rather than normalizing (i.e., dividing) by the length of the window.
-As above, if the statistic ``S`` was computed with ``unnormalized=True``,
+As above, if the statistic ``S`` was computed with ``span_normalise=False``,
 then the value obtained with ``windows = [a, c]`` would be equal to ``S[0] + S[1]``.
-However, you probably want the (default) normalized version:
-don't get unnormalized values unless you're sure that's what you want.
+However, you probably usually want the (default) normalized version:
+don't get unnormalised values unless you're sure that's what you want.
+The exception is when computing a site statistic with ``windows = "sites"``:
+this case, computes a statistic with the pattern of genotypes at each site,
+and normalising would divide these statistics by the distance to the previous variant site
+(probably not what you want to do).
 
 To explain normalization a bit more:
 a good way to think about these statistics in general
@@ -114,7 +124,7 @@ Branch statistics do just the same thing,
 except that we average over **all** locations on the sequence,
 not just the locations of mutations.
 So, usually "divergence" gives us the average number of differing sites
-per unit of genome length; but if we set ``unnormalized=True``
+per unit of genome length; but if we set ``span_normalise=False``
 then we'd just obtain the number of differing sites per window.
 
 And, a final note about "length": in tree sequences produced by ``msprime``
@@ -152,17 +162,18 @@ So, what if you
 have samples from each of 10 populations,
 and want to compute **all** fourty-five pairwise divergences?
 You could call ``divergence`` fourty-five times, but this would be tedious
-and would be inefficient, because the allele frequencies for one population
+and also inefficient, because the allele frequencies for one population
 gets used in computing many of those values.
 So, statistics that take a ``sample_sets`` argument also take an ``indices`` argument,
 which for a statistic that operates on ``k`` sample sets will be a list of ``k``-tuples.
 If ``indices`` is a length ``n`` list of ``k``-tuples,
 then the output will have ``n`` columns,
-and the ``j``-th column will contain values of the statistic computed on
-``(sample_sets[indices[j][0]], sample_sets[indices[j][1]], ..., sample_sets[indices[j][k]])``.
+and if ``indices[j]`` is a tuple ``(i0, ..., ik)``,
+then the ``j``-th column will contain values of the statistic computed on
+``(sample_sets[i0], sample_sets[i1], ..., sample_sets[ik])``.
 
 To recap: ``indices`` must be a list of tuples, each of length ``k``,
-of integers between ``0`` and ``len(sample-sets)``.
+of integers between ``0`` and ``len(sample_sets) - 1``.
 The appropriate value of ``k`` depends on the statistic.
 
 Here are some additional special cases:
@@ -186,6 +197,35 @@ Here are some additional special cases:
    Since node statistics output one value per node (unlike the other types, which output
    something summed across all nodes), it is an error to specify ``indices`` when computing
    a node statistic (consequently, you need to have exactly ``k`` sample sets).
+
+
+.. _sec_general_stats_output:
+
+******
+Output
+******
+
+Each of the statistics methods returns a ``numpy`` ndarray.
+Suppose that the output is name ``out``.
+In all cases, the number of rows of the output is equal to the number of windows,
+so that ``out.shape[0]`` is equal to ``len(windows) - 1``
+and ``out[i]`` is an array of statistics describing the portion of the tree sequence
+from ``windows[i]`` to ``windows[i + 1]`` (including the left but not the right endpoint).
+
+``mode="site"`` or ``mode="branch"``
+   The output is a two-dimensional array,
+   with columns corresponding to the different statistics computed: ``out[i, j]`` is the ``j``-th statistic
+   in the ``i``-th window.
+   If the statistic takes an ``indices`` argument, then ``out[i, j]`` has the statistic computed with ``indices[j]``.
+
+``mode="node"``
+   The output is a three-dimensional array,
+   with the second dimension corresponding to node id.
+   In other words, ``out.shape[1]`` is equal to ``ts.num_nodes``,
+   and ``out[i,j]`` is an array of statistics computed for node ``j`` on the ``i``-th window.
+
+The final dimension of the arrays in other cases is specified by the method.
+
 
 .. Commenting these out for now as they are duplicates of the methods in the TreeSequence
    and sphinx is unhappy.

@@ -6594,7 +6594,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     static char *kwlist[] = {"weights", "summary_func", "output_dim", "windows",
-        "mode", "polarised", "span_normalised", NULL};
+        "mode", "polarised", "span_normalise", NULL};
     PyObject *weights = NULL;
     PyObject *summary_func = NULL;
     PyObject *windows = NULL;
@@ -6603,7 +6603,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
     PyArrayObject *result_array = NULL;
     char *mode = NULL;
     int polarised = 0;
-    int span_normalised = 0;
+    int span_normalise = 0;
     tsk_size_t num_windows;
     unsigned int output_dim;
     npy_intp *w_shape;
@@ -6615,7 +6615,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOIO|sii", kwlist,
             &weights, &summary_func, &output_dim, &windows, &mode,
-            &polarised, &span_normalised)) {
+            &polarised, &span_normalise)) {
         Py_XINCREF(summary_func);
         goto out;
     }
@@ -6630,7 +6630,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (polarised) {
         options |= TSK_STAT_POLARISED;
     }
-    if (span_normalised) {
+    if (span_normalise) {
         options |= TSK_STAT_SPAN_NORMALISE;
     }
     if (parse_windows(windows, &windows_array, &num_windows) != 0) {
