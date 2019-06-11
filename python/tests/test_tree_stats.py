@@ -125,7 +125,7 @@ def path_length(tr, x, y):
 
 @contextlib.contextmanager
 def suppress_division_by_zero_warning():
-    with np.errstate(invalid='ignore'):
+    with np.errstate(invalid='ignore', divide='ignore'):
         yield
 
 
@@ -830,8 +830,6 @@ class SampleSetStatsMixin(object):
             self.assertEqual(sigma1.shape, sigma4.shape)
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
-            # print("computed", sigma1)
-            # print("definition", sigma4)
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
@@ -1298,6 +1296,68 @@ class TestNodeDivergence(TestDivergence, TopologyExamplesMixin):
 
 
 class TestSiteDivergence(TestDivergence, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+
+############################################
+# Fst
+############################################
+
+def single_site_Fst(ts, sample_sets, indexes):
+    """
+    Compute single-site Fst, which between two groups with frequencies p and q is
+      1 - 2 * (p (1-p) + q(1-q)) / ( p(1-p) + q(1-q) + p(1-q) + q(1-p) )
+    or in the multiallelic case, replacing p(1-p) with the sum over alleles of p(1-p),
+    and adjusted for sampling without replacement.
+    """
+    # TODO: what to do in this case?
+    if ts.num_sites == 0:
+        out = np.array([np.repeat(np.nan, len(indexes))])
+        return out
+    out = np.zeros((ts.num_sites, len(indexes)))
+    samples = ts.samples()
+    for j, v in enumerate(ts.variants()):
+        for i, (ix, iy) in enumerate(indexes):
+            g = v.genotypes
+            X = sample_sets[ix]
+            Y = sample_sets[iy]
+            gX = [a for k, a in zip(samples, g) if k in X]
+            gY = [a for k, a in zip(samples, g) if k in Y]
+            nX = len(X)
+            nY = len(Y)
+            dX = dY = dXY = 0
+            for a in set(g):
+                fX = np.sum(gX == a)
+                fY = np.sum(gY == a)
+                with suppress_division_by_zero_warning():
+                    dX += fX * (nX - fX) / (nX * (nX - 1))
+                    dY += fY * (nY - fY) / (nY * (nY - 1))
+                    dXY += (fX * (nY - fY) + (nX - fX) * fY) / (2 * nX * nY)
+            with suppress_division_by_zero_warning():
+                out[j][i] = 1 - 2 * (dX + dY) / (dX + dY + 2 * dXY)
+    return out
+
+
+class TestFst(StatsTestCase, TwoWaySampleSetStatsMixin):
+
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify(self, ts):
+        # only check per-site
+        for sample_sets in example_sample_sets(ts, min_size=2):
+            for indexes in example_sample_set_index_pairs(sample_sets):
+                self.verify_persite_Fst(ts, sample_sets, indexes)
+
+    def verify_persite_Fst(self, ts, sample_sets, indexes):
+        sigma1 = ts.Fst(sample_sets, indexes=indexes, windows="sites",
+                        mode=self.mode, span_normalise=False)
+        sigma2 = single_site_Fst(ts, sample_sets, indexes)
+        self.assertEqual(sigma1.shape, sigma2.shape)
+        self.assertArrayAlmostEqual(sigma1, sigma2)
+
+
+class TestSiteFst(TestFst, MutatedTopologyExamplesMixin):
     mode = "site"
 
 
@@ -2289,6 +2349,11 @@ class TestGeneralStatInterface(StatsTestCase):
     Tests for the basic interface for general_stats.
     """
 
+    def get_tree_sequence(self):
+        ts = msprime.simulate(10, recombination_rate=2,
+                              mutation_rate=2, random_seed=1)
+        return ts
+
     def test_default_mode(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
@@ -2302,6 +2367,15 @@ class TestGeneralStatInterface(StatsTestCase):
         for bad_mode in ["", "MODE", "x" * 8192]:
             with self.assertRaises(ValueError):
                 ts.general_stat(W, lambda x: x, mode=bad_mode)
+
+    def test_bad_window_strings(self):
+        ts = self.get_tree_sequence()
+        with self.assertRaises(ValueError):
+            ts.diversity([list(ts.samples())], mode="site", windows="abc")
+        with self.assertRaises(ValueError):
+            ts.diversity([list(ts.samples())], mode="site", windows="")
+        with self.assertRaises(ValueError):
+            ts.diversity([list(ts.samples())], mode="tree", windows="abc")
 
 
 class TestGeneralBranchStats(StatsTestCase):

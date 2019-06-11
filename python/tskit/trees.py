@@ -3076,15 +3076,19 @@ class TreeSequence(object):
         # target with a numpy array elementwise.
         if windows is None:
             windows = [0.0, self.sequence_length]
-        elif isinstance(windows, str) and windows == "trees":
-            windows = self.breakpoints(as_array=True)
-        elif isinstance(windows, str) and windows == "sites":
-            # breakpoints are at 0.0 and midway between sites and at the end
-            x = np.concatenate([[-1], self.tables.sites.position,
-                               [self.sequence_length + 1]])
-            windows = x[:-1] + np.diff(x)/2
-            windows[0] = 0.0
-            windows[-1] = self.sequence_length
+        elif isinstance(windows, str):
+            if windows == "trees":
+                windows = self.breakpoints(as_array=True)
+            elif windows == "sites":
+                # breakpoints are at 0.0 and at the sites and at the end
+                windows = np.concatenate([
+                                [] if self.num_sites > 0 else [0.0],
+                                self.tables.sites.position,
+                                [self.sequence_length]])
+                windows[0] = 0.0
+            else:
+                raise ValueError("Unrecognized window specification {}:".format(windows),
+                                 "the only allowed strings are 'sites' or 'trees'")
         return np.array(windows)
 
     ############################################
@@ -3129,7 +3133,7 @@ class TreeSequence(object):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
         sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``indexes``, ``windows``, and ``mode`` and return value.
+        details of ``indexes``, ``windows``, ``mode`` and return value.
         Operates on ``k = 1`` sample set at a time.
 
         What is computed depends on ``mode``:
@@ -3149,7 +3153,7 @@ class TreeSequence(object):
             only one of a random pair from the sample set, averaged over choices of pair.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -3167,7 +3171,7 @@ class TreeSequence(object):
         """
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``indexes``, ``windows``, and ``mode`` and return value.
+        details of ``indexes``, ``windows``, ``mode`` and return value.
         Operates on ``k = 2`` sample sets at a time. As a special case, an index
         `(j, j)` will compute the :ref:``diversity`` of ``sample_set[i]``.
 
@@ -3191,7 +3195,7 @@ class TreeSequence(object):
             choices of pair.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -3241,12 +3245,59 @@ class TreeSequence(object):
     #                 k += 1
     #     return A
 
+    def Fst(self, sample_sets, indexes=None, windows=None, mode="site",
+            span_normalise=True):
+        """
+        Computes "windowed" Fst between pairs of sets of nodes given by
+        ``sample_sets``. See :ref:`sec_general_stats` for details of
+        ``indexes``, ``windows``, ``mode`` and return value.  Operates on
+        ``k = 2`` sample sets at a time. For sample sets ``X`` and ``Y``,
+        if ``d(X, Y)`` is the :func:``divergence`` between ``X`` and ``Y``,
+        and ``d(X)`` is the :func: ``diversity`` of ``X``,
+        then what is computed is
+
+            Fst = 1 - 2 * (d(X) + d(Y)) / (d(X) + 2 * d(X, Y) + d(Y))
+
+        What is computed for diversity and divergence depends on ``mode``;
+        see those functions for more details.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of individuals to compute the statistic with.
+        :param list indexes: A list of 2-tuples, or None.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        diversities = self.diversity(sample_sets, windows=windows,
+                                     mode=mode, span_normalise=span_normalise)
+        divergences = self.divergence(sample_sets, indexes=indexes, windows=windows,
+                                      mode=mode, span_normalise=span_normalise)
+        orig_shape = divergences.shape
+        # "node" statistics might have a 3D array
+        if len(divergences.shape) == 2:
+            divergences.shape = (divergences.shape[0], 1, divergences.shape[1])
+            diversities.shape = (diversities.shape[0], 1, diversities.shape[1])
+
+        fst = np.repeat(1.0, np.product(divergences.shape))
+        fst.shape = divergences.shape
+        for i, (u, v) in enumerate(indexes):
+            denom = (diversities[:, :, u] + diversities[:, :, v]
+                     + 2 * divergences[:, :, i])
+            with np.errstate(divide='ignore', invalid='ignore'):
+                fst[:, :, i] -= 2 * (diversities[:, :, u] + diversities[:, :, v]) / denom
+        fst.shape = orig_shape
+        return fst
+
     def Y3(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):
         """
         Computes the 'Y' statistic between triples of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, and ``mode`` and return value. Operates
+        ``indexes``, ``windows``, ``mode`` and return value. Operates
         on ``k = 3`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is an average across
@@ -3265,7 +3316,7 @@ class TreeSequence(object):
             inherits from that node but ``b`` and ``c`` do not, or vice-versa.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param list indexes: A list of 3-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -3284,7 +3335,7 @@ class TreeSequence(object):
         """
         Computes the 'Y2' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, and ``mode`` and return value. Operates
+        ``indexes``, ``windows``, ``mode`` and return value. Operates
         on ``k = 2`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is computed exactly as
@@ -3294,7 +3345,7 @@ class TreeSequence(object):
         See :ref:``Y3`` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -3312,7 +3363,7 @@ class TreeSequence(object):
         """
         Computes the 'Y1' statistic between pairs of sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, and ``mode`` and return value. Operates
+        ``indexes``, ``windows``, ``mode`` and return value. Operates
         on ``k = 1`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is computed exactly as
@@ -3321,7 +3372,7 @@ class TreeSequence(object):
         sample set. See :ref:``Y3`` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -3339,7 +3390,7 @@ class TreeSequence(object):
         """
         Computes Patterson's f4 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        and ``mode`` and return value. Operates on ``k = 4`` sample sets
+        ``mode`` and return value. Operates on ``k = 4`` sample sets
         at a time.
 
         What is computed depends on ``mode``. Each is an average across
@@ -3363,7 +3414,7 @@ class TreeSequence(object):
             inherit from that node but ``b`` and ``c`` do not, or vice-versa.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param list indexes: A list of 4-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -3382,7 +3433,7 @@ class TreeSequence(object):
         """
         Computes Patterson's f3 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        and ``mode`` and return value. Operates on ``k = 3`` sample sets
+        ``mode`` and return value. Operates on ``k = 3`` sample sets
         at a time.
 
         What is computed depends on ``mode``. Each works exactly as
@@ -3392,7 +3443,7 @@ class TreeSequence(object):
         details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param list indexes: A list of 3-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -3411,7 +3462,7 @@ class TreeSequence(object):
         """
         Computes Patterson's f3 statistic between four groups of sample_sets.
         See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        and ``mode`` and return value. Operates on ``k = 3`` sample sets
+        ``mode`` and return value. Operates on ``k = 3`` sample sets
         at a time.
 
         What is computed depends on ``mode``. Each works exactly as
@@ -3423,7 +3474,7 @@ class TreeSequence(object):
 
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute diversity within.
+            groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
