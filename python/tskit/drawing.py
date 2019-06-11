@@ -681,11 +681,24 @@ class TextTreeSequence(object):
 
     def draw(self):
         trees = [
-            TextTree(tree, tree_height_scale="rank", max_tree_height=self.ts.num_nodes)
+            TextTree(tree, tree_height_scale="rank", max_tree_height="ts")
             for tree in self.ts.trees()]
-        w = sum(tree.width for tree in trees)
-        h = sum(tree.height for tree in trees)
-        self.self.canvas = array.array("u", (w * h) * ["x"])
+        self.width = sum(tree.width + 2 for tree in trees) - 1
+        self.height = max(tree.height for tree in trees)
+        self.canvas = np.zeros((self.height, self.width), dtype=str)
+        self.canvas[:] = " "
+
+        x = 0
+        for j, tree in enumerate(trees):
+            h, w = tree.canvas.shape
+            self.canvas[-h:, x: x + w - 1] = tree.canvas[:, :-1]
+            x += w
+            self.canvas[:, x] = "┊"
+            x += 2
+        self.canvas[:, -1] = "\n"
+
+    def __str__(self):
+        return "".join(self.canvas.reshape(self.width * self.height))
 
 
 LEFT = "left"
@@ -746,7 +759,7 @@ class TextTree(object):
         self.canvas = None
         # Placement of nodes in the 2D space. Nodes are positioned in one
         # dimension based on traversal ordering and by their time in the
-        # other dimensinon. These are mapped to x and y coordinates according
+        # other dimension. These are mapped to x and y coordinates according
         # to the orientation.
         self.traversal_position = {}  # Position of nodes in traversal space
         self.time_position = {}

@@ -3071,8 +3071,8 @@ class TreeSequence(object):
                 f.write(output)
         return output
 
-    def draw_text(self):
-        return str(drawing.TextTreeSequence(self))
+    def draw_text(self, **kwargs):
+        return str(drawing.TextTreeSequence(self, **kwargs))
 
     ############################################
     #
