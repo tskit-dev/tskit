@@ -71,12 +71,6 @@ def naive_general_branch_stats(ts, W, f, windows=None, polarised=False):
         return bsc.windowed_tree_stat(sigma, windows)
 
 
-def general_branch_stats(ts, W, f, windows=None, polarised=False):
-    # moved code over to tskit/stats.py
-    bsc = tskit.BranchLengthStatCalculator(ts)
-    return bsc.general_stat(W, f, windows=windows, polarised=polarised)
-
-
 def naive_general_site_stats(ts, W, f, windows=None, polarised=False):
     n, K = W.shape
     if n != ts.num_samples:
@@ -114,122 +108,6 @@ def general_site_stats(ts, W, f, windows=None, polarised=False):
     # moved code over to tskit/stats.py
     ssc = tskit.SiteStatCalculator(ts)
     return ssc.general_stat(W, f, windows=windows, polarised=polarised)
-
-
-class TestGeneralBranchStats(unittest.TestCase):
-    """
-    Tests for general tree stats.
-    """
-    def run_stats(self, ts, W, f, windows=None, polarised=False):
-        sigma2 = general_branch_stats(ts, W, f, windows, polarised=polarised)
-        sigma1 = naive_general_branch_stats(ts, W, f, windows, polarised=polarised)
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertTrue(np.allclose(sigma1, sigma2))
-        return sigma1
-
-    def test_simple_identity_f_w_zeros(self):
-        ts = msprime.simulate(20, recombination_rate=3, random_seed=2)
-        W = np.zeros((ts.num_samples, 3))
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: x, polarised=polarised)
-            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
-
-    def test_simple_identity_f_w_ones(self):
-        ts = msprime.simulate(5, recombination_rate=1, random_seed=2)
-        W = np.ones((ts.num_samples, 2))
-        sigma = self.run_stats(ts, W, lambda x: x, polarised=True)
-        self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-        # A W of 1 for every node and identity f counts the samples in the subtree
-        # if polarised is True.
-        # print(sigma)
-        for tree in ts.trees():
-            s = tree.span * sum(
-                tree.num_samples(u) * tree.branch_length(u) for u in tree.nodes())
-            print(s)
-            self.assertTrue(np.allclose(sigma[tree.index], s))
-
-    def test_single_tree_cumsum_f_w_arange(self):
-        ts = msprime.simulate(20, random_seed=7)
-        W = np.arange(ts.num_samples * 2).reshape((ts.num_samples, 2))
-
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x), polarised=polarised)
-            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-
-    def test_simple_cumsum_f_w_ones(self):
-        ts = msprime.simulate(20, recombination_rate=1, random_seed=2)
-        W = np.ones((ts.num_samples, 8))
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x), polarised=polarised)
-            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-
-    def test_windows_equal_to_ts_breakpoints(self):
-        ts = msprime.simulate(40, recombination_rate=1, random_seed=2)
-        W = np.ones((ts.num_samples, 1))
-        for polarised in [True, False]:
-            sigma_no_windows = self.run_stats(
-                ts, W, lambda x: np.cumsum(x), polarised=polarised)
-            self.assertEqual(sigma_no_windows.shape, (ts.num_trees, W.shape[1]))
-            sigma_windows = self.run_stats(
-                ts, W, lambda x: np.cumsum(x), windows=np.array(list(ts.breakpoints())),
-                polarised=polarised)
-            self.assertEqual(sigma_windows.shape, sigma_no_windows.shape)
-            self.assertTrue(np.allclose(sigma_windows.shape, sigma_no_windows.shape))
-
-    def test_simple_identity_f_w_zeros_windows(self):
-        ts = msprime.simulate(35, recombination_rate=3, random_seed=2)
-        W = np.zeros((ts.num_samples, 3))
-        windows = np.linspace(0, 1, num=11)
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: x, windows, polarised=polarised)
-            self.assertEqual(sigma.shape, (10, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
-
-
-class TestGeneralSiteStats(unittest.TestCase):
-
-    def run_stats(self, ts, W, f, windows=None, polarised=False):
-        sigma1 = naive_general_site_stats(ts, W, f, windows, polarised=polarised)
-        sigma2 = general_site_stats(ts, W, f, windows, polarised=polarised)
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertTrue(np.allclose(sigma1, sigma2))
-        return sigma1
-
-    def test_identity_f_W_0_multiple_alleles(self):
-        ts = msprime.simulate(20, recombination_rate=0, random_seed=2)
-        ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
-        W = np.zeros((ts.num_samples, 3))
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: x, polarised=polarised)
-            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
-
-    def test_identity_f_W_0_multiple_alleles_windows(self):
-        ts = msprime.simulate(34, recombination_rate=0, random_seed=2)
-        ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
-        W = np.zeros((ts.num_samples, 3))
-        windows = np.linspace(0, 1, num=11)
-        for polarised in [True, False]:
-            sigma = self.run_stats(
-                ts, W, lambda x: x, windows=windows, polarised=polarised)
-            self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
-
-    def test_cumsum_f_W_1_multiple_alleles(self):
-        ts = msprime.simulate(32, recombination_rate=2, random_seed=2)
-        ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
-        W = np.ones((ts.num_samples, 3))
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x), polarised=polarised)
-            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
-
-    def test_cumsum_f_W_1_two_alleles(self):
-        ts = msprime.simulate(42, recombination_rate=2, mutation_rate=2, random_seed=1)
-        W = np.ones((ts.num_samples, 5))
-        for polarised in [True, False]:
-            sigma = self.run_stats(ts, W, lambda x: np.cumsum(x))
-            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
 
 def path_length(tr, x, y):
