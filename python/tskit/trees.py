@@ -2446,7 +2446,7 @@ class TreeSequence(object):
         if ``as_array`` is True we return them as a numpy array.
 
         Note that the ``as_array`` form will be more efficient and convenient in most
-        cases; the default iterator behavious is mainly kept to ensure compatability
+        cases; the default iterator behaviour is mainly kept to ensure compatability
         with existing code.
 
         :param bool as_array: If True, return the breakpoints as a numpy array.
@@ -3086,6 +3086,8 @@ class TreeSequence(object):
 
     def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
                                   mode=None, span_normalise=True):
+        if mode == "node":
+            raise NotImplementedError("Node stats are not implemented yet")
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
@@ -3098,6 +3100,8 @@ class TreeSequence(object):
     def __k_way_sample_set_stat(
             self, ll_method, k, sample_sets, indexes=None, windows=None,
             mode=None, span_normalise=True):
+        if mode == "node":
+            raise NotImplementedError("Node stats are not implemented yet")
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
