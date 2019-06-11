@@ -183,7 +183,7 @@ class SvgTreeDrawer(TreeDrawer):
 
         y_padding = 20
         mutations_over_root = any(
-            tree.parent(mut.node) == NULL_NODE for mut in tree.mutations())
+            tree.parent(mut.node) == NULL for mut in tree.mutations())
         root_branch_length = 0
         if mutations_over_root:
             # Allocate a fixed about of space to show the mutations on the
@@ -571,7 +571,7 @@ class SvgTreeSequence(object):
         label_padding = 10
         y_padding = self.treebox_y_offset + 2 * label_padding
         mutations_over_root = any(
-            any(tree.parent(mut.node) == NULL_NODE for mut in tree.mutations())
+            any(tree.parent(mut.node) == NULL for mut in tree.mutations())
             for tree in ts.trees())
         root_branch_length = 0
         height = self.image_size[1]
@@ -623,16 +623,16 @@ class SvgTreeSequence(object):
             labels = self.mid_labels
             if tree.is_leaf(u):
                 dy = 20
-            elif tree.parent(u) != NULL_NODE:
+            elif tree.parent(u) != NULL:
                 dx = 5
-                if tree.left_sib(u) == NULL_NODE:
+                if tree.left_sib(u) == NULL:
                     dx *= -1
                     labels = self.right_labels
                 else:
                     labels = self.left_labels
             labels.add(dwg.text(self.node_labels[u], (pu[0] + dx, pu[1] + dy)))
             v = tree.parent(u)
-            if v != NULL_NODE:
+            if v != NULL:
                 pv = node_x_coord_map[v], node_y_coord_map[v]
                 self.edges.add(dwg.line(pu, (pu[0], pv[1])))
                 self.edges.add(dwg.line((pu[0], pv[1]), pv))
@@ -648,7 +648,7 @@ class SvgTreeSequence(object):
                     self.mutations.add(dwg.rect(
                         insert=(x - r, y - r), size=(2 * r, 2 * r)))
                     dx = 5
-                    if tree.left_sib(mutation.node) == NULL_NODE:
+                    if tree.left_sib(mutation.node) == NULL:
                         dx *= -1
                         labels = self.mutation_right_labels
                     else:
@@ -656,6 +656,7 @@ class SvgTreeSequence(object):
                     dy = 1.5 * r
                     labels.add(dwg.text(str(mutation.id), (x + dx, y + dy)))
                     y -= delta
+
 
 class SvgTree(object):
     """
@@ -680,14 +681,16 @@ class TextTreeSequence(object):
 
     def draw(self):
         trees = [
-            TextTree(tree, tree_height_scale="rank", max_tree_height=ts.num_nodes)
+            TextTree(tree, tree_height_scale="rank", max_tree_height=self.ts.num_nodes)
             for tree in self.ts.trees()]
         w = sum(tree.width for tree in trees)
         h = sum(tree.height for tree in trees)
         self.self.canvas = array.array("u", (w * h) * ["x"])
 
+
 LEFT = "left"
 TOP = "top"
+
 
 def check_orientation(orientation):
     if orientation is None:
@@ -695,7 +698,7 @@ def check_orientation(orientation):
     else:
         orientation = orientation.lower()
         orientations = [LEFT, TOP]
-        if orientation not in orientiations:
+        if orientation not in orientations:
             raise ValueError(
                 "Unknown orientiation: choose from {}".format(orientations))
     return orientation
@@ -841,7 +844,6 @@ class TextTree(object):
                         self.canvas[yv - 1, xv] = mid_char
                     self.canvas[y, left] = self.left_down_char
                     self.canvas[y, right] = self.right_down_char
-
 
         # Put in the EOLs last so that if we can't overwrite them.
         self.canvas[:, -1] = "\n"
