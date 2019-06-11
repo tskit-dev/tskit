@@ -535,6 +535,19 @@ def upper_tri_to_matrix(x):
 ##################################
 
 
+class TestNodeStatsDisabled(unittest.TestCase):
+    """
+    Temporary test to make sure that tests are disabled.
+    """
+    def test_raises_error(self):
+        ts = msprime.simulate(10, random_seed=1)
+        with self.assertRaises(NotImplementedError):
+            ts.diversity(ts.samples(), mode="node")
+
+        with self.assertRaises(NotImplementedError):
+            ts.divergence([[0, 1], [2, 3]], mode="node")
+
+
 class StatsTestCase(unittest.TestCase):
     """
     Provides convenience functions.
@@ -1277,7 +1290,6 @@ class TestDivergence(StatsTestCase, TwoWaySampleSetStatsMixin):
         denom = np.array([n[i] * (n[j] - (i == j)) for i, j in indexes])
 
         def f(x):
-            # TODO what happens when denom == 0?
             numer = np.array([(x[i] * (n[j] - x[j])) for i, j in indexes])
             return numer / denom
 
@@ -1410,7 +1422,6 @@ class TestY2(StatsTestCase, TwoWaySampleSetStatsMixin):
         denom = np.array([n[i] * n[j] * (n[j] - 1) for i, j in indexes])
 
         def f(x):
-            # TODO what happens when denom == 0?
             numer = np.array([
                 (x[i] * (n[j] - x[j]) * (n[j] - x[j] - 1)) for i, j in indexes])
             return numer / denom
@@ -1550,7 +1561,6 @@ class TestY3(StatsTestCase, ThreeWaySampleSetStatsMixin):
         denom = np.array([n[i] * n[j] * n[k] for i, j, k in indexes])
 
         def f(x):
-            # TODO what happens when denom == 0?
             numer = np.array(
                 [x[i] * (n[j] - x[j]) * (n[k] - x[k]) for i, j, k in indexes])
             return numer / denom
@@ -1692,7 +1702,6 @@ class Testf2(StatsTestCase, TwoWaySampleSetStatsMixin):
         denom = np.array([n[i] * (n[i] - 1) * n[j] * (n[j] - 1) for i, j in indexes])
 
         def f(x):
-            # TODO what happens when denom == 0?
             numer = np.array([
                 x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[j] - x[j] - 1)
                 - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[j]
@@ -1976,7 +1985,6 @@ class Testf4(StatsTestCase, FourWaySampleSetStatsMixin):
             numer = np.array([
                 x[i] * x[k] * (n[j] - x[j]) * (n[l] - x[l])
                 - x[i] * x[l] * (n[j] - x[j]) * (n[k] - x[k]) for i, j, k, l in indexes])
-            # TODO what happens when denom == 0?
             return numer / denom
         self.verify_definition(ts, sample_sets, indexes, windows, f, ts.f4, f4)
 
