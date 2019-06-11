@@ -966,7 +966,19 @@ class Tree(object):
         return self._ll_tree.get_sample_size()
 
     def draw_text(self, **kwargs):
+        # Experimental drawing code. This aims to replace or at least be a more
+        # powerful SVG driven interface for the code below.
         return str(drawing.TextTree(self, **kwargs))
+
+    def draw_svg(self, path=None, **kwargs):
+        # Experimental drawing code. This aims to replace or at least be a more
+        # powerful SVG driven interface for the code below.
+        draw = drawing.SvgTree(self, **kwargs)
+        output = draw.drawing.tostring()
+        if path is not None:
+            # TODO: removed the pretty here when this is stable.
+            draw.drawing.saveas(path, pretty=True)
+        return output
 
     def draw(
             self, path=None, width=None, height=None,
@@ -3058,20 +3070,18 @@ class TreeSequence(object):
         else:
             return new_ts
 
-    def draw_svg(self, path=None, width=None, height=None, **kwargs):
-        # TODO is width/height helpful here or should we
-        if width is None:
-            width = 200 * self.num_trees
-        if height is None:
-            height = 300
-        draw = drawing.SvgTreeSequence(self, (width, height), **kwargs)
+    def draw_svg(self, path=None, **kwargs):
+        # TODO document this method, including semantic details of the
+        # returned SVG object.
+        draw = drawing.SvgTreeSequence(self, **kwargs)
         output = draw.drawing.tostring()
         if path is not None:
-            with open(path, "w") as f:
-                f.write(output)
+            # TODO remove the 'pretty' when we are done debugging this.
+            draw.drawing.saveas(path, pretty=True)
         return output
 
     def draw_text(self, **kwargs):
+        # TODO document this method.
         return str(drawing.TextTreeSequence(self, **kwargs))
 
     ############################################

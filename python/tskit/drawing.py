@@ -30,6 +30,13 @@ from _tskit import NULL
 import svgwrite
 import numpy as np
 
+# NOTE: The code on the top of this module is marked for removal, to be replaced
+# by the new SVG and Unicode tree drawing methods on the bottom. The aim is to
+# make the current tree.draw() method use these functions, giving a simple high
+# level interface. The draw_svg method on the other hand then gives a much
+# more flexible way of drawing trees, with direct access to the SVG drawing
+# primitives.
+
 
 def check_format(format):
     if format is None:
@@ -488,44 +495,47 @@ class SvgTreeSequence(object):
     independant SVG entity, so that we can manipulate it.
     """
 
-    def __init__(self, ts, size, tree_height_scale=None, max_tree_height=None):
+    def __init__(
+            self, ts, size=None, tree_height_scale=None, max_tree_height=None,
+            node_attrs=None, edge_attrs=None, node_label_attrs=None):
         self.ts = ts
+        if size is None:
+            size = (200 * ts.num_trees, 200)
         self.image_size = size
-        self.setup_drawing()
+        self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
         self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
-        self.axes_x_offset = 10
+        # TODO add general padding arguments following matplotlib's terminology.
+        self.axes_x_offset = 15
         self.axes_y_offset = 10
-        self.treebox_x_offset = 30
-        self.treebox_y_offset = 30
-        self.assign_y_coordinates(tree_height_scale, max_tree_height)
+        self.treebox_x_offset = self.axes_x_offset + 5
+        self.treebox_y_offset = self.axes_y_offset + 5
         x = self.treebox_x_offset
         treebox_width = size[0] - 2 * self.treebox_x_offset
+        treebox_height = size[1] - 2 * self.treebox_y_offset
         tree_width = treebox_width / ts.num_trees
+        svg_trees = [
+            SvgTree(
+                tree, (tree_width, treebox_height),
+                tree_height_scale=tree_height_scale,
+                node_attrs=node_attrs, edge_attrs=edge_attrs,
+                node_label_attrs=node_label_attrs)
+            for tree in ts.trees()]
+
         ticks = []
+        y = self.treebox_y_offset
+        defs = self.drawing.defs
+
+        for tree, svg_tree in zip(ts.trees(), svg_trees):
+            defs.add(svg_tree.root_group)
+
         for tree in ts.trees():
-            self.draw_tree(tree, x, tree_width)
+            tree_id = "#tree_{}".format(tree.index)
+            use = self.drawing.use(tree_id, (x, y))
+            self.drawing.add(use)
             ticks.append((x, tree.interval[0]))
             x += tree_width
         ticks.append((x, ts.sequence_length))
-        self.draw_axes(ticks)
 
-    def setup_drawing(self):
-        self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
-        dwg = self.drawing
-        self.edges = dwg.add(dwg.g(id='edges',  stroke="black"))
-        self.nodes = dwg.add(dwg.g(id='nodes'))
-        self.mutations = dwg.add(dwg.g(id='mutations', fill="red"))
-        self.left_labels = dwg.add(dwg.g(font_size=14, text_anchor="start"))
-        self.right_labels = dwg.add(dwg.g(font_size=14, text_anchor="end"))
-        self.mid_labels = dwg.add(dwg.g(font_size=14, text_anchor="middle"))
-        self.mutation_left_labels = dwg.add(dwg.g(
-            font_size=14, text_anchor="start", font_style="italic",
-            alignment_baseline="middle"))
-        self.mutation_right_labels = dwg.add(dwg.g(
-            font_size=14, text_anchor="end", font_style="italic",
-            alignment_baseline="middle"))
-
-    def draw_axes(self, ticks):
         dwg = self.drawing
 
         # # Debug --- draw the tree and axes boxes
@@ -549,15 +559,76 @@ class SvgTreeSequence(object):
                 "{:.2f}".format(genome_coord), (x, y + 20),
                 font_size=14, text_anchor="middle", font_weight="bold"))
 
+
+class SvgTree(object):
+    """
+    An SVG representation of a single tree.
+
+    TODO should provide much more SVG structure which we document fully
+    to that the SVG elements can be manipulated directly by the user.
+    For example, every edge should be given an SVG ID so that it can
+    be referred to and modified.
+
+    """
+    def __init__(
+            self, tree, size=None, tree_height_scale=None, max_tree_height=None,
+            node_attrs=None, edge_attrs=None, node_label_attrs=None):
+        self.tree = tree
+        if size is None:
+            size = (200, 200)
+        self.image_size = size
+        self.setup_drawing()
+        self.node_labels = {u: str(u) for u in tree.nodes()}
+        self.treebox_x_offset = 10
+        self.treebox_y_offset = 10
+        self.treebox_width = size[0] - 2 * self.treebox_x_offset
+        self.assign_y_coordinates(tree_height_scale, max_tree_height)
+        self.node_x_coord_map = self.assign_x_coordinates(
+            tree, self.treebox_x_offset, self.treebox_width)
+        self.edge_attrs = {}
+        self.node_attrs = {}
+        self.node_label_attrs = {}
+        for u in tree.nodes():
+            self.edge_attrs[u] = {}
+            if edge_attrs is not None and u in edge_attrs:
+                self.edge_attrs[u].update(edge_attrs[u])
+            self.node_attrs[u] = {"r": 3}
+            if node_attrs is not None and u in node_attrs:
+                self.node_attrs[u].update(node_attrs[u])
+            self.node_label_attrs[u] = {"text": "{}".format(u)}
+            if node_label_attrs is not None and u in node_label_attrs:
+                self.node_label_attrs[u].update(node_label_attrs[u])
+        self.draw()
+
+    def setup_drawing(self):
+        self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
+        dwg = self.drawing
+
+        self.root_group = dwg.add(dwg.g(id='tree_{}'.format(self.tree.index)))
+        self.edges = self.root_group.add(dwg.g(id='edges',  stroke="black", fill="none"))
+        self.nodes = self.root_group.add(dwg.g(id='nodes'))
+        self.mutations = self.root_group.add(dwg.g(id='mutations', fill="red"))
+        self.left_labels = self.root_group.add(dwg.g(font_size=14, text_anchor="start"))
+        self.right_labels = self.root_group.add(dwg.g(font_size=14, text_anchor="end"))
+        self.mid_labels = self.root_group.add(dwg.g(font_size=14, text_anchor="middle"))
+        self.mutation_left_labels = self.root_group.add(dwg.g(
+            font_size=14, text_anchor="start", font_style="italic",
+            alignment_baseline="middle"))
+        self.mutation_right_labels = self.root_group.add(dwg.g(
+            font_size=14, text_anchor="end", font_style="italic",
+            alignment_baseline="middle"))
+
     def assign_y_coordinates(self, tree_height_scale, max_tree_height):
-        ts = self.ts
+        ts = self.tree.tree_sequence
         node_time = ts.tables.nodes.time
         if tree_height_scale in [None, "time"]:
             node_height = node_time
             if max_tree_height is None:
                 max_tree_height = ts.max_root_time
         else:
-            assert tree_height_scale == "rank"
+            if tree_height_scale != "rank":
+                raise ValueError(
+                    "Only 'time' and 'rank' are supported for tree_height_scale")
             depth = {t: 2 * j for j, t in enumerate(np.unique(node_time))}
             node_height = [depth[node_time[u]] for u in range(ts.num_nodes)]
             if max_tree_height is None:
@@ -605,10 +676,11 @@ class SvgTreeSequence(object):
                         node_x_coord_map[u] = a + (b - a) / 2
         return node_x_coord_map
 
-    def draw_tree(self, tree, x_start, width):
+    def draw(self):
         dwg = self.drawing
-        node_x_coord_map = self.assign_x_coordinates(tree, x_start, width)
+        node_x_coord_map = self.node_x_coord_map
         node_y_coord_map = self.node_y_coord_map
+        tree = self.tree
 
         node_mutations = collections.defaultdict(list)
         for site in tree.sites():
@@ -617,7 +689,8 @@ class SvgTreeSequence(object):
 
         for u in tree.nodes():
             pu = node_x_coord_map[u], node_y_coord_map[u]
-            self.nodes.add(dwg.circle(center=pu, r=3))
+            node_id = "node_{}_{}".format(tree.index, u)
+            self.nodes.add(dwg.circle(id=node_id, center=pu, **self.node_attrs[u]))
             dx = 0
             dy = -5
             labels = self.mid_labels
@@ -630,12 +703,17 @@ class SvgTreeSequence(object):
                     labels = self.right_labels
                 else:
                     labels = self.left_labels
-            labels.add(dwg.text(self.node_labels[u], (pu[0] + dx, pu[1] + dy)))
+            # TODO add ID to node label text.
+            labels.add(dwg.text(
+                insert=(pu[0] + dx, pu[1] + dy), **self.node_label_attrs[u]))
             v = tree.parent(u)
             if v != NULL:
+                edge_id = "edge_{}_{}".format(tree.index, u)
                 pv = node_x_coord_map[v], node_y_coord_map[v]
-                self.edges.add(dwg.line(pu, (pu[0], pv[1])))
-                self.edges.add(dwg.line((pu[0], pv[1]), pv))
+                path = dwg.path(
+                    [("M", pu), ("V", pv[1]), ("H", pv[0])], id=edge_id,
+                    **self.edge_attrs[u])
+                self.edges.add(path)
 
                 # TODO do something with mutations over the root
                 # Draw the mutations
@@ -644,6 +722,7 @@ class SvgTreeSequence(object):
                 x = pu[0]
                 y = pv[1] - delta
                 r = 3
+                # TODO add support for manipulating mutation properties and IDs
                 for mutation in node_mutations[u]:
                     self.mutations.add(dwg.rect(
                         insert=(x - r, y - r), size=(2 * r, 2 * r)))
@@ -658,22 +737,10 @@ class SvgTreeSequence(object):
                     y -= delta
 
 
-class SvgTree(object):
-    """
-    An SVG representation of a single tree.
-
-    TODO should provide much more SVG structure which we document fully
-    to that the SVG elements can be manipulated directly by the user.
-    For example, every edge should be given an SVG ID so that it can
-    be referred to and modified.
-    """
-
-
 class TextTreeSequence(object):
     """
     Draw a tree sequence as horizontal line of trees.
     """
-
     def __init__(self, ts):
         self.ts = ts
         self.canvas = None
@@ -701,20 +768,21 @@ class TextTreeSequence(object):
         return "".join(self.canvas.reshape(self.width * self.height))
 
 
-LEFT = "left"
-TOP = "top"
+# # TODO not actually done anything with this yet. See if it we can use it.
+# LEFT = "left"
+# TOP = "top"
 
 
-def check_orientation(orientation):
-    if orientation is None:
-        orientation = LEFT
-    else:
-        orientation = orientation.lower()
-        orientations = [LEFT, TOP]
-        if orientation not in orientations:
-            raise ValueError(
-                "Unknown orientiation: choose from {}".format(orientations))
-    return orientation
+# def check_orientation(orientation):
+#     if orientation is None:
+#         orientation = LEFT
+#     else:
+#         orientation = orientation.lower()
+#         orientations = [LEFT, TOP]
+#         if orientation not in orientations:
+#             raise ValueError(
+#                 "Unknown orientiation: choose from {}".format(orientations))
+#     return orientation
 
 
 def to_np_unicode(string):
@@ -737,6 +805,7 @@ class TextTree(object):
     Draws a reprentation of a tree using unicode drawing characters written
     to a 2D array.
     """
+    # TODO make this an option for to allow using ASCII chars.
     left_down_char = "\u250F"
     right_down_char = "\u2513"
     horizontal_line_char = "\u2501"
@@ -746,13 +815,12 @@ class TextTree(object):
     mid_up_down_char = "\u254b"
 
     def __init__(
-            self, tree, node_labels=None, tree_height_scale=None, max_tree_height=None,
-            orientation=None):
+            self, tree, node_labels=None, tree_height_scale=None, max_tree_height=None):
         self.tree = tree
         self.tree_height_scale = tree_height_scale
         self.max_tree_height = max_tree_height
         self.num_leaves = len(list(tree.leaves()))
-        self.orientation = check_orientation(orientation)
+        # self.orientation = check_orientation(orientation)
         # TODO Change to size tuple
         self.width = None
         self.height = None
@@ -766,6 +834,7 @@ class TextTree(object):
         # Labels for nodes
         self.node_labels = {}
 
+        # TODO Clear up the logic here. What do we actually support?
         if tree_height_scale not in [None, "time", "rank"]:
             raise ValueError("tree_height_scale must be one of 'time' or 'rank'")
         numeric_max_tree_height = max_tree_height not in [None, "tree", "ts"]
