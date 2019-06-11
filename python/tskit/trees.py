@@ -965,8 +965,8 @@ class Tree(object):
         """
         return self._ll_tree.get_sample_size()
 
-    def draw_text(self):
-        return str(drawing.TextTree(self))
+    def draw_text(self, **kwargs):
+        return str(drawing.TextTree(self, **kwargs))
 
     def draw(
             self, path=None, width=None, height=None,

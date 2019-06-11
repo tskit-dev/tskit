@@ -309,8 +309,8 @@ class SvgTreeDrawer(TreeDrawer):
                 dy = 1.5 * r
                 labels.add(dwg.text(
                     self._mutation_labels[mutation.id], (x[0] + dx, x[1] + dy)))
-        # return dwg.tostring()
-        return dwg
+        return dwg.tostring()
+        # return dwg
 
 
 class TextTreeDrawer(TreeDrawer):
@@ -796,7 +796,7 @@ class TextTree(object):
 
     def assign_traversal_positions(self):
         # Get the overall width and assign x coordinates.
-        x = 1
+        x = 0
         for root in self.tree.roots:
             for u in self.tree.nodes(root, order="postorder"):
                 if self.tree.is_leaf(u):
@@ -841,7 +841,7 @@ class TextTree(object):
                         self.canvas[yu + 2: yv, xv] = self.vertical_line_char
                         mid_char = (
                             self.mid_up_down_char if xv == xu else self.mid_down_char)
-                        self.canvas[yv - 1, xv] = mid_char
+                        self.canvas[yu + 1, xv] = mid_char
                     self.canvas[y, left] = self.left_down_char
                     self.canvas[y, right] = self.right_down_char
 

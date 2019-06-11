@@ -333,6 +333,42 @@ class TestDrawUnicode(TestDrawText):
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
+        drawn = t.draw_text()
+        self.verify_text_rendering(drawn, tree)
+
+    def test_four_leaves(self):
+        nodes = io.StringIO("""\
+        id      is_sample   population      individual      time    metadata
+        0       1       0       -1      0.00000000000000
+        1       1       0       -1      0.00000000000000
+        2       1       0       -1      0.00000000000000
+        3       1       0       -1      0.00000000000000
+        4       0       0       -1      0.26676079696421
+        5       0       0       -1      1.48826948286480
+        6       0       0       -1      2.91835007758007
+        """)
+        edges = io.StringIO("""\
+        left            right           parent  child
+        0.00000000      1.00000000      4       0
+        0.00000000      1.00000000      4       3
+        0.00000000      1.00000000      5       2
+        0.00000000      1.00000000      5       4
+        0.00000000      1.00000000      6       1
+        0.00000000      1.00000000      6       5
+        """)
+        tree = (
+            "  6     \n"
+            "┏━┻━┓   \n"
+            "┃   5   \n"
+            "┃ ┏━┻┓  \n"
+            "┃ ┃  4  \n"
+            "┃ ┃ ┏┻┓ \n"
+            "1 2 0 3 \n")
+        ts = tskit.load_text(nodes, edges, strict=False)
+        t = ts.first()
+        drawn = t.draw(format="unicode")
+        self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(), tree)
 
     def test_trident_tree(self):
         nodes = io.StringIO("""\
@@ -356,6 +392,7 @@ class TestDrawUnicode(TestDrawText):
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(), tree)
 
     def test_pitchfork_tree(self):
         nodes = io.StringIO("""\
@@ -373,12 +410,16 @@ class TestDrawUnicode(TestDrawText):
         0       1       4       2
         0       1       4       3
         """)
+        ts = tskit.load_text(nodes, edges, strict=False)
+        t = next(ts.trees())
         tree = (
             "   4   \n"
             "┏━┳┻┳━┓\n"
             "0 1 2 3\n")
-        ts = tskit.load_text(nodes, edges, strict=False)
-        t = next(ts.trees())
+        drawn = t.draw(format="unicode")
+        self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(), tree)
+
         # No labels
         tree = (
             "   ┃   \n"
@@ -386,13 +427,16 @@ class TestDrawUnicode(TestDrawText):
             "┃ ┃ ┃ ┃\n")
         drawn = t.draw(format="unicode", node_labels={})
         self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(node_labels={}), tree)
         # Some lables
         tree = (
             "   ┃   \n"
             "┏━┳┻┳━┓\n"
             "0 ┃ ┃ 3\n")
-        drawn = t.draw(format="unicode", node_labels={0: "0", 3: "3"})
+        labels = {0: "0", 3: "3"}
+        drawn = t.draw(format="unicode", node_labels=labels)
         self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
 
     def test_stick_tree(self):
         nodes = io.StringIO("""\
@@ -416,6 +460,112 @@ class TestDrawUnicode(TestDrawText):
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(), tree)
+
+    def test_draw_forky_tree(self):
+        tree = (
+           "       14           \n"
+           "  ┏━━━━┻━━━━┓       \n"
+           "  ┃         13      \n"
+           "  ┃   ┏━┳━┳━╋━┳━━┓  \n"
+           "  ┃   ┃ ┃ ┃ ┃ ┃  12 \n"
+           "  ┃   ┃ ┃ ┃ ┃ ┃ ┏┻┓ \n"
+           "  11  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+           "┏━┻┓  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+           "┃  10 ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+           "┃ ┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+           "8 0 3 2 4 5 6 9 1 7 \n")
+
+        nodes = io.StringIO("""\
+            id      is_sample   population      individual      time    metadata
+            0       1       0       -1      0.00000000000000
+            1       1       0       -1      0.00000000000000
+            2       1       0       -1      0.00000000000000
+            3       1       0       -1      0.00000000000000
+            4       1       0       -1      0.00000000000000
+            5       1       0       -1      0.00000000000000
+            6       1       0       -1      0.00000000000000
+            7       1       0       -1      0.00000000000000
+            8       1       0       -1      0.00000000000000
+            9       1       0       -1      0.00000000000000
+            10      0       0       -1      0.02398248117831
+            11      0       0       -1      0.17378680550869
+            12      0       0       -1      0.19950200178411
+            13      0       0       -1      0.20000000000000
+            14      0       0       -1      5.68339203134457
+        """)
+        edges = io.StringIO("""\
+            left            right           parent  child
+            0.00000000      1.00000000      10      0
+            0.00000000      1.00000000      10      3
+            0.00000000      1.00000000      11      8
+            0.00000000      1.00000000      11      10
+            0.00000000      1.00000000      12      1
+            0.00000000      1.00000000      12      7
+            0.00000000      1.00000000      13      2
+            0.00000000      1.00000000      13      4
+            0.00000000      1.00000000      13      5
+            0.00000000      1.00000000      13      6
+            0.00000000      1.00000000      13      9
+            0.00000000      1.00000000      13      12
+            0.00000000      1.00000000      14      11
+            0.00000000      1.00000000      14      13
+        """)
+        ts = tskit.load_text(nodes, edges, strict=False)
+        t = next(ts.trees())
+        drawn = t.draw(format="unicode")
+        self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(), tree)
+
+    def test_draw_multiroot_forky_tree(self):
+        tree = (
+           "      13             \n"
+           "┏━┳━┳━╋━┳━━┓         \n"
+           "┃ ┃ ┃ ┃ ┃  12        \n"
+           "┃ ┃ ┃ ┃ ┃ ┏┻┓        \n"
+           "┃ ┃ ┃ ┃ ┃ ┃ ┃   11   \n"
+           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┏┻━┓  \n"
+           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃  10 \n"
+           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ ┏┻┓ \n"
+           "2 4 5 6 9 1 7  8 0 3 \n")
+        nodes = io.StringIO("""\
+            id      is_sample   population      individual      time    metadata
+            0       1       0       -1      0.00000000000000
+            1       1       0       -1      0.00000000000000
+            2       1       0       -1      0.00000000000000
+            3       1       0       -1      0.00000000000000
+            4       1       0       -1      0.00000000000000
+            5       1       0       -1      0.00000000000000
+            6       1       0       -1      0.00000000000000
+            7       1       0       -1      0.00000000000000
+            8       1       0       -1      0.00000000000000
+            9       1       0       -1      0.00000000000000
+            10      0       0       -1      0.02398248117831
+            11      0       0       -1      0.17378680550869
+            12      0       0       -1      0.19950200178411
+            13      0       0       -1      0.20000000000000
+            14      0       0       -1      5.68339203134457
+        """)
+        edges = io.StringIO("""\
+            left            right           parent  child
+            0.00000000      1.00000000      10      0
+            0.00000000      1.00000000      10      3
+            0.00000000      1.00000000      11      8
+            0.00000000      1.00000000      11      10
+            0.00000000      1.00000000      12      1
+            0.00000000      1.00000000      12      7
+            0.00000000      1.00000000      13      2
+            0.00000000      1.00000000      13      4
+            0.00000000      1.00000000      13      5
+            0.00000000      1.00000000      13      6
+            0.00000000      1.00000000      13      9
+            0.00000000      1.00000000      13      12
+        """)
+        ts = tskit.load_text(nodes, edges, strict=False)
+        t = next(ts.trees())
+        drawn = t.draw(format="unicode")
+        self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(), tree)
 
 
 class TestDrawSvg(TestTreeDraw):
