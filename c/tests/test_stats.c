@@ -1033,6 +1033,14 @@ test_paper_ex_diversity(void)
     ret = tsk_treeseq_get_pairwise_diversity(&ts, samples, 4, &pi2);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(pi1, pi2, 1e-6);
+
+    /* A sample set size of 1 leads to NaN */
+    sample_set_sizes = 1;
+    ret = tsk_treeseq_diversity(&ts, 1, &sample_set_sizes, samples, 0, NULL,
+            &pi1, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(pi1));
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1061,6 +1069,13 @@ test_paper_ex_Y1(void)
 
     ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* A sample set size of < 2 leads to NaN */
+    sample_set_sizes = 1;
+    ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(result));
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1091,6 +1106,15 @@ test_paper_ex_divergence(void)
     ret = tsk_treeseq_divergence(&ts, 2, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* sample_set[0] size = 1 with indexes = (0, 0) leads to NaN */
+    sample_set_sizes[0] = 1;
+    set_indexes[1] = 0;
+    ret = tsk_treeseq_divergence(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(result));
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1121,6 +1145,14 @@ test_paper_ex_Y2(void)
     ret = tsk_treeseq_Y2(&ts, 2, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* sample_set_size of 1 leads to NaN */
+    sample_set_sizes[1] = 1;
+    ret = tsk_treeseq_Y2(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(result));
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1151,6 +1183,22 @@ test_paper_ex_f2(void)
     ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* sample_set_size of 1 leads to NaN */
+    sample_set_sizes[0] = 1;
+    ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(result));
+
+    /* sample_set_size of 1 leads to NaN */
+    sample_set_sizes[0] = 2;
+    sample_set_sizes[1] = 1;
+    ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(result));
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1181,6 +1229,7 @@ test_paper_ex_Y3(void)
     ret = tsk_treeseq_Y3(&ts, 3, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1211,6 +1260,14 @@ test_paper_ex_f3(void)
     ret = tsk_treeseq_f3(&ts, 3, sample_set_sizes, samples,
             1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* sample_set_size of 1 leads to NaN */
+    sample_set_sizes[0] = 1;
+    ret = tsk_treeseq_f3(&ts, 3, sample_set_sizes, samples,
+            1, set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(isnan(result));
+
     tsk_treeseq_free(&ts);
 }
 

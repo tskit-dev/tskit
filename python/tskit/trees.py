@@ -3195,6 +3195,7 @@ class TreeSequence(object):
             windows=windows, mode=mode, span_normalise=span_normalise)
 
     # JK: commenting this out for now to get the other methods well tested.
+    # Issue: https://github.com/tskit-dev/tskit/issues/201
     # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
     #     """
     #     Finds the mean divergence  between pairs of samples from each set of

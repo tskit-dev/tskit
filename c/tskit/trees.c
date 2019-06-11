@@ -1839,7 +1839,6 @@ diversity_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result
 
     for (j = 0; j < state_dim; j++) {
         n = (double) args.sample_set_sizes[j];
-        /* TODO: what happens when n is zero ? */
         result[j] = x[j] * (n - x[j]) / (n * (n - 1));
     }
     return 0;
@@ -1866,7 +1865,6 @@ Y1_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 
     for (i = 0; i < result_dim; i++) {
         ni = args.sample_set_sizes[i];
-        /* TODO: what do we do when this is 0? */
         denom = ni * (ni - 1) * (ni - 2);
         numer = x[i] * (ni - x[i]) * (ni - x[i] - 1);
         result[i] = numer / denom;
@@ -1926,7 +1924,6 @@ divergence_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t resu
         j = args.set_indexes[2 * k + 1];
         ni = args.sample_set_sizes[i];
         nj = args.sample_set_sizes[j];
-        /* TODO: what do we do when this is 0? */
         denom = ni * (nj - (i == j));
         result[k] = x[i] * (nj - x[j]) / denom;
     }
@@ -1968,7 +1965,6 @@ Y2_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
         j = args.set_indexes[2 * k + 1];
         ni = args.sample_set_sizes[i];
         nj = args.sample_set_sizes[j];
-        /* TODO: what do we do when this is 0? */
         denom = ni * nj * (nj - 1);
         result[k] = x[i] * (nj - x[j]) * (nj - x[j] - 1) / denom;
     }
@@ -2010,7 +2006,6 @@ f2_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
         j = args.set_indexes[2 * k + 1];
         ni = args.sample_set_sizes[i];
         nj = args.sample_set_sizes[j];
-        /* TODO: what do we do when this is 0? */
         denom = ni * (ni - 1) * nj * (nj - 1);
         numer = x[i] * (x[i] - 1) * (nj - x[j]) * (nj - x[j] - 1)
              - x[i] * (ni - x[i]) * (nj - x[j]) * x[j];
@@ -2060,7 +2055,6 @@ Y3_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
         ni = args.sample_set_sizes[i];
         nj = args.sample_set_sizes[j];
         nk = args.sample_set_sizes[k];
-        /* TODO: what do we do when this is 0? */
         denom = ni * nj * nk;
         numer = x[i] * (nj - x[j]) * (nk - x[k]);
         result[tuple_index] = numer / denom;
@@ -2105,7 +2099,6 @@ f3_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
         ni = args.sample_set_sizes[i];
         nj = args.sample_set_sizes[j];
         nk = args.sample_set_sizes[k];
-        /* TODO: what do we do when this is 0? */
         denom = ni * (ni - 1) * nj * nk;
         numer = x[i] * (x[i] - 1) * (nj - x[j]) * (nk - x[k])
                - x[i] * (ni - x[i]) * (nj - x[j]) * x[k];
@@ -2157,7 +2150,6 @@ f4_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
         nj = args.sample_set_sizes[j];
         nk = args.sample_set_sizes[k];
         nl = args.sample_set_sizes[l];
-        /* TODO: what do we do when this is 0? */
         denom = ni * nj * nk * nl;
         numer = x[i] * x[k] * (nj - x[j]) * (nl - x[l])
                - x[i] * x[l] * (nj - x[j]) * (nk - x[k]);

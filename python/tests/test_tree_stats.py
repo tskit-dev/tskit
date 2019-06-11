@@ -29,6 +29,7 @@ import random
 import collections
 import itertools
 import functools
+import contextlib
 
 import numpy as np
 import numpy.testing as nt
@@ -239,6 +240,12 @@ def path_length(tr, x, y):
             L += tr.branch_length(u)
             u = tr.parent(u)
     return L
+
+
+@contextlib.contextmanager
+def suppress_division_by_zero_warning():
+    with np.errstate(invalid='ignore'):
+        yield
 
 
 ##############################
@@ -736,7 +743,7 @@ class TopologyExamplesMixin(object):
         ts = tables.tree_sequence()
         self.verify(ts)
 
-    @unittest.skip("Dealing with zeros/nans")
+    @unittest.skip("Incorrect semantics on empty ts; #207")
     def test_empty_ts(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(1, 0)
@@ -838,11 +845,10 @@ class MutatedTopologyExamplesMixin(object):
         self.assertGreater(ts.num_sites, 0)
         self.verify(ts)
 
-    @unittest.skip("Dealing with zeros/nans")
     def test_empty_ts(self):
         tables = tskit.TableCollection(1.0)
-        tables.nodes.add_row(1, 0)
-        tables.nodes.add_row(1, 0)
+        for _ in range(10):
+            tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         ts = tables.tree_sequence()
         self.verify(ts)
 
@@ -852,17 +858,10 @@ def example_sample_sets(ts, min_size=1):
     Generate a series of example sample sets from the specfied tree sequence.
     """
     samples = ts.samples()
-    # n = len(samples)
+    yield [[u] for u in samples]
     splits = np.array_split(samples, min_size)
     yield splits
     yield splits[::-1]
-
-    # TODO need to decide what happens on division by zero - 0 or nan?
-    # yield [[samples[0]], [samples[1]], samples[:n - 2]]
-    # Enabling this leads to differences between the various versions in
-    # BranchDivergence
-    # yield [[samples[0]], [samples[1]], [samples[2]]]
-    # yield [[samples[j]] for j in range(n)]
 
 
 def example_sample_set_index_pairs(sample_sets):
@@ -917,10 +916,15 @@ class SampleSetStatsMixin(object):
 
         W = np.array(
             [[u in A for A in sample_sets] for u in ts.samples()], dtype=float)
+
+        def wrapped_summary_func(x):
+            with suppress_division_by_zero_warning():
+                return summary_func(x)
+
         for sn in [True, False]:
-            sigma1 = ts.general_stat(W, summary_func, windows, mode=self.mode,
+            sigma1 = ts.general_stat(W, wrapped_summary_func, windows, mode=self.mode,
                                      span_normalise=sn)
-            sigma2 = general_stat(ts, W, summary_func, windows, mode=self.mode,
+            sigma2 = general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode,
                                   span_normalise=sn)
             sigma3 = ts_method(sample_sets, windows=windows, mode=self.mode,
                                span_normalise=sn)
@@ -932,6 +936,8 @@ class SampleSetStatsMixin(object):
             self.assertEqual(sigma1.shape, sigma4.shape)
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
+            # print("computed", sigma1)
+            # print("definition", sigma4)
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
@@ -944,10 +950,14 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
             self, ts, sample_sets, indexes, windows, summary_func, ts_method,
             definition):
 
+        def wrapped_summary_func(x):
+            with suppress_division_by_zero_warning():
+                return summary_func(x)
+
         W = np.array(
             [[u in A for A in sample_sets] for u in ts.samples()], dtype=float)
-        sigma1 = ts.general_stat(W, summary_func, windows, mode=self.mode)
-        sigma2 = general_stat(ts, W, summary_func, windows, mode=self.mode)
+        sigma1 = ts.general_stat(W, wrapped_summary_func, windows, mode=self.mode)
+        sigma2 = general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
         sigma3 = ts_method(
             sample_sets, indexes=indexes, windows=windows, mode=self.mode)
         sigma4 = definition(
@@ -958,6 +968,9 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
         self.assertEqual(sigma1.shape, sigma4.shape)
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
+        # print("windows = ", windows)
+        # print(sigma1)
+        # print(sigma4)
         self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
@@ -1002,6 +1015,7 @@ class FourWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 # Diversity
 ############################################
 
+
 def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(sample_sets)))
@@ -1013,8 +1027,10 @@ def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for x in X:
                         for y in set(X) - set([x]):
                             x_index = np.where(samples == x)[0][0]
@@ -1022,11 +1038,13 @@ def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
                             if haps[x_index][k] != haps[y_index][k]:
                                 # x|y
                                 S += 1
-            denom = len(X) * (len(X) - 1)
-            if span_normalise:
-                denom *= end - begin
-            if denom > 0:
-                out[j][i] = S / denom
+            if site_in_window:
+                denom = len(X) * (len(X) - 1)
+                if span_normalise:
+                    denom *= end - begin
+                denom = np.array(denom)
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
     return out
 
 
@@ -1051,7 +1069,7 @@ def branch_diversity(ts, sample_sets, windows=None, span_normalise=True):
             denom = len(X) * (len(X) - 1)
             if span_normalise:
                 denom *= end - begin
-            if denom > 0:
+            with suppress_division_by_zero_warning():
                 out[j][i] = S / denom
     return out
 
@@ -1107,7 +1125,6 @@ class TestDiversity(StatsTestCase, SampleSetStatsMixin):
         n = np.array([len(x) for x in sample_sets])
 
         def f(x):
-            # TODO what happens when n == 0?
             return x * (n - x) / (n * (n - 1))
 
         self.verify_definition(
@@ -1169,7 +1186,11 @@ def branch_Y1(ts, sample_sets, windows=None, span_normalise=True):
             denom = len(X) * (len(X)-1) * (len(X)-2)
             if span_normalise:
                 denom *= (end - begin)
-            out[j][i] = S / denom
+            # Make sure that divisiion is done by numpy so that we can handle
+            # division by zero.
+            denom = np.array(denom)
+            with suppress_division_by_zero_warning():
+                out[j][i] = S / denom
     return out
 
 
@@ -1184,8 +1205,10 @@ def site_Y1(ts, sample_sets, windows=None, span_normalise=True):
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for x in X:
                         x_index = np.where(samples == x)[0][0]
                         for y in set(X) - {x}:
@@ -1198,10 +1221,14 @@ def site_Y1(ts, sample_sets, windows=None, span_normalise=True):
                                 if condition:
                                     # x|yz
                                     S += 1
-            denom = len(X) * (len(X)-1) * (len(X)-2)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                denom = len(X) * (len(X)-1) * (len(X)-2)
+                if span_normalise:
+                    denom *= (end - begin)
+                # Make sure division is done by numpy
+                denom = np.array(denom)
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
     return out
 
 
@@ -1252,10 +1279,6 @@ class TestNodeY1(TestY1, TopologyExamplesMixin):
 
 class TestSiteY1(TestY1, MutatedTopologyExamplesMixin):
     mode = "site"
-
-    @unittest.skip("Nan/division by zero issue")
-    def test_wright_fisher_unsimplified(self):
-        pass
 
 
 ############################################
@@ -1441,7 +1464,8 @@ def branch_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             denom = len(X) * len(Y) * (len(Y)-1)
             if span_normalise:
                 denom *= (end - begin)
-            out[j][i] = S / denom
+            with suppress_division_by_zero_warning():
+                out[j][i] = S / denom
     return out
 
 
@@ -1458,8 +1482,10 @@ def site_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             X = sample_sets[ix]
             Y = sample_sets[iy]
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for x in X:
                         x_index = np.where(samples == x)[0][0]
                         for y in Y:
@@ -1472,10 +1498,12 @@ def site_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                 if condition:
                                     # x|yz
                                     S += 1
-            denom = len(X) * len(Y) * (len(Y)-1)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                denom = len(X) * len(Y) * (len(Y)-1)
+                if span_normalise:
+                    denom *= (end - begin)
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
     return out
 
 
@@ -1600,8 +1628,10 @@ def site_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             Y = sample_sets[iy]
             Z = sample_sets[iz]
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for x in X:
                         x_index = np.where(samples == x)[0][0]
                         for y in Y:
@@ -1612,10 +1642,11 @@ def site_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                    and (haps[x_index][k] != haps[z_index][k])):
                                     # x|yz
                                     S += 1
-            denom = len(X) * len(Y) * len(Z)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                denom = len(X) * len(Y) * len(Z)
+                if span_normalise:
+                    denom *= (end - begin)
+                out[j][i] = S / denom
     return out
 
 
@@ -1706,7 +1737,10 @@ def branch_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
             if span_normalise:
                 denom *= (end - begin)
-            out[j][i] = S / denom
+            if denom == 0:
+                out[j][i] = np.nan
+            else:
+                out[j][i] = S / denom
     return out
 
 
@@ -1723,8 +1757,10 @@ def site_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             A = sample_sets[iA]
             B = sample_sets[iB]
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for a in A:
                         a_index = np.where(samples == a)[0][0]
                         for b in B:
@@ -1743,10 +1779,12 @@ def site_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                           and (haps[a_index][k] != haps[b_index][k])):
                                         # ad|bc
                                         S -= 1
-            denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
+                if span_normalise:
+                    denom *= (end - begin)
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
     return out
 
 
@@ -1844,7 +1882,8 @@ def branch_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             denom = len(A) * (len(A) - 1) * len(B) * len(C)
             if span_normalise:
                 denom *= (end - begin)
-            out[j][i] = S / denom
+            with suppress_division_by_zero_warning():
+                out[j][i] = S / denom
     return out
 
 
@@ -1862,8 +1901,10 @@ def site_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             B = sample_sets[iB]
             C = sample_sets[iC]
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for a in A:
                         a_index = np.where(samples == a)[0][0]
                         for b in B:
@@ -1882,10 +1923,12 @@ def site_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                           and (haps[a_index][k] != haps[b_index][k])):
                                         # ad|bc
                                         S -= 1
-            denom = len(A) * (len(A) - 1) * len(B) * len(C)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                denom = len(A) * (len(A) - 1) * len(B) * len(C)
+                if span_normalise:
+                    denom *= (end - begin)
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
     return out
 
 
@@ -1917,7 +1960,6 @@ class Testf3(StatsTestCase, ThreeWaySampleSetStatsMixin):
             numer = np.array([
                 x[i] * (x[i] - 1) * (n[j] - x[j]) * (n[k] - x[k])
                 - x[i] * (n[i] - x[i]) * (n[j] - x[j]) * x[k] for i, j, k in indexes])
-            # TODO what happens when denom == 0?
             return numer / denom
         self.verify_definition(ts, sample_sets, indexes, windows, f, ts.f3, f3)
 
@@ -1945,10 +1987,6 @@ class TestNodef3(Testf3, TopologyExamplesMixin):
 
 class TestSitef3(Testf3, MutatedTopologyExamplesMixin):
     mode = "site"
-
-    @unittest.skip("Nan/zeros errors")
-    def test_wright_fisher_unsimplified(self):
-        pass
 
 
 ############################################
@@ -2003,8 +2041,10 @@ def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
             C = sample_sets[iC]
             D = sample_sets[iD]
             S = 0
+            site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for a in A:
                         a_index = np.where(samples == a)[0][0]
                         for b in B:
@@ -2023,10 +2063,11 @@ def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                           and (haps[a_index][k] != haps[b_index][k])):
                                         # ad|bc
                                         S -= 1
-            denom = len(A) * len(B) * len(C) * len(D)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                denom = len(A) * len(B) * len(C) * len(D)
+                if span_normalise:
+                    denom *= (end - begin)
+                out[j][i] = S / denom
     return out
 
 
@@ -2424,6 +2465,26 @@ class TestSampleSetIndexes(StatsTestCase):
             ts.divergence(sample_sets, indexes=[(1, 1, 1)])
         with self.assertRaises(exceptions.LibraryError):
             ts.divergence(sample_sets, indexes=[(1, 2)])
+
+
+class TestGeneralStatInterface(StatsTestCase):
+    """
+    Tests for the basic interface for general_stats.
+    """
+
+    def test_default_mode(self):
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+        W = np.ones((ts.num_samples, 2))
+        sigma1 = ts.general_stat(W, lambda x: x)
+        sigma2 = ts.general_stat(W, lambda x: x, mode="site")
+        self.assertArrayEqual(sigma1, sigma2)
+
+    def test_bad_mode(self):
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+        W = np.ones((ts.num_samples, 2))
+        for bad_mode in ["", "MODE", "x" * 8192]:
+            with self.assertRaises(ValueError):
+                ts.general_stat(W, lambda x: x, mode=bad_mode)
 
 
 class TestGeneralBranchStats(StatsTestCase):
