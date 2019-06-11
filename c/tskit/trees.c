@@ -1559,13 +1559,17 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self,
 
     /* Set the initial conditions */
     for (j = 0; j < self->num_samples; j++) {
+        // total_weight is used in the next loop
+        weight_u = GET_2D_ROW(sample_weights, state_dim, j);
+        for (k = 0; k < state_dim; k++) {
+            total_weight[k] += weight_u[k];
+        }
+    }
+    for (j = 0; j < self->num_samples; j++) {
         u = self->samples[j];
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
         memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
-        for (k = 0; k < state_dim; k++) {
-            total_weight[k] += weight_u[k];
-        }
         ret = update_node_summary(u, result_dim, node_summary, state, state_dim,
             f, f_params, total_weight, polarised);
         if (ret != 0) {
