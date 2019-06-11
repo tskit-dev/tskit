@@ -199,6 +199,18 @@ of tskit.
 #define TSK_ERR_SORT_OFFSET_NOT_SUPPORTED                           -803
 #define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -804
 
+/* Stats errors */
+#define TSK_ERR_BAD_NUM_WINDOWS                                     -900
+#define TSK_ERR_BAD_WINDOWS                                         -901
+#define TSK_ERR_MULTIPLE_STAT_MODES                                 -902
+#define TSK_ERR_BAD_STATE_DIMS                                      -903
+#define TSK_ERR_BAD_RESULT_DIMS                                     -904
+#define TSK_ERR_INSUFFICIENT_SAMPLE_SETS                            -905
+#define TSK_ERR_INSUFFICIENT_INDEX_TUPLES                           -906
+#define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
+#define TSK_ERR_EMPTY_SAMPLE_SET                                    -908
+
+
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14
 

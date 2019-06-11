@@ -13,6 +13,7 @@ Welcome to tskit's documentation!
    introduction
    installation
    python-api
+   stats
    c-api
    data-model
    provenance

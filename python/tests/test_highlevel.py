@@ -993,6 +993,18 @@ class TestTreeSequence(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             self.verify_edgesets(ts)
 
+    def test_breakpoints(self):
+        for ts in get_example_tree_sequences():
+            breakpoints = ts.breakpoints(as_array=True)
+            self.assertEqual(breakpoints.shape, (ts.num_trees + 1,))
+            other = np.fromiter(iter([0] + [t.interval[1] for t in ts.trees()]), float)
+            self.assertTrue(np.array_equal(other, breakpoints))
+            # in case downstream code has
+            for j, x in enumerate(ts.breakpoints()):
+                self.assertEqual(breakpoints[j], x)
+                self.assertIsInstance(x, float)
+            self.assertEqual(j, ts.num_trees)
+
     def verify_coalescence_records(self, ts):
         """
         Checks that the coalescence records we output are correct.

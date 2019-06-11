@@ -39,6 +39,14 @@ extern "C" {
 #define TSK_SAMPLE_COUNTS  (1 << 0)
 #define TSK_SAMPLE_LISTS   (1 << 1)
 
+#define TSK_STAT_SITE               (1 << 0)
+#define TSK_STAT_BRANCH             (1 << 1)
+#define TSK_STAT_NODE               (1 << 2)
+
+/* Leave room for other stat types */
+#define TSK_STAT_POLARISED          (1 << 10)
+#define TSK_STAT_SPAN_NORMALISE     (1 << 11)
+
 #define TSK_DIR_FORWARD 1
 #define TSK_DIR_REVERSE -1
 
@@ -49,6 +57,8 @@ typedef struct {
     tsk_size_t num_trees;
     tsk_size_t num_samples;
     tsk_id_t *samples;
+    /* Breakpoints along the sequence, including 0 and L. */
+    double *breakpoints;
     /* If a node is a sample, map to its index in the samples list */
     tsk_id_t *sample_index_map;
     /* Map individuals to the list of nodes that reference them */
@@ -160,6 +170,7 @@ tsk_size_t tsk_treeseq_get_num_trees(tsk_treeseq_t *self);
 tsk_size_t tsk_treeseq_get_num_samples(tsk_treeseq_t *self);
 char * tsk_treeseq_get_file_uuid(tsk_treeseq_t *self);
 double tsk_treeseq_get_sequence_length(tsk_treeseq_t *self);
+double * tsk_treeseq_get_breakpoints(tsk_treeseq_t *self);
 bool tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u);
 
 int tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node);
@@ -182,6 +193,7 @@ int tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self,
 int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples,
         tsk_size_t num_samples, tsk_flags_t options, tsk_treeseq_t *output,
         tsk_id_t *node_map);
+
 /* TODO do these belong in trees or stats? They should probably be in stats.
  * Keep them here for now until we figure out the correct interface.
  */
@@ -195,11 +207,58 @@ int tsk_treeseq_mean_descendants(tsk_treeseq_t *self,
         tsk_id_t **reference_sets, size_t *reference_set_size, size_t num_reference_sets,
         tsk_flags_t options, double *ret_array);
 
+/* TODO change all these size_t's to tsk_size_t */
+
+typedef int general_stat_func_t(size_t K, double *X, size_t M, double *Y, void *params);
+
+int tsk_treeseq_general_stat(tsk_treeseq_t *self,
+        size_t K, double *W,
+        size_t M, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double *sigma,
+        tsk_flags_t options);
+
+/* One way sample set stats */
+int tsk_treeseq_diversity(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+int tsk_treeseq_Y1(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+/* Two way sample set stats */
+int tsk_treeseq_divergence(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, tsk_id_t *index_tuples,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+int tsk_treeseq_Y2(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, tsk_id_t *index_tuples,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+int tsk_treeseq_f2(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, tsk_id_t *index_tuples,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+/* Three way sample set stats */
+int tsk_treeseq_Y3(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, tsk_id_t *index_tuples,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+int tsk_treeseq_f3(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, tsk_id_t *index_tuples,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+/* Four way sample set stats */
+int tsk_treeseq_f4(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, tsk_id_t *index_tuples,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
 
 /****************************************************************************/
 /* Tree */
 /****************************************************************************/
-
 
 /**
 @defgroup TREE_API_GROUP Tree sequence API

@@ -277,7 +277,7 @@ tsk_strerror_internal(int err)
 
         /* Sample errors */
         case TSK_ERR_DUPLICATE_SAMPLE:
-            ret = "Duplicate value provided in tracked leaf list";
+            ret = "Duplicate sample value";
             break;
         case TSK_ERR_BAD_SAMPLES:
             ret = "Bad sample configuration provided";
@@ -315,6 +315,35 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
             ret = "Only binary mutations are supported for this operation";
+            break;
+
+        /* Stats errors */
+        case TSK_ERR_BAD_NUM_WINDOWS:
+            ret = "Must have at least one window, [0, L]";
+            break;
+        case TSK_ERR_BAD_WINDOWS:
+            ret = "Windows must be increasing list [0, ..., L]";
+            break;
+        case TSK_ERR_MULTIPLE_STAT_MODES:
+            ret = "Cannot specify more than one stats mode.";
+            break;
+        case TSK_ERR_BAD_STATE_DIMS:
+            ret = "Must have state dimension >= 1";
+            break;
+        case TSK_ERR_BAD_RESULT_DIMS:
+            ret = "Must have result dimension >= 1";
+            break;
+        case TSK_ERR_INSUFFICIENT_SAMPLE_SETS:
+            ret = "Insufficient sample sets provided.";
+            break;
+        case TSK_ERR_INSUFFICIENT_INDEX_TUPLES:
+            ret = "Insufficient sample set index tuples provided.";
+            break;
+        case TSK_ERR_BAD_SAMPLE_SET_INDEX:
+            ret = "Sample set index out of bounds";
+            break;
+        case TSK_ERR_EMPTY_SAMPLE_SET:
+            ret = "Samples cannot be empty";
             break;
     }
     return ret;
