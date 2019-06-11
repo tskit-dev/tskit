@@ -112,7 +112,10 @@ def general_site_stats(ts, W, f, windows=None, polarised=False):
 
 def path_length(tr, x, y):
     L = 0
-    mrca = tr.mrca(x, y)
+    if x >= 0 and y >= 0:
+        mrca = tr.mrca(x, y)
+    else:
+        mrca = -1
     for u in x, y:
         while u != mrca:
             L += tr.branch_length(u)
@@ -1150,18 +1153,6 @@ class TestY1(StatsTestCase, SampleSetStatsMixin):
 class TestBranchY1(TestY1, TopologyExamplesMixin):
     mode = "branch"
 
-    @unittest.skip("Y1 definition cannot handle multiple roots")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("Y1 definition cannot handle multiple roots")
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        pass
-
-    @unittest.skip("Y1 definition cannot handle multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
-
 
 @unittest.skip("Y1 Node stat not defined")
 class TestNodeY1(TestY1, TopologyExamplesMixin):
@@ -1432,18 +1423,6 @@ class TestY2(StatsTestCase, TwoWaySampleSetStatsMixin):
 class TestBranchY2(TestY2, TopologyExamplesMixin):
     mode = "branch"
 
-    @unittest.skip("Y2 definition cannot handle multiple roots")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("Y2 definition cannot handle multiple roots")
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        pass
-
-    @unittest.skip("Y2 definition cannot handle multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
-
 
 @unittest.skip("Y2 Node stat not defined")
 class TestNodeY2(TestY2, TopologyExamplesMixin):
@@ -1570,18 +1549,6 @@ class TestY3(StatsTestCase, ThreeWaySampleSetStatsMixin):
 
 class TestBranchY3(TestY3, TopologyExamplesMixin):
     mode = "branch"
-
-    @unittest.skip("Y3 definition cannot handle multiple roots")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("Y3 definition cannot handle multiple roots")
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        pass
-
-    @unittest.skip("Y3 definition cannot handle multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
 
 
 @unittest.skip("Y3 Node stat not defined")
@@ -1714,18 +1681,6 @@ class Testf2(StatsTestCase, TwoWaySampleSetStatsMixin):
 class TestBranchf2(Testf2, TopologyExamplesMixin):
     mode = "branch"
 
-    @unittest.skip("f2 definition cannot handle multiple roots")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("f2 definition cannot handle multiple roots")
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        pass
-
-    @unittest.skip("f2 definition cannot handle multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
-
 
 @unittest.skip("f2 Node stat not defined")
 class TestNodef2(Testf2, TopologyExamplesMixin):
@@ -1854,18 +1809,6 @@ class Testf3(StatsTestCase, ThreeWaySampleSetStatsMixin):
 class TestBranchf3(Testf3, TopologyExamplesMixin):
     mode = "branch"
 
-    @unittest.skip("f3 definition cannot handle multiple roots")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("f3 definition cannot handle multiple roots")
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        pass
-
-    @unittest.skip("f3 definition cannot handle multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
-
 
 @unittest.skip("f3 Node stat not defined")
 class TestNodef3(Testf3, TopologyExamplesMixin):
@@ -1991,18 +1934,6 @@ class Testf4(StatsTestCase, FourWaySampleSetStatsMixin):
 
 class TestBranchf4(Testf4, TopologyExamplesMixin):
     mode = "branch"
-
-    @unittest.skip("f4 definition cannot handle multiple roots")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("f4 definition cannot handle multiple roots")
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        pass
-
-    @unittest.skip("f4 definition cannot handle multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
 
 
 @unittest.skip("f4 Node stat not defined")
