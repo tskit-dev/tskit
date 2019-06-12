@@ -140,7 +140,7 @@ in units of crossovers and mutations per base pair, respectively).
 .. _sec_general_stats_sample_sets:
 
 ***********************
-Sample sets and indices
+Sample sets and indexes
 ***********************
 
 Many standard population genetics statistics
@@ -164,39 +164,34 @@ and want to compute **all** fourty-five pairwise divergences?
 You could call ``divergence`` fourty-five times, but this would be tedious
 and also inefficient, because the allele frequencies for one population
 gets used in computing many of those values.
-So, statistics that take a ``sample_sets`` argument also take an ``indices`` argument,
+So, statistics that take a ``sample_sets`` argument also take an ``indexes`` argument,
 which for a statistic that operates on ``k`` sample sets will be a list of ``k``-tuples.
-If ``indices`` is a length ``n`` list of ``k``-tuples,
+If ``indexes`` is a length ``n`` list of ``k``-tuples,
 then the output will have ``n`` columns,
-and if ``indices[j]`` is a tuple ``(i0, ..., ik)``,
+and if ``indexes[j]`` is a tuple ``(i0, ..., ik)``,
 then the ``j``-th column will contain values of the statistic computed on
 ``(sample_sets[i0], sample_sets[i1], ..., sample_sets[ik])``.
 
-To recap: ``indices`` must be a list of tuples, each of length ``k``,
+To recap: ``indexes`` must be a list of tuples, each of length ``k``,
 of integers between ``0`` and ``len(sample_sets) - 1``.
 The appropriate value of ``k`` depends on the statistic.
 
 Here are some additional special cases:
 
-``indices = None``
+``indexes = None``
    If the statistic takes ``k`` inputs for ``k > 1``,
    and there are exactly ``k`` lists in ``sample_sets``,
    then this will compute just one statistic, and is equivalent to passing
-   ``indices = [(0, 1, ..., k-1)]``.
+   ``indexes = [(0, 1, ..., k-1)]``.
    If there are not exactly ``k`` sample sets, this will throw an error.
 
-``k=1`` does not allow ``indices``:
+``k=1`` does not allow ``indexes``:
    Statistics that operate on one sample set at a time (i.e., ``k=1``)
    do **not** take the ``indexes`` argument,
    and instead just return the value of the statistic separately for each of ``sample_sets``
    in the order they are given.
-   (This would be equivalent to passing ``indices = [[0], [1], ..., [len(sample_sets)]]``,
+   (This would be equivalent to passing ``indexes = [[0], [1], ..., [len(sample_sets)]]``,
    were that allowed.)
-
-``stat_type = "node"`` does not allow ``indices``:
-   Since node statistics output one value per node (unlike the other types, which output
-   something summed across all nodes), it is an error to specify ``indices`` when computing
-   a node statistic (consequently, you need to have exactly ``k`` sample sets).
 
 
 .. _sec_general_stats_output:
@@ -216,7 +211,6 @@ from ``windows[i]`` to ``windows[i + 1]`` (including the left but not the right 
    The output is a two-dimensional array,
    with columns corresponding to the different statistics computed: ``out[i, j]`` is the ``j``-th statistic
    in the ``i``-th window.
-   If the statistic takes an ``indices`` argument, then ``out[i, j]`` has the statistic computed with ``indices[j]``.
 
 ``mode="node"``
    The output is a three-dimensional array,
