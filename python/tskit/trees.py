@@ -1003,6 +1003,13 @@ class Tree(object):
             ┃ ┃ ┏┻┓
             ┃ ┃ ┃ ┃
 
+        Note: in some environments such as Jupyter notebooks with Windows or Mac,
+        users have observed that the Unicode box drawings can be misaligned. In
+        these cases, we recommend using the SVG or ASCII display formats instead.
+        If you have a strong preference for aligned Unicode, you can try out the
+        solution documented
+        `here <https://github.com/tskit-dev/tskit/issues/189#issuecomment-499114811>`_.
+
         :param str path: The path to the file to write the output. If None, do not
             write to file.
         :param int width: The width of the image in pixels. If not specified, either
