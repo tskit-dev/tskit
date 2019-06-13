@@ -129,7 +129,7 @@ then we'd just obtain the number of differing sites per window.
 
 And, a final note about "length": in tree sequences produced by ``msprime``
 coordinates along the sequence are **continuous**,
-so the the "lengths" used here may not correspond to distance along the genome in (say) base pairs.
+so the "lengths" used here may not correspond to distance along the genome in (say) base pairs.
 For instance, pairwise sequence divergence is usually a number between 0 and 1
 because it is the proportion of bases that differ;
 this will only be true if length is measured in base pairs
@@ -155,7 +155,7 @@ For instance, nucleotide divergence is defined for a *pair* of groups of samples
 so if you wanted to compute pairwise divergences between some groups of samples,
 you'd specify these as your ``sample_sets``.
 Then, if ``p[i]`` is the derived allele frequency in sample set ``i``,
-under the hood we (essentially) compute the divergency between sample sets ``i`` and ``j``
+under the hood we (essentially) compute the divergence between sample sets ``i`` and ``j``
 by averaging ``p[i] * (1 - p[j]) + (1 - p[i]) * p[j]`` across the genome.
 
 So, what if you
@@ -219,6 +219,20 @@ from ``windows[i]`` to ``windows[i + 1]`` (including the left but not the right 
    and ``out[i,j]`` is an array of statistics computed for node ``j`` on the ``i``-th window.
 
 The final dimension of the arrays in other cases is specified by the method.
+
+A note about **default values** and **division by zero**: 
+Under the hood, statistics computation fills in zeros everywhere, then updates these
+(since statistics are all **additive**, this makes sense).
+But now suppose that you've got a statistic that returns ``nan``
+("not a number") sometimes, like if you're taking the diversity of a sample set with only ``n=1`` sample,
+which involves dividing by ``n * (n - 1)``.
+Usually, you'll just get ``nan`` everywhere that the division by zero happens.
+But there's a couple of caveats.
+For ``site`` statistics, any windows without any sites in them never get touched,
+so they will have a value of 0.
+For ``branch`` statistics, any windows with **no branches** will similarly remain 0.
+That said, you should **not** rely on the specific behavior of whether ``0`` or ``nan`` is returned
+for "empty" cases like these: it is subject to change.
 
 
 .. Commenting these out for now as they are duplicates of the methods in the TreeSequence

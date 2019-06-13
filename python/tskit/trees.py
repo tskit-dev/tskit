@@ -3100,7 +3100,7 @@ class TreeSequence(object):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
-            raise ValueError("Samples sets must contain at least one element")
+            raise ValueError("Sample sets must contain at least one element")
         flattened = tables.to_np_int32(np.hstack(sample_sets))
         windows = self.parse_windows(windows)
         return ll_method(sample_set_sizes, flattened, windows=windows,
@@ -3112,7 +3112,7 @@ class TreeSequence(object):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
-            raise ValueError("Samples sets must contain at least one element")
+            raise ValueError("Sample sets must contain at least one element")
         flattened = tables.to_np_int32(np.hstack(sample_sets))
         windows = self.parse_windows(windows)
         if indexes is None:
@@ -3130,9 +3130,8 @@ class TreeSequence(object):
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
         sets of nodes from ``sample_sets``. See :ref:`sec_general_stats` for
         details of ``indexes``, ``windows``, ``mode`` and return value.
-        Operates on ``k = 1`` sample set at a time.
-        Note that this quantity can also be computed by the :func:``divergence``
-        method.
+        Operates on ``k = 1`` sample set at a time.  Note that this quantity
+        can also be computed by the :meth:`divergence <.TreeSequence.divergence>` method.
 
         What is computed depends on ``mode``:
 
@@ -3171,7 +3170,8 @@ class TreeSequence(object):
         sets of nodes from ``sample_sets``. See :ref:`sec_general_stats` for
         details of ``indexes``, ``windows``, ``mode`` and return value.
         Operates on ``k = 2`` sample sets at a time. As a special case, an index
-        `(j, j)` will compute the :ref:``diversity`` of ``sample_set[i]``.
+        `(j, j)` will compute the :meth:`diversity <.TreeSequence.diversity>` of
+        ``sample_set[i]``.
 
         What is computed depends on ``mode``:
 
@@ -3250,9 +3250,12 @@ class TreeSequence(object):
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indexes``, ``windows``, ``mode`` and return value.  Operates on
         ``k = 2`` sample sets at a time. For sample sets ``X`` and ``Y``,
-        if ``d(X, Y)`` is the :func:``divergence`` between ``X`` and ``Y``,
-        and ``d(X)`` is the :ref: ``diversity`` of ``X``,
-        then what is computed is
+        if ``d(X, Y)`` is the :meth:`divergence <.TreeSequence.divergence>`
+        between ``X`` and ``Y``, and ``d(X)`` is the
+        :meth:`diversity <.TreeSequence.diversity>` of ``X``, then what is
+        computed is
+
+        .. code-block:: python
 
             Fst = 1 - 2 * (d(X) + d(Y)) / (d(X) + 2 * d(X, Y) + d(Y))
 
@@ -3340,7 +3343,7 @@ class TreeSequence(object):
         ``Y3``, except that the average across randomly chosen trios of samples
         ``(a, b1, b2)``, where ``a`` is chosen from the first sample set, and
         ``b1, b2`` are chosen (without replacement) from the second sample set.
-        See :ref:``Y3`` for more details.
+        See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3367,7 +3370,7 @@ class TreeSequence(object):
         What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average is across a randomly chosen trio of
         samples ``(a1, a2, a3)`` all chosen without replacement from the same
-        sample set. See :ref:``Y3`` for more details.
+        sample set. See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3435,10 +3438,10 @@ class TreeSequence(object):
         ``k = 3`` sample sets at a time.
 
         What is computed depends on ``mode``. Each works exactly as
-        :ref:``f4``, except the average is across randomly chosen set of four
-        samples ``(a1, b; a2, c)``, with `a1` and `a2` both chosen (without
-        replacement) from the first sample set. See :ref:``f4`` for more
-        details.
+        :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
+        chosen set of four samples ``(a1, b; a2, c)``, with `a1` and `a2` both
+        chosen (without replacement) from the first sample set. See
+        :meth:`f4 <.TreeSequence.f4>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3464,11 +3467,11 @@ class TreeSequence(object):
         ``k = 2`` sample sets at a time.
 
         What is computed depends on ``mode``. Each works exactly as
-        :ref:``f4``, except the average is across randomly chosen set of four
-        samples ``(a1, b1; a2, b2)``, with `a1` and `a2` both chosen (without
-        replacement) from the first sample set and ``b1`` and ``b2`` chosen
-        randomly without replacement from the second sample set. See :ref:``f4``
-        for more details.
+        :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
+        chosen set of four samples ``(a1, b1; a2, b2)``, with `a1` and `a2`
+        both chosen (without replacement) from the first sample set and ``b1``
+        and ``b2`` chosen randomly without replacement from the second sample
+        set. See :meth:`f4 <.TreeSequence.f4>` for more details.
 
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
