@@ -965,11 +965,27 @@ class Tree(object):
         """
         return self._ll_tree.get_sample_size()
 
+    def draw_text(self, **kwargs):
+        # Experimental drawing code. This aims to replace or at least be a more
+        # powerful SVG driven interface for the code below.
+        return str(drawing.TextTree(self, **kwargs))
+
+    def draw_svg(self, path=None, **kwargs):
+        # Experimental drawing code. This aims to replace or at least be a more
+        # powerful SVG driven interface for the code below.
+        draw = drawing.SvgTree(self, **kwargs)
+        output = draw.drawing.tostring()
+        if path is not None:
+            # TODO: removed the pretty here when this is stable.
+            draw.drawing.saveas(path, pretty=True)
+        return output
+
     def draw(
             self, path=None, width=None, height=None,
             node_labels=None, node_colours=None,
             mutation_labels=None, mutation_colours=None,
-            format=None, edge_colours=None):
+            format=None, edge_colours=None, tree_height_scale=None,
+            max_tree_height=None):
         """
         Returns a drawing of this tree.
 
@@ -1039,6 +1055,21 @@ class Tree(object):
             joining each node in the map to its parent. As for ``node_colours``,
             unspecified edges take the default colour, and ``None`` values result in the
             edge being omitted. (Only supported in the SVG format.)
+        :param str tree_height_scale: Control how height values for nodes are computed.
+            If this is equal to ``"time"``, node heights are proportional to their time
+            values. If it is equal to ``"rank"``, node heights are spaced equally
+            according to their ranked times. For SVG output the default is time-scale
+            whereas for text output the default is rank-scale. Time scaling is not
+            currently supported for text output.
+        :param str,float max_tree_height: The maximum tree height value in the current
+            scaling system (see ``tree_height_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"``, the maximum tree height is set to be
+            that of the oldest root in the tree. If equal to ``"ts"`` the maximum
+            height is set to be the height of the oldest root in the tree sequence;
+            this is useful when drawing trees from the same tree sequence as it ensures
+            that node heights are consistent. If a numeric value, this is used as the
+            maximum tree height by which to scale other nodes. This parameters
+            is not currently supported for text output.
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
@@ -1046,7 +1077,8 @@ class Tree(object):
             self, format=format, width=width, height=height,
             node_labels=node_labels, node_colours=node_colours,
             mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-            edge_colours=edge_colours)
+            edge_colours=edge_colours, tree_height_scale=tree_height_scale,
+            max_tree_height=max_tree_height)
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)
@@ -3037,6 +3069,20 @@ class TreeSequence(object):
             return new_ts, node_map
         else:
             return new_ts
+
+    def draw_svg(self, path=None, **kwargs):
+        # TODO document this method, including semantic details of the
+        # returned SVG object.
+        draw = drawing.SvgTreeSequence(self, **kwargs)
+        output = draw.drawing.tostring()
+        if path is not None:
+            # TODO remove the 'pretty' when we are done debugging this.
+            draw.drawing.saveas(path, pretty=True)
+        return output
+
+    def draw_text(self, **kwargs):
+        # TODO document this method.
+        return str(drawing.TextTreeSequence(self, **kwargs))
 
     ############################################
     #
