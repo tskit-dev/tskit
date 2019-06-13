@@ -104,12 +104,6 @@ def naive_general_site_stats(ts, W, f, windows=None, polarised=False):
         return ssc.windowed_sitewise_stat(sigma, windows)
 
 
-def general_site_stats(ts, W, f, windows=None, polarised=False):
-    # moved code over to tskit/stats.py
-    ssc = tskit.SiteStatCalculator(ts)
-    return ssc.general_stat(W, f, windows=windows, polarised=polarised)
-
-
 def path_length(tr, x, y):
     L = 0
     if x >= 0 and y >= 0:
@@ -456,7 +450,7 @@ def node_general_stat(ts, sample_weights, summary_func, windows=None, polarised=
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
     # contains summary_func(state[u]) for each node
     current_values = np.zeros((ts.num_nodes, result_dim))
-    for u in ts.samples():
+    for u in range(ts.num_nodes):
         current_values[u] = node_summary(u)
     # contains the location of the last time we updated the output for a node.
     last_update = np.zeros((ts.num_nodes, 1))
@@ -536,19 +530,6 @@ def upper_tri_to_matrix(x):
 ##################################
 # Test cases
 ##################################
-
-
-class TestNodeStatsDisabled(unittest.TestCase):
-    """
-    Temporary test to make sure that tests are disabled.
-    """
-    def test_raises_error(self):
-        ts = msprime.simulate(10, random_seed=1)
-        with self.assertRaises(NotImplementedError):
-            ts.diversity(ts.samples(), mode="node")
-
-        with self.assertRaises(NotImplementedError):
-            ts.divergence([[0, 1], [2, 3]], mode="node")
 
 
 class StatsTestCase(unittest.TestCase):
@@ -637,7 +618,6 @@ class TopologyExamplesMixin(object):
         ts = tables.tree_sequence()
         self.verify(ts)
 
-    @unittest.skip("Incorrect semantics on empty ts; #207")
     def test_empty_ts(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(1, 0)
@@ -753,35 +733,36 @@ def example_sample_sets(ts, min_size=1):
     """
     samples = ts.samples()
     yield [[u] for u in samples]
-    splits = np.array_split(samples, min_size)
-    yield splits
-    yield splits[::-1]
+    if ts.num_samples >= min_size:
+        splits = np.array_split(samples, min_size)
+        yield splits
+        yield splits[::-1]
 
 
 def example_sample_set_index_pairs(sample_sets):
     k = len(sample_sets)
-    assert k > 1
-    yield [(0, 1)]
-    yield [(1, 0), (0, 1)]
-    if k > 2:
-        yield [(0, 1), (1, 2), (0, 2)]
+    if k > 1:
+        yield [(0, 1)]
+        yield [(1, 0), (0, 1)]
+        if k > 2:
+            yield [(0, 1), (1, 2), (0, 2)]
 
 
 def example_sample_set_index_triples(sample_sets):
     k = len(sample_sets)
-    assert k > 2
-    yield [(0, 1, 2)]
-    yield [(0, 2, 1), (2, 1, 0)]
-    if k > 3:
-        yield [(3, 0, 1), (0, 2, 3), (1, 2, 3)]
+    if k > 2:
+        yield [(0, 1, 2)]
+        yield [(0, 2, 1), (2, 1, 0)]
+        if k > 3:
+            yield [(3, 0, 1), (0, 2, 3), (1, 2, 3)]
 
 
 def example_sample_set_index_quads(sample_sets):
     k = len(sample_sets)
-    assert k > 3
-    yield [(0, 1, 2, 3)]
-    yield [(0, 1, 2, 3), (3, 2, 1, 0)]
-    yield [(0, 1, 2, 3), (3, 2, 1, 0), (1, 2, 3, 0)]
+    if k > 3:
+        yield [(0, 1, 2, 3)]
+        yield [(0, 1, 2, 3), (3, 2, 1, 0)]
+        yield [(0, 1, 2, 3), (3, 2, 1, 0), (1, 2, 3, 0)]
 
 
 def example_windows(ts):
@@ -860,9 +841,6 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
         self.assertEqual(sigma1.shape, sigma4.shape)
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
-        # print("windows = ", windows)
-        # print(sigma1)
-        # print(sigma4)
         self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
@@ -920,6 +898,7 @@ def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
         for i, X in enumerate(sample_sets):
             S = 0
             site_in_window = False
+            denom = np.float64(len(X) * (len(X) - 1))
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     site_in_window = True
@@ -931,12 +910,10 @@ def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
                                 # x|y
                                 S += 1
             if site_in_window:
-                denom = len(X) * (len(X) - 1)
-                if span_normalise:
-                    denom *= end - begin
-                denom = np.array(denom)
                 with suppress_division_by_zero_warning():
                     out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -948,21 +925,25 @@ def branch_diversity(ts, sample_sets, windows=None, span_normalise=True):
         end = windows[j + 1]
         for i, X in enumerate(sample_sets):
             S = 0
+            denom = np.float64(len(X) * (len(X) - 1))
+            has_trees = False
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 SS = 0
                 for x in X:
                     for y in set(X) - set([x]):
                         SS += path_length(tr, x, y)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            denom = len(X) * (len(X) - 1)
-            if span_normalise:
-                denom *= end - begin
-            with suppress_division_by_zero_warning():
-                out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -976,6 +957,7 @@ def node_diversity(ts, sample_sets, windows=None, span_normalise=True):
             begin = windows[j]
             end = windows[j + 1]
             tX = len(X)
+            denom = np.float64(len(X) * (len(X) - 1))
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees(tracked_samples=X):
                 if tr.interval[1] <= begin:
@@ -986,12 +968,12 @@ def node_diversity(ts, sample_sets, windows=None, span_normalise=True):
                 for u in tr.nodes():
                     # count number of pairwise paths going through u
                     n = tr.num_tracked_samples(u)
-                    SS[u] += n * (tX - n)
+                    SS[u] += 2 * n * (tX - n)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            denom = len(X) * (len(X) - 1)
+            with suppress_division_by_zero_warning():
+                out[j, :, k] = S / denom
             if span_normalise:
-                denom *= end - begin
-            out[j, :, k] = 2 * S / denom
+                out[j, :, k] /= (end - begin)
     return out
 
 
@@ -1027,7 +1009,6 @@ class TestBranchDiversity(TestDiversity, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("Node stats problems")
 class TestNodeDiversity(TestDiversity, TopologyExamplesMixin):
     mode = "node"
 
@@ -1048,11 +1029,15 @@ def branch_Y1(ts, sample_sets, windows=None, span_normalise=True):
         end = windows[j + 1]
         for i, X in enumerate(sample_sets):
             S = 0
+            denom = np.float64(len(X) * (len(X)-1) * (len(X)-2))
+            has_trees = False
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
                 for x in X:
                     for y in set(X) - {x}:
@@ -1075,14 +1060,11 @@ def branch_Y1(ts, sample_sets, windows=None, span_normalise=True):
                                 #  / /\
                                 # z x  y
                                 S += path_length(tr, x, xy_mrca) * this_length
-            denom = len(X) * (len(X)-1) * (len(X)-2)
-            if span_normalise:
-                denom *= (end - begin)
-            # Make sure that divisiion is done by numpy so that we can handle
-            # division by zero.
-            denom = np.array(denom)
-            with suppress_division_by_zero_warning():
-                out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1097,6 +1079,7 @@ def site_Y1(ts, sample_sets, windows=None, span_normalise=True):
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             S = 0
+            denom = np.float64(len(X) * (len(X)-1) * (len(X)-2))
             site_in_window = False
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
@@ -1114,13 +1097,41 @@ def site_Y1(ts, sample_sets, windows=None, span_normalise=True):
                                     # x|yz
                                     S += 1
             if site_in_window:
-                denom = len(X) * (len(X)-1) * (len(X)-2)
-                if span_normalise:
-                    denom *= (end - begin)
-                # Make sure division is done by numpy
-                denom = np.array(denom)
                 with suppress_division_by_zero_warning():
                     out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
+    return out
+
+
+def node_Y1(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    K = len(sample_sets)
+    out = np.zeros((len(windows) - 1, ts.num_nodes, K))
+    for k in range(K):
+        X = sample_sets[k]
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            tX = len(X)
+            denom = np.float64(tX * (tX - 1) * (tX - 2))
+            S = np.zeros(ts.num_nodes)
+            for tr in ts.trees(tracked_samples=X):
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in tr.nodes():
+                    # count number of paths above a but not b,c
+                    n = tr.num_tracked_samples(u)
+                    SS[u] += (n * (tX - n) * (tX - n - 1)
+                              + (tX - n) * n * (n - 1))
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            with suppress_division_by_zero_warning():
+                out[j, :, k] = S / denom
+            if span_normalise:
+                out[j, :, k] /= (end - begin)
     return out
 
 
@@ -1128,7 +1139,7 @@ def Y1(ts, sample_sets, windows=None, mode="site", span_normalise=True):
     windows = ts.parse_windows(windows)
     method_map = {
         "site": site_Y1,
-        # "node": node_Y1, NOT DEFINED
+        "node": node_Y1,
         "branch": branch_Y1}
     return method_map[mode](ts, sample_sets, windows=windows,
                             span_normalise=span_normalise)
@@ -1152,7 +1163,6 @@ class TestBranchY1(TestY1, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("Y1 Node stat not defined")
 class TestNodeY1(TestY1, TopologyExamplesMixin):
     mode = "node"
 
@@ -1176,9 +1186,12 @@ def site_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
         for i, (ix, iy) in enumerate(indexes):
             X = sample_sets[ix]
             Y = sample_sets[iy]
+            denom = np.float64(len(X) * len(Y))
+            site_in_window = False
             S = 0
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
                     for x in X:
                         x_index = np.where(samples == x)[0][0]
                         for y in Y:
@@ -1186,10 +1199,11 @@ def site_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
                             if haps[x_index][k] != haps[y_index][k]:
                                 # x|y
                                 S += 1
-            denom = len(X) * len(Y)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if site_in_window:
+                with np.errstate(invalid='ignore', divide='ignore'):
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1201,21 +1215,26 @@ def branch_divergence(ts, sample_sets, indexes, windows=None, span_normalise=Tru
         for i, (ix, iy) in enumerate(indexes):
             X = sample_sets[ix]
             Y = sample_sets[iy]
+            denom = np.float64(len(X) * len(Y))
+            has_trees = False
             S = 0
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 SS = 0
                 for x in X:
                     for y in Y:
                         SS += path_length(tr, x, y)
                 S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
-            denom = len(X) * len(Y)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1226,6 +1245,7 @@ def node_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
         Y = sample_sets[iy]
         tX = len(X)
         tY = len(Y)
+        denom = np.float64(len(X) * len(Y))
         for j in range(len(windows) - 1):
             begin = windows[j]
             end = windows[j + 1]
@@ -1241,12 +1261,12 @@ def node_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
                     # count number of pairwise paths going through u
                     nX = t1.num_tracked_samples(u)
                     nY = t2.num_tracked_samples(u)
-                    SS[u] += nX * (tY - nY) + (tX - nX) * nY
+                    SS[u] += (nX * (tY - nY) + (tX - nX) * nY)
                 S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
-            denom = len(X) * len(Y)
+            with suppress_division_by_zero_warning():
+                out[j, :, i] = S / denom
             if span_normalise:
-                denom *= (end - begin)
-            out[j, :, i] = S / denom
+                out[j, :, i] /= (end - begin)
     return out
 
 
@@ -1290,7 +1310,6 @@ class TestBranchDivergence(TestDivergence, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("Issues with node stats")
 class TestNodeDivergence(TestDivergence, TopologyExamplesMixin):
     mode = "node"
 
@@ -1374,12 +1393,16 @@ def branch_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
         for i, (ix, iy) in enumerate(indexes):
             X = sample_sets[ix]
             Y = sample_sets[iy]
+            denom = np.float64(len(X) * len(Y) * (len(Y)-1))
+            has_trees = False
             S = 0
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
                 for x in X:
                     for y in Y:
@@ -1402,11 +1425,11 @@ def branch_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                 #  / /\
                                 # z x  y
                                 S += path_length(tr, x, xy_mrca) * this_length
-            denom = len(X) * len(Y) * (len(Y)-1)
-            if span_normalise:
-                denom *= (end - begin)
-            with suppress_division_by_zero_warning():
-                out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1422,6 +1445,7 @@ def site_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
         for i, (ix, iy) in enumerate(indexes):
             X = sample_sets[ix]
             Y = sample_sets[iy]
+            denom = np.float64(len(X) * len(Y) * (len(Y)-1))
             S = 0
             site_in_window = False
             for k in range(ts.num_sites):
@@ -1440,11 +1464,43 @@ def site_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                     # x|yz
                                     S += 1
             if site_in_window:
-                denom = len(X) * len(Y) * (len(Y)-1)
-                if span_normalise:
-                    denom *= (end - begin)
                 with suppress_division_by_zero_warning():
                     out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
+    return out
+
+
+def node_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
+    out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
+    for i, (ix, iy) in enumerate(indexes):
+        X = sample_sets[ix]
+        Y = sample_sets[iy]
+        tX = len(X)
+        tY = len(Y)
+        denom = np.float64(tX * tY * (tY - 1))
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(ts.num_nodes)
+            for t1, t2 in zip(ts.trees(tracked_samples=X),
+                              ts.trees(tracked_samples=Y)):
+                if t1.interval[1] <= begin:
+                    continue
+                if t1.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in t1.nodes():
+                    # count number of pairwise paths going through u
+                    nX = t1.num_tracked_samples(u)
+                    nY = t2.num_tracked_samples(u)
+                    SS[u] += (nX * (tY - nY) * (tY - nY - 1)
+                              + (tX - nX) * nY * (nY - 1))
+                S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+            with suppress_division_by_zero_warning():
+                out[j, :, i] = S / denom
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
     return out
 
 
@@ -1456,7 +1512,7 @@ def Y2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
         indexes = [(0, 1)]
     method_map = {
         "site": site_Y2,
-        # "node": node_Y2,
+        "node": node_Y2,
         "branch": branch_Y2}
     return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
                             span_normalise=span_normalise)
@@ -1484,7 +1540,6 @@ class TestBranchY2(TestY2, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("Y2 Node stat not defined")
 class TestNodeY2(TestY2, TopologyExamplesMixin):
     mode = "node"
 
@@ -1508,11 +1563,15 @@ def branch_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             X = sample_sets[ix]
             Y = sample_sets[iy]
             Z = sample_sets[iz]
+            denom = np.float64(len(X) * len(Y) * len(Z))
+            has_trees = False
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
                 for x in X:
                     for y in Y:
@@ -1535,10 +1594,11 @@ def branch_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                 #  / /\
                                 # z x  y
                                 S += path_length(tr, x, xy_mrca) * this_length
-            denom = len(X) * len(Y) * len(Z)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1555,6 +1615,7 @@ def site_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             X = sample_sets[ix]
             Y = sample_sets[iy]
             Z = sample_sets[iz]
+            denom = np.float64(len(X) * len(Y) * len(Z))
             S = 0
             site_in_window = False
             for k in range(ts.num_sites):
@@ -1569,12 +1630,50 @@ def site_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                 if ((haps[x_index][k] != haps[y_index][k])
                                    and (haps[x_index][k] != haps[z_index][k])):
                                     # x|yz
-                                    S += 1
+                                    with suppress_division_by_zero_warning():
+                                        S += 1
             if site_in_window:
-                denom = len(X) * len(Y) * len(Z)
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
                 if span_normalise:
-                    denom *= (end - begin)
-                out[j][i] = S / denom
+                    out[j][i] /= (end - begin)
+    return out
+
+
+def node_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
+    out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
+    for i, (ix, iy, iz) in enumerate(indexes):
+        X = sample_sets[ix]
+        Y = sample_sets[iy]
+        Z = sample_sets[iz]
+        tX = len(X)
+        tY = len(Y)
+        tZ = len(Z)
+        denom = np.float64(tX * tY * tZ)
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(ts.num_nodes)
+            for t1, t2, t3 in zip(ts.trees(tracked_samples=X),
+                                  ts.trees(tracked_samples=Y),
+                                  ts.trees(tracked_samples=Z)):
+                if t1.interval[1] <= begin:
+                    continue
+                if t1.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in t1.nodes():
+                    # count number of pairwise paths going through u
+                    nX = t1.num_tracked_samples(u)
+                    nY = t2.num_tracked_samples(u)
+                    nZ = t3.num_tracked_samples(u)
+                    SS[u] += (nX * (tY - nY) * (tZ - nZ)
+                              + (tX - nX) * nY * nZ)
+                S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+            with suppress_division_by_zero_warning():
+                out[j, :, i] = S / denom
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
     return out
 
 
@@ -1584,7 +1683,7 @@ def Y3(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
         indexes = [(0, 1, 2)]
     method_map = {
         "site": site_Y3,
-        # "node": node_Y3,
+        "node": node_Y3,
         "branch": branch_Y3}
     return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
                             span_normalise=span_normalise)
@@ -1611,7 +1710,6 @@ class TestBranchY3(TestY3, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("Y3 Node stat not defined")
 class TestNodeY3(TestY3, TopologyExamplesMixin):
     mode = "node"
 
@@ -1634,28 +1732,31 @@ def branch_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
         for i, (ia, ib) in enumerate(indexes):
             A = sample_sets[ia]
             B = sample_sets[ib]
+            denom = np.float64(len(A) * (len(A) - 1) * len(B) * (len(B) - 1))
+            has_trees = False
             S = 0
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
                 SS = 0
                 for a in A:
                     for b in B:
                         for c in set(A) - {a}:
                             for d in set(B) - {b}:
-                                SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
-                                SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
+                                with suppress_division_by_zero_warning():
+                                    SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
+                                    SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
                 S += SS * this_length
-            denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
-            if span_normalise:
-                denom *= (end - begin)
-            if denom == 0:
-                out[j][i] = np.nan
-            else:
-                out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1671,6 +1772,7 @@ def site_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
         for i, (iA, iB) in enumerate(indexes):
             A = sample_sets[iA]
             B = sample_sets[iB]
+            denom = np.float64(len(A) * (len(A) - 1) * len(B) * (len(B) - 1))
             S = 0
             site_in_window = False
             for k in range(ts.num_sites):
@@ -1695,11 +1797,45 @@ def site_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                         # ad|bc
                                         S -= 1
             if site_in_window:
-                denom = len(A) * (len(A) - 1) * len(B) * (len(B) - 1)
-                if span_normalise:
-                    denom *= (end - begin)
-                with suppress_division_by_zero_warning():
+                with np.errstate(invalid='ignore', divide='ignore'):
                     out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
+    return out
+
+
+def node_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
+    out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
+    for i, (ia, ib) in enumerate(indexes):
+        A = sample_sets[ia]
+        B = sample_sets[ib]
+        tA = len(A)
+        tB = len(B)
+        denom = np.float64(tA * (tA - 1) * tB * (tB - 1))
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(ts.num_nodes)
+            for t1, t2 in zip(ts.trees(tracked_samples=A),
+                              ts.trees(tracked_samples=B)):
+                if t1.interval[1] <= begin:
+                    continue
+                if t1.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in t1.nodes():
+                    # count number of pairwise paths going through u
+                    nA = t1.num_tracked_samples(u)
+                    nB = t2.num_tracked_samples(u)
+                    # xy|uv - xv|uy with x,y in A, u, v in B
+                    SS[u] += (nA * (nA - 1) * (tB - nB) * (tB - nB - 1)
+                              + (tA - nA) * (tA - nA - 1) * nB * (nB - 1))
+                    SS[u] -= 2 * nA * nB * (tA - nA) * (tB - nB)
+                S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+            with suppress_division_by_zero_warning():
+                out[j, :, i] = S / denom
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
     return out
 
 
@@ -1712,7 +1848,7 @@ def f2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
         indexes = [(0, 1)]
     method_map = {
         "site": site_f2,
-        # "node": node_Y2,
+        "node": node_f2,
         "branch": branch_f2}
     return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
                             span_normalise=span_normalise)
@@ -1742,7 +1878,6 @@ class TestBranchf2(Testf2, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("f2 Node stat not defined")
 class TestNodef2(Testf2, TopologyExamplesMixin):
     mode = "node"
 
@@ -1766,12 +1901,16 @@ def branch_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             A = sample_sets[ia]
             B = sample_sets[ib]
             C = sample_sets[ic]
+            denom = np.float64(len(A) * (len(A) - 1) * len(B) * len(C))
+            has_trees = False
             S = 0
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
                 SS = 0
                 for a in A:
@@ -1781,11 +1920,11 @@ def branch_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                 SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
                                 SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
                 S += SS * this_length
-            denom = len(A) * (len(A) - 1) * len(B) * len(C)
-            if span_normalise:
-                denom *= (end - begin)
-            with suppress_division_by_zero_warning():
-                out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1802,6 +1941,7 @@ def site_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             A = sample_sets[iA]
             B = sample_sets[iB]
             C = sample_sets[iC]
+            denom = np.float64(len(A) * (len(A) - 1) * len(B) * len(C))
             S = 0
             site_in_window = False
             for k in range(ts.num_sites):
@@ -1826,11 +1966,50 @@ def site_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                         # ad|bc
                                         S -= 1
             if site_in_window:
-                denom = len(A) * (len(A) - 1) * len(B) * len(C)
-                if span_normalise:
-                    denom *= (end - begin)
-                with suppress_division_by_zero_warning():
+                with np.errstate(invalid='ignore', divide='ignore'):
                     out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
+    return out
+
+
+def node_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
+    out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
+    for i, (iA, iB, iC) in enumerate(indexes):
+        A = sample_sets[iA]
+        B = sample_sets[iB]
+        C = sample_sets[iC]
+        tA = len(A)
+        tB = len(B)
+        tC = len(C)
+        denom = np.float64(tA * (tA - 1) * tB * tC)
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(ts.num_nodes)
+            for t1, t2, t3 in zip(ts.trees(tracked_samples=A),
+                                  ts.trees(tracked_samples=B),
+                                  ts.trees(tracked_samples=C)):
+                if t1.interval[1] <= begin:
+                    continue
+                if t1.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in t1.nodes():
+                    # count number of pairwise paths going through u
+                    nA = t1.num_tracked_samples(u)
+                    nB = t2.num_tracked_samples(u)
+                    nC = t3.num_tracked_samples(u)
+                    # xy|uv - xv|uy with x,y in A, u in B and v in C
+                    SS[u] += (nA * (nA - 1) * (tB - nB) * (tC - nC)
+                              + (tA - nA) * (tA - nA - 1) * nB * nC)
+                    SS[u] -= (nA * nC * (tA - nA) * (tB - nB)
+                              + (tA - nA) * (tC - nC) * nA * nB)
+                S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+            with suppress_division_by_zero_warning():
+                out[j, :, i] = S / denom
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
     return out
 
 
@@ -1843,7 +2022,7 @@ def f3(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
         indexes = [(0, 1, 2)]
     method_map = {
         "site": site_f3,
-        # "node": node_Y2,
+        "node": node_f3,
         "branch": branch_f3}
     return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
                             span_normalise=span_normalise)
@@ -1870,7 +2049,6 @@ class TestBranchf3(Testf3, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("f3 Node stat not defined")
 class TestNodef3(Testf3, TopologyExamplesMixin):
     mode = "node"
 
@@ -1894,25 +2072,31 @@ def branch_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
             B = sample_sets[iB]
             C = sample_sets[iC]
             D = sample_sets[iD]
+            denom = np.float64(len(A) * len(B) * len(C) * len(D))
+            has_trees = False
             S = 0
             for tr in ts.trees():
                 if tr.interval[1] <= begin:
                     continue
                 if tr.interval[0] >= end:
                     break
+                if tr.total_branch_length > 0:
+                    has_trees = True
                 this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
                 SS = 0
                 for a in A:
                     for b in B:
                         for c in C:
                             for d in D:
-                                SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
-                                SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
+                                with suppress_division_by_zero_warning():
+                                    SS += path_length(tr, tr.mrca(a, c), tr.mrca(b, d))
+                                    SS -= path_length(tr, tr.mrca(a, d), tr.mrca(b, c))
                 S += SS * this_length
-            denom = len(A) * len(B) * len(C) * len(D)
-            if span_normalise:
-                denom *= (end - begin)
-            out[j][i] = S / denom
+            if has_trees:
+                with suppress_division_by_zero_warning():
+                    out[j][i] = S / denom
+                if span_normalise:
+                    out[j][i] /= (end - begin)
     return out
 
 
@@ -1930,6 +2114,7 @@ def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
             B = sample_sets[iB]
             C = sample_sets[iC]
             D = sample_sets[iD]
+            denom = np.float64(len(A) * len(B) * len(C) * len(D))
             S = 0
             site_in_window = False
             for k in range(ts.num_sites):
@@ -1954,10 +2139,54 @@ def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
                                         # ad|bc
                                         S -= 1
             if site_in_window:
-                denom = len(A) * len(B) * len(C) * len(D)
+                with np.errstate(invalid='ignore', divide='ignore'):
+                    out[j][i] = S / denom
                 if span_normalise:
-                    denom *= (end - begin)
-                out[j][i] = S / denom
+                    out[j][i] /= (end - begin)
+    return out
+
+
+def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
+    out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
+    for i, (iA, iB, iC, iD) in enumerate(indexes):
+        A = sample_sets[iA]
+        B = sample_sets[iB]
+        C = sample_sets[iC]
+        D = sample_sets[iD]
+        tA = len(A)
+        tB = len(B)
+        tC = len(C)
+        tD = len(D)
+        denom = np.float64(tA * tB * tC * tD)
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            S = np.zeros(ts.num_nodes)
+            for t1, t2, t3, t4 in zip(ts.trees(tracked_samples=A),
+                                      ts.trees(tracked_samples=B),
+                                      ts.trees(tracked_samples=C),
+                                      ts.trees(tracked_samples=D)):
+                if t1.interval[1] <= begin:
+                    continue
+                if t1.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in t1.nodes():
+                    # count number of pairwise paths going through u
+                    nA = t1.num_tracked_samples(u)
+                    nB = t2.num_tracked_samples(u)
+                    nC = t3.num_tracked_samples(u)
+                    nD = t4.num_tracked_samples(u)
+                    # ac|bd - ad|bc
+                    SS[u] += (nA * nC * (tB - nB) * (tD - nD)
+                              + (tA - nA) * (tC - nC) * nB * nD)
+                    SS[u] -= (nA * nD * (tB - nB) * (tC - nC)
+                              + (tA - nA) * (tD - nD) * nB * nC)
+                S += SS*(min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+            with suppress_division_by_zero_warning():
+                out[j, :, i] = S / denom
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
     return out
 
 
@@ -1969,7 +2198,7 @@ def f4(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
         indexes = [(0, 1, 2, 3)]
     method_map = {
         "site": site_f4,
-        # "node": node_f4,
+        "node": node_f4,
         "branch": branch_f4}
     return method_map[mode](ts, sample_sets, indexes=indexes, windows=windows,
                             span_normalise=span_normalise)
@@ -1996,7 +2225,6 @@ class TestBranchf4(Testf4, TopologyExamplesMixin):
     mode = "branch"
 
 
-@unittest.skip("f4 Node stat not defined")
 class TestNodef4(Testf4, TopologyExamplesMixin):
     mode = "node"
 
@@ -2716,7 +2944,6 @@ class SpecificTreesTestCase(StatsTestCase):
     """
     seed = 21
 
-    @unittest.skip("Node stats mismatching")
     def test_case_1(self):
         # With mutations:
         #
@@ -2856,12 +3083,21 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0],
                                     site_true_Y)
 
+        A = [[0, 1, 2]]
+        n = 3
+        W = np.array([[u in A[0]] for u in ts.samples()], dtype=float)
+
+        def f(x):
+            return np.array([x[0]*(n-x[0])/(n * (n - 1))])
+
         mode = "node"
         # nodes, diversity in [0,1,2]
         nodes_div_012 = ts.diversity([[0, 1, 2]], mode=mode).reshape((1, 7))
         py_nodes_div_012 = diversity(ts, [[0, 1, 2]], mode=mode).reshape((1, 7))
-        self.assertArrayAlmostEqual(nodes_div_012, node_true_diversity_012)
+        py_general_nodes_div_012 = general_stat(ts, W, f, mode=mode).reshape((1, 7))
         self.assertArrayAlmostEqual(py_nodes_div_012, node_true_diversity_012)
+        self.assertArrayAlmostEqual(py_general_nodes_div_012, node_true_diversity_012)
+        self.assertArrayAlmostEqual(nodes_div_012, node_true_diversity_012)
 
         # nodes, divergence [0] to [1,2]
         nodes_div_0_12 = ts.divergence([[0], [1, 2]], mode=mode).reshape((1, 7))

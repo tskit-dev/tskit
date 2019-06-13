@@ -3097,12 +3097,10 @@ class TreeSequence(object):
 
     def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
                                   mode=None, span_normalise=True):
-        if mode == "node":
-            raise NotImplementedError("Node stats are not implemented yet")
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
-            raise ValueError("Samples sets must contain at least one element")
+            raise ValueError("Sample sets must contain at least one element")
         flattened = tables.to_np_int32(np.hstack(sample_sets))
         windows = self.parse_windows(windows)
         return ll_method(sample_set_sizes, flattened, windows=windows,
@@ -3111,12 +3109,10 @@ class TreeSequence(object):
     def __k_way_sample_set_stat(
             self, ll_method, k, sample_sets, indexes=None, windows=None,
             mode=None, span_normalise=True):
-        if mode == "node":
-            raise NotImplementedError("Node stats are not implemented yet")
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
-            raise ValueError("Samples sets must contain at least one element")
+            raise ValueError("Sample sets must contain at least one element")
         flattened = tables.to_np_int32(np.hstack(sample_sets))
         windows = self.parse_windows(windows)
         if indexes is None:
@@ -3132,9 +3128,10 @@ class TreeSequence(object):
                   span_normalise=True):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
-        sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
+        sets of nodes from ``sample_sets``. See :ref:`sec_general_stats` for
         details of ``indexes``, ``windows``, ``mode`` and return value.
-        Operates on ``k = 1`` sample set at a time.
+        Operates on ``k = 1`` sample set at a time.  Note that this quantity
+        can also be computed by the :meth:`divergence <.TreeSequence.divergence>` method.
 
         What is computed depends on ``mode``:
 
@@ -3170,10 +3167,11 @@ class TreeSequence(object):
                    span_normalise=True):
         """
         Computes mean genetic divergence between (and within) pairs of
-        sets of nodes given by ``sample_sets``. See :ref:`sec_general_stats` for
+        sets of nodes from ``sample_sets``. See :ref:`sec_general_stats` for
         details of ``indexes``, ``windows``, ``mode`` and return value.
         Operates on ``k = 2`` sample sets at a time. As a special case, an index
-        `(j, j)` will compute the :ref:``diversity`` of ``sample_set[i]``.
+        `(j, j)` will compute the :meth:`diversity <.TreeSequence.diversity>` of
+        ``sample_set[i]``.
 
         What is computed depends on ``mode``:
 
@@ -3248,13 +3246,16 @@ class TreeSequence(object):
     def Fst(self, sample_sets, indexes=None, windows=None, mode="site",
             span_normalise=True):
         """
-        Computes "windowed" Fst between pairs of sets of nodes given by
+        Computes "windowed" Fst between pairs of sets of nodes from
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indexes``, ``windows``, ``mode`` and return value.  Operates on
         ``k = 2`` sample sets at a time. For sample sets ``X`` and ``Y``,
-        if ``d(X, Y)`` is the :func:``divergence`` between ``X`` and ``Y``,
-        and ``d(X)`` is the :func: ``diversity`` of ``X``,
-        then what is computed is
+        if ``d(X, Y)`` is the :meth:`divergence <.TreeSequence.divergence>`
+        between ``X`` and ``Y``, and ``d(X)`` is the
+        :meth:`diversity <.TreeSequence.diversity>` of ``X``, then what is
+        computed is
+
+        .. code-block:: python
 
             Fst = 1 - 2 * (d(X) + d(Y)) / (d(X) + 2 * d(X, Y) + d(Y))
 
@@ -3295,7 +3296,7 @@ class TreeSequence(object):
     def Y3(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):
         """
-        Computes the 'Y' statistic between triples of sets of nodes given by
+        Computes the 'Y' statistic between triples of sets of nodes from
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indexes``, ``windows``, ``mode`` and return value. Operates
         on ``k = 3`` sample sets at a time.
@@ -3333,7 +3334,7 @@ class TreeSequence(object):
     def Y2(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):
         """
-        Computes the 'Y2' statistic between pairs of sets of nodes given by
+        Computes the 'Y2' statistic between pairs of sets of nodes from
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indexes``, ``windows``, ``mode`` and return value. Operates
         on ``k = 2`` sample sets at a time.
@@ -3342,7 +3343,7 @@ class TreeSequence(object):
         ``Y3``, except that the average across randomly chosen trios of samples
         ``(a, b1, b2)``, where ``a`` is chosen from the first sample set, and
         ``b1, b2`` are chosen (without replacement) from the second sample set.
-        See :ref:``Y3`` for more details.
+        See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3361,15 +3362,15 @@ class TreeSequence(object):
 
     def Y1(self, sample_sets, windows=None, mode="site", span_normalise=True):
         """
-        Computes the 'Y1' statistic between pairs of sets of nodes given by
+        Computes the 'Y1' statistic within each of the sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         ``indexes``, ``windows``, ``mode`` and return value. Operates
-        on ``k = 1`` sample sets at a time.
+        on ``k = 1`` sample set at a time.
 
         What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average is across a randomly chosen trio of
         samples ``(a1, a2, a3)`` all chosen without replacement from the same
-        sample set. See :ref:``Y3`` for more details.
+        sample set. See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3388,10 +3389,10 @@ class TreeSequence(object):
     def f4(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):
         """
-        Computes Patterson's f4 statistic between four groups of sample_sets.
-        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        ``mode`` and return value. Operates on ``k = 4`` sample sets
-        at a time.
+        Computes Patterson's f4 statistic between four groups of nodes from
+        ``sample_sets``.  See :ref:`sec_general_stats` for details of
+        ``indexes``, ``windows``, ``mode`` and return value. Operates on
+        ``k = 4`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is an average across
         randomly chosen set of four samples ``(a, b; c, d)``, one from each sample set:
@@ -3408,7 +3409,7 @@ class TreeSequence(object):
             separate ``a`` and ``d`` from ``b`` and ``c`` (in units of time).
 
         "node"
-            For each node, the average proportion of the window on which ``a`` anc ``c``
+            For each node, the average proportion of the window on which ``a`` and ``c``
             inherit from that node but ``b`` and ``d`` do not, or vice-versa,
             minus the average proportion of the window on which ``a`` anc ``d``
             inherit from that node but ``b`` and ``c`` do not, or vice-versa.
@@ -3431,16 +3432,16 @@ class TreeSequence(object):
     def f3(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):
         """
-        Computes Patterson's f3 statistic between four groups of sample_sets.
-        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        ``mode`` and return value. Operates on ``k = 3`` sample sets
-        at a time.
+        Computes Patterson's f3 statistic between three groups of nodes from
+        ``sample_sets``.  See :ref:`sec_general_stats` for details of
+        ``indexes``, ``windows``, ``mode`` and return value. Operates on
+        ``k = 3`` sample sets at a time.
 
         What is computed depends on ``mode``. Each works exactly as
-        :ref:``f4``, except the average is across randomly chosen set of four
-        samples ``(a1, b; a2, c)``, with `a1` and `a2` both chosen (without
-        replacement) from the first sample set. See :ref:``f4`` for more
-        details.
+        :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
+        chosen set of four samples ``(a1, b; a2, c)``, with `a1` and `a2` both
+        chosen (without replacement) from the first sample set. See
+        :meth:`f4 <.TreeSequence.f4>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3460,17 +3461,17 @@ class TreeSequence(object):
     def f2(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):
         """
-        Computes Patterson's f3 statistic between four groups of sample_sets.
-        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        ``mode`` and return value. Operates on ``k = 3`` sample sets
-        at a time.
+        Computes Patterson's f3 statistic between two groups of nodes from
+        ``sample_sets``.  See :ref:`sec_general_stats` for details of
+        ``indexes``, ``windows``, ``mode`` and return value. Operates on
+        ``k = 2`` sample sets at a time.
 
         What is computed depends on ``mode``. Each works exactly as
-        :ref:``f4``, except the average is across randomly chosen set of four
-        samples ``(a1, b1; a2, b2)``, with `a1` and `a2` both chosen (without
-        replacement) from the first sample set and ``b1`` and ``b2`` chosen
-        randomly without replacement from the second samle set. See :ref:``f4``
-        for more details.
+        :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
+        chosen set of four samples ``(a1, b1; a2, b2)``, with `a1` and `a2`
+        both chosen (without replacement) from the first sample set and ``b1``
+        and ``b2`` chosen randomly without replacement from the second sample
+        set. See :meth:`f4 <.TreeSequence.f4>` for more details.
 
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
