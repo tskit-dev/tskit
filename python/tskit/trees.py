@@ -3289,6 +3289,45 @@ class TreeSequence(object):
     #                 k += 1
     #     return A
 
+    def segregating_sites(self, sample_sets, windows=None, mode="site",
+                          span_normalise=True):
+        """
+        Computes the density of segregating sites for each of the sets of nodes
+        from ``sample_sets``, and related quantities.  See
+        :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
+        ``mode`` and return value.  Operates on ``k = 1`` sample set at a time.
+
+        What is computed depends on ``mode``. For a sample set ``A``, computes:
+
+        "site"
+            The sum over sites of the number of alleles found in ``A`` at each site
+            minus one, per unit of chromosome length.
+            If all sites have at most two alleles, this is the density of sites
+            that are polymorphic in ``A``. To get the **number** of segregating minor
+            alleles per window, pass ``span_normalise=False``.
+
+        "branch"
+            The total length of all branches in the tree subtended by the samples in
+            ``A``, averaged across the window.
+
+        "node"
+            The proportion of the window on which the node is ancestral to some,
+            but not all, of the samples in ``A``.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of individuals to compute the statistic with.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        return self.__one_way_sample_set_stat(
+            self._ll_tree_sequence.segregating_sites, sample_sets, windows=windows,
+            mode=mode, span_normalise=span_normalise)
+
     def Fst(self, sample_sets, indexes=None, windows=None, mode="site",
             span_normalise=True):
         """

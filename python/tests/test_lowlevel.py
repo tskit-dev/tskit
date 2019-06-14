@@ -516,6 +516,15 @@ class TestDiversity(LowLevelTestCase, OneWaySampleStatsMixin):
         return ts, ts.diversity
 
 
+class TestSegregatingSites(LowLevelTestCase, OneWaySampleStatsMixin):
+    """
+    Tests for the diversity method.
+    """
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.segregating_sites
+
+
 class TestY1(LowLevelTestCase, OneWaySampleStatsMixin):
     """
     Tests for the diversity method.

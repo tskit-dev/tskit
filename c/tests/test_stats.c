@@ -1045,6 +1045,44 @@ test_paper_ex_diversity(void)
 }
 
 static void
+test_paper_ex_segregating_sites_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_one_way_stat_func_errors(&ts, tsk_treeseq_segregating_sites);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_segregating_sites(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes = 4;
+    double segsites;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_segregating_sites(&ts, 1, &sample_set_sizes, samples, 0, NULL,
+            &segsites, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(segsites, 3.0, 1e-6);
+
+    /* A sample set size of 1 leads to 0 */
+    sample_set_sizes = 1;
+    ret = tsk_treeseq_segregating_sites(&ts, 1, &sample_set_sizes, samples, 0, NULL,
+            &segsites, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(segsites, 0.0, 1e-6);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_paper_ex_Y1_errors(void)
 {
     tsk_treeseq_t ts;
@@ -1396,6 +1434,8 @@ main(int argc, char **argv)
         {"test_paper_ex_general_stat", test_paper_ex_general_stat},
         {"test_paper_ex_diversity_errors", test_paper_ex_diversity_errors},
         {"test_paper_ex_diversity", test_paper_ex_diversity},
+        {"test_paper_ex_segregating_sites_errors", test_paper_ex_segregating_sites_errors},
+        {"test_paper_ex_segregating_sites", test_paper_ex_segregating_sites},
         {"test_paper_ex_Y1_errors", test_paper_ex_Y1_errors},
         {"test_paper_ex_Y1", test_paper_ex_Y1},
         {"test_paper_ex_divergence_errors", test_paper_ex_divergence_errors},

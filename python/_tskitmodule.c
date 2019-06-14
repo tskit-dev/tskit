@@ -6798,6 +6798,12 @@ TreeSequence_diversity(TreeSequence *self, PyObject *args, PyObject *kwds)
 }
 
 static PyObject *
+TreeSequence_segregating_sites(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_one_way_stat_method(self, args, kwds, tsk_treeseq_segregating_sites);
+}
+
+static PyObject *
 TreeSequence_Y1(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_one_way_stat_method(self, args, kwds, tsk_treeseq_Y1);
@@ -7117,6 +7123,9 @@ static PyMethodDef TreeSequence_methods[] = {
     {"diversity",
         (PyCFunction) TreeSequence_diversity,
         METH_VARARGS|METH_KEYWORDS, "Computes diversity within sample sets." },
+    {"segregating_sites",
+        (PyCFunction) TreeSequence_segregating_sites,
+        METH_VARARGS|METH_KEYWORDS, "Computes density of segregating sites within sample sets." },
     {"Y1",
         (PyCFunction) TreeSequence_Y1,
         METH_VARARGS|METH_KEYWORDS, "Computes the Y1 statistic." },

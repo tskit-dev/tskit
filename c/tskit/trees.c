@@ -1859,6 +1859,33 @@ tsk_treeseq_diversity(tsk_treeseq_t *self,
 }
 
 static int
+segregating_sites_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result_dim),
+        double *result, void *params)
+{
+    sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
+    const double *x = state;
+    double n;
+    size_t j;
+
+    // this works because sum_{i=1}^k (1-p_i) = k-1
+    for (j = 0; j < state_dim; j++) {
+        n = (double) args.sample_set_sizes[j];
+        result[j] = (x[j] > 0) * (1 - x[j] / n);
+    }
+    return 0;
+}
+
+int
+tsk_treeseq_segregating_sites(tsk_treeseq_t *self,
+        tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+{
+    return tsk_treeseq_sample_count_stat(self,
+        num_sample_sets, sample_set_sizes, sample_sets, num_sample_sets, NULL,
+        segregating_sites_summary_func, num_windows, windows, result, options);
+}
+
+static int
 Y1_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
         double *result, void *params)
 {

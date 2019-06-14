@@ -221,6 +221,9 @@ int tsk_treeseq_general_stat(tsk_treeseq_t *self,
 int tsk_treeseq_diversity(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
     tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+int tsk_treeseq_segregating_sites(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
 int tsk_treeseq_Y1(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
     tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);

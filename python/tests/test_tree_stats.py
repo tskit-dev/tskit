@@ -1018,6 +1018,120 @@ class TestSiteDiversity(TestDiversity, MutatedTopologyExamplesMixin):
 
 
 ############################################
+# Segregating sites
+############################################
+
+def site_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    out = np.zeros((len(windows) - 1, len(sample_sets)))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        haps = ts.genotype_matrix()
+        site_positions = [x.position for x in ts.sites()]
+        for i, X in enumerate(sample_sets):
+            X_index = np.where(np.in1d(X, samples))[0]
+            for k in range(ts.num_sites):
+                if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    num_alleles = len(set(haps[k, X_index]))
+                    out[j][i] += (num_alleles - 1)
+            if span_normalise:
+                out[j][i] /= (end - begin)
+    return out
+
+
+def branch_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    out = np.zeros((len(windows) - 1, len(sample_sets)))
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for i, X in enumerate(sample_sets):
+            tX = len(X)
+            for tr in ts.trees(tracked_samples=X):
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = 0
+                for u in tr.nodes():
+                    nX = tr.num_tracked_samples(u)
+                    if nX > 0 and nX < tX:
+                        SS += tr.branch_length(u)
+                out[j][i] += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            if span_normalise:
+                out[j][i] /= (end - begin)
+    return out
+
+
+def node_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    K = len(sample_sets)
+    out = np.zeros((len(windows) - 1, ts.num_nodes, K))
+    for k in range(K):
+        X = sample_sets[k]
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            tX = len(X)
+            S = np.zeros(ts.num_nodes)
+            for tr in ts.trees(tracked_samples=X):
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in tr.nodes():
+                    nX = tr.num_tracked_samples(u)
+                    SS[u] = (nX > 0) and (nX < tX)
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            out[j, :, k] = S
+            if span_normalise:
+                out[j, :, k] /= (end - begin)
+    return out
+
+
+def segregating_sites(ts, sample_sets, windows=None, mode="site", span_normalise=True):
+    """
+    Computes the density of segregating sites over the window specified.
+    """
+    method_map = {
+        "site": site_segregating_sites,
+        "node": node_segregating_sites,
+        "branch": branch_segregating_sites}
+    return method_map[mode](ts, sample_sets, windows=windows,
+                            span_normalise=span_normalise)
+
+
+class TestSegregatingSites(StatsTestCase, SampleSetStatsMixin):
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify_sample_sets(self, ts, sample_sets, windows):
+        n = np.array([len(x) for x in sample_sets])
+
+        # this works because sum_{i=1}^k (1-p_i) = k-1
+        def f(x):
+            return (x > 0) * (1 - x / n)
+
+        self.verify_definition(
+            ts, sample_sets, windows, f, ts.segregating_sites, segregating_sites)
+
+
+class TestBranchSegregatingSites(TestSegregatingSites, TopologyExamplesMixin):
+    mode = "branch"
+
+
+class TestNodeSegregatingSites(TestSegregatingSites, TopologyExamplesMixin):
+    mode = "node"
+
+
+class TestSiteSegregatingSites(TestSegregatingSites, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+
+############################################
 # Y1
 ############################################
 
