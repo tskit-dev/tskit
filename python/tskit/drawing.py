@@ -287,7 +287,7 @@ class SvgTreeDrawer(TreeDrawer):
                 if stroke is not None:
                     # Keep SVG small and clean
                     params = {} if stroke == default_edge_colour else {'stroke': stroke}
-                    lines.add(dwg.line(x, (x[1], y[1]), **params))
+                    lines.add(dwg.line(x, (x[0], y[1]), **params))
                     lines.add(dwg.line((x[0], y[1]), y, **params))
 
         # Experimental stuff to render the mutation labels. Not working very
