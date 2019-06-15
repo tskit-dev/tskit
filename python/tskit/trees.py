@@ -3328,6 +3328,52 @@ class TreeSequence(object):
             self._ll_tree_sequence.segregating_sites, sample_sets, windows=windows,
             mode=mode, span_normalise=span_normalise)
 
+    def Tajimas_D(self, sample_sets, windows=None, mode="site"):
+        """
+        Computes Tajima's D in windows in of sets of nodes from
+        ``sample_sets``. See :ref:`sec_general_stats` for details of
+        ``indexes``, ``windows``, ``mode`` and return value.  Operates on
+        ``k = 1`` sample sets at a time. For a sample set ``X`` of ``n`` nodes,
+        if and ``T`` is the mean number of pairwise differing sites in
+        ``X`` and ``S`` is the number of sites segregating in ``X``
+        (computed with :meth:`diversity <.TreeSequence.diversity>` and
+        :meth:`segregating sites <.TreeSequence.segregating_sites>`,
+        respectively, both not span normalised), then Tajima's D is
+
+        .. code-block:: python
+
+            D = (T - S/h) / sqrt(a*S + (b/c)*S*(S-1))
+            h = 1 + 1/2 + ... + 1/(n-1)
+            g = 1 + 1/2^2 + ... + 1/(n-1)^2
+            a = (n+1)/(3*(n-1)*h) - 1/h^2
+            b = 2*(n^2 + n + 3)/(9*n*(n-1)) - (n+2)/(h*n) + g/h^2
+            c = h^2 + g
+
+        What is computed for diversity and divergence depends on ``mode``;
+        see those functions for more details.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of individuals to compute the statistic with.
+        :param list indexes: A list of 2-tuples, or None.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        T = self.diversity(sample_sets, windows=windows,
+                           mode=mode, span_normalise=False)
+        S = self.segregating_sites(sample_sets, windows=windows,
+                                   mode=mode, span_normalise=False)
+        with np.errstate(invalid='ignore', divide='ignore'):
+            n = np.array([len(x) for x in sample_sets])
+            h = np.array([np.sum(1/np.arange(1, nn)) for nn in n])
+            g = np.array([np.sum(1/np.arange(1, nn)**2) for nn in n])
+            a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
+            b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
+            D = (T - S/h) / np.sqrt(a * S + (b / (h**2 + g)) * S * (S - 1))
+        return D
+
     def Fst(self, sample_sets, indexes=None, windows=None, mode="site",
             span_normalise=True):
         """

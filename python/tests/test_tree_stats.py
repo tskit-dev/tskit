@@ -1132,6 +1132,82 @@ class TestSiteSegregatingSites(TestSegregatingSites, MutatedTopologyExamplesMixi
 
 
 ############################################
+# Tajima's D
+############################################
+
+def site_tajimas_d(ts, sample_sets, windows=None):
+    windows = ts.parse_windows(windows)
+    out = np.zeros((len(windows) - 1, len(sample_sets)))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        haps = ts.genotype_matrix()
+        site_positions = [x.position for x in ts.sites()]
+        n = np.array([len(X) for X in sample_sets])
+        for i, X in enumerate(sample_sets):
+            nn = n[i]
+            S = 0
+            T = 0
+            X_index = np.where(np.in1d(X, samples))[0]
+            for k in range(ts.num_sites):
+                if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    hX = haps[k, X_index]
+                    alleles = set(hX)
+                    num_alleles = len(alleles)
+                    n_alleles = [np.sum(hX == a) for a in alleles]
+                    S += (num_alleles - 1)
+                    for k in n_alleles:
+                        with suppress_division_by_zero_warning():
+                            T += k * (nn - k) / (nn * (nn - 1))
+            with suppress_division_by_zero_warning():
+                a1 = np.sum(1/np.arange(1, nn))  # this is h in the main version
+                a2 = np.sum(1/np.arange(1, nn)**2)  # this is g
+                b1 = (nn+1)/(3*(nn-1))
+                b2 = 2 * (nn**2 + nn + 3) / (9 * nn * (nn-1))
+                c1 = b1 - 1/a1
+                c2 = b2 - (nn + 2)/(a1 * nn) + a2 / a1**2
+                e1 = c1 / a1  # this is a
+                e2 = c2 / (a1**2 + a2)  # this is b
+                out[j][i] = (T - S/a1) / np.sqrt(e1*S + e2*S*(S-1))
+    return out
+
+
+def tajimas_d(ts, sample_sets, windows=None, mode="site", span_normalise=True):
+    method_map = {
+        "site": site_tajimas_d}
+    return method_map[mode](ts, sample_sets, windows=windows,
+                            span_normalise=span_normalise)
+
+
+class TestTajimasD(StatsTestCase, SampleSetStatsMixin):
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify(self, ts):
+        # only check per-site
+        for sample_sets in example_sample_sets(ts, min_size=1):
+            self.verify_persite_tajimas_d(ts, sample_sets)
+
+    def get_windows(self, ts):
+        yield None
+        yield "sites"
+        yield [0, ts.sequence_length]
+        yield np.arange(0, 1.1, 0.1) * ts.sequence_length
+
+    def verify_persite_tajimas_d(self, ts, sample_sets):
+        for windows in self.get_windows(ts):
+            sigma1 = ts.Tajimas_D(sample_sets, windows=windows, mode=self.mode)
+            sigma2 = site_tajimas_d(ts, sample_sets, windows=windows)
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+
+
+class TestSiteTajimasD(TestTajimasD, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+
+############################################
 # Y1
 ############################################
 
