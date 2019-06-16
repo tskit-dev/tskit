@@ -23,7 +23,6 @@
 """
 Module responsible for visualisations.
 """
-import array
 import collections
 from _tskit import NULL
 
@@ -53,6 +52,11 @@ def draw_tree(
         tree, width=None, height=None, node_labels=None, node_colours=None,
         mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
         tree_height_scale=None, max_tree_height=None):
+
+    # We can't draw trees with zero roots.
+    if tree.num_roots == 0:
+        raise ValueError("Cannot draw a tree with zero roots")
+
     # See tree.draw() for documentation on these arguments.
     fmt = check_format(format)
     if fmt == "svg":
@@ -60,23 +64,19 @@ def draw_tree(
             width = 200
         if height is None:
             height = 200
-        cls = SvgTreeDrawer
-    elif fmt == "ascii":
-        cls = AsciiTreeDrawer
-    elif fmt == "unicode":
-        cls = UnicodeTreeDrawer
-
-    # We can't draw trees with zero roots.
-    if tree.num_roots == 0:
-        raise ValueError("Cannot draw a tree with zero roots")
-
-    td = cls(
-        tree, width=width, height=height,
-        node_labels=node_labels, node_colours=node_colours,
-        mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-        edge_colours=edge_colours, tree_height_scale=tree_height_scale,
-        max_tree_height=max_tree_height)
-    return td.draw()
+        td = SvgTreeDrawer(
+            tree, width=width, height=height,
+            node_labels=node_labels, node_colours=node_colours,
+            mutation_labels=mutation_labels, mutation_colours=mutation_colours,
+            edge_colours=edge_colours, tree_height_scale=tree_height_scale,
+            max_tree_height=max_tree_height)
+        return td.draw()
+    else:
+        use_ascii = fmt == "ascii"
+        text_tree = TextTree(
+            tree, node_labels=node_labels, tree_height_scale=tree_height_scale,
+            max_tree_height=max_tree_height, use_ascii=use_ascii)
+        return str(text_tree)
 
 
 # NOTE The design of these classes is pretty poor. Could badly do with a rewrite.
@@ -318,169 +318,6 @@ class SvgTreeDrawer(TreeDrawer):
                     self._mutation_labels[mutation.id], (x[0] + dx, x[1] + dy)))
         return dwg.tostring()
         # return dwg
-
-
-class TextTreeDrawer(TreeDrawer):
-    """
-    Abstract superclass of TreeDrawers that draw trees in a text buffer.
-    """
-    discretise_coordinates = False
-
-    array_type = None  # the type used for the array.array canvas
-    background_char = None  # The fill char
-    eol_char = None  # End of line
-    left_down_char = None  # left corner of a horizontal line
-    right_down_char = None  # right corner of a horizontal line
-    horizontal_line_char = None  # horizontal line fill
-    vertical_line_char = None  # vertial line fill
-    mid_up_char = None  # char in a horizontal line going up
-    mid_down_char = None  # char in a horizontal line going down
-    mid_up_down_char = None  # char in a horizontal line going down and up
-
-    def _convert_text(self, text):
-        """
-        Converts the specified string into an array representation that can be
-        filled into the text buffer.
-        """
-        raise NotImplementedError()
-
-    def _assign_y_coordinates(self):
-        if self._tree_height_scale == "time":
-            raise ValueError("time scaling not currently supported in text trees")
-        assert self._tree_height_scale in [None, "rank"]
-        assert self._max_tree_height in [None, "tree", "ts"]
-        tree = self._tree
-        if self._max_tree_height in [None, "tree"]:
-            times = {tree.time(u) for u in tree.nodes()}
-        elif self._max_tree_height == "ts":
-            times = {node.time for node in tree.tree_sequence.nodes()}
-        # NOTE the only real difference here between the y coordinates here
-        # and rank coordinates in SVG is that we're reversing. This is because
-        # the y-axis is measured in different directions. We could resolve this
-        # with a generic canvas that we draw on.
-        depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
-        max_tree_height = max(depth.values())
-        for u in self._tree.nodes():
-            self._y_coords[u] = depth[self._tree.time(u)]
-        # TODO This should only be set if height is None, ie., the default
-        # strategy is to set the height to the minimum required.
-        self._height = max_tree_height + 1
-
-    def _assign_x_coordinates(self):
-        # Get the overall width and assign x coordinates.
-        x = 0
-        for root in self._tree.roots:
-            for u in self._tree.nodes(root, order="postorder"):
-                if self._tree.is_leaf(u):
-                    label_size = 1
-                    if self._node_labels[u] is not None:
-                        label_size = len(self._node_labels[u])
-                    self._x_coords[u] = x
-                    x += label_size + 1
-                else:
-                    coords = [self._x_coords[c] for c in self._tree.children(u)]
-                    if len(coords) == 1:
-                        self._x_coords[u] = coords[0]
-                    else:
-                        a = min(coords)
-                        b = max(coords)
-                        assert b - a > 1
-                        self._x_coords[u] = int(round((a + (b - a) / 2)))
-            x += 1
-        self._width = x + 1
-
-    def _draw(self):
-        w = self._width
-        h = self._height
-
-        # Create a width * height canvas of spaces.
-        canvas = array.array(self.array_type, (w * h) * [self.background_char])
-        for u in self._tree.nodes():
-            col = self._x_coords[u]
-            row = self._y_coords[u]
-            j = row * w + col
-            label = self._convert_text(self._node_labels[u])
-            n = len(label)
-            canvas[j: j + n] = label
-            if self._tree.is_internal(u):
-                children = self._tree.children(u)
-                row += 1
-                left = min(self._x_coords[v] for v in children)
-                right = max(self._x_coords[v] for v in children)
-                for col in range(left + 1, right):
-                    canvas[row * w + col] = self.horizontal_line_char
-                if len(self._tree.children(u)) == 1:
-                    canvas[row * w + self._x_coords[u]] = self.vertical_line_char
-                else:
-                    canvas[row * w + self._x_coords[u]] = self.mid_up_char
-                for v in children:
-                    col = self._x_coords[v]
-                    canvas[row * w + col] = self.mid_down_char
-                    if col == self._x_coords[u]:
-                        canvas[row * w + col] = self.mid_up_down_char
-                    for j in range(row + 1, self._y_coords[v]):
-                        canvas[j * w + col] = self.vertical_line_char
-                if left == right:
-                    canvas[row * w + left] = self.vertical_line_char
-                else:
-                    canvas[row * w + left] = self.left_down_char
-                    canvas[row * w + right] = self.right_down_char
-
-        # Put in the EOLs last so that if we can't overwrite them.
-        for row in range(h):
-            canvas[row * w + w - 1] = self.eol_char
-        return canvas
-
-
-# NOTE: hopefully this can be dropped soon. See
-# https://github.com/tskit-dev/tskit/issues/174.
-class AsciiTreeDrawer(TextTreeDrawer):
-    """
-    Draws an ASCII rendering of a tree.
-    """
-    array_type = 'b'
-    background_char = ord(' ')
-    eol_char = ord('\n')
-    left_down_char = ord('+')
-    right_down_char = ord('+')
-    horizontal_line_char = ord('-')
-    vertical_line_char = ord('|')
-    mid_up_char = ord('+')
-    mid_down_char = ord('+')
-    mid_up_down_char = ord('+')
-
-    def _convert_text(self, text):
-        if text is None:
-            text = "|"  # vertical line char
-        return array.array(self.array_type, text.encode())
-
-    def draw(self):
-        s = self._draw().tostring().decode()
-        return s
-
-
-class UnicodeTreeDrawer(TextTreeDrawer):
-    """
-    Draws an Unicode rendering of a tree using box drawing characters.
-    """
-    array_type = 'u'
-    background_char = ' '
-    eol_char = '\n'
-    left_down_char = "\u250F"
-    right_down_char = "\u2513"
-    horizontal_line_char = "\u2501"
-    vertical_line_char = "\u2503"
-    mid_up_char = "\u253b"
-    mid_down_char = "\u2533"
-    mid_up_down_char = "\u254b"
-
-    def _convert_text(self, text):
-        if text is None:
-            text = self.vertical_line_char
-        return array.array(self.array_type, text)
-
-    def draw(self):
-        return self._draw().tounicode()
 
 
 #
@@ -805,20 +642,13 @@ class TextTree(object):
     Draws a reprentation of a tree using unicode drawing characters written
     to a 2D array.
     """
-    # TODO make this an option for to allow using ASCII chars.
-    left_down_char = "\u250F"
-    right_down_char = "\u2513"
-    horizontal_line_char = "\u2501"
-    vertical_line_char = "\u2503"
-    mid_up_char = "\u253b"
-    mid_down_char = "\u2533"
-    mid_up_down_char = "\u254b"
-
     def __init__(
-            self, tree, node_labels=None, tree_height_scale=None, max_tree_height=None):
+            self, tree, node_labels=None, tree_height_scale=None, max_tree_height=None,
+            use_ascii=False):
         self.tree = tree
         self.tree_height_scale = tree_height_scale
         self.max_tree_height = max_tree_height
+        self.__set_charset(use_ascii)
         self.num_leaves = len(list(tree.leaves()))
         # self.orientation = check_orientation(orientation)
         # TODO Change to size tuple
@@ -859,7 +689,6 @@ class TextTree(object):
         # TODO This should only be set if height is None, ie., the default
         # strategy is to set the height to the minimum required.
         self.height = max(self.time_position.values()) + 1
-        self.width = max(self.traversal_position.values()) + 2
         self.draw()
 
     def assign_time_positions(self):
@@ -883,7 +712,7 @@ class TextTree(object):
             for u in self.tree.nodes(root, order="postorder"):
                 if self.tree.is_leaf(u):
                     label_size = len(self.node_labels[u])
-                    self.traversal_position[u] = x
+                    self.traversal_position[u] = x + label_size // 2
                     x += label_size + 1
                 else:
                     coords = [self.traversal_position[c] for c in self.tree.children(u)]
@@ -895,6 +724,10 @@ class TextTree(object):
                         assert b - a > 1
                         self.traversal_position[u] = int(round((a + (b - a) / 2)))
             x += 1
+        # TODO we should only do this if the width isn't specified.
+        # FIXME: this is leaving a trailing space when the label sizes are
+        # odd.
+        self.width = x
 
     def draw(self):
         # Create a width * height canvas of spaces.
@@ -904,9 +737,12 @@ class TextTree(object):
             xu = self.traversal_position[u]
             yu = self.time_position[u]
             label = to_np_unicode(self.node_labels[u])
-            self.canvas[yu, xu: xu + label.shape[0]] = label
+            label_len = label.shape[0]
+            label_x = xu - label_len // 2
+            if self.tree.right_sib(u) == NULL and len(label) % 2 == 0:
+                label_x += 1
+            self.canvas[yu, label_x: label_x + label_len] = label
             children = self.tree.children(u)
-            # Not quite right, we're still getting leaves wrong.
             if len(children) > 0:
                 if len(children) == 1:
                     yv = self.time_position[children[0]]
@@ -929,7 +765,24 @@ class TextTree(object):
 
         # Put in the EOLs last so that if we can't overwrite them.
         self.canvas[:, -1] = "\n"
-        # print(self.canvas)
+
+    def __set_charset(self, use_ascii):
+        if use_ascii:
+            self.left_down_char = '+'
+            self.right_down_char = '+'
+            self.horizontal_line_char = '-'
+            self.vertical_line_char = '|'
+            self.mid_up_char = '+'
+            self.mid_down_char = '+'
+            self.mid_up_down_char = '+'
+        else:
+            self.left_down_char = "\u250F"
+            self.right_down_char = "\u2513"
+            self.horizontal_line_char = "\u2501"
+            self.vertical_line_char = "\u2503"
+            self.mid_up_char = "\u253b"
+            self.mid_down_char = "\u2533"
+            self.mid_up_down_char = "\u254b"
 
     def __str__(self):
         return "".join(self.canvas.reshape(self.width * self.height))
