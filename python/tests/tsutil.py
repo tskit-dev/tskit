@@ -333,8 +333,8 @@ def generate_site_mutations(tree, position, mu, site_table, mutation_table,
     more than one mutation per edge.
     """
     assert tree.interval[0] <= position < tree.interval[1]
-    states = {"A", "C", "G", "T"}
-    state = random.choice(list(states))
+    states = ["A", "C", "G", "T"]
+    state = random.choice(states)
     site_table.add_row(position, state)
     site = site_table.num_rows - 1
     stack = [(tree.root, state, tskit.NULL)]
@@ -345,7 +345,7 @@ def generate_site_mutations(tree, position, mu, site_table, mutation_table,
             x = random.expovariate(mu)
             new_state = state
             while x < branch_length:
-                new_state = random.choice(list(states - set(state)))
+                new_state = random.choice([s for s in states if s != state])
                 if multiple_per_node and (state != new_state):
                     mutation_table.add_row(site, u, new_state, parent)
                     parent = mutation_table.num_rows - 1

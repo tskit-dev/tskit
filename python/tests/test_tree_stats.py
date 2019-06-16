@@ -1018,6 +1018,196 @@ class TestSiteDiversity(TestDiversity, MutatedTopologyExamplesMixin):
 
 
 ############################################
+# Segregating sites
+############################################
+
+def site_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    out = np.zeros((len(windows) - 1, len(sample_sets)))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        haps = ts.genotype_matrix()
+        site_positions = [x.position for x in ts.sites()]
+        for i, X in enumerate(sample_sets):
+            X_index = np.where(np.in1d(X, samples))[0]
+            for k in range(ts.num_sites):
+                if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    num_alleles = len(set(haps[k, X_index]))
+                    out[j][i] += (num_alleles - 1)
+            if span_normalise:
+                out[j][i] /= (end - begin)
+    return out
+
+
+def branch_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    out = np.zeros((len(windows) - 1, len(sample_sets)))
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for i, X in enumerate(sample_sets):
+            tX = len(X)
+            for tr in ts.trees(tracked_samples=X):
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = 0
+                for u in tr.nodes():
+                    nX = tr.num_tracked_samples(u)
+                    if nX > 0 and nX < tX:
+                        SS += tr.branch_length(u)
+                out[j][i] += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            if span_normalise:
+                out[j][i] /= (end - begin)
+    return out
+
+
+def node_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
+    K = len(sample_sets)
+    out = np.zeros((len(windows) - 1, ts.num_nodes, K))
+    for k in range(K):
+        X = sample_sets[k]
+        for j in range(len(windows) - 1):
+            begin = windows[j]
+            end = windows[j + 1]
+            tX = len(X)
+            S = np.zeros(ts.num_nodes)
+            for tr in ts.trees(tracked_samples=X):
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in tr.nodes():
+                    nX = tr.num_tracked_samples(u)
+                    SS[u] = (nX > 0) and (nX < tX)
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            out[j, :, k] = S
+            if span_normalise:
+                out[j, :, k] /= (end - begin)
+    return out
+
+
+def segregating_sites(ts, sample_sets, windows=None, mode="site", span_normalise=True):
+    """
+    Computes the density of segregating sites over the window specified.
+    """
+    method_map = {
+        "site": site_segregating_sites,
+        "node": node_segregating_sites,
+        "branch": branch_segregating_sites}
+    return method_map[mode](ts, sample_sets, windows=windows,
+                            span_normalise=span_normalise)
+
+
+class TestSegregatingSites(StatsTestCase, SampleSetStatsMixin):
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify_sample_sets(self, ts, sample_sets, windows):
+        n = np.array([len(x) for x in sample_sets])
+
+        # this works because sum_{i=1}^k (1-p_i) = k-1
+        def f(x):
+            return (x > 0) * (1 - x / n)
+
+        self.verify_definition(
+            ts, sample_sets, windows, f, ts.segregating_sites, segregating_sites)
+
+
+class TestBranchSegregatingSites(TestSegregatingSites, TopologyExamplesMixin):
+    mode = "branch"
+
+
+class TestNodeSegregatingSites(TestSegregatingSites, TopologyExamplesMixin):
+    mode = "node"
+
+
+class TestSiteSegregatingSites(TestSegregatingSites, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+
+############################################
+# Tajima's D
+############################################
+
+def site_tajimas_d(ts, sample_sets, windows=None):
+    windows = ts.parse_windows(windows)
+    out = np.zeros((len(windows) - 1, len(sample_sets)))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        haps = ts.genotype_matrix()
+        site_positions = [x.position for x in ts.sites()]
+        n = np.array([len(X) for X in sample_sets])
+        for i, X in enumerate(sample_sets):
+            nn = n[i]
+            S = 0
+            T = 0
+            X_index = np.where(np.in1d(X, samples))[0]
+            for k in range(ts.num_sites):
+                if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    hX = haps[k, X_index]
+                    alleles = set(hX)
+                    num_alleles = len(alleles)
+                    n_alleles = [np.sum(hX == a) for a in alleles]
+                    S += (num_alleles - 1)
+                    for k in n_alleles:
+                        with suppress_division_by_zero_warning():
+                            T += k * (nn - k) / (nn * (nn - 1))
+            with suppress_division_by_zero_warning():
+                a1 = np.sum(1/np.arange(1, nn))  # this is h in the main version
+                a2 = np.sum(1/np.arange(1, nn)**2)  # this is g
+                b1 = (nn+1)/(3*(nn-1))
+                b2 = 2 * (nn**2 + nn + 3) / (9 * nn * (nn-1))
+                c1 = b1 - 1/a1
+                c2 = b2 - (nn + 2)/(a1 * nn) + a2 / a1**2
+                e1 = c1 / a1  # this is a
+                e2 = c2 / (a1**2 + a2)  # this is b
+                out[j][i] = (T - S/a1) / np.sqrt(e1*S + e2*S*(S-1))
+    return out
+
+
+def tajimas_d(ts, sample_sets, windows=None, mode="site", span_normalise=True):
+    method_map = {
+        "site": site_tajimas_d}
+    return method_map[mode](ts, sample_sets, windows=windows,
+                            span_normalise=span_normalise)
+
+
+class TestTajimasD(StatsTestCase, SampleSetStatsMixin):
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify(self, ts):
+        # only check per-site
+        for sample_sets in example_sample_sets(ts, min_size=1):
+            self.verify_persite_tajimas_d(ts, sample_sets)
+
+    def get_windows(self, ts):
+        yield None
+        yield "sites"
+        yield [0, ts.sequence_length]
+        yield np.arange(0, 1.1, 0.1) * ts.sequence_length
+
+    def verify_persite_tajimas_d(self, ts, sample_sets):
+        for windows in self.get_windows(ts):
+            sigma1 = ts.Tajimas_D(sample_sets, windows=windows, mode=self.mode)
+            sigma2 = site_tajimas_d(ts, sample_sets, windows=windows)
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+
+
+class TestSiteTajimasD(TestTajimasD, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+
+############################################
 # Y1
 ############################################
 
