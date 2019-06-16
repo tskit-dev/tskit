@@ -42,6 +42,18 @@ import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
 
 
+def subset_combos(*args, p=0.1):
+    # We have too many tests, combinatorially; so we will run a random subset
+    # of them, using this function, below. If we don't set a seed, a different
+    # random set is run each time.
+    # Uncomment this line to run all tests (takes about an hour):
+    # p = 1.0
+    np.random.seed(5)
+    for x in itertools.product(*args):
+        if np.random.uniform() < p:
+            yield x
+
+
 def naive_general_branch_stats(ts, W, f, windows=None, polarised=False):
     n, K = W.shape
     if n != ts.num_samples:
@@ -564,7 +576,7 @@ class TopologyExamplesMixin(object):
         self.verify(ts)
 
     def test_many_trees_sequence_length(self):
-        for L in [0.5, 1.5, 3.3333]:
+        for L in [0.5, 3.3333]:
             ts = msprime.simulate(6, length=L, recombination_rate=2, random_seed=1)
             self.verify(ts)
 
@@ -596,7 +608,7 @@ class TopologyExamplesMixin(object):
 
     def test_wright_fisher_unsimplified_multiple_roots(self):
         tables = wf.wf_sim(
-            5, 8, seed=1, deep_history=False, initial_generation_samples=False,
+            6, 5, seed=1, deep_history=False, initial_generation_samples=False,
             num_loci=4)
         tables.sort()
         ts = tables.tree_sequence()
@@ -612,10 +624,10 @@ class TopologyExamplesMixin(object):
 
     def test_wright_fisher_simplified_multiple_roots(self):
         tables = wf.wf_sim(
-            6, 10, seed=1, deep_history=False, initial_generation_samples=False,
+            6, 8, seed=1, deep_history=False, initial_generation_samples=False,
             num_loci=3)
         tables.sort()
-        ts = tables.tree_sequence()
+        ts = tables.tree_sequence().simplify()
         self.verify(ts)
 
     def test_empty_ts(self):
@@ -770,10 +782,74 @@ def example_windows(ts):
     Generate a series of example windows for the specified tree sequence.
     """
     L = ts.sequence_length
+    yield None
+    yield "sites"
+    yield "trees"
     yield [0, L]
     yield ts.breakpoints(as_array=True)
     yield np.linspace(0, L, num=10)
-    yield np.linspace(0, L, num=100)
+
+
+class WeightStatsMixin(object):
+    """
+    Implements the verify method and dispatches it to verify_weighted_stat
+    for a representative set of sample sets and windows.
+    """
+
+    def example_weights(self, ts, min_size=1):
+        """
+        Generate a series of example weights from the specfied tree sequence.
+        """
+        np.random.seed(23)
+        for k in [min_size, min_size + 1, min_size + 10]:
+            W = 1.0 + np.zeros((ts.num_samples, k))
+            W[0, :] = 2.0
+            yield W
+            for j in range(k):
+                W[:, j] = np.random.exponential(1, ts.num_samples)
+            yield W
+            for j in range(k):
+                W[:, j] = np.random.normal(0, 1, ts.num_samples)
+            yield W
+
+    def transform_weights(self, W):
+        """
+        Specific methods will need to transform weights
+        before passing them to general_stat.
+        """
+        return W
+
+    def verify(self, ts):
+        for W, windows in subset_combos(
+                self.example_weights(ts), example_windows(ts)):
+            self.verify_weighted_stat(ts, W, windows=windows)
+
+    def verify_definition(
+            self, ts, W, windows, summary_func, ts_method, definition):
+
+        # general_stat will need an extra column for p
+        gW = self.transform_weights(W)
+
+        def wrapped_summary_func(x):
+            with suppress_division_by_zero_warning():
+                return summary_func(x)
+
+        for sn in [True, False]:
+            sigma1 = ts.general_stat(gW, wrapped_summary_func, windows, mode=self.mode,
+                                     span_normalise=sn)
+            sigma2 = general_stat(ts, gW, wrapped_summary_func, windows, mode=self.mode,
+                                  span_normalise=sn)
+            sigma3 = ts_method(W, windows=windows, mode=self.mode,
+                               span_normalise=sn)
+            sigma4 = definition(ts, W, windows=windows, mode=self.mode,
+                                span_normalise=sn)
+
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertEqual(sigma1.shape, sigma3.shape)
+            self.assertEqual(sigma1.shape, sigma4.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+            self.assertArrayAlmostEqual(sigma1, sigma3)
+            self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
 class SampleSetStatsMixin(object):
@@ -782,7 +858,7 @@ class SampleSetStatsMixin(object):
     for a representative set of sample sets and windows.
     """
     def verify(self, ts):
-        for sample_sets, windows in itertools.product(
+        for sample_sets, windows in subset_combos(
                 example_sample_sets(ts), example_windows(ts)):
             self.verify_sample_sets(ts, sample_sets, windows=windows)
 
@@ -851,7 +927,7 @@ class TwoWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
     """
 
     def verify(self, ts):
-        for sample_sets, windows in itertools.product(
+        for sample_sets, windows in subset_combos(
                 example_sample_sets(ts, min_size=2), example_windows(ts)):
             for indexes in example_sample_set_index_pairs(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -863,7 +939,7 @@ class ThreeWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
     which gives a representative sample of sample set indexes.
     """
     def verify(self, ts):
-        for sample_sets, windows in itertools.product(
+        for sample_sets, windows in subset_combos(
                 example_sample_sets(ts, min_size=3), example_windows(ts)):
             for indexes in example_sample_set_index_triples(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -875,7 +951,7 @@ class FourWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
     which gives a representative sample of sample set indexes.
     """
     def verify(self, ts):
-        for sample_sets, windows in itertools.product(
+        for sample_sets, windows in subset_combos(
                 example_sample_sets(ts, min_size=4), example_windows(ts)):
             for indexes in example_sample_set_index_quads(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -2337,6 +2413,7 @@ def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
 
 
 def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
+    windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
     for i, (iA, iB, iC, iD) in enumerate(indexes):
         A = sample_sets[iA]
@@ -2570,6 +2647,7 @@ class TestSampleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         # print("Verify", sample_sets, windows)
         sfs1 = naive_sample_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
         sfs2 = sample_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
+        windows = ts.parse_windows(windows)
         self.assertEqual(sfs1.shape[0], len(windows) - 1)
         self.assertEqual(sfs1.shape, sfs2.shape)
         # print(sfs1)
@@ -3022,6 +3100,432 @@ class TestGeneralNodeStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma[tree.index, :, 1], 2 * s)
 
 
+##############################
+# Trait covariance
+##############################
+
+def covsq(x, y):
+    cov = np.dot(x - np.mean(x), y - np.mean(y)) / (len(x) - 1)
+    return cov * cov
+
+
+def corsq(x, y):
+    vx = covsq(x, x)
+    vy = covsq(y, y)
+    return covsq(x, y) / np.sqrt(vx * vy)
+
+
+def site_trait_covariance(ts, W, windows=None, span_normalise=True):
+    """
+    For each site, computes the covariance between the columns of W and the genotypes.
+    """
+    windows = ts.parse_windows(windows)
+    n, K = W.shape
+    assert(n == ts.num_samples)
+    out = np.zeros((len(windows) - 1, K))
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        haps = ts.genotype_matrix()
+        site_positions = [x.position for x in ts.sites()]
+        for i in range(K):
+            w = W[:, i].copy()
+            w -= np.mean(w)
+            S = 0
+            site_in_window = False
+            for k in range(ts.num_sites):
+                if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
+                    hX = haps[k]
+                    alleles = set(hX)
+                    for a in alleles:
+                        S += covsq(w, hX == a) / 2
+            if site_in_window:
+                out[j, i] = S
+                if span_normalise:
+                    out[j, i] /= (end - begin)
+    return out
+
+
+def branch_trait_covariance(ts, W, windows=None, span_normalise=True):
+    """
+    For each branch, computes the covariance between the columns of W and the split
+    induced by the branch, multiplied by the length of the branch.
+    """
+    windows = ts.parse_windows(windows)
+    n, K = W.shape
+    assert(n == ts.num_samples)
+    out = np.zeros((len(windows) - 1, K))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for i in range(K):
+            w = W[:, i].copy()
+            w -= np.mean(w)
+            S = 0
+            has_trees = False
+            for tr in ts.trees():
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                if tr.total_branch_length > 0:
+                    has_trees = True
+                SS = 0
+                for u in range(ts.num_nodes):
+                    below = np.in1d(samples, list(tr.samples(u)))
+                    branch_length = tr.branch_length(u)
+                    SS += covsq(w, below) * branch_length
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            if has_trees:
+                out[j, i] = S
+                if span_normalise:
+                    out[j, i] /= (end - begin)
+    return out
+
+
+def node_trait_covariance(ts, W, windows=None, span_normalise=True):
+    """
+    For each node, computes the covariance between the columns of W and the split
+    induced by above/below the node.
+    """
+    windows = ts.parse_windows(windows)
+    n, K = W.shape
+    assert(n == ts.num_samples)
+    out = np.zeros((len(windows) - 1, ts.num_nodes, K))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for i in range(K):
+            w = W[:, i].copy()
+            w -= np.mean(w)
+            S = np.zeros(ts.num_nodes)
+            for tr in ts.trees():
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in range(ts.num_nodes):
+                    below = np.in1d(samples, list(tr.samples(u)))
+                    SS[u] += covsq(w, below)
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            out[j, :, i] = S
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
+    return out
+
+
+def trait_covariance(ts, W, windows=None, mode="site", span_normalise=True):
+    method_map = {
+        "site": site_trait_covariance,
+        "node": node_trait_covariance,
+        "branch": branch_trait_covariance}
+    return method_map[mode](ts, W, windows=windows,
+                            span_normalise=span_normalise)
+
+
+class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def get_example_ts(self):
+        ts = msprime.simulate(10, mutation_rate=1, recombination_rate=2, random_seed=1)
+        self.assertGreater(ts.num_mutations, 0)
+        return ts
+
+    def transform_weights(self, W):
+        """
+        Need centered weights to compare to general stats.
+        """
+        W -= np.mean(W, axis=0)
+        return W
+
+    def verify_weighted_stat(self, ts, W, windows):
+        n = W.shape[0]
+
+        def f(x):
+            return (x ** 2) / (2 * (n - 1) * (n - 1))
+
+        self.verify_definition(
+            ts, W, windows, f, ts.trait_covariance, trait_covariance)
+
+    def verify_interface(self, ts, ts_method):
+        W = np.array([np.arange(ts.num_samples)]).T
+        sigma1 = ts_method(W, mode=self.mode)
+        sigma2 = ts_method(W, windows=None, mode=self.mode)
+        sigma3 = ts_method(W, windows=[0.0, ts.sequence_length], mode=self.mode)
+        self.assertEqual(sigma1.shape, sigma2.shape)
+        self.assertEqual(sigma1.shape, sigma3.shape)
+        self.assertArrayAlmostEqual(sigma1, sigma2)
+        self.assertArrayAlmostEqual(sigma1, sigma3)
+
+    def verify_centering(self, ts, method, ts_method):
+        # Since weights are mean-centered, adding a constant shouldn't change anything.
+        ts = self.get_example_ts()
+        for W, windows in subset_combos(
+                self.example_weights(ts), example_windows(ts)):
+            shift = np.arange(1, W.shape[1] + 1)
+            sigma1 = ts_method(W, windows=windows, mode=self.mode)
+            sigma2 = ts_method(W + shift, windows=windows, mode=self.mode)
+            sigma3 = method(ts, W, windows=windows, mode=self.mode)
+            sigma4 = method(ts, W + shift, windows=windows, mode=self.mode)
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertEqual(sigma1.shape, sigma3.shape)
+            self.assertEqual(sigma1.shape, sigma4.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+            self.assertArrayAlmostEqual(sigma1, sigma3)
+            self.assertArrayAlmostEqual(sigma1, sigma4)
+
+
+class TraitCovarianceMixin(object):
+
+    def test_interface(self):
+        ts = self.get_example_ts()
+        self.verify_interface(ts, ts.trait_covariance)
+
+    def test_normalisation(self):
+        ts = self.get_example_ts()
+        self.verify_centering(ts, trait_covariance, ts.trait_covariance)
+
+
+class TestBranchTraitCovariance(
+        TestTraitCovariance, TopologyExamplesMixin, TraitCovarianceMixin):
+    mode = "branch"
+
+
+class TestNodeTraitCovariance(
+        TestTraitCovariance, TopologyExamplesMixin, TraitCovarianceMixin):
+    mode = "node"
+
+
+class TestSiteTraitCovariance(
+        TestTraitCovariance, MutatedTopologyExamplesMixin,
+        TraitCovarianceMixin):
+    mode = "site"
+
+
+##############################
+# Trait correlation
+##############################
+
+
+def site_trait_correlation(ts, W, windows=None, span_normalise=True):
+    """
+    For each site, computes the correlation between the columns of W and the genotypes.
+    """
+    windows = ts.parse_windows(windows)
+    n, K = W.shape
+    assert(n == ts.num_samples)
+    out = np.zeros((len(windows) - 1, K))
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        haps = ts.genotype_matrix()
+        site_positions = [x.position for x in ts.sites()]
+        for i in range(K):
+            w = W[:, i].copy()
+            w -= np.mean(w)
+            w /= np.std(w) * np.sqrt(len(w) / (len(w) - 1))
+            S = 0
+            site_in_window = False
+            for k in range(ts.num_sites):
+                if (site_positions[k] >= begin) and (site_positions[k] < end):
+                    site_in_window = True
+                    hX = haps[k]
+                    alleles = set(hX)
+                    for a in alleles:
+                        p = np.mean(hX == a)
+                        if p > 0 and p < 1:
+                            # S += sum(w[hX == a])**2 / (2 * (p * (1 - p)))
+                            S += corsq(w, hX == a) / 2
+            if site_in_window:
+                out[j, i] = S
+                if span_normalise:
+                    out[j, i] /= (end - begin)
+    return out
+
+
+def branch_trait_correlation(ts, W, windows=None, span_normalise=True):
+    """
+    For each branch, computes the correlation between the columns of W and the split
+    induced by the branch, multiplied by the length of the branch.
+    """
+    windows = ts.parse_windows(windows)
+    n, K = W.shape
+    assert(n == ts.num_samples)
+    out = np.zeros((len(windows) - 1, K))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for i in range(K):
+            w = W[:, i].copy()
+            w -= np.mean(w)
+            w /= np.std(w) * np.sqrt(len(w) / (len(w) - 1))
+            S = 0
+            has_trees = False
+            for tr in ts.trees():
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                if tr.total_branch_length > 0:
+                    has_trees = True
+                SS = 0
+                for u in range(ts.num_nodes):
+                    below = np.in1d(samples, list(tr.samples(u)))
+                    p = np.mean(below)
+                    if p > 0 and p < 1:
+                        branch_length = tr.branch_length(u)
+                        # SS += ((sum(w[below])**2 +
+                        #         sum(w[np.logical_not(below)])**2) * branch_length
+                        #        / (2 * (p * (1 - p))))
+                        SS += corsq(w, below) * branch_length
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            if has_trees:
+                out[j, i] = S
+                if span_normalise:
+                    out[j, i] /= (end - begin)
+    return out
+
+
+def node_trait_correlation(ts, W, windows=None, span_normalise=True):
+    """
+    For each node, computes the correlation between the columns of W and the split
+    induced by above/below the node.
+    """
+    windows = ts.parse_windows(windows)
+    n, K = W.shape
+    assert(n == ts.num_samples)
+    out = np.zeros((len(windows) - 1, ts.num_nodes, K))
+    samples = ts.samples()
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for i in range(K):
+            w = W[:, i].copy()
+            w -= np.mean(w)
+            w /= np.std(w) * np.sqrt(len(w) / (len(w) - 1))
+            S = np.zeros(ts.num_nodes)
+            for tr in ts.trees():
+                if tr.interval[1] <= begin:
+                    continue
+                if tr.interval[0] >= end:
+                    break
+                SS = np.zeros(ts.num_nodes)
+                for u in range(ts.num_nodes):
+                    below = np.in1d(samples, list(tr.samples(u)))
+                    p = np.mean(below)
+                    if p > 0 and p < 1:
+                        # SS[u] += sum(w[below])**2 / 2
+                        # SS[u] += sum(w[np.logical_not(below)])**2 / 2
+                        # SS[u] /= (p * (1 - p))
+                        SS[u] += corsq(w, below)
+                S += SS*(min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+            out[j, :, i] = S
+            if span_normalise:
+                out[j, :, i] /= (end - begin)
+    return out
+
+
+def trait_correlation(ts, W, windows=None, mode="site", span_normalise=True):
+    method_map = {
+        "site": site_trait_correlation,
+        "node": node_trait_correlation,
+        "branch": branch_trait_correlation}
+    return method_map[mode](ts, W, windows=windows,
+                            span_normalise=span_normalise)
+
+
+class TestTraitCorrelation(TestTraitCovariance):
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def transform_weights(self, W):
+        """
+        Need standardised weights to compare to general stats,
+        and also an extra column to compute allele frequencies.
+        """
+        W -= np.mean(W, axis=0)
+        n = W.shape[0]
+        with suppress_division_by_zero_warning():
+            W /= np.std(W, axis=0) * np.sqrt(n / (n - 1))
+        return np.column_stack((W, np.ones(W.shape[0])/W.shape[0]))
+
+    def verify_weighted_stat(self, ts, W, windows):
+        n = W.shape[0]
+
+        def f(x):
+            p = x[-1]
+            if p > 0 and p < 1:
+                return (x[:-1] ** 2) / (2 * (p * (1 - p)) * n * (n - 1))
+            else:
+                return x[:-1] * 0.0
+
+        self.verify_definition(
+            ts, W, windows, f, ts.trait_correlation, trait_correlation)
+
+    def test_errors(self):
+        ts = self.get_example_ts()
+        # columns of W must have positive SD
+        W = np.ones((ts.num_samples, 2))
+        self.assertRaises(ValueError, ts.trait_correlation, W)
+
+    def verify_standardising(self, ts, method, ts_method):
+        """
+        Since weights are standardised, multiplying by a constant shouldn't
+        change anything.
+        """
+        for W, windows in subset_combos(
+                self.example_weights(ts), example_windows(ts)):
+            scale = np.arange(1, W.shape[1] + 1)
+            sigma1 = ts_method(W, windows=windows, mode=self.mode)
+            sigma2 = ts_method(W * scale, windows=windows, mode=self.mode)
+            sigma3 = method(ts, W, windows=windows, mode=self.mode)
+            sigma4 = method(ts, W * scale, windows=windows, mode=self.mode)
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+            self.assertArrayAlmostEqual(sigma1, sigma3)
+            self.assertArrayAlmostEqual(sigma1, sigma4)
+
+
+class TraitCorrelationMixin(object):
+
+    def test_interface(self):
+        ts = self.get_example_ts()
+        self.verify_interface(ts, ts.trait_correlation)
+
+    def test_normalisation(self):
+        ts = self.get_example_ts()
+        self.verify_centering(ts, trait_correlation, ts.trait_correlation)
+        self.verify_standardising(
+                ts, trait_correlation, ts.trait_correlation)
+
+
+class TestBranchTraitCorrelation(
+        TestTraitCorrelation, TopologyExamplesMixin, TraitCorrelationMixin):
+    mode = "branch"
+
+
+class TestNodeTraitCorrelation(
+        TestTraitCorrelation, TopologyExamplesMixin, TraitCorrelationMixin):
+    mode = "node"
+
+
+class TestSiteTraitCorrelation(
+        TestTraitCorrelation, MutatedTopologyExamplesMixin,
+        TraitCorrelationMixin):
+    mode = "site"
+
+
+##############################
+# Sample set statistics
+##############################
+
+
 @unittest.skip("Broken - need to port tests")
 class SampleSetStatTestCase(StatsTestCase):
     """
@@ -3147,6 +3651,11 @@ class SpecificTreesTestCase(StatsTestCase):
         # 0.0   0     1       2        1   0   2       0   1       2
         #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 1.0)
         #
+        # haplotypes:
+        # site:  0   1 2  3 4         5    6              7   8 9
+        # 0:     0   1 0  1 0         0    0              1   0 0
+        # 1:     1   0 0  0 1         1    0              0   1 0
+        # 2:     1   0 1  0 0         0    1              0   0 1
         branch_true_diversity_01 = 2*(1 * (0.2-0) +
                                       0.5 * (0.8-0.2) + 0.7 * (1.0-0.8))
         branch_true_diversity_02 = 2*(1 * (0.2-0) +
@@ -3163,6 +3672,52 @@ class SpecificTreesTestCase(StatsTestCase):
                 0.2 * np.array([2, 1, 1, 0, 2, 0, 0]) +
                 0.6 * np.array([2, 1, 1, 1, 0, 0, 0]) +
                 0.2 * np.array([2, 1, 1, 0, 2, 0, 0])]) / 2
+        haplotypes = np.array([[0, 1, 1],
+                               [1, 0, 0],
+                               [0, 0, 1],
+                               [1, 0, 0],
+                               [0, 1, 0],
+                               [0, 1, 0],
+                               [0, 0, 1],
+                               [1, 0, 0],
+                               [0, 1, 0],
+                               [0, 0, 1]])
+        traits = np.array([[1, 2, 3, 0],
+                           [-5, 0, 1, 1],
+                           [3, 4, 1.2, 2]])
+        # nb: verified the following with R
+        true_cov = np.cov(
+                haplotypes,
+                traits.T)[:haplotypes.shape[0], haplotypes.shape[0]:] ** 2
+        true_cor = np.corrcoef(
+                haplotypes,
+                traits.T)[:haplotypes.shape[0], haplotypes.shape[0]:] ** 2
+        cov02 = np.cov(np.array([1, 0, 1]), traits.T)[:1, 1:] ** 2
+        true_branch_cov = (true_cov[1, :] * 1.0 * 0.2 +  # branch 0, tree 0
+                           true_cov[4, :] * 0.5 * 0.2 +  # branch 1, tree 0
+                           true_cov[2, :] * 0.5 * 0.2 +  # branch 2, tree 0
+                           true_cov[0, :] * 0.5 * 0.2 +  # branch 4, tree 0
+                           true_cov[1, :] * 0.4 * 0.6 +  # branch 0, tree 1
+                           true_cov[4, :] * 0.5 * 0.6 +  # branch 1, tree 1
+                           true_cov[2, :] * 0.4 * 0.6 +  # branch 2, tree 1
+                           cov02 * 0.1 * 0.6 +  # branch 3, tree 1
+                           true_cov[1, :] * 0.7 * 0.2 +  # branch 0, tree 2
+                           true_cov[4, :] * 0.5 * 0.2 +  # branch 1, tree 2
+                           true_cov[2, :] * 0.5 * 0.2 +  # branch 2, tree 2
+                           true_cov[0, :] * 0.2 * 0.2)  # branch 4, tree 2
+        cor02 = np.corrcoef(np.array([1, 0, 1]), traits.T)[:1, 1:] ** 2
+        true_branch_cor = (true_cor[1, :] * 1.0 * 0.2 +  # branch 0, tree 0
+                           true_cor[4, :] * 0.5 * 0.2 +  # branch 1, tree 0
+                           true_cor[2, :] * 0.5 * 0.2 +  # branch 2, tree 0
+                           true_cor[0, :] * 0.5 * 0.2 +  # branch 4, tree 0
+                           true_cor[1, :] * 0.4 * 0.6 +  # branch 0, tree 1
+                           true_cor[4, :] * 0.5 * 0.6 +  # branch 1, tree 1
+                           true_cor[2, :] * 0.4 * 0.6 +  # branch 2, tree 1
+                           cor02 * 0.1 * 0.6 +  # branch 3, tree 1
+                           true_cor[1, :] * 0.7 * 0.2 +  # branch 0, tree 2
+                           true_cor[4, :] * 0.5 * 0.2 +  # branch 1, tree 2
+                           true_cor[2, :] * 0.5 * 0.2 +  # branch 2, tree 2
+                           true_cor[0, :] * 0.2 * 0.2)  # branch 4, tree 2
 
         nodes = io.StringIO("""\
         id      is_sample   time
@@ -3294,6 +3849,40 @@ class SpecificTreesTestCase(StatsTestCase):
         py_nodes_div_0_12 = divergence(ts, [[0], [1, 2]], mode=mode).reshape((1, 7))
         self.assertArrayAlmostEqual(nodes_div_0_12, node_true_divergence_0_12)
         self.assertArrayAlmostEqual(py_nodes_div_0_12, node_true_divergence_0_12)
+
+        # covariance and correlation
+        ts_sitewise_cov = ts.trait_covariance(
+                traits, mode="site", windows="sites", span_normalise=False)
+        py_sitewise_cov = site_trait_covariance(
+                ts, traits, windows="sites", span_normalise=False)
+        self.assertArrayAlmostEqual(py_sitewise_cov, true_cov)
+        self.assertArrayAlmostEqual(ts_sitewise_cov, true_cov)
+        ts_sitewise_cor = ts.trait_correlation(
+                traits, mode="site", windows="sites", span_normalise=False)
+        py_sitewise_cor = site_trait_correlation(
+                ts, traits, windows="sites", span_normalise=False)
+        self.assertArrayAlmostEqual(py_sitewise_cor, true_cor)
+        self.assertArrayAlmostEqual(ts_sitewise_cor, true_cor)
+        # mean
+        ts_mean_cov = ts.trait_covariance(traits, mode="site")
+        py_mean_cov = site_trait_covariance(ts, traits)
+        self.assertArrayAlmostEqual(ts_mean_cov,
+                                    np.array([np.sum(true_cov, axis=0)]))
+        self.assertArrayAlmostEqual(ts_mean_cov, py_mean_cov)
+        ts_mean_cor = ts.trait_correlation(traits, mode="site")
+        py_mean_cor = site_trait_correlation(ts, traits)
+        self.assertArrayAlmostEqual(ts_mean_cor,
+                                    np.array([np.sum(true_cor, axis=0)]))
+        self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
+        # mode = 'branch'
+        ts_mean_cov = ts.trait_covariance(traits, mode="branch")
+        py_mean_cov = branch_trait_covariance(ts, traits)
+        self.assertArrayAlmostEqual(ts_mean_cov, true_branch_cov)
+        self.assertArrayAlmostEqual(ts_mean_cov, py_mean_cov)
+        ts_mean_cor = ts.trait_correlation(traits, mode="branch")
+        py_mean_cor = branch_trait_correlation(ts, traits)
+        self.assertArrayAlmostEqual(ts_mean_cor, true_branch_cor)
+        self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
 
     def test_case_odds_and_ends(self):
         # Tests having (a) the first site after the first window, and

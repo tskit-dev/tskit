@@ -3401,6 +3401,115 @@ class TreeSequence(object):
     #                 k += 1
     #     return A
 
+    def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
+        """
+        Computes the mean squared covariances between each of the columns of ``W``
+        (the "phenotypes") and inheritance along the tree sequence.  See
+        :ref:`sec_general_stats` for details of ``windows``, ``mode`` and
+        return value.  Operates on ``k = 1`` sample set at a time.
+
+        Concretely, if `g` is a binary vector that indicates inheritance from an allele,
+        branch, or node and `w` is a column of W, normalised to have mean zero,
+        then the covariance of `g` and `w` is :math:`\\sum_i g_i w_i`, the sum of the
+        weights corresponding to entries of `g` that are `1`. Since weights sum to
+        zero, this is also equal to the sum of weights whose entries of `g` are 0.
+        So, :math:`cov(g,w)^2 = ((\\sum_i g_i w_i)^2 + (\\sum_i (1-g_i) w_i)^2)/2`.
+
+        What is computed depends on ``mode``:
+
+        "site"
+            The sum of squared covariances between presence/absence of each allele and
+            phenotypes, divided by length of the window (if ``span_normalise=True``).
+            This is computed as sum_a (sum(w[a])^2 / 2), where
+            w is a column of W with the average subtracted off,
+            and w[a] is the sum of all entries of w corresponding to samples
+            carrying allele "a", and the first sum is over all alleles.
+
+        "branch"
+            The sum of squared covariances between the split induced by each branch and
+            phenotypes, multiplied by branch length, averaged across trees in
+            the window. This is computed as above: a branch with total weight
+            w[b] below b contributes (branch length) * w[b]^2 to the total
+            value for a tree. (Since the sum of w is zero, the total weight
+            below b and not below b are equal, canceling the factor of 2
+            above.)
+
+        "node"
+            For each node, the squared covariance between the property of
+            inheriting from this node and phenotypes, computed as in "branch".
+
+        :param ndarray W: An array of values with one row for each sample and one column
+            for each "phenotype".
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        windows = self.parse_windows(windows)
+        return self._ll_tree_sequence.trait_covariance(
+                        W, windows=windows,
+                        mode=mode, span_normalise=span_normalise)
+
+    def trait_correlation(self, W, windows=None, mode="site", span_normalise=True):
+        """
+        Computes the mean squared correlations between each of the columns of ``W``
+        (the "phenotypes") and inheritance along the tree sequence.  See
+        :ref:`sec_general_stats` for details of ``windows``, ``mode`` and
+        return value.  Operates on ``k = 1`` sample set at a time.
+
+        This is computed as squared covariance in
+        :meth:`trait_covariance <.TreeSequence.trait_covarance>`,
+        but divided by :math:`p (1-p)`, where `p` is the proportion of samples
+        inheriting from the allele, branch, or node in question.
+
+        What is computed depends on ``mode``:
+
+        "site"
+            The sum of squared correlations between presence/absence of each allele and
+            phenotypes, divided by length of the window (if ``span_normalise=True``).
+            This is computed as the
+            :meth:`trait_covariance <.TreeSequence.trait_covarance>`
+            divided by the variance of the relevant column of W
+            and by ;math:`p * (1 - p)`, where :math:`p` is the allele frequency.
+
+        "branch"
+            The sum of squared correlations between the split induced by each branch and
+            phenotypes, multiplied by branch length, averaged across trees in
+            the window. This is computed as the
+            :meth:`trait_covariance <.TreeSequence.trait_covarance>`,
+            divided by the variance of the column of w
+            and by :math:`p * (1 - p)`, where :math:`p` is the proportion of
+            the samples lying below the branch.
+
+        "node"
+            For each node, the squared correlation between the property of
+            inheriting from this node and phenotypes, computed as in "branch".
+
+        Note that above we divide by the **sample** variance, which for a
+        vector x of length n is ``np.var(x) * n / (n-1)``.
+
+        :param ndarray W: An array of values with one row for each sample and one column
+            for each "phenotype". Each column must have positive standard deviation.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        sds = np.std(W, axis=0)
+        if np.any(sds == 0):
+            raise ValueError("Weight columns must have positive variance",
+                             "to compute correlation.")
+        windows = self.parse_windows(windows)
+        return self._ll_tree_sequence.trait_correlation(
+                        W, windows=windows,
+                        mode=mode, span_normalise=span_normalise)
+
     def segregating_sites(self, sample_sets, windows=None, mode="site",
                           span_normalise=True):
         """

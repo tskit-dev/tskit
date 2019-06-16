@@ -217,6 +217,14 @@ int tsk_treeseq_general_stat(tsk_treeseq_t *self,
         size_t num_windows, double *windows, double *sigma,
         tsk_flags_t options);
 
+/* One way weighted stats */
+int tsk_treeseq_trait_covariance(tsk_treeseq_t *self,
+    tsk_size_t num_weights, double *weights,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+int tsk_treeseq_trait_correlation(tsk_treeseq_t *self,
+    tsk_size_t num_weights, double *weights,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
 /* One way sample set stats */
 int tsk_treeseq_diversity(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
