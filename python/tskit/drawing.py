@@ -603,20 +603,20 @@ class SvgTree(object):
     def setup_drawing(self):
         self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
         dwg = self.drawing
-
         self.root_group = dwg.add(dwg.g(id='tree_{}'.format(self.tree.index)))
         self.edges = self.root_group.add(dwg.g(id='edges',  stroke="black", fill="none"))
-        self.nodes = self.root_group.add(dwg.g(id='nodes'))
-        self.mutations = self.root_group.add(dwg.g(id='mutations', fill="red"))
-        self.left_labels = self.root_group.add(dwg.g(font_size=14, text_anchor="start"))
-        self.right_labels = self.root_group.add(dwg.g(font_size=14, text_anchor="end"))
-        self.mid_labels = self.root_group.add(dwg.g(font_size=14, text_anchor="middle"))
-        self.mutation_left_labels = self.root_group.add(dwg.g(
-            font_size=14, text_anchor="start", font_style="italic",
-            alignment_baseline="middle"))
-        self.mutation_right_labels = self.root_group.add(dwg.g(
-            font_size=14, text_anchor="end", font_style="italic",
-            alignment_baseline="middle"))
+        self.symbols = self.root_group.add(dwg.g(id='symbols'))
+        self.nodes = self.symbols.add(dwg.g(class_='nodes'))
+        self.mutations = self.symbols.add(dwg.g(class_='mutations', fill="red"))
+        self.labels = self.root_group.add(dwg.g(id='labels', font_size=14))
+        self.node_labels = self.labels.add(dwg.g(class_='nodes'))
+        self.mutation_labels = self.labels.add(
+            dwg.g(class_='mutations', font_style="italic", alignment_baseline="middle"))
+        self.left_labels = self.node_labels.add(dwg.g(text_anchor="start"))
+        self.mid_labels = self.node_labels.add(dwg.g(text_anchor="middle"))
+        self.right_labels = self.node_labels.add(dwg.g(text_anchor="end"))
+        self.mutation_left_labels = self.mutation_labels.add(dwg.g(text_anchor="start"))
+        self.mutation_right_labels = self.mutation_labels.add(dwg.g(text_anchor="end"))
 
     def assign_y_coordinates(self, tree_height_scale, max_tree_height):
         ts = self.tree.tree_sequence
