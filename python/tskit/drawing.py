@@ -72,6 +72,7 @@ def draw_tree(
             max_tree_height=max_tree_height)
         return td.draw()
     else:
+        # TODO catch the unused args here and throw a ValueError
         use_ascii = fmt == "ascii"
         text_tree = TextTree(
             tree, node_labels=node_labels, tree_height_scale=tree_height_scale,
@@ -637,6 +638,17 @@ def to_np_unicode(string):
     return np_string
 
 
+def closest_left_node(tree, u):
+    """
+    Returns the node that closest to u in a left-to-right sense.
+    """
+    ret = NULL
+    while u != NULL and ret == NULL:
+        ret = tree.left_sib(u)
+        u = tree.parent(u)
+    return ret
+
+
 class TextTree(object):
     """
     Draws a reprentation of a tree using unicode drawing characters written
@@ -651,7 +663,7 @@ class TextTree(object):
         self.__set_charset(use_ascii)
         self.num_leaves = len(list(tree.leaves()))
         # self.orientation = check_orientation(orientation)
-        # TODO Change to size tuple
+        # These are set below by the placement algorithms.
         self.width = None
         self.height = None
         self.canvas = None
@@ -683,15 +695,11 @@ class TextTree(object):
             for node, label in node_labels.items():
                 self.node_labels[node] = label
 
-        self.assign_time_positions()
-        self.assign_traversal_positions()
+        self.__assign_time_positions()
+        self.__assign_traversal_positions()
+        self.__draw()
 
-        # TODO This should only be set if height is None, ie., the default
-        # strategy is to set the height to the minimum required.
-        self.height = max(self.time_position.values()) + 1
-        self.draw()
-
-    def assign_time_positions(self):
+    def __assign_time_positions(self):
         if self.tree_height_scale == "time":
             raise ValueError("time scaling not currently supported in text trees")
         assert self.tree_height_scale in [None, "rank"]
@@ -704,15 +712,18 @@ class TextTree(object):
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
         for u in self.tree.nodes():
             self.time_position[u] = depth[self.tree.time(u)]
+        self.height = max(self.time_position.values()) + 1
 
-    def assign_traversal_positions(self):
+    def __assign_traversal_positions(self):
         # Get the overall width and assign x coordinates.
+        self.label_x = {}
         x = 0
         for root in self.tree.roots:
             for u in self.tree.nodes(root, order="postorder"):
+                label_size = len(self.node_labels[u])
                 if self.tree.is_leaf(u):
-                    label_size = len(self.node_labels[u])
                     self.traversal_position[u] = x + label_size // 2
+                    self.label_x[u] = x
                     x += label_size + 1
                 else:
                     coords = [self.traversal_position[c] for c in self.tree.children(u)]
@@ -721,15 +732,20 @@ class TextTree(object):
                     else:
                         a = min(coords)
                         b = max(coords)
-                        assert b - a > 1
-                        self.traversal_position[u] = int(round((a + (b - a) / 2)))
+                        child_mid = int(round((a + (b - a) / 2)))
+                        self.traversal_position[u] = child_mid
+                    self.label_x[u] = self.traversal_position[u] - label_size // 2
+                    sib_x = -1
+                    sib = closest_left_node(self.tree, u)
+                    if sib != NULL:
+                        sib_x = self.traversal_position[sib]
+                    self.label_x[u] = max(sib_x + 1, self.label_x[u])
+                    x = max(x, self.label_x[u] + label_size + 1)
+                assert self.label_x[u] >= 0
             x += 1
-        # TODO we should only do this if the width isn't specified.
-        # FIXME: this is leaving a trailing space when the label sizes are
-        # odd.
-        self.width = x
+        self.width = x - 1
 
-    def draw(self):
+    def __draw(self):
         # Create a width * height canvas of spaces.
         self.canvas = np.zeros((self.height, self.width), dtype=str)
         self.canvas[:] = " "
@@ -738,9 +754,8 @@ class TextTree(object):
             yu = self.time_position[u]
             label = to_np_unicode(self.node_labels[u])
             label_len = label.shape[0]
-            label_x = xu - label_len // 2
-            if self.tree.right_sib(u) == NULL and len(label) % 2 == 0:
-                label_x += 1
+            label_x = self.label_x[u]
+            assert label_x >= 0
             self.canvas[yu, label_x: label_x + label_len] = label
             children = self.tree.children(u)
             if len(children) > 0:
@@ -765,6 +780,7 @@ class TextTree(object):
 
         # Put in the EOLs last so that if we can't overwrite them.
         self.canvas[:, -1] = "\n"
+        # print(self.canvas)
 
     def __set_charset(self, use_ascii):
         if use_ascii:

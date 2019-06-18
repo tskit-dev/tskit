@@ -281,6 +281,12 @@ class TestDrawText(TestTreeDraw):
             j = text[j:].find(self.example_label)
             self.assertNotEqual(j, -1)
 
+    def test_long_internal_labels(self):
+        t = self.get_binary_tree()
+        labels = {u: "X" * 10 for u in t.nodes() if t.is_internal(u)}
+        text = t.draw(format=self.drawing_format, node_labels=labels)
+        self.verify_basic_text(text)
+
     def test_no_node_labels(self):
         t = self.get_binary_tree()
         labels = {}
@@ -345,6 +351,27 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw_text(use_ascii=True)
         self.verify_text_rendering(drawn, tree)
 
+    def test_simple_tree_long_label(self):
+        nodes = io.StringIO("""\
+        id  is_sample   time
+        0   1           0
+        1   1           0
+        2   1           2
+        """)
+        edges = io.StringIO("""\
+        left    right   parent  child
+        0       1       2       0
+        0       1       2       1
+        """)
+        tree = (
+            "ABCDEF\n"
+            "┏┻┓   \n"
+            "0 1   \n")
+        ts = tskit.load_text(nodes, edges, strict=False)
+        t = next(ts.trees())
+        drawn = t.draw_text(node_labels={0: "0", 1: "1", 2: "ABCDEF"})
+        self.verify_text_rendering(drawn, tree)
+
     def test_four_leaves(self):
         nodes = io.StringIO("""\
         id      is_sample   population      individual      time    metadata
@@ -388,6 +415,19 @@ class TestDrawTextExamples(unittest.TestCase):
             "| | +++\n"
             "1 2 0 3\n")
         drawn = t.draw(format="ascii")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
+            "  6     \n"
+            "┏━┻━┓   \n"
+            "┃xxxxxxxxxx\n"
+            "┃ ┏━┻┓  \n"
+            "┃ ┃  4  \n"
+            "┃ ┃ ┏┻┓ \n"
+            "1 2 0 3 \n")
+        labels = {u: str(u) for u in t.nodes()}
+        labels[5] = "xxxxxxxxxx"
+        drawn = t.draw_text(node_labels=labels)
         self.verify_text_rendering(drawn, tree)
 
     def test_trident_tree(self):
@@ -484,15 +524,15 @@ class TestDrawTextExamples(unittest.TestCase):
 
     def test_draw_forky_tree(self):
         tree = (
-           "       14            \n"
+           "      14            \n"
            "  ┏━━━━┻━━━━┓       \n"
-           "  ┃         13      \n"
+           "  ┃        13       \n"
            "  ┃   ┏━┳━┳━╋━┳━━┓  \n"
-           "  ┃   ┃ ┃ ┃ ┃ ┃  12 \n"
+           "  ┃   ┃ ┃ ┃ ┃ ┃ 12  \n"
            "  ┃   ┃ ┃ ┃ ┃ ┃ ┏┻┓ \n"
            " 11   ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
            "┏━┻┓  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
-           "┃  10 ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+           "┃ 10  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
            "┃ ┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
            "8 0 3 2 4 5 6 9 1 7 \n")
 
@@ -537,15 +577,31 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
+        tree = (
+           "        14              \n"
+           "  ┏━━━━━━┻━━━━━━┓       \n"
+           "  ┃            13       \n"
+           "  ┃        ┏━┳━┳┻┳━┳━━┓ \n"
+           "  ┃        ┃ ┃ ┃ ┃ ┃ 12 \n"
+           "  ┃        ┃ ┃ ┃ ┃ ┃ ┏┻┓\n"
+           "x11xxxxxxx ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+           "┏━┻┓       ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+           "┃ 10       ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+           "┃ ┏┻┓      ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+           "8 0 3      2 4 5 6 9 1 7\n")
+        labels = {u: str(u) for u in t.nodes()}
+        labels[11] = "x11xxxxxxx"
+        self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
+
     def test_draw_multiroot_forky_tree(self):
         tree = (
            "     13              \n"
            "┏━┳━┳━╋━┳━━┓         \n"
-           "┃ ┃ ┃ ┃ ┃  12        \n"
+           "┃ ┃ ┃ ┃ ┃ 12         \n"
            "┃ ┃ ┃ ┃ ┃ ┏┻┓        \n"
-           "┃ ┃ ┃ ┃ ┃ ┃ ┃   11   \n"
+           "┃ ┃ ┃ ┃ ┃ ┃ ┃  11    \n"
            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┏┻━┓  \n"
-           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃  10 \n"
+           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ 10  \n"
            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ ┏┻┓ \n"
            "2 4 5 6 9 1 7  8 0 3 \n")
         nodes = io.StringIO("""\
@@ -587,7 +643,6 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
-    @unittest.skip("Bad spacing on ts; extra padding.")
     def test_simple_tree_sequence(self):
         ts_drawing = (
            "   9    ┊         ┊         ┊         ┊        \n"
@@ -634,7 +689,7 @@ class TestDrawTextExamples(unittest.TestCase):
             13      0.00000000      0.05975243      9       5
         """)
         ts = tskit.load_text(nodes, edges, strict=False)
-        self.verify_text_rendering(ts.draw_text(), ts_drawing, debug=True)
+        self.verify_text_rendering(ts.draw_text(), ts_drawing)
 
     def test_tree_height_scale(self):
         tree = msprime.simulate(4, random_seed=2).first()
