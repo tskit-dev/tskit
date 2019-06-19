@@ -1596,7 +1596,7 @@ class TableCollection(object):
             filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
             reduce_to_site_topology=False,
             filter_populations=True, filter_individuals=True, filter_sites=True,
-            keep_unary=False):
+            record_provenance=True, keep_unary=False):
         """
         Simplifies the tables in place to retain only the information necessary
         to reconstruct the tree sequence describing the given ``samples``.
@@ -1644,6 +1644,9 @@ class TableCollection(object):
             corresponding node IDs in the output tables.
         :rtype: numpy array (dtype=np.int32).
         """
+        if record_provenance:
+            provenance_JSON = tskit.provenance.provenance_command_JSON(
+                exclude_args='filter_zero_mutation_sites')
         if filter_zero_mutation_sites is not None:
             # Deprecated in 0.6.1.
             warnings.warn(
@@ -1656,14 +1659,17 @@ class TableCollection(object):
                 np.bitwise_and(flags, _tskit.NODE_IS_SAMPLE) != 0)[0].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
-        return self.ll_tables.simplify(
+        tables = self.ll_tables.simplify(
             samples, filter_sites=filter_sites,
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary)
+        if record_provenance:
+            self.provenances.add_row(record=provenance_JSON)
+        return tables
 
-    def sort(self, edge_start=0):
+    def sort(self, edge_start=0, record_provenance=True):
         """
         Sorts the tables in place. This ensures that all tree sequence ordering
         requirements listed in the
@@ -1704,9 +1710,10 @@ class TableCollection(object):
             (default=0; must be <= len(edges)).
         """
         self.ll_tables.sort(edge_start)
-        # TODO add provenance
+        if record_provenance:
+            self.provenances.add_row(record=tskit.provenance.provenance_command_JSON())
 
-    def compute_mutation_parents(self):
+    def compute_mutation_parents(self, record_provenance=True):
         """
         Modifies the tables in place, computing the ``parent`` column of the
         mutation table. For this to work, the node and edge tables must be
@@ -1721,9 +1728,10 @@ class TableCollection(object):
         ``NULL`` if there is no such mutation.
         """
         self.ll_tables.compute_mutation_parents()
-        # TODO add provenance
+        if record_provenance:
+            self.provenances.add_row(record=tskit.provenance.provenance_command_JSON())
 
-    def deduplicate_sites(self):
+    def deduplicate_sites(self, record_provenance=True):
         """
         Modifies the tables in place, removing entries in the site table with
         duplicate ``position`` (and keeping only the *first* entry for each
@@ -1731,7 +1739,8 @@ class TableCollection(object):
         appropriately.  This requires the site table to be sorted by position.
         """
         self.ll_tables.deduplicate_sites()
-        # TODO add provenance
+        if record_provenance:
+            self.provenances.add_row(record=tskit.provenance.provenance_command_JSON())
 
     def has_index(self):
         """

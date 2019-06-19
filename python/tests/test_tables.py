@@ -940,7 +940,7 @@ class TestSortTables(unittest.TestCase):
             tables.edges.add_row(e.left, e.right, e.parent, e.child)
         # Verify that import fails for randomised edges
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
-        tables.sort()
+        tables.sort(record_provenance=False)
         self.assertEqual(tables, ts.dump_tables())
 
         tables.sites.clear()
@@ -962,7 +962,7 @@ class TestSortTables(unittest.TestCase):
         if ts.num_sites > 1:
             # Verify that import fails for randomised sites
             self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
-        tables.sort()
+        tables.sort(record_provenance=False)
         self.assertEqual(tables, ts.dump_tables())
 
         ts_new = tables.tree_sequence()
@@ -1667,7 +1667,7 @@ class TestDeduplicateSites(unittest.TestCase):
     """
     def test_empty(self):
         tables = tskit.TableCollection(1)
-        tables.deduplicate_sites()
+        tables.deduplicate_sites(record_provenance=False)
         self.assertEqual(tables, tskit.TableCollection(1))
 
     def test_unsorted(self):
