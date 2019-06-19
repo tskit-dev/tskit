@@ -26,7 +26,6 @@ Module responsible for managing trees and tree sequences.
 """
 import collections
 import itertools
-import json
 import base64
 import warnings
 import functools
@@ -3046,11 +3045,13 @@ class TreeSequence(object):
             sequence.
         :rtype: .TreeSequence or a (.TreeSequence, numpy.array) tuple
         """
-        tables = self.dump_tables()
+        tb = self.dump_tables()
         if samples is None:
             samples = self.get_samples()
-        assert tables.sequence_length == self.sequence_length
-        node_map = tables.simplify(
+        # Force convert to int32 so that provenances are saved in a consistent format
+        samples = tables.to_np_int32(samples)
+        assert tb.sequence_length == self.sequence_length
+        node_map = tb.simplify(
             samples=samples,
             filter_zero_mutation_sites=filter_zero_mutation_sites,
             reduce_to_site_topology=reduce_to_site_topology,
@@ -3059,16 +3060,8 @@ class TreeSequence(object):
             filter_sites=filter_sites,
             keep_unary=keep_unary)
         if record_provenance:
-            # TODO add simplify arguments here
-            # TODO also make sure we convert all the arguments so that they are
-            # definitely JSON encodable.
-            parameters = {
-                "command": "simplify",
-                "TODO": "add simplify parameters"
-            }
-            tables.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
-        new_ts = tables.tree_sequence()
+            tb.provenances.add_row(record=provenance.provenance_command_JSON())
+        new_ts = tb.tree_sequence()
         assert new_ts.sequence_length == self.sequence_length
         if map_nodes:
             return new_ts, node_map

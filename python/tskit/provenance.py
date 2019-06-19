@@ -25,10 +25,13 @@ Common provenance methods used to determine the state and versions
 of various dependencies and the OS.
 """
 import platform
+import inspect
+import collections
 import json
 import os.path
 
 import jsonschema
+import numpy as np
 
 import tskit.exceptions as exceptions
 import _tskit
@@ -132,3 +135,43 @@ def validate_provenance(provenance):
         jsonschema.validate(provenance, schema)
     except jsonschema.exceptions.ValidationError as ve:
         raise exceptions.ProvenanceValidationError from ve
+
+
+def provenance_command_JSON(exclude_args=[]):
+    """
+    This function can be called within a function and will encode the arguments used
+    to call that function into a JSON string, which is returned.
+
+    The exclude_args argument allows arguments to be excluded from the prevenance info
+    such as deprecated aliases for other arguments (the `self` argument of methods is
+    always excluded).
+
+    It can be used to e.g. serialize the arguments to functions like `simplify`
+    so they can be stored in a provenance field. It requires the arguments to be JSON
+    serializable (and uses np.array_repr to serialize numpy arrays, which are not
+    normally serializable by json).
+    """
+    def serialize_numpy_array(arg):
+        if type(arg) == np.ndarray:
+            return np.array_repr(arg)
+        return json.dumps(arg)
+
+    exclude_args.append('self')
+    caller = inspect.currentframe().f_back
+    command_name = inspect.getframeinfo(caller).function
+    command_args, _, _, command_vals = inspect.getargvalues(caller)
+    # Store params in an OrderedDict to retain the normal command order
+    parameters = collections.OrderedDict(command=command_name)
+    for a in command_args:
+        # Don't serialise the 'self' argument of class methods
+        if a not in exclude_args:
+            parameters[a] = command_vals[a]
+    provenance = get_provenance_dict(parameters)
+    try:
+        return json.dumps(provenance, default=serialize_numpy_array)
+    except TypeError as e:
+        err_str = "Cannot save provenance info when running `{}`:".format(command_name)
+        err_str += " some arguments are not convertable to JSON."
+        if 'record_provenance' in command_args:
+            err_str += " To avoid saving provenance info, set `record_provenance=False`"
+        raise TypeError(err_str) from e
