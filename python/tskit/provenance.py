@@ -153,7 +153,8 @@ def provenance_command_JSON(exclude_args=[]):
     """
     def serialize_numpy_array(arg):
         if type(arg) == np.ndarray:
-            return np.array_repr(arg)
+            # NB: we might also want to strip whitespace from the stringified array
+            return np.array_repr(arg, max_line_width=np.inf)
         return json.dumps(arg)
 
     exclude_args.append('self')
