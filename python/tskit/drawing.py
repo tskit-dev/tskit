@@ -53,10 +53,6 @@ def draw_tree(
         mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
         tree_height_scale=None, max_tree_height=None):
 
-    # We can't draw trees with zero roots.
-    if tree.num_roots == 0:
-        raise ValueError("Cannot draw a tree with zero roots")
-
     # See tree.draw() for documentation on these arguments.
     fmt = check_format(format)
     if fmt == "svg":
@@ -72,11 +68,25 @@ def draw_tree(
             max_tree_height=max_tree_height)
         return td.draw()
     else:
-        # TODO catch the unused args here and throw a ValueError
+        if width is not None:
+            raise ValueError("Text trees do not support width")
+        if height is not None:
+            raise ValueError("Text trees do not support height")
+        if mutation_labels is not None:
+            raise ValueError("Text trees do not support mutation_labels")
+        if mutation_colours is not None:
+            raise ValueError("Text trees do not support mutation_colours")
+        if node_colours is not None:
+            raise ValueError("Text trees do not support node_colours")
+        if edge_colours is not None:
+            raise ValueError("Text trees do not support edge_colours")
+        if max_tree_height is not None:
+            raise ValueError("Text trees do not support max_tree_height")
+
         use_ascii = fmt == "ascii"
         text_tree = TextTree(
-            tree, node_labels=node_labels, tree_height_scale=tree_height_scale,
-            max_tree_height=max_tree_height, use_ascii=use_ascii)
+            tree, node_labels=node_labels, max_tree_height=max_tree_height,
+            use_ascii=use_ascii)
         return str(text_tree)
 
 
@@ -586,8 +596,7 @@ class TextTreeSequence(object):
 
     def draw(self):
         trees = [
-            TextTree(tree, tree_height_scale="rank", max_tree_height="ts")
-            for tree in self.ts.trees()]
+            TextTree(tree, max_tree_height="ts") for tree in self.ts.trees()]
         self.width = sum(tree.width + 2 for tree in trees) - 1
         self.height = max(tree.height for tree in trees)
         self.canvas = np.zeros((self.height, self.width), dtype=str)
@@ -655,10 +664,8 @@ class TextTree(object):
     to a 2D array.
     """
     def __init__(
-            self, tree, node_labels=None, tree_height_scale=None, max_tree_height=None,
-            use_ascii=False):
+            self, tree, node_labels=None, max_tree_height=None, use_ascii=False):
         self.tree = tree
-        self.tree_height_scale = tree_height_scale
         self.max_tree_height = max_tree_height
         self.__set_charset(use_ascii)
         self.num_leaves = len(list(tree.leaves()))
@@ -675,13 +682,6 @@ class TextTree(object):
         self.time_position = {}
         # Labels for nodes
         self.node_labels = {}
-
-        # TODO Clear up the logic here. What do we actually support?
-        if tree_height_scale not in [None, "time", "rank"]:
-            raise ValueError("tree_height_scale must be one of 'time' or 'rank'")
-        numeric_max_tree_height = max_tree_height not in [None, "tree", "ts"]
-        if tree_height_scale == "rank" and numeric_max_tree_height:
-            raise ValueError("Cannot specify numeric max_tree_height with rank scale")
 
         # Set the node labels and colours.
         for u in tree.nodes():
@@ -700,15 +700,13 @@ class TextTree(object):
         self.__draw()
 
     def __assign_time_positions(self):
-        if self.tree_height_scale == "time":
-            raise ValueError("time scaling not currently supported in text trees")
-        assert self.tree_height_scale in [None, "rank"]
-        assert self.max_tree_height in [None, "tree", "ts"]
         tree = self.tree
         if self.max_tree_height in [None, "tree"]:
             times = {tree.time(u) for u in tree.nodes()}
         elif self.max_tree_height == "ts":
             times = {node.time for node in tree.tree_sequence.nodes()}
+        else:
+            raise ValueError("max_tree_height must be 'tree' or 'ts'")
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
         for u in self.tree.nodes():
             self.time_position[u] = depth[self.tree.time(u)]

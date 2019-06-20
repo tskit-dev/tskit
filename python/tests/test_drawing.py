@@ -295,6 +295,21 @@ class TestDrawText(TestTreeDraw):
         for u in t.nodes():
             self.assertEqual(text.find(str(u)), -1)
 
+    def test_unused_args(self):
+        t = self.get_binary_tree()
+        self.assertRaises(ValueError, t.draw, format=self.drawing_format, width=300)
+        self.assertRaises(ValueError, t.draw, format=self.drawing_format, height=300)
+        self.assertRaises(
+            ValueError, t.draw, format=self.drawing_format, mutation_labels={})
+        self.assertRaises(
+            ValueError, t.draw, format=self.drawing_format, mutation_colours={})
+        self.assertRaises(
+            ValueError, t.draw, format=self.drawing_format, edge_colours={})
+        self.assertRaises(
+            ValueError, t.draw, format=self.drawing_format, node_colours={})
+        self.assertRaises(
+            ValueError, t.draw, format=self.drawing_format, max_tree_height=1234)
+
 
 class TestDrawUnicode(TestDrawText):
     """
@@ -691,19 +706,6 @@ class TestDrawTextExamples(unittest.TestCase):
         ts = tskit.load_text(nodes, edges, strict=False)
         self.verify_text_rendering(ts.draw_text(), ts_drawing)
 
-    def test_tree_height_scale(self):
-        tree = msprime.simulate(4, random_seed=2).first()
-        with self.assertRaises(ValueError):
-            tree.draw_text(tree_height_scale="time")
-
-        t1 = tree.draw_text(tree_height_scale="rank")
-        t2 = tree.draw_text()
-        self.assertEqual(t1, t2)
-
-        for bad_scale in [0, "", "NOT A SCALE"]:
-            with self.assertRaises(ValueError):
-                tree.draw_text(tree_height_scale=bad_scale)
-
     def test_max_tree_height(self):
         nodes = io.StringIO("""\
             id      is_sample   population      individual      time    metadata
@@ -763,6 +765,9 @@ class TestDrawTextExamples(unittest.TestCase):
            "0 1 2 3\n")
         t = ts.first()
         self.verify_text_rendering(t.draw_text(max_tree_height="tree"), tree)
+        for bad_max_tree_height in [1, "sdfr", ""]:
+            with self.assertRaises(ValueError):
+                t.draw_text(max_tree_height=bad_max_tree_height)
 
 
 class TestDrawSvg(TestTreeDraw):
