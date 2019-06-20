@@ -30,6 +30,7 @@ import random
 import string
 import unittest
 import warnings
+import itertools
 
 import numpy as np
 
@@ -1451,6 +1452,17 @@ class TestTableCollection(unittest.TestCase):
         d2 = t.asdict()
         self.assertEqual(set(d1.keys()), set(d2.keys()))
         # TODO test the fromdict constructor
+
+    def test_iter(self):
+        def test_iter(table_collection):
+            table_names = [
+                attr_name for attr_name in sorted(dir(table_collection))
+                if isinstance(getattr(table_collection, attr_name), tskit.BaseTable)]
+            for n in table_names:
+                yield n, getattr(table_collection, n)
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+        for t1, t2 in itertools.zip_longest(test_iter(ts.tables), ts.tables):
+            self.assertEquals(t1, t2)
 
     def test_equals_empty(self):
         self.assertEqual(tskit.TableCollection(), tskit.TableCollection())

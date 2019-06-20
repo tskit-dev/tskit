@@ -1506,6 +1506,20 @@ class TableCollection(object):
         title_line += "#"
         return line + "\n" + title_line + "\n" + line + "\n"
 
+    def __iter__(self):
+        """
+        Iterate over all the tables in this TableCollection, ordered by table name
+        (i.e. deterministically), returning a tuple of (table_name, table_object)
+        """
+        yield 'edges', self.edges
+        yield 'individuals', self.individuals
+        yield 'migrations', self.migrations
+        yield 'mutations', self.mutations
+        yield 'nodes', self.nodes
+        yield 'populations', self.populations
+        yield 'provenances', self.provenances
+        yield 'sites', self.sites
+
     def __str__(self):
         s = self.__banner("Individuals")
         s += str(self.individuals) + "\n"
