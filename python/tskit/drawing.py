@@ -589,26 +589,59 @@ class TextTreeSequence(object):
     """
     Draw a tree sequence as horizontal line of trees.
     """
-    def __init__(self, ts):
+    def __init__(
+            self, ts, node_labels=None, use_ascii=False, time_label_format=None,
+            position_label_format=None):
         self.ts = ts
-        self.canvas = None
-        self.draw()
 
-    def draw(self):
+        time_label_format = (
+            "{:.2f}" if time_label_format is None else time_label_format)
+        position_label_format = (
+            "{:.2f}" if position_label_format is None else position_label_format)
+
+        time = ts.tables.nodes.time
+        time_scale_labels = [
+            time_label_format.format(time[u]) for u in range(ts.num_nodes)]
+        position_scale_labels = [
+            position_label_format.format(x) for x in ts.breakpoints()]
         trees = [
-            TextTree(tree, max_tree_height="ts") for tree in self.ts.trees()]
+            TextTree(
+                tree, max_tree_height="ts", node_labels=node_labels,
+                use_ascii=use_ascii)
+            for tree in self.ts.trees()]
+
+        self.height = 1 + max(tree.height for tree in trees)
         self.width = sum(tree.width + 2 for tree in trees) - 1
-        self.height = max(tree.height for tree in trees)
+        max_time_scale_label_len = max(map(len, time_scale_labels))
+        self.width += 3 + max_time_scale_label_len + len(position_scale_labels[-1]) // 2
+
         self.canvas = np.zeros((self.height, self.width), dtype=str)
         self.canvas[:] = " "
 
+        vertical_sep = "|" if use_ascii else "┊"
+
         x = 0
+        for u, label in enumerate(map(to_np_unicode, time_scale_labels)):
+            y = trees[0].time_position[u]
+            self.canvas[y, 0: label.shape[0]] = label
+        self.canvas[:, max_time_scale_label_len] = vertical_sep
+        x = 2 + max_time_scale_label_len
+
         for j, tree in enumerate(trees):
+            pos_label = to_np_unicode(position_scale_labels[j])
+            k = len(pos_label)
+            label_x = max(x - k // 2 - 2, 0)
+            self.canvas[-1, label_x: label_x + k] = pos_label
             h, w = tree.canvas.shape
-            self.canvas[-h:, x: x + w - 1] = tree.canvas[:, :-1]
+            self.canvas[-h - 1: -1, x: x + w - 1] = tree.canvas[:, :-1]
             x += w
-            self.canvas[:, x] = "┊"
+            self.canvas[:, x] = vertical_sep
             x += 2
+
+        pos_label = to_np_unicode(position_scale_labels[-1])
+        k = len(pos_label)
+        label_x = max(x - k // 2 - 2, 0)
+        self.canvas[-1, label_x: label_x + k] = pos_label
         self.canvas[:, -1] = "\n"
 
     def __str__(self):
@@ -630,7 +663,6 @@ class TextTreeSequence(object):
 #             raise ValueError(
 #                 "Unknown orientiation: choose from {}".format(orientations))
 #     return orientation
-
 
 def to_np_unicode(string):
     """
@@ -668,7 +700,6 @@ class TextTree(object):
         self.tree = tree
         self.max_tree_height = max_tree_height
         self.__set_charset(use_ascii)
-        self.num_leaves = len(list(tree.leaves()))
         # self.orientation = check_orientation(orientation)
         # These are set below by the placement algorithms.
         self.width = None
@@ -684,6 +715,7 @@ class TextTree(object):
         self.node_labels = {}
 
         # Set the node labels and colours.
+        self.time_scale_labels = {}
         for u in tree.nodes():
             if node_labels is None:
                 # If we don't specify node_labels, default to node ID
@@ -701,14 +733,16 @@ class TextTree(object):
 
     def __assign_time_positions(self):
         tree = self.tree
+        ts = tree.tree_sequence
         if self.max_tree_height in [None, "tree"]:
-            times = {tree.time(u) for u in tree.nodes()}
+            nodes = list(tree.nodes())
         elif self.max_tree_height == "ts":
-            times = {node.time for node in tree.tree_sequence.nodes()}
+            nodes = range(ts.num_nodes)
         else:
             raise ValueError("max_tree_height must be 'tree' or 'ts'")
+        times = {ts.node(u).time for u in nodes}
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
-        for u in self.tree.nodes():
+        for u in nodes:
             self.time_position[u] = depth[self.tree.time(u)]
         self.height = max(self.time_position.values()) + 1
 

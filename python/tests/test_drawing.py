@@ -422,6 +422,17 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
         tree = (
+            "2.92┊   6     ┊\n"
+            "    ┊ ┏━┻━┓   ┊\n"
+            "1.49┊ ┃   5   ┊\n"
+            "    ┊ ┃ ┏━┻┓  ┊\n"
+            "0.27┊ ┃ ┃  4  ┊\n"
+            "    ┊ ┃ ┃ ┏┻┓ ┊\n"
+            "0.00┊ 1 2 0 3 ┊\n"
+            "  0.00      1.00\n")
+        self.verify_text_rendering(ts.draw_text(), tree)
+
+        tree = (
             "  6    \n"
             "+-+-+  \n"
             "|   5  \n"
@@ -443,6 +454,18 @@ class TestDrawTextExamples(unittest.TestCase):
         labels = {u: str(u) for u in t.nodes()}
         labels[5] = "xxxxxxxxxx"
         drawn = t.draw_text(node_labels=labels)
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
+            "2.92┊   6         ┊\n"
+            "    ┊ ┏━┻━┓       ┊\n"
+            "1.49┊ ┃xxxxxxxxxx ┊\n"
+            "    ┊ ┃ ┏━┻┓      ┊\n"
+            "0.27┊ ┃ ┃  4      ┊\n"
+            "    ┊ ┃ ┃ ┏┻┓     ┊\n"
+            "0.00┊ 1 2 0 3     ┊\n"
+            "  0.00          1.00\n")
+        drawn = ts.draw_text(node_labels=labels)
         self.verify_text_rendering(drawn, tree)
 
     def test_trident_tree(self):
@@ -659,20 +682,6 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
     def test_simple_tree_sequence(self):
-        ts_drawing = (
-           "   9    ┊         ┊         ┊         ┊        \n"
-           " ┏━┻━┓  ┊         ┊         ┊         ┊        \n"
-           " ┃   ┃  ┊         ┊         ┊         ┊    8   \n"
-           " ┃   ┃  ┊         ┊         ┊         ┊  ┏━┻━┓ \n"
-           " ┃   ┃  ┊    7    ┊         ┊    7    ┊  ┃   ┃ \n"
-           " ┃   ┃  ┊  ┏━┻━┓  ┊         ┊  ┏━┻━┓  ┊  ┃   ┃ \n"
-           " ┃   ┃  ┊  ┃   ┃  ┊    6    ┊  ┃   ┃  ┊  ┃   ┃ \n"
-           " ┃   ┃  ┊  ┃   ┃  ┊  ┏━┻━┓  ┊  ┃   ┃  ┊  ┃   ┃ \n"
-           " ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5 \n"
-           " ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓\n"
-           " 4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃\n"
-           "┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃\n"
-           "0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3\n")
         nodes = io.StringIO("""\
             id      is_sample   population      individual      time    metadata
             0       1       0       -1      0.00000000000000
@@ -704,7 +713,75 @@ class TestDrawTextExamples(unittest.TestCase):
             13      0.00000000      0.05975243      9       5
         """)
         ts = tskit.load_text(nodes, edges, strict=False)
+
+        ts_drawing = (
+            "9.08┊    9    ┊         ┊         ┊         ┊         ┊\n"
+            "    ┊  ┏━┻━┓  ┊         ┊         ┊         ┊         ┊\n"
+            "3.57┊  ┃   ┃  ┊         ┊         ┊         ┊    8    ┊\n"
+            "    ┊  ┃   ┃  ┊         ┊         ┊         ┊  ┏━┻━┓  ┊\n"
+            "2.31┊  ┃   ┃  ┊    7    ┊         ┊    7    ┊  ┃   ┃  ┊\n"
+            "    ┊  ┃   ┃  ┊  ┏━┻━┓  ┊         ┊  ┏━┻━┓  ┊  ┃   ┃  ┊\n"
+            "1.75┊  ┃   ┃  ┊  ┃   ┃  ┊    6    ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
+            "    ┊  ┃   ┃  ┊  ┃   ┃  ┊  ┏━┻━┓  ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
+            "0.11┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊\n"
+            "    ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊\n"
+            "0.02┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
+            "    ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
+            "0.00┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
+            "  0.00      0.06      0.79      0.91      0.91      1.00\n")
         self.verify_text_rendering(ts.draw_text(), ts_drawing)
+
+        ts_drawing = (
+            "9.08|    9    |         |         |         |         |\n"
+            "    |  +-+-+  |         |         |         |         |\n"
+            "3.57|  |   |  |         |         |         |    8    |\n"
+            "    |  |   |  |         |         |         |  +-+-+  |\n"
+            "2.31|  |   |  |    7    |         |    7    |  |   |  |\n"
+            "    |  |   |  |  +-+-+  |         |  +-+-+  |  |   |  |\n"
+            "1.75|  |   |  |  |   |  |    6    |  |   |  |  |   |  |\n"
+            "    |  |   |  |  |   |  |  +-+-+  |  |   |  |  |   |  |\n"
+            "0.11|  |   5  |  |   5  |  |   5  |  |   5  |  |   5  |\n"
+            "    |  |  +++ |  |  +++ |  |  +++ |  |  +++ |  |  +++ |\n"
+            "0.02|  4  | | |  4  | | |  4  | | |  4  | | |  4  | | |\n"
+            "    | +++ | | | +++ | | | +++ | | | +++ | | | +++ | | |\n"
+            "0.00| 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 |\n"
+            "  0.00      0.06      0.79      0.91      0.91      1.00\n")
+        self.verify_text_rendering(ts.draw_text(use_ascii=True), ts_drawing)
+
+        ts_drawing = (
+            "┊    9    ┊         ┊         ┊         ┊         ┊\n"
+            "┊  ┏━┻━┓  ┊         ┊         ┊         ┊         ┊\n"
+            "┊  ┃   ┃  ┊         ┊         ┊         ┊    8    ┊\n"
+            "┊  ┃   ┃  ┊         ┊         ┊         ┊  ┏━┻━┓  ┊\n"
+            "┊  ┃   ┃  ┊    7    ┊         ┊    7    ┊  ┃   ┃  ┊\n"
+            "┊  ┃   ┃  ┊  ┏━┻━┓  ┊         ┊  ┏━┻━┓  ┊  ┃   ┃  ┊\n"
+            "┊  ┃   ┃  ┊  ┃   ┃  ┊    6    ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
+            "┊  ┃   ┃  ┊  ┃   ┃  ┊  ┏━┻━┓  ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
+            "┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊\n"
+            "┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊\n"
+            "┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
+            "┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
+            "┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
+            "0.00    0.06      0.79      0.91      0.91      1.00\n")
+        self.verify_text_rendering(ts.draw_text(time_label_format=""), ts_drawing)
+
+        ts_drawing = (
+            "┊    9    ┊         ┊         ┊         ┊         ┊\n"
+            "┊  ┏━┻━┓  ┊         ┊         ┊         ┊         ┊\n"
+            "┊  ┃   ┃  ┊         ┊         ┊         ┊    8    ┊\n"
+            "┊  ┃   ┃  ┊         ┊         ┊         ┊  ┏━┻━┓  ┊\n"
+            "┊  ┃   ┃  ┊    7    ┊         ┊    7    ┊  ┃   ┃  ┊\n"
+            "┊  ┃   ┃  ┊  ┏━┻━┓  ┊         ┊  ┏━┻━┓  ┊  ┃   ┃  ┊\n"
+            "┊  ┃   ┃  ┊  ┃   ┃  ┊    6    ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
+            "┊  ┃   ┃  ┊  ┃   ┃  ┊  ┏━┻━┓  ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
+            "┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊\n"
+            "┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊\n"
+            "┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
+            "┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
+            "┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
+            "┊         ┊         ┊         ┊         ┊         ┊\n")
+        self.verify_text_rendering(
+            ts.draw_text(time_label_format="", position_label_format=""), ts_drawing)
 
     def test_max_tree_height(self):
         nodes = io.StringIO("""\
