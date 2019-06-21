@@ -26,7 +26,7 @@ Module responsible for various utility functions used in other modules.
 import numpy as np
 
 
-def safe_np_int_cast(int_array, dtype, copy=True):
+def safe_np_int_cast(int_array, dtype, copy=False):
     """
     A few functions require arrays of certain dtypes (e.g. node indices are np.int32,
     genotypes are np.int8, etc. Standard numpy integer arrays are of (dtype=np.int64),
@@ -48,13 +48,12 @@ def safe_np_int_cast(int_array, dtype, copy=True):
         return int_array.astype(dtype, casting='safe', copy=copy)
     except TypeError:
         bounds = np.iinfo(dtype)
-        if np.all(int_array >= bounds.min) and np.all(int_array <= bounds.max):
-            if int_array.dtype.kind == 'i' and np.dtype(dtype).kind == 'u':
-                # Allow casting from int to unsigned int, since we have checked bounds
-                casting = 'unsafe'
-            else:
-                # Raise a TypeError when we try to convert from, e.g., a float.
-                casting = 'same_kind'
-            return int_array.astype(dtype, casting=casting, copy=copy)
-        else:
+        if np.any(int_array < bounds.min) or np.any(int_array > bounds.max):
             raise OverflowError("Cannot convert safely to {} type".format(dtype))
+        if int_array.dtype.kind == 'i' and np.dtype(dtype).kind == 'u':
+            # Allow casting from int to unsigned int, since we have checked bounds
+            casting = 'unsafe'
+        else:
+            # Raise a TypeError when we try to convert from, e.g., a float.
+            casting = 'same_kind'
+        return int_array.astype(dtype, casting=casting, copy=copy)
