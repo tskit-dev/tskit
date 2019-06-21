@@ -1641,7 +1641,7 @@ class TableCollection(object):
             samples = np.where(
                 np.bitwise_and(flags, _tskit.NODE_IS_SAMPLE) != 0)[0].astype(np.int32)
         else:
-            samples = util.safe_np_int_cast(samples, np.int32, copy=False)
+            samples = util.safe_np_int_cast(samples, np.int32)
         return self.ll_tables.simplify(
             samples, filter_sites=filter_sites,
             filter_individuals=filter_individuals,
