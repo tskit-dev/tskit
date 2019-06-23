@@ -366,6 +366,19 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw_text(use_ascii=True)
         self.verify_text_rendering(drawn, tree)
 
+        tree = (
+            " ┏━0\n"
+            "2┫  \n"
+            " ┗━1\n")
+        drawn = t.draw_text(orientation="left")
+        self.verify_text_rendering(drawn, tree)
+        tree = (
+            " +-0\n"
+            "2+  \n"
+            " +-1\n")
+        drawn = t.draw_text(orientation="left", use_ascii=True)
+        self.verify_text_rendering(drawn, tree)
+
     def test_simple_tree_long_label(self):
         nodes = io.StringIO("""\
         id  is_sample   time
@@ -420,6 +433,16 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
+
+        tree = (
+            " ┏━━━━━━━1\n"
+            " ┃        \n"
+            "6┫  ┏━━━━2\n"
+            " ┃  ┃     \n"
+            " ┗━5┫  ┏━0\n"
+            "    ┗━4┫  \n"
+            "       ┗━3\n")
+        self.verify_text_rendering(t.draw_text(orientation="left"), tree)
 
         tree = (
             "2.92┊   6     ┊\n"

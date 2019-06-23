@@ -84,7 +84,7 @@ def draw_tree(
             raise ValueError("Text trees do not support max_tree_height")
 
         use_ascii = fmt == "ascii"
-        text_tree = TextTree(
+        text_tree = RootTopTextTree(
             tree, node_labels=node_labels, max_tree_height=max_tree_height,
             use_ascii=use_ascii)
         return str(text_tree)
@@ -605,7 +605,7 @@ class TextTreeSequence(object):
         position_scale_labels = [
             position_label_format.format(x) for x in ts.breakpoints()]
         trees = [
-            TextTree(
+            RootTopTextTree(
                 tree, max_tree_height="ts", node_labels=node_labels,
                 use_ascii=use_ascii)
             for tree in self.ts.trees()]
@@ -648,21 +648,29 @@ class TextTreeSequence(object):
         return "".join(self.canvas.reshape(self.width * self.height))
 
 
-# # TODO not actually done anything with this yet. See if it we can use it.
-# LEFT = "left"
-# TOP = "top"
+LEFT = "left"
+TOP = "top"
 
 
-# def check_orientation(orientation):
-#     if orientation is None:
-#         orientation = LEFT
-#     else:
-#         orientation = orientation.lower()
-#         orientations = [LEFT, TOP]
-#         if orientation not in orientations:
-#             raise ValueError(
-#                 "Unknown orientiation: choose from {}".format(orientations))
-#     return orientation
+def check_orientation(orientation):
+    if orientation is None:
+        orientation = TOP
+    else:
+        orientation = orientation.lower()
+        orientations = [LEFT, TOP]
+        if orientation not in orientations:
+            raise ValueError(
+                "Unknown orientiation: choose from {}".format(orientations))
+    return orientation
+
+
+def check_max_tree_height(max_tree_height):
+    if max_tree_height is None:
+        max_tree_height = "tree"
+    if max_tree_height not in ["tree", "ts"]:
+        raise ValueError("max_tree_height must be 'tree' or 'ts'")
+    return max_tree_height
+
 
 def to_np_unicode(string):
     """
@@ -698,9 +706,13 @@ class TextTree(object):
     def __init__(
             self, tree, node_labels=None, max_tree_height=None, use_ascii=False):
         self.tree = tree
-        self.max_tree_height = max_tree_height
-        self.__set_charset(use_ascii)
-        # self.orientation = check_orientation(orientation)
+        self.max_tree_height = check_max_tree_height(max_tree_height)
+        self.use_ascii = use_ascii
+        self.horizontal_line_char = '━'
+        self.vertical_line_char = '┃'
+        if use_ascii:
+            self.horizontal_line_char = '-'
+            self.vertical_line_char = '|'
         # These are set below by the placement algorithms.
         self.width = None
         self.height = None
@@ -714,40 +726,53 @@ class TextTree(object):
         # Labels for nodes
         self.node_labels = {}
 
-        # Set the node labels and colours.
-        self.time_scale_labels = {}
+        # Set the node labels
         for u in tree.nodes():
             if node_labels is None:
                 # If we don't specify node_labels, default to node ID
                 self.node_labels[u] = str(u)
             else:
                 # If we do specify node_labels, default an empty line
-                self.node_labels[u] = self.vertical_line_char
+                self.node_labels[u] = self.default_node_label
         if node_labels is not None:
             for node, label in node_labels.items():
                 self.node_labels[node] = label
 
-        self.__assign_time_positions()
-        self.__assign_traversal_positions()
-        self.__draw()
+        self._assign_time_positions()
+        self._assign_traversal_positions()
+        self.canvas = np.zeros((self.height, self.width), dtype=str)
+        self.canvas[:] = " "
+        self._draw()
+        self.canvas[:, -1] = "\n"
 
-    def __assign_time_positions(self):
+    def __str__(self):
+        return "".join(self.canvas.reshape(self.width * self.height))
+
+
+class RootTopTextTree(TextTree):
+    """
+    Text tree rendering where root nodes are at the top and time goes downwards
+    into the present.
+    """
+    @property
+    def default_node_label(self):
+        return self.vertical_line_char
+
+    def _assign_time_positions(self):
         tree = self.tree
         ts = tree.tree_sequence
-        if self.max_tree_height in [None, "tree"]:
+        if self.max_tree_height == "tree":
             nodes = list(tree.nodes())
-        elif self.max_tree_height == "ts":
-            nodes = range(ts.num_nodes)
         else:
-            raise ValueError("max_tree_height must be 'tree' or 'ts'")
+            assert self.max_tree_height == "ts"
+            nodes = range(ts.num_nodes)
         times = {ts.node(u).time for u in nodes}
         depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
         for u in nodes:
             self.time_position[u] = depth[self.tree.time(u)]
         self.height = max(self.time_position.values()) + 1
 
-    def __assign_traversal_positions(self):
-        # Get the overall width and assign x coordinates.
+    def _assign_traversal_positions(self):
         self.label_x = {}
         x = 0
         for root in self.tree.roots:
@@ -777,10 +802,13 @@ class TextTree(object):
             x += 1
         self.width = x - 1
 
-    def __draw(self):
-        # Create a width * height canvas of spaces.
-        self.canvas = np.zeros((self.height, self.width), dtype=str)
-        self.canvas[:] = " "
+    def _draw(self):
+        mid_up_char = "+" if self.use_ascii else "┻"
+        mid_down_char = "+" if self.use_ascii else "┳"
+        mid_up_down_char = "+" if self.use_ascii else "╋"
+        left_down_char = "+" if self.use_ascii else "┏"
+        right_down_char = "+" if self.use_ascii else "┓"
+
         for u in self.tree.nodes():
             xu = self.traversal_position[u]
             yu = self.time_position[u]
@@ -799,38 +827,101 @@ class TextTree(object):
                     right = max(self.traversal_position[v] for v in children)
                     y = yu + 1
                     self.canvas[y, left + 1: right] = self.horizontal_line_char
-                    self.canvas[y, xu] = self.mid_up_char
+                    self.canvas[y, xu] = mid_up_char
                     for v in children:
                         xv = self.traversal_position[v]
                         yv = self.time_position[v]
                         self.canvas[yu + 2: yv, xv] = self.vertical_line_char
-                        mid_char = (
-                            self.mid_up_down_char if xv == xu else self.mid_down_char)
+                        mid_char = mid_up_down_char if xv == xu else mid_down_char
                         self.canvas[yu + 1, xv] = mid_char
-                    self.canvas[y, left] = self.left_down_char
-                    self.canvas[y, right] = self.right_down_char
-
-        # Put in the EOLs last so that if we can't overwrite them.
-        self.canvas[:, -1] = "\n"
+                    self.canvas[y, left] = left_down_char
+                    self.canvas[y, right] = right_down_char
         # print(self.canvas)
 
-    def __set_charset(self, use_ascii):
-        if use_ascii:
-            self.left_down_char = '+'
-            self.right_down_char = '+'
-            self.horizontal_line_char = '-'
-            self.vertical_line_char = '|'
-            self.mid_up_char = '+'
-            self.mid_down_char = '+'
-            self.mid_up_down_char = '+'
-        else:
-            self.left_down_char = "\u250F"
-            self.right_down_char = "\u2513"
-            self.horizontal_line_char = "\u2501"
-            self.vertical_line_char = "\u2503"
-            self.mid_up_char = "\u253b"
-            self.mid_down_char = "\u2533"
-            self.mid_up_down_char = "\u254b"
 
-    def __str__(self):
-        return "".join(self.canvas.reshape(self.width * self.height))
+class RootLeftTextTree(TextTree):
+    """
+    Text tree rendering where root nodes are at the left and time goes
+    rightwards into the present.
+    """
+
+    @property
+    def default_node_label(self):
+        return self.horizontal_line_char
+
+    def _assign_time_positions(self):
+        tree = self.tree
+        ts = tree.tree_sequence
+        if self.max_tree_height == "tree":
+            nodes = list(tree.nodes())
+        else:
+            assert self.max_tree_height == "ts"
+            nodes = range(ts.num_nodes)
+        times = {ts.node(u).time for u in nodes}
+        # FIXME this isn't working. The idea is that we need to ensure that there's
+        # enough space on each branch to draw the label *but* this also needs to
+        # make sure that node time ordering is respected also.
+        max_label_len = collections.Counter()
+        for u in nodes:
+            time = ts.node(u).time
+            node_label_len = 0
+            node_label_len = len(self.node_labels.get(u, ""))
+            max_label_len[time] = max(max_label_len[time], node_label_len)
+
+        depth = {
+            t: (max_label_len[t] + 2) * j
+            for j, t in enumerate(sorted(times, reverse=True))}
+
+        for u in nodes:
+            self.time_position[u] = depth[self.tree.time(u)]
+        self.width = max(self.time_position.values()) + 2
+
+    def _assign_traversal_positions(self):
+        y = 0
+        for root in self.tree.roots:
+            for u in self.tree.nodes(root, order="postorder"):
+                if self.tree.is_leaf(u):
+                    self.traversal_position[u] = y
+                    y += 2
+                else:
+                    coords = [self.traversal_position[c] for c in self.tree.children(u)]
+                    if len(coords) == 1:
+                        self.traversal_position[u] = coords[0]
+                    else:
+                        a = min(coords)
+                        b = max(coords)
+                        child_mid = int(round((a + (b - a) / 2)))
+                        self.traversal_position[u] = child_mid
+            y += 1
+        self.height = y - 2
+
+    def _draw(self):
+        for u in self.tree.nodes():
+            yu = self.traversal_position[u]
+            xu = self.time_position[u]
+            label = to_np_unicode(self.node_labels[u])
+            label_len = label.shape[0]
+            self.canvas[yu, xu - label_len + 1: xu + 1] = label
+            children = self.tree.children(u)
+            if len(children) > 0:
+                if len(children) == 1:
+                    yv = self.time_position[children[0]]
+                    self.canvas[yu + 1: yv, xu] = self.horizontal_line_char
+                else:
+                    bot = min(self.traversal_position[v] for v in children)
+                    top = max(self.traversal_position[v] for v in children)
+                    x = xu + 1
+                    self.canvas[bot + 1: top, x] = self.vertical_line_char
+                    self.canvas[yu, x] = "+" if self.use_ascii else "┫"
+                    for v in children:
+                        yv = self.traversal_position[v]
+                        xv = self.time_position[v]
+                        self.canvas[yv, xu + 2: xv] = self.horizontal_line_char
+                        # FIXME
+                        # mid_char = (
+                        #     self.mid_up_down_char if xv == xu else self.mid_down_char)
+                        # self.canvas[yu + 1, xv] = mid_char
+
+                    self.canvas[bot, x] = "+" if self.use_ascii else "┏"
+                    self.canvas[top, x] = "+" if self.use_ascii else "┗"
+        # print(self.canvas)

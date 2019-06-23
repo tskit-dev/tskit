@@ -966,10 +966,13 @@ class Tree(object):
         """
         return self._ll_tree.get_sample_size()
 
-    def draw_text(self, **kwargs):
-        # Experimental drawing code. This aims to replace or at least be a more
-        # powerful SVG driven interface for the code below.
-        return str(drawing.TextTree(self, **kwargs))
+    def draw_text(self, orientation=None, **kwargs):
+        orientation = drawing.check_orientation(orientation)
+        if orientation == drawing.LEFT:
+            text_tree = drawing.RootLeftTextTree(self, **kwargs)
+        else:
+            text_tree = drawing.RootTopTextTree(self, **kwargs)
+        return str(text_tree)
 
     def draw_svg(self, path=None, **kwargs):
         # Experimental drawing code. This aims to replace or at least be a more
