@@ -3045,13 +3045,15 @@ class TreeSequence(object):
             sequence.
         :rtype: .TreeSequence or a (.TreeSequence, numpy.array) tuple
         """
-        tb = self.dump_tables()
+        if record_provenance:
+            provenance_JSON = provenance.function_args_to_json()
+        tables = self.dump_tables()
         if samples is None:
             samples = self.get_samples()
         # Force convert to int32 so that provenances are saved in a consistent format
-        samples = tables.to_np_int32(samples)
-        assert tb.sequence_length == self.sequence_length
-        node_map = tb.simplify(
+        samples = util.safe_np_int_cast(samples, np.int32)
+        assert tables.sequence_length == self.sequence_length
+        node_map = tables.simplify(
             samples=samples,
             filter_zero_mutation_sites=filter_zero_mutation_sites,
             reduce_to_site_topology=reduce_to_site_topology,
@@ -3059,10 +3061,10 @@ class TreeSequence(object):
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
             keep_unary=keep_unary)
-        if record_provenance:
-            tb.provenances.add_row(record=provenance.provenance_command_JSON())
-        new_ts = tb.tree_sequence()
+        new_ts = tables.tree_sequence()
         assert new_ts.sequence_length == self.sequence_length
+        if record_provenance:
+            tables.provenances.add_row(record=provenance_JSON)
         if map_nodes:
             return new_ts, node_map
         else:
@@ -3105,6 +3107,8 @@ class TreeSequence(object):
                     np.concatenate([
                         np.array([0], dtype=offset.dtype),
                         np.cumsum(lens[keep], dtype=offset.dtype)]))
+        if record_provenance:
+            provenance_JSON = provenance.function_args_to_json()
         if start is None:
             start = 0
         if stop is None:
@@ -3166,13 +3170,7 @@ class TreeSequence(object):
         if simplify:
             tables.simplify()
         if record_provenance:
-            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
-            parameters = {
-                "command": "slice",
-                "TODO": "add slice parameters"
-            }
-            tables.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            tables.provenances.add_row(record=provenance_JSON)
         return tables.tree_sequence()
 
     def draw_svg(self, path=None, **kwargs):

@@ -1153,7 +1153,11 @@ class TestSimplifyExamples(TopologyTestCase):
             print(before)
             print("after")
             print(after)
-        self.assertEqual(before, after)
+        for t_b, t_a in zip(before, after):
+            if t_b[0] == 'provenances':
+                self.assertEqual(t_b[1].record, t_a[1].record)
+            else:
+                self.assertEqual(t_b, t_a)
 
     def test_unsorted_edges(self):
         # We have two nodes at the same time and interleave edges for
@@ -4085,13 +4089,11 @@ class TestSlice(TopologyTestCase):
                             stop = max(a, b)
                             x = slice(ts, start, stop, reset_coords, simplify, rec_prov)
                             y = ts.slice(start, stop, reset_coords, simplify, rec_prov)
-                            t1 = x.dump_tables()
-                            t2 = y.dump_tables()
-                            # Provenances may differ using timestamps, so ignore them
-                            # (this is a hack, as we prob want to compare their contents)
-                            t1.provenances.clear()
-                            t2.provenances.clear()
-                            self.assertEqual(t1, t2)
+                            for t1, t2 in zip(x.tables, y.tables):
+                                if t1[0] == 'provenance':
+                                    self.assertEqual(t1[1].record, t2[1].record)
+                                else:
+                                    assert self.assertEqual(t1, t2)
 
     def test_slice_by_tree_positions(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)

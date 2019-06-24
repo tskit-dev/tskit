@@ -137,7 +137,17 @@ def validate_provenance(provenance):
         raise exceptions.ProvenanceValidationError from ve
 
 
-def provenance_command_JSON(exclude_args=[]):
+def dump_json_inc_numpy_arr(arg):
+    """
+    Numpy arrays and scalars aren't normally serializable - call tolist() on such objects
+    first. Note that we lose dtype information in this case, which may be unavoidable.
+    """
+    if isinstance(arg, (np.ndarray, np.generic)):
+        return json.dumps(arg.tolist())
+    return json.dumps(arg)
+
+
+def function_args_to_json(exclude_args=None):
     """
     This function can be called within a function and will encode the arguments used
     to call that function into a JSON string, which is returned.
@@ -147,16 +157,11 @@ def provenance_command_JSON(exclude_args=[]):
     always excluded).
 
     It can be used to e.g. serialize the arguments to functions like `simplify`
-    so they can be stored in a provenance field. It requires the arguments to be JSON
-    serializable (and uses np.array_repr to serialize numpy arrays, which are not
-    normally serializable by json).
+    so they can be stored in a provenance field.
     """
-    def serialize_numpy_array(arg):
-        if type(arg) == np.ndarray:
-            # NB: we might also want to strip whitespace from the stringified array
-            return np.array_repr(arg, max_line_width=np.inf)
-        return json.dumps(arg)
 
+    if exclude_args is None:
+        exclude_args = []
     exclude_args.append('self')
     caller = inspect.currentframe().f_back
     command_name = inspect.getframeinfo(caller).function
@@ -169,7 +174,7 @@ def provenance_command_JSON(exclude_args=[]):
             parameters[a] = command_vals[a]
     provenance = get_provenance_dict(parameters)
     try:
-        return json.dumps(provenance, default=serialize_numpy_array)
+        return json.dumps(provenance, default=dump_json_inc_numpy_arr)
     except TypeError as e:
         err_str = "Cannot save provenance info when running `{}`:".format(command_name)
         err_str += " some arguments are not convertable to JSON."

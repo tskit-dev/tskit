@@ -1645,8 +1645,8 @@ class TableCollection(object):
         :rtype: numpy array (dtype=np.int32).
         """
         if record_provenance:
-            provenance_JSON = tskit.provenance.provenance_command_JSON(
-                exclude_args='filter_zero_mutation_sites')
+            provenance_JSON = tskit.provenance.function_args_to_json(
+                exclude_args=['filter_zero_mutation_sites'])
         if filter_zero_mutation_sites is not None:
             # Deprecated in 0.6.1.
             warnings.warn(
@@ -1711,7 +1711,7 @@ class TableCollection(object):
         """
         self.ll_tables.sort(edge_start)
         if record_provenance:
-            self.provenances.add_row(record=tskit.provenance.provenance_command_JSON())
+            self.provenances.add_row(record=tskit.provenance.function_args_to_json())
 
     def compute_mutation_parents(self, record_provenance=True):
         """
@@ -1729,7 +1729,7 @@ class TableCollection(object):
         """
         self.ll_tables.compute_mutation_parents()
         if record_provenance:
-            self.provenances.add_row(record=tskit.provenance.provenance_command_JSON())
+            self.provenances.add_row(record=tskit.provenance.function_args_to_json())
 
     def deduplicate_sites(self, record_provenance=True):
         """
@@ -1740,7 +1740,7 @@ class TableCollection(object):
         """
         self.ll_tables.deduplicate_sites()
         if record_provenance:
-            self.provenances.add_row(record=tskit.provenance.provenance_command_JSON())
+            self.provenances.add_row(record=tskit.provenance.function_args_to_json())
 
     def has_index(self):
         """
