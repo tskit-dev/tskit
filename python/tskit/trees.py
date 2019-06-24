@@ -3071,6 +3071,113 @@ class TreeSequence(object):
         else:
             return new_ts
 
+    def slice(
+            self, start=None, stop=None, reset_coordinates=True, simplify=True,
+            record_provenance=True):
+        """
+        Truncate this tree sequence to include only information in the genomic interval
+        between ``start`` and ``stop``.  Edges are truncated to this interval, and sites
+        not covered by the sliced region are thrown away.
+
+        :param float start: The leftmost genomic position, giving the start point
+            of the kept region. Tree sequence information along the genome prior to (but
+            not including) this point will be discarded. If None, set equal to zero.
+        :param float stop: The rightmost genomic position, giving the end point of the
+            kept region. Tree sequence information at this point and further along the
+            genomic sequence will be discarded. If None, is set equal to the current tree
+            sequence's ``sequence_length``.
+        :param bool reset_coordinates: Reset the genomic coordinates such that position
+            0 in the returned tree sequence corresponds to position ``start`` in the
+            original one, and the returned tree sequence has sequence length
+            ``stop``-``start``. Sites and tree intervals will all have their positions
+            shifted to reflect the new coordinate system. If ``False``, do not rescale:
+            the resulting tree sequence will therefore cover the same genomic span as
+            the original, but will have tree and site information missing for genomic
+            regions outside the sliced region. (Default: True)
+        :param bool simplify: If True, simplify the resulting tree sequence so that nodes
+            no longer used in the resulting trees are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this call to
+            slice in the returned tree sequence's provenance information.
+            (Default: True).
+        :return: The sliced tree sequence.
+        :rtype: .TreeSequence
+        """
+        def keep_with_offset(keep, data, offset):
+            lens = np.diff(offset)
+            return (data[np.repeat(keep, lens)],
+                    np.concatenate([
+                        np.array([0], dtype=offset.dtype),
+                        np.cumsum(lens[keep], dtype=offset.dtype)]))
+        if start is None:
+            start = 0
+        if stop is None:
+            stop = self.sequence_length
+        if start < 0 or stop <= start or stop > self.sequence_length:
+            raise ValueError("Slice bounds must be within the existing tree sequence")
+        edges = self.tables.edges
+        sites = self.tables.sites
+        mutations = self.tables.mutations
+        keep_edges = np.logical_not(
+            np.logical_or(edges.right <= start, edges.left >= stop))
+        keep_sites = np.logical_and(sites.position >= start, sites.position < stop)
+        keep_mutations = keep_sites[mutations.site]
+        tables = self.dump_tables()
+        new_as, new_as_offset = keep_with_offset(
+            keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
+        new_md, new_md_offset = keep_with_offset(
+            keep_sites, sites.metadata, sites.metadata_offset)
+
+        if reset_coordinates:
+            tables.edges.set_columns(
+                left=np.fmax(start, edges.left[keep_edges]) - start,
+                right=np.fmin(stop, edges.right[keep_edges]) - start,
+                parent=edges.parent[keep_edges],
+                child=edges.child[keep_edges])
+            tables.sites.set_columns(
+                position=sites.position[keep_sites] - start,
+                ancestral_state=new_as,
+                ancestral_state_offset=new_as_offset,
+                metadata=new_md,
+                metadata_offset=new_md_offset)
+            tables.sequence_length = stop - start
+        else:
+            tables.edges.set_columns(
+                left=np.fmax(start, edges.left[keep_edges]),
+                right=np.fmin(stop, edges.right[keep_edges]),
+                parent=edges.parent[keep_edges],
+                child=edges.child[keep_edges])
+            tables.sites.set_columns(
+                position=sites.position[keep_sites],
+                ancestral_state=new_as,
+                ancestral_state_offset=new_as_offset,
+                metadata=new_md,
+                metadata_offset=new_md_offset)
+        new_ds, new_ds_offset = keep_with_offset(
+            keep_mutations, mutations.derived_state,
+            mutations.derived_state_offset)
+        new_md, new_md_offset = keep_with_offset(
+            keep_mutations, mutations.metadata, mutations.metadata_offset)
+        site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
+        tables.mutations.set_columns(
+            site=site_map[mutations.site[keep_mutations]],
+            node=mutations.node[keep_mutations],
+            derived_state=new_ds,
+            derived_state_offset=new_ds_offset,
+            parent=mutations.parent[keep_mutations],
+            metadata=new_md,
+            metadata_offset=new_md_offset)
+        if simplify:
+            tables.simplify()
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "slice",
+                "TODO": "add slice parameters"
+            }
+            tables.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+        return tables.tree_sequence()
+
     def draw_svg(self, path=None, **kwargs):
         # TODO document this method, including semantic details of the
         # returned SVG object.

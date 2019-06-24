@@ -27,15 +27,74 @@ import io
 import unittest
 import itertools
 import random
+import json
 
 import numpy as np
 import msprime
 
 import tskit
 import _tskit
+import tskit.provenance as provenance
 import tests as tests
 import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
+
+
+def slice(
+        ts, start=None, stop=None, reset_coordinates=True, simplify=True,
+        record_provenance=True):
+    """
+    A clearer but slower implementation of TreeSequence.slice() defined in trees.py
+    """
+    if start is None:
+        start = 0
+    if stop is None:
+        stop = ts.sequence_length
+
+    if start < 0 or stop <= start or stop > ts.sequence_length:
+        raise ValueError("Slice bounds must be within the existing tree sequence")
+    tables = ts.dump_tables()
+    tables.edges.clear()
+    tables.sites.clear()
+    tables.mutations.clear()
+    for edge in ts.edges():
+        if edge.right <= start or edge.left >= stop:
+            # This edge is outside the sliced area - do not include it
+            continue
+        if reset_coordinates:
+            tables.edges.add_row(
+                max(start, edge.left) - start, min(stop, edge.right) - start,
+                edge.parent, edge.child)
+        else:
+            tables.edges.add_row(
+                max(start, edge.left), min(stop, edge.right),
+                edge.parent, edge.child)
+    for site in ts.sites():
+        if start <= site.position < stop:
+            if reset_coordinates:
+                site_id = tables.sites.add_row(
+                    site.position - start, site.ancestral_state, site.metadata)
+            else:
+                site_id = tables.sites.add_row(
+                    site.position, site.ancestral_state, site.metadata)
+            for m in site.mutations:
+                tables.mutations.add_row(
+                    site_id, m.node, m.derived_state, m.parent, m.metadata)
+    if reset_coordinates:
+        tables.sequence_length = stop - start
+    if simplify:
+        tables.simplify()
+    if record_provenance:
+        # TODO add slice arguments here
+        # TODO also make sure we convert all the arguments so that they are
+        # definitely JSON encodable.
+        parameters = {
+            "command": "slice",
+            "TODO": "add slice parameters"
+        }
+        tables.provenances.add_row(record=json.dumps(
+            provenance.get_provenance_dict(parameters)))
+    return tables.tree_sequence()
 
 
 def generate_segments(n, sequence_length=100, seed=None):
@@ -4008,3 +4067,99 @@ class TestSearchSorted(unittest.TestCase):
         for v in [0, 1]:
             self.assertEqual(search_sorted([], v), np.searchsorted([], v))
             self.assertEqual(search_sorted([1], v), np.searchsorted([1], v))
+
+
+class TestSlice(TopologyTestCase):
+    """
+    Tests for cutting up tree sequences along the genome.
+    """
+    def test_numpy_vs_basic_slice(self):
+        ts = msprime.simulate(
+            10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2)
+        for a, b in zip(np.random.uniform(0, 1, 10), np.random.uniform(0, 1, 10)):
+            if a != b:
+                for reset_coords in (True, False):
+                    for simplify in (True, False):
+                        for rec_prov in (True, False):
+                            start = min(a, b)
+                            stop = max(a, b)
+                            x = slice(ts, start, stop, reset_coords, simplify, rec_prov)
+                            y = ts.slice(start, stop, reset_coords, simplify, rec_prov)
+                            t1 = x.dump_tables()
+                            t2 = y.dump_tables()
+                            # Provenances may differ using timestamps, so ignore them
+                            # (this is a hack, as we prob want to compare their contents)
+                            t1.provenances.clear()
+                            t2.provenances.clear()
+                            self.assertEqual(t1, t2)
+
+    def test_slice_by_tree_positions(self):
+        ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
+        breakpoints = list(ts.breakpoints())
+
+        # Keep the last 3 trees (from 4th last breakpoint onwards)
+        ts_sliced = ts.slice(start=breakpoints[-4])
+        self.assertEqual(ts_sliced.num_trees, 3)
+        self.assertLess(ts_sliced.num_edges, ts.num_edges)
+        self.assertAlmostEqual(ts_sliced.sequence_length, 1.0 - breakpoints[-4])
+        last_3_mutations = 0
+        for tree_index in range(-3, 0):
+            last_3_mutations += ts.at_index(tree_index).num_mutations
+        self.assertEqual(ts_sliced.num_mutations, last_3_mutations)
+
+        # Keep the first 3 trees
+        ts_sliced = ts.slice(stop=breakpoints[3])
+        self.assertEqual(ts_sliced.num_trees, 3)
+        self.assertLess(ts_sliced.num_edges, ts.num_edges)
+        self.assertAlmostEqual(ts_sliced.sequence_length, breakpoints[3])
+        first_3_mutations = 0
+        for tree_index in range(0, 3):
+            first_3_mutations += ts.at_index(tree_index).num_mutations
+        self.assertEqual(ts_sliced.num_mutations, first_3_mutations)
+
+        # Slice out the middle
+        ts_sliced = ts.slice(breakpoints[3], breakpoints[-4])
+        self.assertEqual(ts_sliced.num_trees, ts.num_trees - 6)
+        self.assertLess(ts_sliced.num_edges, ts.num_edges)
+        self.assertAlmostEqual(
+            ts_sliced.sequence_length, breakpoints[-4] - breakpoints[3])
+        self.assertEqual(
+            ts_sliced.num_mutations,
+            ts.num_mutations - first_3_mutations - last_3_mutations)
+
+    def test_slice_by_position(self):
+        ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
+        ts_sliced = ts.slice(0.4, 0.6)
+        positions = ts.tables.sites.position
+        self.assertEqual(
+            ts_sliced.num_sites, np.sum((positions >= 0.4) & (positions < 0.6)))
+
+    def test_slice_bounds(self):
+        ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
+        self.assertRaises(ValueError, ts.slice, -1)
+        self.assertRaises(ValueError, ts.slice, stop=2)
+        self.assertRaises(ValueError, ts.slice, 0.8, 0.2)
+
+    def test_slice_unsimplified(self):
+        ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
+        ts_sliced = ts.slice(0.4, 0.6, simplify=True)
+        self.assertNotEqual(ts.num_nodes, ts_sliced.num_nodes)
+        self.assertAlmostEqual(ts_sliced.sequence_length, 0.2)
+        ts_sliced = ts.slice(0.4, 0.6, simplify=False)
+        self.assertEqual(ts.num_nodes, ts_sliced.num_nodes)
+        self.assertAlmostEqual(ts_sliced.sequence_length, 0.2)
+
+    def test_slice_keep_coordinates(self):
+        ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
+        ts_sliced = ts.slice(0.4, 0.6, reset_coordinates=False)
+        self.assertAlmostEqual(ts_sliced.sequence_length, 1)
+        self.assertNotEqual(ts_sliced.num_trees, ts.num_trees)
+        self.assertEqual(ts_sliced.at_index(0).total_branch_length, 0)
+        self.assertEqual(ts_sliced.at(0).total_branch_length, 0)
+        self.assertEqual(ts_sliced.at(0.399).total_branch_length, 0)
+        self.assertNotEqual(ts_sliced.at(0.4).total_branch_length, 0)
+        self.assertNotEqual(ts_sliced.at(0.5).total_branch_length, 0)
+        self.assertNotEqual(ts_sliced.at(0.599).total_branch_length, 0)
+        self.assertEqual(ts_sliced.at(0.6).total_branch_length, 0)
+        self.assertEqual(ts_sliced.at(0.999).total_branch_length, 0)
+        self.assertEqual(ts_sliced.at_index(-1).total_branch_length, 0)
