@@ -40,6 +40,7 @@ import tskit.exceptions as exceptions
 import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.formats as formats
+import tskit.util as util
 
 from _tskit import NODE_IS_SAMPLE
 from _tskit import NULL
@@ -2780,7 +2781,7 @@ class TreeSequence(object):
             worker = functools.partial(
                 self._ll_tree_sequence.genealogical_nearest_neighbours,
                 reference_sets=reference_sets)
-            focal = np.array(focal).astype(np.int32)
+            focal = util.safe_np_int_cast(focal, np.int32)
             splits = np.array_split(focal, num_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
                 arrays = pool.map(worker, splits)
@@ -3147,7 +3148,7 @@ class TreeSequence(object):
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
-        flattened = tables.to_np_int32(np.hstack(sample_sets))
+        flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         windows = self.parse_windows(windows)
         return ll_method(sample_set_sizes, flattened, windows=windows,
                          mode=mode, span_normalise=span_normalise)
@@ -3159,11 +3160,11 @@ class TreeSequence(object):
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
-        flattened = tables.to_np_int32(np.hstack(sample_sets))
+        flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         windows = self.parse_windows(windows)
         if indexes is None:
             indexes = [np.arange(k, dtype=np.int32)]
-        indexes = tables.to_np_int32(indexes)
+        indexes = util.safe_np_int_cast(indexes, np.int32)
         if len(indexes.shape) != 2:
             raise ValueError("Indexes must be convertable to a 2D numpy array")
         return ll_method(
