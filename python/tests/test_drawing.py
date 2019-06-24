@@ -367,15 +367,15 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
 
         tree = (
-            " ┏━0\n"
+            " ┏0\n"
             "2┫  \n"
-            " ┗━1\n")
+            " ┗1\n")
         drawn = t.draw_text(orientation="left")
         self.verify_text_rendering(drawn, tree)
         tree = (
-            " +-0\n"
+            " +0\n"
             "2+  \n"
-            " +-1\n")
+            " +1\n")
         drawn = t.draw_text(orientation="left", use_ascii=True)
         self.verify_text_rendering(drawn, tree)
 
@@ -398,6 +398,30 @@ class TestDrawTextExamples(unittest.TestCase):
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw_text(node_labels={0: "0", 1: "1", 2: "ABCDEF"})
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
+            "0┓      \n"
+            " ┣ABCDEF\n"
+            "1┛      \n")
+        drawn = t.draw_text(
+            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right")
+        self.verify_text_rendering(drawn, tree)
+
+        drawn = t.draw_text(
+            node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right")
+        tree = (
+            "ABCDEF┓ \n"
+            "      ┣2\n"
+            "1━━━━━┛ \n")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
+            "      ┏0\n"
+            "ABCDEF┫ \n"
+            "      ┗1\n")
+        drawn = t.draw_text(
+            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left")
         self.verify_text_rendering(drawn, tree)
 
     def test_four_leaves(self):
@@ -435,13 +459,13 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
         tree = (
-            " ┏━━━━━━━1\n"
-            " ┃        \n"
-            "6┫  ┏━━━━2\n"
-            " ┃  ┃     \n"
-            " ┗━5┫  ┏━0\n"
-            "    ┗━4┫  \n"
-            "       ┗━3\n")
+            " ┏━━━━1\n"
+            " ┃     \n"
+            "6┫ ┏━━2\n"
+            " ┃ ┃   \n"
+            " ┗5┫ ┏0\n"
+            "   ┗4┫  \n"
+            "     ┗3\n")
         self.verify_text_rendering(t.draw_text(orientation="left"), tree)
 
         tree = (
@@ -480,6 +504,17 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            " ┏━━━━━━━━━━━━━1\n"
+            " ┃              \n"
+            "6┫          ┏━━2\n"
+            " ┃          ┃   \n"
+            " ┗xxxxxxxxxx┫ ┏0\n"
+            "            ┗4┫ \n"
+            "              ┗3\n")
+        drawn = t.draw_text(node_labels=labels, orientation="left")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
             "2.92┊   6         ┊\n"
             "    ┊ ┏━┻━┓       ┊\n"
             "1.49┊ ┃xxxxxxxxxx ┊\n"
@@ -515,6 +550,24 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
+        tree = (
+            " ┏0\n"
+            " ┃\n"
+            "3╋1\n"
+            " ┃\n"
+            " ┗2\n")
+        drawn = t.draw_text(orientation="left")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
+            "0┓\n"
+            " ┃\n"
+            "1╋3\n"
+            " ┃\n"
+            "2┛\n")
+        drawn = t.draw_text(orientation="right")
+        self.verify_text_rendering(drawn, tree)
+
     def test_pitchfork_tree(self):
         nodes = io.StringIO("""\
         id  is_sample   time
@@ -549,7 +602,7 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw(format="unicode", node_labels={})
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels={}), tree)
-        # Some lables
+        # Some labels
         tree = (
             "   ┃   \n"
             "┏━┳┻┳━┓\n"
@@ -558,6 +611,28 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw(format="unicode", node_labels=labels)
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
+
+        tree = (
+            " ┏0\n"
+            " ┃\n"
+            " ┣1\n"
+            "4┫\n"
+            " ┣2\n"
+            " ┃\n"
+            " ┗3\n")
+        drawn = t.draw_text(orientation="left")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = (
+            "0┓\n"
+            " ┃\n"
+            "1┫\n"
+            " ┣4\n"
+            "2┫\n"
+            " ┃\n"
+            "3┛\n")
+        drawn = t.draw_text(orientation="right")
+        self.verify_text_rendering(drawn, tree)
 
     def test_stick_tree(self):
         nodes = io.StringIO("""\

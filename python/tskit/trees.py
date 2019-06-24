@@ -968,8 +968,9 @@ class Tree(object):
 
     def draw_text(self, orientation=None, **kwargs):
         orientation = drawing.check_orientation(orientation)
-        if orientation == drawing.LEFT:
-            text_tree = drawing.RootLeftTextTree(self, **kwargs)
+        if orientation in (drawing.LEFT, drawing.RIGHT):
+            text_tree = drawing.HorizontalTextTree(
+                self, orientation=orientation, **kwargs)
         else:
             text_tree = drawing.RootTopTextTree(self, **kwargs)
         return str(text_tree)
