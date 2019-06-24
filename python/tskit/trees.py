@@ -3046,10 +3046,6 @@ class TreeSequence(object):
         :rtype: .TreeSequence or a (.TreeSequence, numpy.array) tuple
         """
         tables = self.dump_tables()
-        if samples is None:
-            samples = self.get_samples()
-        # Force convert to int32 so that provenances are saved in a consistent format
-        samples = util.safe_np_int_cast(samples, np.int32)
         assert tables.sequence_length == self.sequence_length
         node_map = tables.simplify(
             samples=samples,
