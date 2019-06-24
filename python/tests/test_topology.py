@@ -27,7 +27,6 @@ import io
 import unittest
 import itertools
 import random
-import json
 
 import numpy as np
 import msprime
@@ -46,6 +45,8 @@ def slice(
     """
     A clearer but slower implementation of TreeSequence.slice() defined in trees.py
     """
+    if record_provenance:
+        provenance_JSON = provenance.function_args_to_json(exclude_args=['ts'])
     if start is None:
         start = 0
     if stop is None:
@@ -85,15 +86,7 @@ def slice(
     if simplify:
         tables.simplify()
     if record_provenance:
-        # TODO add slice arguments here
-        # TODO also make sure we convert all the arguments so that they are
-        # definitely JSON encodable.
-        parameters = {
-            "command": "slice",
-            "TODO": "add slice parameters"
-        }
-        tables.provenances.add_row(record=json.dumps(
-            provenance.get_provenance_dict(parameters)))
+        tables.provenances.add_row(record=provenance_JSON)
     return tables.tree_sequence()
 
 
@@ -1147,15 +1140,16 @@ class TestSimplifyExamples(TopologyTestCase):
         # whole iterator
         for t in ts.trees():
             self.assertTrue(t is not None)
-        before.simplify(samples=samples, filter_sites=filter_sites)
+        before.simplify(
+            samples=samples, filter_sites=filter_sites, record_provenance=False)
         if debug:
             print("before")
             print(before)
             print("after")
             print(after)
         for t_b, t_a in zip(before, after):
-            if t_b[0] == 'provenances':
-                self.assertEqual(t_b[1].record, t_a[1].record)
+            if t_b[0] == t_a[0] == 'provenances':
+                self.assertTrue(all(t_b[1].record == t_a[1].record))
             else:
                 self.assertEqual(t_b, t_a)
 
@@ -4090,10 +4084,10 @@ class TestSlice(TopologyTestCase):
                             x = slice(ts, start, stop, reset_coords, simplify, rec_prov)
                             y = ts.slice(start, stop, reset_coords, simplify, rec_prov)
                             for t1, t2 in zip(x.tables, y.tables):
-                                if t1[0] == 'provenance':
-                                    self.assertEqual(t1[1].record, t2[1].record)
+                                if t1[0] == 'provenances':
+                                    self.assertTrue(np.all(t1[1].record == t2[1].record))
                                 else:
-                                    assert self.assertEqual(t1, t2)
+                                    self.assertEqual(t1, t2)
 
     def test_slice_by_tree_positions(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)

@@ -3045,8 +3045,6 @@ class TreeSequence(object):
             sequence.
         :rtype: .TreeSequence or a (.TreeSequence, numpy.array) tuple
         """
-        if record_provenance:
-            provenance_JSON = provenance.function_args_to_json()
         tables = self.dump_tables()
         if samples is None:
             samples = self.get_samples()
@@ -3060,11 +3058,10 @@ class TreeSequence(object):
             filter_populations=filter_populations,
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
+            record_provenance=record_provenance,
             keep_unary=keep_unary)
         new_ts = tables.tree_sequence()
         assert new_ts.sequence_length == self.sequence_length
-        if record_provenance:
-            tables.provenances.add_row(record=provenance_JSON)
         if map_nodes:
             return new_ts, node_map
         else:
