@@ -585,6 +585,11 @@ class TopologyExamplesMixin(object):
         ts = msprime.simulate(6, random_seed=1)
         self.verify(ts)
 
+    def test_single_tree_multiple_roots(self):
+        ts = msprime.simulate(8, random_seed=1)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        self.verify(ts)
+
     def test_many_trees(self):
         ts = msprime.simulate(6, recombination_rate=2, random_seed=1)
         self.assertGreater(ts.num_trees, 2)
@@ -2531,7 +2536,7 @@ def naive_branch_allele_frequency_spectrum(ts, sample_sets, windows=None):
     # sfs[j] as the total branch length over j members of the set, including
     # sfs[0] for zero members. Other versions were using sfs[j - 1] for
     # total branch_length over j, and not tracking the branch length over
-    # 0. The current approach seems more natura to me.
+    # 0. The current approach seems more natural to me.
 
     windows = ts.parse_windows(windows)
     n_out = 1 + max(len(sample_set) for sample_set in sample_sets)
@@ -2566,76 +2571,74 @@ def branch_allele_frequency_spectrum(ts, sample_sets, windows):
     Efficient implementation of the algorithm used as the basis for the
     underlying C version.
     """
+
     num_sample_sets = len(sample_sets)
     n_out = 1 + max(len(sample_set) for sample_set in sample_sets)
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
+    time = ts.tables.nodes.time
 
     result = np.zeros((num_windows, n_out, num_sample_sets))
-    state = np.zeros((ts.num_nodes, num_sample_sets), dtype=np.uint32)
+    # Number of nodes in sample_set j ancestral to each node u.
+    count = np.zeros((ts.num_nodes, num_sample_sets), dtype=np.uint32)
     for j in range(num_sample_sets):
-        state[sample_sets[j], j] = 1
-
-    def area_weighted_summary(u):
-        v = parent[u]
-        branch_length = 0
-        s = np.zeros((n_out, num_sample_sets))
-        if v != -1:
-            branch_length = time[v] - time[u]
-        if branch_length > 0:
-            count = state[u]
-            for j in range(num_sample_sets):
-                s[count[j], j] += branch_length
-        return s
-
-    tree_index = 0
+        count[sample_sets[j], j] = 1
+    # contains the location of the last time we updated the output for a node.
+    last_update = np.zeros((ts.num_nodes))
+    result = np.zeros((num_windows, n_out, num_sample_sets))
     window_index = 0
-    time = ts.tables.nodes.time
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
-    running_sum = np.zeros((n_out, num_sample_sets))
+    branch_length = np.zeros(ts.num_nodes)
+    tree_index = 0
+
+    def update_result(window_index, u, right):
+        x = (right - last_update[u]) * branch_length[u]
+        # print("update result", window_index, u, count[u], x)
+        for j in range(num_sample_sets):
+            k = count[u, j]
+            result[window_index, k, j] += x
+        last_update[u] = right
+
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
+
         for edge in edges_out:
             u = edge.child
-            running_sum -= area_weighted_summary(u)
-            u = edge.parent
-            while u != -1:
-                running_sum -= area_weighted_summary(u)
-                state[u] -= state[edge.child]
-                running_sum += area_weighted_summary(u)
-                u = parent[u]
-            parent[edge.child] = -1
+            v = edge.parent
+            update_result(window_index, u, t_left)
+            while v != -1:
+                update_result(window_index, v, t_left)
+                count[v] -= count[u]
+                v = parent[v]
+            parent[u] = -1
+            branch_length[u] = 0
 
         for edge in edges_in:
-            parent[edge.child] = edge.parent
             u = edge.child
-            running_sum += area_weighted_summary(u)
-            u = edge.parent
-            while u != -1:
-                running_sum -= area_weighted_summary(u)
-                state[u] += state[edge.child]
-                running_sum += area_weighted_summary(u)
-                u = parent[u]
+            v = edge.parent
+            parent[u] = v
+            branch_length[u] = time[v] - time[u]
+            while v != -1:
+                update_result(window_index, v, t_left)
+                count[v] += count[u]
+                v = parent[v]
 
         # Update the windows
-        assert window_index < num_windows
-        while windows[window_index] < t_right:
-            w_left = windows[window_index]
+        while window_index < num_windows and windows[window_index + 1] <= t_right:
             w_right = windows[window_index + 1]
-            left = max(t_left, w_left)
-            right = min(t_right, w_right)
-            weight = right - left
-            assert weight > 0
-            result[window_index] += running_sum * weight
-            if w_right <= t_right:
-                window_index += 1
-            else:
-                # This interval crosses a tree boundary, so we update it again in the
-                # for the next tree
-                break
-
+            # This seems like a bad idea as we incur a O(N) cost for each window,
+            # where N is the number of nodes.  It might be hard to do much better
+            # though, since we can't help but incur O(|sample_set|) cost at each window
+            # which we'll assume is O(n), and for large n, N isn't much larger than n.
+            # We could keep track of the roots and do a tree traversal, bringing this
+            # down to O(n), but this adds a lot of complexity and memory and I'm
+            # fairly confident would be slower overall. We could keep a set of
+            # non-zero branches, but this would add a O(log n) cost to each edge
+            # insertion and removal and a lot of complexity to the C implementation.
+            for u in range(ts.num_nodes):
+                update_result(window_index, u, w_right)
+            window_index += 1
         tree_index += 1
 
-    # print("window_index:", window_index, windows.shape)
     assert window_index == windows.shape[0] - 1
     for j in range(num_windows):
         result[j] /= windows[j + 1] - windows[j]
@@ -2658,6 +2661,8 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
     mode = None
 
     def verify_sample_sets(self, ts, sample_sets, windows):
+        # print()
+        # print(ts.draw_text())
         # print("Verify", sample_sets, windows)
         sfs1 = naive_allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
         sfs2 = allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
@@ -2674,14 +2679,11 @@ class TestBranchAlleleFrequencySpectrum(
     mode = "branch"
 
     def test_simple_example(self):
-        ts = msprime.simulate(6, random_seed=1)
+        ts = msprime.simulate(6, recombination_rate=0.1, random_seed=1)
+        self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
 
-    @unittest.skip("Mismatch when multiple roots")
-    def test_wright_fisher_simplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("Mismatch when multiple roots")
+    @unittest.skip("Problem with zeroth entry AFS with non-sample ancestral edges")
     def test_wright_fisher_unsimplified_multiple_roots(self):
         pass
 
