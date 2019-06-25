@@ -31,6 +31,7 @@ import string
 import unittest
 import warnings
 import itertools
+import json
 
 import numpy as np
 
@@ -1384,7 +1385,7 @@ class TestSimplifyTables(unittest.TestCase):
         # Test that we allow ints and int arrays of all reasonable types
         ts = msprime.simulate(50, random_seed=1)
         for good_form in [
-                [], [0, 1], (0, 1), set([0, 1]),  # standard list formats
+                [], [0, 1], (0, 1),  # set([0, 1]),  # standard list formats
                 (np.int64(0), np.uint32(1)),  # numpy scalars
                 np.array([0, 1], dtype=np.int32), np.array([0, 1], dtype=np.int64)]:
             tables = ts.dump_tables()
@@ -1399,8 +1400,19 @@ class TestSimplifyTables(unittest.TestCase):
             self.assertRaises(
                 OverflowError, tables.simplify, samples=np.array([0, bad_node]))
 
-    def test_provenance_recapitulation(self):
-        pass
+    def test_tables_provenance_recapitulation(self):
+        ts_orig = msprime.simulate(
+            sample_size=50, random_seed=2, recombination_rate=2, mutation_rate=2)
+        ts = ts_orig.simplify([1, 2, 3, 4])
+        last_provenance = json.loads(ts.provenance(ts.num_provenances-1).record)
+
+        self.assertEquals(last_provenance['software']['name'], 'tskit')
+        self.assertEquals(last_provenance['software']['version'], tskit.__version__)
+        tskit_params = last_provenance['parameters']
+        command = getattr(ts_orig, tskit_params.pop('command'))
+        ts_recapitulated = command(**tskit_params)
+
+        self.assertTrue(tsutil.ts_equality_ignoring_timestamps(ts, ts_recapitulated))
 
 
 class TestTableCollection(unittest.TestCase):

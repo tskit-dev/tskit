@@ -25,11 +25,31 @@ A collection of utilities to edit and construct tree sequences.
 """
 import json
 import random
+import itertools
 
 import numpy as np
 
 import tskit.provenance as provenance
 import tskit
+
+
+def tc_equality_ignoring_timestamps(tablecollection1, tablecollection2):
+    """
+    Return true if all tables in the 2 table collections are equal, but ignore the
+    timestamps in the provenances table
+    """
+    for table1, table2 in itertools.zip_longest(tablecollection1, tablecollection2):
+        if table1[0] == table2[0] == 'provenances':
+            if any(table1[1].record != table2[1].record):
+                return False
+        else:
+            if table1 != table2:
+                return False
+    return True
+
+
+def ts_equality_ignoring_timestamps(ts1, ts2):
+    return tc_equality_ignoring_timestamps(ts1.tables, ts2.tables)
 
 
 def add_provenance(provenance_table, method_name):
@@ -333,8 +353,8 @@ def generate_site_mutations(tree, position, mu, site_table, mutation_table,
     more than one mutation per edge.
     """
     assert tree.interval[0] <= position < tree.interval[1]
-    states = ["A", "C", "G", "T"]
-    state = random.choice(states)
+    states = {"A", "C", "G", "T"}
+    state = random.choice(list(states))
     site_table.add_row(position, state)
     site = site_table.num_rows - 1
     stack = [(tree.root, state, tskit.NULL)]
@@ -345,7 +365,7 @@ def generate_site_mutations(tree, position, mu, site_table, mutation_table,
             x = random.expovariate(mu)
             new_state = state
             while x < branch_length:
-                new_state = random.choice([s for s in states if s != state])
+                new_state = random.choice(list(states - set(state)))
                 if multiple_per_node and (state != new_state):
                     mutation_table.add_row(site, u, new_state, parent)
                     parent = mutation_table.num_rows - 1
