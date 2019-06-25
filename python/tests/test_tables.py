@@ -1381,8 +1381,12 @@ class TestSimplifyTables(unittest.TestCase):
         self.assertRaises(_tskit.LibraryError, tables.simplify, [])
 
     def test_samples_interface(self):
+        # Test that we allow ints and int arrays of all reasonable types
         ts = msprime.simulate(50, random_seed=1)
-        for good_form in [[], [0, 1], (0, 1), np.array([0, 1], dtype=np.int32)]:
+        for good_form in [
+                [], [0, 1], (0, 1), set([0, 1]),  # standard list formats
+                (np.int64(0), np.uint32(1)),  # numpy scalars
+                np.array([0, 1], dtype=np.int32), np.array([0, 1], dtype=np.int64)]:
             tables = ts.dump_tables()
             tables.simplify(good_form)
         tables = ts.dump_tables()
@@ -1394,6 +1398,9 @@ class TestSimplifyTables(unittest.TestCase):
         for bad_node in [np.iinfo(np.int32).min-1, np.iinfo(np.int32).max+1]:
             self.assertRaises(
                 OverflowError, tables.simplify, samples=np.array([0, bad_node]))
+
+    def test_provenance_recapitulation(self):
+        pass
 
 
 class TestTableCollection(unittest.TestCase):
