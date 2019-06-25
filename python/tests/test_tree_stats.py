@@ -2515,11 +2515,11 @@ class TestSitef4(Testf4, MutatedTopologyExamplesMixin):
 
 
 ############################################
-# Site frequency spectrum
+# Allele frequency spectrum
 ############################################
 
 
-def naive_branch_sample_frequency_spectrum(ts, sample_sets, windows=None):
+def naive_branch_allele_frequency_spectrum(ts, sample_sets, windows=None):
     # Draft of the 'site frequency spectrum' definition for different
     # sample sets. Take the middle dimension as the max of sizes of the
     # sample sets, and the last dimension as the different sample sets. This
@@ -2551,17 +2551,17 @@ def naive_branch_sample_frequency_spectrum(ts, sample_sets, windows=None):
     return out
 
 
-def naive_sample_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
+def naive_allele_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
     """
     Naive definition of the generalised site frequency spectrum.
     """
     method_map = {
-        # "site": naive_site_sample_frequency_spectrum,
-        "branch": naive_branch_sample_frequency_spectrum}
+        # "site": naive_site_allele_frequency_spectrum,
+        "branch": naive_branch_allele_frequency_spectrum}
     return method_map[mode](ts, sample_sets, windows=windows)
 
 
-def branch_sample_frequency_spectrum(ts, sample_sets, windows):
+def branch_allele_frequency_spectrum(ts, sample_sets, windows):
     """
     Efficient implementation of the algorithm used as the basis for the
     underlying C version.
@@ -2642,26 +2642,25 @@ def branch_sample_frequency_spectrum(ts, sample_sets, windows):
     return result
 
 
-def sample_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
+def allele_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
     """
     Generalised site frequency spectrum.
     """
     method_map = {
-        # "site": site_sample_frequency_spectrum,
-        "branch": branch_sample_frequency_spectrum}
+        # "site": site_allele_frequency_spectrum,
+        "branch": branch_allele_frequency_spectrum}
     return method_map[mode](ts, sample_sets, windows=windows)
 
 
-class TestSampleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
+class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
     # Derived classes define this to get a specific stats mode.
     mode = None
 
     def verify_sample_sets(self, ts, sample_sets, windows):
         # print("Verify", sample_sets, windows)
-        sfs1 = naive_sample_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
-        sfs2 = sample_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
-        windows = ts.parse_windows(windows)
+        sfs1 = naive_allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
+        sfs2 = allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
         self.assertEqual(sfs1.shape[0], len(windows) - 1)
         self.assertEqual(sfs1.shape, sfs2.shape)
         # print(sfs1)
@@ -2670,8 +2669,8 @@ class TestSampleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         # print(sfs2.shape)
 
 
-class TestBranchSampleFrequencySpectrum(
-        TestSampleFrequencySpectrum, TopologyExamplesMixin):
+class TestBranchAlleleFrequencySpectrum(
+        TestAlleleFrequencySpectrum, TopologyExamplesMixin):
     mode = "branch"
 
     def test_simple_example(self):
@@ -2688,8 +2687,8 @@ class TestBranchSampleFrequencySpectrum(
 
 
 @unittest.skip("Not working yet")
-class TestSiteSampleFrequencySpectrum(
-        TestSampleFrequencySpectrum, MutatedTopologyExamplesMixin):
+class TestSiteAlleleFrequencySpectrum(
+        TestAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
     mode = "site"
 
 
