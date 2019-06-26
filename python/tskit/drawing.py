@@ -84,9 +84,9 @@ def draw_tree(
             raise ValueError("Text trees do not support max_tree_height")
 
         use_ascii = fmt == "ascii"
-        text_tree = RootTopTextTree(
+        text_tree = VerticalTextTree(
             tree, node_labels=node_labels, max_tree_height=max_tree_height,
-            use_ascii=use_ascii)
+            use_ascii=use_ascii, orientation=TOP)
         return str(text_tree)
 
 
@@ -605,7 +605,7 @@ class TextTreeSequence(object):
         position_scale_labels = [
             position_label_format.format(x) for x in ts.breakpoints()]
         trees = [
-            RootTopTextTree(
+            VerticalTextTree(
                 tree, max_tree_height="ts", node_labels=node_labels,
                 use_ascii=use_ascii)
             for tree in self.ts.trees()]
@@ -619,10 +619,10 @@ class TextTreeSequence(object):
         self.canvas[:] = " "
 
         vertical_sep = "|" if use_ascii else "┊"
-
         x = 0
+        time_position = trees[0].time_position
         for u, label in enumerate(map(to_np_unicode, time_scale_labels)):
-            y = trees[0].time_position[u]
+            y = time_position[u]
             self.canvas[y, 0: label.shape[0]] = label
         self.canvas[:, max_time_scale_label_len] = vertical_sep
         x = 2 + max_time_scale_label_len
@@ -651,6 +651,7 @@ class TextTreeSequence(object):
 LEFT = "left"
 RIGHT = "right"
 TOP = "top"
+BOTTOM = "bottom"
 
 
 def check_orientation(orientation):
@@ -658,7 +659,7 @@ def check_orientation(orientation):
         orientation = TOP
     else:
         orientation = orientation.lower()
-        orientations = [LEFT, RIGHT, TOP]
+        orientations = [LEFT, RIGHT, TOP, BOTTOM]
         if orientation not in orientations:
             raise ValueError(
                 "Unknown orientiation: choose from {}".format(orientations))
@@ -699,7 +700,7 @@ def closest_left_node(tree, u):
     return ret
 
 
-def node_time_depth(tree, min_branch_length=None):
+def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
     """
     Returns a dictionary mapping nodes in the specified tree to their depth
     in the specified tree (from the root direction). If min_branch_len is
@@ -707,21 +708,42 @@ def node_time_depth(tree, min_branch_length=None):
     default to 1.
     """
     if min_branch_length is None:
-        min_branch_length = {u: 1 for u in tree.nodes()}
+        min_branch_length = {u: 1 for u in range(tree.tree_sequence.num_nodes)}
     time_node_map = collections.defaultdict(list)
-    for u in tree.nodes():
-        time_node_map[tree.time(u)].append(u)
     current_depth = 0
     depth = {}
-    for t in sorted(time_node_map.keys()):
-        for u in time_node_map[t]:
-            for v in tree.children(u):
-                current_depth = max(current_depth, depth[v] + min_branch_length[v])
-        for u in time_node_map[t]:
-            depth[u] = current_depth
-        current_depth += 2
-    for root in tree.roots:
-        current_depth = max(current_depth, depth[root] + min_branch_length[root])
+    # TODO this is basically the same code for the two cases. Refactor so that
+    # we use the same code.
+    if max_tree_height == "tree":
+        for u in tree.nodes():
+            time_node_map[tree.time(u)].append(u)
+        for t in sorted(time_node_map.keys()):
+            for u in time_node_map[t]:
+                for v in tree.children(u):
+                    current_depth = max(current_depth, depth[v] + min_branch_length[v])
+            for u in time_node_map[t]:
+                depth[u] = current_depth
+            current_depth += 2
+        for root in tree.roots:
+            current_depth = max(current_depth, depth[root] + min_branch_length[root])
+    else:
+        assert max_tree_height == "ts"
+        ts = tree.tree_sequence
+        for node in ts.nodes():
+            time_node_map[node.time].append(node.id)
+        node_edges = collections.defaultdict(list)
+        for edge in ts.edges():
+            node_edges[edge.parent].append(edge)
+
+        for t in sorted(time_node_map.keys()):
+            for u in time_node_map[t]:
+                for edge in node_edges[u]:
+                    v = edge.child
+                    current_depth = max(current_depth, depth[v] + min_branch_length[v])
+            for u in time_node_map[t]:
+                depth[u] = current_depth
+            current_depth += 2
+
     return depth, current_depth
 
 
@@ -736,7 +758,7 @@ class TextTree(object):
         self.tree = tree
         self.max_tree_height = check_max_tree_height(max_tree_height)
         self.use_ascii = use_ascii
-        self.orientation = orientation
+        self.orientation = check_orientation(orientation)
         self.horizontal_line_char = '━'
         self.vertical_line_char = '┃'
         if use_ascii:
@@ -778,7 +800,7 @@ class TextTree(object):
         return "".join(self.canvas.reshape(self.width * self.height))
 
 
-class RootTopTextTree(TextTree):
+class VerticalTextTree(TextTree):
     """
     Text tree rendering where root nodes are at the top and time goes downwards
     into the present.
@@ -789,17 +811,12 @@ class RootTopTextTree(TextTree):
 
     def _assign_time_positions(self):
         tree = self.tree
-        ts = tree.tree_sequence
-        if self.max_tree_height == "tree":
-            nodes = list(tree.nodes())
-        else:
-            assert self.max_tree_height == "ts"
-            nodes = range(ts.num_nodes)
-        times = {ts.node(u).time for u in nodes}
-        depth = {t: 2 * j for j, t in enumerate(sorted(times, reverse=True))}
-        for u in nodes:
-            self.time_position[u] = depth[self.tree.time(u)]
-        self.height = max(self.time_position.values()) + 1
+        # TODO when we add mutations to the text tree we'll need to take it into
+        # account here. Presumably we need to get the maximum number of mutations
+        # per branch.
+        self.time_position, total_depth = node_time_depth(
+                tree, max_tree_height=self.max_tree_height)
+        self.height = total_depth - 1
 
     def _assign_traversal_positions(self):
         self.label_x = {}
@@ -832,13 +849,24 @@ class RootTopTextTree(TextTree):
         self.width = x - 1
 
     def _draw(self):
-        # TODO follow the pattern used in the horizontal tree below and implement
-        # orientation = down also.
-        mid_up_char = "+" if self.use_ascii else "┻"
-        mid_down_char = "+" if self.use_ascii else "┳"
-        mid_up_down_char = "+" if self.use_ascii else "╋"
-        left_down_char = "+" if self.use_ascii else "┏"
-        right_down_char = "+" if self.use_ascii else "┓"
+        if self.use_ascii:
+            left_child = "+"
+            right_child = "+"
+            mid_parent = "+"
+            mid_parent_child = "+"
+            mid_child = "+"
+        elif self.orientation == TOP:
+            left_child = "┏"
+            right_child = "┓"
+            mid_parent = "┻"
+            mid_parent_child = "╋"
+            mid_child = "┳"
+        else:
+            left_child = "┗"
+            right_child = "┛"
+            mid_parent = "┳"
+            mid_parent_child = "╋"
+            mid_child = "┻"
 
         for u in self.tree.nodes():
             xu = self.traversal_position[u]
@@ -852,22 +880,29 @@ class RootTopTextTree(TextTree):
             if len(children) > 0:
                 if len(children) == 1:
                     yv = self.time_position[children[0]]
-                    self.canvas[yu + 1: yv, xu] = self.vertical_line_char
+                    self.canvas[yv: yu, xu] = self.vertical_line_char
                 else:
                     left = min(self.traversal_position[v] for v in children)
                     right = max(self.traversal_position[v] for v in children)
-                    y = yu + 1
+                    y = yu - 1
                     self.canvas[y, left + 1: right] = self.horizontal_line_char
-                    self.canvas[y, xu] = mid_up_char
+                    self.canvas[y, xu] = mid_parent
                     for v in children:
                         xv = self.traversal_position[v]
                         yv = self.time_position[v]
-                        self.canvas[yu + 2: yv, xv] = self.vertical_line_char
-                        mid_char = mid_up_down_char if xv == xu else mid_down_char
-                        self.canvas[yu + 1, xv] = mid_char
-                    self.canvas[y, left] = left_down_char
-                    self.canvas[y, right] = right_down_char
+                        self.canvas[yv: yu, xv] = self.vertical_line_char
+                        mid_char = mid_parent_child if xv == xu else mid_child
+                        self.canvas[y, xv] = mid_char
+                    self.canvas[y, left] = left_child
+                    self.canvas[y, right] = right_child
         # print(self.canvas)
+        if self.orientation == TOP:
+            self.canvas = np.flip(self.canvas, axis=0)
+            # Reverse the time positions so that we can use them in the tree
+            # sequence drawing as well.
+            flipped_time_position = {
+                u: self.height - y - 1 for u, y in self.time_position.items()}
+            self.time_position = flipped_time_position
 
 
 class HorizontalTextTree(TextTree):
@@ -881,18 +916,11 @@ class HorizontalTextTree(TextTree):
         return self.horizontal_line_char
 
     def _assign_time_positions(self):
-        tree = self.tree
-        # ts = tree.tree_sequence
-        # if self.max_tree_height == "tree":
-        #     nodes = list(tree.nodes())
-        # else:
-        #     assert self.max_tree_height == "ts"
-        #     nodes = range(ts.num_nodes)
-
-        # FIXME this is ignoring the "ts" argument - make the max across all trees
-        # or something?
+        # TODO when we add mutations to the text tree we'll need to take it into
+        # account here. Presumably we need to get the maximum number of mutations
+        # per branch.
         self.time_position, total_depth = node_time_depth(
-            tree, {u: 1 + len(self.node_labels[u]) for u in tree.nodes()})
+            self.tree, {u: 1 + len(self.node_labels[u]) for u in self.tree.nodes()})
         self.width = total_depth
 
     def _assign_traversal_positions(self):

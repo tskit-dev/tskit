@@ -972,7 +972,7 @@ class Tree(object):
             text_tree = drawing.HorizontalTextTree(
                 self, orientation=orientation, **kwargs)
         else:
-            text_tree = drawing.RootTopTextTree(self, **kwargs)
+            text_tree = drawing.VerticalTextTree(self, orientation=orientation, **kwargs)
         return str(text_tree)
 
     def draw_svg(self, path=None, **kwargs):

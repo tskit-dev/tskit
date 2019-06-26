@@ -458,6 +458,17 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
+        drawn = t.draw_text(orientation="bottom")
+        tree = (
+            "1 2 0 3\n"
+            "┃ ┃ ┗┳┛\n"
+            "┃ ┃  4 \n"
+            "┃ ┗━┳┛ \n"
+            "┃   5  \n"
+            "┗━┳━┛  \n"
+            "  6    \n")
+        self.verify_text_rendering(drawn, tree)
+
         tree = (
             " ┏━━━━1\n"
             " ┃     \n"
