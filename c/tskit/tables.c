@@ -3756,6 +3756,30 @@ typedef struct {
     double *position_lookup;
 } simplifier_t;
 
+typedef struct {
+    tsk_id_t *samples;
+    size_t num_samples;
+    tsk_id_t *ancestors;
+    size_t num_ancestors;
+    tsk_table_collection_t *tables;
+    tsk_table_collection_t input_tables;
+    simplify_segment_t **ancestor_map_head;
+    simplify_segment_t **ancestor_map_tail;
+    bool *is_sample;
+    bool *is_ancestor;
+    simplify_segment_t *segment_queue;
+    size_t segment_queue_size;
+    size_t max_segment_queue_size;
+    segment_overlapper_t segment_overlapper;
+    tsk_blkalloc_t segment_heap;
+    tsk_blkalloc_t interval_list_heap;
+    interval_list_t **child_edge_map_head;
+    interval_list_t **child_edge_map_tail;
+    tsk_id_t *buffered_children;
+    size_t num_buffered_children;
+    // double *position_lookup;
+} ancestor_mapper_t;
+
 static int
 cmp_segment(const void *a, const void *b) {
     const simplify_segment_t *ia = (const simplify_segment_t *) a;
@@ -4087,8 +4111,41 @@ out:
     return seg;
 }
 
+static simplify_segment_t * TSK_WARN_UNUSED
+ancestor_mapper_alloc_segment(ancestor_mapper_t *self, double left, double right, tsk_id_t node)
+{
+    simplify_segment_t *seg = NULL;
+
+    seg = tsk_blkalloc_get(&self->segment_heap, sizeof(*seg));
+    if (seg == NULL) {
+        goto out;
+    }
+    seg->next = NULL;
+    seg->left = left;
+    seg->right = right;
+    seg->node = node;
+out:
+    return seg;
+}
+
 static interval_list_t * TSK_WARN_UNUSED
 simplifier_alloc_interval_list(simplifier_t *self, double left, double right)
+{
+    interval_list_t *x = NULL;
+
+    x = tsk_blkalloc_get(&self->interval_list_heap, sizeof(*x));
+    if (x == NULL) {
+        goto out;
+    }
+    x->next = NULL;
+    x->left = left;
+    x->right = right;
+out:
+    return x;
+}
+
+static interval_list_t * TSK_WARN_UNUSED
+ancestor_mapper_alloc_interval_list(ancestor_mapper_t *self, double left, double right)
 {
     interval_list_t *x = NULL;
 
@@ -4129,6 +4186,30 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+ancestor_mapper_record_node(ancestor_mapper_t *self, tsk_id_t input_id, 
+    bool is_sample)
+{
+    int ret = 0;
+    tsk_node_t node;
+    tsk_flags_t flags;
+
+    ret = tsk_node_table_get_row(&self->input_tables.nodes, (tsk_id_t) input_id, &node);
+    if (ret != 0) {
+        goto out;
+    }
+    /* Zero out the sample bit */
+    flags = node.flags & (tsk_flags_t) ~TSK_NODE_IS_SAMPLE;
+    if (is_sample) {
+        flags |= TSK_NODE_IS_SAMPLE;
+    }
+    ret = tsk_node_table_add_row(&self->tables->nodes, flags,
+            node.time, node.population, node.individual,
+            node.metadata, node.metadata_length);
+out:
+    return ret;    
+}
+
 /* Remove the mapping for the last recorded node. */
 static int
 simplifier_rewind_node(simplifier_t *self, tsk_id_t input_id, tsk_id_t output_id)
@@ -4139,6 +4220,37 @@ simplifier_rewind_node(simplifier_t *self, tsk_id_t input_id, tsk_id_t output_id
 
 static int
 simplifier_flush_edges(simplifier_t *self, tsk_id_t parent, size_t *ret_num_edges)
+{
+    int ret = 0;
+    size_t j;
+    tsk_id_t child;
+    interval_list_t *x;
+    size_t num_edges = 0;
+
+    qsort(self->buffered_children, self->num_buffered_children,
+            sizeof(tsk_id_t), cmp_node_id);
+    for (j = 0; j < self->num_buffered_children; j++) {
+        child = self->buffered_children[j];
+        for (x = self->child_edge_map_head[child]; x != NULL; x = x->next) {
+            ret = tsk_edge_table_add_row(&self->tables->edges, x->left, x->right, parent, child);
+            if (ret < 0) {
+                goto out;
+            }
+            num_edges++;
+        }
+        self->child_edge_map_head[child] = NULL;
+        self->child_edge_map_tail[child] = NULL;
+    }
+    self->num_buffered_children = 0;
+    *ret_num_edges = num_edges;
+    ret = tsk_blkalloc_reset(&self->interval_list_heap);
+out:
+    return ret;
+}
+
+static int
+ancestor_mapper_flush_edges(ancestor_mapper_t *self, tsk_id_t parent, 
+    size_t *ret_num_edges)
 {
     int ret = 0;
     size_t j;
@@ -4264,6 +4376,42 @@ out:
 }
 
 static int
+ancestor_mapper_record_edge(ancestor_mapper_t *self, double left, double right, 
+    tsk_id_t child)
+{
+    int ret = 0;
+    interval_list_t *tail, *x;
+
+    tail = self->child_edge_map_tail[child];
+    if (tail == NULL) {
+        assert(self->num_buffered_children < self->input_tables.nodes.num_rows);
+        self->buffered_children[self->num_buffered_children] = child;
+        self->num_buffered_children++;
+        x = ancestor_mapper_alloc_interval_list(self, left, right);
+        if (x == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        self->child_edge_map_head[child] = x;
+        self->child_edge_map_tail[child] = x;
+    } else {
+        if (tail->right == left) {
+            tail->right = right;
+        } else {
+            x = ancestor_mapper_alloc_interval_list(self, left, right);
+            if (x == NULL) {
+                ret = TSK_ERR_NO_MEMORY;
+                goto out;
+            }
+            tail->next = x;
+            self->child_edge_map_tail[child] = x;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
 simplifier_init_sites(simplifier_t *self)
 {
     int ret = 0;
@@ -4344,6 +4492,40 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+ancestor_mapper_add_ancestry(ancestor_mapper_t *self, tsk_id_t input_id, 
+    double left, double right, tsk_id_t output_id)
+{
+    int ret = 0;
+    simplify_segment_t *tail = self->ancestor_map_tail[input_id];
+    simplify_segment_t *x;
+
+    assert(left < right);
+    if (tail == NULL) {
+        x = ancestor_mapper_alloc_segment(self, left, right, output_id);
+        if (x == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        self->ancestor_map_head[input_id] = x;
+        self->ancestor_map_tail[input_id] = x;
+    } else {
+        if (tail->right == left && tail->node == output_id) {
+            tail->right = right;
+        } else {
+            x = ancestor_mapper_alloc_segment(self, left, right, output_id);
+            if (x == NULL) {
+                ret = TSK_ERR_NO_MEMORY;
+                goto out;
+            }
+            tail->next = x;
+            self->ancestor_map_tail[input_id] = x;
+        }
+    }
+out:
+    return ret;
+}
+
 static int
 simplifier_init_samples(simplifier_t *self, tsk_id_t *samples)
 {
@@ -4370,6 +4552,68 @@ simplifier_init_samples(simplifier_t *self, tsk_id_t *samples)
         if (ret != 0) {
             goto out;
         }
+    }
+out:
+    return ret;
+}
+
+static int
+ancestor_mapper_init_samples(ancestor_mapper_t *self, tsk_id_t *samples)
+{
+    int ret = 0;
+    size_t j;
+
+    /* Go through the samples to check for errors. */
+    for (j = 0; j < self->num_samples; j++) {
+        if (samples[j] < 0 || samples[j] > (tsk_id_t) self->input_tables.nodes.num_rows) {
+            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+            goto out;
+        }
+        if (self->is_sample[samples[j]]) {
+            ret = TSK_ERR_DUPLICATE_SAMPLE;
+            goto out;
+        }
+        self->is_sample[samples[j]] = true;
+        ret = ancestor_mapper_record_node(self, samples[j], true);
+        if (ret < 0) {
+            goto out;
+        }
+        ret = ancestor_mapper_add_ancestry(self, samples[j], 0, 
+            self->tables->sequence_length, (tsk_id_t) ret);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
+ancestor_mapper_init_ancestors(ancestor_mapper_t *self, tsk_id_t *ancestors)
+{
+    int ret = 0;
+    size_t j;
+
+    /* Go through the samples to check for errors. */
+    for (j = 0; j < self->num_ancestors; j++) {
+        if (ancestors[j] < 0 || ancestors[j] > (tsk_id_t) self->input_tables.nodes.num_rows) {
+            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+            goto out;
+        }
+        if (self->is_ancestor[ancestors[j]]) {
+            ret = TSK_ERR_DUPLICATE_SAMPLE;
+            goto out;
+        }
+        self->is_ancestor[ancestors[j]] = true;
+        // ret = ancestor_mapper_record_node(self, samples[j], true);
+        // if (ret < 0) {
+        //     goto out;
+        // }
+        // ret = ancestor_mapper_add_ancestry(self, samples[j], 0, 
+        //     self->tables->sequence_length, (tsk_id_t) ret);
+        // if (ret != 0) {
+        //     goto out;
+        // }
     }
 out:
     return ret;
@@ -4470,6 +4714,84 @@ out:
 }
 
 static int
+ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, size_t num_samples,
+    tsk_id_t *ancestors, size_t num_ancestors, tsk_table_collection_t *tables) 
+{
+    int ret = 0;
+    size_t num_nodes_alloc;
+
+    memset(self, 0, sizeof(ancestor_mapper_t));
+    self->num_samples = num_samples;
+    self->num_ancestors = num_ancestors;
+    self->tables = tables;
+
+    /* Take a copy of the input samples and ancestors */
+    self->samples = malloc(num_samples * sizeof(tsk_id_t));
+    if (self->samples == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    } 
+    self->ancestors = malloc(num_ancestors * sizeof(tsk_id_t));
+    if (self->ancestors == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    } 
+    //Confused as to why the bottom is needed?
+    memcpy(self->samples, samples, num_samples * sizeof(tsk_id_t));
+    memcpy(self->ancestors, ancestors, num_ancestors * sizeof(tsk_id_t)); 
+
+    /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size */
+    ret = tsk_blkalloc_init(&self->segment_heap, 8192);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_blkalloc_init(&self->interval_list_heap, 8192);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = segment_overlapper_alloc(&self->segment_overlapper);
+    if (ret != 0) {
+        goto out;
+    }
+
+    /* Need to avoid malloc(0) so make sure we have at least 1. */
+    num_nodes_alloc = 1 + tables->nodes.num_rows;
+    /* Make the maps and set the intial state */
+    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(simplify_segment_t *));
+    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(simplify_segment_t *));
+    self->child_edge_map_head = calloc(num_nodes_alloc, sizeof(interval_list_t *));
+    self->child_edge_map_tail = calloc(num_nodes_alloc, sizeof(interval_list_t *));
+    self->buffered_children = malloc(num_nodes_alloc * sizeof(tsk_id_t));
+    self->is_sample = calloc(num_nodes_alloc, sizeof(bool));
+    self->is_ancestor = calloc(num_nodes_alloc, sizeof(bool));
+    self->max_segment_queue_size = 64;
+    self->segment_queue = malloc(self->max_segment_queue_size
+            * sizeof(simplify_segment_t));
+    if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
+            || self->child_edge_map_head == NULL || self->child_edge_map_tail == NULL
+            || self->is_sample == NULL || self->is_ancestor == NULL
+            || self->segment_queue == NULL || self->buffered_children == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    // Clear memory.
+    ret = tsk_table_collection_clear(self->tables);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = ancestor_mapper_init_samples(self, samples);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = ancestor_mapper_init_ancestors(self, ancestors);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret; 
+}
+
+static int
 simplifier_free(simplifier_t *self)
 {
     tsk_table_collection_free(&self->input_tables);
@@ -4494,8 +4816,58 @@ simplifier_free(simplifier_t *self)
     return 0;
 }
 
+static int
+ancestor_mapper_free(ancestor_mapper_t *self)
+{
+    tsk_table_collection_free(&self->input_tables);
+    tsk_blkalloc_free(&self->segment_heap);
+    tsk_blkalloc_free(&self->interval_list_heap);
+    segment_overlapper_free(&self->segment_overlapper);
+    tsk_safe_free(self->samples);
+    tsk_safe_free(self->ancestors);
+    tsk_safe_free(self->ancestor_map_head);
+    tsk_safe_free(self->ancestor_map_tail);
+    tsk_safe_free(self->child_edge_map_head);
+    tsk_safe_free(self->child_edge_map_tail);
+    tsk_safe_free(self->segment_queue);
+    tsk_safe_free(self->is_sample);
+    tsk_safe_free(self->is_ancestor);
+    tsk_safe_free(self->buffered_children);
+    return 0;
+}
+
 static int TSK_WARN_UNUSED
 simplifier_enqueue_segment(simplifier_t *self, double left, double right, tsk_id_t node)
+{
+    int ret = 0;
+    simplify_segment_t *seg;
+    void *p;
+
+    assert(left < right);
+    /* Make sure we always have room for one more segment in the queue so we
+     * can put a tail sentinel on it */
+    if (self->segment_queue_size == self->max_segment_queue_size - 1) {
+        self->max_segment_queue_size *= 2;
+        p = realloc(self->segment_queue,
+                self->max_segment_queue_size * sizeof(*self->segment_queue));
+        if (p == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        self->segment_queue = p;
+    }
+    seg = self->segment_queue + self->segment_queue_size;
+    seg->left = left;
+    seg->right = right;
+    seg->node = node;
+    self->segment_queue_size++;
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+ancestor_mapper_enqueue_segment(ancestor_mapper_t *self, double left, double right, 
+    tsk_id_t node)
 {
     int ret = 0;
     simplify_segment_t *seg;
@@ -4629,6 +5001,85 @@ out:
 }
 
 static int TSK_WARN_UNUSED
+ancestor_mapper_merge_ancestors(ancestor_mapper_t *self, tsk_id_t input_id)
+{
+    int ret = 0;
+    simplify_segment_t **X, *x;
+    size_t j, num_overlapping, num_flushed_edges;
+    double left, right, prev_right;
+    // tsk_id_t ancestry_node;
+    bool is_sample = input_id != TSK_NULL;
+    bool is_ancestor = self->is_ancestor[input_id];
+
+    if (is_sample) {
+        /* Free up the existing ancestry mapping. */
+        x = self->ancestor_map_tail[input_id];
+        assert(x->left == 0 && x->right == self->tables->sequence_length);
+        self->ancestor_map_head[input_id] = NULL;
+        self->ancestor_map_tail[input_id] = NULL;
+    }
+
+    ret = segment_overlapper_start(&self->segment_overlapper,
+            self->segment_queue, self->segment_queue_size);
+    if (ret != 0) {
+        goto out;
+    }
+    prev_right = 0;
+    printf("%i", (int) prev_right);
+    while ((ret = segment_overlapper_next(&self->segment_overlapper,
+                    &left, &right, &X, &num_overlapping)) == 1) {
+        assert(left < right);
+        assert(num_overlapping > 0);
+        if (is_ancestor || is_sample) {
+            for (j = 0; j < num_overlapping; j++) {
+                ret = ancestor_mapper_record_edge(self, left, right, X[j]->node);
+                if (ret != 0) {
+                    goto out;
+                }
+            ret = ancestor_mapper_add_ancestry(self, input_id, prev_right, left, 
+                input_id);
+            if (ret != 0) {
+                goto out;
+            }
+                if (is_sample && left != prev_right) {
+                    /* Fill in any gaps in ancestry for the sample */
+                    ret = ancestor_mapper_add_ancestry(self, input_id, prev_right, 
+                        left, input_id);
+                    if (ret != 0) {
+                        goto out;
+                    }
+                }
+            }
+        } else {
+            for (j = 0; j < num_overlapping; j++) {
+                ret = ancestor_mapper_add_ancestry(self, input_id, prev_right, 
+                        left, X[j]->node);
+                if (ret != 0) {
+                    goto out;
+                } 
+            }
+            prev_right = right;
+        }
+    }
+    if (is_sample && prev_right != self->tables->sequence_length) {
+        /* If a trailing gap exists in the sample ancestry, fill it in. */
+        ret = ancestor_mapper_add_ancestry(self, input_id, prev_right,
+                self->tables->sequence_length, input_id);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (input_id != TSK_NULL) {
+        ret = ancestor_mapper_flush_edges(self, input_id, &num_flushed_edges);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
 simplifier_process_parent_edges(simplifier_t *self, tsk_id_t parent, size_t start,
         size_t end)
 {
@@ -4658,6 +5109,43 @@ simplifier_process_parent_edges(simplifier_t *self, tsk_id_t parent, size_t star
     }
     /* We can now merge the ancestral segments for the parent */
     ret = simplifier_merge_ancestors(self, parent);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+ancestor_mapper_process_parent_edges(ancestor_mapper_t *self, tsk_id_t parent, 
+    size_t start, size_t end)
+{
+    int ret = 0;
+    size_t j;
+    simplify_segment_t *x;
+    const tsk_edge_table_t *input_edges = &self->input_tables.edges;
+    tsk_id_t child;
+    double left, right;
+
+    /* Go through the edges and queue up ancestry segments for processing. */
+    self->segment_queue_size = 0;
+    for (j = start; j < end; j++) {
+        assert(parent == input_edges->parent[j]);
+        child = input_edges->child[j];
+        left = input_edges->left[j];
+        right = input_edges->right[j];
+        for (x = self->ancestor_map_head[child]; x != NULL; x = x->next) {
+            if (x->right > left && right > x->left) {
+                ret = ancestor_mapper_enqueue_segment(self,
+                        TSK_MAX(x->left, left), TSK_MIN(x->right, right), x->node);
+                if (ret != 0) {
+                    goto out;
+                }
+            }
+        }
+    }
+     // We can now merge the ancestral segments for the parent 
+    ret = ancestor_mapper_merge_ancestors(self, parent);
     if (ret != 0) {
         goto out;
     }
@@ -4950,6 +5438,43 @@ simplifier_run(simplifier_t *self, tsk_id_t *node_map)
         memcpy(node_map, self->node_id_map,
                 self->input_tables.nodes.num_rows * sizeof(tsk_id_t));
     }
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+ancestor_mapper_run(ancestor_mapper_t *self)
+{
+    int ret = 0;
+    size_t j, start;
+    tsk_id_t parent, current_parent;
+    const tsk_edge_table_t *input_edges = &self->input_tables.edges;
+    size_t num_edges = input_edges->num_rows;
+    printf("%p", (void *) self);
+
+    if (num_edges > 0) {
+        start = 0;
+        printf("%i", (int) start);
+        current_parent = input_edges->parent[0];
+        for (j = 0; j < num_edges; j++) {
+            parent = input_edges->parent[j];
+            if (parent != current_parent) {
+                ret = ancestor_mapper_process_parent_edges(self, current_parent, 
+                    start, j);
+                if (ret != 0) {
+                    goto out;
+                }
+                current_parent = parent;
+                start = j;
+            }
+        }
+        ret = ancestor_mapper_process_parent_edges(self, current_parent, start, 
+            num_edges);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
 out:
     return ret;
 }
@@ -5923,6 +6448,47 @@ tsk_table_collection_simplify(tsk_table_collection_t *self,
     ret = tsk_table_collection_drop_index(self, 0);
 out:
     simplifier_free(&simplifier);
+    tsk_safe_free(local_samples);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_map_ancestors(tsk_table_collection_t *self, tsk_id_t *samples, 
+        tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors)
+{
+    int ret = 0;
+    ancestor_mapper_t ancestor_mapper;
+    tsk_id_t *local_samples = NULL;
+    tsk_id_t u;
+
+    if (samples == NULL) {
+        /* Avoid issue with mallocing zero bytes */
+        local_samples = malloc((1 + self->nodes.num_rows) * sizeof(*local_samples));
+        if (local_samples == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        num_samples = 0;
+        for (u = 0; u < (tsk_id_t) self->nodes.num_rows; u++) {
+            if (!!(self->nodes.flags[u] & TSK_NODE_IS_SAMPLE)) {
+                local_samples[num_samples] = u;
+                num_samples++;
+            }
+        }
+        samples = local_samples;
+    }
+
+    ret = ancestor_mapper_init(&ancestor_mapper, samples, (size_t) num_samples, 
+        ancestors, (size_t) num_ancestors, self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = ancestor_mapper_run(&ancestor_mapper);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    ancestor_mapper_free(&ancestor_mapper);
     tsk_safe_free(local_samples);
     return ret;
 }

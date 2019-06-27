@@ -3688,7 +3688,7 @@ class TestMapToAncestors(unittest.TestCase):
 
     def verify(self, ts, sample_nodes, ancestral_nodes):
         tss = self.do_simplify(ts, ancestors=ancestral_nodes, samples=sample_nodes)
-        ancestors = list(set(tss.parent))
+        # ancestors = list(set(tss.parent))
         # Loop through the rows of the ancestral branch table.
         current_ancestor = tss.parent[0]
         current_descendants = [tss.child[0]]

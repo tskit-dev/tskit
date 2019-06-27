@@ -2166,6 +2166,10 @@ completes.
 int tsk_table_collection_simplify(tsk_table_collection_t *self,
     tsk_id_t *samples, tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
 
+int tsk_table_collection_map_ancestors(tsk_table_collection_t *self,
+    tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_id_t *ancestors, tsk_size_t num_ancestors);
+
 /**
 @brief Returns true if this table collection is indexed.
 

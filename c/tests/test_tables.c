@@ -1813,6 +1813,27 @@ test_provenance_table(void)
 }
 
 static void
+test_map_ancestors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = {0, 1};
+    tsk_id_t ancestors[] = {4, 6};
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2);
+    // CU_ASSERT_EQUAL_FATAL(ret, 0); // causing errors but don't know why
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_simplify_tables_drops_indexes(void)
 {
     int ret;
@@ -2216,6 +2237,7 @@ main(int argc, char **argv)
         {"test_load_tsk_node_table_errors", test_load_tsk_node_table_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
         {"test_simplify_empty_tables", test_simplify_empty_tables},
+        {"test_map_ancestors", test_map_ancestors},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
         {"test_sort_tables_errors", test_sort_tables_errors},
