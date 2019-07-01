@@ -1758,6 +1758,12 @@ typedef struct {
 } weight_stat_params_t;
 
 typedef struct {
+    tsk_size_t num_samples;
+    tsk_size_t num_covariates;
+    double *V;
+} covariates_stat_params_t;
+
+typedef struct {
     tsk_id_t *sample_sets;
     tsk_size_t num_sample_sets;
     tsk_size_t *sample_set_sizes;
@@ -2005,6 +2011,122 @@ out:
     tsk_safe_free(means);
     tsk_safe_free(meansqs);
     tsk_safe_free(sds);
+    tsk_safe_free(new_weights);
+    return ret;
+}
+
+static int
+trait_regression_summary_func(size_t state_dim, double *state, size_t result_dim,
+        double *result, void *params)
+{
+    covariates_stat_params_t args = *(covariates_stat_params_t *) params;
+    const double num_samples = (double) args.num_samples;
+    const tsk_size_t k = args.num_covariates;
+    const double *V = args.V;;
+    const double *x = state;
+    const double *v;
+    double m, a, denom, z;
+    size_t i, j;
+    // x[0], ..., x[result_dim - 1] contains the traits, W
+    // x[result_dim], ..., x[state_dim - 2] contains the covariates, Z 
+    // x[state_dim - 1] has the number of samples below the node
+
+    m = x[state_dim - 1];
+    for (i = 0; i < result_dim; i++) {
+        if ((m > 0.0) && (m < num_samples)) {
+            v = GET_2D_ROW(V, k, i);
+            a = x[i];
+            denom = m;
+            for (j = 0; j < k; j++) {
+                z = x[result_dim + j];
+                a -= z * v[j];
+                denom -= z * z;
+            }
+            // denom is the length of projection of the trait onto the subspace
+            // spanned by the covariates, so if it is zero then the system is
+            // singular and the solution is nonunique. This numerical tolerance
+            // could be smaller without hitting floating-point error, but being
+            // a tiny bit conservative about when the trait is almost in the
+            // span of the covariates is probably good.
+            if (denom < 1e-8) {
+                result[i] = 0.0;
+            } else {
+                result[i] = (a * a) / (2 * denom * denom);
+            }
+        } else {
+            result[i] = 0.0;
+        }
+    }
+    return 0;
+}
+
+int
+tsk_treeseq_trait_regression(tsk_treeseq_t *self,
+        tsk_size_t num_weights, double *weights,
+        tsk_size_t num_covariates, double *covariates,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+{
+    tsk_size_t num_samples = self->num_samples;
+    size_t i, j, k;
+    int ret;
+    double *v, *w, *z, *new_row;
+    double *V = calloc(num_covariates * num_weights, sizeof(double));
+    double *new_weights = malloc((num_weights + num_covariates + 1) * num_samples * sizeof(double));
+
+    covariates_stat_params_t args = {
+        .num_samples = self->num_samples,
+        .num_covariates = num_covariates,
+        .V = V
+    };
+
+    // We assume that the covariates have been *already standardised*,
+    // so that (a) 1 is in the span of the columns, and
+    // (b) their crossproduct is the identity.
+    // We could do this instead here with gsl linalg.
+
+    if (new_weights == NULL || V == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    if (num_weights < 1) {
+        ret = TSK_ERR_BAD_STATE_DIMS;
+        goto out;
+    }
+
+    // V = weights^T (matrix mult) covariates
+    for (k = 0; k < num_samples; k++) {
+        w = GET_2D_ROW(weights, num_weights, k);
+        z = GET_2D_ROW(covariates, num_covariates, k);
+        for (i = 0; i < num_weights; i++) {
+            v = GET_2D_ROW(V, num_covariates, i);
+            for (j = 0; j < num_covariates; j++) {
+                v[j] += w[i] * z[j];
+            }
+        }
+    }
+
+    for (k = 0; k < num_samples; k++) {
+        w = GET_2D_ROW(weights, num_weights, k);
+        z = GET_2D_ROW(covariates, num_covariates, k);
+        new_row = GET_2D_ROW(new_weights, num_covariates + num_weights + 1, k);
+        for (i = 0; i < num_weights; i++) {
+            new_row[i] = w[i];
+        }
+        for (i = 0; i < num_covariates; i++) {
+            new_row[i + num_weights] = z[i];
+        }
+        // set final row to 1 to count alleles
+        new_row[num_weights + num_covariates] = 1.0;
+    }
+
+    ret = tsk_treeseq_general_stat(self,
+            num_weights + num_covariates + 1, new_weights,
+            num_weights, trait_regression_summary_func, &args,
+            num_windows, windows, result, options);
+
+out:
+    tsk_safe_free(V);
     tsk_safe_free(new_weights);
     return ret;
 }
