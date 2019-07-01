@@ -27,6 +27,7 @@ import io
 import unittest
 import itertools
 import random
+import json
 
 import numpy as np
 import msprime
@@ -3463,6 +3464,18 @@ class TestSimplify(unittest.TestCase):
                     for keep in [True, False]:
                         self.verify_simplify_haplotypes(ts, samples, keep_unary=keep)
 
+    def test_ts_provenance_recapitulation(self):
+        ts_orig = msprime.simulate(
+            sample_size=50, random_seed=2, recombination_rate=2, mutation_rate=2)
+        ts = ts_orig.simplify([1, 2, 3, 4])
+        last_provenance = json.loads(ts.provenance(ts.num_provenances - 1).record)
+        self.assertEquals(last_provenance['software']['name'], 'tskit')
+        self.assertEquals(last_provenance['software']['version'], tskit.__version__)
+        tskit_params = last_provenance['parameters']
+        command = getattr(ts_orig, tskit_params.pop('command'))
+        ts_recapitulated = command(**tskit_params)
+        self.assertTrue(tsutil.ts_equality_ignoring_timestamps(ts, ts_recapitulated))
+
 
 class TestMutationParent(unittest.TestCase):
     """
@@ -4159,3 +4172,15 @@ class TestSlice(TopologyTestCase):
         self.assertEqual(ts_sliced.at(0.6).total_branch_length, 0)
         self.assertEqual(ts_sliced.at(0.999).total_branch_length, 0)
         self.assertEqual(ts_sliced.at_index(-1).total_branch_length, 0)
+
+    def test_provenance_recapitulation(self):
+        ts_orig = msprime.simulate(
+            sample_size=50, random_seed=2, recombination_rate=2, mutation_rate=2)
+        ts = ts_orig.slice(0.4, 0.6)
+        last_provenance = json.loads(ts.provenance(ts.num_provenances - 1).record)
+        self.assertEquals(last_provenance['software']['name'], 'tskit')
+        self.assertEquals(last_provenance['software']['version'], tskit.__version__)
+        tskit_params = last_provenance['parameters']
+        command = getattr(ts_orig, tskit_params.pop('command'))
+        ts_recapitulated = command(**tskit_params)
+        self.assertTrue(tsutil.ts_equality_ignoring_timestamps(ts, ts_recapitulated))
