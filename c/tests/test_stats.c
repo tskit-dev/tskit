@@ -477,6 +477,32 @@ verify_node_general_stat_errors(tsk_treeseq_t *ts)
 }
 
 
+typedef int one_way_weighted_method(tsk_treeseq_t *self,
+        tsk_size_t num_weights, double *weights,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+static void
+verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *method)
+{
+    // we don't have any specific errors for this function
+    // but we might add some in the future
+    int ret;
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    double *weights = malloc(num_samples * sizeof(double));
+    double result;
+    size_t j;
+
+    for (j = 0; j < num_samples; j++) {
+        weights[j] = 1.0;
+    }
+
+    ret = method(ts, 0, weights, 0, NULL, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
+
+    free(weights);
+}
+
+
 typedef int one_way_stat_method(tsk_treeseq_t *self,
         tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
         tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
@@ -1045,6 +1071,84 @@ test_paper_ex_diversity(void)
 }
 
 static void
+test_paper_ex_trait_covariance_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_one_way_weighted_func_errors(&ts, tsk_treeseq_trait_covariance);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_trait_covariance(void)
+{
+    tsk_treeseq_t ts;
+    double result;
+    double *weights;
+    size_t j;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    weights = malloc(4 * sizeof(double));
+    weights[0] = weights[1] = 0.0;
+    weights[2] = weights[3] = 1.0;
+
+    ret = tsk_treeseq_trait_covariance(&ts, 1, weights, 0, NULL,
+            &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 1.0 / 12.0, 1e-6);
+
+    /* weights of 0 leads to 0 */
+    for (j = 0; j < 4; j++) {
+        weights[j] = 0.0;
+    }
+    ret = tsk_treeseq_trait_covariance(&ts, 1, weights, 0, NULL,
+            &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 0.0, 1e-6);
+
+    tsk_treeseq_free(&ts);
+    free(weights);
+}
+
+static void
+test_paper_ex_trait_correlation_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_one_way_weighted_func_errors(&ts, tsk_treeseq_trait_correlation);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_trait_correlation(void)
+{
+    tsk_treeseq_t ts;
+    double result;
+    double *weights;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    weights = malloc(4 * sizeof(double));
+    weights[0] = weights[1] = 0.0;
+    weights[2] = weights[3] = 1.0;
+
+    ret = tsk_treeseq_trait_correlation(&ts, 1, weights, 0, NULL,
+            &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 1.0, 1e-6);
+
+    tsk_treeseq_free(&ts);
+    free(weights);
+}
+
+static void
 test_paper_ex_segregating_sites_errors(void)
 {
     tsk_treeseq_t ts;
@@ -1432,6 +1536,10 @@ main(int argc, char **argv)
             test_paper_ex_genealogical_nearest_neighbours},
         {"test_paper_ex_general_stat_errors", test_paper_ex_general_stat_errors},
         {"test_paper_ex_general_stat", test_paper_ex_general_stat},
+        {"test_paper_ex_trait_covariance_errors", test_paper_ex_trait_covariance_errors},
+        {"test_paper_ex_trait_covariance", test_paper_ex_trait_covariance},
+        {"test_paper_ex_trait_correlation_errors", test_paper_ex_trait_correlation_errors},
+        {"test_paper_ex_trait_correlation", test_paper_ex_trait_correlation},
         {"test_paper_ex_diversity_errors", test_paper_ex_diversity_errors},
         {"test_paper_ex_diversity", test_paper_ex_diversity},
         {"test_paper_ex_segregating_sites_errors", test_paper_ex_segregating_sites_errors},

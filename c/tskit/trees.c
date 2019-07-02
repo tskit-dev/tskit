@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <tskit/trees.h>
 
@@ -1756,6 +1757,10 @@ out:
 }
 
 typedef struct {
+    tsk_size_t num_samples;
+} weight_stat_params_t;
+
+typedef struct {
     tsk_id_t *sample_sets;
     tsk_size_t num_sample_sets;
     tsk_size_t *sample_set_sizes;
@@ -1856,6 +1861,155 @@ tsk_treeseq_diversity(tsk_treeseq_t *self,
     return tsk_treeseq_sample_count_stat(self,
         num_sample_sets, sample_set_sizes, sample_sets, num_sample_sets, NULL,
         diversity_summary_func, num_windows, windows, result, options);
+}
+
+static int
+trait_covariance_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result_dim),
+        double *result, void *params)
+{
+    weight_stat_params_t args = *(weight_stat_params_t *) params;
+    const double n = (double) args.num_samples;
+    const double *x = state;
+    size_t j;
+
+    for (j = 0; j < state_dim; j++) {
+        result[j] = (x[j] * x[j]) / (2 * (n - 1) * (n - 1));
+    }
+    return 0;
+}
+
+int
+tsk_treeseq_trait_covariance(tsk_treeseq_t *self,
+        tsk_size_t num_weights, double *weights,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+{
+    tsk_size_t num_samples = self->num_samples;
+    size_t j, k;
+    int ret;
+    double *row, *new_row;
+    double *means = calloc(num_weights, sizeof(double));
+    double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(double));
+    weight_stat_params_t args = {
+        num_samples = self->num_samples
+    };
+
+    if (new_weights == NULL || means == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    // center weights
+    for (j = 0; j < num_samples; j++) {
+        row = GET_2D_ROW(weights, num_weights, j);
+        for (k = 0; k < num_weights; k++) {
+            means[k] += row[k];
+        }
+    }
+    for (k = 0; k < num_weights; k++) {
+        means[k] /= (double) num_samples;
+    }
+    for (j = 0; j < num_samples; j++) {
+        row = GET_2D_ROW(weights, num_weights, j);
+        new_row = GET_2D_ROW(new_weights, num_weights, j);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] = row[k] - means[k];
+        }
+    }
+
+    ret = tsk_treeseq_general_stat(self,
+            num_weights, new_weights, num_weights,
+            trait_covariance_summary_func, &args,
+            num_windows, windows, result, options);
+
+out:
+    tsk_safe_free(means);
+    tsk_safe_free(new_weights);
+    return ret;
+}
+
+static int
+trait_correlation_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result_dim),
+        double *result, void *params)
+{
+    weight_stat_params_t args = *(weight_stat_params_t *) params;
+    const double n = (double) args.num_samples;
+    const double *x = state;
+    double p;
+    size_t j;
+
+    p = x[state_dim - 1];
+    for (j = 0; j < state_dim - 1; j++) {
+        if ((p > 0.0) && (p < 1.0)) {
+            result[j] = (x[j] * x[j]) / (2 * (p * (1 - p)) * n * (n - 1));
+        } else {
+            result[j] = 0.0;
+        }
+    }
+    return 0;
+}
+
+int
+tsk_treeseq_trait_correlation(tsk_treeseq_t *self,
+        tsk_size_t num_weights, double *weights,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+{
+    tsk_size_t num_samples = self->num_samples;
+    size_t j, k;
+    int ret;
+    double *means = calloc(num_weights, sizeof(double));
+    double *meansqs = calloc(num_weights, sizeof(double));
+    double *sds = calloc(num_weights, sizeof(double));
+    double *row, *new_row;
+    double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(double));
+    weight_stat_params_t args = {
+        num_samples = self->num_samples
+    };
+
+    if (new_weights == NULL || means == NULL || meansqs == NULL || sds == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    if (num_weights < 1) {
+        ret = TSK_ERR_BAD_STATE_DIMS;
+        goto out;
+    }
+
+    // center and scale weights
+    for (j = 0; j < num_samples; j++) {
+        row = GET_2D_ROW(weights, num_weights, j);
+        for (k = 0; k < num_weights; k++) {
+            means[k] += row[k];
+            meansqs[k] += row[k] * row[k];
+        }
+    }
+    for (k = 0; k < num_weights; k++) {
+        means[k] /= (double) num_samples;
+        meansqs[k] -= means[k] * means[k] * (double) num_samples;
+        meansqs[k] /= (double) (num_samples - 1);
+        sds[k] = sqrt(meansqs[k]);
+    }
+    for (j = 0; j < num_samples; j++) {
+        row = GET_2D_ROW(weights, num_weights, j);
+        new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] = (row[k] - means[k]) / sds[k];
+        }
+        // set final row to 1/n to compute frequency
+        new_row[num_weights] = 1.0 / (double) num_samples;
+    }
+
+    ret = tsk_treeseq_general_stat(self,
+            num_weights + 1, new_weights, num_weights,
+            trait_correlation_summary_func, &args,
+            num_windows, windows, result, options);
+
+out:
+    tsk_safe_free(means);
+    tsk_safe_free(meansqs);
+    tsk_safe_free(sds);
+    tsk_safe_free(new_weights);
+    return ret;
 }
 
 static int

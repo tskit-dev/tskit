@@ -427,6 +427,50 @@ class StatsInterfaceMixin(object):
             self.assertEqual(sigma.shape[0], num_windows)
 
 
+class WeightMixin(StatsInterfaceMixin):
+
+    def get_example(self):
+        ts, method = self.get_method()
+        params = {
+            "weights": np.ones((ts.get_num_samples(), 2)),
+            "windows": [0, ts.get_sequence_length()]}
+        return ts, method, params
+
+    def test_bad_weights(self):
+        ts, f, params = self.get_example()
+        del params["weights"]
+        n = ts.get_num_samples()
+
+        with self.assertRaises(_tskit.LibraryError):
+            f(weights=np.ones((n, 0)), **params)
+
+        for bad_weight_shape in [(n-1, 1), (n+1, 1), (0, 3)]:
+            with self.assertRaises(ValueError):
+                f(weights=np.ones(bad_weight_shape), **params)
+
+    def test_output_dims(self):
+        ts, method, params = self.get_example()
+        weights = params['weights']
+        nw = weights.shape[1]
+        windows = [0, ts.get_sequence_length()]
+
+        for mode in ["site", "branch"]:
+            out = method(weights[:, [0]], windows, mode=mode)
+            self.assertEqual(out.shape, (1, 1))
+            out = method(weights, windows, mode=mode)
+            self.assertEqual(out.shape, (1, nw))
+            out = method(weights[:, [0, 0, 0]], windows, mode=mode)
+            self.assertEqual(out.shape, (1, 3))
+        mode = "node"
+        N = ts.get_num_nodes()
+        out = method(weights[:, [0]], windows, mode=mode)
+        self.assertEqual(out.shape, (1, N, 1))
+        out = method(weights, windows, mode=mode)
+        self.assertEqual(out.shape, (1, N, nw))
+        out = method(weights[:, [0, 0, 0]], windows, mode=mode)
+        self.assertEqual(out.shape, (1, N, 3))
+
+
 class SampleSetMixin(StatsInterfaceMixin):
 
     def test_bad_sample_sets(self):
@@ -514,6 +558,24 @@ class TestDiversity(LowLevelTestCase, OneWaySampleStatsMixin):
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.diversity
+
+
+class TestTraitCovariance(LowLevelTestCase, WeightMixin):
+    """
+    Tests for trait covariance.
+    """
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.trait_covariance
+
+
+class TestTraitCorrelation(LowLevelTestCase, WeightMixin):
+    """
+    Tests for trait correlation.
+    """
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.trait_correlation
 
 
 class TestSegregatingSites(LowLevelTestCase, OneWaySampleStatsMixin):
