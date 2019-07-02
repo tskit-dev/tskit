@@ -2523,69 +2523,97 @@ class TestSitef4(Testf4, MutatedTopologyExamplesMixin):
 # Allele frequency spectrum
 ############################################
 
-
-def naive_branch_allele_frequency_spectrum(ts, sample_sets, windows=None):
-    # Draft of the 'site frequency spectrum' definition for different
-    # sample sets. Take the middle dimension as the max of sizes of the
-    # sample sets, and the last dimension as the different sample sets. This
-    # makes it easy to drop the last dimension in the default case of all
-    # samples. (But, we could definitely do it the other way around, with
-    # the middle dimension being the sample set index.
-    #
-    # The other difference with older versions is that we're outputting
-    # sfs[j] as the total branch length over j members of the set, including
-    # sfs[0] for zero members. Other versions were using sfs[j - 1] for
-    # total branch_length over j, and not tracking the branch length over
-    # 0. The current approach seems more natural to me.
-
+def naive_site_joint_allele_frequency_spectrum(ts, sample_sets, windows=None):
+    """
+    The joint allele frequency spectrum for sites.
+    """
     windows = ts.parse_windows(windows)
-    n_out = 1 + max(len(sample_set) for sample_set in sample_sets)
-    out = np.zeros((len(windows) - 1, n_out, len(sample_sets)))
+    num_windows = len(windows) - 1
+    out_dim = [num_windows] + [1 + len(sample_set) for sample_set in sample_sets]
+    out = np.zeros(out_dim)
+    G = ts.genotype_matrix()
+    site_positions = [x.position for x in ts.sites()]
+    samples = ts.samples()
+    # Indexes of the samples within the sample sets into the samples array.
+    sample_set_indexes = [
+        np.array([np.where(x == samples)[0][0] for x in sample_set])
+        for sample_set in sample_sets]
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for k in range(ts.num_sites):
+            S = np.zeros(out_dim[1:])
+            if begin <= site_positions[k] < end:
+                g = G[k]
+                index = [np.sum(g[sample_set] != 0) for sample_set in sample_set_indexes]
+                S[tuple(index)] += 1
+            out[j, :] = S / (end - begin)
+    return out
+
+
+def naive_branch_joint_allele_frequency_spectrum(ts, sample_sets, windows=None):
+    """
+    The joint allele frequency spectrum for branches.
+    """
+    windows = ts.parse_windows(windows)
+    num_windows = len(windows) - 1
+    out_dim = [num_windows] + [1 + len(sample_set) for sample_set in sample_sets]
+    out = np.zeros(out_dim)
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
         for set_index, sample_set in enumerate(sample_sets):
-            S = np.zeros((n_out))
-            for t in ts.trees(tracked_samples=sample_set, sample_counts=True):
+            S = np.zeros(out_dim[1:])
+            trees = [
+                next(ts.trees(tracked_samples=sample_set, sample_counts=True))
+                for sample_set in sample_sets]
+            t = trees[0]
+            while True:
                 tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
                 if tr_len > 0:
                     for node in t.nodes():
-                        x = t.num_tracked_samples(node)
+                        # Note this must be a tuple for indexing to work as we want here.
+                        x = tuple([tree.num_tracked_samples(node) for tree in trees])
                         S[x] += t.branch_length(node) * tr_len
-            out[j, :, set_index] = S / (end - begin)
+
+                # Advance the trees
+                more = [tree.next() for tree in trees]
+                assert len(set(more)) == 1
+                if not more[0]:
+                    break
+            out[j, :] = S / (end - begin)
     return out
 
 
-def naive_allele_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
+def naive_joint_allele_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
     """
     Naive definition of the generalised site frequency spectrum.
     """
     method_map = {
-        # "site": naive_site_allele_frequency_spectrum,
-        "branch": naive_branch_allele_frequency_spectrum}
+        "site": naive_site_joint_allele_frequency_spectrum,
+        "branch": naive_branch_joint_allele_frequency_spectrum}
     return method_map[mode](ts, sample_sets, windows=windows)
 
 
-def branch_allele_frequency_spectrum(ts, sample_sets, windows):
+def branch_joint_allele_frequency_spectrum(ts, sample_sets, windows):
     """
     Efficient implementation of the algorithm used as the basis for the
     underlying C version.
     """
 
     num_sample_sets = len(sample_sets)
-    n_out = 1 + max(len(sample_set) for sample_set in sample_sets)
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
+    out_dim = [num_windows] + [len(sample_set) + 1 for sample_set in sample_sets]
     time = ts.tables.nodes.time
 
-    result = np.zeros((num_windows, n_out, num_sample_sets))
+    result = np.zeros(out_dim)
     # Number of nodes in sample_set j ancestral to each node u.
     count = np.zeros((ts.num_nodes, num_sample_sets), dtype=np.uint32)
     for j in range(num_sample_sets):
         count[sample_sets[j], j] = 1
     # contains the location of the last time we updated the output for a node.
     last_update = np.zeros((ts.num_nodes))
-    result = np.zeros((num_windows, n_out, num_sample_sets))
     window_index = 0
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
     branch_length = np.zeros(ts.num_nodes)
@@ -2593,10 +2621,8 @@ def branch_allele_frequency_spectrum(ts, sample_sets, windows):
 
     def update_result(window_index, u, right):
         x = (right - last_update[u]) * branch_length[u]
-        # print("update result", window_index, u, count[u], x)
-        for j in range(num_sample_sets):
-            k = count[u, j]
-            result[window_index, k, j] += x
+        index = tuple([window_index] + list(count[u]))
+        result[index] += x
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -2645,54 +2671,62 @@ def branch_allele_frequency_spectrum(ts, sample_sets, windows):
     return result
 
 
-def allele_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
+def joint_allele_frequency_spectrum(ts, sample_sets, windows=None, mode="site"):
     """
     Generalised site frequency spectrum.
     """
     method_map = {
         # "site": site_allele_frequency_spectrum,
-        "branch": branch_allele_frequency_spectrum}
+        "branch": branch_joint_allele_frequency_spectrum}
     return method_map[mode](ts, sample_sets, windows=windows)
 
 
-class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
+class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
     # Derived classes define this to get a specific stats mode.
     mode = None
 
     def verify_sample_sets(self, ts, sample_sets, windows):
-        # print()
-        # print(ts.draw_text())
-        # print("Verify", sample_sets, windows)
-        sfs1 = naive_allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
-        sfs2 = allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
+        sfs1 = naive_joint_allele_frequency_spectrum(
+            ts, sample_sets, windows, mode=self.mode)
+        sfs2 = joint_allele_frequency_spectrum(ts, sample_sets, windows, mode=self.mode)
         self.assertEqual(sfs1.shape[0], len(windows) - 1)
+        self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
+        for j, sample_set in enumerate(sample_sets):
+            self.assertEqual(sfs1.shape[j + 1], len(sample_set) + 1)
+        self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
         self.assertEqual(sfs1.shape, sfs2.shape)
+        self.assertArrayAlmostEqual(sfs1, sfs2)
         # print(sfs1)
         # print(sfs2)
-        self.assertArrayAlmostEqual(sfs1, sfs2)
-        # print(sfs2.shape)
 
 
-class TestBranchAlleleFrequencySpectrum(
-        TestAlleleFrequencySpectrum, TopologyExamplesMixin):
+class TestBranchJointAlleleFrequencySpectrum(
+        TestJointAlleleFrequencySpectrum, TopologyExamplesMixin):
     mode = "branch"
-
-    def test_simple_example(self):
-        ts = msprime.simulate(6, recombination_rate=0.1, random_seed=1)
-        self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
-        self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
 
     @unittest.skip("Problem with zeroth entry AFS with non-sample ancestral edges")
     def test_wright_fisher_unsimplified_multiple_roots(self):
         pass
 
+    def test_simple_example(self):
+        ts = msprime.simulate(6, recombination_rate=0.1, random_seed=1)
+        self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
+        self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
+        self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
+
 
 @unittest.skip("Not working yet")
-class TestSiteAlleleFrequencySpectrum(
-        TestAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
+class TestSiteJointAlleleFrequencySpectrum(
+        TestJointAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
     mode = "site"
 
+    def test_simple_example(self):
+        ts = msprime.simulate(
+            6, recombination_rate=0.1, mutation_rate=0.2, random_seed=1)
+        self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
+        self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
+        self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
 
 ############################################
 # End of specific stats tests.
