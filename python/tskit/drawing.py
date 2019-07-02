@@ -60,13 +60,44 @@ def draw_tree(
             width = 200
         if height is None:
             height = 200
-        td = SvgTreeDrawer(
-            tree, width=width, height=height,
-            node_labels=node_labels, node_colours=node_colours,
-            mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-            edge_colours=edge_colours, tree_height_scale=tree_height_scale,
-            max_tree_height=max_tree_height)
-        return td.draw()
+
+        # td = SvgTreeDrawer(
+        #     tree, width=width, height=height,
+        #     node_labels=node_labels, node_colours=node_colours,
+        #     mutation_labels=mutation_labels, mutation_colours=mutation_colours,
+        #     edge_colours=edge_colours, tree_height_scale=tree_height_scale,
+        #     max_tree_height=max_tree_height)
+        # return td.draw()
+
+        def remap(original_map, new_key, none_value):
+            if original_map is None:
+                return None
+            new_map = {}
+            for key, value in original_map.items():
+                if value is None:
+                    new_map[key] = none_value
+                else:
+                    new_map[key] = {new_key: value}
+            return new_map
+
+        # Old semantics were to not draw the node if colour is None.
+        # Setting opacity to zero has the same effect.
+        node_attrs = remap(node_colours, "fill", {'opacity': 0})
+        edge_attrs = remap(edge_colours, "stroke", {'opacity': 0})
+        mutation_attrs = remap(mutation_colours, "fill", {'opacity': 0})
+
+        node_label_attrs = None
+        tree = SvgTree(
+            tree, (width, height),
+            node_labels=node_labels,
+            mutation_labels=mutation_labels,
+            tree_height_scale=tree_height_scale,
+            max_tree_height=max_tree_height,
+            node_attrs=node_attrs, edge_attrs=edge_attrs,
+            node_label_attrs=node_label_attrs,
+            mutation_attrs=mutation_attrs)
+        return tree.drawing.tostring()
+
     else:
         if width is not None:
             raise ValueError("Text trees do not support width")
@@ -80,8 +111,8 @@ def draw_tree(
             raise ValueError("Text trees do not support node_colours")
         if edge_colours is not None:
             raise ValueError("Text trees do not support edge_colours")
-        if max_tree_height is not None:
-            raise ValueError("Text trees do not support max_tree_height")
+        if tree_height_scale is not None:
+            raise ValueError("Text trees do not support tree_height_scale")
 
         use_ascii = fmt == "ascii"
         text_tree = VerticalTextTree(
@@ -419,20 +450,22 @@ class SvgTree(object):
 
     """
     def __init__(
-            self, tree, size=None, tree_height_scale=None, max_tree_height=None,
-            node_attrs=None, edge_attrs=None, node_label_attrs=None):
+            self, tree, size=None, node_labels=None, mutation_labels=None,
+            tree_height_scale=None, max_tree_height=None,
+            node_attrs=None, edge_attrs=None, node_label_attrs=None,
+            mutation_attrs=None, mutation_label_attrs=None):
         self.tree = tree
         if size is None:
             size = (200, 200)
         self.image_size = size
         self.setup_drawing()
-        self.node_labels = {u: str(u) for u in tree.nodes()}
         self.treebox_x_offset = 10
         self.treebox_y_offset = 10
         self.treebox_width = size[0] - 2 * self.treebox_x_offset
         self.assign_y_coordinates(tree_height_scale, max_tree_height)
         self.node_x_coord_map = self.assign_x_coordinates(
             tree, self.treebox_x_offset, self.treebox_width)
+
         self.edge_attrs = {}
         self.node_attrs = {}
         self.node_label_attrs = {}
@@ -443,9 +476,34 @@ class SvgTree(object):
             self.node_attrs[u] = {"r": 3}
             if node_attrs is not None and u in node_attrs:
                 self.node_attrs[u].update(node_attrs[u])
-            self.node_label_attrs[u] = {"text": "{}".format(u)}
+            label = ""
+            if node_labels is None:
+                label = str(u)
+            elif u in node_labels:
+                label = str(node_labels[u])
+            self.node_label_attrs[u] = {"text": label}
             if node_label_attrs is not None and u in node_label_attrs:
                 self.node_label_attrs[u].update(node_label_attrs[u])
+
+        self.mutation_attrs = {}
+        self.mutation_label_attrs = {}
+        for site in tree.sites():
+            for mutation in site.mutations:
+                m = mutation.id
+                # We need to offset the rectangle so that it's centred
+                self.mutation_attrs[m] = {
+                    "size": (6, 6), "transform": "translate(-3, -3)"}
+                if mutation_attrs is not None and m in mutation_attrs:
+                    self.mutation_attrs[m].update(mutation_attrs[m])
+                label = ""
+                if mutation_labels is None:
+                    label = str(m)
+                elif mutation.id in mutation_labels:
+                    label = str(mutation_labels[m])
+                self.mutation_label_attrs[m] = {"text": label}
+                if mutation_label_attrs is not None and m in mutation_label_attrs:
+                    self.mutation_label_attrs[m].update(mutation_label_attrs[m])
+
         self.draw()
 
     def setup_drawing(self):
@@ -459,7 +517,7 @@ class SvgTree(object):
         self.labels = self.root_group.add(dwg.g(id='labels', font_size=14))
         self.node_labels = self.labels.add(dwg.g(class_='nodes'))
         self.mutation_labels = self.labels.add(
-            dwg.g(class_='mutations', font_style="italic", alignment_baseline="middle"))
+            dwg.g(class_='mutations', font_style="italic"))
         self.left_labels = self.node_labels.add(dwg.g(text_anchor="start"))
         self.mid_labels = self.node_labels.add(dwg.g(text_anchor="middle"))
         self.right_labels = self.node_labels.add(dwg.g(text_anchor="end"))
@@ -471,7 +529,9 @@ class SvgTree(object):
         node_time = ts.tables.nodes.time
         if tree_height_scale in [None, "time"]:
             node_height = node_time
-            if max_tree_height is None:
+            if max_tree_height in [None, "tree"]:
+                max_tree_height = max(self.tree.time(root) for root in self.tree.roots)
+            elif max_tree_height == "ts":
                 max_tree_height = ts.max_root_time
         else:
             if tree_height_scale != "rank":
@@ -552,6 +612,8 @@ class SvgTree(object):
                 else:
                     labels = self.left_labels
             # TODO add ID to node label text.
+            # TODO get rid of these manual positioning tweaks and add them
+            # as offsets the user can access via a transform or something.
             labels.add(dwg.text(
                 insert=(pu[0] + dx, pu[1] + dy), **self.node_label_attrs[u]))
             v = tree.parent(u)
@@ -562,27 +624,32 @@ class SvgTree(object):
                     [("M", pu), ("V", pv[1]), ("H", pv[0])], id=edge_id,
                     **self.edge_attrs[u])
                 self.edges.add(path)
+            else:
+                # FIXME this is pretty crappy for spacing mutations over a root.
+                pv = (pu[0], pu[1] - 20)
 
-                # TODO do something with mutations over the root
-                # Draw the mutations
-                num_mutations = len(node_mutations[u])
-                delta = (pv[1] - pu[1]) / (num_mutations + 1)
-                x = pu[0]
-                y = pv[1] - delta
-                r = 3
-                # TODO add support for manipulating mutation properties and IDs
-                for mutation in node_mutations[u]:
-                    self.mutations.add(dwg.rect(
-                        insert=(x - r, y - r), size=(2 * r, 2 * r)))
-                    dx = 5
-                    if tree.left_sib(mutation.node) == NULL:
-                        dx *= -1
-                        labels = self.mutation_right_labels
-                    else:
-                        labels = self.mutation_left_labels
-                    dy = 1.5 * r
-                    labels.add(dwg.text(str(mutation.id), (x + dx, y + dy)))
-                    y -= delta
+            num_mutations = len(node_mutations[u])
+            delta = (pv[1] - pu[1]) / (num_mutations + 1)
+            x = pu[0]
+            y = pv[1] - delta
+            # TODO add mutation IDs
+            for mutation in reversed(node_mutations[u]):
+                self.mutations.add(dwg.rect(
+                    insert=(x, y),
+                    **self.mutation_attrs[mutation.id]))
+                dx = 5
+                if tree.left_sib(mutation.node) == NULL:
+                    dx *= -1
+                    labels = self.mutation_right_labels
+                else:
+                    labels = self.mutation_left_labels
+                # TODO get rid of these manual positioning tweaks and add them
+                # as offsets the user can access via a transform or something.
+                dy = 4
+                labels.add(dwg.text(
+                    insert=(x + dx, y + dy),
+                    **self.mutation_label_attrs[mutation.id]))
+                y -= delta
 
 
 class TextTreeSequence(object):
