@@ -958,9 +958,6 @@ class TestDrawTextExamples(unittest.TestCase):
                 t.draw_text(max_tree_height=bad_max_tree_height)
 
 
-tmp = 0
-
-
 class TestDrawSvg(TestTreeDraw):
     """
     Tests the SVG tree drawing.
@@ -970,12 +967,6 @@ class TestDrawSvg(TestTreeDraw):
         self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
         self.assertEqual(width, int(root.attrib["width"]))
         self.assertEqual(height, int(root.attrib["height"]))
-
-        global tmp
-        with open("tmp/old-impl/{}.svg".format(tmp), "w") as f:
-            f.write(svg)
-            tmp += 1
-            # print("Writing to", tmp)
 
     def test_draw_file(self):
         t = self.get_binary_tree()
