@@ -778,8 +778,8 @@ class HorizontalTextTree(TextTree):
             children = self.tree.children(u)
             if len(children) > 0:
                 if len(children) == 1:
-                    yv = self.time_position[children[0]]
-                    self.canvas[yu: yv + 1, xu] = self.horizontal_line_char
+                    xv = self.time_position[children[0]]
+                    self.canvas[yu, xv: xu] = self.horizontal_line_char
                 else:
                     bot = min(self.traversal_position[v] for v in children)
                     top = max(self.traversal_position[v] for v in children)

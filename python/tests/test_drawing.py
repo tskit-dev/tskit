@@ -321,6 +321,17 @@ class TestDrawUnicode(TestDrawText):
     example_label = "\u20ac" * 10  # euro symbol
 
 
+class TestDrawTextErrors(unittest.TestCase):
+    """
+    Tests for errors occuring in tree drawing code.
+    """
+    def test_bad_orientation(self):
+        t = msprime.simulate(5, mutation_rate=0.1, random_seed=2).first()
+        for bad_orientation in ["", "leftright", "sdf"]:
+            with self.assertRaises(ValueError):
+                t.draw_text(orientation=bad_orientation)
+
+
 class TestDrawTextExamples(unittest.TestCase):
     """
     Verify that we get the correct rendering for some examples.
@@ -670,6 +681,23 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
+
+        tree = (
+            "0\n"
+            "┃\n"
+            "1\n"
+            "┃\n"
+            "2\n")
+        drawn = t.draw_text(orientation="bottom")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = "2━1━0\n"
+        drawn = t.draw_text(orientation="left")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = "0━1━2\n"
+        drawn = t.draw_text(orientation="right")
+        self.verify_text_rendering(drawn, tree)
 
     def test_draw_forky_tree(self):
         tree = (
@@ -1125,6 +1153,13 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg)
         self.assertGreater(svg.count('stroke="{}"'.format(colour)), 0)
         svg = t.draw_svg(edge_attrs={0: {"stroke": colour}})
+        self.verify_basic_svg(svg)
+        self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
+
+    def test_one_mutation_label_colour(self):
+        t = self.get_binary_tree()
+        colour = "rgb(0, 1, 2)"
+        svg = t.draw_svg(mutation_label_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
 
