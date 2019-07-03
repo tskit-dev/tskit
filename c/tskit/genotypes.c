@@ -152,10 +152,7 @@ tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->tree_sequence = tree_sequence;
 
-    ret = tsk_treeseq_get_sample_index_map(tree_sequence, &self->sample_index_map);
-    if (ret != 0) {
-        goto out;
-    }
+    self->sample_index_map = tsk_treeseq_get_sample_index_map(tree_sequence);
     ret = tsk_tree_init(&self->tree, tree_sequence, TSK_SAMPLE_LISTS);
     if (ret != 0) {
         goto out;

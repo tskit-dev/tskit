@@ -244,8 +244,7 @@ verify_pairwise_diversity(tsk_treeseq_t *ts)
     ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, num_samples + 1, &pi);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
-    ret = tsk_treeseq_get_samples(ts, &samples);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    samples = tsk_treeseq_get_samples(ts);
 
     for (j = 2; j < num_samples; j++) {
         ret = tsk_treeseq_get_pairwise_diversity(ts, samples, j, &pi);
@@ -274,8 +273,7 @@ verify_genealogical_nearest_neighbours(tsk_treeseq_t *ts)
     double *A = malloc(2 * num_samples * sizeof(double));
     CU_ASSERT_FATAL(A != NULL);
 
-    ret = tsk_treeseq_get_samples(ts, &samples);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    samples = tsk_treeseq_get_samples(ts);
 
     sample_sets[0] = samples;
     sample_set_size[0] = num_samples / 2;
@@ -314,8 +312,7 @@ verify_mean_descendants(tsk_treeseq_t *ts)
     double *C = malloc(2 * tsk_treeseq_get_num_nodes(ts) * sizeof(double));
     CU_ASSERT_FATAL(C != NULL);
 
-    ret = tsk_treeseq_get_samples(ts, &samples);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    samples = tsk_treeseq_get_samples(ts);
 
     sample_sets[0] = samples;
     sample_set_size[0] = num_samples / 2;
