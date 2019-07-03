@@ -309,6 +309,8 @@ class TestDrawText(TestTreeDraw):
             ValueError, t.draw, format=self.drawing_format, node_colours={})
         self.assertRaises(
             ValueError, t.draw, format=self.drawing_format, max_tree_height=1234)
+        self.assertRaises(
+            ValueError, t.draw, format=self.drawing_format, tree_height_scale="time")
 
 
 class TestDrawUnicode(TestDrawText):
@@ -317,6 +319,17 @@ class TestDrawUnicode(TestDrawText):
     """
     drawing_format = "unicode"
     example_label = "\u20ac" * 10  # euro symbol
+
+
+class TestDrawTextErrors(unittest.TestCase):
+    """
+    Tests for errors occuring in tree drawing code.
+    """
+    def test_bad_orientation(self):
+        t = msprime.simulate(5, mutation_rate=0.1, random_seed=2).first()
+        for bad_orientation in ["", "leftright", "sdf"]:
+            with self.assertRaises(ValueError):
+                t.draw_text(orientation=bad_orientation)
 
 
 class TestDrawTextExamples(unittest.TestCase):
@@ -668,6 +681,23 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
+
+        tree = (
+            "0\n"
+            "┃\n"
+            "1\n"
+            "┃\n"
+            "2\n")
+        drawn = t.draw_text(orientation="bottom")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = "2━1━0\n"
+        drawn = t.draw_text(orientation="left")
+        self.verify_text_rendering(drawn, tree)
+
+        tree = "0━1━2\n"
+        drawn = t.draw_text(orientation="right")
+        self.verify_text_rendering(drawn, tree)
 
     def test_draw_forky_tree(self):
         tree = (
@@ -1113,9 +1143,7 @@ class TestDrawSvg(TestTreeDraw):
         colour = None
         colours = {0: colour}
         svg = t.draw(format="svg", node_colours=colours)
-        self.verify_basic_svg(svg)
-        nodes_in_tree = list(t.nodes())
-        self.assertEqual(svg.count('<circle'.format(colour)), len(nodes_in_tree)-1)
+        self.assertEqual(svg.count('opacity="0"'), 1)
 
     def test_one_edge_colour(self):
         t = self.get_binary_tree()
@@ -1123,11 +1151,16 @@ class TestDrawSvg(TestTreeDraw):
         colours = {0: colour}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('stroke="{}"'.format(colour)), 2)
+        self.assertGreater(svg.count('stroke="{}"'.format(colour)), 0)
         svg = t.draw_svg(edge_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
-        # We're mapping to a path here, so only see it once. The old code
-        # drew two lines.
+        self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
+
+    def test_one_mutation_label_colour(self):
+        t = self.get_binary_tree()
+        colour = "rgb(0, 1, 2)"
+        svg = t.draw_svg(mutation_label_attrs={0: {"stroke": colour}})
+        self.verify_basic_svg(svg)
         self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
 
     #
@@ -1135,11 +1168,11 @@ class TestDrawSvg(TestTreeDraw):
     #
     def test_all_edges_colour(self):
         t = self.get_binary_tree()
-        colours = {u: "rgb({u}, {u}, {u})".format(u=u) for u in t.nodes() if u != t.root}
+        colours = {u: "rgb({u},255,{u})".format(u=u) for u in t.nodes() if u != t.root}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertEqual(svg.count('stroke="{}"'.format(colour)), 2)
+            self.assertGreater(svg.count('stroke="{}"'.format(colour)), 0)
 
     def test_unplotted_edge(self):
         t = self.get_binary_tree()
@@ -1147,9 +1180,7 @@ class TestDrawSvg(TestTreeDraw):
         colours = {0: colour}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
-        nodes_in_tree = set(t.nodes())
-        non_root_nodes = nodes_in_tree - set([t.root])
-        self.assertEqual(svg.count('<line'), (len(non_root_nodes) - 1) * 2)
+        self.assertEqual(svg.count('opacity="0"'), 1)
 
     def test_mutation_labels(self):
         t = self.get_binary_tree()
@@ -1196,8 +1227,7 @@ class TestDrawSvg(TestTreeDraw):
         colours = {0: colour}
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
-        mutations_in_tree = list(t.mutations())
-        self.assertEqual(svg.count('<rect'), len(mutations_in_tree) - 1)
+        self.assertEqual(svg.count('opacity="0"'), 1)
 
     def test_max_tree_height(self):
         nodes = io.StringIO("""\
