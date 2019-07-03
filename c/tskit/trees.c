@@ -690,6 +690,8 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
     memset(reference_set_map, 0xff, num_nodes * sizeof(*reference_set_map));
     memset(ret_array, 0, num_focal * num_reference_sets * sizeof(*ret_array));
 
+    total = 0; /* keep the compiler happy */
+
     /* Set the initial conditions and check the input. */
     for (k = 0; k < (int16_t) num_reference_sets; k++) {
         for (j = 0; j < reference_set_size[k]; j++) {
