@@ -6,6 +6,7 @@ newick
 nose
 numpy
 kastore
+msprime
 jsonschema
 sphinx
 sphinx-argparse
