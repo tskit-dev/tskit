@@ -316,10 +316,11 @@ class TestTreeSequence(LowLevelTestCase):
             self.assertRaises(IndexError, ts.get_migration, num_records + j)
 
     def test_get_samples(self):
-        ts = self.get_example_migration_tree_sequence()
-        # get_samples takes no arguments.
-        self.assertRaises(TypeError, ts.get_samples, 0)
-        self.assertEqual(list(range(ts.get_num_samples())), ts.get_samples())
+        for ts in self.get_example_tree_sequences():
+            # get_samples takes no arguments.
+            self.assertRaises(TypeError, ts.get_samples, 0)
+            self.assertTrue(np.array_equal(
+                np.arange(ts.get_num_samples(), dtype=np.int32), ts.get_samples()))
 
     def test_pairwise_diversity(self):
         for ts in self.get_example_tree_sequences():
