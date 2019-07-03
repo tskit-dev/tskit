@@ -2747,7 +2747,9 @@ class TreeSequence(object):
         that differ between a randomly chosen pair of samples.  If `samples` is
         specified, calculate the diversity within this set.
 
-        .. note:: This method does not currently support sites that have more
+         .. warning:: This method is deprecated; please use :meth:`.diversity`.
+
+        .. note:: This method does not support sites that have more
             than one mutation. Using it on such a tree sequence will raise
             a LibraryError with an "Unsupported operation" message.
 
@@ -3254,6 +3256,47 @@ class TreeSequence(object):
 
     def general_stat(self, W, f, windows=None, polarised=False, mode=None,
                      span_normalise=True):
+        """
+        Compute a windowed statistic from weights and a summary function.  See
+        :ref:`sec_general_stats` for details of ``windows``, ``mode``,
+        ``polarised``, ``span_normalise``, and return value. On each tree, this
+        propagates the weights ``W`` up the tree, so that the "weight" of each
+        node is the sum of the weights of all samples at or below the node.
+        Then the summary function ``f`` is applied to the weights, giving a
+        summary for each node in each tree. How this is then aggregated depends
+        on ``mode``:
+
+        "site"
+            Adds together the total summary value across all alleles in each window.
+
+        "branch"
+            Adds together the summary value for each node, multiplied by the
+            length of the branch above the node and the span of the tree.
+
+        "node"
+            Returns each node's summary value added across trees and multiplied
+            by the span of the tree.
+
+        Both the weights and the summary can be multidimensional: if ``W`` has ``k``
+        columns, and ``f`` takes a ``k``-vector and returns an ``m``-vector,
+        then the output will be ``m``-dimensional for each node or window (depending
+        on "mode").
+
+        :param ndarray W: An array of values with one row for each sample and one column
+            for each weight.
+        :param function f: A function that takes a one-dimensional array of length
+            equal to the number of columns of ``W`` and returns a one-dimensional
+            array.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param bool polarised: Whether to leave the ancestral state out of computations:
+            see :ref:`sec_general_stats` for more details.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
         if mode is None:
             mode = "site"
         output_dim = f(W[0]).shape[0]
@@ -3265,6 +3308,33 @@ class TreeSequence(object):
     def sample_count_stat(
             self, sample_sets, f, windows=None, polarised=False, mode=None,
             span_normalise=True):
+        """
+        Compute a windowed statistic from sample counts and a summary function.
+        This is a wrapper around :meth:`.general_stat` for the common case in
+        which the weights are all either 1 or 0, i.e., functions of the joint
+        allele frequency spectrum.  See :ref:`sec_general_stats` for details of
+        ``windows``, ``mode``, ``polarised``, ``span_normalise``, and return
+        value.  If ``sample_sets`` is a list of ``k`` sets of samples, then
+        ``f`` should be a function that takes an argument of length ``k`` and
+        returns a one-dimensional array. The ``j``-th element of the argument
+        to ``f`` will be the number of samples in ``sample_sets[j]`` that lie
+        below the node that ``f`` is being evaluated for. See
+        :meth:`.general_stat`  for more details.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of individuals to compute the statistic with.
+        :param function f: A function that takes a one-dimensional array of length
+            equal to the number of sample sets and returns a one-dimensional array.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param bool polarised: Whether to leave the ancestral state out of computations:
+            see :ref:`sec_general_stats` for more details.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
         # helper function for common case where weights are indicators of sample sets
         for U in sample_sets:
             if len(U) != len(set(U)):
