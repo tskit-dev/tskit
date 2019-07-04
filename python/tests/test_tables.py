@@ -104,6 +104,31 @@ class CommonTestsMixin(object):
         table = self.table_class(max_rows_increment=0)
         self.assertEqual(table.max_rows_increment, 1024)
 
+    def test_low_level_get_row(self):
+        # Tests the low-level get_row interface to ensure we're getting coverage.
+        t = self.table_class()
+        with self.assertRaises(TypeError):
+            t.ll_table.get_row()
+        with self.assertRaises(TypeError):
+            t.ll_table.get_row("row")
+        with self.assertRaises(_tskit.LibraryError):
+            t.ll_table.get_row(1)
+
+    def test_low_level_equals(self):
+        # Tests the low-level equals interface to ensure we're getting coverage.
+        t = self.table_class()
+        with self.assertRaises(TypeError):
+            t.ll_table.equals()
+        with self.assertRaises(TypeError):
+            t.ll_table.equals(None)
+
+    def test_low_level_set_columns(self):
+        t = self.table_class()
+        with self.assertRaises(TypeError):
+            t.ll_table.set_columns(None)
+        with self.assertRaises(TypeError):
+            t.ll_table.append_columns(None)
+
     def test_input_parameters_errors(self):
         self.assertGreater(len(self.input_parameters), 0)
         for param, _ in self.input_parameters:
@@ -614,6 +639,15 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
         self.assertEqual(len(t.metadata), 0)
         self.assertEqual(t.metadata_offset[0], 0)
 
+    def test_add_row_bad_data(self):
+        t = tskit.IndividualTable()
+        with self.assertRaises(TypeError):
+            t.add_row(flags="x")
+        with self.assertRaises(TypeError):
+            t.add_row(metadata=123)
+        with self.assertRaises(ValueError):
+            t.add_row(location="1234")
+
 
 class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
 
@@ -677,6 +711,19 @@ class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
             self.assertEqual(list(table.flags), flags)
             self.assertEqual(list(table.time), time)
 
+    def test_add_row_bad_data(self):
+        t = tskit.NodeTable()
+        with self.assertRaises(TypeError):
+            t.add_row(flags="x")
+        with self.assertRaises(TypeError):
+            t.add_row(time="x")
+        with self.assertRaises(TypeError):
+            t.add_row(individual="x")
+        with self.assertRaises(TypeError):
+            t.add_row(population="x")
+        with self.assertRaises(TypeError):
+            t.add_row(metadata=123)
+
 
 class TestEdgeTable(unittest.TestCase, CommonTestsMixin):
 
@@ -707,6 +754,13 @@ class TestEdgeTable(unittest.TestCase, CommonTestsMixin):
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
 
+    def test_add_row_bad_data(self):
+        t = tskit.EdgeTable()
+        with self.assertRaises(TypeError):
+            t.add_row(left="x", right=0, parent=0, child=0)
+        with self.assertRaises(TypeError):
+            t.add_row()
+
 
 class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
     columns = [DoubleColumn("position")]
@@ -735,6 +789,16 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, 2)
         self.assertRaises(IndexError, t.__getitem__, -3)
+
+    def test_add_row_bad_data(self):
+        t = tskit.SiteTable()
+        t.add_row(0, "A")
+        with self.assertRaises(TypeError):
+            t.add_row("x", "A")
+        with self.assertRaises(TypeError):
+            t.add_row(0, 0)
+        with self.assertRaises(TypeError):
+            t.add_row(0, "A", metadata=[0, 1, 2])
 
 
 class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
@@ -769,6 +833,16 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
 
+    def test_add_row_bad_data(self):
+        t = tskit.MutationTable()
+        t.add_row(0, 0, "A")
+        with self.assertRaises(TypeError):
+            t.add_row("0", 0, "A")
+        with self.assertRaises(TypeError):
+            t.add_row(0, 0, "A", parent=None)
+        with self.assertRaises(TypeError):
+            t.add_row(0, 0, "A", metadata=[0])
+
 
 class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
     columns = [
@@ -802,6 +876,13 @@ class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
 
+    def test_add_row_bad_data(self):
+        t = tskit.MigrationTable()
+        with self.assertRaises(TypeError):
+            t.add_row(left="x", right=0, node=0, source=0, dest=0, time=0)
+        with self.assertRaises(TypeError):
+            t.add_row()
+
 
 class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
     columns = []
@@ -827,6 +908,14 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
 
+    def test_add_row_bad_data(self):
+        t = tskit.ProvenanceTable()
+        t.add_row("a", "b")
+        with self.assertRaises(TypeError):
+            t.add_row(0, "b")
+        with self.assertRaises(TypeError):
+            t.add_row("a", 0)
+
 
 class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
     columns = []
@@ -849,6 +938,12 @@ class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
         self.assertEqual(t[0].metadata, b"\xf0")
         self.assertEqual(t[1], (b"1",))
         self.assertRaises(IndexError, t.__getitem__, -3)
+
+    def test_add_row_bad_data(self):
+        t = tskit.PopulationTable()
+        t.add_row()
+        with self.assertRaises(TypeError):
+            t.add_row(metadata=[0])
 
 
 class TestStringPacking(unittest.TestCase):
