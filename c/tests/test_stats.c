@@ -541,6 +541,7 @@ verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_stat_method *method)
     tsk_id_t num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(ts);
     tsk_id_t samples[] = {0, 1, 2, 3};
     tsk_size_t sample_set_sizes = 4;
+    double windows[] = {0, 0, 0};
     double result;
 
     ret = method(ts, 0, &sample_set_sizes, samples, 0, NULL, &result, 0);
@@ -571,6 +572,14 @@ verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_stat_method *method)
     sample_set_sizes = 0;
     ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
+
+    sample_set_sizes = 4;
+    /* Window errors */
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, windows, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NUM_WINDOWS);
+
+    ret = method(ts, 1, &sample_set_sizes, samples, 2, windows, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 }
 
 typedef int general_sample_stat_method(tsk_treeseq_t *self,
@@ -1512,6 +1521,65 @@ test_paper_ex_f4(void)
 }
 
 static void
+test_paper_ex_jafs_errors(void)
+{
+    tsk_treeseq_t ts;
+    tsk_size_t sample_set_sizes[] = {2, 2};
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    double result[10]; /* not thinking too hard about the actual value needed */
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    verify_one_way_stat_func_errors(&ts, tsk_treeseq_joint_allele_frequency_spectrum);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts,
+            2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_NODE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts,
+            2, sample_set_sizes, samples, 0, NULL, result,
+            TSK_STAT_BRANCH|TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_jafs(void)
+{
+    tsk_treeseq_t ts;
+    tsk_id_t samples[] = {0, 1, 2, 3};
+    tsk_size_t sample_set_sizes[] = {4, 0};
+    double result[100]; /* not thinking too hard about the actual value needed */
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
+            0, NULL, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_POLARISED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    sample_set_sizes[0] = 2;
+    sample_set_sizes[1] = 2;
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples,
+            0, NULL, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_POLARISED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_nonbinary_ex_ld(void)
 {
     tsk_treeseq_t ts;
@@ -1628,6 +1696,8 @@ main(int argc, char **argv)
         {"test_paper_ex_f3", test_paper_ex_f3},
         {"test_paper_ex_f4_errors", test_paper_ex_f4_errors},
         {"test_paper_ex_f4", test_paper_ex_f4},
+        {"test_paper_ex_jafs_errors", test_paper_ex_jafs_errors},
+        {"test_paper_ex_jafs", test_paper_ex_jafs},
 
         {"test_nonbinary_ex_ld", test_nonbinary_ex_ld},
         {"test_nonbinary_ex_pairwise_diversity", test_nonbinary_ex_pairwise_diversity},

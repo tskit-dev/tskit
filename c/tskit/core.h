@@ -211,6 +211,7 @@ of tskit.
 #define TSK_ERR_INSUFFICIENT_INDEX_TUPLES                           -906
 #define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
 #define TSK_ERR_EMPTY_SAMPLE_SET                                    -908
+#define TSK_ERR_UNSUPPORTED_STAT_MODE                               -909
 
 /* Mutation mapping errors */
 #define TSK_ERR_GENOTYPES_ALL_MISSING                              -1000
