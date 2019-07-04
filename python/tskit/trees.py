@@ -3225,7 +3225,8 @@ class TreeSequence(object):
                     raise ValueError("Not all elements of sample_sets are samples.")
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
-        return self.general_stat(W, f, windows=windows, polarised=polarised, mode=mode)
+        return self.general_stat(W, f, windows=windows, polarised=polarised, mode=mode,
+                                 span_normalise=span_normalise)
 
     def parse_windows(self, windows):
         # Note: need to make sure windows is a string or we try to compare the

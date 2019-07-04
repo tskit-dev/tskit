@@ -2736,8 +2736,13 @@ class TestSampleSets(StatsTestCase):
     Tests that passing sample sets in various ways gets interpreted correctly.
     """
 
+    def get_example_ts(self):
+        ts = msprime.simulate(10, mutation_rate=1, recombination_rate=1, random_seed=2)
+        assert ts.num_mutations > 0
+        return ts
+
     def test_duplicate_samples(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
+        ts = self.get_example_ts()
         for bad_set in [[1, 1], [1, 2, 1], list(range(10)) + [9]]:
             with self.assertRaises(exceptions.LibraryError):
                 ts.diversity([bad_set])
@@ -2747,7 +2752,7 @@ class TestSampleSets(StatsTestCase):
                 ts.sample_count_stat([bad_set], lambda x: x)
 
     def test_empty_sample_set(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
+        ts = self.get_example_ts()
         with self.assertRaises(ValueError):
             ts.diversity([[]])
         for bad_sample_sets in [[[], []], [[1], []], [[1, 2], [1], []]]:
@@ -2759,7 +2764,7 @@ class TestSampleSets(StatsTestCase):
                 ts.sample_count_stat(bad_sample_sets, lambda x: x)
 
     def test_non_samples(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
+        ts = self.get_example_ts()
         with self.assertRaises(exceptions.LibraryError):
             ts.diversity([[10]])
 
@@ -2768,6 +2773,29 @@ class TestSampleSets(StatsTestCase):
 
         with self.assertRaises(ValueError):
             ts.sample_count_stat([[10]], lambda x: x)
+
+    def test_span_normalise(self):
+        ts = self.get_example_ts()
+        sample_sets = [[0, 1], [2, 3, 4], [5, 6]]
+        windows = ts.sequence_length * np.random.uniform(size=10)
+        windows.sort()
+        windows[0] = 0.0
+        windows[-1] = ts.sequence_length
+
+        def f(x):
+            return x
+
+        for mode in ('site', 'branch', 'node'):
+            sigma1 = ts.sample_count_stat(sample_sets, f, windows=windows)
+            sigma2 = ts.sample_count_stat(sample_sets, f, windows=windows,
+                                          span_normalise=True)
+            sigma3 = ts.sample_count_stat(sample_sets, f, windows=windows,
+                                          span_normalise=False)
+            denom = np.diff(windows)[:, np.newaxis]
+            self.assertEqual(sigma1.shape, sigma2.shape)
+            self.assertEqual(sigma1.shape, sigma3.shape)
+            self.assertArrayAlmostEqual(sigma1, sigma2)
+            self.assertArrayAlmostEqual(sigma1, sigma3 / denom)
 
 
 class TestSampleSetIndexes(StatsTestCase):
