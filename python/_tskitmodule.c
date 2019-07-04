@@ -6208,33 +6208,27 @@ TreeSequence_get_samples(TreeSequence *self)
 {
     PyObject *ret = NULL;
     tsk_id_t *samples;
-    PyObject *py_samples = NULL;
-    PyObject *py_int = NULL;
-    size_t j, n;
-    int err;
+    PyArrayObject *samples_array = NULL;
+    npy_intp dim;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    n = tsk_treeseq_get_num_samples(self->tree_sequence);
-    err = tsk_treeseq_get_samples(self->tree_sequence, &samples);
-    if (err != 0) {
-        handle_library_error(err);
-    }
-    py_samples = PyList_New(n);
-    if (py_samples == NULL) {
+    dim = tsk_treeseq_get_num_samples(self->tree_sequence);
+    samples = tsk_treeseq_get_samples(self->tree_sequence);
+
+    /* TODO it would be nice to return a read-only array that points to the
+     * tree sequence's memory and to INCREF ts to ensure the pointer stays
+     * alive. The details are tricky though. */
+    samples_array = (PyArrayObject *) PyArray_SimpleNew(1, &dim, NPY_INT32);
+    if (samples_array == NULL) {
         goto out;
     }
-    for (j = 0; j < n; j++) {
-        py_int = Py_BuildValue("i", (int) samples[j]);
-        if (py_int == NULL) {
-            Py_DECREF(py_samples);
-            goto out;
-        }
-        PyList_SET_ITEM(py_samples, j, py_int);
-    }
-    ret = py_samples;
+    memcpy(PyArray_DATA(samples_array), samples, dim * sizeof(*samples));
+    ret = (PyObject *) samples_array;
+    samples_array = NULL;
 out:
+    Py_XDECREF(samples_array);
     return ret;
 }
 

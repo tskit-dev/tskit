@@ -21,8 +21,8 @@ jobs:
             sudo pip install meson 
             pip install --user -r python/requirements/development.txt
             pip install twine --user
-            # TODO add msprime to the development.txt when we have a stable 0.7.0 release.
-            pip install --user --pre msprime
+            # Remove tskit installed by msprime
+            pip uninstall tskit -y
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
       - save_cache:
           key: tskit-{{ .Branch }}
@@ -32,9 +32,7 @@ jobs:
       - run:
           name: Compile Python
           command: |
-            cd python 
-            CFLAGS="--coverage -Wall -Wextra -Werror -Wno-unused-parameter -Wno-missing-field-initializers" \
-              python setup.py build_ext --inplace
+            cd python && make allchecks
 
       - run:
           name: Lint Python
@@ -48,7 +46,16 @@ jobs:
             PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
               --cover-branches --cover-erase --cover-xml \
               --cover-inclusive python/tests
-            python3 -m codecov -F python_tests -X gcov
+
+      - run:
+          name: Upload Python coverage
+          command: |
+            cd python
+            gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
+            cd ..
+            codecov -X gcov -F python_tests 
+            # Clean up reports so we don't upload them twice.
+            rm -f coverage.xml python/*.gcov
 
       - run:
           name: Build Python package
@@ -87,7 +94,6 @@ jobs:
       - run:
           name: Run gcov & upload coverage.
           command: |
-            gcov -pb -o ./python/build/temp.linux*/ python/_tskitmodule.c
             cd build-gcc
             # TODO should be able to do this with 'find', but it's tricky and opaque.
             gcov -pb tskit@sta/tskit_core.c.gcno ../c/tskit/core.c

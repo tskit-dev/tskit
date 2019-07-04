@@ -2886,13 +2886,11 @@ class TreeSequence(object):
                 "population_id and population are aliases. Cannot specify both")
         if population_id is not None:
             population = population_id
-        # TODO the low-level tree sequence should perform this operation natively
-        # and return a numpy array.
         samples = self._ll_tree_sequence.get_samples()
         if population is not None:
-            samples = [
-                u for u in samples if self.node(u).population == population]
-        return np.array(samples, dtype=np.int32)
+            sample_population = self.tables.nodes.population[samples]
+            samples = samples[sample_population == population]
+        return samples
 
     def write_vcf(self, output, ploidy=1, contig_id="1"):
         """

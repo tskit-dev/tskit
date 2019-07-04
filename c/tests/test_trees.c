@@ -360,7 +360,6 @@ verify_tree_diffs(tsk_treeseq_t *ts)
     tsk_id_t *parent = malloc(num_nodes * sizeof(tsk_id_t));
     tsk_id_t *child = malloc(num_nodes * sizeof(tsk_id_t));
     tsk_id_t *sib = malloc(num_nodes * sizeof(tsk_id_t));
-    tsk_id_t *samples;
 
     CU_ASSERT_FATAL(parent != NULL);
     CU_ASSERT_FATAL(child != NULL);
@@ -370,8 +369,6 @@ verify_tree_diffs(tsk_treeseq_t *ts)
         child[j] = TSK_NULL;
         sib[j] = TSK_NULL;
     }
-    ret = tsk_treeseq_get_samples(ts, &samples);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_diff_iter_init(&iter, ts);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_init(&tree, ts, 0);
@@ -427,11 +424,10 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     tsk_vargen_t vargen, subset_vargen;
     tsk_variant_t *variant, *subset_variant;
     size_t j, k;
-    tsk_id_t *all_samples;
     uint8_t a1, a2;
     tsk_id_t *sample_index_map;
 
-    tsk_treeseq_get_sample_index_map(ts, &sample_index_map);
+    sample_index_map = tsk_treeseq_get_sample_index_map(ts);
 
     /* tsk_treeseq_print_state(ts, stdout); */
     /* tsk_treeseq_print_state(subset, stdout); */
@@ -441,7 +437,6 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     ret = tsk_vargen_init(&subset_vargen, subset, NULL, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(m, tsk_treeseq_get_num_sites(subset));
-    tsk_treeseq_get_samples(ts, &all_samples);
 
     for (j = 0; j < m; j++) {
         ret = tsk_vargen_next(&vargen, &variant);
@@ -602,8 +597,7 @@ verify_simplify(tsk_treeseq_t *ts)
     tsk_flags_t options = TSK_FILTER_SITES;
 
     CU_ASSERT_FATAL(node_map != NULL);
-    ret = tsk_treeseq_get_samples(ts, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    sample = tsk_treeseq_get_samples(ts);
     if (tsk_treeseq_get_num_migrations(ts) > 0) {
         ret = tsk_treeseq_simplify(ts, sample, 2, 0, &subset, NULL);
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED);
@@ -649,8 +643,7 @@ verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *t
     tsk_id_t *samples;
 
     n = tsk_treeseq_get_num_samples(ts);
-    ret = tsk_treeseq_get_samples(ts, &samples);
-    CU_ASSERT_EQUAL(ret, 0);
+    samples = tsk_treeseq_get_samples(ts);
 
     /* First run without the TSK_SAMPLE_COUNTS feature */
     ret = tsk_tree_init(&tree, ts, 0);
@@ -1347,8 +1340,7 @@ test_simplest_general_samples(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
-    ret = tsk_treeseq_get_samples(&ts, &s);
-    CU_ASSERT_EQUAL(ret, 0);
+    s = tsk_treeseq_get_samples(&ts);
     CU_ASSERT_FATAL(s != NULL);
     CU_ASSERT_EQUAL(s[0], 0);
     CU_ASSERT_EQUAL(s[1], 2);
@@ -1366,8 +1358,7 @@ test_simplest_general_samples(void)
     ret = tsk_treeseq_simplify(&ts, samples, 2, 0, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_get_samples(&simplified, &s);
-    CU_ASSERT_EQUAL(ret, 0);
+    s = tsk_treeseq_get_samples(&simplified);
     CU_ASSERT_FATAL(s != NULL);
     CU_ASSERT_EQUAL(s[0], 0);
     CU_ASSERT_EQUAL(s[1], 1);
@@ -3099,8 +3090,7 @@ test_single_tree_general_samples_iter(void)
     uint32_t num_nodes = 7;
 
     tsk_treeseq_from_text(&ts, 6, nodes, edges, NULL, NULL, NULL, NULL, NULL);
-    ret = tsk_treeseq_get_samples(&ts, &samples);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    samples = tsk_treeseq_get_samples(&ts);
     CU_ASSERT_EQUAL(samples[0], 3);
     CU_ASSERT_EQUAL(samples[1], 4);
     CU_ASSERT_EQUAL(samples[2], 5);

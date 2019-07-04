@@ -543,21 +543,16 @@ tsk_treeseq_get_breakpoints(tsk_treeseq_t *self)
     return self->breakpoints;
 }
 
-/* TODO these two functions should be changed to look the same, i.e,
- * just return the pointer. We can't have an error and the contract
- * doesn't change anyway. */
-int TSK_WARN_UNUSED
-tsk_treeseq_get_samples(tsk_treeseq_t *self, tsk_id_t **samples)
+tsk_id_t *
+tsk_treeseq_get_samples(tsk_treeseq_t *self)
 {
-    *samples = self->samples;
-    return 0;
+    return self->samples;
 }
 
-int TSK_WARN_UNUSED
-tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self, tsk_id_t **sample_index_map)
+tsk_id_t *
+tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self)
 {
-    *sample_index_map = self->sample_index_map;
-    return 0;
+    return self->sample_index_map;
 }
 
 bool

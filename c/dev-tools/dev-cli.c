@@ -365,10 +365,7 @@ run_simplify(const char *input_filename, const char *output_filename, size_t num
     } else {
         num_samples = TSK_MIN(num_samples, tsk_treeseq_get_num_samples(&ts));
     }
-    ret = tsk_treeseq_get_samples(&ts, &samples);
-    if (ret != 0) {
-        fatal_library_error(ret, "get_samples");
-    }
+    samples = tsk_treeseq_get_samples(&ts);
     ret = tsk_treeseq_simplify(&ts, samples, num_samples, flags, &subset, NULL);
     if (ret != 0) {
         fatal_library_error(ret, "Subset error");

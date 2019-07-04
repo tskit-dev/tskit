@@ -171,6 +171,8 @@ tsk_size_t tsk_treeseq_get_num_samples(tsk_treeseq_t *self);
 char * tsk_treeseq_get_file_uuid(tsk_treeseq_t *self);
 double tsk_treeseq_get_sequence_length(tsk_treeseq_t *self);
 double * tsk_treeseq_get_breakpoints(tsk_treeseq_t *self);
+tsk_id_t * tsk_treeseq_get_samples(tsk_treeseq_t *self);
+tsk_id_t * tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self);
 bool tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u);
 
 int tsk_treeseq_get_node(tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node);
@@ -186,9 +188,6 @@ int tsk_treeseq_get_population(tsk_treeseq_t *self, tsk_id_t index,
         tsk_population_t *population);
 int tsk_treeseq_get_individual(tsk_treeseq_t *self, tsk_id_t index,
         tsk_individual_t *individual);
-int tsk_treeseq_get_samples(tsk_treeseq_t *self, tsk_id_t **samples);
-int tsk_treeseq_get_sample_index_map(tsk_treeseq_t *self,
-        tsk_id_t **sample_index_map);
 
 int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples,
         tsk_size_t num_samples, tsk_flags_t options, tsk_treeseq_t *output,
