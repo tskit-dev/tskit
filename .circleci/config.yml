@@ -50,12 +50,17 @@ jobs:
       - run:
           name: Upload Python coverage
           command: |
+            codecov -X gcov -F python_tests 
+            # Clean up reports so we don't upload them twice.
+            rm -f coverage.xml
+
+            # Upload coverage for the Python C API.
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
             cd ..
-            codecov -X gcov -F python_tests 
+            codecov -X gcov -F python_c_tests 
             # Clean up reports so we don't upload them twice.
-            rm -f coverage.xml python/*.gcov
+            rm -f python/*.gcov
 
       - run:
           name: Build Python package
