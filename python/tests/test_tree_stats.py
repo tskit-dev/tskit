@@ -669,6 +669,34 @@ class MutatedTopologyExamplesMixin(object):
         self.assertEqual(ts.num_sites, 0)
         self.verify(ts)
 
+    def test_ghost_allele(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=0, time=1)
+        tables.edges.add_row(0, 1, 2, 0)
+        tables.edges.add_row(0, 1, 2, 1)
+        tables.sites.add_row(position=0.5, ancestral_state="A")
+        # The ghost mutation that's never seen in the genotypes
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G", parent=0)
+        ts = tables.tree_sequence()
+        self.verify(ts)
+
+    def test_ghost_allele_all_ancestral(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=0, time=1)
+        tables.edges.add_row(0, 1, 2, 0)
+        tables.edges.add_row(0, 1, 2, 1)
+        tables.sites.add_row(position=0.5, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        # Mutate back to the ancestral state so that all genotypes are zero
+        tables.mutations.add_row(site=0, node=0, derived_state="A", parent=0)
+        ts = tables.tree_sequence()
+        self.verify(ts)
+
     def test_single_tree_infinite_sites(self):
         ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
         self.assertGreater(ts.num_sites, 0)
@@ -2548,25 +2576,25 @@ def naive_site_joint_allele_frequency_spectrum(
             S = np.zeros(out_dim)
             if begin <= site.position < end:
                 g = G[site.id]
-                num_alleles = np.max(g) + 1
                 # For each allele, count the number present in each sample set.
-                count = np.zeros((num_alleles, len(sample_sets)), dtype=int)
+                count = collections.defaultdict(
+                    functools.partial(np.zeros, len(sample_sets), dtype=int))
                 for k, sample_set in enumerate(sample_set_indexes):
                     allele_counts = zip(*np.unique(g[sample_set], return_counts=True))
                     for allele, c in allele_counts:
                         if polarised:
-                            count[allele, k] = c
+                            count[allele][k] = c
                         else:
                             # Fold the allele counts
-                            count[allele, k] = min(c, len(sample_set) - c)
+                            count[allele][k] = min(c, len(sample_set) - c)
+                increment = 0.5
                 if polarised:
-                    # Add 1 to AFS[k] for each non-ancestral allele in k copies
-                    for allele_count in count[1:]:
-                        S[tuple(allele_count)] += 1
-                else:
-                    # Add 1/2 to AFS[min(m, n - m)] for each allele in m copies.
-                    for allele_count in count:
-                        S[tuple(allele_count)] += 0.5
+                    increment = 1
+                    # Remove the contribution of the ancestral state
+                    if 0 in count:
+                        del count[0]
+                for allele_count in count.values():
+                    S[tuple(allele_count)] += increment
             out[j, :] += S / (end - begin)
     return out
 
@@ -2597,14 +2625,15 @@ def naive_branch_joint_allele_frequency_spectrum(
                 if tr_len > 0:
                     for node in t.nodes():
                         x = [tree.num_tracked_samples(node) for tree in trees]
-                        # Note x must be a tuple for indexing to work as we want here.
-                        if polarised:
-                            S[tuple(x)] += t.branch_length(node) * tr_len
-                        else:
-                            x = [
-                                min(x[k], len(sample_set) - x[k])
-                                for k, sample_set in enumerate(sample_sets)]
-                            S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
+                        if sum(x) > 0:
+                            # Note x must be a tuple for indexing to work
+                            if polarised:
+                                S[tuple(x)] += t.branch_length(node) * tr_len
+                            else:
+                                x = [
+                                    min(x[k], len(sample_set) - x[k])
+                                    for k, sample_set in enumerate(sample_sets)]
+                                S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
 
                 # Advance the trees
                 more = [tree.next() for tree in trees]
@@ -2655,14 +2684,15 @@ def branch_joint_allele_frequency_spectrum(ts, sample_sets, windows, polarised=F
     def update_result(window_index, u, right):
         x = (right - last_update[u]) * branch_length[u]
         c = count[u]
-        if not polarised:
-            # Fold the counts
-            c = c.copy()
-            for k in range(num_sample_sets):
-                c[k] = min(c[k], len(sample_sets[k]) - c[k])
-            x *= 0.5
-        index = tuple([window_index] + list(c))
-        result[index] += x
+        if np.sum(c) > 0:
+            if not polarised:
+                # Fold the counts
+                c = c.copy()
+                for k in range(num_sample_sets):
+                    c[k] = min(c[k], len(sample_sets[k]) - c[k])
+                x *= 0.5
+            index = tuple([window_index] + list(c))
+            result[index] += x
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -2783,14 +2813,17 @@ def site_joint_allele_frequency_spectrum(ts, sample_sets, windows, polarised=Fal
             site_result = result[window_index]
 
             for allele, c in allele_count.items():
-                if polarised:
-                    site_result[tuple(c)] += 1
-                else:
-                    # Fold the counts
-                    c = [
-                        min(c[k], len(sample_set) - c[k])
-                        for k, sample_set in enumerate(sample_sets)]
-                    site_result[tuple(c)] += 0.5
+                # If the allele is not present in any of the sample sets we
+                # do not consider it for the AFS
+                if np.sum(c) > 0:
+                    if polarised:
+                        site_result[tuple(c)] += 1
+                    else:
+                        # Fold the counts
+                        c = [
+                            min(c[k], len(sample_set) - c[k])
+                            for k, sample_set in enumerate(sample_sets)]
+                        site_result[tuple(c)] += 0.5
             site_index += 1
 
     # TODO add option for this.
@@ -2820,6 +2853,7 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
     def verify_sample_sets(self, ts, sample_sets, windows):
         # print(ts.genotype_matrix())
+        # print(ts.draw_text())
         for polarised in [True, False]:
             sfs1 = naive_joint_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised)
@@ -2842,9 +2876,9 @@ class TestBranchJointAlleleFrequencySpectrum(
         TestJointAlleleFrequencySpectrum, TopologyExamplesMixin):
     mode = "branch"
 
-    @unittest.skip("Problem with zeroth entry AFS with non-sample ancestral edges")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
+    # @unittest.skip("Problem with zeroth entry AFS with non-sample ancestral edges")
+    # def test_wright_fisher_unsimplified_multiple_roots(self):
+    #     pass
 
     def test_simple_example(self):
         ts = msprime.simulate(6, recombination_rate=0.1, random_seed=1)
@@ -2853,7 +2887,6 @@ class TestBranchJointAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
 
 
-# @unittest.skip("Not working yet")
 class TestSiteJointAlleleFrequencySpectrum(
         TestJointAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
     mode = "site"
@@ -2863,18 +2896,6 @@ class TestSiteJointAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
-
-    @unittest.skip("Problem with zeroth entry AFS")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
-    @unittest.skip("Problem with zeroth entry AFS")
-    def test_wright_fisher_unsimplified(self):
-        pass
-
-    @unittest.skip("Problem with zeroth entry AFS")
-    def test_single_tree_jukes_cantor(self):
-        pass
 
 
 ############################################
