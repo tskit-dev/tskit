@@ -472,6 +472,40 @@ class WeightMixin(StatsInterfaceMixin):
         self.assertEqual(out.shape, (1, N, 3))
 
 
+class WeightCovariateMixin(StatsInterfaceMixin):
+
+    def get_example(self):
+        ts, method = self.get_method()
+        params = {
+            "weights": np.ones((ts.get_num_samples(), 2)),
+            "covariates": np.array([np.arange(ts.get_num_samples()),
+                                    np.arange(ts.get_num_samples())**2]).T,
+            "windows": [0, ts.get_sequence_length()]}
+        return ts, method, params
+
+    def test_output_dims(self):
+        ts, method, params = self.get_example()
+        weights = params['weights']
+        nw = weights.shape[1]
+        windows = [0, ts.get_sequence_length()]
+        for covariates in (params['covariates'], params['covariates'][:, :0]):
+            for mode in ["site", "branch"]:
+                out = method(weights[:, [0]], covariates, windows, mode=mode)
+                self.assertEqual(out.shape, (1, 1))
+                out = method(weights, covariates, windows, mode=mode)
+                self.assertEqual(out.shape, (1, nw))
+                out = method(weights[:, [0, 0, 0]], covariates, windows, mode=mode)
+                self.assertEqual(out.shape, (1, 3))
+            mode = "node"
+            N = ts.get_num_nodes()
+            out = method(weights[:, [0]], covariates, windows, mode=mode)
+            self.assertEqual(out.shape, (1, N, 1))
+            out = method(weights, covariates, windows, mode=mode)
+            self.assertEqual(out.shape, (1, N, nw))
+            out = method(weights[:, [0, 0, 0]], covariates, windows, mode=mode)
+            self.assertEqual(out.shape, (1, N, 3))
+
+
 class SampleSetMixin(StatsInterfaceMixin):
 
     def test_bad_sample_sets(self):
@@ -577,6 +611,15 @@ class TestTraitCorrelation(LowLevelTestCase, WeightMixin):
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.trait_correlation
+
+
+class TestTraitRegression(LowLevelTestCase, WeightCovariateMixin):
+    """
+    Tests for trait correlation.
+    """
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.trait_regression
 
 
 class TestSegregatingSites(LowLevelTestCase, OneWaySampleStatsMixin):

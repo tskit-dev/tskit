@@ -500,6 +500,36 @@ verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *
 }
 
 
+typedef int one_way_weighted_covariate_method(tsk_treeseq_t *self,
+        tsk_size_t num_weights, double *weights,
+        tsk_size_t num_covariates, double *covariates,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+static void
+verify_one_way_weighted_covariate_func_errors(
+        tsk_treeseq_t *ts,
+        one_way_weighted_covariate_method *method)
+{
+    // we don't have any specific errors for this function
+    // but we might add some in the future
+    int ret;
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    double *weights = malloc(num_samples * sizeof(double));
+    double *covariates = NULL;
+    double result;
+    size_t j;
+
+    for (j = 0; j < num_samples; j++) {
+        weights[j] = 1.0;
+    }
+
+    ret = method(ts, 0, weights, 0, covariates, 0, NULL, &result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
+
+    free(weights);
+}
+
+
 typedef int one_way_stat_method(tsk_treeseq_t *self,
         tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
         tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
@@ -1146,6 +1176,47 @@ test_paper_ex_trait_correlation(void)
 }
 
 static void
+test_paper_ex_trait_regression_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    verify_one_way_weighted_covariate_func_errors(&ts, tsk_treeseq_trait_regression);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_trait_regression(void)
+{
+    tsk_treeseq_t ts;
+    double result;
+    double *weights;
+    double *covariates;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
+            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    weights = malloc(4 * sizeof(double));
+    covariates = malloc(8 * sizeof(double));
+    weights[0] = weights[1] = 0.0;
+    weights[2] = weights[3] = 1.0;
+    covariates[0] = covariates[1] = 0.0;
+    covariates[2] = covariates[3] = 1.0;
+    covariates[4] = covariates[6] = 0.0;
+    covariates[5] = covariates[7] = 1.0;
+
+    ret = tsk_treeseq_trait_regression(&ts, 1, weights, 2, covariates,
+            0, NULL, &result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 0.0, 1e-6);
+
+    tsk_treeseq_free(&ts);
+    free(weights);
+    free(covariates);
+}
+
+static void
 test_paper_ex_segregating_sites_errors(void)
 {
     tsk_treeseq_t ts;
@@ -1537,6 +1608,8 @@ main(int argc, char **argv)
         {"test_paper_ex_trait_covariance", test_paper_ex_trait_covariance},
         {"test_paper_ex_trait_correlation_errors", test_paper_ex_trait_correlation_errors},
         {"test_paper_ex_trait_correlation", test_paper_ex_trait_correlation},
+        {"test_paper_ex_trait_regression_errors", test_paper_ex_trait_regression_errors},
+        {"test_paper_ex_trait_regression", test_paper_ex_trait_regression},
         {"test_paper_ex_diversity_errors", test_paper_ex_diversity_errors},
         {"test_paper_ex_diversity", test_paper_ex_diversity},
         {"test_paper_ex_segregating_sites_errors", test_paper_ex_segregating_sites_errors},

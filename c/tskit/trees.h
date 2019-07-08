@@ -223,6 +223,11 @@ int tsk_treeseq_trait_covariance(tsk_treeseq_t *self,
 int tsk_treeseq_trait_correlation(tsk_treeseq_t *self,
     tsk_size_t num_weights, double *weights,
     tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+/* One way weighted stats with covariates */
+int tsk_treeseq_trait_regression(tsk_treeseq_t *self,
+    tsk_size_t num_weights, double *weights,
+    tsk_size_t num_covariates, double *covariates,
+    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
 
 /* One way sample set stats */
 int tsk_treeseq_diversity(tsk_treeseq_t *self,

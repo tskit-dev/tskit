@@ -6794,6 +6794,100 @@ out:
     return ret;
 }
 
+typedef int one_way_covariates_method(tsk_treeseq_t *self,
+        tsk_size_t num_weights, double *weights,
+        tsk_size_t num_covariates, double *covariates,
+        tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
+
+static PyObject *
+TreeSequence_one_way_covariates_method(TreeSequence *self, PyObject *args, PyObject *kwds,
+        one_way_covariates_method *method)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = {"weights", "covariates", "windows", "mode", "polarised",
+        "span_normalise", NULL};
+    PyObject *weights = NULL;
+    PyObject *covariates = NULL;
+    PyObject *windows = NULL;
+    PyArrayObject *weights_array = NULL;
+    PyArrayObject *covariates_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *result_array = NULL;
+    char *mode = NULL;
+    int polarised = 0;
+    int span_normalise = 0;
+    tsk_size_t num_windows;
+    npy_intp *w_shape, *z_shape;
+    tsk_flags_t options = 0;
+    int err;
+
+    if (TreeSequence_check_tree_sequence(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist,
+            &weights, &covariates, &windows, &mode, &polarised, &span_normalise)) {
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
+    }
+    if (span_normalise) {
+        options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+
+    weights_array = (PyArrayObject *) PyArray_FROMANY(weights, NPY_FLOAT64,
+            2, 2, NPY_ARRAY_IN_ARRAY);
+    if (weights_array == NULL) {
+        goto out;
+    }
+    w_shape = PyArray_DIMS(weights_array);
+    if (w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+        PyErr_SetString(PyExc_ValueError, "First dimension of weights must be num_samples");
+        goto out;
+    }
+    covariates_array = (PyArrayObject *) PyArray_FROMANY(covariates, NPY_FLOAT64,
+            2, 2, NPY_ARRAY_IN_ARRAY);
+    if (covariates_array == NULL) {
+        goto out;
+    }
+    z_shape = PyArray_DIMS(covariates_array);
+    if (z_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+        PyErr_SetString(PyExc_ValueError, "First dimension of covariates must be num_samples");
+        goto out;
+    }
+    result_array = TreeSequence_allocate_results_array(self, options,
+            num_windows, w_shape[1]);
+    if (result_array == NULL) {
+        goto out;
+    }
+
+    err = method(self->tree_sequence,
+            w_shape[1], PyArray_DATA(weights_array),
+            z_shape[1], PyArray_DATA(covariates_array),
+            num_windows, PyArray_DATA(windows_array),
+            PyArray_DATA(result_array), options);
+    if (err == TSK_PYTHON_CALLBACK_ERROR) {
+        goto out;
+    } else if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(weights_array);
+    Py_XDECREF(covariates_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(result_array);
+    return ret;
+}
+
 typedef int one_way_sample_stat_method(tsk_treeseq_t *self,
         tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
         tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
@@ -6880,6 +6974,12 @@ static PyObject *
 TreeSequence_trait_correlation(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_one_way_weighted_method(self, args, kwds, tsk_treeseq_trait_correlation);
+}
+
+static PyObject *
+TreeSequence_trait_regression(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_one_way_covariates_method(self, args, kwds, tsk_treeseq_trait_regression);
 }
 
 static PyObject *
@@ -7210,10 +7310,13 @@ static PyMethodDef TreeSequence_methods[] = {
         METH_VARARGS|METH_KEYWORDS, "Computes diversity within sample sets." },
     {"trait_covariance",
         (PyCFunction) TreeSequence_trait_covariance,
-        METH_VARARGS|METH_KEYWORDS, "Computes covariance with the phenotypes." },
+        METH_VARARGS|METH_KEYWORDS, "Computes covariance with traits." },
     {"trait_correlation",
         (PyCFunction) TreeSequence_trait_correlation,
-        METH_VARARGS|METH_KEYWORDS, "Computes correlation with the phenotypes." },
+        METH_VARARGS|METH_KEYWORDS, "Computes correlation with traits." },
+    {"trait_regression",
+        (PyCFunction) TreeSequence_trait_regression,
+        METH_VARARGS|METH_KEYWORDS, "Computes regression coefficients of each trait." },
     {"segregating_sites",
         (PyCFunction) TreeSequence_segregating_sites,
         METH_VARARGS|METH_KEYWORDS, "Computes density of segregating sites within sample sets." },

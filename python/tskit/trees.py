@@ -3225,7 +3225,8 @@ class TreeSequence(object):
                     raise ValueError("Not all elements of sample_sets are samples.")
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
-        return self.general_stat(W, f, windows=windows, polarised=polarised, mode=mode)
+        return self.general_stat(W, f, windows=windows, polarised=polarised, mode=mode,
+                                 span_normalise=span_normalise)
 
     def parse_windows(self, windows):
         # Note: need to make sure windows is a string or we try to compare the
@@ -3403,8 +3404,9 @@ class TreeSequence(object):
         """
         Computes the mean squared covariances between each of the columns of ``W``
         (the "phenotypes") and inheritance along the tree sequence.  See
-        :ref:`sec_general_stats` for details of ``windows``, ``mode`` and
-        return value.  Operates on ``k = 1`` sample set at a time.
+        :ref:`sec_general_stats` for details of ``windows``, ``mode``,
+        ``span_normalise`` and return value.  Operates on all samples in the tree
+        sequence.
 
         Concretely, if `g` is a binary vector that indicates inheritance from an allele,
         branch, or node and `w` is a column of W, normalised to have mean zero,
@@ -3446,6 +3448,8 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
+        if W.shape[0] != self.num_samples:
+            raise ValueError("First trait dimension must be equal to number of samples.")
         windows = self.parse_windows(windows)
         return self._ll_tree_sequence.trait_covariance(
                         W, windows=windows,
@@ -3455,8 +3459,9 @@ class TreeSequence(object):
         """
         Computes the mean squared correlations between each of the columns of ``W``
         (the "phenotypes") and inheritance along the tree sequence.  See
-        :ref:`sec_general_stats` for details of ``windows``, ``mode`` and
-        return value.  Operates on ``k = 1`` sample set at a time.
+        :ref:`sec_general_stats` for details of ``windows``, ``mode``,
+        ``span_normalise`` and return value.  Operates on all samples in the
+        tree sequence.
 
         This is computed as squared covariance in
         :meth:`trait_covariance <.TreeSequence.trait_covarance>`,
@@ -3499,6 +3504,8 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
+        if W.shape[0] != self.num_samples:
+            raise ValueError("First trait dimension must be equal to number of samples.")
         sds = np.std(W, axis=0)
         if np.any(sds == 0):
             raise ValueError("Weight columns must have positive variance",
@@ -3506,6 +3513,75 @@ class TreeSequence(object):
         windows = self.parse_windows(windows)
         return self._ll_tree_sequence.trait_correlation(
                         W, windows=windows,
+                        mode=mode, span_normalise=span_normalise)
+
+    def trait_regression(self, W, Z, windows=None, mode="site", span_normalise=True):
+        """
+        For each trait w (i.e., each column of W), performs the least-squares
+        linear regression :math:`w ~ g + Z`,
+        where :math:`g` is inheritance in the tree sequence and the columns of :math:`Z`
+        are covariates, and computes the squared coefficient of :math:`g` in this
+        regression.  See :ref:`sec_general_stats` for details of ``windows``, ``mode``,
+        ``span_normalise`` and return value.  Operates on all samples in the
+        tree sequence.
+
+        Concretely, if `g` is a binary vector that indicates inheritance from an allele,
+        branch, or node and `w` is a column of W, there are :math:`k` columns of
+        :math:`Z`, and the :math:`k+2`-vector :math:`b` minimises
+        :math:`\\sum_i (w_i - b_0 - b_1 g_i - b_2 z_{2,i} - ... b_{k+2} z_{k+2,i})^2`
+        then this returns the number :math:`b_1^2`. If :math:`g` lies in the linear span
+        of the columns of :math:`Z`, then :math:`b_1` is set to 0.
+
+        What is computed depends on ``mode``:
+
+        "site"
+            Computes the sum of :math:`b_1^2/2` for each allele in the window,
+            as above with :math:`g` indicating presence/absence of the allele,
+            then divided by the length of the window if ``span_normalise=True``.
+            (For biallelic loci, this number is the same for both alleles, and so summing
+            over each cancels the factor of two.)
+
+        "branch"
+            The squared coefficient `b_1^2`, computed for the split induced by each
+            branch (i.e., with :math:`g` indicating inheritance from that branch),
+            multiplied by branch length and tree span, summed over all trees
+            in the window, and divided by the length of the window if
+            ``span_normalise=True``.
+
+        "node"
+            For each node, the squared coefficient `b_1^2`, computed for the property of
+            inheriting from this node, as in "branch".
+
+        :param ndarray W: An array of values with one row for each sample and one column
+            for each "phenotype".
+        :param ndarray Z: An array of values with one row for each sample and one column
+            for each "covariate", or None. Columns of `Z` must be linearly independent.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        windows = self.parse_windows(windows)
+        if W.shape[0] != self.num_samples:
+            raise ValueError("First trait dimension must be equal to number of samples.")
+        if Z is None:
+            Z = np.ones((self.num_samples, 1))
+        else:
+            tZ = np.column_stack([Z, np.ones((Z.shape[0], 1))])
+            if np.linalg.matrix_rank(tZ) == tZ.shape[1]:
+                Z = tZ
+        if Z.shape[0] != self.num_samples:
+            raise ValueError("First dimension of Z must equal the number of samples.")
+        if np.linalg.matrix_rank(Z) < Z.shape[1]:
+            raise ValueError("Matrix of covariates is computationally singular.")
+        # numpy returns a lower-triangular cholesky
+        K = np.linalg.cholesky(np.matmul(Z.T, Z)).T
+        Z = np.matmul(Z, np.linalg.inv(K))
+        return self._ll_tree_sequence.trait_regression(
+                        W, Z, windows=windows,
                         mode=mode, span_normalise=span_normalise)
 
     def segregating_sites(self, sample_sets, windows=None, mode="site",
