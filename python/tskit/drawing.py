@@ -112,6 +112,7 @@ class SvgTreeSequence(object):
     """
     def __init__(
             self, ts, size=None, tree_height_scale=None, max_tree_height=None,
+            node_labels=None, mutation_labels=None,
             node_attrs=None, edge_attrs=None, node_label_attrs=None):
         self.ts = ts
         if size is None:
@@ -131,6 +132,8 @@ class SvgTreeSequence(object):
         svg_trees = [
             SvgTree(
                 tree, (tree_width, treebox_height),
+                node_labels=node_labels,
+                mutation_labels=mutation_labels,
                 tree_height_scale=tree_height_scale,
                 node_attrs=node_attrs, edge_attrs=edge_attrs,
                 node_label_attrs=node_label_attrs)
