@@ -1813,11 +1813,12 @@ test_provenance_table(void)
 }
 
 static void
-test_map_ancestors(void)
+test_map_ancestors_input_errors(void)
 {
     int ret;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
+    tsk_edge_table_t result;
     tsk_id_t samples[] = {0, 1};
     tsk_id_t ancestors[] = {4, 6};
 
@@ -1825,11 +1826,228 @@ test_map_ancestors(void)
             NULL, NULL, NULL, NULL, NULL);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2);
-    // CU_ASSERT_EQUAL_FATAL(ret, 0); // causing errors but don't know why
+    ret = tsk_table_collection_map_ancestors(&tables, NULL, 2, ancestors, 2, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Bad sample IDs */
+    samples[0] = -1;
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    /* Bad ancestor IDs */
+    samples[0] = 0;
+    ancestors[0] = -1;
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);  
+
+    /* Duplicate sample IDs */ 
+    ancestors[0] = 4; 
+    samples[0] = 1;
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+
+    /* Duplicate sample IDs */ 
+    ancestors[0] = 6; 
+    samples[0] = 0;
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+
+    /* TODO more tests! */
 
     tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+    tsk_edge_table_free(&result);
+}
+
+static void
+test_map_ancestors_single_tree(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t result;
+    tsk_id_t samples[] = {0, 1};
+    tsk_id_t ancestors[] = {4, 6};
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // tsk_edge_table_print_state(&result, stdout);
+
+    // Check we get the right result.
+    CU_ASSERT_EQUAL(result.num_rows, 3);
+    size_t i;
+    tsk_id_t res_parent[] = {4, 4, 6};
+    tsk_id_t res_child[] = {0, 1, 4};
+    double res_left = 0;
+    double res_right = 1;
+    for (i = 0; i < result.num_rows; i++) {
+        CU_ASSERT_EQUAL(res_parent[i], result.parent[i]);
+        CU_ASSERT_EQUAL(res_child[i], result.child[i]);
+        CU_ASSERT_EQUAL(res_left, result.left[i]);
+        CU_ASSERT_EQUAL(res_right, result.right[i]);
+    }
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+    tsk_edge_table_free(&result);
+
+}
+
+static void
+test_map_ancestors_no_edges(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t result;
+    tsk_id_t samples[] = {2};
+    tsk_id_t ancestors[] = {4};
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 1, ancestors, 1, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&result);
+    tsk_treeseq_free(&ts);
+
+}
+
+static void
+test_map_ancestors_samples_and_ancestors_overlap(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t result;
+    tsk_id_t samples[] = {0,1,2,4};
+    tsk_id_t ancestors[] = {4};
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 4, ancestors, 1, &result);
+
+    // tsk_edge_table_print_state(&result, stdout);
+
+    // Check we get the right result.
+    CU_ASSERT_EQUAL(result.num_rows, 2);
+    size_t i;
+    tsk_id_t res_parent = 4;
+    tsk_id_t res_child[] = {0, 1};
+    double res_left = 0;
+    double res_right = 1;
+    for (i = 0; i < result.num_rows; i++) {
+        CU_ASSERT_EQUAL(res_parent, result.parent[i]);
+        CU_ASSERT_EQUAL(res_child[i], result.child[i]);
+        CU_ASSERT_EQUAL(res_left, result.left[i]);
+        CU_ASSERT_EQUAL(res_right, result.right[i]);
+    }
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&result);
+    tsk_treeseq_free(&ts);
+
+}
+
+static void
+test_map_ancestors_paper(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t result;
+    tsk_id_t samples[] = {0, 1, 2};
+    tsk_id_t ancestors[] = {5, 6, 7};
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL,
+            paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 3, ancestors, 3, &result);
+
+    // tsk_edge_table_print_state(&result, stdout);
+
+   // Check we get the right result.
+    CU_ASSERT_EQUAL(result.num_rows, 6);
+    size_t i;
+    tsk_id_t res_parent[] = {5, 5, 6, 6, 7, 7};
+    tsk_id_t res_child[] = {1, 2, 0, 5, 0, 5};
+    double res_left[] = {0, 2, 0, 0, 7, 7};
+    double res_right[] = {10, 10, 7, 7, 10, 10};
+    for (i = 0; i < result.num_rows; i++) {
+        CU_ASSERT_EQUAL(res_parent[i], result.parent[i]);
+        CU_ASSERT_EQUAL(res_child[i], result.child[i]);
+        CU_ASSERT_EQUAL(res_left[i], result.left[i]);
+        CU_ASSERT_EQUAL(res_right[i], result.right[i]);
+    }
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&result);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_map_ancestors_multiple_to_single_tree(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t result;
+    tsk_id_t samples[] = {1, 3};
+    tsk_id_t ancestors[] = {5};
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL,
+            paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 1, &result);
+
+    // tsk_edge_table_print_state(&result, stdout);
+
+  // Check we get the right result.
+    CU_ASSERT_EQUAL(result.num_rows, 2);
+    size_t i;
+    tsk_id_t res_parent = 5;
+    tsk_id_t res_child[] = {1, 3};
+    double res_left = 0;
+    double res_right = 10;
+    for (i = 0; i < result.num_rows; i++) {
+        CU_ASSERT_EQUAL(res_parent, result.parent[i]);
+        CU_ASSERT_EQUAL(res_child[i], result.child[i]);
+        CU_ASSERT_EQUAL(res_left, result.left[i]);
+        CU_ASSERT_EQUAL(res_right, result.right[i]);
+    }
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&result);
     tsk_treeseq_free(&ts);
 }
 
@@ -1864,7 +2082,8 @@ test_simplify_empty_tables(void)
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
-    ret = tsk_table_collection_simplify(&tables, NULL, 0, 0, NULL);
+
+    // ret = tsk_table_collection_simplify(&tables, NULL, 0, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 0);
@@ -2237,7 +2456,14 @@ main(int argc, char **argv)
         {"test_load_tsk_node_table_errors", test_load_tsk_node_table_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
         {"test_simplify_empty_tables", test_simplify_empty_tables},
-        {"test_map_ancestors", test_map_ancestors},
+        {"test_map_ancestors_no_edges", test_map_ancestors_no_edges},
+        {"test_map_ancestors_input_errors", test_map_ancestors_input_errors},
+        {"test_map_ancestors_single_tree", test_map_ancestors_single_tree},
+        {"test_map_ancestors_paper", test_map_ancestors_paper},
+        {"test_map_ancestors_samples_and_ancestors_overlap",
+            test_map_ancestors_samples_and_ancestors_overlap},
+        {"test_map_ancestors_multiple_to_single_tree", 
+        test_map_ancestors_multiple_to_single_tree},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
         {"test_sort_tables_errors", test_sort_tables_errors},
@@ -2248,7 +2474,6 @@ main(int argc, char **argv)
         {"test_column_overflow", test_column_overflow},
         {NULL, NULL},
     };
-
 
     return test_main(tests, argc, argv);
 }
