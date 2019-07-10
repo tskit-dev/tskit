@@ -1552,19 +1552,28 @@ test_paper_ex_jafs(void)
     tsk_treeseq_t ts;
     tsk_id_t samples[] = {0, 1, 2, 3};
     tsk_size_t sample_set_sizes[] = {4, 0};
-    double result[100]; /* not thinking too hard about the actual value needed */
+    double result[25];
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
+    /* we have two singletons and one tripleton */
 
     ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
             0, NULL, result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result[0], 0);
+    CU_ASSERT_EQUAL_FATAL(result[1], 3.0);
+    CU_ASSERT_EQUAL_FATAL(result[2], 0);
 
     ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
             0, NULL, result, TSK_STAT_POLARISED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result[0], 0);
+    CU_ASSERT_EQUAL_FATAL(result[1], 2.0);
+    CU_ASSERT_EQUAL_FATAL(result[2], 0);
+    CU_ASSERT_EQUAL_FATAL(result[3], 1.0);
+    CU_ASSERT_EQUAL_FATAL(result[4], 0);
 
     sample_set_sizes[0] = 2;
     sample_set_sizes[1] = 2;

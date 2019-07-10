@@ -648,8 +648,8 @@ increment_nd_array_value(double *array, tsk_size_t n, tsk_size_t *shape, tsk_siz
 
     for (k = (int) n - 1; k >= 0; k--) {
         assert(coordinate[k] < shape[k]);
-        product *= shape[k];
         offset += coordinate[k] * product;
+        product *= shape[k];
     }
     array[offset] += value;
 }
@@ -2133,7 +2133,6 @@ tsk_treeseq_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
     }
 
     memset(result, 0, num_windows * afs_size * sizeof(*result));
-
     if (stat_site) {
         ret = tsk_treeseq_site_joint_allele_frequency_spectrum(self,
             num_sample_sets, total_counts, counts, num_windows, windows,

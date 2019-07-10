@@ -3305,7 +3305,7 @@ class TreeSequence(object):
     ############################################
 
     def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
-                                  mode=None, span_normalise=True):
+                                  mode=None, span_normalise=True, polarised=False):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
@@ -3313,7 +3313,7 @@ class TreeSequence(object):
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         windows = self.parse_windows(windows)
         return ll_method(sample_set_sizes, flattened, windows=windows,
-                         mode=mode, span_normalise=span_normalise)
+                         mode=mode, span_normalise=span_normalise, polarised=polarised)
 
     def __k_way_sample_set_stat(
             self, ll_method, k, sample_sets, indexes=None, windows=None,
@@ -3674,6 +3674,14 @@ class TreeSequence(object):
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.segregating_sites, sample_sets, windows=windows,
             mode=mode, span_normalise=span_normalise)
+
+    def joint_allele_frequency_spectrum(
+            self, sample_sets, windows=None, mode="site", span_normalise=True,
+            polarised=False):
+        return self.__one_way_sample_set_stat(
+            self._ll_tree_sequence.joint_allele_frequency_spectrum,
+            sample_sets, windows=windows, mode=mode, span_normalise=span_normalise,
+            polarised=polarised)
 
     def Tajimas_D(self, sample_sets, windows=None, mode="site"):
         """
