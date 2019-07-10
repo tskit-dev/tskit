@@ -458,7 +458,9 @@ class AncestorMap(object):
     def __init__(self, ts, sample, ancestors):
         self.ts = ts
         self.samples = set(sample)
+        assert (self.samples).issubset(set(range(0, ts.num_nodes)))
         self.ancestors = set(ancestors)
+        assert (self.ancestors).issubset(set(range(0, ts.num_nodes)))
         self.table = tskit.EdgeTable()
         self.sequence_length = ts.sequence_length
         self.A_head = [None for _ in range(ts.num_nodes)]

@@ -3892,7 +3892,6 @@ segment_overlapper_next(segment_overlapper_t *self,
     return ret;
 }
 
-
 static int
 cmp_node_id(const void *a, const void *b) {
     const tsk_id_t *ia = (const tsk_id_t *) a;
@@ -3904,6 +3903,11 @@ cmp_node_id(const void *a, const void *b) {
  * Ancestor mapper
  *************************/
 
+/* NOTE: this struct shares a lot with the simplifier_t, mostly in
+ * terms of infrastructure for managing the list of intervals, saving
+ * edges etc. We should try to abstract the common functionality out
+ * into a separate class, which handles this.
+ */
 typedef struct {
     tsk_id_t *samples;
     size_t num_samples;
@@ -6421,7 +6425,7 @@ out:
 int TSK_WARN_UNUSED
 tsk_table_collection_map_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
         tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,
-        tsk_edge_table_t *result)
+        tsk_flags_t TSK_UNUSED(options), tsk_edge_table_t *result)
 {
     int ret = 0;
     ancestor_mapper_t ancestor_mapper;

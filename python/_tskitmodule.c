@@ -5465,6 +5465,68 @@ out:
     return ret;
 }
 
+
+static PyObject *
+TableCollection_map_ancestors(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *samples = NULL;
+    PyObject *ancestors = NULL;
+    PyArrayObject *samples_array = NULL;
+    PyArrayObject *ancestors_array = NULL;
+    npy_intp *shape;
+    size_t num_samples, num_ancestors;
+    static char *kwlist[] = {"samples", "ancestors", NULL};
+    EdgeTable *result = NULL;
+    PyObject *result_args = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO", kwlist, &samples, &ancestors)) {
+        goto out;
+    }
+
+    samples_array = (PyArrayObject *) PyArray_FROMANY(samples, NPY_INT32, 1, 1,
+            NPY_ARRAY_IN_ARRAY);
+    if (samples_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(samples_array);
+    num_samples = shape[0];
+
+    ancestors_array = (PyArrayObject *) PyArray_FROMANY(ancestors, NPY_INT32, 1, 1,
+            NPY_ARRAY_IN_ARRAY);
+    if (ancestors_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(ancestors_array);
+    num_ancestors = shape[0];
+
+    result_args = PyTuple_New(0);
+    if (result_args == NULL) {
+        goto out;
+    }
+    result = (EdgeTable *) PyObject_CallObject((PyObject *) &EdgeTableType, result_args);
+    if (result == NULL) {
+        goto out;
+    }
+    err = tsk_table_collection_map_ancestors(self->tables,
+            PyArray_DATA(samples_array), num_samples,
+            PyArray_DATA(ancestors_array), num_ancestors, 0,
+            result->table);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result;
+    result = NULL;
+out:
+    Py_XDECREF(samples_array);
+    Py_XDECREF(ancestors_array);
+    Py_XDECREF(result);
+    Py_XDECREF(result_args);
+    return ret;
+}
+
 static PyObject *
 TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
 {
@@ -5597,6 +5659,9 @@ static PyGetSetDef TableCollection_getsetters[] = {
 static PyMethodDef TableCollection_methods[] = {
     {"simplify", (PyCFunction) TableCollection_simplify, METH_VARARGS|METH_KEYWORDS,
         "Simplifies for a given sample subset." },
+    {"map_ancestors", (PyCFunction) TableCollection_map_ancestors,
+        METH_VARARGS|METH_KEYWORDS,
+        "Returns an edge table linking samples to a set of specified ancestors." },
     {"sort", (PyCFunction) TableCollection_sort, METH_VARARGS|METH_KEYWORDS,
         "Sorts the tables to satisfy tree sequence requirements." },
     {"equals", (PyCFunction) TableCollection_equals, METH_VARARGS,

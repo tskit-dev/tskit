@@ -1829,30 +1829,30 @@ test_map_ancestors_input_errors(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, NULL, 2, ancestors, 2, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, NULL, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Bad sample IDs */
     samples[0] = -1;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     /* Bad ancestor IDs */
     samples[0] = 0;
     ancestors[0] = -1;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);  
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
-    /* Duplicate sample IDs */ 
-    ancestors[0] = 4; 
+    /* Duplicate sample IDs */
+    ancestors[0] = 4;
     samples[0] = 1;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
 
-    /* Duplicate sample IDs */ 
-    ancestors[0] = 6; 
+    /* Duplicate sample IDs */
+    ancestors[0] = 6;
     samples[0] = 0;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
 
     /* TODO more tests! */
@@ -1871,6 +1871,9 @@ test_map_ancestors_single_tree(void)
     tsk_edge_table_t result;
     tsk_id_t samples[] = {0, 1};
     tsk_id_t ancestors[] = {4, 6};
+    size_t i;
+    double res_left = 0;
+    double res_right = 1;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
             NULL, NULL, NULL, NULL, NULL);
@@ -1879,18 +1882,13 @@ test_map_ancestors_single_tree(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    // tsk_edge_table_print_state(&result, stdout);
 
     // Check we get the right result.
     CU_ASSERT_EQUAL(result.num_rows, 3);
-    size_t i;
     tsk_id_t res_parent[] = {4, 4, 6};
     tsk_id_t res_child[] = {0, 1, 4};
-    double res_left = 0;
-    double res_right = 1;
     for (i = 0; i < result.num_rows; i++) {
         CU_ASSERT_EQUAL(res_parent[i], result.parent[i]);
         CU_ASSERT_EQUAL(res_child[i], result.child[i]);
@@ -1921,7 +1919,7 @@ test_map_ancestors_no_edges(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 1, ancestors, 1, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 1, ancestors, 1, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_table_collection_free(&tables);
@@ -1947,7 +1945,7 @@ test_map_ancestors_samples_and_ancestors_overlap(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 4, ancestors, 1, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 4, ancestors, 1, 0, &result);
 
     // tsk_edge_table_print_state(&result, stdout);
 
@@ -1988,7 +1986,7 @@ test_map_ancestors_paper(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 3, ancestors, 3, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 3, ancestors, 3, 0, &result);
 
     // tsk_edge_table_print_state(&result, stdout);
 
@@ -2028,7 +2026,7 @@ test_map_ancestors_multiple_to_single_tree(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 1, &result);
+    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 1, 0, &result);
 
     // tsk_edge_table_print_state(&result, stdout);
 
@@ -2462,7 +2460,7 @@ main(int argc, char **argv)
         {"test_map_ancestors_paper", test_map_ancestors_paper},
         {"test_map_ancestors_samples_and_ancestors_overlap",
             test_map_ancestors_samples_and_ancestors_overlap},
-        {"test_map_ancestors_multiple_to_single_tree", 
+        {"test_map_ancestors_multiple_to_single_tree",
         test_map_ancestors_multiple_to_single_tree},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},

@@ -3540,53 +3540,24 @@ class TestMapToAncestors(unittest.TestCase):
     0       0.00000000      1.00000000      0       1,2
     """
 
-    def do_simplify(
-            self, ts, ancestors, samples=None):
+    def do_map(self, ts, ancestors, samples=None, compare_lib=True):
         """
-        Runs the Python test implementation of simplify.
+        Runs the Python test implementation of map_ancestors.
         """
         if samples is None:
             samples = ts.samples()
         s = tests.AncestorMap(ts, samples, ancestors)
         ancestor_table = s.simplify()
-        # if compare_lib:
-        #     sts, lib_node_map1 = ts.simplify(
-        #         samples,
-        #         filter_sites=filter_sites,
-        #         filter_individuals=filter_individuals,
-        #         filter_populations=filter_populations,
-        #         keep_unary=keep_unary,
-        #         map_nodes=True)
-        #     lib_tables1 = sts.dump_tables()
-
-        #     lib_tables2 = ts.dump_tables()
-        #     lib_node_map2 = lib_tables2.simplify(
-        #         samples,
-        #         filter_sites=filter_sites,
-        #         keep_unary=keep_unary,
-        #         filter_individuals=filter_individuals,
-        #         filter_populations=filter_populations)
-
-        #     py_tables = new_ts.dump_tables()
-        #     for lib_tables, lib_node_map in [
-        #             (lib_tables1, lib_node_map1), (lib_tables2, lib_node_map2)]:
-
-        #         self.assertEqual(lib_tables.nodes, py_tables.nodes)
-        #         self.assertEqual(lib_tables.edges, py_tables.edges)
-        #         self.assertEqual(lib_tables.migrations, py_tables.migrations)
-        #         self.assertEqual(lib_tables.sites, py_tables.sites)
-        #         self.assertEqual(lib_tables.mutations, py_tables.mutations)
-        #         self.assertEqual(lib_tables.individuals, py_tables.individuals)
-        #         self.assertEqual(lib_tables.populations, py_tables.populations)
-        #         self.assertTrue(all(node_map == lib_node_map))
-        # print(ancestor_table)
+        if compare_lib:
+            lib_result = ts.tables.map_ancestors(samples, ancestors)
+            self.assertEqual(ancestor_table, lib_result)
         return ancestor_table
 
     def test_single_tree_one_ancestor(self):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, ancestors=[8])
+        tss = self.do_map(ts, ancestors=[8])
         self.assertEqual(list(tss.parent), [8, 8, 8, 8, 8])
         self.assertEqual(list(tss.child), [0, 1, 2, 3, 4])
         self.assertEqual(all(tss.left), 0)
@@ -3596,7 +3567,7 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes1)
         edges = io.StringIO(self.edges1)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, ancestors=[0])
+        tss = self.do_map(ts, ancestors=[0])
         self.assertEqual(list(tss.parent), [0, 0])
         self.assertEqual(list(tss.child), [1, 2])
         self.assertEqual(all(tss.left), 0)
@@ -3606,7 +3577,7 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, ancestors=[6, 7])
+        tss = self.do_map(ts, ancestors=[6, 7])
         self.assertEqual(list(tss.parent), [6, 6, 7, 7, 7])
         self.assertEqual(list(tss.child), [2, 3, 0, 1, 4])
         self.assertEqual(all(tss.left), 0)
@@ -3616,21 +3587,24 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, samples=[2, 3], ancestors=[7])
+        tss = self.do_map(ts, samples=[2, 3], ancestors=[7])
         self.assertEqual(tss.num_rows, 0)
 
-    def test_single_tree_ancestors_not_in_tree(self):
+    # @unittest.skip("FIXME @gtsambos")
+    def test_single_tree_samples_or_ancestors_not_in_tree(self):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, samples=[2, 3], ancestors=[10])
-        self.assertEqual(tss.num_rows, 0)
+        with self.assertRaises(AssertionError):
+            self.do_map(ts, samples=[-1, 3], ancestors=[5])
+        with self.assertRaises(AssertionError):
+            self.do_map(ts, samples=[2, 3], ancestors=[10])
 
     def test_single_tree_ancestors_descend_from_other_ancestors(self):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, ancestors=[7, 8])
+        tss = self.do_map(ts, ancestors=[7, 8])
         self.assertEqual(list(tss.parent), [7, 7, 7, 8, 8, 8])
         self.assertEqual(list(tss.child), [0, 1, 4, 2, 3, 7])
         self.assertEqual(all(tss.left), 0)
@@ -3640,7 +3614,7 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, samples=[2, 3, 4, 5], ancestors=[7, 8])
+        tss = self.do_map(ts, samples=[2, 3, 4, 5], ancestors=[7, 8])
         self.assertEqual(list(tss.parent), [7, 7, 8, 8, 8])
         self.assertEqual(list(tss.child), [4, 5, 2, 3, 7])
         self.assertEqual(all(tss.left), 0)
@@ -3650,7 +3624,7 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, samples=[1, 2, 3, 5], ancestors=[5, 6, 7])
+        tss = self.do_map(ts, samples=[1, 2, 3, 5], ancestors=[5, 6, 7])
         self.assertEqual(list(tss.parent), [5, 6, 6, 7])
         self.assertEqual(list(tss.child), [1, 2, 3, 5])
         self.assertEqual(all(tss.left), 0)
@@ -3660,7 +3634,7 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, samples=[1, 2, 4], ancestors=[5, 7, 8])
+        tss = self.do_map(ts, samples=[1, 2, 4], ancestors=[5, 7, 8])
         self.assertEqual(list(tss.parent), [5, 7, 7, 8, 8])
         self.assertEqual(list(tss.child), [1, 4, 5, 2, 7])
         self.assertEqual(all(tss.left), 0)
@@ -3670,7 +3644,7 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes0)
         edges = io.StringIO(self.edges0)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, ancestors=[5, 6])
+        tss = self.do_map(ts, ancestors=[5, 6])
         self.assertEqual(list(tss.parent), [5, 5, 6, 6])
         self.assertEqual(list(tss.child), [0, 1, 2, 3])
         self.assertEqual(all(tss.left), 0)
@@ -3680,14 +3654,14 @@ class TestMapToAncestors(unittest.TestCase):
         nodes = io.StringIO(self.nodes0)
         edges = io.StringIO(self.edges0)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        tss = self.do_simplify(ts, ancestors=[9, 10])
+        tss = self.do_map(ts, ancestors=[9, 10])
         self.assertEqual(list(tss.parent), [9, 9, 9, 9, 9, 10, 10, 10, 10, 10])
         self.assertEqual(list(tss.child), [0, 1, 2, 3, 4, 0, 1, 2, 3, 4])
         self.assertEqual(all(tss.left), 0)
         self.assertEqual(all(tss.right), 1)
 
     def verify(self, ts, sample_nodes, ancestral_nodes):
-        tss = self.do_simplify(ts, ancestors=ancestral_nodes, samples=sample_nodes)
+        tss = self.do_map(ts, ancestors=ancestral_nodes, samples=sample_nodes)
         # ancestors = list(set(tss.parent))
         # Loop through the rows of the ancestral branch table.
         current_ancestor = tss.parent[0]

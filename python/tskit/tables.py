@@ -1663,6 +1663,13 @@ class TableCollection(object):
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary)
 
+    def map_ancestors(self, samples, ancestors):
+        # TODO document
+        samples = util.safe_np_int_cast(samples, np.int32)
+        ancestors = util.safe_np_int_cast(ancestors, np.int32)
+        ll_edge_table = self.ll_tables.map_ancestors(samples, ancestors)
+        return EdgeTable(ll_table=ll_edge_table)
+
     def sort(self, edge_start=0):
         """
         Sorts the tables in place. This ensures that all tree sequence ordering
