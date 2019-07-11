@@ -89,6 +89,8 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 /* The null ID */
 #define TSK_NULL ((tsk_id_t) -1)
 
+/* Missing data in an array of genotypes */
+#define TSK_MISSING_DATA    (-1)
 
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11

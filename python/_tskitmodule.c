@@ -498,14 +498,14 @@ make_variant(tsk_variant_t *variant, size_t num_samples)
     PyObject *ret = NULL;
     npy_intp dims = num_samples;
     PyObject *alleles = make_alleles(variant);
-    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_UINT8);
+    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT8);
 
     /* TODO update this to account for 16 bit variants when we provide the
      * high-level interface. */
     if (genotypes == NULL || alleles == NULL) {
         goto out;
     }
-    memcpy(PyArray_DATA(genotypes), variant->genotypes.u8, num_samples * sizeof(uint8_t));
+    memcpy(PyArray_DATA(genotypes), variant->genotypes.i8, num_samples * sizeof(int8_t));
     ret = Py_BuildValue("iOO", variant->site->id, genotypes, alleles);
 out:
     Py_XDECREF(genotypes);
@@ -7253,7 +7253,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     dims[0] = num_sites;
     dims[1] = num_samples;
 
-    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_UINT8);
+    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT8);
     if (genotype_matrix == NULL) {
         goto out;
     }
@@ -7270,7 +7270,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     }
     j = 0;
     while ((err = tsk_vargen_next(vg, &variant)) == 1) {
-        memcpy(V + (j * num_samples), variant->genotypes.u8, num_samples * sizeof(uint8_t));
+        memcpy(V + (j * num_samples), variant->genotypes.i8, num_samples * sizeof(int8_t));
         j++;
     }
     if (err != 0) {
@@ -8203,10 +8203,10 @@ Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
     PyArrayObject *parent_array = NULL;
     PyArrayObject *state_array = NULL;
     static char *kwlist[] = {"genotypes", NULL};
-    uint8_t ancestral_state, *state;
+    int8_t ancestral_state, *state;
     int32_t *node, *parent;
     tsk_state_transition_t *transitions = NULL;
-    size_t j, num_transitions;
+    tsk_size_t j, num_transitions;
     npy_intp *shape, dims;
     int err;
 
@@ -8216,7 +8216,7 @@ Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &genotypes)) {
         goto out;
     }
-    genotypes_array = (PyArrayObject *) PyArray_FROMANY(genotypes, NPY_UINT8, 1, 1,
+    genotypes_array = (PyArrayObject *) PyArray_FROMANY(genotypes, NPY_INT8, 1, 1,
             NPY_ARRAY_IN_ARRAY);
     if (genotypes_array == NULL) {
         goto out;
@@ -8229,7 +8229,7 @@ Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
     }
 
     err = tsk_tree_reconstruct(self->tree,
-        (uint8_t *) PyArray_DATA(genotypes_array), NULL, 0,
+        (int8_t *) PyArray_DATA(genotypes_array), NULL, 0,
         &ancestral_state, &num_transitions, &transitions);
     if (err != 0) {
         handle_library_error(err);
@@ -8239,13 +8239,13 @@ Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
     dims = num_transitions;
     node_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
     parent_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
-    state_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_UINT8);
+    state_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT8);
     if (node_array == NULL || parent_array == NULL || state_array == NULL) {
         goto out;
     }
     node = (int32_t *) PyArray_DATA(node_array);
     parent = (int32_t *) PyArray_DATA(parent_array);
-    state = (uint8_t *) PyArray_DATA(state_array);
+    state = (int8_t *) PyArray_DATA(state_array);
     for (j = 0; j < num_transitions; j++) {
         node[j] = transitions[j].node;
         parent[j] = transitions[j].parent;
@@ -9486,6 +9486,7 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "VersionTooOldError", TskitVersionTooOldError);
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
+    PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);
     /* Node flags */
     PyModule_AddIntConstant(module, "NODE_IS_SAMPLE", TSK_NODE_IS_SAMPLE);
     /* Tree flags */

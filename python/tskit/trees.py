@@ -1467,8 +1467,9 @@ class Tree(object):
         :return: An encoding of the ancestral_state and state transitions required
             on this tree.
         :rtype: (int, (np.array(dtype=np.int32),
-            np.array(dtype=np.int32), np.array(dtype=np.uint8))
+            np.array(dtype=np.int32), np.array(dtype=np.int8))
         """
+        genotypes = util.safe_np_int_cast(genotypes, np.int8)
         if np.max(genotypes) >= 64:
             raise ValueError("A maximum of 64 states is supported")
         return self._ll_tree.reconstruct(genotypes)
@@ -2728,7 +2729,7 @@ class TreeSequence(object):
             access them sequentially using the :meth:`.variants` iterator.
 
         :return: The full matrix of genotypes.
-        :rtype: numpy.ndarray (dtype=np.uint8)
+        :rtype: numpy.ndarray (dtype=np.int8)
         """
         return self._ll_tree_sequence.get_genotype_matrix()
 

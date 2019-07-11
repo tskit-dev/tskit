@@ -79,7 +79,7 @@ print_variants(tsk_treeseq_t *ts)
         }
         printf("\t");
         for (k = 0; k < ts->num_samples; k++) {
-            printf("%d\t", var->genotypes.u8[k]);
+            printf("%d\t", var->genotypes.i8[k]);
         }
         printf("\n");
     }

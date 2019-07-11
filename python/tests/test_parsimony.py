@@ -121,13 +121,13 @@ def fitch_reconstruction(tree, genotypes):
     if there is none) and state is the new state.
     """
     # Encode the set operations using a numpy array.
-    not_missing = genotypes != 255
+    not_missing = genotypes != -1
     if np.sum(not_missing) == 0:
         raise ValueError("Must have at least one non-missing genotype")
     num_alleles = np.max(genotypes[not_missing]) + 1
     A = np.zeros((tree.num_nodes, num_alleles), dtype=np.int8)
     for allele, u in zip(genotypes, tree.tree_sequence.samples()):
-        if allele != 255:
+        if allele != -1:
             A[u, allele] = 1
         else:
             A[u] = 1
@@ -609,7 +609,7 @@ class TestReconstructAllTuples(unittest.TestCase):
             right=np.zeros_like(tables.edges.right) + tables.sequence_length,
             parent=tables.edges.parent,
             child=tables.edges.child)
-        G1 = np.zeros((m, n), dtype=np.uint8)
+        G1 = np.zeros((m, n), dtype=np.int8)
         for j, genotypes in enumerate(itertools.product(range(k), repeat=n)):
             G1[j] = genotypes
             ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
@@ -620,9 +620,9 @@ class TestReconstructAllTuples(unittest.TestCase):
                 tables.mutations.add_row(j, node=u, parent=p, derived_state=str(s))
 
         ts2 = tables.tree_sequence()
-        G2 = np.zeros((m, n), dtype=np.uint8)
+        G2 = np.zeros((m, n), dtype=np.int8)
         for j, variant in enumerate(ts2.variants()):
-            alleles = np.array(list(map(int, variant.alleles)), dtype=np.uint8)
+            alleles = np.array(list(map(int, variant.alleles)), dtype=np.int8)
             G2[j] = alleles[variant.genotypes]
         self.assertTrue(np.array_equal(G1, G2))
 
@@ -673,7 +673,7 @@ class TestReconstructMissingData(unittest.TestCase):
         for n in range(2, 10):
             ts = msprime.simulate(n, random_seed=2)
             tree = ts.first()
-            genotypes = np.zeros(n, dtype=np.uint8) - 1
+            genotypes = np.zeros(n, dtype=np.int8) - 1
             with self.assertRaises(ValueError):
                 fitch_reconstruction(tree, genotypes)
 
@@ -682,7 +682,7 @@ class TestReconstructMissingData(unittest.TestCase):
             ts = msprime.simulate(n, random_seed=2)
             tree = ts.first()
             for j in range(n):
-                genotypes = np.zeros(n, dtype=np.uint8) - 1
+                genotypes = np.zeros(n, dtype=np.int8) - 1
                 genotypes[j] = 0
                 ancestral_state, mutations = fitch_reconstruction(tree, genotypes)
                 self.assertEqual(ancestral_state, 0)
@@ -699,7 +699,7 @@ class TestReconstructMissingData(unittest.TestCase):
             ts = msprime.simulate(n, random_seed=2)
             tree = ts.first()
             for j in range(n):
-                genotypes = np.zeros(n, dtype=np.uint8) - 1
+                genotypes = np.zeros(n, dtype=np.int8) - 1
                 genotypes[j] = 0
                 ancestral_state, mutations = fitch_reconstruction(tree, genotypes)
                 self.assertEqual(ancestral_state, 0)
@@ -708,7 +708,7 @@ class TestReconstructMissingData(unittest.TestCase):
     def test_one_missing_derived_state(self):
         tables = felsenstein_tables()
         ts = tables.tree_sequence()
-        genotypes = np.zeros(5, dtype=np.uint8)
+        genotypes = np.zeros(5, dtype=np.int8)
         genotypes[0] = -1
         genotypes[1] = 1
         ancestral_state, mutations = self.do_reconstruction(ts.first(), genotypes)

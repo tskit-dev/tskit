@@ -568,6 +568,26 @@ class TestVariantGenerator(HighLevelTestCase):
         ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
         self.assertRaises(ValueError, list, ts.variants(as_bytes=True))
 
+    def test_dtype(self):
+        ts = self.get_tree_sequence()
+        for var in ts.variants():
+            self.assertEqual(var.genotypes.dtype, np.int8)
+
+    def test_dtype_conversion(self):
+        # Check if we hit any issues if we assume the variants are uint8
+        # as they were prior to version 0.2.0
+        ts = self.get_tree_sequence()
+        G = ts.genotype_matrix().astype(np.uint8)
+        self.assertEqual(G.dtype, np.uint8)
+        for var in ts.variants():
+            self.assertTrue(np.array_equal(G[var.index], var.genotypes))
+            self.assertTrue(np.all(G[var.index] == var.genotypes))
+            self.assertEqual(
+                [var.alleles[g] for g in var.genotypes],
+                [var.alleles[g] for g in G[var.index]])
+            G[var.index, :] = var.genotypes
+            self.assertTrue(np.array_equal(G[var.index], var.genotypes))
+
     def test_multichar_alleles(self):
         ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
         for var in ts.variants():
@@ -584,13 +604,13 @@ class TestVariantGenerator(HighLevelTestCase):
         tables.mutations.clear()
         # This gives us a total of 360 permutations.
         alleles = list(map("".join, itertools.permutations('ABCDEF', 4)))
-        self.assertGreater(len(alleles), 255)
+        self.assertGreater(len(alleles), 127)
         tables.sites.add_row(0, alleles[0])
         parent = -1
         num_alleles = 1
         for allele in alleles[1:]:
             ts = tables.tree_sequence()
-            if num_alleles > 255:
+            if num_alleles > 127:
                 self.assertRaises(_tskit.LibraryError, next, ts.variants())
             else:
                 var = next(ts.variants())
@@ -619,10 +639,12 @@ class TestVariantGenerator(HighLevelTestCase):
 
     def test_genotype_matrix(self):
         ts = self.get_tree_sequence()
-        G = np.empty((ts.num_sites, ts.num_samples), dtype=np.uint8)
+        G = np.empty((ts.num_sites, ts.num_samples), dtype=np.int8)
         for v in ts.variants():
             G[v.index, :] = v.genotypes
-        self.assertTrue(np.array_equal(G, ts.genotype_matrix()))
+        G2 = ts.genotype_matrix()
+        self.assertTrue(np.array_equal(G, G2))
+        self.assertEqual(G2.dtype, np.int8)
 
     def test_recurrent_mutations_over_samples(self):
         ts = self.get_tree_sequence()
@@ -2319,7 +2341,7 @@ class TestTree(HighLevelTestCase):
     def test_reconstruct(self):
         ts = msprime.simulate(5, random_seed=42)
         tree = ts.first()
-        genotypes = np.zeros(5, dtype=np.uint8)
+        genotypes = np.zeros(5, dtype=np.int8)
         ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
         self.assertEqual(ancestral_state, 0)
         self.assertEqual(node.shape, (0,))
@@ -2336,6 +2358,8 @@ class TestTree(HighLevelTestCase):
             genotypes[0] = j
             with self.assertRaises(ValueError):
                 tree.reconstruct(genotypes)
+        tree.reconstruct([0] * 5)
+        tree.reconstruct(np.zeros(5, dtype=int))
 
 
 class TestNodeOrdering(HighLevelTestCase):

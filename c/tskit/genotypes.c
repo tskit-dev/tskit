@@ -284,18 +284,18 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     self->tree_sequence = tree_sequence;
     self->options = options;
     if (self->options & TSK_16_BIT_GENOTYPES) {
-        self->variant.genotypes.u16 = malloc(
-            num_samples_alloc * sizeof(*self->variant.genotypes.u16));
+        self->variant.genotypes.i16 = malloc(
+            num_samples_alloc * sizeof(*self->variant.genotypes.i16));
     } else {
-        self->variant.genotypes.u8 = malloc(
-            num_samples_alloc * sizeof(*self->variant.genotypes.u8));
+        self->variant.genotypes.i8 = malloc(
+            num_samples_alloc * sizeof(*self->variant.genotypes.i8));
     }
     self->variant.max_alleles = max_alleles;
     self->variant.alleles = malloc(max_alleles * sizeof(*self->variant.alleles));
     self->variant.allele_lengths = malloc(max_alleles
             * sizeof(*self->variant.allele_lengths));
     /* Because genotypes is a union we can check the pointer */
-    if (self->variant.genotypes.u8 == NULL || self->variant.alleles == NULL
+    if (self->variant.genotypes.i8 == NULL || self->variant.alleles == NULL
             || self->variant.allele_lengths == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -325,7 +325,7 @@ int
 tsk_vargen_free(tsk_vargen_t *self)
 {
     tsk_tree_free(&self->tree);
-    tsk_safe_free(self->variant.genotypes.u8);
+    tsk_safe_free(self->variant.genotypes.i8);
     tsk_safe_free(self->variant.alleles);
     tsk_safe_free(self->variant.allele_lengths);
     tsk_safe_free(self->samples);
@@ -339,10 +339,10 @@ tsk_vargen_expand_alleles(tsk_vargen_t *self)
     int ret = 0;
     tsk_variant_t *var = &self->variant;
     void *p;
-    tsk_size_t hard_limit = UINT8_MAX;
+    tsk_size_t hard_limit = INT8_MAX;
 
     if (self->options & TSK_16_BIT_GENOTYPES) {
-        hard_limit = UINT16_MAX;
+        hard_limit = INT16_MAX;
     }
     if (var->max_alleles == hard_limit) {
         ret = TSK_ERR_TOO_MANY_ALLELES;
@@ -372,26 +372,26 @@ out:
  * same reason.
  */
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u8_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
+tsk_vargen_update_genotypes_i8_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
-    uint8_t *restrict genotypes = self->variant.genotypes.u8;
+    int8_t *restrict genotypes = self->variant.genotypes.i8;
     const tsk_id_t *restrict list_left = self->tree.left_sample;
     const tsk_id_t *restrict list_right = self->tree.right_sample;
     const tsk_id_t *restrict list_next = self->tree.next_sample;
     tsk_id_t index, stop;
     int ret = 0;
 
-    assert(derived < UINT8_MAX);
+    assert(derived < INT8_MAX);
 
     index = list_left[node];
     if (index != TSK_NULL) {
         stop = list_right[node];
         while (true) {
-            if (genotypes[index] == derived) {
+            if (genotypes[index] == (int8_t) derived) {
                 ret = TSK_ERR_INCONSISTENT_MUTATIONS;
                 goto out;
             }
-            genotypes[index] = (uint8_t) derived;
+            genotypes[index] = (int8_t) derived;
             if (index == stop) {
                 break;
             }
@@ -403,26 +403,26 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u16_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
+tsk_vargen_update_genotypes_i16_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
-    uint16_t *restrict genotypes = self->variant.genotypes.u16;
+    int16_t *restrict genotypes = self->variant.genotypes.i16;
     const tsk_id_t *restrict list_left = self->tree.left_sample;
     const tsk_id_t *restrict list_right = self->tree.right_sample;
     const tsk_id_t *restrict list_next = self->tree.next_sample;
     tsk_id_t index, stop;
     int ret = 0;
 
-    assert(derived < UINT16_MAX);
+    assert(derived < INT16_MAX);
 
     index = list_left[node];
     if (index != TSK_NULL) {
         stop = list_right[node];
         while (true) {
-            if (genotypes[index] == derived) {
+            if (genotypes[index] == (int16_t) derived) {
                 ret = TSK_ERR_INCONSISTENT_MUTATIONS;
                 goto out;
             }
-            genotypes[index] = (uint16_t) derived;
+            genotypes[index] = (int16_t) derived;
             if (index == stop) {
                 break;
             }
@@ -474,49 +474,49 @@ out:
 }
 
 static int
-tsk_vargen_visit_u8(tsk_vargen_t *self, tsk_id_t sample_index, tsk_size_t derived)
+tsk_vargen_visit_i8(tsk_vargen_t *self, tsk_id_t sample_index, tsk_size_t derived)
 {
     int ret = 0;
-    uint8_t *restrict genotypes = self->variant.genotypes.u8;
+    int8_t *restrict genotypes = self->variant.genotypes.i8;
 
-    assert(derived < UINT8_MAX);
+    assert(derived < INT8_MAX);
     assert(sample_index != -1);
-    if (genotypes[sample_index] == derived) {
+    if (genotypes[sample_index] == (int8_t) derived) {
         ret = TSK_ERR_INCONSISTENT_MUTATIONS;
         goto out;
     }
-    genotypes[sample_index] = (uint8_t) derived;
+    genotypes[sample_index] = (int8_t) derived;
 out:
     return ret;
 }
 
 static int
-tsk_vargen_visit_u16(tsk_vargen_t *self, tsk_id_t sample_index, tsk_size_t derived)
+tsk_vargen_visit_i16(tsk_vargen_t *self, tsk_id_t sample_index, tsk_size_t derived)
 {
     int ret = 0;
-    uint16_t *restrict genotypes = self->variant.genotypes.u16;
+    int16_t *restrict genotypes = self->variant.genotypes.i16;
 
-    assert(derived < UINT16_MAX);
+    assert(derived < INT16_MAX);
     assert(sample_index != -1);
-    if (genotypes[sample_index] == derived) {
+    if (genotypes[sample_index] == (int16_t) derived) {
         ret = TSK_ERR_INCONSISTENT_MUTATIONS;
         goto out;
     }
-    genotypes[sample_index] = (uint16_t) derived;
+    genotypes[sample_index] = (int16_t) derived;
 out:
     return ret;
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u8_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
+tsk_vargen_update_genotypes_i8_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
-    return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_u8);
+    return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_i8);
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_u16_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
+tsk_vargen_update_genotypes_i16_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_size_t derived)
 {
-    return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_u16);
+    return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_i16);
 }
 
 static int
@@ -538,14 +538,14 @@ tsk_vargen_update_site(tsk_vargen_t *self)
      * do it by traversal. For large sets of samples though, it'll be
      * definitely better to use the sample list infrastructure. */
     if (genotypes16) {
-        update_genotypes = tsk_vargen_update_genotypes_u16_sample_list;
+        update_genotypes = tsk_vargen_update_genotypes_i16_sample_list;
         if (by_traversal) {
-            update_genotypes = tsk_vargen_update_genotypes_u16_traversal;
+            update_genotypes = tsk_vargen_update_genotypes_i16_traversal;
         }
     } else {
-        update_genotypes = tsk_vargen_update_genotypes_u8_sample_list;
+        update_genotypes = tsk_vargen_update_genotypes_i8_sample_list;
         if (by_traversal) {
-            update_genotypes = tsk_vargen_update_genotypes_u8_traversal;
+            update_genotypes = tsk_vargen_update_genotypes_i8_traversal;
         }
     }
 
@@ -564,9 +564,9 @@ tsk_vargen_update_site(tsk_vargen_t *self)
      * in the list of mutations. This guarantees the correctness of this algorithm.
      */
     if (genotypes16) {
-        memset(self->variant.genotypes.u16, 0, 2 * self->num_samples);
+        memset(self->variant.genotypes.i16, 0, 2 * self->num_samples);
     } else {
-        memset(self->variant.genotypes.u8, 0, self->num_samples);
+        memset(self->variant.genotypes.i8, 0, self->num_samples);
     }
     for (j = 0; j < site->mutations_length; j++) {
         mutation = site->mutations[j];

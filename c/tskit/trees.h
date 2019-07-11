@@ -320,13 +320,13 @@ int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_l
 typedef struct {
     tsk_id_t node;
     tsk_id_t parent;
-    uint8_t state;
+    int8_t state;
 } tsk_state_transition_t;
 
-int tsk_tree_reconstruct(tsk_tree_t *self, uint8_t *genotypes,
+int tsk_tree_reconstruct(tsk_tree_t *self, int8_t *genotypes,
         double *cost_matrix, tsk_flags_t options,
-        uint8_t *ancestral_state,
-        size_t *num_transitions, tsk_state_transition_t **transitions);
+        int8_t *ancestral_state,
+        tsk_size_t *num_transitions, tsk_state_transition_t **transitions);
 
 
 /****************************************************************************/

@@ -2028,7 +2028,7 @@ trait_regression_summary_func(size_t state_dim, double *state, size_t result_dim
     double m, a, denom, z;
     size_t i, j;
     // x[0], ..., x[result_dim - 1] contains the traits, W
-    // x[result_dim], ..., x[state_dim - 2] contains the covariates, Z 
+    // x[result_dim], ..., x[state_dim - 2] contains the covariates, Z
     // x[state_dim - 1] has the number of samples below the node
 
     m = x[state_dim - 1];
@@ -3774,18 +3774,18 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
 /* Parsimony methods */
 
 static inline uint64_t
-set_bit(uint64_t value, uint8_t bit)
+set_bit(uint64_t value, int8_t bit)
 {
     return value | (1ULL << bit);
 }
 
 static inline bool
-bit_is_set(uint64_t value, uint8_t bit)
+bit_is_set(uint64_t value, int8_t bit)
 {
     return (value & (1ULL << bit)) != 0;
 }
 
-static inline uint8_t
+static inline int8_t
 get_smallest_set_bit(uint64_t v)
 {
     /* This is an inefficient implementation, there are several better
@@ -3793,7 +3793,7 @@ get_smallest_set_bit(uint64_t v)
      * return (uint8_t) (__builtin_ffsll((long long) v) - 1);
      */
     uint64_t t = 1;
-    uint8_t r = 0;
+    int8_t r = 0;
 
     while ((v & t) == 0) {
         t <<= 1;
@@ -3807,10 +3807,10 @@ get_smallest_set_bit(uint64_t v)
  * now this is unused.
  */
 int TSK_WARN_UNUSED
-tsk_tree_reconstruct(tsk_tree_t *self, uint8_t *genotypes,
+tsk_tree_reconstruct(tsk_tree_t *self, int8_t *genotypes,
         double *TSK_UNUSED(cost_matrix), tsk_flags_t TSK_UNUSED(options),
-        uint8_t *r_ancestral_state,
-        size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
+        int8_t *r_ancestral_state,
+        tsk_size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
 {
     int ret = 0;
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
@@ -3820,7 +3820,7 @@ tsk_tree_reconstruct(tsk_tree_t *self, uint8_t *genotypes,
     const tsk_id_t *restrict parent = self->parent;
     const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
     uint64_t root_state;
-    uint8_t *restrict state = malloc(num_nodes * sizeof(*state));
+    int8_t *restrict state = malloc(num_nodes * sizeof(*state));
     uint64_t *restrict A = calloc(num_nodes, sizeof(*A));
     tsk_id_t *restrict stack = malloc(num_nodes * sizeof(*stack));
     tsk_id_t *restrict parent_stack = malloc(num_nodes * sizeof(*parent_stack));
@@ -3828,9 +3828,9 @@ tsk_tree_reconstruct(tsk_tree_t *self, uint8_t *genotypes,
     /* The largest possible number of transitions is one over every sample */
     tsk_state_transition_t *transitions = malloc(num_samples * sizeof(*transitions));
     tsk_size_t j;
-    uint8_t ancestral_state;
+    int8_t ancestral_state;
     int stack_top;
-    size_t num_transitions;
+    tsk_size_t num_transitions;
 
     if (A == NULL || stack == NULL || parent_stack == NULL || state == NULL
             || transitions == NULL) {
