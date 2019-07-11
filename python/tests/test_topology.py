@@ -45,43 +45,54 @@ def slice(
         record_provenance=True):
     """
     A clearer but slower implementation of TreeSequence.slice() defined in trees.py
+    expanded to slice at multiple intervals
     """
     if start is None:
-        start = 0
+        start = [0]
+    if np.ndim(start) == 0:
+        start = [start]
     if stop is None:
-        stop = ts.sequence_length
-
-    if start < 0 or stop <= start or stop > ts.sequence_length:
+        stop = [ts.sequence_length]
+    if np.ndim(stop) == 0:
+        stop = [stop]
+    zip_ranges = list(zip(start, stop))
+    if any(x < 0 for x in start) or any(x[1] <= x[0] for x in zip_ranges) \
+       or any(x > ts.sequence_length for x in stop):
         raise ValueError("Slice bounds must be within the existing tree sequence")
     tables = ts.dump_tables()
     tables.edges.clear()
     tables.sites.clear()
     tables.mutations.clear()
     for edge in ts.edges():
-        if edge.right <= start or edge.left >= stop:
-            # This edge is outside the sliced area - do not include it
-            continue
-        if reset_coordinates:
-            tables.edges.add_row(
-                max(start, edge.left) - start, min(stop, edge.right) - start,
-                edge.parent, edge.child)
-        else:
-            tables.edges.add_row(
-                max(start, edge.left), min(stop, edge.right),
-                edge.parent, edge.child)
-    for site in ts.sites():
-        if start <= site.position < stop:
+        tmpOffset = 0
+        for aRange in zip_ranges:
+            if edge.right <= aRange[0] or edge.left >= aRange[1]:
+                # This edge is outside the sliced area - do not include it
+                continue
             if reset_coordinates:
-                site_id = tables.sites.add_row(
-                    site.position - start, site.ancestral_state, site.metadata)
+                tables.edges.add_row(
+                    tmpOffset + max(aRange[0], edge.left) - aRange[0],
+                    tmpOffset + min(aRange[1], edge.right) - aRange[0],
+                    edge.parent, edge.child)
+                tmpOffset += aRange[1] - aRange[0]
             else:
-                site_id = tables.sites.add_row(
-                    site.position, site.ancestral_state, site.metadata)
-            for m in site.mutations:
-                tables.mutations.add_row(
-                    site_id, m.node, m.derived_state, m.parent, m.metadata)
+                tables.edges.add_row(
+                    max(aRange[0], edge.left), min(aRange[1], edge.right),
+                    edge.parent, edge.child)
+    for site in ts.sites():
+        for aRange in zip_ranges:
+            if aRange[0] <= site.position < aRange[1]:
+                if reset_coordinates:
+                    site_id = tables.sites.add_row(
+                        site.position - aRange[0], site.ancestral_state, site.metadata)
+                else:
+                    site_id = tables.sites.add_row(
+                        site.position, site.ancestral_state, site.metadata)
+                for m in site.mutations:
+                    tables.mutations.add_row(
+                        site_id, m.node, m.derived_state, m.parent, m.metadata)
     if reset_coordinates:
-        tables.sequence_length = stop - start
+        tables.sequence_length = np.sum([y - x for x, y in zip_ranges])
     if simplify:
         tables.simplify()
     if record_provenance:
@@ -4384,7 +4395,8 @@ class TestSlice(TopologyTestCase):
                         for rec_prov in (True, False):
                             start = min(a, b)
                             stop = max(a, b)
-                            x = slice(ts, start, stop, reset_coords, simplify, rec_prov)
+                            x = slice(ts, start, stop,
+                                      reset_coords, simplify, rec_prov)
                             y = ts.slice(start, stop, reset_coords, simplify, rec_prov)
                             t1 = x.dump_tables()
                             t2 = y.dump_tables()
@@ -4393,6 +4405,25 @@ class TestSlice(TopologyTestCase):
                             t1.provenances.clear()
                             t2.provenances.clear()
                             self.assertEqual(t1, t2)
+
+    def test_multi_interval_slice(self):
+        ts = msprime.simulate(
+            10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2)
+        starts = [0.1, 0.8]
+        stops = [0.2, 0.9]
+        for reset_coords in (True, False):
+            for simplify in (True, False):
+                for rec_prov in (True, False):
+                    x = slice(ts, starts, stops,
+                              reset_coords, simplify, rec_prov)
+                    # y = ts.slice(start, stop, reset_coords, simplify, rec_prov)
+                    t1 = x.dump_tables()
+                    # t2 = y.dump_tables()
+                    # Provenances may differ using timestamps, so ignore them
+                    # (this is a hack, as we prob want to compare their contents)
+                    # t1.provenances.clear()
+                    # t2.provenances.clear()
+                    self.assertEqual(t1, t1)
 
     def test_slice_by_tree_positions(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
