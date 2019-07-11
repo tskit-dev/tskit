@@ -1436,42 +1436,36 @@ class Tree(object):
         observations. The observations are described by the genotypes array, with
         distinct characters mapped to integers in the range 0 to 63,
         such that ``genotypes[0]`` contains the observation for sample 0 and so on.
+        Missing data can be specified for a sample using the value
+        ``tskit.MISSING_DATA`` (-1). At least one non-missing observation must be
+        provided.
 
         The current implementation uses the Fitch parsimony algorithm to determine
         the minimum number of state transitions required to explain the data.
 
         The state reconstruction is returned as two-tuple, ``(ancestral_state,
         transitions)``, where ancestral_state is the integer state that has been
-        determined to be most parsimonious. The returned ``transitions`` are
-        described by a tuple of three numpy arrays of equal length,
-        ``(node, parent, state)``. The ``node`` array contains the nodes over which
-        state transitions occur and ``state`` array contains the derived state
-        at each of these transitions. The ``parent`` array contains the index
-        of the previous state transition on the path to root.
+        determined to be most parsimonious. The returned ``transitions`` is a
+        list of ``tskit.StateTransition`` objects, which correspond to
+        mutations in the :ref:`sec_data_model`. Each element in this list
+        in an object with attributes ``node``, ``parent`` and ``state``,
+        which alternatively can be treated as a 3-tuple (it is implemented using
+        :func:`collections.namedtuple`). For each transition, ``node`` is the
+        tree node over which state transition occurs and ``state`` is the new
+        after this transition. When there are multiple transitions at returned,
+        ``parent`` contains the index of the previous state transition on the path
+        to root (see the :ref:`sec_mutation_table_definition` for more information
+        on the concept of mutation parents).
 
-        One of the main uses of this method is to position mutations on a tree
-        to encode observed data. In the following example we show how a set
-        of tables can be updated to include sites and mutations to encode data
-        stored in an (m, n) numpy array of genotypes with a corresponding list
-        of m lists encoding the alleles for these sites::
-
-            for j in range(m):
-                ancestral_state, (node, parent, state) = tree.map_mutations(genotypes[j])
-                tables.sites.add_row(j, ancestral_state=alleles[j][ancestral_state]))
-                parent_offset = len(tables.mutations)
-                for u, p, s in zip(node, parent, state):
-                    p = parent_offset + p if p != tskit.NULL else p
-                    tables.mutations.add_row(
-                        site=j, node=u, parent=p, derived_state=alleles[j][s])
-
+        See the :ref:`sec_tutorial_parsimony` section in the tutorial for examples
+        of how to use this method.
 
         .. warning:: This method is experimental and the interface may change.
 
         :param array_like genotypes: The input observations for the samples in this tree.
         :return: An encoding of the ancestral_state and state transitions required
             on this tree.
-        :rtype: (int, (np.array(dtype=np.int32),
-            np.array(dtype=np.int32), np.array(dtype=np.int8))
+        :rtype: (int, list(tskit.StateTransition))
         """
         genotypes = util.safe_np_int_cast(genotypes, np.int8)
         if np.max(genotypes) >= 64:

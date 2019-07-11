@@ -664,3 +664,119 @@ Running this example we get::
     >>> threads_example()
     100%|████████████████████████████████████████████████| 4045/4045 [00:09<00:00, 440.29it/s]
     Found LD sites for 4045 doubleton mutations out of 60100
+
+
+.. _sec_tutorial_parsimony:
+
+*********
+Parismony
+*********
+
+The :meth:`.Tree.map_mutations` finds a parsimonious explanation for a set of discrete
+character observations at the samples in a tree using classical phylogenetics
+algorithms.
+
+.. code-block:: python
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    colours = ["red", "blue", "green"]
+    # The states here refer to the colours we are going to paint the
+    # leaf nodes with.
+    genotypes = [0, 0, 0, 0, 1, 2]
+    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
+    ancestral_state, transitions = tree.map_mutations(genotypes)
+    print("Ancestral state = ", ancestral_state)
+    for transition in transitions:
+        print("\t", transition)
+    tree.draw("_static/parsimony1.svg", node_colours=node_colours)
+
+
+.. image:: _static/parsimony1.svg
+
+We get::
+
+    Ancestral state =  0
+        StateTransition(node=5, parent=-1, state=2)
+        StateTransition(node=4, parent=-1, state=1)
+
+So, the algorithm has concluded, quite reasonably, that the most parsimonious
+description of this state is that the ancestral state is red and there was
+a mutation to blue and green over nodes 4 and 5.
+
++++++++++++++++
+Building tables
++++++++++++++++
+
+One of the main uses of :meth:`.Tree.map_mutations` method is to position mutations on a tree
+to encode observed data. In the following example we show how a set
+of tables can be updated using the :ref:`sec_tables_api` to include sites and mutations to encode data
+stored in an (m, n) numpy array of genotypes with a corresponding list
+of m lists encoding the alleles for these sites::
+
+    for j in range(m):
+        ancestral_state, transitions = tree.map_mutations(genotypes[j])
+        tables.sites.add_row(j, ancestral_state=alleles[j][ancestral_state]))
+        parent_offset = len(tables.mutations)
+        for node, parent, state in transitions:
+            parent = parent_offset + parent if parent != tskit.NULL else parent
+            tables.mutations.add_row(
+                site=j, node=node, parent=parent, derived_state=alleles[j][state])
+
+++++++++++++
+Missing data
+++++++++++++
+
+The Fitch parsimony algorithm in :meth:`.Tree.map_mutations` can also take missing data
+into account when finding a set of parsimonious state transitions. We do this by
+specifying the special value ``-1`` as the state, which is treated by the algorithm as
+"could be anything".
+
+For example, here we state that sample 0 is missing, and use the colour white to indicate
+this::
+
+    colours = ["red", "blue", "green", "white"]
+    genotypes = [-1, 0, 0, 0, 1, 2]
+    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
+    ancestral_state, transitions = tree.map_mutations(genotypes)
+    print("Ancestral state = ", ancestral_state)
+    for transition in transitions:
+        print("\t", transition)
+    tree.draw("_static/parsimony2.svg", node_colours=node_colours)
+
+.. image:: _static/parsimony2.svg
+
+As before, we get::
+
+    Ancestral state =  0
+        StateTransition(node=5, parent=-1, state=2)
+        StateTransition(node=4, parent=-1, state=1)
+
+
+The algorithm decided, again, quite reasonably, that the most parsimonious explanation
+for the input data is the same as before. Thus, if we used this information to fill
+out mutation table as above, we would impute the missing value for 0 as red.
+
+The output of the algorithm can be a little surprising at times. Consider this example::
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    colours = ["red", "blue", "white"]
+    genotypes = [1, -1, 0, 0, 0, 0]
+    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
+    ancestral_state, transitions = tree.map_mutations(genotypes)
+    print("Ancestral state = ", ancestral_state)
+    for transition in transitions:
+        print("\t", transition)
+    tree.draw("_static/parsimony3.svg", node_colours=node_colours)
+
+.. image:: _static/parsimony3.svg
+
+The output we get is::
+
+    Ancestral state =  0
+         StateTransition(node=6, parent=-1, state=1)
+
+Note that this is putting a mutation to blue over node 6, **not** node 0 as
+we might expect. Thus, we impute here that node 1 is blue. It is important
+to remember that the algorithm is minimising the number of state transitions;
+this may not correspond always to what we might consider the most parsimonious
+explanation.

@@ -73,5 +73,39 @@ def moving_along_tree_sequence():
         print("Tree {} covers [{:.2f}, {:.2f})".format(tree.index, *tree.interval))
 
 
+def parsimony():
+    tree = msprime.simulate(6, random_seed=42).first()
+    colours = ["red", "blue", "green"]
+    genotypes = [0, 0, 0, 0, 1, 2]
+    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
+    ancestral_state, transitions = tree.map_mutations(genotypes)
+    print("Ancestral state = ", ancestral_state)
+    for transition in transitions:
+        print("\t", transition)
+    tree.draw("_static/parsimony1.svg", node_colours=node_colours)
 
-moving_along_tree_sequence()
+    tree = msprime.simulate(6, random_seed=42).first()
+    colours = ["red", "blue", "green", "white"]
+    genotypes = [-1, 0, 0, 0, 1, 2]
+    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
+    ancestral_state, transitions = tree.map_mutations(genotypes)
+    print("Ancestral state = ", ancestral_state)
+    for transition in transitions:
+        print("\t", transition)
+    tree.draw("_static/parsimony2.svg", node_colours=node_colours)
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    colours = ["red", "blue", "white"]
+    genotypes = [1, -1, 0, 0, 0, 0]
+    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
+    ancestral_state, transitions = tree.map_mutations(genotypes)
+    print("Ancestral state = ", ancestral_state)
+    for transition in transitions:
+        print("\t", transition)
+    tree.draw("_static/parsimony3.svg", node_colours=node_colours)
+
+
+
+
+# moving_along_tree_sequence()
+parsimony()
