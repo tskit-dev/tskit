@@ -538,6 +538,32 @@ out:
     return ret;
 }
 
+static PyObject *
+convert_transitions(tsk_state_transition_t *transitions, size_t num_transitions)
+{
+    PyObject *ret = NULL;
+    PyObject *l = NULL;
+    PyObject *py_transition = NULL;
+    size_t j;
+
+    l = PyList_New(num_transitions);
+    if (l == NULL) {
+        goto out;
+    }
+    for (j = 0; j < num_transitions; j++) {
+        py_transition = Py_BuildValue("iii", transitions[j].node,
+                transitions[j].parent, transitions[j].state);
+        if (py_transition == NULL) {
+            Py_DECREF(l);
+            goto out;
+        }
+        PyList_SET_ITEM(l, j, py_transition);
+    }
+    ret = l;
+out:
+    return ret;
+}
+
 /*===================================================================
  * General table code.
  *===================================================================
@@ -8198,16 +8224,13 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     PyObject *genotypes = NULL;
+    PyObject *py_transitions = NULL;
     PyArrayObject *genotypes_array = NULL;
-    PyArrayObject *node_array  = NULL;
-    PyArrayObject *parent_array = NULL;
-    PyArrayObject *state_array = NULL;
     static char *kwlist[] = {"genotypes", NULL};
-    int8_t ancestral_state, *state;
-    int32_t *node, *parent;
+    int8_t ancestral_state;
     tsk_state_transition_t *transitions = NULL;
-    tsk_size_t j, num_transitions;
-    npy_intp *shape, dims;
+    tsk_size_t num_transitions;
+    npy_intp *shape;
     int err;
 
     if (Tree_check_tree(self) != 0) {
@@ -8235,31 +8258,17 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
         handle_library_error(err);
         goto out;
     }
-
-    dims = num_transitions;
-    node_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
-    parent_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
-    state_array = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT8);
-    if (node_array == NULL || parent_array == NULL || state_array == NULL) {
+    py_transitions = convert_transitions(transitions, num_transitions);
+    if (py_transitions == NULL) {
         goto out;
     }
-    node = (int32_t *) PyArray_DATA(node_array);
-    parent = (int32_t *) PyArray_DATA(parent_array);
-    state = (int8_t *) PyArray_DATA(state_array);
-    for (j = 0; j < num_transitions; j++) {
-        node[j] = transitions[j].node;
-        parent[j] = transitions[j].parent;
-        state[j] = transitions[j].state;
-    }
-    ret = Py_BuildValue("i(OOO)", ancestral_state, node_array, parent_array, state_array);
+    ret = Py_BuildValue("iO", ancestral_state, py_transitions);
 out:
     if (transitions != NULL) {
         free(transitions);
     }
     Py_XDECREF(genotypes_array);
-    Py_XDECREF(node_array);
-    Py_XDECREF(parent_array);
-    Py_XDECREF(state_array);
+    Py_XDECREF(py_transitions);
     return ret;
 }
 

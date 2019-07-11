@@ -51,6 +51,10 @@ CoalescenceRecord = collections.namedtuple(
     ["left", "right", "node", "children", "time", "population"])
 
 
+StateTransition = collections.namedtuple(
+    "StateTransition", ["node", "parent", "state"])
+
+
 # TODO this interface is rubbish. Should have much better printing options.
 # TODO we should be use __slots__ here probably.
 class SimpleContainer(object):
@@ -1472,7 +1476,8 @@ class Tree(object):
         genotypes = util.safe_np_int_cast(genotypes, np.int8)
         if np.max(genotypes) >= 64:
             raise ValueError("A maximum of 64 states is supported")
-        return self._ll_tree.map_mutations(genotypes)
+        ancestral_state, transitions = self._ll_tree.map_mutations(genotypes)
+        return ancestral_state, [StateTransition(*t) for t in transitions]
 
 
 def load(path):

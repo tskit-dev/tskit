@@ -1569,18 +1569,17 @@ class TestTree(LowLevelTestCase):
         tree = _tskit.Tree(ts)
         n = ts.get_num_samples()
         genotypes = np.zeros(n, dtype=np.int8)
-        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
+        ancestral_state, transitions = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
-        self.assertEqual(node.shape, (0,))
-        self.assertEqual(parent.shape, (0,))
-        self.assertEqual(state.shape, (0,))
+        self.assertEqual(len(transitions), 0)
 
         genotypes = np.arange(n, dtype=np.int8)
-        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
+        ancestral_state, transitions = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
-        self.assertTrue(np.array_equal(node, 1 + np.arange(n - 1, dtype=np.int32)))
-        self.assertTrue(np.array_equal(state, 1 + np.arange(n - 1, dtype=np.int8)))
-        self.assertTrue(np.array_equal(parent, np.zeros(n - 1, dtype=np.int32) - 1))
+        for j in range(n - 1):
+            self.assertEqual(transitions[j][0], j + 1)
+            self.assertEqual(transitions[j][1], -1)
+            self.assertEqual(transitions[j][2], j + 1)
 
     def test_map_mutations(self):
         ts = self.get_example_tree_sequence()
@@ -1588,11 +1587,9 @@ class TestTree(LowLevelTestCase):
         tree.next()
         n = ts.get_num_samples()
         genotypes = np.zeros(n, dtype=np.int8)
-        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
+        ancestral_state, transitions = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
-        self.assertEqual(node.shape, (0,))
-        self.assertEqual(parent.shape, (0,))
-        self.assertEqual(state.shape, (0,))
+        self.assertEqual(len(transitions), 0)
 
     def test_map_mutations_errors(self):
         ts = self.get_example_tree_sequence()
@@ -1610,7 +1607,7 @@ class TestTree(LowLevelTestCase):
                 TypeError, tree.map_mutations, np.zeros(bad_size, dtype=bad_type))
         genotypes = np.zeros(n, dtype=np.int8)
         tree.map_mutations(genotypes)
-        for bad_value in [64, 65, 255, -2]:
+        for bad_value in [64, 65, 127, -2]:
             genotypes[0] = bad_value
             self.assertRaises(_tskit.LibraryError, tree.map_mutations, genotypes)
 
