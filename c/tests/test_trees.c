@@ -2656,7 +2656,16 @@ test_simplest_map_mutations(void)
     CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
     free(transitions);
 
+    genotypes[0] = -1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
     /* Check the null tree */
+    genotypes[0] = 1;
     CU_ASSERT_FALSE(tsk_tree_next(&t));
     ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
@@ -3884,15 +3893,33 @@ test_single_tree_map_mutations(void)
     CU_ASSERT_EQUAL_FATAL(transitions[1].state, 2);
     free(transitions);
 
+    genotypes[0] = 1;
+    genotypes[1] = 2;
+    genotypes[2] = 3;
+    genotypes[3] = 4;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 3);
+    free(transitions);
+
     genotypes[0] = 64;
     ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_GENOTYPE);
 
     genotypes[0] = -2;
     ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_GENOTYPE);
+
+    genotypes[0] = -1;
+    genotypes[1] = -1;
+    genotypes[2] = -1;
+    genotypes[3] = -1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENOTYPES_ALL_MISSING);
 
     tsk_tree_free(&t);
     tsk_treeseq_free(&ts);

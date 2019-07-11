@@ -212,6 +212,10 @@ of tskit.
 #define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
 #define TSK_ERR_EMPTY_SAMPLE_SET                                    -908
 
+/* Mutation mapping errors */
+#define TSK_ERR_GENOTYPES_ALL_MISSING                              -1000
+#define TSK_ERR_BAD_GENOTYPE                                       -1001
+
 
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14

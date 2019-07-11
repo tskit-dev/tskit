@@ -345,6 +345,14 @@ tsk_strerror_internal(int err)
         case TSK_ERR_EMPTY_SAMPLE_SET:
             ret = "Samples cannot be empty";
             break;
+
+        /* Mutation mapping errors */
+        case TSK_ERR_GENOTYPES_ALL_MISSING:
+            ret = "Must provide at least one non-missing genotype.";
+            break;
+        case TSK_ERR_BAD_GENOTYPE:
+            ret = "Bad genotype value provided";
+            break;
     }
     return ret;
 }

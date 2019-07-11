@@ -3639,6 +3639,191 @@ tsk_tree_prev(tsk_tree_t *self)
     return ret;
 }
 
+/* Parsimony methods */
+
+static inline uint64_t
+set_bit(uint64_t value, int8_t bit)
+{
+    return value | (1ULL << bit);
+}
+
+static inline bool
+bit_is_set(uint64_t value, int8_t bit)
+{
+    return (value & (1ULL << bit)) != 0;
+}
+
+static inline int8_t
+get_smallest_set_bit(uint64_t v)
+{
+    /* This is an inefficient implementation, there are several better
+     * approaches. On GCC we can use
+     * return (uint8_t) (__builtin_ffsll((long long) v) - 1);
+     */
+    uint64_t t = 1;
+    int8_t r = 0;
+
+    while ((v & t) == 0) {
+        t <<= 1;
+        r++;
+    }
+    return r;
+}
+
+/* This interface is experimental. In the future, we should provide the option to
+ * use a general cost matrix, in which case we'll use the Sankoff algorithm. For
+ * now this is unused.
+ */
+int TSK_WARN_UNUSED
+tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
+        double *TSK_UNUSED(cost_matrix), tsk_flags_t TSK_UNUSED(options),
+        int8_t *r_ancestral_state,
+        tsk_size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
+{
+    int ret = 0;
+    const tsk_size_t num_samples = self->tree_sequence->num_samples;
+    const tsk_size_t num_nodes = self->num_nodes;
+    const tsk_id_t *restrict left_child = self->left_child;
+    const tsk_id_t *restrict right_sib = self->right_sib;
+    const tsk_id_t *restrict parent = self->parent;
+    const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
+    uint64_t root_state;
+    int8_t *restrict state = malloc(num_nodes * sizeof(*state));
+    uint64_t *restrict A = calloc(num_nodes, sizeof(*A));
+    tsk_id_t *restrict stack = malloc(num_nodes * sizeof(*stack));
+    tsk_id_t *restrict parent_stack = malloc(num_nodes * sizeof(*parent_stack));
+    tsk_id_t postorder_parent, transition_parent, root, u, v;
+    /* The largest possible number of transitions is one over every sample */
+    tsk_state_transition_t *transitions = malloc(num_samples * sizeof(*transitions));
+    tsk_size_t j;
+    int8_t ancestral_state;
+    int stack_top;
+    tsk_size_t num_transitions;
+    tsk_size_t non_missing = 0;
+
+    if (A == NULL || stack == NULL || parent_stack == NULL || state == NULL
+            || transitions == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    for (j = 0; j < num_samples; j++) {
+        if (genotypes[j] >= 64 || genotypes[j] < TSK_MISSING_DATA) {
+            ret = TSK_ERR_BAD_GENOTYPE;
+            goto out;
+        }
+        u = self->tree_sequence->samples[j];
+        if (genotypes[j] == TSK_MISSING_DATA) {
+            /* All bits set */
+            A[u] = UINT64_MAX;
+        } else {
+            A[u] = set_bit(A[u], genotypes[j]);
+            non_missing++;
+        }
+    }
+
+    if (non_missing == 0) {
+        ret = TSK_ERR_GENOTYPES_ALL_MISSING;
+        goto out;
+    }
+
+    root_state = 0;
+    for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
+        /* Do a post order traversal */
+        stack[0] = root;
+        stack_top = 0;
+        postorder_parent = TSK_NULL;
+        while (stack_top >= 0) {
+            u = stack[stack_top];
+            if (left_child[u] != TSK_NULL && u != postorder_parent) {
+                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+                    stack_top++;
+                    stack[stack_top] = v;
+                }
+            } else {
+                stack_top--;
+                postorder_parent = parent[u];
+
+                /* Visit u */
+                if (! (node_flags[u] & TSK_NODE_IS_SAMPLE)) {
+                    /* Get the union of the child sets */
+                    A[u] = UINT64_MAX; /* Set all the bits for u */
+                    for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+                        A[u] &= A[v];
+                    }
+                    if (A[u] == 0) {
+                        /* Union is empty, so get the intersection */
+                        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+                            A[u] |= A[v];
+                        }
+                    }
+                }
+            }
+        }
+        root_state |= A[root];
+    }
+    ancestral_state = get_smallest_set_bit(root_state);
+
+    num_transitions = 0;
+    for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
+        transition_parent = TSK_NULL;
+        state[root] = ancestral_state;
+        if (! bit_is_set(A[root], ancestral_state)) {
+            state[root] = get_smallest_set_bit(A[root]);
+            transitions[num_transitions].node = root;
+            transitions[num_transitions].parent = TSK_NULL;
+            transitions[num_transitions].state = state[root];
+            transition_parent = (tsk_id_t) num_transitions;
+            num_transitions++;
+        }
+        /* Do a preorder traversal */
+        stack[0] = root;
+        parent_stack[0] = transition_parent;
+        stack_top = 0;
+        while (stack_top >= 0) {
+            u = stack[stack_top];
+            transition_parent = parent_stack[stack_top];
+            stack_top--;
+
+            for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+                stack_top++;
+                stack[stack_top] = v;
+                state[v] = state[u];
+                if (! bit_is_set(A[v], state[u])) {
+                    state[v] = get_smallest_set_bit(A[v]);
+                    transitions[num_transitions].node = v;
+                    transitions[num_transitions].parent = transition_parent;
+                    transitions[num_transitions].state = state[v];
+                    parent_stack[stack_top] = (tsk_id_t) num_transitions;
+                    num_transitions++;
+                } else {
+                    parent_stack[stack_top] = transition_parent;
+                }
+            }
+        }
+    }
+
+    *r_transitions = transitions;
+    *r_num_transitions = num_transitions;
+    *r_ancestral_state = ancestral_state;
+    transitions = NULL;
+out:
+    tsk_safe_free(transitions);
+    /* Cannot safe_free because of 'restrict' */
+    if (A != NULL) {
+        free(A);
+    }
+    if (stack != NULL) {
+        free(stack);
+    }
+    if (parent_stack != NULL) {
+        free(parent_stack);
+    }
+    if (state != NULL) {
+        free(state);
+    }
+    return ret;
+}
+
 /* ======================================================== *
  * Tree diff iterator.
  * ======================================================== */
@@ -3768,178 +3953,5 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     *ret_right = right;
     /* Set the left coordinate for the next tree */
     self->tree_left = right;
-    return ret;
-}
-
-/* Parsimony methods */
-
-static inline uint64_t
-set_bit(uint64_t value, int8_t bit)
-{
-    return value | (1ULL << bit);
-}
-
-static inline bool
-bit_is_set(uint64_t value, int8_t bit)
-{
-    return (value & (1ULL << bit)) != 0;
-}
-
-static inline int8_t
-get_smallest_set_bit(uint64_t v)
-{
-    /* This is an inefficient implementation, there are several better
-     * approaches. On GCC we can use
-     * return (uint8_t) (__builtin_ffsll((long long) v) - 1);
-     */
-    uint64_t t = 1;
-    int8_t r = 0;
-
-    while ((v & t) == 0) {
-        t <<= 1;
-        r++;
-    }
-    return r;
-}
-
-/* This interface is experimental. In the future, we should provide the option to
- * use a general cost matrix, in which case we'll use the Sankoff algorithm. For
- * now this is unused.
- */
-int TSK_WARN_UNUSED
-tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
-        double *TSK_UNUSED(cost_matrix), tsk_flags_t TSK_UNUSED(options),
-        int8_t *r_ancestral_state,
-        tsk_size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
-{
-    int ret = 0;
-    const tsk_size_t num_samples = self->tree_sequence->num_samples;
-    const tsk_size_t num_nodes = self->num_nodes;
-    const tsk_id_t *restrict left_child = self->left_child;
-    const tsk_id_t *restrict right_sib = self->right_sib;
-    const tsk_id_t *restrict parent = self->parent;
-    const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
-    uint64_t root_state;
-    int8_t *restrict state = malloc(num_nodes * sizeof(*state));
-    uint64_t *restrict A = calloc(num_nodes, sizeof(*A));
-    tsk_id_t *restrict stack = malloc(num_nodes * sizeof(*stack));
-    tsk_id_t *restrict parent_stack = malloc(num_nodes * sizeof(*parent_stack));
-    tsk_id_t postorder_parent, transition_parent, root, u, v;
-    /* The largest possible number of transitions is one over every sample */
-    tsk_state_transition_t *transitions = malloc(num_samples * sizeof(*transitions));
-    tsk_size_t j;
-    int8_t ancestral_state;
-    int stack_top;
-    tsk_size_t num_transitions;
-
-    if (A == NULL || stack == NULL || parent_stack == NULL || state == NULL
-            || transitions == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    for (j = 0; j < num_samples; j++) {
-        if (genotypes[j] >= 64 || genotypes[j] < TSK_MISSING_DATA) {
-            ret = TSK_ERR_BAD_PARAM_VALUE;
-            goto out;
-        }
-        u = self->tree_sequence->samples[j];
-        A[u] = set_bit(A[u], genotypes[j]);
-    }
-
-    root_state = 0;
-    for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
-        /* Do a post order traversal */
-        stack[0] = root;
-        stack_top = 0;
-        postorder_parent = TSK_NULL;
-        while (stack_top >= 0) {
-            u = stack[stack_top];
-            if (left_child[u] != TSK_NULL && u != postorder_parent) {
-                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                    stack_top++;
-                    stack[stack_top] = v;
-                }
-            } else {
-                stack_top--;
-                postorder_parent = parent[u];
-
-                /* Visit u */
-                if (! (node_flags[u] & TSK_NODE_IS_SAMPLE)) {
-                    /* Get the union of the child sets */
-                    A[u] = UINT64_MAX; /* Set all the bits for u */
-                    for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                        A[u] &= A[v];
-                    }
-                    if (A[u] == 0) {
-                        /* Union is empty, so get the intersection */
-                        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                            A[u] |= A[v];
-                        }
-                    }
-                }
-            }
-        }
-        root_state |= A[root];
-    }
-    ancestral_state = get_smallest_set_bit(root_state);
-
-    num_transitions = 0;
-    for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
-        transition_parent = TSK_NULL;
-        state[root] = ancestral_state;
-        if (! bit_is_set(A[root], ancestral_state)) {
-            state[root] = get_smallest_set_bit(A[root]);
-            transitions[num_transitions].node = root;
-            transitions[num_transitions].parent = TSK_NULL;
-            transitions[num_transitions].state = state[root];
-            transition_parent = (tsk_id_t) num_transitions;
-            num_transitions++;
-        }
-        /* Do a preorder traversal */
-        stack[0] = root;
-        parent_stack[0] = transition_parent;
-        stack_top = 0;
-        while (stack_top >= 0) {
-            u = stack[stack_top];
-            transition_parent = parent_stack[stack_top];
-            stack_top--;
-
-            for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                stack_top++;
-                stack[stack_top] = v;
-                state[v] = state[u];
-                if (! bit_is_set(A[v], state[u])) {
-                    state[v] = get_smallest_set_bit(A[v]);
-                    transitions[num_transitions].node = v;
-                    transitions[num_transitions].parent = transition_parent;
-                    transitions[num_transitions].state = state[v];
-                    parent_stack[stack_top] = (tsk_id_t) num_transitions;
-                    num_transitions++;
-                } else {
-                    parent_stack[stack_top] = transition_parent;
-                }
-            }
-        }
-    }
-
-    *r_transitions = transitions;
-    *r_num_transitions = num_transitions;
-    *r_ancestral_state = ancestral_state;
-    transitions = NULL;
-out:
-    tsk_safe_free(transitions);
-    /* Cannot safe_free because of 'restrict' */
-    if (A != NULL) {
-        free(A);
-    }
-    if (stack != NULL) {
-        free(stack);
-    }
-    if (parent_stack != NULL) {
-        free(parent_stack);
-    }
-    if (state != NULL) {
-        free(state);
-    }
     return ret;
 }
