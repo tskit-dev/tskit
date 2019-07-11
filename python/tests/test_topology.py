@@ -3590,7 +3590,6 @@ class TestMapToAncestors(unittest.TestCase):
         tss = self.do_map(ts, samples=[2, 3], ancestors=[7])
         self.assertEqual(tss.num_rows, 0)
 
-    # @unittest.skip("FIXME @gtsambos")
     def test_single_tree_samples_or_ancestors_not_in_tree(self):
         nodes = io.StringIO(self.nodes)
         edges = io.StringIO(self.edges)

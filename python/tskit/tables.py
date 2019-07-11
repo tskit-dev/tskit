@@ -1664,7 +1664,22 @@ class TableCollection(object):
             keep_unary=keep_unary)
 
     def map_ancestors(self, samples, ancestors):
-        # TODO document
+        """
+        Returns an :class:`EdgeTable` instance displaying all relationships between
+        the nodes supplied in `samples` and `ancestors`.
+        Relationships between different nodes in `ancestors` are also shown.
+        The supplied nodes must be a subset of the node IDs in the tree sequence.
+        Other than this, the procedure is flexible; overlap between the lists of samples
+        and ancestors is permitted, and the nodes need not be ordered by time.
+        Node IDs are not changed in the output.
+        If none of the nodes in `ancestors` are ancestral to `samples` anywhere in
+        the tree sequence, an empty table will be returned.
+
+        :param list[int] samples: A list of node IDs to retain as samples.
+        :param list[int] ancestors: A list of node IDs to use as ancestors.
+        :return: An :class:`EdgeTable` instance displaying relationships between
+            the `samples` and `ancestors`.
+        """
         samples = util.safe_np_int_cast(samples, np.int32)
         ancestors = util.safe_np_int_cast(ancestors, np.int32)
         ll_edge_table = self.ll_tables.map_ancestors(samples, ancestors)
