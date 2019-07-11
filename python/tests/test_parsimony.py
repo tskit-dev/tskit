@@ -380,7 +380,8 @@ class TestFitchParsimonyDistance(unittest.TestCase):
                 tree, variant.genotypes)
             ancestral_state2, transitions2 = sankoff_reconstruction(
                 tree, variant.genotypes)
-            ancestral_state3, (node, parent, state) = tree.reconstruct(variant.genotypes)
+            ancestral_state3, (node, parent, state) = tree.map_mutations(
+                variant.genotypes)
             self.assertEqual(ancestral_state1, ancestral_state2)
             self.assertEqual(ancestral_state1, ancestral_state3)
             # The algorithms will make slightly different choices on where to put
@@ -440,7 +441,7 @@ class TestParsimonyRoundTrip(unittest.TestCase):
         for tree in ts.trees():
             for site in tree.sites():
                 ancestral_state, mutations = fitch_reconstruction(tree, G[site.id])
-                ancestral_state1, (node, parent, state) = tree.reconstruct(G[site.id])
+                ancestral_state1, (node, parent, state) = tree.map_mutations(G[site.id])
                 self.assertEqual(ancestral_state, ancestral_state1)
                 self.assertEqual(len(mutations), len(node))
                 self.assertEqual(len(mutations), len(parent))
@@ -567,7 +568,8 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
         for tree in ts.trees():
             for site in tree.sites():
                 ancestral_state, mutations = fitch_reconstruction(tree, G[site.id])
-                # ancestral_state1, (node, parent, state) = tree.reconstruct(G[site.id])
+                # ancestral_state1, (node, parent, state) = tree.map_mutations(
+                #      G[site.id])
                 # self.assertEqual(ancestral_state, ancestral_state1)
                 # self.assertEqual(len(mutations), len(node))
                 # self.assertEqual(len(mutations), len(parent))
@@ -612,7 +614,7 @@ class TestReconstructAllTuples(unittest.TestCase):
         G1 = np.zeros((m, n), dtype=np.int8)
         for j, genotypes in enumerate(itertools.product(range(k), repeat=n)):
             G1[j] = genotypes
-            ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+            ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
             tables.sites.add_row(j, ancestral_state=str(ancestral_state))
             parent_offset = len(tables.mutations)
             for u, p, s in zip(node, parent, state):
@@ -657,7 +659,7 @@ class TestReconstructAllTuples(unittest.TestCase):
 
 class TestReconstructMissingData(unittest.TestCase):
     """
-    Tests that we correctly reconstruct when we have missing data.
+    Tests that we correctly map_mutations when we have missing data.
     """
     def do_reconstruction(self, tree, genotypes):
         ancestral_state, mutations = fitch_reconstruction(tree, genotypes)

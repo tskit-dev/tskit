@@ -8194,7 +8194,7 @@ out:
 }
 
 static PyObject *
-Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
+Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     PyObject *genotypes = NULL;
@@ -8228,7 +8228,7 @@ Tree_reconstruct(Tree *self, PyObject *args, PyObject *kwds)
         goto out;
     }
 
-    err = tsk_tree_reconstruct(self->tree,
+    err = tsk_tree_map_mutations(self->tree,
         (int8_t *) PyArray_DATA(genotypes_array), NULL, 0,
         &ancestral_state, &num_transitions, &transitions);
     if (err != 0) {
@@ -8379,7 +8379,7 @@ static PyMethodDef Tree_methods[] = {
     {"get_newick", (PyCFunction) Tree_get_newick,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the newick representation of this tree." },
-    {"reconstruct", (PyCFunction) Tree_reconstruct,
+    {"map_mutations", (PyCFunction) Tree_map_mutations,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the minimal ancestral state reconstruction for the specified genotypes." },
     {"equals", (PyCFunction) Tree_equals, METH_VARARGS,

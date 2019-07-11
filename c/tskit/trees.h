@@ -323,7 +323,7 @@ typedef struct {
     int8_t state;
 } tsk_state_transition_t;
 
-int tsk_tree_reconstruct(tsk_tree_t *self, int8_t *genotypes,
+int tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         double *cost_matrix, tsk_flags_t options,
         int8_t *ancestral_state,
         tsk_size_t *num_transitions, tsk_state_transition_t **transitions);

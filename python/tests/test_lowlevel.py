@@ -1564,55 +1564,55 @@ class TestTree(LowLevelTestCase):
                 t2 = t1.copy()
                 self.assertEqual(t1.get_index(), t2.get_index())
 
-    def test_reconstruct_null(self):
+    def test_map_mutations_null(self):
         ts = self.get_example_tree_sequence()
         tree = _tskit.Tree(ts)
         n = ts.get_num_samples()
-        genotypes = np.zeros(n, dtype=np.uint8)
-        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        genotypes = np.zeros(n, dtype=np.int8)
+        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
         self.assertEqual(node.shape, (0,))
         self.assertEqual(parent.shape, (0,))
         self.assertEqual(state.shape, (0,))
 
-        genotypes = np.arange(n, dtype=np.uint8)
-        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        genotypes = np.arange(n, dtype=np.int8)
+        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
         self.assertTrue(np.array_equal(node, 1 + np.arange(n - 1, dtype=np.int32)))
-        self.assertTrue(np.array_equal(state, 1 + np.arange(n - 1, dtype=np.uint8)))
+        self.assertTrue(np.array_equal(state, 1 + np.arange(n - 1, dtype=np.int8)))
         self.assertTrue(np.array_equal(parent, np.zeros(n - 1, dtype=np.int32) - 1))
 
-    def test_reconstruct(self):
+    def test_map_mutations(self):
         ts = self.get_example_tree_sequence()
         tree = _tskit.Tree(ts)
         tree.next()
         n = ts.get_num_samples()
-        genotypes = np.zeros(n, dtype=np.uint8)
-        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        genotypes = np.zeros(n, dtype=np.int8)
+        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
         self.assertEqual(node.shape, (0,))
         self.assertEqual(parent.shape, (0,))
         self.assertEqual(state.shape, (0,))
 
-    def test_reconstruct_errors(self):
+    def test_map_mutations_errors(self):
         ts = self.get_example_tree_sequence()
         tree = _tskit.Tree(ts)
         n = ts.get_num_samples()
-        genotypes = np.zeros(n, dtype=np.uint8)
-        self.assertRaises(TypeError, tree.reconstruct)
+        genotypes = np.zeros(n, dtype=np.int8)
+        self.assertRaises(TypeError, tree.map_mutations)
         for bad_size in [0, 1, n - 1, n + 1]:
             self.assertRaises(
-                ValueError, tree.reconstruct, np.zeros(bad_size, dtype=np.uint8))
+                ValueError, tree.map_mutations, np.zeros(bad_size, dtype=np.int8))
         for bad_type in [None, {}, set()]:
-            self.assertRaises(TypeError, tree.reconstruct, [bad_type] * n)
-        for bad_type in [np.int8, np.uint64, np.float32]:
+            self.assertRaises(TypeError, tree.map_mutations, [bad_type] * n)
+        for bad_type in [np.uint8, np.uint64, np.float32]:
             self.assertRaises(
-                TypeError, tree.reconstruct, np.zeros(bad_size, dtype=bad_type))
-        genotypes = np.zeros(n, dtype=np.uint8)
-        tree.reconstruct(genotypes)
-        for bad_value in [64, 65, 255]:
+                TypeError, tree.map_mutations, np.zeros(bad_size, dtype=bad_type))
+        genotypes = np.zeros(n, dtype=np.int8)
+        tree.map_mutations(genotypes)
+        for bad_value in [64, 65, 255, -2]:
             genotypes[0] = bad_value
-            self.assertRaises(_tskit.LibraryError, tree.reconstruct, genotypes)
+            self.assertRaises(_tskit.LibraryError, tree.map_mutations, genotypes)
 
 
 class TestModuleFunctions(unittest.TestCase):

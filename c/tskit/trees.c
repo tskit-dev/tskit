@@ -3807,7 +3807,7 @@ get_smallest_set_bit(uint64_t v)
  * now this is unused.
  */
 int TSK_WARN_UNUSED
-tsk_tree_reconstruct(tsk_tree_t *self, int8_t *genotypes,
+tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         double *TSK_UNUSED(cost_matrix), tsk_flags_t TSK_UNUSED(options),
         int8_t *r_ancestral_state,
         tsk_size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
@@ -3838,7 +3838,7 @@ tsk_tree_reconstruct(tsk_tree_t *self, int8_t *genotypes,
         goto out;
     }
     for (j = 0; j < num_samples; j++) {
-        if (genotypes[j] >= 64) {
+        if (genotypes[j] >= 64 || genotypes[j] < TSK_MISSING_DATA) {
             ret = TSK_ERR_BAD_PARAM_VALUE;
             goto out;
         }

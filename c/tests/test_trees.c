@@ -2617,7 +2617,7 @@ test_simplest_individual_filter(void)
 }
 
 static void
-test_simplest_reconstruct(void)
+test_simplest_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2638,7 +2638,7 @@ test_simplest_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2646,7 +2646,7 @@ test_simplest_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2658,7 +2658,7 @@ test_simplest_reconstruct(void)
 
     /* Check the null tree */
     CU_ASSERT_FALSE(tsk_tree_next(&t));
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2673,7 +2673,7 @@ test_simplest_reconstruct(void)
 }
 
 static void
-test_simplest_nonbinary_reconstruct(void)
+test_simplest_nonbinary_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2696,7 +2696,7 @@ test_simplest_nonbinary_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2704,7 +2704,7 @@ test_simplest_nonbinary_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2719,7 +2719,7 @@ test_simplest_nonbinary_reconstruct(void)
 }
 
 static void
-test_simplest_unary_reconstruct(void)
+test_simplest_unary_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2744,7 +2744,7 @@ test_simplest_unary_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2752,7 +2752,7 @@ test_simplest_unary_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2767,7 +2767,7 @@ test_simplest_unary_reconstruct(void)
 }
 
 static void
-test_simplest_non_sample_leaf_reconstruct(void)
+test_simplest_non_sample_leaf_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2790,7 +2790,7 @@ test_simplest_non_sample_leaf_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2798,7 +2798,7 @@ test_simplest_non_sample_leaf_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2813,7 +2813,7 @@ test_simplest_non_sample_leaf_reconstruct(void)
 }
 
 static void
-test_simplest_internal_sample_reconstruct(void)
+test_simplest_internal_sample_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2834,7 +2834,7 @@ test_simplest_internal_sample_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2842,7 +2842,7 @@ test_simplest_internal_sample_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2853,7 +2853,7 @@ test_simplest_internal_sample_reconstruct(void)
     free(transitions);
 
     genotypes[2] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
@@ -2868,7 +2868,7 @@ test_simplest_internal_sample_reconstruct(void)
 }
 
 static void
-test_simplest_multiple_root_reconstruct(void)
+test_simplest_multiple_root_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2893,7 +2893,7 @@ test_simplest_multiple_root_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2901,7 +2901,7 @@ test_simplest_multiple_root_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2912,7 +2912,7 @@ test_simplest_multiple_root_reconstruct(void)
     free(transitions);
 
     genotypes[1] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2927,7 +2927,7 @@ test_simplest_multiple_root_reconstruct(void)
 }
 
 static void
-test_simplest_chained_reconstruct(void)
+test_simplest_chained_map_mutations(void)
 {
     const char *nodes =
         "1  0   0\n"
@@ -2952,7 +2952,7 @@ test_simplest_chained_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -2960,7 +2960,7 @@ test_simplest_chained_reconstruct(void)
     free(transitions);
 
     genotypes[2] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -3807,7 +3807,7 @@ test_single_tree_is_descendant(void)
 }
 
 static void
-test_single_tree_reconstruct(void)
+test_single_tree_map_mutations(void)
 {
     tsk_treeseq_t ts;
     tsk_tree_t t;
@@ -3824,7 +3824,7 @@ test_single_tree_reconstruct(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
@@ -3835,7 +3835,7 @@ test_single_tree_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
@@ -3846,7 +3846,7 @@ test_single_tree_reconstruct(void)
     genotypes[1] = 0;
     genotypes[2] = 0;
     genotypes[3] = 0;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -3858,7 +3858,7 @@ test_single_tree_reconstruct(void)
         genotypes[1] = 0;
         genotypes[2] = 0;
         genotypes[3] = 0;
-        ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+        ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
                 &ancestral_state, &num_transitions, &transitions);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -3871,7 +3871,7 @@ test_single_tree_reconstruct(void)
 
     genotypes[0] = 2;
     genotypes[1] = 1;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -3885,7 +3885,12 @@ test_single_tree_reconstruct(void)
     free(transitions);
 
     genotypes[0] = 64;
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    genotypes[0] = -2;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
@@ -3894,7 +3899,7 @@ test_single_tree_reconstruct(void)
 }
 
 static void
-test_single_tree_reconstruct_internal_samples(void)
+test_single_tree_map_mutations_internal_samples(void)
 {
     /* Example derived from test case provoking a segfault */
     const char *nodes =
@@ -3931,7 +3936,7 @@ test_single_tree_reconstruct_internal_samples(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
 
-    ret = tsk_tree_reconstruct(&t, genotypes, NULL, 0,
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
             &ancestral_state, &num_transitions, &transitions);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
@@ -4933,16 +4938,16 @@ main(int argc, char **argv)
         {"test_simplest_reduce_site_topology", test_simplest_reduce_site_topology},
         {"test_simplest_population_filter", test_simplest_population_filter},
         {"test_simplest_individual_filter", test_simplest_individual_filter},
-        {"test_simplest_reconstruct", test_simplest_reconstruct},
-        {"test_simplest_nonbinary_reconstruct", test_simplest_nonbinary_reconstruct},
-        {"test_simplest_unary_reconstruct", test_simplest_unary_reconstruct},
-        {"test_simplest_non_sample_leaf_reconstruct",
-            test_simplest_non_sample_leaf_reconstruct},
-        {"test_simplest_internal_sample_reconstruct",
-            test_simplest_internal_sample_reconstruct},
-        {"test_simplest_multiple_root_reconstruct",
-            test_simplest_multiple_root_reconstruct},
-        {"test_simplest_chained_reconstruct", test_simplest_chained_reconstruct},
+        {"test_simplest_map_mutations", test_simplest_map_mutations},
+        {"test_simplest_nonbinary_map_mutations", test_simplest_nonbinary_map_mutations},
+        {"test_simplest_unary_map_mutations", test_simplest_unary_map_mutations},
+        {"test_simplest_non_sample_leaf_map_mutations",
+            test_simplest_non_sample_leaf_map_mutations},
+        {"test_simplest_internal_sample_map_mutations",
+            test_simplest_internal_sample_map_mutations},
+        {"test_simplest_multiple_root_map_mutations",
+            test_simplest_multiple_root_map_mutations},
+        {"test_simplest_chained_map_mutations", test_simplest_chained_map_mutations},
 
         /* Single tree tests */
         {"test_single_tree_good_records", test_single_tree_good_records},
@@ -4960,9 +4965,9 @@ main(int argc, char **argv)
         {"test_single_tree_simplify_null_samples", test_single_tree_simplify_null_samples},
         {"test_single_tree_compute_mutation_parents", test_single_tree_compute_mutation_parents},
         {"test_single_tree_is_descendant", test_single_tree_is_descendant},
-        {"test_single_tree_reconstruct", test_single_tree_reconstruct},
-        {"test_single_tree_reconstruct_internal_samples",
-            test_single_tree_reconstruct_internal_samples},
+        {"test_single_tree_map_mutations", test_single_tree_map_mutations},
+        {"test_single_tree_map_mutations_internal_samples",
+            test_single_tree_map_mutations_internal_samples},
 
         /* Multi tree tests */
         {"test_simple_multi_tree", test_simple_multi_tree},

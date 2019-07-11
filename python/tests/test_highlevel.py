@@ -2338,18 +2338,18 @@ class TestTree(HighLevelTestCase):
                 self.assertEqual(
                     tree.num_tracked_samples(j), copy.num_tracked_samples(j))
 
-    def test_reconstruct(self):
+    def test_map_mutations(self):
         ts = msprime.simulate(5, random_seed=42)
         tree = ts.first()
         genotypes = np.zeros(5, dtype=np.int8)
-        ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+        ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
         self.assertEqual(ancestral_state, 0)
         self.assertEqual(node.shape, (0,))
         self.assertEqual(parent.shape, (0,))
         self.assertEqual(state.shape, (0,))
         for j in range(1, 64):
             genotypes[0] = j
-            ancestral_state, (node, parent, state) = tree.reconstruct(genotypes)
+            ancestral_state, (node, parent, state) = tree.map_mutations(genotypes)
             self.assertEqual(ancestral_state, 0)
             self.assertEqual(node.shape, (1,))
             self.assertEqual(parent.shape, (1,))
@@ -2357,9 +2357,9 @@ class TestTree(HighLevelTestCase):
         for j in range(64, 67):
             genotypes[0] = j
             with self.assertRaises(ValueError):
-                tree.reconstruct(genotypes)
-        tree.reconstruct([0] * 5)
-        tree.reconstruct(np.zeros(5, dtype=int))
+                tree.map_mutations(genotypes)
+        tree.map_mutations([0] * 5)
+        tree.map_mutations(np.zeros(5, dtype=int))
 
 
 class TestNodeOrdering(HighLevelTestCase):

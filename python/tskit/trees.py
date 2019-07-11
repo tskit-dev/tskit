@@ -1425,7 +1425,7 @@ class Tree(object):
     def __str__(self):
         return str(self.get_parent_dict())
 
-    def reconstruct(self, genotypes):
+    def map_mutations(self, genotypes):
         """
         Given observations for a discrete set of characters at the samples in this
         tree, reconstruct the state transitions required to reproduce these
@@ -1452,7 +1452,7 @@ class Tree(object):
         of m lists encoding the alleles for these sites::
 
             for j in range(m):
-                ancestral_state, (node, parent, state) = tree.reconstruct(genotypes[j])
+                ancestral_state, (node, parent, state) = tree.map_mutations(genotypes[j])
                 tables.sites.add_row(j, ancestral_state=alleles[j][ancestral_state]))
                 parent_offset = len(tables.mutations)
                 for u, p, s in zip(node, parent, state):
@@ -1472,7 +1472,7 @@ class Tree(object):
         genotypes = util.safe_np_int_cast(genotypes, np.int8)
         if np.max(genotypes) >= 64:
             raise ValueError("A maximum of 64 states is supported")
-        return self._ll_tree.reconstruct(genotypes)
+        return self._ll_tree.map_mutations(genotypes)
 
 
 def load(path):
