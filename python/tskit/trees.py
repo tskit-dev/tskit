@@ -3245,54 +3245,69 @@ class TreeSequence(object):
                         np.array([0], dtype=offset.dtype),
                         np.cumsum(lens[keep], dtype=offset.dtype)]))
         if start is None:
-            start = 0
+            start = np.array([0])
+        if np.ndim(start) == 0:
+            start = np.array([start])
         if stop is None:
-            stop = self.sequence_length
-        if start < 0 or stop <= start or stop > self.sequence_length:
+            stop = np.array([self.sequence_length])
+        if np.ndim(stop) == 0:
+            stop = np.array([stop])
+        if (np.any(start < 0) or np.any(stop <= start) or
+                np.any(stop > self.sequence_length)):
             raise ValueError("Slice bounds must be within the existing tree sequence")
         edges = self.tables.edges
         sites = self.tables.sites
         mutations = self.tables.mutations
-        keep_edges = np.logical_not(
-            np.logical_or(edges.right <= start, edges.left >= stop))
-        keep_sites = np.logical_and(sites.position >= start, sites.position < stop)
-        keep_mutations = keep_sites[mutations.site]
         tables = self.dump_tables()
-        new_as, new_as_offset = keep_with_offset(
-            keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
-        new_md, new_md_offset = keep_with_offset(
-            keep_sites, sites.metadata, sites.metadata_offset)
-
-        if reset_coordinates:
-            tables.edges.set_columns(
-                left=np.fmax(start, edges.left[keep_edges]) - start,
-                right=np.fmin(stop, edges.right[keep_edges]) - start,
-                parent=edges.parent[keep_edges],
-                child=edges.child[keep_edges])
-            tables.sites.set_columns(
-                position=sites.position[keep_sites] - start,
-                ancestral_state=new_as,
-                ancestral_state_offset=new_as_offset,
-                metadata=new_md,
-                metadata_offset=new_md_offset)
-            tables.sequence_length = stop - start
-        else:
-            tables.edges.set_columns(
-                left=np.fmax(start, edges.left[keep_edges]),
-                right=np.fmin(stop, edges.right[keep_edges]),
-                parent=edges.parent[keep_edges],
-                child=edges.child[keep_edges])
-            tables.sites.set_columns(
-                position=sites.position[keep_sites],
-                ancestral_state=new_as,
-                ancestral_state_offset=new_as_offset,
-                metadata=new_md,
-                metadata_offset=new_md_offset)
+        tables.edges.clear()
+        tables.sites.clear()
+        keep_sites = np.repeat(False, sites.num_rows)
+        keep_mutations = np.repeat(False, mutations.num_rows)
+        tmp_offset = 0
+        for s, e in zip(start, stop):
+            curr_keep_sites = np.logical_and(sites.position >= s,
+                                             sites.position < e)
+            keep_sites = np.logical_or(keep_sites, curr_keep_sites)
+            new_as, new_as_offset = keep_with_offset(
+                curr_keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
+            new_md, new_md_offset = keep_with_offset(
+                curr_keep_sites, sites.metadata, sites.metadata_offset)
+            keep_mutations = np.logical_or(keep_mutations,
+                                           curr_keep_sites[mutations.site])
+            keep_edges = np.logical_not(
+                np.logical_or(edges.right <= s, edges.left >= e))
+            if reset_coordinates:
+                tables.edges.append_columns(
+                    left=tmp_offset + np.fmax(s, edges.left[keep_edges]) - s,
+                    right=tmp_offset + np.fmin(e, edges.right[keep_edges]) - s,
+                    parent=edges.parent[keep_edges],
+                    child=edges.child[keep_edges])
+                tables.sites.append_columns(
+                    position=tmp_offset + sites.position[curr_keep_sites] - s,
+                    ancestral_state=new_as,
+                    ancestral_state_offset=new_as_offset,
+                    metadata=new_md,
+                    metadata_offset=new_md_offset)
+                tmp_offset += e - s
+            else:
+                tables.edges.append_columns(
+                    left=np.fmax(s, edges.left[keep_edges]),
+                    right=np.fmin(e, edges.right[keep_edges]),
+                    parent=edges.parent[keep_edges],
+                    child=edges.child[keep_edges])
+                tables.sites.append_columns(
+                    position=sites.position[curr_keep_sites],
+                    ancestral_state=new_as,
+                    ancestral_state_offset=new_as_offset,
+                    metadata=new_md,
+                    metadata_offset=new_md_offset)
         new_ds, new_ds_offset = keep_with_offset(
             keep_mutations, mutations.derived_state,
             mutations.derived_state_offset)
         new_md, new_md_offset = keep_with_offset(
             keep_mutations, mutations.metadata, mutations.metadata_offset)
+        if reset_coordinates:
+            tables.sequence_length = max(tmp_offset, np.max(tables.edges.right))
         site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
         tables.mutations.set_columns(
             site=site_map[mutations.site[keep_mutations]],
@@ -3302,6 +3317,7 @@ class TreeSequence(object):
             parent=mutations.parent[keep_mutations],
             metadata=new_md,
             metadata_offset=new_md_offset)
+        tables.sort()
         if simplify:
             tables.simplify()
         if record_provenance:

@@ -68,29 +68,33 @@ def slice(
         for aRange in zip_ranges:
             if edge.right <= aRange[0] or edge.left >= aRange[1]:
                 # This edge is outside the sliced area - do not include it
-                continue
-            if reset_coordinates:
-                tables.edges.add_row(
-                    tmpOffset + max(aRange[0], edge.left) - aRange[0],
-                    tmpOffset + min(aRange[1], edge.right) - aRange[0],
-                    edge.parent, edge.child)
-                tmpOffset += aRange[1] - aRange[0]
+                pass
             else:
-                tables.edges.add_row(
-                    max(aRange[0], edge.left), min(aRange[1], edge.right),
-                    edge.parent, edge.child)
+                if reset_coordinates:
+                    tables.edges.add_row(
+                        tmpOffset + max(aRange[0], edge.left) - aRange[0],
+                        tmpOffset + min(aRange[1], edge.right) - aRange[0],
+                        edge.parent, edge.child)
+                else:
+                    tables.edges.add_row(
+                        max(aRange[0], edge.left), min(aRange[1], edge.right),
+                        edge.parent, edge.child)
+            tmpOffset += aRange[1] - aRange[0]
     for site in ts.sites():
+        tmpOffset = 0
         for aRange in zip_ranges:
             if aRange[0] <= site.position < aRange[1]:
                 if reset_coordinates:
                     site_id = tables.sites.add_row(
-                        site.position - aRange[0], site.ancestral_state, site.metadata)
+                        tmpOffset + site.position - aRange[0],
+                        site.ancestral_state, site.metadata)
                 else:
                     site_id = tables.sites.add_row(
                         site.position, site.ancestral_state, site.metadata)
                 for m in site.mutations:
                     tables.mutations.add_row(
                         site_id, m.node, m.derived_state, m.parent, m.metadata)
+            tmpOffset += aRange[1] - aRange[0]
     if reset_coordinates:
         tables.sequence_length = np.sum([y - x for x, y in zip_ranges])
     if simplify:
@@ -4410,20 +4414,21 @@ class TestSlice(TopologyTestCase):
         ts = msprime.simulate(
             10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2)
         starts = [0.1, 0.8]
-        stops = [0.2, 0.9]
+        stops = [0.2, 0.9]  # TODO add test of overlap / sorted
         for reset_coords in (True, False):
             for simplify in (True, False):
                 for rec_prov in (True, False):
                     x = slice(ts, starts, stops,
                               reset_coords, simplify, rec_prov)
-                    # y = ts.slice(start, stop, reset_coords, simplify, rec_prov)
+                    y = ts.slice(np.array(starts), np.array(stops),
+                                 reset_coords, simplify, rec_prov)
                     t1 = x.dump_tables()
-                    # t2 = y.dump_tables()
+                    t2 = y.dump_tables()
                     # Provenances may differ using timestamps, so ignore them
                     # (this is a hack, as we prob want to compare their contents)
-                    # t1.provenances.clear()
-                    # t2.provenances.clear()
-                    self.assertEqual(t1, t1)
+                    t1.provenances.clear()
+                    t2.provenances.clear()
+                    self.assertEqual(t1, t2)
 
     def test_slice_by_tree_positions(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
