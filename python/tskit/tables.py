@@ -1576,6 +1576,15 @@ class TableCollection(object):
         tables.provenances.set_columns(**tables_dict["provenances"])
         return tables
 
+    def copy(self):
+        """
+        Returns a deep copy of this TableCollection.
+
+        :return: A deep copy of this TableCollection.
+        :rtype: .TableCollection
+        """
+        return TableCollection.fromdict(self.asdict())
+
     def tree_sequence(self):
         """
         Returns a :class:`TreeSequence` instance with the structure defined by the
