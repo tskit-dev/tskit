@@ -26,6 +26,7 @@ Tree sequence IO via the tables API.
 import base64
 import collections
 import datetime
+import json
 import warnings
 
 import numpy as np
@@ -37,6 +38,7 @@ import _tskit
 # can't do this in Py3.
 import tskit
 import tskit.util as util
+import tskit.provenance as provenance
 
 
 IndividualTableRow = collections.namedtuple(
@@ -1799,6 +1801,147 @@ class TableCollection(object):
         """
         self.ll_tables.deduplicate_sites()
         # TODO add provenance
+
+    def slice(
+            self, start=None, stop=None, reset_coordinates=True, simplify=True,
+            record_provenance=True):
+        """
+        Returns a copy of this set of tables which include only information in
+        the genomic interval between ``start`` and ``stop``.  Edges are truncated
+        to this interval, and sites not covered by the sliced region are discarded.
+
+        :param float start: The leftmost genomic position, giving the start point
+            of the kept region. Tree sequence information along the genome prior to (but
+            not including) this point will be discarded. If None, set equal to zero.
+        :param float stop: The rightmost genomic position, giving the end point of the
+            kept region. Tree sequence information at this point and further along the
+            genomic sequence will be discarded. If None, is set equal to the
+            TableCollection's ``sequence_length``.
+        :param bool reset_coordinates: Reset the genomic coordinates such that position
+            0 in the tables after this operation corresponds to the current position
+            ``start`` and the returned tree sequence has sequence length
+            ``stop``-``start``. Sites and tree intervals will all have their positions
+            shifted to reflect the new coordinate system. If ``False``, coordinates are
+            before and after this operation are directly comparable (Default: True).
+        :param bool simplify: If True, run simplify on the tables so that nodes
+            no longer used are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this operation
+            in the returned table collection's provenance information.
+            (Default: True).
+        :rtype: tskit.TableCollection
+        """
+        if start is None:
+            start = 0
+        if stop is None:
+            stop = self.sequence_length
+        if start is None and stop is None:
+            raise ValueError("At least one of start or stop coordinates required")
+        return self.dice(
+            [(start, stop)], reset_coordinates=reset_coordinates, simplify=simplify,
+            record_provenance=record_provenance)
+
+    def dice(
+            self, intervals, reset_coordinates=True, simplify=True,
+            record_provenance=True):
+
+        def keep_with_offset(keep, data, offset):
+            lens = np.diff(offset)
+            return (data[np.repeat(keep, lens)],
+                    np.concatenate([
+                        np.array([0], dtype=offset.dtype),
+                        np.cumsum(lens[keep], dtype=offset.dtype)]))
+
+        # Not strictly necessary for the current implementation, but if we want to push
+        # this down into C, it'll be much more convenient to interpret the input as a
+        # 2D numpy array. So, we do this to ensure forward compatability.
+        intervals = np.array(intervals)
+        if len(intervals.shape) != 2 and intervals.shape[1] != 2:
+            raise ValueError("Intervals must be a list of 2-tuples or 2D numpy array")
+
+        last_right = 0
+        for left, right in intervals:
+            if left < 0 or right > self.sequence_length:
+                raise ValueError(
+                    "Slice bounds must be within the existing tree sequence")
+            if right <= left:
+                raise ValueError("Bad dice interval")
+            if left < last_right:
+                raise ValueError("Intervals must be disjoint.")
+        tables = self.copy()
+        sites = self.sites
+        edges = self.edges
+        mutations = self.mutations
+        tables.edges.clear()
+        tables.sites.clear()
+        tables.mutations.clear()
+        keep_sites = np.repeat(False, sites.num_rows)
+        keep_mutations = np.repeat(False, mutations.num_rows)
+        offset = 0
+        for s, e in intervals:
+            curr_keep_sites = np.logical_and(sites.position >= s, sites.position < e)
+            keep_sites = np.logical_or(keep_sites, curr_keep_sites)
+            new_as, new_as_offset = keep_with_offset(
+                curr_keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
+            new_md, new_md_offset = keep_with_offset(
+                curr_keep_sites, sites.metadata, sites.metadata_offset)
+            keep_mutations = np.logical_or(
+                keep_mutations, curr_keep_sites[mutations.site])
+            keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
+            if reset_coordinates:
+                tables.edges.append_columns(
+                    left=offset + np.fmax(s, edges.left[keep_edges]) - s,
+                    right=offset + np.fmin(e, edges.right[keep_edges]) - s,
+                    parent=edges.parent[keep_edges],
+                    child=edges.child[keep_edges])
+                tables.sites.append_columns(
+                    position=offset + sites.position[curr_keep_sites] - s,
+                    ancestral_state=new_as,
+                    ancestral_state_offset=new_as_offset,
+                    metadata=new_md,
+                    metadata_offset=new_md_offset)
+                offset += e - s
+            else:
+                tables.edges.append_columns(
+                    left=np.fmax(s, edges.left[keep_edges]),
+                    right=np.fmin(e, edges.right[keep_edges]),
+                    parent=edges.parent[keep_edges],
+                    child=edges.child[keep_edges])
+                tables.sites.append_columns(
+                    position=sites.position[curr_keep_sites],
+                    ancestral_state=new_as,
+                    ancestral_state_offset=new_as_offset,
+                    metadata=new_md,
+                    metadata_offset=new_md_offset)
+        new_ds, new_ds_offset = keep_with_offset(
+            keep_mutations, mutations.derived_state, mutations.derived_state_offset)
+        new_md, new_md_offset = keep_with_offset(
+            keep_mutations, mutations.metadata, mutations.metadata_offset)
+        if reset_coordinates:
+            if len(tables.edges) > 0:
+                tables.sequence_length = max(offset, np.max(tables.edges.right))
+            else:
+                tables.sequence_length = offset
+        site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
+        tables.mutations.set_columns(
+            site=site_map[mutations.site[keep_mutations]],
+            node=mutations.node[keep_mutations],
+            derived_state=new_ds,
+            derived_state_offset=new_ds_offset,
+            parent=mutations.parent[keep_mutations],
+            metadata=new_md,
+            metadata_offset=new_md_offset)
+        tables.sort()
+        if simplify:
+            tables.simplify()
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "dice",
+                "TODO": "add dice parameters"
+            }
+            tables.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+        return tables
 
     def has_index(self):
         """
