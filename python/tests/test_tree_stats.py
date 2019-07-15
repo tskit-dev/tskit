@@ -2865,23 +2865,33 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         # print(ts.genotype_matrix())
         # print(ts.draw_text())
         windows = ts.parse_windows(windows)
-        # TODO implement span_normalise in the low-level code and iterate over this too
-        for polarised in [True, False]:
-            # print(windows, polarised)
+        for span_normalise, polarised in itertools.product([True, False], [True, False]):
             sfs1 = naive_joint_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
-                span_normalise=False)
+                span_normalise=span_normalise)
             sfs2 = joint_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
-                span_normalise=False)
+                span_normalise=span_normalise)
             sfs3 = ts.joint_allele_frequency_spectrum(
-                sample_sets, windows, mode=self.mode, polarised=polarised)
+                sample_sets, windows, mode=self.mode, polarised=polarised,
+                span_normalise=span_normalise)
             self.assertEqual(sfs1.shape[0], len(windows) - 1)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             # print(sfs1.shape)
             for j, sample_set in enumerate(sample_sets):
                 n = 1 + (len(sample_set) if polarised else len(sample_set) // 2)
                 self.assertEqual(sfs1.shape[j + 1], n)
+
+            # TODO sort out the semantics here when folding into the zero'th element
+            # print("sample_sets:", sample_sets)
+            # for window_sfs in sfs1:
+                # print(window_sfs)
+                # coord = tuple([0] * len(sample_sets))
+                # print(window_sfs[coord])
+                # self.assertEqual(window_sfs[coord], 0)
+                # coord = tuple([len(sample_set) - 1 for sample_set in sample_sets])
+                # print(window_sfs[coord])
+                # print(coord)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             self.assertEqual(sfs1.shape, sfs2.shape)
             self.assertEqual(sfs1.shape, sfs3.shape)

@@ -1585,6 +1585,10 @@ test_paper_ex_jafs(void)
             0, NULL, result, TSK_STAT_POLARISED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     tsk_treeseq_free(&ts);
 }
 
