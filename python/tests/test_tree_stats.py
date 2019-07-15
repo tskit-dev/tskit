@@ -2643,7 +2643,8 @@ def naive_branch_joint_allele_frequency_spectrum(
                 if not more[0]:
                     break
             if span_normalise:
-                out[j, :] = S / (end - begin)
+                S /= (end - begin)
+            out[j, :] = S
     return out
 
 
@@ -2892,9 +2893,11 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
                 # coord = tuple([len(sample_set) - 1 for sample_set in sample_sets])
                 # print(window_sfs[coord])
                 # print(coord)
+            # print(span_normalise, polarised)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             self.assertEqual(sfs1.shape, sfs2.shape)
             self.assertEqual(sfs1.shape, sfs3.shape)
+            # print()
             # print("simple", sfs1)
             # print("effic ", sfs2)
             # print("ts    ", sfs3)
@@ -2902,7 +2905,6 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
             self.assertArrayAlmostEqual(sfs1, sfs3)
 
 
-@unittest.skip("Not implemented in C yet")
 class TestBranchJointAlleleFrequencySpectrum(
         TestJointAlleleFrequencySpectrum, TopologyExamplesMixin):
     mode = "branch"

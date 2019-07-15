@@ -639,8 +639,8 @@ GET_3D_ROW(double *base, size_t num_nodes, size_t output_dim, size_t window_inde
 /* Increments the n-dimensional array with the specified shape by the specified value at
  * the specified coordinate. */
 static inline void
-increment_nd_array_value(double *array, tsk_size_t n, tsk_size_t *shape, tsk_size_t *coordinate,
-        double value)
+increment_nd_array_value(double *array, tsk_size_t n, const tsk_size_t *shape,
+        const tsk_size_t *coordinate, double value)
 {
     size_t offset = 0;
     size_t product = 1;
@@ -1924,8 +1924,8 @@ update_site_jafs(tsk_site_t *site,
 {
     int ret = 0;
     tsk_size_t afs_size;
-    tsk_size_t k, c, allele, num_alleles;
-    double increment, sum, *afs, *allele_counts, *allele_count;
+    tsk_size_t k, c, sum, allele, num_alleles;
+    double increment, *afs, *allele_counts, *allele_count;
     tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
 
@@ -1947,11 +1947,11 @@ update_site_jafs(tsk_site_t *site,
         allele_count = GET_2D_ROW(allele_counts, num_sample_sets, allele);
         sum = 0;
         for (k = 0; k < num_sample_sets; k++) {
-            sum += allele_count[k];
             c = (tsk_size_t) allele_count[k];
+            sum += c;
             if (! polarised) {
                 /* Fold the count */
-                c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - allele_count[k]));
+                c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - c));
             }
             coordinate[k] = c;
         }
@@ -1972,7 +1972,7 @@ tsk_treeseq_site_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
     tsk_size_t num_windows, double *windows,
     tsk_size_t *result_dims, double *result, tsk_flags_t options)
 {
-    int ret;
+    int ret = 0;
     tsk_id_t u, v;
     tsk_size_t tree_site, tree_index, window_index;
     size_t num_nodes = self->tables->nodes.num_rows;
@@ -2055,6 +2055,193 @@ out:
     /* Can't use msp_safe_free here because of restrict */
     if (parent != NULL) {
         free(parent);
+    }
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+update_branch_jafs(
+        tsk_id_t u, double right,
+        const double *restrict branch_length, double *restrict last_update,
+        const double *total_counts, const double *counts, tsk_size_t num_sample_sets,
+        size_t window_index, const tsk_size_t *result_dims, double *result,
+        tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t afs_size;
+    tsk_size_t k, c;
+    double sum, *afs;
+    tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
+    bool polarised = !!(options & TSK_STAT_POLARISED);
+    const double *count_row = GET_2D_ROW(counts, num_sample_sets, u);
+    double x = (right - last_update[u]) * branch_length[u];
+
+    if (coordinate == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    if (!polarised) {
+        x *= 0.5;
+    }
+
+    afs_size = result_dims[num_sample_sets];
+    afs = result + afs_size * window_index;
+    sum = 0;
+    for (k = 0; k < num_sample_sets; k++) {
+        c = (tsk_size_t) count_row[k];
+        sum += c;
+        if (! polarised) {
+            /* Fold the count */
+            c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - c));
+        }
+        coordinate[k] = c;
+    }
+    if (sum > 0) {
+        increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, x);
+    }
+
+    /* def update_result(window_index, u, right): */
+    /*     x = (right - last_update[u]) * branch_length[u] */
+    /*     c = count[u] */
+    /*     if np.sum(c) > 0: */
+    /*         if not polarised: */
+    /*             # Fold the counts */
+    /*             c = c.copy() */
+    /*             for k in range(num_sample_sets): */
+    /*                 c[k] = min(c[k], len(sample_sets[k]) - c[k]) */
+    /*             x *= 0.5 */
+    /*         index = tuple([window_index] + list(c)) */
+    /*         result[index] += x */
+    /*     last_update[u] = right */
+
+    last_update[u] = right;
+
+out:
+    tsk_safe_free(coordinate);
+    return ret;
+}
+
+static int
+tsk_treeseq_branch_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, double *total_counts, double *counts,
+    tsk_size_t num_windows, double *windows,
+    tsk_size_t *result_dims, double *result, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_id_t u, v;
+    size_t window_index;
+    size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
+    const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
+    const double *restrict edge_left = self->tables->edges.left;
+    const double *restrict edge_right = self->tables->edges.right;
+    const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
+    const double *restrict node_time = self->tables->nodes.time;
+    const double sequence_length = self->tables->sequence_length;
+    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    double *restrict last_update = calloc(num_nodes, sizeof(*last_update));
+    double *restrict branch_length = calloc(num_nodes, sizeof(*branch_length));
+    tsk_id_t tj, tk, h;
+    double t_left, t_right, w_right;
+
+    if (parent == NULL || last_update == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, num_nodes * sizeof(*parent));
+
+    /* Iterate over the trees */
+    tj = 0;
+    tk = 0;
+    t_left = 0;
+    window_index = 0;
+    while (tj < num_edges || t_left < sequence_length) {
+        assert(window_index < num_windows);
+        while (tk < num_edges && edge_right[O[tk]] == t_left) {
+            h = O[tk];
+            tk++;
+            u = edge_child[h];
+            v = edge_parent[h];
+            ret = update_branch_jafs(u, t_left,
+                    branch_length, last_update,
+                    total_counts, counts, num_sample_sets, window_index,
+                    result_dims, result, options);
+            if (ret != 0) {
+                goto out;
+            }
+            while (v != TSK_NULL) {
+                ret = update_branch_jafs(v, t_left,
+                        branch_length, last_update,
+                        total_counts, counts, num_sample_sets, window_index,
+                        result_dims, result, options);
+                if (ret != 0) {
+                    goto out;
+                }
+                update_state(counts, num_sample_sets, v, u, -1);
+                v = parent[v];
+            }
+            parent[u] = TSK_NULL;
+            branch_length[u] = 0;
+        }
+
+        while (tj < num_edges && edge_left[I[tj]] == t_left) {
+            h = I[tj];
+            tj++;
+            u = edge_child[h];
+            v = edge_parent[h];
+            parent[u] = v;
+            branch_length[u] = node_time[v] - node_time[u];
+            while (v != TSK_NULL) {
+                ret = update_branch_jafs(v, t_left,
+                        branch_length, last_update,
+                        total_counts, counts, num_sample_sets, window_index,
+                        result_dims, result, options);
+                if (ret != 0) {
+                    goto out;
+                }
+                update_state(counts, num_sample_sets, v, u, +1);
+                v = parent[v];
+            }
+        }
+
+        t_right = sequence_length;
+        if (tj < num_edges) {
+            t_right = TSK_MIN(t_right, edge_left[I[tj]]);
+        }
+        if (tk < num_edges) {
+            t_right = TSK_MIN(t_right, edge_right[O[tk]]);
+        }
+
+        while (window_index < num_windows && windows[window_index + 1] <= t_right) {
+            w_right = windows[window_index + 1];
+            /* Flush the contributions of all nodes to the current window */
+            for (u = 0; u < (tsk_id_t) num_nodes; u++) {
+                assert(last_update[u] < w_right);
+                ret = update_branch_jafs(u, w_right,
+                        branch_length, last_update,
+                        total_counts, counts, num_sample_sets, window_index,
+                        result_dims, result, options);
+                if (ret != 0) {
+                    goto out;
+                }
+            }
+            window_index++;
+        }
+
+        t_left = t_right;
+    }
+out:
+    /* Can't use msp_safe_free here because of restrict */
+    if (parent != NULL) {
+        free(parent);
+    }
+    if (last_update != NULL) {
+        free(last_update);
+    }
+    if (branch_length != NULL) {
+        free(branch_length);
     }
     return ret;
 }
@@ -2145,7 +2332,9 @@ tsk_treeseq_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
             num_sample_sets, total_counts, counts, num_windows, windows,
             result_dims, result, options);
     } else {
-        /* TODO */
+        ret = tsk_treeseq_branch_joint_allele_frequency_spectrum(self,
+            num_sample_sets, total_counts, counts, num_windows, windows,
+            result_dims, result, options);
     }
 
     if (options & TSK_STAT_SPAN_NORMALISE) {

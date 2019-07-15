@@ -888,6 +888,42 @@ verify_general_stat(tsk_treeseq_t *ts, tsk_flags_t mode)
 }
 
 static void
+verify_jafs(tsk_treeseq_t *ts)
+{
+    int ret;
+    tsk_size_t n = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t sample_set_sizes[2];
+    tsk_id_t *samples = tsk_treeseq_get_samples(ts);
+    double *result = malloc(n * n * sizeof(*result));
+
+    CU_ASSERT_FATAL(sample_set_sizes != NULL);
+
+    sample_set_sizes[0] = n - 2;
+    sample_set_sizes[1] = 2;
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+            0, NULL, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_POLARISED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_BRANCH|TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+            0, NULL, result, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    free(result);
+}
+
+static void
 test_general_stat_input_errors(void)
 {
     tsk_treeseq_t ts;
@@ -918,6 +954,61 @@ test_general_stat_input_errors(void)
             0, NULL, &result, TSK_STAT_BRANCH|TSK_STAT_NODE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
 
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_empty_ts_ld(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+
+    verify_ld(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_empty_ts_mean_descendants(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+    verify_mean_descendants(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_empty_ts_genealogical_nearest_neighbours(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+    verify_genealogical_nearest_neighbours(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_empty_ts_general_stat(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+    verify_branch_general_stat_identity(&ts);
+    verify_default_general_stat(&ts);
+    verify_general_stat(&ts, TSK_STAT_BRANCH);
+    verify_general_stat(&ts, TSK_STAT_SITE);
+    verify_general_stat(&ts, TSK_STAT_NODE);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_empty_ts_jafs(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+    verify_jafs(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -1575,20 +1666,7 @@ test_paper_ex_jafs(void)
     CU_ASSERT_EQUAL_FATAL(result[3], 1.0);
     CU_ASSERT_EQUAL_FATAL(result[4], 0);
 
-    sample_set_sizes[0] = 2;
-    sample_set_sizes[1] = 2;
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples,
-            0, NULL, result, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples,
-            0, NULL, result, TSK_STAT_POLARISED);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples,
-            0, NULL, result, TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
+    verify_jafs(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -1669,6 +1747,13 @@ main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
         {"test_general_stat_input_errors", test_general_stat_input_errors},
+
+        {"test_empty_ts_ld", test_empty_ts_ld},
+        {"test_empty_ts_mean_descendants", test_empty_ts_mean_descendants},
+        {"test_empty_ts_genealogical_nearest_neighbours",
+            test_empty_ts_genealogical_nearest_neighbours},
+        {"test_empty_ts_general_stat", test_empty_ts_general_stat},
+        {"test_empty_ts_jafs", test_empty_ts_jafs},
 
         {"test_single_tree_ld", test_single_tree_ld},
         {"test_single_tree_pairwise_diversity", test_single_tree_pairwise_diversity},
