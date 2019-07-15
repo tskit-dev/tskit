@@ -3547,7 +3547,7 @@ class TestMapToAncestors(unittest.TestCase):
         if samples is None:
             samples = ts.samples()
         s = tests.AncestorMap(ts, samples, ancestors)
-        ancestor_table = s.simplify()
+        ancestor_table = s.map_ancestors()
         if compare_lib:
             lib_result = ts.tables.map_ancestors(samples, ancestors)
             self.assertEqual(ancestor_table, lib_result)
@@ -3639,6 +3639,16 @@ class TestMapToAncestors(unittest.TestCase):
         self.assertEqual(all(tss.left), 0)
         self.assertEqual(all(tss.right), 1)
 
+    def test_single_tree_ancestors_descend_from_samples(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_map(ts, samples=[1, 7], ancestors=[5, 8])
+        self.assertEqual(list(tss.parent), [5, 7, 8])
+        self.assertEqual(list(tss.child), [1, 5, 7])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
     def test_multiple_trees_to_single_tree(self):
         nodes = io.StringIO(self.nodes0)
         edges = io.StringIO(self.edges0)
@@ -3677,21 +3687,14 @@ class TestMapToAncestors(unittest.TestCase):
                         break
                     while tree.interval[1] <= current_left:
                         tree.next()
-                    # If there's just one child, check node is an ancestor
-                    # in the original tree.
+                    # Check that the most recent ancestor of the descendants is the
+                    # current_ancestor.
                     current_descendants = list(set(current_descendants))
-                    if len(current_descendants) == 1:
-                        self.assertTrue(
-                            tree.is_descendant(
-                                current_descendants[0],
-                                current_ancestor))
-                    # Otherwise, for all combinations of descendants, check that the
-                    # current ancestor has the mrca as a descendant.
-                    else:
-                        pairs = itertools.combinations(current_descendants, 2)
-                        for pair in pairs:
-                            mrca = tree.mrca(pair[0], pair[1])
-                            self.assertTrue(tree.is_descendant(mrca, current_ancestor))
+                    for des in current_descendants:
+                        par = tree.get_parent(des)
+                        while par not in ancestral_nodes:
+                            par = tree.get_parent(par)
+                        self.assertEqual(par, current_ancestor)
                 # Reset the current ancestor and descendants, left and right coords.
                 current_ancestor = row.parent
                 current_descendants = [row.child]
