@@ -2209,6 +2209,11 @@ int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t o
 
 /* Undocumented methods */
 
+int tsk_table_collection_map_ancestors(tsk_table_collection_t *self,
+    tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_id_t *ancestors, tsk_size_t num_ancestors, tsk_flags_t options,
+    tsk_edge_table_t *result);
+
 int tsk_table_collection_deduplicate_sites(tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options);

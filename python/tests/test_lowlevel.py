@@ -170,6 +170,42 @@ class TestTableCollection(LowLevelTestCase):
             tables.sequence_length = value
             self.assertEqual(tables.sequence_length, value)
 
+    def test_simplify_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables.ll_tables
+        with self.assertRaises(TypeError):
+            tc.simplify()
+        with self.assertRaises(ValueError):
+            tc.simplify("asdf")
+        with self.assertRaises(TypeError):
+            tc.simplify([0, 1], filter_populations="x")
+        with self.assertRaises(_tskit.LibraryError):
+            tc.simplify([0, -1])
+
+    def test_map_ancestors_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables.ll_tables
+        with self.assertRaises(TypeError):
+            tc.map_ancestors()
+        with self.assertRaises(TypeError):
+            tc.map_ancestors([0, 1])
+        with self.assertRaises(ValueError):
+            tc.map_ancestors(samples=[0, 1], ancestors="sdf")
+        with self.assertRaises(ValueError):
+            tc.map_ancestors(samples="sdf", ancestors=[0, 1])
+        with self.assertRaises(_tskit.LibraryError):
+            tc.map_ancestors(samples=[0, 1], ancestors=[11, -1])
+        with self.assertRaises(_tskit.LibraryError):
+            tc.map_ancestors(samples=[0, -1], ancestors=[11])
+
+    def test_map_ancestors(self):
+        ts = msprime.simulate(2, random_seed=1)
+        tc = ts.tables.ll_tables
+        edges = tc.map_ancestors([0, 1], [3])
+        self.assertIsInstance(edges, _tskit.EdgeTable)
+        del edges
+        self.assertEqual(tc.edges.num_rows, 2)
+
 
 class TestTreeSequence(LowLevelTestCase):
     """
