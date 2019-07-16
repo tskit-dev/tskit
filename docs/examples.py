@@ -74,37 +74,63 @@ def moving_along_tree_sequence():
 
 
 def parsimony():
-    tree = msprime.simulate(6, random_seed=42).first()
-    colours = ["red", "blue", "green"]
-    genotypes = [0, 0, 0, 0, 1, 2]
-    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
-    ancestral_state, transitions = tree.map_mutations(genotypes)
-    print("Ancestral state = ", ancestral_state)
-    for transition in transitions:
-        print("\t", transition)
-    tree.draw("_static/parsimony1.svg", node_colours=node_colours)
 
     tree = msprime.simulate(6, random_seed=42).first()
-    colours = ["red", "blue", "green", "white"]
-    genotypes = [-1, 0, 0, 0, 1, 2]
-    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
-    ancestral_state, transitions = tree.map_mutations(genotypes)
+    alleles = ["red", "blue", "green"]
+    genotypes = [0, 0, 0, 0, 1, 2]
+    node_colours = {j: alleles[g] for j, g in enumerate(genotypes)}
+    ancestral_state, mutations = tree.map_mutations(genotypes, alleles)
     print("Ancestral state = ", ancestral_state)
-    for transition in transitions:
-        print("\t", transition)
+    for mut in mutations:
+        print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
+    tree.draw("_static/parsimony1.svg", node_colours=node_colours)
+
+
+    ts = msprime.simulate(6, random_seed=23)
+    ts = msprime.mutate(
+        ts, rate=3, model=msprime.InfiniteSites(msprime.NUCLEOTIDES), random_seed=2)
+
+    tree = ts.first()
+    tables = ts.dump_tables()
+    # Reinfer the sites and mutations from the variants.
+    tables.sites.clear()
+    tables.mutations.clear()
+    for var in ts.variants():
+        ancestral_state, mutations = tree.map_mutations(var.genotypes, var.alleles)
+        tables.sites.add_row(var.site.position, ancestral_state=ancestral_state)
+        parent_offset = len(tables.mutations)
+        for mutation in mutations:
+            parent = mutation.parent
+            if parent != tskit.NULL:
+                parent += parent_offset
+            tables.mutations.add_row(
+                var.index, node=mutation.node, parent=parent,
+                derived_state=mutation.derived_state)
+
+    assert tables.sites == ts.tables.sites
+    assert tables.mutations == ts.tables.mutations
+    print(tables.sites)
+    print(tables.mutations)
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    alleles = ["red", "blue", "green", "white"]
+    genotypes = [-1, 0, 0, 0, 1, 2]
+    node_colours = {j: alleles[g] for j, g in enumerate(genotypes)}
+    ancestral_state, mutations = tree.map_mutations(genotypes, alleles)
+    print("Ancestral state = ", ancestral_state)
+    for mut in mutations:
+        print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
     tree.draw("_static/parsimony2.svg", node_colours=node_colours)
 
     tree = msprime.simulate(6, random_seed=42).first()
-    colours = ["red", "blue", "white"]
+    alleles = ["red", "blue", "white"]
     genotypes = [1, -1, 0, 0, 0, 0]
-    node_colours = {j: colours[g] for j, g in enumerate(genotypes)}
-    ancestral_state, transitions = tree.map_mutations(genotypes)
+    node_colours = {j: alleles[g] for j, g in enumerate(genotypes)}
+    ancestral_state, mutations = tree.map_mutations(genotypes, alleles)
     print("Ancestral state = ", ancestral_state)
-    for transition in transitions:
-        print("\t", transition)
+    for mut in mutations:
+        print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
     tree.draw("_static/parsimony3.svg", node_colours=node_colours)
-
-
 
 
 # moving_along_tree_sequence()

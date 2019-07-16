@@ -3745,13 +3745,13 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
 
                 /* Visit u */
                 if (! (node_flags[u] & TSK_NODE_IS_SAMPLE)) {
-                    /* Get the union of the child sets */
+                    /* Get the intersection of the child sets */
                     A[u] = UINT64_MAX; /* Set all the bits for u */
                     for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
                         A[u] &= A[v];
                     }
                     if (A[u] == 0) {
-                        /* Union is empty, so get the intersection */
+                        /* Intersection is empty, so get the union */
                         for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
                             A[u] |= A[v];
                         }

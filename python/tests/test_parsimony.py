@@ -108,7 +108,7 @@ def fitch_score(tree, genotypes):
     return score
 
 
-def fitch_map_mutations(tree, genotypes):
+def fitch_map_mutations(tree, genotypes, alleles):
     """
     Returns the Fitch parsimony reconstruction for the specified set of genotypes.
     The reconstruction is specified by returning the ancestral state and a
@@ -150,7 +150,8 @@ def fitch_map_mutations(tree, genotypes):
         parent = tskit.NULL
         if A[root, ancestral_state] != 1:
             state[root] = np.where(A[root] == 1)[0][0]
-            mutations.append(tskit.StateTransition(root, tskit.NULL, state[root]))
+            mutations.append(tskit.Mutation(
+                node=root, parent=tskit.NULL, derived_state=alleles[state[root]]))
             parent = len(mutations) - 1
         stack = [(root, parent)]
         while len(stack) > 0:
@@ -159,11 +160,12 @@ def fitch_map_mutations(tree, genotypes):
                 state[v] = state[u]
                 if A[v, state[u]] != 1:
                     state[v] = np.where(A[v] == 1)[0][0]
-                    mutations.append(tskit.StateTransition(v, parent_mutation, state[v]))
+                    mutations.append(tskit.Mutation(
+                        node=v, parent=parent_mutation, derived_state=alleles[state[v]]))
                     stack.append((v, len(mutations) - 1))
                 else:
                     stack.append((v, parent_mutation))
-    return ancestral_state, mutations
+    return alleles[ancestral_state], mutations
 
 
 def reconstruct_states(tree, genotypes, S, cost_matrix):
@@ -199,6 +201,8 @@ def sankoff_map_mutations(tree, genotypes, cost_matrix=None):
 
     NOTE: we don't consider complications of multiple roots and internal samples
     here.
+
+    TODO: update this to take the alleles as input like the other methods.
     """
     if cost_matrix is None:
         num_alleles = np.max(genotypes) + 1
@@ -374,15 +378,17 @@ class TestFitchParsimonyDistance(unittest.TestCase):
             score = fitch_score(tree, variant.genotypes)
             bp_score = bp_fitch_score(tree, variant.genotypes)
             self.assertEqual(bp_score, score)
-            ancestral_state1, transitions1 = fitch_map_mutations(tree, variant.genotypes)
-            ancestral_state2, transitions2 = tree.map_mutations(variant.genotypes)
+            ancestral_state1, transitions1 = fitch_map_mutations(
+                tree, variant.genotypes, variant.alleles)
+            ancestral_state2, transitions2 = tree.map_mutations(
+                variant.genotypes, variant.alleles)
             self.assertEqual(ancestral_state1, ancestral_state2)
             self.assertEqual(transitions1, transitions2)
             # The Sankoff algorithm doesn't recontruct the state in the same way.
             # Just a limitation of the implementation.
             ancestral_state3, transitions3 = sankoff_map_mutations(
                 tree, variant.genotypes)
-            self.assertEqual(ancestral_state1, ancestral_state3)
+            self.assertEqual(ancestral_state1, variant.alleles[ancestral_state3])
             # The algorithms will make slightly different choices on where to put
             # the transitions, but they are equally parsimonious.
             self.assertEqual(len(transitions1), len(transitions3))
@@ -426,10 +432,12 @@ class TestParsimonyBase(unittest.TestCase):
     """
     Base class for tests of the map_mutations parsimony method.
     """
-    def do_map_mutations(self, tree, genotypes, compare_lib=True):
-        ancestral_state, transitions = fitch_map_mutations(tree, genotypes)
+    def do_map_mutations(self, tree, genotypes, alleles=None, compare_lib=True):
+        if alleles is None:
+            alleles = [str(j) for j in range(max(genotypes) + 1)]
+        ancestral_state, transitions = fitch_map_mutations(tree, genotypes, alleles)
         if compare_lib:
-            ancestral_state1, transitions1 = tree.map_mutations(genotypes)
+            ancestral_state1, transitions1 = tree.map_mutations(genotypes, alleles)
             self.assertEqual(ancestral_state, ancestral_state1)
             self.assertEqual(transitions, transitions1)
         return ancestral_state, transitions
@@ -449,15 +457,17 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
         alleles = [v.alleles for v in ts.variants()]
         for tree in ts.trees():
             for site in tree.sites():
-                ancestral_state, transitions = self.do_map_mutations(tree, G[site.id])
-                site_id = tables.sites.add_row(
-                    site.position, alleles[site.id][ancestral_state])
+                ancestral_state, mutations = self.do_map_mutations(
+                    tree, G[site.id], alleles[site.id])
+                site_id = tables.sites.add_row(site.position, ancestral_state)
                 parent_offset = len(tables.mutations)
-                for node, parent, allele in transitions:
-                    parent = parent if parent == tskit.NULL else parent + parent_offset
+                for mutation in mutations:
+                    parent = mutation.parent
+                    if parent != tskit.NULL:
+                        parent += parent_offset
                     tables.mutations.add_row(
-                        site_id, node=node, parent=parent,
-                        derived_state=alleles[site.id][allele])
+                        site_id, node=mutation.node, parent=parent,
+                        derived_state=mutation.derived_state)
         other_ts = tables.tree_sequence()
         for h1, h2 in zip(ts.haplotypes(), other_ts.haplotypes()):
             self.assertEqual(h1, h2)
@@ -471,13 +481,13 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
         alleles = [v.alleles for v in ts.variants()]
         for tree in ts.trees():
             for site in tree.sites():
-                ancestral_state, transitions = tree.map_mutations(G[site.id])
-                site_id = tables2.sites.add_row(
-                    site.position, alleles[site.id][ancestral_state])
-                for transition in transitions:
+                ancestral_state, mutations = tree.map_mutations(
+                    G[site.id], alleles[site.id])
+                site_id = tables2.sites.add_row(site.position, ancestral_state)
+                for mutation in mutations:
                     tables2.mutations.add_row(
-                        site_id, node=transition.node,
-                        derived_state=alleles[site.id][transition.state])
+                        site_id, node=mutation.node,
+                        derived_state=mutation.derived_state)
         tables2.sort()
         tables2.build_index()
         tables2.compute_mutation_parents()
@@ -568,17 +578,17 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
         alleles = [v.alleles for v in ts.variants()]
         for tree in ts.trees():
             for site in tree.sites():
-                ancestral_state, transitions = self.do_map_mutations(tree, G[site.id])
-                site_id = tables.sites.add_row(
-                    site.position, alleles[site.id][ancestral_state])
+                ancestral_state, mutations = self.do_map_mutations(
+                    tree, G[site.id], alleles[site.id])
+                site_id = tables.sites.add_row(site.position, ancestral_state)
                 parent_offset = len(tables.mutations)
-                for t in transitions:
-                    parent = t.parent
-                    if t.parent != tskit.NULL:
-                        parent = t.parent + parent_offset
+                for m in mutations:
+                    parent = m.parent
+                    if m.parent != tskit.NULL:
+                        parent = m.parent + parent_offset
                     tables.mutations.add_row(
-                        site_id, node=t.node, parent=parent,
-                        derived_state=alleles[site.id][t.state])
+                        site_id, node=m.node, parent=parent,
+                        derived_state=m.derived_state)
         other_ts = tables.tree_sequence()
         self.assertEqual(ts.num_samples, other_ts.num_samples)
         H1 = list(ts.haplotypes())
@@ -596,10 +606,11 @@ class TestParsimonyMissingData(TestParsimonyBase):
             ts = msprime.simulate(n, random_seed=2)
             tree = ts.first()
             genotypes = np.zeros(n, dtype=np.int8) - 1
+            alleles = ["0", "1"]
             with self.assertRaises(ValueError):
-                fitch_map_mutations(tree, genotypes)
+                fitch_map_mutations(tree, genotypes, alleles)
             with self.assertRaises(tskit.LibraryError):
-                tree.map_mutations(genotypes)
+                tree.map_mutations(genotypes, alleles)
 
     def test_one_non_missing(self):
         for n in range(2, 10):
@@ -608,8 +619,9 @@ class TestParsimonyMissingData(TestParsimonyBase):
             for j in range(n):
                 genotypes = np.zeros(n, dtype=np.int8) - 1
                 genotypes[j] = 0
-                ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
-                self.assertEqual(ancestral_state, 0)
+                ancestral_state, transitions = self.do_map_mutations(
+                    tree, genotypes, ["0", "1"])
+                self.assertEqual(ancestral_state, "0")
                 self.assertEqual(len(transitions), 0)
 
     def test_many_states_half_missing(self):
@@ -618,19 +630,23 @@ class TestParsimonyMissingData(TestParsimonyBase):
             tree = ts.first()
             genotypes = np.zeros(n, dtype=np.int8) - 1
             genotypes[0: n // 2] = np.arange(n // 2, dtype=int)
-            ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
-            self.assertEqual(ancestral_state, 0)
+            alleles = [str(j) for j in range(n)]
+            ancestral_state, transitions = self.do_map_mutations(
+                tree, genotypes, alleles)
+            self.assertEqual(ancestral_state, "0")
             self.assertEqual(len(transitions), max(0, n // 2 - 1))
 
     def test_one_missing(self):
         for n in range(2, 10):
             ts = msprime.simulate(n, random_seed=2)
             tree = ts.first()
+            alleles = [str(j) for j in range(2)]
             for j in range(n):
                 genotypes = np.zeros(n, dtype=np.int8) - 1
                 genotypes[j] = 0
-                ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
-                self.assertEqual(ancestral_state, 0)
+                ancestral_state, transitions = self.do_map_mutations(
+                    tree, genotypes, alleles)
+                self.assertEqual(ancestral_state, "0")
                 self.assertEqual(len(transitions), 0)
 
     def test_one_missing_derived_state(self):
@@ -639,12 +655,14 @@ class TestParsimonyMissingData(TestParsimonyBase):
         genotypes = np.zeros(5, dtype=np.int8)
         genotypes[0] = -1
         genotypes[1] = 1
-        ancestral_state, transitions = self.do_map_mutations(ts.first(), genotypes)
-        self.assertEqual(ancestral_state, 0)
+        alleles = [str(j) for j in range(2)]
+        ancestral_state, transitions = self.do_map_mutations(
+            ts.first(), genotypes, alleles)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(transitions[0].node, 7)
         self.assertEqual(transitions[0].parent, -1)
-        self.assertEqual(transitions[0].state, 1)
+        self.assertEqual(transitions[0].derived_state, "1")
 
 
 class TestParsimonyExamples(TestParsimonyBase):
@@ -687,79 +705,103 @@ class TestParsimonyExamples(TestParsimonyBase):
     def test_mutation_over_0(self):
         genotypes = [1, 0, 0, 0, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (0, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=0, parent=-1, derived_state="1"))
 
     def test_mutation_over_5(self):
         genotypes = [1, 1, 0, 0, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (5, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=5, parent=-1, derived_state="1"))
 
     def test_mutation_over_7(self):
         genotypes = [1, 1, 0, 0, 1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (7, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1"))
 
     def test_mutation_over_7_0(self):
         genotypes = [2, 1, 0, 0, 1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 2)
-        self.assertEqual(transitions[0], (7, -1, 1))
-        self.assertEqual(transitions[1], (0, 0, 2))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1"))
+        self.assertEqual(
+            transitions[1], tskit.Mutation(node=0, parent=0, derived_state="2"))
+
+    def test_mutation_over_7_0_alleles(self):
+        genotypes = [2, 1, 0, 0, 1]
+        alleles = ["ANC", "ONE", "TWO"]
+        ancestral_state, transitions = self.do_map_mutations(
+            self.tree, genotypes, alleles)
+        self.assertEqual(ancestral_state, "ANC")
+        self.assertEqual(len(transitions), 2)
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="ONE"))
+        self.assertEqual(
+            transitions[1], tskit.Mutation(node=0, parent=0, derived_state="TWO"))
 
     def test_mutation_over_7_missing_data_0(self):
         genotypes = [-1, 1, 0, 0, 1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (7, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1"))
 
     def test_mutation_over_leaf_sibling_missing(self):
         genotypes = [0, 0, 1, -1, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         # We assume that the mutation is over the parent of 2 and the missing data
         # so we impute that 3 also has allele 1. This suprising behaviour to me:
         # I would have thought it was more parsimonious to assume that the missing
         # data had the ancestral state. However, the number of *state changes*
         # is the same, which is what the algorithm is minimising.
-        self.assertEqual(transitions[0], (6, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1"))
 
         # Reverse is the same
         genotypes = [0, 0, -1, 1, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (6, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1"))
 
     def test_mutation_over_6_missing_data_0(self):
         genotypes = [-1, 0, 1, 1, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (6, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1"))
 
     def test_mutation_over_0_missing_data_4(self):
         genotypes = [1, 0, 0, 0, -1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0], (0, -1, 1))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=0, parent=-1, derived_state="1"))
 
     def test_multi_mutation_missing_data(self):
         genotypes = [1, 2, -1, 0, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, 0)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 2)
-        self.assertEqual(transitions[0], (5, -1, 1))
-        self.assertEqual(transitions[1], (1, 0, 2))
+        self.assertEqual(
+            transitions[0], tskit.Mutation(node=5, parent=-1, derived_state="1"))
+        self.assertEqual(
+            transitions[1], tskit.Mutation(node=1, parent=0, derived_state="2"))
 
 
 class TestReconstructAllTuples(unittest.TestCase):
@@ -780,14 +822,19 @@ class TestReconstructAllTuples(unittest.TestCase):
             parent=tables.edges.parent,
             child=tables.edges.child)
         G1 = np.zeros((m, n), dtype=np.int8)
+        alleles = [str(j) for j in range(k)]
         for j, genotypes in enumerate(itertools.product(range(k), repeat=n)):
             G1[j] = genotypes
-            ancestral_state, transitions = tree.map_mutations(G1[j])
-            tables.sites.add_row(j, ancestral_state=str(ancestral_state))
+            ancestral_state, mutations = tree.map_mutations(G1[j], alleles)
+            tables.sites.add_row(j, ancestral_state=ancestral_state)
             parent_offset = len(tables.mutations)
-            for u, p, s in transitions:
-                p = parent_offset + p if p != tskit.NULL else p
-                tables.mutations.add_row(j, node=u, parent=p, derived_state=str(s))
+            for mutation in mutations:
+                parent = mutation.parent
+                if parent != tskit.NULL:
+                    parent += parent_offset
+                tables.mutations.add_row(
+                    j, node=mutation.node, parent=parent,
+                    derived_state=mutation.derived_state)
 
         ts2 = tables.tree_sequence()
         G2 = np.zeros((m, n), dtype=np.int8)

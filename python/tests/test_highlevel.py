@@ -2342,20 +2342,21 @@ class TestTree(HighLevelTestCase):
         ts = msprime.simulate(5, random_seed=42)
         tree = ts.first()
         genotypes = np.zeros(5, dtype=np.int8)
-        ancestral_state, transitions = tree.map_mutations(genotypes)
-        self.assertEqual(ancestral_state, 0)
+        alleles = [str(j) for j in range(64)]
+        ancestral_state, transitions = tree.map_mutations(genotypes, alleles)
+        self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 0)
         for j in range(1, 64):
             genotypes[0] = j
-            ancestral_state, transitions = tree.map_mutations(genotypes)
-            self.assertEqual(ancestral_state, 0)
+            ancestral_state, transitions = tree.map_mutations(genotypes, alleles)
+            self.assertEqual(ancestral_state, "0")
             self.assertEqual(len(transitions), 1)
         for j in range(64, 67):
             genotypes[0] = j
             with self.assertRaises(ValueError):
-                tree.map_mutations(genotypes)
-        tree.map_mutations([0] * 5)
-        tree.map_mutations(np.zeros(5, dtype=int))
+                tree.map_mutations(genotypes, alleles)
+        tree.map_mutations([0] * 5, alleles)
+        tree.map_mutations(np.zeros(5, dtype=int), alleles)
 
 
 class TestNodeOrdering(HighLevelTestCase):

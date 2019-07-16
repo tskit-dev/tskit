@@ -8390,7 +8390,7 @@ static PyMethodDef Tree_methods[] = {
             "Returns the newick representation of this tree." },
     {"map_mutations", (PyCFunction) Tree_map_mutations,
             METH_VARARGS|METH_KEYWORDS,
-            "Returns the minimal ancestral state reconstruction for the specified genotypes." },
+            "Returns a parsimonious state reconstruction for the specified genotypes." },
     {"equals", (PyCFunction) Tree_equals, METH_VARARGS,
             "Returns True if this tree is equal to the parameter tree." },
     {"copy", (PyCFunction) Tree_copy, METH_NOARGS,
