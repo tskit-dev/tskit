@@ -245,7 +245,9 @@ class Mutation(SimpleContainer):
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this site.
     :vartype metadata: bytes
     """
-    def __init__(self, id_, site, node, derived_state, parent, metadata):
+    def __init__(
+            self, id_=NULL, site=NULL, node=NULL, derived_state=None, parent=NULL,
+            metadata=None):
         self.id = id_
         self.site = site
         self.node = node
@@ -1289,18 +1291,18 @@ class Tree(object):
         while len(stack) > 0:
             v = stack.pop()
             if self.is_internal(v):
-                stack.extend(reversed(self.get_children(v)))
+                stack.extend(reversed(self.children(v)))
             yield v
 
     def _postorder_traversal(self, u):
         stack = [u]
-        k = NULL
-        while stack:
+        parent = NULL
+        while len(stack) > 0:
             v = stack[-1]
-            if self.is_internal(v) and v != k:
-                stack.extend(reversed(self.get_children(v)))
+            if self.is_internal(v) and v != parent:
+                stack.extend(reversed(self.children(v)))
             else:
-                k = self.get_parent(v)
+                parent = self.parent(v)
                 yield stack.pop()
 
     def _inorder_traversal(self, u):
@@ -1320,7 +1322,7 @@ class Tree(object):
         while queue:
             v = queue.popleft()
             if self.is_internal(v):
-                queue.extend(self.get_children(v))
+                queue.extend(self.children(v))
             yield v
 
     def nodes(self, root=None, order="preorder"):
@@ -1424,6 +1426,56 @@ class Tree(object):
 
     def __str__(self):
         return str(self.get_parent_dict())
+
+    def map_mutations(self, genotypes, alleles):
+        """
+        Given observations for the samples in this tree described by the specified
+        set of genotypes and alleles, return a parsimonious set of state transitions
+        explaining these observations. The genotypes array is interpreted as indexes
+        into the alleles list in the same manner as described in the
+        :meth:`.TreeSequence.variants` method. Thus, if sample ``j`` carries the
+        allele at index ``k``, then we have ``genotypes[j] = k``.
+        Missing data can be specified for a sample using the value
+        ``tskit.MISSING_DATA`` (-1). At least one non-missing observation must be
+        provided. A maximum of 63 alleles are supported.
+
+        The current implementation uses the Fitch parsimony algorithm to determine
+        the minimum number of state transitions required to explain the data. In this
+        model, transitions between any of the non-missing states is equally likely.
+
+        The returned values correspond directly to the data model for describing
+        variation at sites using mutations. See the :ref:`sec_site_table_definition`
+        and :ref:`sec_mutation_table_definition` definitions for details and background.
+
+        The state reconstruction is returned as two-tuple, ``(ancestral_state,
+        mutations)``, where ``ancestral_state`` is the allele assigned to the
+        tree root(s) and ``mutations`` is a list of :class:`.Mutation` objects.
+        For each mutation, ``node`` is the tree node at the bottom of the branch
+        on which the transition occurred, and ``derived_state`` is the new state
+        after this mutation. When multiple mutations are returned the ``parent``
+        property contains the index of the previous mutation on the path to root
+        (see the :ref:`sec_mutation_table_definition` for more information on the
+        concept of mutation parents). All other attributes of the :class:`.Mutation`
+        object are undefined and should not be used.
+
+        See the :ref:`sec_tutorial_parsimony` section in the tutorial for examples
+        of how to use this method.
+
+        :param array_like genotypes: The input observations for the samples in this tree.
+        :return: The inferred ancestral state and list of mutations on this tree
+            that encode the specified observations.
+        :rtype: (str, list(tskit.Mutation))
+        """
+        genotypes = util.safe_np_int_cast(genotypes, np.int8)
+        if np.max(genotypes) >= 64:
+            raise ValueError("A maximum of 64 states is supported")
+        ancestral_state, transitions = self._ll_tree.map_mutations(genotypes)
+        # Translate back into string alleles
+        ancestral_state = alleles[ancestral_state]
+        mutations = [
+            Mutation(node=node, derived_state=alleles[derived_state], parent=parent)
+            for node, parent, derived_state in transitions]
+        return ancestral_state, mutations
 
 
 def load(path):
@@ -2680,7 +2732,7 @@ class TreeSequence(object):
             access them sequentially using the :meth:`.variants` iterator.
 
         :return: The full matrix of genotypes.
-        :rtype: numpy.ndarray (dtype=np.uint8)
+        :rtype: numpy.ndarray (dtype=np.int8)
         """
         return self._ll_tree_sequence.get_genotype_matrix()
 

@@ -568,6 +568,26 @@ class TestVariantGenerator(HighLevelTestCase):
         ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
         self.assertRaises(ValueError, list, ts.variants(as_bytes=True))
 
+    def test_dtype(self):
+        ts = self.get_tree_sequence()
+        for var in ts.variants():
+            self.assertEqual(var.genotypes.dtype, np.int8)
+
+    def test_dtype_conversion(self):
+        # Check if we hit any issues if we assume the variants are uint8
+        # as they were prior to version 0.2.0
+        ts = self.get_tree_sequence()
+        G = ts.genotype_matrix().astype(np.uint8)
+        self.assertEqual(G.dtype, np.uint8)
+        for var in ts.variants():
+            self.assertTrue(np.array_equal(G[var.index], var.genotypes))
+            self.assertTrue(np.all(G[var.index] == var.genotypes))
+            self.assertEqual(
+                [var.alleles[g] for g in var.genotypes],
+                [var.alleles[g] for g in G[var.index]])
+            G[var.index, :] = var.genotypes
+            self.assertTrue(np.array_equal(G[var.index], var.genotypes))
+
     def test_multichar_alleles(self):
         ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
         for var in ts.variants():
@@ -584,13 +604,13 @@ class TestVariantGenerator(HighLevelTestCase):
         tables.mutations.clear()
         # This gives us a total of 360 permutations.
         alleles = list(map("".join, itertools.permutations('ABCDEF', 4)))
-        self.assertGreater(len(alleles), 255)
+        self.assertGreater(len(alleles), 127)
         tables.sites.add_row(0, alleles[0])
         parent = -1
         num_alleles = 1
         for allele in alleles[1:]:
             ts = tables.tree_sequence()
-            if num_alleles > 255:
+            if num_alleles > 127:
                 self.assertRaises(_tskit.LibraryError, next, ts.variants())
             else:
                 var = next(ts.variants())
@@ -619,10 +639,12 @@ class TestVariantGenerator(HighLevelTestCase):
 
     def test_genotype_matrix(self):
         ts = self.get_tree_sequence()
-        G = np.empty((ts.num_sites, ts.num_samples), dtype=np.uint8)
+        G = np.empty((ts.num_sites, ts.num_samples), dtype=np.int8)
         for v in ts.variants():
             G[v.index, :] = v.genotypes
-        self.assertTrue(np.array_equal(G, ts.genotype_matrix()))
+        G2 = ts.genotype_matrix()
+        self.assertTrue(np.array_equal(G, G2))
+        self.assertEqual(G2.dtype, np.int8)
 
     def test_recurrent_mutations_over_samples(self):
         ts = self.get_tree_sequence()
@@ -708,6 +730,30 @@ class TestVariantGenerator(HighLevelTestCase):
             self.assertTrue(np.array_equal(var1.genotypes, var2.genotypes))
             count += 1
         self.assertEqual(count, ts.num_sites)
+
+    def verify_jukes_cantor(self, ts):
+        self.assertTrue(np.array_equal(ts.genotype_matrix(), ts.genotype_matrix()))
+        tree = ts.first()
+        for variant in ts.variants():
+            mutations = {
+                mutation.node: mutation.derived_state
+                for mutation in variant.site.mutations}
+            for sample_index, u in enumerate(ts.samples()):
+                while u not in mutations and u != tskit.NULL:
+                    u = tree.parent(u)
+                state1 = mutations.get(u, variant.site.ancestral_state)
+                state2 = variant.alleles[variant.genotypes[sample_index]]
+                self.assertEqual(state1, state2)
+
+    def test_jukes_cantor_n5(self):
+        ts = msprime.simulate(5, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 5, 1, seed=2)
+        self.verify_jukes_cantor(ts)
+
+    def test_jukes_cantor_n20(self):
+        ts = msprime.simulate(20, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 5, 1, seed=2)
+        self.verify_jukes_cantor(ts)
 
 
 class TestHaplotypeGenerator(HighLevelTestCase):
@@ -2291,6 +2337,26 @@ class TestTree(HighLevelTestCase):
             for j in range(ts.num_nodes):
                 self.assertEqual(
                     tree.num_tracked_samples(j), copy.num_tracked_samples(j))
+
+    def test_map_mutations(self):
+        ts = msprime.simulate(5, random_seed=42)
+        tree = ts.first()
+        genotypes = np.zeros(5, dtype=np.int8)
+        alleles = [str(j) for j in range(64)]
+        ancestral_state, transitions = tree.map_mutations(genotypes, alleles)
+        self.assertEqual(ancestral_state, "0")
+        self.assertEqual(len(transitions), 0)
+        for j in range(1, 64):
+            genotypes[0] = j
+            ancestral_state, transitions = tree.map_mutations(genotypes, alleles)
+            self.assertEqual(ancestral_state, "0")
+            self.assertEqual(len(transitions), 1)
+        for j in range(64, 67):
+            genotypes[0] = j
+            with self.assertRaises(ValueError):
+                tree.map_mutations(genotypes, alleles)
+        tree.map_mutations([0] * 5, alleles)
+        tree.map_mutations(np.zeros(5, dtype=int), alleles)
 
 
 class TestNodeOrdering(HighLevelTestCase):

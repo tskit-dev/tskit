@@ -263,7 +263,7 @@ tsk_strerror_internal(int err)
             ret = "Parent mutation ID must be < current ID";
             break;
         case TSK_ERR_TOO_MANY_ALLELES:
-            ret = "Cannot have more than 255 alleles";
+            ret = "Cannot have more than 127 alleles";
             break;
         case TSK_ERR_INCONSISTENT_MUTATIONS:
             ret = "Inconsistent mutations: state already equal to derived state";
@@ -344,6 +344,14 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_EMPTY_SAMPLE_SET:
             ret = "Samples cannot be empty";
+            break;
+
+        /* Mutation mapping errors */
+        case TSK_ERR_GENOTYPES_ALL_MISSING:
+            ret = "Must provide at least one non-missing genotype.";
+            break;
+        case TSK_ERR_BAD_GENOTYPE:
+            ret = "Bad genotype value provided";
             break;
     }
     return ret;

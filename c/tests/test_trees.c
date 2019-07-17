@@ -424,7 +424,7 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     tsk_vargen_t vargen, subset_vargen;
     tsk_variant_t *variant, *subset_variant;
     size_t j, k;
-    uint8_t a1, a2;
+    int8_t a1, a2;
     tsk_id_t *sample_index_map;
 
     sample_index_map = tsk_treeseq_get_sample_index_map(ts);
@@ -448,16 +448,16 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         CU_ASSERT_EQUAL(variant->site->position, subset_variant->site->position);
         for (k = 0; k < num_samples; k++) {
             CU_ASSERT_FATAL(sample_index_map[samples[k]] < (tsk_id_t) ts->num_samples);
-            a1 = variant->genotypes.u8[sample_index_map[samples[k]]];
-            a2 = subset_variant->genotypes.u8[k];
+            a1 = variant->genotypes.i8[sample_index_map[samples[k]]];
+            a2 = subset_variant->genotypes.i8[k];
             /* printf("a1 = %d, a2 = %d\n", a1, a2); */
             /* printf("k = %d original node = %d " */
             /*         "original_index = %d a1=%.*s a2=%.*s\n", */
             /*         (int) k, samples[k], sample_index_map[samples[k]], */
             /*         variant->allele_lengths[a1], variant->alleles[a1], */
             /*         subset_variant->allele_lengths[a2], subset_variant->alleles[a2]); */
-            CU_ASSERT_FATAL(a1 < variant->num_alleles);
-            CU_ASSERT_FATAL(a2 < subset_variant->num_alleles);
+            CU_ASSERT_FATAL(a1 < (int) variant->num_alleles);
+            CU_ASSERT_FATAL(a2 < (int) subset_variant->num_alleles);
             CU_ASSERT_EQUAL_FATAL(variant->allele_lengths[a1],
                     subset_variant->allele_lengths[a2]);
             CU_ASSERT_NSTRING_EQUAL_FATAL(
@@ -1022,29 +1022,29 @@ test_simplest_non_sample_leaf_records(void)
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1297,9 +1297,9 @@ test_simplest_back_mutations(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
     CU_ASSERT_EQUAL(var->site->id, 0);
     CU_ASSERT_EQUAL(var->site->mutations_length, 2);
     tsk_vargen_free(&vargen);
@@ -2616,6 +2616,376 @@ test_simplest_individual_filter(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_simplest_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0";
+    const char *edges =
+        "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    genotypes[0] = -1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    /* Check the null tree */
+    genotypes[0] = 1;
+    CU_ASSERT_FALSE(tsk_tree_next(&t));
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_nonbinary_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0";
+    const char *edges =
+        "0  1   4   0,1,2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0, 0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_unary_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n"
+        "0  1   0\n"
+        "0  2   0";
+    const char *edges =
+        "0  1   2   0\n"
+        "0  1   3   1\n"
+        "0  1   4   2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_non_sample_leaf_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n"
+        "0  0   0\n"
+        "0  0   0";
+    const char *edges =
+        "0  1   2   0,1,3,4\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_internal_sample_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  1   0";
+    const char *edges =
+        "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    genotypes[2] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 0);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_multiple_root_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n"
+        "0  1   0\n";
+    const char *edges =
+        "0  1   4   0,1\n"
+        "0  1   5   2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0, 0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    genotypes[1] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 4);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_chained_map_mutations(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  1   0\n"
+        "1  1   0\n"
+        "0  2   0";
+    const char *edges =
+        "0  1   2   0\n"
+        "0  1   3   1\n"
+        "0  1   4   2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 0, 0, 0};
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[2] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].parent, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].state, 0);
+    free(transitions);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
 /*=======================================================
  * Single tree tests.
  *======================================================*/
@@ -3443,6 +3813,165 @@ test_single_tree_is_descendant(void)
 
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_map_mutations(void)
+{
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 1, 1, 1};
+    int ret = 0;
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state, j;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 0);
+    free(transitions);
+
+    genotypes[0] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 1);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    genotypes[0] = 0;
+    genotypes[1] = 0;
+    genotypes[2] = 0;
+    genotypes[3] = 0;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 0);
+    free(transitions);
+
+    for (j = 1; j < 64; j++) {
+        genotypes[0] = j;
+        genotypes[1] = 0;
+        genotypes[2] = 0;
+        genotypes[3] = 0;
+        ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+                &ancestral_state, &num_transitions, &transitions);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+        CU_ASSERT_EQUAL_FATAL(num_transitions, 1);
+        CU_ASSERT_EQUAL_FATAL(transitions[0].node, 0);
+        CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+        CU_ASSERT_EQUAL_FATAL(transitions[0].state, j);
+        free(transitions);
+    }
+
+    genotypes[0] = 2;
+    genotypes[1] = 1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 2);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].node, 4);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].parent, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(transitions[0].state, 1);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].node, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].parent, 0);
+    CU_ASSERT_EQUAL_FATAL(transitions[1].state, 2);
+    free(transitions);
+
+    genotypes[0] = 1;
+    genotypes[1] = 2;
+    genotypes[2] = 3;
+    genotypes[3] = 4;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 3);
+    free(transitions);
+
+    genotypes[0] = 64;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_GENOTYPE);
+
+    genotypes[0] = -2;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_GENOTYPE);
+
+    genotypes[0] = -1;
+    genotypes[1] = -1;
+    genotypes[2] = -1;
+    genotypes[3] = -1;
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENOTYPES_ALL_MISSING);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_map_mutations_internal_samples(void)
+{
+    /* Example derived from test case provoking a segfault */
+    const char *nodes =
+        "0       0.00000000000000   0\n"
+        "0       0.00000000000000   0\n"
+        "1       0.00000000000000   0\n"
+        "1       0.00000000000000   0\n"
+        "1       0.00000000000000   0\n"
+        "0       0.10792116530237   0\n"
+        "1       1.00674711128465   0\n"
+        "1       1.24675560985525   0\n"
+        "0       1.78536352520779   0\n";
+    const char *edges =
+        "0.00000000      1.00000000      5       0\n"
+        "0.00000000      1.00000000      5       2\n"
+        "0.00000000      1.00000000      6       4\n"
+        "0.00000000      1.00000000      6       5\n"
+        "0.00000000      1.00000000      7       1\n"
+        "0.00000000      1.00000000      7       3\n"
+        "0.00000000      1.00000000      8       6\n"
+        "0.00000000      1.00000000      8       7\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int8_t genotypes[] = {0, 2, 2, 1, 0};
+    int ret = 0;
+    tsk_size_t num_transitions;
+    tsk_state_transition_t *transitions;
+    int8_t ancestral_state;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges,
+            NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 5);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+
+    ret = tsk_tree_map_mutations(&t, genotypes, NULL, 0,
+            &ancestral_state, &num_transitions, &transitions);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ancestral_state, 0);
+    CU_ASSERT_EQUAL_FATAL(num_transitions, 4);
+    free(transitions);
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
 }
 
 /*=======================================================
@@ -4436,6 +4965,16 @@ main(int argc, char **argv)
         {"test_simplest_reduce_site_topology", test_simplest_reduce_site_topology},
         {"test_simplest_population_filter", test_simplest_population_filter},
         {"test_simplest_individual_filter", test_simplest_individual_filter},
+        {"test_simplest_map_mutations", test_simplest_map_mutations},
+        {"test_simplest_nonbinary_map_mutations", test_simplest_nonbinary_map_mutations},
+        {"test_simplest_unary_map_mutations", test_simplest_unary_map_mutations},
+        {"test_simplest_non_sample_leaf_map_mutations",
+            test_simplest_non_sample_leaf_map_mutations},
+        {"test_simplest_internal_sample_map_mutations",
+            test_simplest_internal_sample_map_mutations},
+        {"test_simplest_multiple_root_map_mutations",
+            test_simplest_multiple_root_map_mutations},
+        {"test_simplest_chained_map_mutations", test_simplest_chained_map_mutations},
 
         /* Single tree tests */
         {"test_single_tree_good_records", test_single_tree_good_records},
@@ -4453,6 +4992,9 @@ main(int argc, char **argv)
         {"test_single_tree_simplify_null_samples", test_single_tree_simplify_null_samples},
         {"test_single_tree_compute_mutation_parents", test_single_tree_compute_mutation_parents},
         {"test_single_tree_is_descendant", test_single_tree_is_descendant},
+        {"test_single_tree_map_mutations", test_single_tree_map_mutations},
+        {"test_single_tree_map_mutations_internal_samples",
+            test_single_tree_map_mutations_internal_samples},
 
         /* Multi tree tests */
         {"test_simple_multi_tree", test_simple_multi_tree},

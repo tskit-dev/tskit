@@ -4,6 +4,18 @@
 
 In development.
 
+**Breaking changes**
+
+- Change genotypes from unsigned to signed to accomodate missing data
+  (see :issue:`144` for discussion). This only affects users of the
+  ``tsk_vargen_t`` class. Genotypes are now stored as int8_t and int16_t
+  types rather than the former unsigned types. The field names in the
+  genotypes union of the ``tsk_variant_t`` struct returned by ``tsk_vargen_next``
+  have been renamed to ``i8`` and ``i16`` accordingly; care should be
+  taken when updating client code to ensure that types are correct. The number
+  of distinct alleles supported by 8 bit genotypes has therefore dropped
+  from 255 to 127, with a similar reduction for 16 bit genotypes.
+
 **New features**
 
 - Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`

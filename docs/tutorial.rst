@@ -664,3 +664,163 @@ Running this example we get::
     >>> threads_example()
     100%|████████████████████████████████████████████████| 4045/4045 [00:09<00:00, 440.29it/s]
     Found LD sites for 4045 doubleton mutations out of 60100
+
+
+.. _sec_tutorial_parsimony:
+
+*********
+Parsimony
+*********
+
+The :meth:`.Tree.map_mutations` method finds a parsimonious explanation for a
+set of discrete character observations on the samples in a tree using classical phylogenetic
+algorithms.
+
+.. code-block:: python
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    alleles = ["red", "blue", "green"]
+    genotypes = [0, 0, 0, 0, 1, 2]
+    node_colours = {j: alleles[g] for j, g in enumerate(genotypes)}
+    ancestral_state, mutations = tree.map_mutations(genotypes, alleles)
+    print("Ancestral state = ", ancestral_state)
+    for mut in mutations:
+        print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
+    tree.draw("_static/parsimony1.svg", node_colours=node_colours)
+
+.. image:: _static/parsimony1.svg
+
+We get::
+
+    Ancestral state =  red
+    Mutation: node = 5 derived_state = green
+    Mutation: node = 4 derived_state = blue
+
+So, the algorithm has concluded, quite reasonably, that the most parsimonious
+description of this state is that the ancestral state is red and there was
+a mutation to blue and green over nodes 4 and 5.
+
++++++++++++++++
+Building tables
++++++++++++++++
+
+One of the main uses of :meth:`.Tree.map_mutations` is to position mutations on a tree
+to encode observed data. In the following example we show how a set
+of tables can be updated using the :ref:`Tables API<sec_tables_api>`; here we
+infer the location of mutations in an simulated tree sequence, and recompute
+the node and edge tables exactly::
+
+    ts = msprime.simulate(6, random_seed=23)
+    ts = msprime.mutate(
+        ts, rate=3, model=msprime.InfiniteSites(msprime.NUCLEOTIDES), random_seed=2)
+
+    tree = ts.first()
+    tables = ts.dump_tables()
+    # Reinfer the sites and mutations from the variants.
+    tables.sites.clear()
+    tables.mutations.clear()
+    for var in ts.variants():
+        ancestral_state, mutations = tree.map_mutations(var.genotypes, var.alleles)
+        tables.sites.add_row(var.site.position, ancestral_state=ancestral_state)
+        parent_offset = len(tables.mutations)
+        for mutation in mutations:
+            parent = mutation.parent
+            if parent != tskit.NULL:
+                parent += parent_offset
+            tables.mutations.add_row(
+                var.index, node=mutation.node, parent=parent,
+                derived_state=mutation.derived_state)
+
+    assert tables.sites == ts.tables.sites
+    assert tables.mutations == ts.tables.mutations
+    print(tables.sites)
+    print(tables.mutations)
+
+The output is::
+
+    id      position        ancestral_state metadata
+    0       0.25849808      T
+    1       0.26682728      G
+    2       0.32053644      C
+    3       0.40730783      T
+    4       0.49856117      G
+    5       0.58679698      A
+    6       0.61927097      A
+    7       0.71975423      T
+    8       0.94773061      C
+    id      site    node    derived_state   parent  metadata
+    0       0       8       C       -1
+    1       1       7       C       -1
+    2       2       4       A       -1
+    3       3       9       C       -1
+    4       4       8       A       -1
+    5       5       8       T       -1
+    6       6       5       G       -1
+    7       7       8       A       -1
+    8       8       3       T       -1
+
+
+
+
+
+++++++++++++
+Missing data
+++++++++++++
+
+The Fitch parsimony algorithm in :meth:`.Tree.map_mutations` can also take missing data
+into account when finding a set of parsimonious state transitions. We do this by
+specifying the special value ``-1`` as the state, which is treated by the algorithm as
+"could be anything".
+
+For example, here we state that sample 0 is missing, and use the colour white to indicate
+this::
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    alleles = ["red", "blue", "green", "white"]
+    genotypes = [-1, 0, 0, 0, 1, 2]
+    node_colours = {j: alleles[g] for j, g in enumerate(genotypes)}
+    ancestral_state, mutations = tree.map_mutations(genotypes, alleles)
+    print("Ancestral state = ", ancestral_state)
+    for mut in mutations:
+        print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
+    tree.draw("_static/parsimony2.svg", node_colours=node_colours)
+
+.. image:: _static/parsimony2.svg
+
+As before, we get::
+
+    Ancestral state =  red
+    Mutation: node = 5 derived_state = green
+    Mutation: node = 4 derived_state = blue
+
+
+The algorithm decided, again, quite reasonably, that the most parsimonious explanation
+for the input data is the same as before. Thus, if we used this information to fill
+out mutation table as above, we would impute the missing value for 0 as red.
+
+The output of the algorithm can be a little surprising at times. Consider this example::
+
+    tree = msprime.simulate(6, random_seed=42).first()
+    alleles = ["red", "blue", "white"]
+    genotypes = [1, -1, 0, 0, 0, 0]
+    node_colours = {j: alleles[g] for j, g in enumerate(genotypes)}
+    ancestral_state, mutations = tree.map_mutations(genotypes, alleles)
+    print("Ancestral state = ", ancestral_state)
+    for mut in mutations:
+        print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
+    tree.draw("_static/parsimony3.svg", node_colours=node_colours)
+
+
+.. image:: _static/parsimony3.svg
+
+The output we get is::
+
+    Ancestral state =  red
+    Mutation: node = 6 derived_state = blue
+
+
+Note that this is putting a mutation to blue over node 6, **not** node 0 as
+we might expect. Thus, we impute here that node 1 is blue. It is important
+to remember that the algorithm is minimising the number of state transitions;
+this may not correspond always to what we might consider the most parsimonious
+explanation.

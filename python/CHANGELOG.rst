@@ -1,8 +1,17 @@
 --------------------
-[0.1.6] - 2019-XX-XX
+[0.2.0] - 2019-XX-XX
 --------------------
 
 In development.
+
+**Breaking changes**
+
+- Genotype arrays returned by ``TreeSequence.variants`` and
+  ``TreeSequence.genotype_matrix`` have changed from unsigned 8 bit values
+  to signed 8 bit values to accomodate missing data (see :issue:`144` for
+  discussion). Specifically, the dtype of the genotypes arrays have changed
+  from numpy "u8" to "i8". This should not affect client code in any way
+  unless it specifically depends on the type of the returned numpy array.
 
 **New features**
 

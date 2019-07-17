@@ -89,6 +89,8 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 /* The null ID */
 #define TSK_NULL ((tsk_id_t) -1)
 
+/* Missing data in an array of genotypes */
+#define TSK_MISSING_DATA    (-1)
 
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11
@@ -209,6 +211,10 @@ of tskit.
 #define TSK_ERR_INSUFFICIENT_INDEX_TUPLES                           -906
 #define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
 #define TSK_ERR_EMPTY_SAMPLE_SET                                    -908
+
+/* Mutation mapping errors */
+#define TSK_ERR_GENOTYPES_ALL_MISSING                              -1000
+#define TSK_ERR_BAD_GENOTYPE                                       -1001
 
 
 /* This bit is 0 for any errors originating from kastore */

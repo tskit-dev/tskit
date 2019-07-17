@@ -52,8 +52,8 @@ typedef struct {
     tsk_size_t num_alleles;
     tsk_size_t max_alleles;
     union {
-        uint8_t *u8;
-        uint16_t *u16;
+        int8_t *i8;
+        int16_t *i16;
     } genotypes;
 } tsk_variant_t;
 

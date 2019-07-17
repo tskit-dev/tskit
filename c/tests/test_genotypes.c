@@ -124,10 +124,10 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "A", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "T", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -137,10 +137,10 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL(var->allele_lengths[1], 8);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "A", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "TTTAAGGG", 8);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -154,10 +154,10 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "G", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[2], "AT", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[3], "T", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 2);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 3);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 2);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 3);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -167,10 +167,10 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "A", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "T", 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -244,10 +244,10 @@ test_single_tree_vargen_binary_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
@@ -256,10 +256,10 @@ test_single_tree_vargen_binary_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
@@ -268,10 +268,10 @@ test_single_tree_vargen_binary_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[2], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[3], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 1);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
@@ -335,8 +335,8 @@ test_single_tree_vargen_subsample(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
@@ -345,8 +345,8 @@ test_single_tree_vargen_subsample(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
@@ -355,8 +355,8 @@ test_single_tree_vargen_subsample(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[0], 1);
-    CU_ASSERT_EQUAL(var->genotypes.u8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
@@ -446,9 +446,9 @@ test_single_tree_vargen_many_alleles(void)
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             tsk_vargen_print_state(&vargen, _devnull);
             ret = tsk_vargen_next(&vargen, &var);
-            /* We have j + 2 alleles. So, if j >= 254, we should fail with 8bit
+            /* We have j + 2 alleles. So, if j >= 126, we should fail with 8bit
              * genotypes */
-            if (l == 0 && j >= 254) {
+            if (l == 0 && j >= 126) {
                 CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TOO_MANY_ALLELES);
             } else {
                 CU_ASSERT_EQUAL_FATAL(ret, 1);

@@ -498,14 +498,14 @@ make_variant(tsk_variant_t *variant, size_t num_samples)
     PyObject *ret = NULL;
     npy_intp dims = num_samples;
     PyObject *alleles = make_alleles(variant);
-    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_UINT8);
+    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT8);
 
     /* TODO update this to account for 16 bit variants when we provide the
      * high-level interface. */
     if (genotypes == NULL || alleles == NULL) {
         goto out;
     }
-    memcpy(PyArray_DATA(genotypes), variant->genotypes.u8, num_samples * sizeof(uint8_t));
+    memcpy(PyArray_DATA(genotypes), variant->genotypes.i8, num_samples * sizeof(int8_t));
     ret = Py_BuildValue("iOO", variant->site->id, genotypes, alleles);
 out:
     Py_XDECREF(genotypes);
@@ -532,6 +532,32 @@ convert_sites(tsk_site_t *sites, size_t num_sites)
             goto out;
         }
         PyList_SET_ITEM(l, j, py_site);
+    }
+    ret = l;
+out:
+    return ret;
+}
+
+static PyObject *
+convert_transitions(tsk_state_transition_t *transitions, size_t num_transitions)
+{
+    PyObject *ret = NULL;
+    PyObject *l = NULL;
+    PyObject *py_transition = NULL;
+    size_t j;
+
+    l = PyList_New(num_transitions);
+    if (l == NULL) {
+        goto out;
+    }
+    for (j = 0; j < num_transitions; j++) {
+        py_transition = Py_BuildValue("iii", transitions[j].node,
+                transitions[j].parent, transitions[j].state);
+        if (py_transition == NULL) {
+            Py_DECREF(l);
+            goto out;
+        }
+        PyList_SET_ITEM(l, j, py_transition);
     }
     ret = l;
 out:
@@ -7253,7 +7279,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     dims[0] = num_sites;
     dims[1] = num_samples;
 
-    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_UINT8);
+    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT8);
     if (genotype_matrix == NULL) {
         goto out;
     }
@@ -7270,7 +7296,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     }
     j = 0;
     while ((err = tsk_vargen_next(vg, &variant)) == 1) {
-        memcpy(V + (j * num_samples), variant->genotypes.u8, num_samples * sizeof(uint8_t));
+        memcpy(V + (j * num_samples), variant->genotypes.i8, num_samples * sizeof(int8_t));
         j++;
     }
     if (err != 0) {
@@ -8193,6 +8219,59 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    PyObject *genotypes = NULL;
+    PyObject *py_transitions = NULL;
+    PyArrayObject *genotypes_array = NULL;
+    static char *kwlist[] = {"genotypes", NULL};
+    int8_t ancestral_state;
+    tsk_state_transition_t *transitions = NULL;
+    tsk_size_t num_transitions;
+    npy_intp *shape;
+    int err;
+
+    if (Tree_check_tree(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &genotypes)) {
+        goto out;
+    }
+    genotypes_array = (PyArrayObject *) PyArray_FROMANY(genotypes, NPY_INT8, 1, 1,
+            NPY_ARRAY_IN_ARRAY);
+    if (genotypes_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(genotypes_array);
+    if (shape[0] != tsk_treeseq_get_num_samples(self->tree->tree_sequence)) {
+        PyErr_SetString(PyExc_ValueError,
+                "Genotypes array must have 1D (num_samples,) array");
+        goto out;
+    }
+
+    err = tsk_tree_map_mutations(self->tree,
+        (int8_t *) PyArray_DATA(genotypes_array), NULL, 0,
+        &ancestral_state, &num_transitions, &transitions);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    py_transitions = convert_transitions(transitions, num_transitions);
+    if (py_transitions == NULL) {
+        goto out;
+    }
+    ret = Py_BuildValue("iO", ancestral_state, py_transitions);
+out:
+    if (transitions != NULL) {
+        free(transitions);
+    }
+    Py_XDECREF(genotypes_array);
+    Py_XDECREF(py_transitions);
+    return ret;
+}
+
 /* Forward declaration */
 static PyTypeObject TreeType;
 
@@ -8309,6 +8388,9 @@ static PyMethodDef Tree_methods[] = {
     {"get_newick", (PyCFunction) Tree_get_newick,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the newick representation of this tree." },
+    {"map_mutations", (PyCFunction) Tree_map_mutations,
+            METH_VARARGS|METH_KEYWORDS,
+            "Returns a parsimonious state reconstruction for the specified genotypes." },
     {"equals", (PyCFunction) Tree_equals, METH_VARARGS,
             "Returns True if this tree is equal to the parameter tree." },
     {"copy", (PyCFunction) Tree_copy, METH_NOARGS,
@@ -9413,6 +9495,7 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "VersionTooOldError", TskitVersionTooOldError);
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
+    PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);
     /* Node flags */
     PyModule_AddIntConstant(module, "NODE_IS_SAMPLE", TSK_NODE_IS_SAMPLE);
     /* Tree flags */

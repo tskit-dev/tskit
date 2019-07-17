@@ -333,7 +333,7 @@ tsk_vcf_converter_write_record(tsk_vcf_converter_t *self, tsk_variant_t *variant
     for (j = 0; j < self->num_vcf_samples; j++) {
         for (k = 0; k < p; k++) {
             self->vcf_genotypes[2 * p * j + 2 * k] =
-                (char) ('0' + variant->genotypes.u8[j * p + k]);
+                (char) ('0' + variant->genotypes.i8[j * p + k]);
         }
     }
     assert(offset + self->vcf_genotypes_size < self->record_size);
