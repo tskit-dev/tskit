@@ -2862,10 +2862,36 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
     # Derived classes define this to get a specific stats mode.
     mode = None
 
+    def verify_single_sample_set(self, ts):
+        L = ts.sequence_length
+        samples = ts.samples()
+        a1 = ts.allele_frequency_spectrum(mode=self.mode)
+        a2 = ts.allele_frequency_spectrum(mode=self.mode)
+        a3 = ts.joint_allele_frequency_spectrum([samples], mode=self.mode)
+        self.assertArrayEqual(a1, a2)
+        self.assertArrayEqual(a1, a3)
+        for windows in [None, (0, L), (0, L / 2, L)]:
+            a1 = ts.allele_frequency_spectrum(mode=self.mode, windows=windows)
+            a2 = ts.joint_allele_frequency_spectrum(
+                [samples], mode=self.mode, windows=windows)
+            self.assertArrayEqual(a1, a2)
+        for polarised in [True, False]:
+            a1 = ts.allele_frequency_spectrum(mode=self.mode, polarised=polarised)
+            a2 = ts.joint_allele_frequency_spectrum(
+                [samples], mode=self.mode, polarised=polarised)
+            self.assertArrayEqual(a1, a2)
+        for span_normalise in [True, False]:
+            a1 = ts.allele_frequency_spectrum(
+                mode=self.mode, span_normalise=span_normalise)
+            a2 = ts.joint_allele_frequency_spectrum(
+                [samples], mode=self.mode, span_normalise=span_normalise)
+            self.assertArrayEqual(a1, a2)
+
     def verify_sample_sets(self, ts, sample_sets, windows):
         # print(ts.genotype_matrix())
         # print(ts.draw_text())
         windows = ts.parse_windows(windows)
+        # for span_normalise, polarised in [(False, True)]:
         for span_normalise, polarised in itertools.product([True, False], [True, False]):
             sfs1 = naive_joint_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
@@ -2886,13 +2912,13 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
             # TODO sort out the semantics here when folding into the zero'th element
             # print("sample_sets:", sample_sets)
             # for window_sfs in sfs1:
-                # print(window_sfs)
-                # coord = tuple([0] * len(sample_sets))
-                # print(window_sfs[coord])
-                # self.assertEqual(window_sfs[coord], 0)
-                # coord = tuple([len(sample_set) - 1 for sample_set in sample_sets])
-                # print(window_sfs[coord])
-                # print(coord)
+            #     print(window_sfs)
+            #     coord = tuple([0] * len(sample_sets))
+            #     print(coord, window_sfs[coord])
+            #     self.assertEqual(window_sfs[coord], 0)
+            #     coord = tuple([len(sample_set) - 1 for sample_set in sample_sets])
+            #     # print(window_sfs[coord])
+            #     # print(coord)
             # print(span_normalise, polarised)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             self.assertEqual(sfs1.shape, sfs2.shape)
@@ -2911,6 +2937,11 @@ class TestBranchJointAlleleFrequencySpectrum(
 
     def test_simple_example(self):
         ts = msprime.simulate(6, recombination_rate=0.1, random_seed=1)
+        self.verify_single_sample_set(ts)
+
+        self.verify_sample_sets(ts, [range(6)], [0, 1])
+        self.verify_sample_sets(ts, [[0, 1]], [0, 1])
+        self.verify_sample_sets(ts, [[0, 1], [2, 3]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
@@ -2922,6 +2953,8 @@ class TestSiteJointAlleleFrequencySpectrum(
 
     def test_simple_example(self):
         ts = msprime.simulate(6, mutation_rate=0.2, random_seed=1)
+        self.verify_single_sample_set(ts)
+
         self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])

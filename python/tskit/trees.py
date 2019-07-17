@@ -3675,6 +3675,15 @@ class TreeSequence(object):
             self._ll_tree_sequence.segregating_sites, sample_sets, windows=windows,
             mode=mode, span_normalise=span_normalise)
 
+    def allele_frequency_spectrum(
+            self, samples=None, windows=None, mode="site", span_normalise=True,
+            polarised=False):
+        if samples is None:
+            samples = self.samples()
+        return self.joint_allele_frequency_spectrum(
+            [samples], windows=windows, mode=mode, span_normalise=span_normalise,
+            polarised=polarised)
+
     def joint_allele_frequency_spectrum(
             self, sample_sets, windows=None, mode="site", span_normalise=True,
             polarised=False):
