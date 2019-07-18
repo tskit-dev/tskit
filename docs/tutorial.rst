@@ -759,10 +759,6 @@ The output is::
     7       7       8       A       -1
     8       8       3       T       -1
 
-
-
-
-
 ++++++++++++
 Missing data
 ++++++++++++
@@ -824,3 +820,147 @@ we might expect. Thus, we impute here that node 1 is blue. It is important
 to remember that the algorithm is minimising the number of state transitions;
 this may not correspond always to what we might consider the most parsimonious
 explanation.
+
+.. _sec_tutorial_afs:
+
+************************
+Allele frequency spectra
+************************
+
+The allele frequency spectrum is a fundamental tool in population genetics, and
+tskit provides a flexible and powerful approach to computing such spectra.
+Suppose we have simulated the following tree and site table:
+
+.. image:: _static/afs1.svg
+
+::
+
+    id      position        ancestral_state metadata
+    0       0.30043643      0
+    1       0.32220794      0
+    2       0.36507027      0
+    3       0.50940255      0
+    4       0.51327137      0
+    5       0.51400861      0
+    6       0.54796110      0
+    7       0.75929404      0
+    8       0.80591800      0
+    9       0.92324208      0
+
+Computing the allele frequency spectrum is then easy::
+
+    afs = ts.allele_frequency_spectrum(polarised=True)
+
+which looks like::
+
+    [[0. 2. 6. 1. 1. 0. 0.]]
+
+This tells us that we have two singletons, six doubletons and one 3-ton and
+one 4-ton. Note
+that the first element of the returned AFS array does *not* correspond to
+the singletons (see below for why). Because we have simulated these mutations,
+we know the ancestral and derived states we have set ``polarised`` to True.
+We can get the "folded" AFS by setting polarised to False.
+
+The returned value here is actually a 2D array, and this is because we can
+also perform these computations in windows along the genome::
+
+
+    afs = ts.allele_frequency_spectrum(
+        windows=[0, 0.5, 1], span_normalise=False, polarised=True)
+    print(afs)
+
+giving::
+
+    [[0. 1. 1. 1. 0. 0. 0.]
+     [0. 1. 5. 0. 1. 0. 0.]]
+
+This time, we've asked for the number of sites at each frequency in two
+equal windows. Now we can see that in the first half of the sequence we
+have three sites (compare with the site table above): one singleton,
+one doubleton and one tripleton. Because we want simple counts here and
+not averaged values, we set ``span_normalise=False``. By default,
+windowed statistics are weighted by the sequence length---in the first
+example, this weighting didn't have any effect because the total sequence
+length was 1.
+
++++++++++++++
+Joint spectra
++++++++++++++
+
+We can also compute allele frequencies within multiple sets of samples,
+the *joint allele frequency spectra*.
+
+.. image:: _static/afs2.svg
+
+Here we've marked the samples as either blue or green (we can imagine
+these belonging to different populations, for example). We can then compute
+the joint AFS based on these two sets::
+
+    afs = ts.allele_frequency_spectrum([[0, 2, 3], [1, 4, 5]], polarised=True)
+    print(afs)
+
+giving::
+
+ [[[0. 2. 0. 0.]
+   [0. 6. 0. 0.]
+   [0. 1. 1. 0.]
+   [0. 0. 0. 0.]]]
+
+Now, each window in our AFS is a 2D numpy array, where each dimension
+corresponds to frequencies within the different sets. So, we see for example
+that there are six sites that are singletons in both sets, 1 site
+that is a doubleton in both sets, and 2 sites that singletons in [1, 4, 5]
+and not present in the other sample set.
+
++++++++++++++++++++++
+Branch length spectra
++++++++++++++++++++++
+
+Up to now we've used the :meth:`.TreeSequence.allele_frequency_spectrum` method
+to summarise the number of sites that occur at different frequencies. We can also
+use this approach to compute the total branch lengths subtending a given
+number of samples by setting ``mode="branch"``::
+
+    afs = ts.allele_frequency_spectrum(
+        mode="branch", polarised=True, span_normalise=False)
+    print(afs)
+
+giving::
+
+    [[0. 4.86089166 5.39638988 2.55239269 2.07444286 0. 0.]]
+
+Thus, the total branch length over example one sample is 4.86, over two is
+5.39, and so on.
+
+.. _sec_tutorial_afs_zeroth_entry:
+
++++++++++++++++++++++++
+Zeroth entry in the AFS
++++++++++++++++++++++++
+
+The zeroth element of the AFS is significant when we are working with
+sample sets that are a subset of all samples in the tree sequence.
+For example, in the following we compute the AFS within the sample set
+[0, 1, 2]::
+
+    afs = ts.allele_frequency_spectrum([[0, 1, 2]], mode="branch", polarised=True)
+    print(afs)
+
+getting::
+
+    [[4.33184862 5.30022646 5.252042   0.        ]]
+
+Thus, the total branch length over 0, 1 and 2 is 5.3, and over pairs from this set
+is 5.25. What does the zeroth value of 4.33 signify? This is the total branch length
+over all samples that are **not** in this sample set. By including this value, we
+maintain the property that for each tree, the sum of the AFS for any sample set
+is alway equal to the total branch length. For example, here we compute::
+
+    print("sum afs          = ", np.sum(afs))
+    print("total branch len = ", tree.total_branch_length)
+
+getting::
+
+    sum afs          =  14.884117086717392
+    total branch len =  14.884117086717396

@@ -3678,6 +3678,74 @@ class TreeSequence(object):
     def allele_frequency_spectrum(
             self, sample_sets=None, windows=None, mode="site", span_normalise=True,
             polarised=False):
+        """
+        Computes the allele frequency spectrum (AFS) in windows across the genome for
+        with respect to the specified ``sample_sets``. See :ref:`sec_general_stats` for
+        details of ``windows``, ``mode``, ``span_normalise`` and ``polarised``.
+
+        Please see the :ref:`sec_tutorial_afs` for examples of how to use this method.
+
+        Similar to other windowed stats, the first dimension in the returned array is
+        corresponds to windows, such that ``result[i]`` is the AFS in the ith
+        window. The AFS in each window is a k-dimensional numpy array, where k is
+        the number of input sample sets, such that ``result[i, j0, j1, ...]`` is the
+        value associated with frequency ``j0`` in ``sample_sets[0]``, ``j1`` in
+        ``sample_sets[1]``, etc, in window ``i``. From here, we will assume that
+        ``afs`` corresponds to the result in a single window, i.e.,
+        ``afs = result[i]``.
+
+        If a single sample set is specified, the allele frequency spectrum within
+        this set is returned, such that ``afs[j]`` is the value associated with
+        frequency ``j``. Thus, singletons are counted in ``afs[1]``, doubletons in
+        ``afs[2]``, and so on.
+
+        .. warning:: Please note that singletons are **not** counted in the initial
+            entry in each AFS array (i.e., ``afs[0]``), but in ``afs[1]``. The
+            zeroth entry in the AFS can usually be omitted, but is significant
+            when subsets of all samples are provided as input. Please see
+            the :ref:`sec_tutorial_afs_zeroth_entry` for an illustration.
+
+        If ``sample_sets`` is None (the default), the allele frequency spectrum
+        for all samples in the tree sequence is returned.
+
+        If more than one sample set is specified, the **joint** allele frequency
+        spectrum within windows is returned. For example, if we set
+        ``sample_sets = [S0, S1]``, then afs[1, 2] counts the number of sites that
+        at singletons within S0 and doubletons in S1.
+
+        If ``polarised`` is False (the default) the AFS will be *folded* such that
+        a frequency ``c`` is mapped to ``min(c, len(S) - c)``, where ``S`` is the sample
+        set in question. The dimensions of the output array will therefore be
+        ``[num_windows] + [1 + len(S) // 2 for S in sample_sets]``.
+        Otherwise, the dimensions of the output array will be
+        ``[num_windows] + [1 + len(S) for S in sample_sets]``.
+
+        What is computed depends on ``mode``:
+
+        "site"
+            The number of sites at a given frequency within the specified sample
+            sets for each window, per unit of sequence length. To obtain the total
+            number of sites, set ``span_normalise`` to False.
+
+        "branch"
+            The total length of branches in the trees subtended by subsets of the
+            specified sample sets, per unit of sequence length. To obtain the
+            total, set ``span_normalise`` to False.
+
+        "node"
+            Not supported for this method (raises a ValueError).
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of samples to compute the joint allele frequency
+        :param iterable windows: An increasing list of breakpoints between windows
+            along the genome.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A (k + 1) dimensional numpy array, where k is the number of sample
+            sets specified.
+        """
         if sample_sets is None:
             sample_sets = [self.samples()]
         return self.__one_way_sample_set_stat(
