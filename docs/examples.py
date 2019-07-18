@@ -5,6 +5,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../python'))
 
+import numpy as np
 import msprime
 import tskit
 
@@ -133,5 +134,38 @@ def parsimony():
     tree.draw("_static/parsimony3.svg", node_colours=node_colours)
 
 
+def allele_frequency_spectra():
+
+    ts = msprime.simulate(6, mutation_rate=1, random_seed=47)
+    tree = ts.first()
+    tree.draw("_static/afs1.svg")
+
+    print(ts.tables.sites)
+
+    afs = ts.allele_frequency_spectrum(polarised=True)
+    print(afs)
+
+    afs = ts.allele_frequency_spectrum(
+        windows=[0, 0.5, 1], span_normalise=False, polarised=True)
+    print(afs)
+
+    node_colours = {
+        0: "blue", 2: "blue", 3: "blue",
+        1: "green", 4: "green", 5: "green"}
+    tree.draw("_static/afs2.svg", node_colours=node_colours)
+
+    afs = ts.allele_frequency_spectrum([[0, 2, 3], [1, 4, 5]], polarised=True)
+    print(afs)
+
+    afs = ts.allele_frequency_spectrum(mode="branch", polarised=True)
+    print(afs)
+
+    afs = ts.allele_frequency_spectrum([[0, 1, 2]], mode="branch", polarised=True)
+    print(afs)
+    print("sum afs          = ", np.sum(afs))
+    print("total branch len = ", tree.total_branch_length)
+
+
 # moving_along_tree_sequence()
-parsimony()
+# parsimony()
+allele_frequency_spectra()

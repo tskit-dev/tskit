@@ -345,6 +345,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_EMPTY_SAMPLE_SET:
             ret = "Samples cannot be empty";
             break;
+        case TSK_ERR_UNSUPPORTED_STAT_MODE:
+            ret = "Requested statistics mode not supported for this method.";
+            break;
 
         /* Mutation mapping errors */
         case TSK_ERR_GENOTYPES_ALL_MISSING:

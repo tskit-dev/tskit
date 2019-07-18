@@ -621,6 +621,15 @@ class OneWaySampleStatsMixin(SampleSetMixin):
         pi = method(np.ones(n).astype(np.uint32), samples, windows, mode=mode)
         self.assertEqual(pi.shape, (1, N, n))
 
+    def test_polarised(self):
+        # TODO move this to the top level.
+        ts, method = self.get_method()
+        samples = ts.get_samples()
+        n = len(samples)
+        windows = [0, ts.get_sequence_length()]
+        method([n], samples, windows, polarised=True)
+        method([n], samples, windows, polarised=False)
+
 
 class TestDiversity(LowLevelTestCase, OneWaySampleStatsMixin):
     """
@@ -674,6 +683,51 @@ class TestY1(LowLevelTestCase, OneWaySampleStatsMixin):
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.Y1
+
+
+class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
+    """
+    Tests for the diversity method.
+    """
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.allele_frequency_spectrum
+
+    def test_basic_example(self):
+        ts = self.get_example_tree_sequence()
+        n = ts.get_num_samples()
+        result = ts.allele_frequency_spectrum(
+            [n], ts.get_samples(), [0, ts.get_sequence_length()])
+        self.assertEqual(result.shape, (1, n // 2 + 1))
+        result = ts.allele_frequency_spectrum(
+            [n], ts.get_samples(), [0, ts.get_sequence_length()], polarised=True)
+        self.assertEqual(result.shape, (1, n + 1))
+
+    def test_output_dims(self):
+        ts = self.get_example_tree_sequence()
+        samples = ts.get_samples()
+        L = ts.get_sequence_length()
+        n = len(samples)
+
+        for mode in ["site", "branch"]:
+            for s in [[n], [n - 2, 2], [n - 4, 2, 2], [1] * n]:
+                s = np.array(s, dtype=np.uint32)
+                windows = [0, L]
+                for windows in [[0, L], [0, L / 2, L], np.linspace(0, L, num=10)]:
+                    jafs = ts.allele_frequency_spectrum(
+                        s, samples, windows, mode=mode, polarised=True)
+                    self.assertEqual(jafs.shape, tuple([len(windows) - 1] + list(s + 1)))
+                    jafs = ts.allele_frequency_spectrum(
+                        s, samples, windows, mode=mode, polarised=False)
+                    self.assertEqual(
+                        jafs.shape, tuple([len(windows) - 1] + list(s // 2 + 1)))
+
+    def test_node_mode_not_supported(self):
+        ts = self.get_example_tree_sequence()
+        with self.assertRaises(_tskit.LibraryError):
+            ts.allele_frequency_spectrum(
+                [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()],
+                mode="node")
 
 
 class TwoWaySampleStatsMixin(SampleSetMixin):

@@ -6989,7 +6989,7 @@ TreeSequence_one_way_stat_method(TreeSequence *self, PyObject *args, PyObject *k
 {
     PyObject *ret = NULL;
     static char *kwlist[] = {"sample_set_sizes", "sample_sets", "windows", "mode",
-        "span_normalise", NULL};
+        "span_normalise", "polarised", NULL};
     PyObject *sample_set_sizes = NULL;
     PyObject *sample_sets = NULL;
     PyObject *windows = NULL;
@@ -7001,13 +7001,15 @@ TreeSequence_one_way_stat_method(TreeSequence *self, PyObject *args, PyObject *k
     tsk_size_t num_windows, num_sample_sets;
     tsk_flags_t options = 0;
     int span_normalise = 1;
+    int polarised = 0;
     int err;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|si", kwlist,
-            &sample_set_sizes, &sample_sets, &windows, &mode, &span_normalise)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist,
+            &sample_set_sizes, &sample_sets, &windows, &mode, &span_normalise,
+            &polarised)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -7015,6 +7017,9 @@ TreeSequence_one_way_stat_method(TreeSequence *self, PyObject *args, PyObject *k
     }
     if (span_normalise) {
         options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
     }
     if (parse_sample_sets(
             sample_set_sizes, &sample_set_sizes_array,
@@ -7042,6 +7047,87 @@ TreeSequence_one_way_stat_method(TreeSequence *self, PyObject *args, PyObject *k
     ret = (PyObject *) result_array;
     result_array = NULL;
 out:
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(result_array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_allele_frequency_spectrum(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = {"sample_set_sizes", "sample_sets", "windows", "mode",
+        "span_normalise", "polarised", NULL};
+    PyObject *sample_set_sizes = NULL;
+    PyObject *sample_sets = NULL;
+    PyObject *windows = NULL;
+    char *mode = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *result_array = NULL;
+    tsk_size_t *sizes;
+    npy_intp *shape = NULL;
+    tsk_size_t k, num_windows, num_sample_sets;
+    tsk_flags_t options = 0;
+    int polarised = 0;
+    int span_normalise = 1;
+    int err;
+
+    if (TreeSequence_check_tree_sequence(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist,
+            &sample_set_sizes, &sample_sets, &windows, &mode, &span_normalise,
+            &polarised)) {
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (span_normalise) {
+        options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
+    }
+    if (parse_sample_sets(
+            sample_set_sizes, &sample_set_sizes_array,
+            sample_sets, &sample_sets_array, &num_sample_sets) != 0) {
+        goto out;
+    }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+
+    shape = PyMem_Malloc((num_sample_sets + 1) * sizeof(*shape));
+    if (shape == NULL) {
+        goto out;
+    }
+    sizes = PyArray_DATA(sample_set_sizes_array);
+    shape[0] = num_windows;
+    for (k = 0; k < num_sample_sets; k++) {
+        shape[k + 1] = 1 + (polarised? sizes[k]: sizes[k] / 2);
+    }
+    result_array = (PyArrayObject *) PyArray_SimpleNew(1 + num_sample_sets, shape, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+    err = tsk_treeseq_allele_frequency_spectrum(self->tree_sequence,
+        num_sample_sets, PyArray_DATA(sample_set_sizes_array),
+        PyArray_DATA(sample_sets_array),
+        num_windows, PyArray_DATA(windows_array),
+        PyArray_DATA(result_array), options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    PyMem_Free(shape);
     Py_XDECREF(sample_set_sizes_array);
     Py_XDECREF(sample_sets_array);
     Py_XDECREF(windows_array);
@@ -7399,6 +7485,9 @@ static PyMethodDef TreeSequence_methods[] = {
     {"diversity",
         (PyCFunction) TreeSequence_diversity,
         METH_VARARGS|METH_KEYWORDS, "Computes diversity within sample sets." },
+    {"allele_frequency_spectrum",
+        (PyCFunction) TreeSequence_allele_frequency_spectrum,
+        METH_VARARGS|METH_KEYWORDS, "Computes the K-dimensional joint AFS." },
     {"trait_covariance",
         (PyCFunction) TreeSequence_trait_covariance,
         METH_VARARGS|METH_KEYWORDS, "Computes covariance with traits." },
