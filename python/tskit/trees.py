@@ -42,8 +42,8 @@ import tskit.tables as tables
 import tskit.formats as formats
 import tskit.util as util
 
-from _tskit import NODE_IS_SAMPLE
-from _tskit import NULL
+from tskit import NODE_IS_SAMPLE
+from tskit import NULL
 
 
 CoalescenceRecord = collections.namedtuple(

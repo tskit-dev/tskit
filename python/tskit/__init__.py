@@ -21,6 +21,9 @@
 # SOFTWARE.
 
 import _tskit
+NULL = _tskit.NULL
+MISSING_DATA = _tskit.MISSING_DATA
+NODE_IS_SAMPLE = _tskit.NODE_IS_SAMPLE
 FORWARD = _tskit.FORWARD
 REVERSE = _tskit.REVERSE
 
