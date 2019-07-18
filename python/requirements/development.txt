@@ -19,3 +19,4 @@ pysam
 PyVCF
 python_jsonschema_objects
 biopython
+Bio
