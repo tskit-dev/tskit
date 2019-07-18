@@ -657,6 +657,19 @@ class TopologyExamplesMixin(object):
         ts = tables.tree_sequence()
         self.verify(ts)
 
+    def test_non_sample_ancestry(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(1, 0)
+        tables.nodes.add_row(1, 0)
+        tables.nodes.add_row(0, 1)
+        tables.nodes.add_row(0, 0)  # 3 is a leaf but not a sample.
+        tables.nodes.add_row(0, 1)
+        tables.edges.add_row(0, 1, 2, 0)
+        tables.edges.add_row(0, 1, 2, 1)
+        tables.edges.add_row(0, 1, 4, 3)
+        ts = tables.tree_sequence()
+        self.verify(ts)
+
 
 class MutatedTopologyExamplesMixin(object):
     """
@@ -2594,7 +2607,12 @@ def naive_site_joint_allele_frequency_spectrum(
                     if 0 in count:
                         del count[0]
                 for allele_count in count.values():
-                    S[tuple(allele_count)] += increment
+                    # TODO: clarify whether this is the right semantics when dealing with
+                    # https://github.com/tskit-dev/tskit/issues/263. Probably the right
+                    # thing to do is have an extra count over all samples here, if this
+                    # is what we do in the branch length case.
+                    if sum(allele_count) > 0:
+                        S[tuple(allele_count)] += increment
             if span_normalise:
                 S /= (end - begin)
             out[j, :] += S
@@ -2627,15 +2645,14 @@ def naive_branch_joint_allele_frequency_spectrum(
                 if tr_len > 0:
                     for node in t.nodes():
                         x = [tree.num_tracked_samples(node) for tree in trees]
-                        if sum(x) > 0:
-                            # Note x must be a tuple for indexing to work
-                            if polarised:
-                                S[tuple(x)] += t.branch_length(node) * tr_len
-                            else:
-                                x = [
-                                    min(x[k], len(sample_set) - x[k])
-                                    for k, sample_set in enumerate(sample_sets)]
-                                S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
+                        # Note x must be a tuple for indexing to work
+                        if polarised:
+                            S[tuple(x)] += t.branch_length(node) * tr_len
+                        else:
+                            x = [
+                                min(x[k], len(sample_set) - x[k])
+                                for k, sample_set in enumerate(sample_sets)]
+                            S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
 
                 # Advance the trees
                 more = [tree.next() for tree in trees]
@@ -2692,15 +2709,14 @@ def branch_joint_allele_frequency_spectrum(
     def update_result(window_index, u, right):
         x = (right - last_update[u]) * branch_length[u]
         c = count[u]
-        if np.sum(c) > 0:
-            if not polarised:
-                # Fold the counts
-                c = c.copy()
-                for k in range(num_sample_sets):
-                    c[k] = min(c[k], len(sample_sets[k]) - c[k])
-                x *= 0.5
-            index = tuple([window_index] + list(c))
-            result[index] += x
+        if not polarised:
+            # Fold the counts
+            c = c.copy()
+            for k in range(num_sample_sets):
+                c[k] = min(c[k], len(sample_sets[k]) - c[k])
+            x *= 0.5
+        index = tuple([window_index] + list(c))
+        result[index] += x
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -2822,18 +2838,19 @@ def site_joint_allele_frequency_spectrum(
             assert windows[window_index] <= pos < windows[window_index + 1]
             site_result = result[window_index]
 
+            increment = 1 if polarised else 0.5
             for allele, c in allele_count.items():
-                # If the allele is not present in any of the sample sets we
-                # do not consider it for the AFS
-                if np.sum(c) > 0:
-                    if polarised:
-                        site_result[tuple(c)] += 1
-                    else:
-                        # Fold the counts
-                        c = [
-                            min(c[k], len(sample_set) - c[k])
-                            for k, sample_set in enumerate(sample_sets)]
-                        site_result[tuple(c)] += 0.5
+                if not polarised:
+                    # Fold the counts
+                    c = [
+                        min(c[k], len(sample_set) - c[k])
+                        for k, sample_set in enumerate(sample_sets)]
+                # TODO: clarify whether this is the right semantics when dealing with
+                # https://github.com/tskit-dev/tskit/issues/263. Probably the right
+                # thing to do is have an extra count over all samples here, if this
+                # is what we do in the branch length case.
+                if sum(c) > 0:
+                    site_result[tuple(c)] += increment
             site_index += 1
 
     if span_normalise:
@@ -2891,7 +2908,7 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         # print(ts.genotype_matrix())
         # print(ts.draw_text())
         windows = ts.parse_windows(windows)
-        # for span_normalise, polarised in [(False, True)]:
+        sample_sets = [ts.samples()]
         for span_normalise, polarised in itertools.product([True, False], [True, False]):
             sfs1 = naive_joint_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
@@ -2904,22 +2921,10 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
                 span_normalise=span_normalise)
             self.assertEqual(sfs1.shape[0], len(windows) - 1)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
-            # print(sfs1.shape)
             for j, sample_set in enumerate(sample_sets):
                 n = 1 + (len(sample_set) if polarised else len(sample_set) // 2)
                 self.assertEqual(sfs1.shape[j + 1], n)
 
-            # TODO sort out the semantics here when folding into the zero'th element
-            # print("sample_sets:", sample_sets)
-            # for window_sfs in sfs1:
-            #     print(window_sfs)
-            #     coord = tuple([0] * len(sample_sets))
-            #     print(coord, window_sfs[coord])
-            #     self.assertEqual(window_sfs[coord], 0)
-            #     coord = tuple([len(sample_set) - 1 for sample_set in sample_sets])
-            #     # print(window_sfs[coord])
-            #     # print(coord)
-            # print(span_normalise, polarised)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             self.assertEqual(sfs1.shape, sfs2.shape)
             self.assertEqual(sfs1.shape, sfs3.shape)
@@ -2946,6 +2951,14 @@ class TestBranchJointAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
 
+    @unittest.skip("clarify non sample ancestry, #263")
+    def test_non_sample_ancestry(self):
+        pass
+
+    @unittest.skip("clarify non sample ancestry, #263")
+    def test_wright_fisher_unsimplified_multiple_roots(self):
+        pass
+
 
 class TestSiteJointAlleleFrequencySpectrum(
         TestJointAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
@@ -2958,6 +2971,43 @@ class TestSiteJointAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
+
+
+class TestBranchJointAlleleFrequencySpectrumProperties(
+        StatsTestCase, TopologyExamplesMixin):
+
+    def verify(self, ts):
+        # If we split by tree, the sum of the AFS should be equal to the
+        # tree total branch length
+        windows = ts.breakpoints(as_array=True)
+        S = ts.samples()
+        for polarised in [True, False]:
+            for samples in [S, S[:1], S[:-1]]:
+                afs = ts.allele_frequency_spectrum(
+                    samples, windows=windows, mode="branch", polarised=polarised)
+                if not polarised:
+                    afs *= 2
+                tbl = [tree.total_branch_length for tree in ts.trees()]
+                afs_sum = np.sum(afs, axis=1)
+                self.assertArrayAlmostEqual(afs_sum, tbl)
+
+            for sample_sets in [[S[:1], S[1:]], [S[:1], S[:2]], [S[:1], S[:2], S[:3]]]:
+
+                afs = ts.joint_allele_frequency_spectrum(
+                    sample_sets, windows=windows, mode="branch", polarised=polarised)
+                if not polarised:
+                    afs *= 2
+                tbl = [tree.total_branch_length for tree in ts.trees()]
+                afs_sum = [np.sum(window) for window in afs]
+                self.assertArrayAlmostEqual(afs_sum, tbl)
+
+    @unittest.skip("clarify non sample ancestry, #263")
+    def test_non_sample_ancestry(self):
+        pass
+
+    @unittest.skip("clarify non sample ancestry, #263")
+    def test_wright_fisher_unsimplified_multiple_roots(self):
+        pass
 
 
 ############################################

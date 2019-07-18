@@ -3684,6 +3684,8 @@ class TreeSequence(object):
             [samples], windows=windows, mode=mode, span_normalise=span_normalise,
             polarised=polarised)
 
+    # TODO remove this method and fold it into the first one - it's just a difference
+    # in the interpretation of the first argument.
     def joint_allele_frequency_spectrum(
             self, sample_sets, windows=None, mode="site", span_normalise=True,
             polarised=False):

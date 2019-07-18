@@ -1924,8 +1924,8 @@ update_site_jafs(tsk_site_t *site,
 {
     int ret = 0;
     tsk_size_t afs_size;
-    tsk_size_t k, c, sum, allele, num_alleles;
-    double increment, *afs, *allele_counts, *allele_count;
+    tsk_size_t k, c, allele, num_alleles;
+    double increment, sum, *afs, *allele_counts, *allele_count;
     tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
 
@@ -1942,21 +1942,21 @@ update_site_jafs(tsk_site_t *site,
     afs_size = result_dims[num_sample_sets];
     afs = result + afs_size * window_index;
 
+    increment = polarised? 1: 0.5;
     /* Sum over the allele weights. Skip the ancestral state if polarised. */
     for (allele = polarised? 1: 0; allele < num_alleles; allele++) {
-        allele_count = GET_2D_ROW(allele_counts, num_sample_sets, allele);
         sum = 0;
+        allele_count = GET_2D_ROW(allele_counts, num_sample_sets, allele);
         for (k = 0; k < num_sample_sets; k++) {
             c = (tsk_size_t) allele_count[k];
-            sum += c;
             if (! polarised) {
                 /* Fold the count */
                 c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - c));
             }
+            sum += c;
             coordinate[k] = c;
         }
         if (sum > 0) {
-            increment = polarised? 1: 0.5;
             increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, increment);
         }
     }
@@ -2070,7 +2070,7 @@ update_branch_jafs(
     int ret = 0;
     tsk_size_t afs_size;
     tsk_size_t k, c;
-    double sum, *afs;
+    double *afs;
     tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
     const double *count_row = GET_2D_ROW(counts, num_sample_sets, u);
@@ -2086,34 +2086,15 @@ update_branch_jafs(
 
     afs_size = result_dims[num_sample_sets];
     afs = result + afs_size * window_index;
-    sum = 0;
     for (k = 0; k < num_sample_sets; k++) {
         c = (tsk_size_t) count_row[k];
-        sum += c;
         if (! polarised) {
             /* Fold the count */
             c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - c));
         }
         coordinate[k] = c;
     }
-    if (sum > 0) {
-        increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, x);
-    }
-
-    /* def update_result(window_index, u, right): */
-    /*     x = (right - last_update[u]) * branch_length[u] */
-    /*     c = count[u] */
-    /*     if np.sum(c) > 0: */
-    /*         if not polarised: */
-    /*             # Fold the counts */
-    /*             c = c.copy() */
-    /*             for k in range(num_sample_sets): */
-    /*                 c[k] = min(c[k], len(sample_sets[k]) - c[k]) */
-    /*             x *= 0.5 */
-    /*         index = tuple([window_index] + list(c)) */
-    /*         result[index] += x */
-    /*     last_update[u] = right */
-
+    increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, x);
     last_update[u] = right;
 
 out:
