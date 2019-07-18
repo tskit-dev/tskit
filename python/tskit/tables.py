@@ -1665,25 +1665,43 @@ class TableCollection(object):
 
     def map_ancestors(self, samples, ancestors):
         """
+<<<<<<< HEAD
+        Returns an :class:`EdgeTable` instance describing a subset of the genealogical
+        relationships between the nodes in``samples`` and ``ancestors``.
+=======
         Returns an :class:`EdgeTable` instance describing how ``samples`` are descended
-        from ``ancestors`` (and how ``ancestors`` are descended from each other).
+        from ``ancestors``.
+>>>>>>> 4526b9f... Updated docs for map_ancestors.
         Each row ``parent, child, left, right`` in the output table indicates that
-        ``child`` (which is either in ``samples`` or in ``ancestors``) has inherited the
-        segment ``[left, right)`` from ``parent`` (which is in ``ancestors``) more
-        recently than from any other node in ``ancestors``. Every segment of the
-        genome on which each of ``samples`` has inherited from any of ``ancestors``
-        is described in this way, as well as any segment of the genomes of ``ancestors``
-        that has been inherited by any of ``samples``.  The node IDs in ``parent`` and
-        ``child`` refer to the node table in the original tree sequence. In other words,
-        the tree constructed at a position with the output edge table has the property
-        that the parent of any node in ``samples``, if there is one, is the most recent
-        ancestor of that node at that position out of all possible ancestors in
-        ``ancestors``, and the same is true for any node in ``ancestors`` that is
-        ancestral to any of ``samples``.
+        ``child`` has inherited the segment ``[left, right)`` from ``parent`` more
+        recently than from any other node in these lists.
+        The following table shows which ``parent->child`` pairs will be shown in the output
+        of ``map_ancestors``:
 
-        The supplied nodes must be a subset of the node IDs in the tree sequence.
+        |Type of relationship      | Shown in output of ``map_ancestors``           |
+        | ------------------------ | ---------------------------------------------- |
+        |``ancestor->sample``      | Always                                         |
+        |``ancestor1->ancestor2``  | Only if ``ancestor2`` has a relevant descendant|
+        |``sample1->sample2``      | Always                                         |
+        |``sample->ancestor``      | Only if ``ancestor`` has a relevant descendant |
+
+        In other words, the tree constructed at a position with the output edge table has
+        the property that the parent of any node in ``samples``, if there is one, is the
+        most recent ancestor of that node at that position out of all possible ancestors
+        in ``ancestors``, and the same is true for any node in ``ancestors`` that is
+        ancestral to any of ``samples``.
+        The difference between ``samples`` and ``ancestors`` is that information about
+        the ancestors of a node in ``ancestors`` will only be retained if it also has a
+        relevant descendant, while information about the ancestors of a node in
+        ``samples`` will always be retained.
+        The node IDs in ``parent`` and ``child`` refer to the IDs in the node table
+        of the inputted tree sequence.
+
+        The supplied nodes must be non-empty lists of the node IDs in the tree sequence.
         Other than this, the procedure is flexible; overlap between the lists of samples
         and ancestors is permitted, and the nodes need not be ordered by time.
+        For instance, the same list of node IDs can be inputted to both ``samples`` and
+        ``ancestors`` to find all genealogical relationships within this list of nodes.
         If none of the nodes in `ancestors` are ancestral to `samples` anywhere in
         the tree sequence, an empty table will be returned.
 
