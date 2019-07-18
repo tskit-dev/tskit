@@ -1917,7 +1917,7 @@ out:
  ***********************************/
 
 static int
-update_site_jafs(tsk_site_t *site,
+update_site_afs(tsk_site_t *site,
         double *total_counts, double *counts, tsk_size_t num_sample_sets,
         tsk_size_t window_index, tsk_size_t *result_dims, double *result,
         tsk_flags_t options)
@@ -1967,7 +1967,7 @@ out:
 }
 
 static int
-tsk_treeseq_site_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
+tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, double *total_counts, double *counts,
     tsk_size_t num_windows, double *windows,
     tsk_size_t *result_dims, double *result, tsk_flags_t options)
@@ -2040,7 +2040,7 @@ tsk_treeseq_site_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
                 window_index++;
                 assert(window_index < num_windows);
             }
-            ret = update_site_jafs(site, total_counts, counts, num_sample_sets, window_index,
+            ret = update_site_afs(site, total_counts, counts, num_sample_sets, window_index,
                     result_dims, result, options);
             if (ret != 0) {
                 goto out;
@@ -2060,7 +2060,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-update_branch_jafs(
+update_branch_afs(
         tsk_id_t u, double right,
         const double *restrict branch_length, double *restrict last_update,
         const double *total_counts, const double *counts, tsk_size_t num_sample_sets,
@@ -2103,7 +2103,7 @@ out:
 }
 
 static int
-tsk_treeseq_branch_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
+tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, double *total_counts, double *counts,
     tsk_size_t num_windows, double *windows,
     tsk_size_t *result_dims, double *result, tsk_flags_t options)
@@ -2145,7 +2145,7 @@ tsk_treeseq_branch_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
             tk++;
             u = edge_child[h];
             v = edge_parent[h];
-            ret = update_branch_jafs(u, t_left,
+            ret = update_branch_afs(u, t_left,
                     branch_length, last_update,
                     total_counts, counts, num_sample_sets, window_index,
                     result_dims, result, options);
@@ -2153,7 +2153,7 @@ tsk_treeseq_branch_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
                 goto out;
             }
             while (v != TSK_NULL) {
-                ret = update_branch_jafs(v, t_left,
+                ret = update_branch_afs(v, t_left,
                         branch_length, last_update,
                         total_counts, counts, num_sample_sets, window_index,
                         result_dims, result, options);
@@ -2175,7 +2175,7 @@ tsk_treeseq_branch_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
             parent[u] = v;
             branch_length[u] = node_time[v] - node_time[u];
             while (v != TSK_NULL) {
-                ret = update_branch_jafs(v, t_left,
+                ret = update_branch_afs(v, t_left,
                         branch_length, last_update,
                         total_counts, counts, num_sample_sets, window_index,
                         result_dims, result, options);
@@ -2200,7 +2200,7 @@ tsk_treeseq_branch_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
             /* Flush the contributions of all nodes to the current window */
             for (u = 0; u < (tsk_id_t) num_nodes; u++) {
                 assert(last_update[u] < w_right);
-                ret = update_branch_jafs(u, w_right,
+                ret = update_branch_afs(u, w_right,
                         branch_length, last_update,
                         total_counts, counts, num_sample_sets, window_index,
                         result_dims, result, options);
@@ -2228,7 +2228,7 @@ out:
 }
 
 int
-tsk_treeseq_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
+tsk_treeseq_allele_frequency_spectrum(tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets,
     tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
 {
@@ -2309,11 +2309,11 @@ tsk_treeseq_joint_allele_frequency_spectrum(tsk_treeseq_t *self,
 
     memset(result, 0, num_windows * afs_size * sizeof(*result));
     if (stat_site) {
-        ret = tsk_treeseq_site_joint_allele_frequency_spectrum(self,
+        ret = tsk_treeseq_site_allele_frequency_spectrum(self,
             num_sample_sets, total_counts, counts, num_windows, windows,
             result_dims, result, options);
     } else {
-        ret = tsk_treeseq_branch_joint_allele_frequency_spectrum(self,
+        ret = tsk_treeseq_branch_allele_frequency_spectrum(self,
             num_sample_sets, total_counts, counts, num_windows, windows,
             result_dims, result, options);
     }

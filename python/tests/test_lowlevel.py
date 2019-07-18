@@ -691,15 +691,15 @@ class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin)
     """
     def get_method(self):
         ts = self.get_example_tree_sequence()
-        return ts, ts.joint_allele_frequency_spectrum
+        return ts, ts.allele_frequency_spectrum
 
     def test_basic_example(self):
         ts = self.get_example_tree_sequence()
         n = ts.get_num_samples()
-        result = ts.joint_allele_frequency_spectrum(
+        result = ts.allele_frequency_spectrum(
             [n], ts.get_samples(), [0, ts.get_sequence_length()])
         self.assertEqual(result.shape, (1, n // 2 + 1))
-        result = ts.joint_allele_frequency_spectrum(
+        result = ts.allele_frequency_spectrum(
             [n], ts.get_samples(), [0, ts.get_sequence_length()], polarised=True)
         self.assertEqual(result.shape, (1, n + 1))
 
@@ -714,10 +714,10 @@ class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin)
                 s = np.array(s, dtype=np.uint32)
                 windows = [0, L]
                 for windows in [[0, L], [0, L / 2, L], np.linspace(0, L, num=10)]:
-                    jafs = ts.joint_allele_frequency_spectrum(
+                    jafs = ts.allele_frequency_spectrum(
                         s, samples, windows, mode=mode, polarised=True)
                     self.assertEqual(jafs.shape, tuple([len(windows) - 1] + list(s + 1)))
-                    jafs = ts.joint_allele_frequency_spectrum(
+                    jafs = ts.allele_frequency_spectrum(
                         s, samples, windows, mode=mode, polarised=False)
                     self.assertEqual(
                         jafs.shape, tuple([len(windows) - 1] + list(s // 2 + 1)))
@@ -725,7 +725,7 @@ class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin)
     def test_node_mode_not_supported(self):
         ts = self.get_example_tree_sequence()
         with self.assertRaises(_tskit.LibraryError):
-            ts.joint_allele_frequency_spectrum(
+            ts.allele_frequency_spectrum(
                 [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()],
                 mode="node")
 

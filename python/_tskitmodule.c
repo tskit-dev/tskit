@@ -7055,7 +7055,7 @@ out:
 }
 
 static PyObject *
-TreeSequence_joint_allele_frequency_spectrum(TreeSequence *self, PyObject *args, PyObject *kwds)
+TreeSequence_allele_frequency_spectrum(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     static char *kwlist[] = {"sample_set_sizes", "sample_sets", "windows", "mode",
@@ -7115,7 +7115,7 @@ TreeSequence_joint_allele_frequency_spectrum(TreeSequence *self, PyObject *args,
     if (result_array == NULL) {
         goto out;
     }
-    err = tsk_treeseq_joint_allele_frequency_spectrum(self->tree_sequence,
+    err = tsk_treeseq_allele_frequency_spectrum(self->tree_sequence,
         num_sample_sets, PyArray_DATA(sample_set_sizes_array),
         PyArray_DATA(sample_sets_array),
         num_windows, PyArray_DATA(windows_array),
@@ -7485,8 +7485,8 @@ static PyMethodDef TreeSequence_methods[] = {
     {"diversity",
         (PyCFunction) TreeSequence_diversity,
         METH_VARARGS|METH_KEYWORDS, "Computes diversity within sample sets." },
-    {"joint_allele_frequency_spectrum",
-        (PyCFunction) TreeSequence_joint_allele_frequency_spectrum,
+    {"allele_frequency_spectrum",
+        (PyCFunction) TreeSequence_allele_frequency_spectrum,
         METH_VARARGS|METH_KEYWORDS, "Computes the K-dimensional joint AFS." },
     {"trait_covariance",
         (PyCFunction) TreeSequence_trait_covariance,

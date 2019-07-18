@@ -888,7 +888,7 @@ verify_general_stat(tsk_treeseq_t *ts, tsk_flags_t mode)
 }
 
 static void
-verify_jafs(tsk_treeseq_t *ts)
+verify_afs(tsk_treeseq_t *ts)
 {
     int ret;
     tsk_size_t n = tsk_treeseq_get_num_samples(ts);
@@ -900,23 +900,23 @@ verify_jafs(tsk_treeseq_t *ts)
 
     sample_set_sizes[0] = n - 2;
     sample_set_sizes[1] = 2;
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
             0, NULL, result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
             0, NULL, result, TSK_STAT_POLARISED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
             0, NULL, result, TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
             0, NULL, result, TSK_STAT_BRANCH|TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples,
             0, NULL, result, TSK_STAT_BRANCH|TSK_STAT_SPAN_NORMALISE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -1003,12 +1003,12 @@ test_empty_ts_general_stat(void)
 }
 
 static void
-test_empty_ts_jafs(void)
+test_empty_ts_afs(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
-    verify_jafs(&ts);
+    verify_afs(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -1612,7 +1612,7 @@ test_paper_ex_f4(void)
 }
 
 static void
-test_paper_ex_jafs_errors(void)
+test_paper_ex_afs_errors(void)
 {
     tsk_treeseq_t ts;
     tsk_size_t sample_set_sizes[] = {2, 2};
@@ -1623,13 +1623,13 @@ test_paper_ex_jafs_errors(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
 
-    verify_one_way_stat_func_errors(&ts, tsk_treeseq_joint_allele_frequency_spectrum);
+    verify_one_way_stat_func_errors(&ts, tsk_treeseq_allele_frequency_spectrum);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts,
+    ret = tsk_treeseq_allele_frequency_spectrum(&ts,
             2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_NODE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts,
+    ret = tsk_treeseq_allele_frequency_spectrum(&ts,
             2, sample_set_sizes, samples, 0, NULL, result,
             TSK_STAT_BRANCH|TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
@@ -1638,7 +1638,7 @@ test_paper_ex_jafs_errors(void)
 }
 
 static void
-test_paper_ex_jafs(void)
+test_paper_ex_afs(void)
 {
     tsk_treeseq_t ts;
     tsk_id_t samples[] = {0, 1, 2, 3};
@@ -1650,14 +1650,14 @@ test_paper_ex_jafs(void)
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
     /* we have two singletons and one tripleton */
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
             0, NULL, result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(result[0], 0);
     CU_ASSERT_EQUAL_FATAL(result[1], 3.0);
     CU_ASSERT_EQUAL_FATAL(result[2], 0);
 
-    ret = tsk_treeseq_joint_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
+    ret = tsk_treeseq_allele_frequency_spectrum(&ts, 1, sample_set_sizes, samples,
             0, NULL, result, TSK_STAT_POLARISED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(result[0], 0);
@@ -1666,7 +1666,7 @@ test_paper_ex_jafs(void)
     CU_ASSERT_EQUAL_FATAL(result[3], 1.0);
     CU_ASSERT_EQUAL_FATAL(result[4], 0);
 
-    verify_jafs(&ts);
+    verify_afs(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -1753,7 +1753,7 @@ main(int argc, char **argv)
         {"test_empty_ts_genealogical_nearest_neighbours",
             test_empty_ts_genealogical_nearest_neighbours},
         {"test_empty_ts_general_stat", test_empty_ts_general_stat},
-        {"test_empty_ts_jafs", test_empty_ts_jafs},
+        {"test_empty_ts_afs", test_empty_ts_afs},
 
         {"test_single_tree_ld", test_single_tree_ld},
         {"test_single_tree_pairwise_diversity", test_single_tree_pairwise_diversity},
@@ -1794,8 +1794,8 @@ main(int argc, char **argv)
         {"test_paper_ex_f3", test_paper_ex_f3},
         {"test_paper_ex_f4_errors", test_paper_ex_f4_errors},
         {"test_paper_ex_f4", test_paper_ex_f4},
-        {"test_paper_ex_jafs_errors", test_paper_ex_jafs_errors},
-        {"test_paper_ex_jafs", test_paper_ex_jafs},
+        {"test_paper_ex_afs_errors", test_paper_ex_afs_errors},
+        {"test_paper_ex_afs", test_paper_ex_afs},
 
         {"test_nonbinary_ex_ld", test_nonbinary_ex_ld},
         {"test_nonbinary_ex_pairwise_diversity", test_nonbinary_ex_pairwise_diversity},

@@ -56,7 +56,7 @@ def subset_combos(*args, p=0.5, min_tests=3):
     for x in itertools.product(*args):
         # total_tests = total_tests + 1
         if np.random.uniform() < p:
-            num_tests = num_tests + 1
+            num_tests += num_tests + 1
             yield x
         elif len(skipped_tests) < min_tests:
             skipped_tests.append(x)
@@ -65,7 +65,7 @@ def subset_combos(*args, p=0.5, min_tests=3):
     while num_tests < min_tests:
         yield skipped_tests.pop()
         num_tests = num_tests + 1
-    # print("tests", num_tests, "/", total_tests)
+    # print("tests", num_tests)
     assert num_tests >= min_tests
 
 
@@ -654,6 +654,8 @@ class TopologyExamplesMixin(object):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(1, 0)
         tables.nodes.add_row(1, 0)
+        tables.nodes.add_row(1, 0)
+        tables.nodes.add_row(1, 0)
         ts = tables.tree_sequence()
         self.verify(ts)
 
@@ -663,7 +665,9 @@ class TopologyExamplesMixin(object):
         tables.nodes.add_row(1, 0)
         tables.nodes.add_row(0, 1)
         tables.nodes.add_row(0, 0)  # 3 is a leaf but not a sample.
-        tables.nodes.add_row(0, 1)
+        # Make sure we have 4 samples for the tests.
+        tables.nodes.add_row(1, 1)
+        tables.nodes.add_row(1, 1)
         tables.edges.add_row(0, 1, 2, 0)
         tables.edges.add_row(0, 1, 2, 1)
         tables.edges.add_row(0, 1, 4, 3)
@@ -690,6 +694,9 @@ class MutatedTopologyExamplesMixin(object):
         tables.edges.add_row(0, 1, 2, 0)
         tables.edges.add_row(0, 1, 2, 1)
         tables.sites.add_row(position=0.5, ancestral_state="A")
+        # Make sure there's 4 samples
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
         # The ghost mutation that's never seen in the genotypes
         tables.mutations.add_row(site=0, node=0, derived_state="T")
         tables.mutations.add_row(site=0, node=0, derived_state="G", parent=0)
@@ -701,6 +708,9 @@ class MutatedTopologyExamplesMixin(object):
         tables.nodes.add_row(flags=1, time=0)
         tables.nodes.add_row(flags=1, time=0)
         tables.nodes.add_row(flags=0, time=1)
+        # Make sure there's 4 samples
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
         tables.edges.add_row(0, 1, 2, 0)
         tables.edges.add_row(0, 1, 2, 1)
         tables.sites.add_row(position=0.5, ancestral_state="A")
@@ -802,40 +812,40 @@ class MutatedTopologyExamplesMixin(object):
 
 def example_sample_sets(ts, min_size=1):
     """
-    Generate a series of example sample sets from the specfied tree sequence.
+    Generate a series of example sample sets from the specfied tree sequence. The
+    number of sample sets returned in each example must be at least min_size
     """
     samples = ts.samples()
-    yield [[u] for u in samples]
-    if ts.num_samples >= min_size:
-        splits = np.array_split(samples, min_size)
-        yield splits
-        yield splits[::-1]
+    splits = np.array_split(samples, min_size)
+    yield splits
+    yield [[s] for s in samples]
+    if min_size == 1:
+        yield [samples[:1]]
+    if ts.num_samples <= 2 and min_size >= 2:
+        yield [samples[:2], samples[2:]]
 
 
 def example_sample_set_index_pairs(sample_sets):
-    k = len(sample_sets)
-    if k > 1:
-        yield [(0, 1)]
-        yield [(1, 0), (0, 1)]
-        if k > 2:
-            yield [(0, 1), (1, 2), (0, 2)]
+    assert len(sample_sets) >= 2
+    yield [(0, 1)]
+    yield [(1, 0), (0, 1)]
+    if len(sample_sets) > 2:
+        yield [(0, 1), (1, 2), (0, 2)]
 
 
 def example_sample_set_index_triples(sample_sets):
-    k = len(sample_sets)
-    if k > 2:
-        yield [(0, 1, 2)]
-        yield [(0, 2, 1), (2, 1, 0)]
-        if k > 3:
-            yield [(3, 0, 1), (0, 2, 3), (1, 2, 3)]
+    assert len(sample_sets) >= 3
+    yield [(0, 1, 2)]
+    yield [(0, 2, 1), (2, 1, 0)]
+    if len(sample_sets) > 3:
+        yield [(3, 0, 1), (0, 2, 3), (1, 2, 3)]
 
 
 def example_sample_set_index_quads(sample_sets):
-    k = len(sample_sets)
-    if k > 3:
-        yield [(0, 1, 2, 3)]
-        yield [(0, 1, 2, 3), (3, 2, 1, 0)]
-        yield [(0, 1, 2, 3), (3, 2, 1, 0), (1, 2, 3, 0)]
+    assert len(sample_sets) >= 4
+    yield [(0, 1, 2, 3)]
+    yield [(0, 1, 2, 3), (3, 2, 1, 0)]
+    yield [(0, 1, 2, 3), (3, 2, 1, 0), (1, 2, 3, 0)]
 
 
 def example_windows(ts):
@@ -1619,7 +1629,6 @@ class TestDivergence(StatsTestCase, TwoWaySampleSetStatsMixin):
     mode = None
 
     def verify_sample_sets_indexes(self, ts, sample_sets, indexes, windows):
-        # print("verify_indexes", ts, sample_sets, indexes, windows)
         n = np.array([len(x) for x in sample_sets])
 
         denom = np.array([n[i] * (n[j] - (i == j)) for i, j in indexes])
@@ -2564,7 +2573,7 @@ class TestSitef4(Testf4, MutatedTopologyExamplesMixin):
 # Allele frequency spectrum
 ############################################
 
-def naive_site_joint_allele_frequency_spectrum(
+def naive_site_allele_frequency_spectrum(
         ts, sample_sets, windows=None, polarised=False, span_normalise=True):
     """
     The joint allele frequency spectrum for sites.
@@ -2619,7 +2628,7 @@ def naive_site_joint_allele_frequency_spectrum(
     return out
 
 
-def naive_branch_joint_allele_frequency_spectrum(
+def naive_branch_allele_frequency_spectrum(
         ts, sample_sets, windows=None, polarised=False, span_normalise=True):
     """
     The joint allele frequency spectrum for branches.
@@ -2665,21 +2674,21 @@ def naive_branch_joint_allele_frequency_spectrum(
     return out
 
 
-def naive_joint_allele_frequency_spectrum(
+def naive_allele_frequency_spectrum(
         ts, sample_sets, windows=None, polarised=False, mode="site",
         span_normalise=True):
     """
     Naive definition of the generalised site frequency spectrum.
     """
     method_map = {
-        "site": naive_site_joint_allele_frequency_spectrum,
-        "branch": naive_branch_joint_allele_frequency_spectrum}
+        "site": naive_site_allele_frequency_spectrum,
+        "branch": naive_branch_allele_frequency_spectrum}
     return method_map[mode](
         ts, sample_sets, windows=windows, polarised=polarised,
         span_normalise=span_normalise)
 
 
-def branch_joint_allele_frequency_spectrum(
+def branch_allele_frequency_spectrum(
         ts, sample_sets, windows, polarised=False, span_normalise=True):
     """
     Efficient implementation of the algorithm used as the basis for the
@@ -2768,7 +2777,7 @@ def branch_joint_allele_frequency_spectrum(
     return result
 
 
-def site_joint_allele_frequency_spectrum(
+def site_allele_frequency_spectrum(
         ts, sample_sets, windows, polarised=False, span_normalise=True):
     """
     Efficient implementation of the algorithm used as the basis for the
@@ -2860,21 +2869,21 @@ def site_joint_allele_frequency_spectrum(
     return result
 
 
-def joint_allele_frequency_spectrum(
+def allele_frequency_spectrum(
         ts, sample_sets, windows=None, polarised=False, mode="site",
         span_normalise=True):
     """
     Generalised site frequency spectrum.
     """
     method_map = {
-        "site": site_joint_allele_frequency_spectrum,
-        "branch": branch_joint_allele_frequency_spectrum}
+        "site": site_allele_frequency_spectrum,
+        "branch": branch_allele_frequency_spectrum}
     return method_map[mode](
         ts, sample_sets, windows=windows, polarised=polarised,
         span_normalise=span_normalise)
 
 
-class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
+class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
     # Derived classes define this to get a specific stats mode.
     mode = None
@@ -2883,24 +2892,22 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         L = ts.sequence_length
         samples = ts.samples()
         a1 = ts.allele_frequency_spectrum(mode=self.mode)
-        a2 = ts.allele_frequency_spectrum(mode=self.mode)
-        a3 = ts.joint_allele_frequency_spectrum([samples], mode=self.mode)
+        a2 = ts.allele_frequency_spectrum([samples], mode=self.mode)
         self.assertArrayEqual(a1, a2)
-        self.assertArrayEqual(a1, a3)
         for windows in [None, (0, L), (0, L / 2, L)]:
             a1 = ts.allele_frequency_spectrum(mode=self.mode, windows=windows)
-            a2 = ts.joint_allele_frequency_spectrum(
+            a2 = ts.allele_frequency_spectrum(
                 [samples], mode=self.mode, windows=windows)
             self.assertArrayEqual(a1, a2)
         for polarised in [True, False]:
             a1 = ts.allele_frequency_spectrum(mode=self.mode, polarised=polarised)
-            a2 = ts.joint_allele_frequency_spectrum(
+            a2 = ts.allele_frequency_spectrum(
                 [samples], mode=self.mode, polarised=polarised)
             self.assertArrayEqual(a1, a2)
         for span_normalise in [True, False]:
             a1 = ts.allele_frequency_spectrum(
                 mode=self.mode, span_normalise=span_normalise)
-            a2 = ts.joint_allele_frequency_spectrum(
+            a2 = ts.allele_frequency_spectrum(
                 [samples], mode=self.mode, span_normalise=span_normalise)
             self.assertArrayEqual(a1, a2)
 
@@ -2910,13 +2917,13 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         windows = ts.parse_windows(windows)
         sample_sets = [ts.samples()]
         for span_normalise, polarised in itertools.product([True, False], [True, False]):
-            sfs1 = naive_joint_allele_frequency_spectrum(
+            sfs1 = naive_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
                 span_normalise=span_normalise)
-            sfs2 = joint_allele_frequency_spectrum(
+            sfs2 = allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
                 span_normalise=span_normalise)
-            sfs3 = ts.joint_allele_frequency_spectrum(
+            sfs3 = ts.allele_frequency_spectrum(
                 sample_sets, windows, mode=self.mode, polarised=polarised,
                 span_normalise=span_normalise)
             self.assertEqual(sfs1.shape[0], len(windows) - 1)
@@ -2936,8 +2943,8 @@ class TestJointAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
             self.assertArrayAlmostEqual(sfs1, sfs3)
 
 
-class TestBranchJointAlleleFrequencySpectrum(
-        TestJointAlleleFrequencySpectrum, TopologyExamplesMixin):
+class TestBranchAlleleFrequencySpectrum(
+        TestAlleleFrequencySpectrum, TopologyExamplesMixin):
     mode = "branch"
 
     def test_simple_example(self):
@@ -2960,8 +2967,8 @@ class TestBranchJointAlleleFrequencySpectrum(
         pass
 
 
-class TestSiteJointAlleleFrequencySpectrum(
-        TestJointAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
+class TestSiteAlleleFrequencySpectrum(
+        TestAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
     mode = "site"
 
     def test_simple_example(self):
@@ -2973,28 +2980,25 @@ class TestSiteJointAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
 
 
-class TestBranchJointAlleleFrequencySpectrumProperties(
-        StatsTestCase, TopologyExamplesMixin):
+class TestBranchAlleleFrequencySpectrumProperties(StatsTestCase, TopologyExamplesMixin):
 
     def verify(self, ts):
         # If we split by tree, the sum of the AFS should be equal to the
-        # tree total branch length
+        # tree total branch length in each window
         windows = ts.breakpoints(as_array=True)
         S = ts.samples()
+        examples = [
+            [S], [S[:1]], [S[:-1]],
+            [S[:1], S[1:]], [S[:1], S[:-1]],
+        ]
+        if len(S) > 2:
+            examples += [
+                [S[:1], S[2:], S[:3]]
+            ]
         for polarised in [True, False]:
-            for samples in [S, S[:1], S[:-1]]:
+            for sample_sets in examples:
                 afs = ts.allele_frequency_spectrum(
-                    samples, windows=windows, mode="branch", polarised=polarised)
-                if not polarised:
-                    afs *= 2
-                tbl = [tree.total_branch_length for tree in ts.trees()]
-                afs_sum = np.sum(afs, axis=1)
-                self.assertArrayAlmostEqual(afs_sum, tbl)
-
-            for sample_sets in [[S[:1], S[1:]], [S[:1], S[:2]], [S[:1], S[:2], S[:3]]]:
-
-                afs = ts.joint_allele_frequency_spectrum(
-                    sample_sets, windows=windows, mode="branch", polarised=polarised)
+                    sample_sets,  windows=windows, mode="branch", polarised=polarised)
                 if not polarised:
                     afs *= 2
                 tbl = [tree.total_branch_length for tree in ts.trees()]
