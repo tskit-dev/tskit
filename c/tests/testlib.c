@@ -154,6 +154,7 @@ const char *unary_ex_mutations =
     "1    6   1\n"
     "2    5   1\n";
 
+
 /* An example of a tree sequence with internally sampled nodes. */
 
 /* TODO: find a way to draw these side-by-side */
@@ -539,7 +540,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
 
     ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
-    /* printf("ret = %s\n", tsk_strerror(ret)); */
+     // printf("ret = %s\n", tsk_strerror(ret)); 
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_table_collection_free(&tables);
 }

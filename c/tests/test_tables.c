@@ -724,6 +724,51 @@ test_edge_table(void)
 }
 
 static void
+test_edge_table_squash(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t *edges;
+
+    const char *nodes_ex =
+        "1  0       -1   -1\n"
+        "1  0       -1   -1\n"
+        "0  0.253   -1   -1\n";
+    const char *edges_ex =
+        "0  2   2   0\n"
+        "2  10  2   0\n"
+        "0  2   2   1\n"
+        "2  10  2   1\n";
+
+    /*
+      2
+     / \
+    0   1
+    */
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 10;
+
+    parse_nodes(nodes_ex, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 3);
+    parse_edges(edges_ex, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 4);
+
+    edges = &tables.edges;
+
+    ret = tsk_edge_table_squash(edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Check output.
+    CU_ASSERT_EQUAL(edges->num_rows, 2);
+
+    // Free things.
+    tsk_edge_table_free(edges);
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_site_table(void)
 {
     int ret;
@@ -2440,6 +2485,7 @@ main(int argc, char **argv)
     CU_TestInfo tests[] = {
         {"test_node_table", test_node_table},
         {"test_edge_table", test_edge_table},
+        {"test_edge_table_squash", test_edge_table_squash},
         {"test_site_table", test_site_table},
         {"test_mutation_table", test_mutation_table},
         {"test_migration_table", test_migration_table},
