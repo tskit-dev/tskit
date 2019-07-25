@@ -3166,7 +3166,8 @@ class TreeSequence(object):
         :rtype: .TreeSequence
         """
         def keep_with_offset(keep, data, offset):
-            lens = np.diff(offset)
+            # Need to case diff to int32 for 32bit builds
+            lens = np.diff(offset).astype(np.int32)
             return (data[np.repeat(keep, lens)],
                     np.concatenate([
                         np.array([0], dtype=offset.dtype),
