@@ -536,6 +536,26 @@ class HighLevelTestCase(unittest.TestCase):
             self.assertEqual(st1, st2)
 
 
+def isolated_samples_genotype_matrix(ts):
+    """
+    Returns the genotype matrix for the specified tree sequence
+    where isolated samples are marked with MISSING_DATA.
+    """
+    G = ts.genotype_matrix()
+    samples = ts.samples()
+    sample_index_map = np.zeros(ts.num_nodes, dtype=int) - 1
+    for index, sample in enumerate(samples):
+        sample_index_map[sample] = index
+    for tree in ts.trees():
+        for site in tree.sites():
+            for root in tree.roots:
+                # An isolated sample is any root that has no children.
+                if tree.left_child(root) == -1:
+                    assert sample_index_map[root] != -1
+                    G[site.id, sample_index_map[root]] = -1
+    return G
+
+
 class TestVariantGenerator(HighLevelTestCase):
     """
     Tests the variants() method to ensure the output is consistent.
@@ -754,6 +774,29 @@ class TestVariantGenerator(HighLevelTestCase):
         ts = msprime.simulate(20, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 5, 1, seed=2)
         self.verify_jukes_cantor(ts)
+
+    def test_zero_edge_missing_data(self):
+        ts = msprime.simulate(10, random_seed=2, mutation_rate=2)
+        ts = ts.slice(0.25, 0.75, reset_coordinates=False)
+        # add some sites in the deleted regions
+        tables = ts.dump_tables()
+        tables.sites.add_row(0.1, "A")
+        tables.sites.add_row(0.2, "A")
+        tables.sites.add_row(0.8, "A")
+        tables.sites.add_row(0.9, "A")
+        tables.sort()
+        ts = tables.tree_sequence()
+        G = ts.genotype_matrix()
+        self.assertTrue(np.all(G[0] == 0))
+        self.assertTrue(np.all(G[1] == 0))
+        self.assertTrue(np.all(G[-1] == 0))
+        self.assertTrue(np.all(G[-2] == 0))
+        G = isolated_samples_genotype_matrix(ts)
+        # G = ts.genotype_matrix(isolated_sample_missing=True)
+        self.assertTrue(np.all(G[0] == -1))
+        self.assertTrue(np.all(G[1] == -1))
+        self.assertTrue(np.all(G[-1] == -1))
+        self.assertTrue(np.all(G[-2] == -1))
 
 
 class TestHaplotypeGenerator(HighLevelTestCase):
