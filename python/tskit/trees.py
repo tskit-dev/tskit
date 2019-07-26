@@ -2747,6 +2747,8 @@ class TreeSequence(object):
         that differ between a randomly chosen pair of samples.  If `samples` is
         specified, calculate the diversity within this set.
 
+        .. warning:: This method is deprecated; please use :meth:`.diversity`.
+
         .. note:: This method does not currently support sites that have more
             than one mutation. Using it on such a tree sequence will raise
             a LibraryError with an "Unsupported operation" message.

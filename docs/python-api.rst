@@ -26,10 +26,11 @@ Top level-classes
 
 
 .. autoclass:: tskit.TreeSequence()
-    :members:
+   :members:
+   :exclude-members: general_stat, sample_count_stat, diversity, divergence, allele_frequency_spectrum, segregating_sites, Fst, Tajimas_D, f2, f3, f4, Y1, Y2, Y3, trait_covariance, trait_correlation, trait_regression, parse_windows
 
 .. autoclass:: tskit.Tree
-    :members:
+   :members:
 
 
 +++++++++

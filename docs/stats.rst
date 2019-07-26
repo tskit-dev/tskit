@@ -235,23 +235,11 @@ That said, you should **not** rely on the specific behavior of whether ``0`` or 
 for "empty" cases like these: it is subject to change.
 
 
-.. Commenting these out for now as they are duplicates of the methods in the TreeSequence
-   and sphinx is unhappy.
+********************
+Statistics functions
+********************
 
-.. ********************
-.. Statistics functions
-.. ********************
+.. autoclass:: tskit.TreeSequence()
+   :noindex:
+   :members: general_stat, sample_count_stat, diversity, divergence, allele_frequency_spectrum, segregating_sites, Fst, Tajimas_D, f2, f3, f4, Y1, Y2, Y3, trait_covariance, trait_correlation, trait_regression, parse_windows
 
-.. .. autofunction:: tskit.TreeSequence.diversity
-
-.. .. autofunction:: tskit.TreeSequence.divergence
-
-.. .. autofunction:: tskit.TreeSequence.f4
-
-.. .. autofunction:: tskit.TreeSequence.f3
-
-.. .. autofunction:: tskit.TreeSequence.f2
-
-.. .. autofunction:: tskit.TreeSequence.Y3
-
-.. .. autofunction:: tskit.TreeSequence.Y2
