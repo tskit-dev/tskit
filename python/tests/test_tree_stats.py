@@ -585,6 +585,10 @@ class TopologyExamplesMixin(object):
         ts = msprime.simulate(6, random_seed=1)
         self.verify(ts)
 
+    def test_single_tree_sequence_length(self):
+        ts = msprime.simulate(6, length=10, random_seed=1)
+        self.verify(ts)
+
     def test_single_tree_multiple_roots(self):
         ts = msprime.simulate(8, random_seed=1)
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
@@ -1282,6 +1286,28 @@ class TestNodeSegregatingSites(TestSegregatingSites, TopologyExamplesMixin):
 
 class TestSiteSegregatingSites(TestSegregatingSites, MutatedTopologyExamplesMixin):
     mode = "site"
+
+
+class TestBranchSegregatingSitesProperties(StatsTestCase, TopologyExamplesMixin):
+
+    def verify(self, ts):
+        windows = ts.breakpoints(as_array=True)
+        # If we split by tree, this should always be equal to the total
+        # branch length. The definition of total_branch_length here is slightly
+        # tricky: it's the sum of all branch lengths that subtend between 0
+        # and n samples. This differs from the built-in total_branch_length
+        # function, which just sums that total branch length reachable from
+        # roots.
+        tbl_tree = [
+            sum(
+                tree.branch_length(u) for u in tree.nodes()
+                if 0 < tree.num_samples(u) < ts.num_samples)
+            for tree in ts.trees()]
+        # We must span_normalise, because these values are always weighted
+        # by the span, so we're effectively cancelling out this contribution
+        tbl = ts.segregating_sites([ts.samples()], windows=windows, mode="branch")
+        tbl = tbl.reshape(tbl.shape[:-1])
+        self.assertArrayAlmostEqual(tbl_tree, tbl)
 
 
 ############################################
@@ -2660,15 +2686,16 @@ def naive_branch_allele_frequency_spectrum(
                 tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
                 if tr_len > 0:
                     for node in t.nodes():
-                        x = [tree.num_tracked_samples(node) for tree in trees]
-                        # Note x must be a tuple for indexing to work
-                        if polarised:
-                            S[tuple(x)] += t.branch_length(node) * tr_len
-                        else:
-                            x = [
-                                min(x[k], len(sample_set) - x[k])
-                                for k, sample_set in enumerate(sample_sets)]
-                            S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
+                        if t.num_samples(node) > 0:
+                            x = [tree.num_tracked_samples(node) for tree in trees]
+                            # Note x must be a tuple for indexing to work
+                            if polarised:
+                                S[tuple(x)] += t.branch_length(node) * tr_len
+                            else:
+                                x = [
+                                    min(x[k], len(sample_set) - x[k])
+                                    for k, sample_set in enumerate(sample_sets)]
+                                S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
 
                 # Advance the trees
                 more = [tree.next() for tree in trees]
@@ -2712,9 +2739,11 @@ def branch_allele_frequency_spectrum(
 
     result = np.zeros([num_windows] + out_dim)
     # Number of nodes in sample_set j ancestral to each node u.
-    count = np.zeros((ts.num_nodes, num_sample_sets), dtype=np.uint32)
+    count = np.zeros((ts.num_nodes, num_sample_sets + 1), dtype=np.uint32)
     for j in range(num_sample_sets):
         count[sample_sets[j], j] = 1
+    # The last column counts across all samples
+    count[ts.samples(), -1] = 1
     # contains the location of the last time we updated the output for a node.
     last_update = np.zeros((ts.num_nodes))
     window_index = 0
@@ -2723,16 +2752,17 @@ def branch_allele_frequency_spectrum(
     tree_index = 0
 
     def update_result(window_index, u, right):
-        x = (right - last_update[u]) * branch_length[u]
-        c = count[u]
-        if not polarised:
-            # Fold the counts
-            c = c.copy()
-            for k in range(num_sample_sets):
-                c[k] = min(c[k], len(sample_sets[k]) - c[k])
-            x *= 0.5
-        index = tuple([window_index] + list(c))
-        result[index] += x
+        if count[u, -1] > 0:
+            x = (right - last_update[u]) * branch_length[u]
+            c = count[u, :num_sample_sets]
+            if not polarised:
+                # Fold the counts
+                c = c.copy()
+                for k in range(num_sample_sets):
+                    c[k] = min(c[k], len(sample_sets[k]) - c[k])
+                x *= 0.5
+            index = tuple([window_index] + list(c))
+            result[index] += x
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -2965,14 +2995,6 @@ class TestBranchAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
 
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_non_sample_ancestry(self):
-        pass
-
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
 
 class TestSiteAlleleFrequencySpectrum(
         TestAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
@@ -3002,23 +3024,25 @@ class TestBranchAlleleFrequencySpectrumProperties(StatsTestCase, TopologyExample
             examples += [
                 [S[:1], S[2:], S[:3]]
             ]
+        # The definition of total branch length is tricky here, and
+        # slightly different to what we have for segregrating sites
+        # in that we exclude branches subtending 0 samples, but not
+        # those subtending n, and so unary paths over an MRCA of all
+        # samples will still be counted.
+        tbl = [
+            sum(
+                tree.branch_length(u) for u in tree.nodes()
+                if tree.num_samples(u) > 0)
+            for tree in ts.trees()]
         for polarised in [True, False]:
             for sample_sets in examples:
                 afs = ts.allele_frequency_spectrum(
-                    sample_sets,  windows=windows, mode="branch", polarised=polarised)
+                    sample_sets,  windows=windows, mode="branch", polarised=polarised,
+                    span_normalise=True)
                 if not polarised:
                     afs *= 2
-                tbl = [tree.total_branch_length for tree in ts.trees()]
                 afs_sum = [np.sum(window) for window in afs]
                 self.assertArrayAlmostEqual(afs_sum, tbl)
-
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_non_sample_ancestry(self):
-        pass
-
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
 
 
 ############################################

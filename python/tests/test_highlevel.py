@@ -2055,6 +2055,7 @@ class TestTree(HighLevelTestCase):
                 self.assertEqual(all_nodes, list(t1.nodes(order=test_order)))
 
     def test_total_branch_length(self):
+        # Note: this definition works when we have no non-sample branches.
         t1 = self.get_tree()
         bl = 0
         root = t1.get_root()
@@ -2062,7 +2063,7 @@ class TestTree(HighLevelTestCase):
             if node != root:
                 bl += t1.get_branch_length(node)
         self.assertGreater(bl, 0)
-        self.assertEqual(t1.get_total_branch_length(), bl)
+        self.assertAlmostEqual(t1.get_total_branch_length(), bl)
 
     def test_branch_length_empty_tree(self):
         tables = tskit.TableCollection(1)

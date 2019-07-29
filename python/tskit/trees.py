@@ -637,7 +637,14 @@ class Tree(object):
 
         Note that the branch lengths for root nodes are defined as zero.
 
-        :return: The sum of all the branch lengths in this tree.
+        As this is defined by a traversal of the tree, technically we
+        return the sum of all branch lengths that are reachable from
+        roots. Thus, this is the sum of all branches that are ancestral
+        to at least one sample. This distinction is only important
+        in tree sequences that contain 'dead branches', i.e., those
+        that define topology not ancestral to any samples.
+
+        :return: The sum of lengths of branches in this tree.
         :rtype: float
         """
         return sum(self.branch_length(u) for u in self.nodes())
