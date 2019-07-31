@@ -220,7 +220,7 @@ from ``windows[i]`` to ``windows[i + 1]`` (including the left but not the right 
 
 The final dimension of the arrays in other cases is specified by the method.
 
-A note about **default values** and **division by zero**: 
+A note about **default values** and **division by zero**:
 Under the hood, statistics computation fills in zeros everywhere, then updates these
 (since statistics are all **additive**, this makes sense).
 But now suppose that you've got a statistic that returns ``nan``
@@ -235,23 +235,68 @@ That said, you should **not** rely on the specific behavior of whether ``0`` or 
 for "empty" cases like these: it is subject to change.
 
 
-.. Commenting these out for now as they are duplicates of the methods in the TreeSequence
-   and sphinx is unhappy.
+********************
+Available statistics
+********************
 
-.. ********************
-.. Statistics functions
-.. ********************
+Here are the statistics that can be computed using ``tskit``,
+grouped by basic classification and type.
 
-.. .. autofunction:: tskit.TreeSequence.diversity
+++++++++++++++++++++++
+Single site statistics
+++++++++++++++++++++++
 
-.. .. autofunction:: tskit.TreeSequence.divergence
+- :meth:`.TreeSequence.diversity`
+- :meth:`.TreeSequence.divergence`
+- :meth:`.TreeSequence.segregating_sites`
 
-.. .. autofunction:: tskit.TreeSequence.f4
+------------------------
+Patterson's f statistics
+------------------------
 
-.. .. autofunction:: tskit.TreeSequence.f3
+These are the `f` statistics (also called `F` statistics) introduced in
+[Reich et al (2009)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/).
+See the documentation (link below) for the definition,
+and [Peter (2016)](https://www.genetics.org/content/202/4/1485) for readable
+discussion of their use.
 
-.. .. autofunction:: tskit.TreeSequence.f2
+- :meth:`.TreeSequence.f4`
+- :meth:`.TreeSequence.f3`
+- :meth:`.TreeSequence.f2`
 
-.. .. autofunction:: tskit.TreeSequence.Y3
+------------
+Y statistics
+------------
 
-.. .. autofunction:: tskit.TreeSequence.Y2
+These are the `Y` statistics introduced by
+[Ashander et al (2018)](https://www.biorxiv.org/content/10.1101/354530v1)
+as a three-sample intermediate between diversity/divergence (which are
+pairwise) and Patterson's f statistics (which are four-way).
+
+- :meth:`.TreeSequence.Y3`
+- :meth:`.TreeSequence.Y2`
+
+---------------
+General methods
+---------------
+
+These methods allow access to the general method of computing statistics,
+using weights or sample counts, and summary functions. See the documentation
+for more details. The pre-implemented statistics above will be faster than
+using these methods directly, so they should be preferred.
+
+- :meth:`.TreeSequence.general_stat`
+- :meth:`.TreeSequence.sample_count_stat`
+
+------------------
+Derived statistics
+------------------
+
+The other statistics above all have the property that `mode="branch"` and
+`mode="site"` are "dual" in the sense that they are equal, on average, under
+a high neutral mutation rate. The following statistics do not have this
+property (since both are ratios of statistics that do have this property).
+
+- :meth:`.TreeSequence.Fst`
+- :meth:`.TreeSequence.TajimasD`
+

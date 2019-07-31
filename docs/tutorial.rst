@@ -849,7 +849,7 @@ Suppose we have simulated the following tree and site table:
 
 Computing the allele frequency spectrum is then easy::
 
-    afs = ts.allele_frequency_spectrum(polarised=True)
+    afs = ts.allele_frequency_spectrum(polarised=True, span_normalise=False)
 
 which looks like::
 
@@ -859,8 +859,11 @@ This tells us that we have two singletons, six doubletons and one 3-ton and
 one 4-ton. Note
 that the first element of the returned AFS array does *not* correspond to
 the singletons (see below for why). Because we have simulated these mutations,
-we know the ancestral and derived states we have set ``polarised`` to True.
-We can get the "folded" AFS by setting polarised to False.
+we know the ancestral and derived states we have set ``polarised`` to True. We
+can get the "folded" AFS by setting polarised to False. Because we want simple
+counts here and not averaged values, we set ``span_normalise=False``: by
+default, windowed statistics are divided by the sequence length, so they are
+comparable between windows.
 
 The returned value here is actually a 2D array, and this is because we can
 also perform these computations in windows along the genome::
@@ -878,11 +881,7 @@ giving::
 This time, we've asked for the number of sites at each frequency in two
 equal windows. Now we can see that in the first half of the sequence we
 have three sites (compare with the site table above): one singleton,
-one doubleton and one tripleton. Because we want simple counts here and
-not averaged values, we set ``span_normalise=False``. By default,
-windowed statistics are weighted by the sequence length---in the first
-example, this weighting didn't have any effect because the total sequence
-length was 1.
+one doubleton and one tripleton. 
 
 +++++++++++++
 Joint spectra
