@@ -1732,7 +1732,8 @@ def single_site_Fst(ts, sample_sets, indexes):
         return out
     out = np.zeros((ts.num_sites, len(indexes)))
     samples = ts.samples()
-    for j, v in enumerate(ts.variants()):
+    # TODO deal with missing data properly.
+    for j, v in enumerate(ts.variants(impute_missing_data=True)):
         for i, (ix, iy) in enumerate(indexes):
             g = v.genotypes
             X = sample_sets[ix]

@@ -2684,8 +2684,7 @@ class TreeSequence(object):
         for j in range(self.num_samples):
             yield hapgen.get_haplotype(j)
 
-    # Samples is experimental for now, so we don't document it.
-    def variants(self, as_bytes=False, samples=None):
+    def variants(self, as_bytes=False, samples=None, impute_missing_data=False):
         """
         Returns an iterator over the variants in this tree sequence. See the
         :class:`Variant` class for details on the fields of each returned
@@ -2711,7 +2710,9 @@ class TreeSequence(object):
         """
         # See comments for the Variant type for discussion on why the
         # present form was chosen.
-        iterator = _tskit.VariantGenerator(self._ll_tree_sequence, samples=samples)
+        iterator = _tskit.VariantGenerator(
+            self._ll_tree_sequence, samples=samples,
+            impute_missing_data=impute_missing_data)
         for site_id, genotypes, alleles in iterator:
             site = self.site(site_id)
             if as_bytes:

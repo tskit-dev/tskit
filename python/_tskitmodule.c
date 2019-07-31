@@ -7354,6 +7354,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     char *V;
     tsk_variant_t *variant;
     size_t j;
+    tsk_flags_t options = TSK_IMPUTE_MISSING_DATA; /* TEMP */
 
     /* TODO add option for 16 bit genotypes */
 
@@ -7375,7 +7376,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, 0);
+    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9051,20 +9052,25 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "samples", NULL};
+    static char *kwlist[] = {"tree_sequence", "samples", "impute_missing_data", NULL};
     TreeSequence *tree_sequence = NULL;
     PyObject *samples_input = Py_None;
     PyArrayObject *samples_array = NULL;
     tsk_id_t *samples = NULL;
     size_t num_samples = 0;
+    int impute_missing_data = 0;
     npy_intp *shape;
+    tsk_flags_t options = 0;
 
     /* TODO add option for 16 bit genotypes */
     self->variant_generator = NULL;
     self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|O", kwlist,
-            &TreeSequenceType, &tree_sequence, &samples_input)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Oi", kwlist,
+            &TreeSequenceType, &tree_sequence, &samples_input, &impute_missing_data)) {
         goto out;
+    }
+    if (impute_missing_data) {
+        options |= TSK_IMPUTE_MISSING_DATA;
     }
     self->tree_sequence = tree_sequence;
     Py_INCREF(self->tree_sequence);
@@ -9090,7 +9096,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
      * to avoid this we would INCREF the samples array above and keep a reference
      * to in the object struct */
     err = tsk_vargen_init(self->variant_generator,
-            self->tree_sequence->tree_sequence, samples, num_samples, 0);
+            self->tree_sequence->tree_sequence, samples, num_samples, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;

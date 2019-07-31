@@ -1604,7 +1604,8 @@ class TestMultipleRoots(TopologyTestCase):
         self.assertEqual(sorted(t.roots), [0, 1])
         self.assertEqual(list(ts.haplotypes()), ["10", "01"])
         self.assertEqual(
-            [v.genotypes for v in ts.variants(as_bytes=True)], [b"10", b"01"])
+            [v.genotypes for v in ts.variants(as_bytes=True, impute_missing_data=True)],
+            [b"10", b"01"])
         simplified = ts.simplify()
         t1 = ts.dump_tables()
         t2 = simplified.dump_tables()
@@ -1831,7 +1832,9 @@ class TestMultipleRoots(TopologyTestCase):
         ts_simplified = ts.simplify(filter_sites=False)
         self.assertEqual(list(ts_simplified.haplotypes()), haplotypes)
         self.assertEqual(
-            [v.genotypes for v in ts_simplified.variants(as_bytes=True)], variants)
+            variants, [
+                v.genotypes for v in
+                ts_simplified.variants(as_bytes=True, impute_missing_data=True)])
 
     def test_break_single_tree(self):
         # Take a single largish tree from tskit, and remove the oldest record.

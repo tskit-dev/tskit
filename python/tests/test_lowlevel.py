@@ -1126,6 +1126,8 @@ class TestVariantGenerator(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         self.assertRaises(ValueError, _tskit.VariantGenerator, ts, samples={})
         self.assertRaises(
+            TypeError, _tskit.VariantGenerator, ts, impute_missing_data=None)
+        self.assertRaises(
             _tskit.LibraryError, _tskit.VariantGenerator, ts, samples=[-1, 2])
 
     def test_iterator(self):

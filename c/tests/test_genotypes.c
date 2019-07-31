@@ -29,6 +29,62 @@
 #include <stdlib.h>
 
 static void
+test_simplest_vargen_missing_data(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n";
+    const char *sites =
+        "0.0    A\n";
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 1);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], TSK_MISSING_DATA);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, TSK_16_BIT_GENOTYPES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i16[0], TSK_MISSING_DATA);
+    CU_ASSERT_EQUAL(var->genotypes.i16[1], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, TSK_IMPUTE_MISSING_DATA);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_single_tree_hapgen_char_alphabet(void)
 {
     int ret = 0;
@@ -124,6 +180,7 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "A", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "T", 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
     CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
     CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
@@ -137,6 +194,7 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL(var->allele_lengths[1], 8);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "A", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "TTTAAGGG", 8);
+    CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
     CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
     CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
@@ -154,6 +212,7 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "G", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[2], "AT", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[3], "T", 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
     CU_ASSERT_EQUAL(var->genotypes.i8[1], 2);
     CU_ASSERT_EQUAL(var->genotypes.i8[2], 3);
@@ -167,6 +226,7 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "A", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "T", 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
     CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
     CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
@@ -584,6 +644,8 @@ int
 main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
+        {"test_simplest_vargen_missing_data", test_simplest_vargen_missing_data},
+
         {"test_single_tree_hapgen_char_alphabet", test_single_tree_hapgen_char_alphabet},
         {"test_single_tree_hapgen_binary_alphabet", test_single_tree_hapgen_binary_alphabet},
         {"test_single_unary_tree_hapgen", test_single_unary_tree_hapgen},
