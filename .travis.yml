@@ -37,7 +37,7 @@ install:
       conda install -c conda-forge gxx_linux-64;
     fi
   - conda install --yes --file=python/requirements/conda-minimal.txt
-  # - conda install -c bioconda --yes pysam
+  - conda install -c bioconda --yes pysam
   - pip install -r python/requirements/development.txt
   - pip install -e python
 
