@@ -2725,7 +2725,7 @@ class TreeSequence(object):
                 genotypes = bytes_genotypes.tobytes()
             yield Variant(site, alleles, genotypes)
 
-    def genotype_matrix(self):
+    def genotype_matrix(self, impute_missing_data=False):
         """
         Returns an :math:`m \\times n` numpy array of the genotypes in this
         tree sequence, where :math:`m` is the number of sites and :math:`n`
@@ -2742,7 +2742,8 @@ class TreeSequence(object):
         :return: The full matrix of genotypes.
         :rtype: numpy.ndarray (dtype=np.int8)
         """
-        return self._ll_tree_sequence.get_genotype_matrix()
+        return self._ll_tree_sequence.get_genotype_matrix(
+            impute_missing_data=impute_missing_data)
 
     def get_pairwise_diversity(self, samples=None):
         # Deprecated alias for self.pairwise_diversity

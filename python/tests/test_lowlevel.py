@@ -340,6 +340,10 @@ class TestTreeSequence(LowLevelTestCase):
             num_sites = ts.get_num_sites()
             G = ts.get_genotype_matrix()
             self.assertEqual(G.shape, (num_sites, num_samples))
+            self.assertRaises(
+                    TypeError, ts.get_genotype_matrix, impute_missing_data=None)
+            G = ts.get_genotype_matrix(impute_missing_data=True)
+            self.assertEqual(G.shape, (num_sites, num_samples))
 
     def test_get_migration_interface(self):
         ts = self.get_example_migration_tree_sequence()

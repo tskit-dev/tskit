@@ -7342,9 +7342,10 @@ out:
 }
 
 static PyObject *
-TreeSequence_get_genotype_matrix(TreeSequence  *self)
+TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
+    static char *kwlist[] = {"impute_missing_data", NULL};
     int err;
     size_t num_sites;
     size_t num_samples;
@@ -7354,12 +7355,19 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     char *V;
     tsk_variant_t *variant;
     size_t j;
-    tsk_flags_t options = TSK_IMPUTE_MISSING_DATA; /* TEMP */
-
-    /* TODO add option for 16 bit genotypes */
+    int impute_missing_data = 0;
+    tsk_flags_t options = 0;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
+    }
+
+    /* TODO add option for 16 bit genotypes */
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &impute_missing_data)) {
+        goto out;
+    }
+    if (impute_missing_data) {
+        options |= TSK_IMPUTE_MISSING_DATA;
     }
     num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
     num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
@@ -7522,7 +7530,8 @@ static PyMethodDef TreeSequence_methods[] = {
     {"f4",
         (PyCFunction) TreeSequence_f4,
         METH_VARARGS|METH_KEYWORDS, "Computes the f4 statistic." },
-    {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix, METH_NOARGS,
+    {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix,
+        METH_VARARGS|METH_KEYWORDS,
         "Returns the genotypes matrix." },
     {NULL}  /* Sentinel */
 };

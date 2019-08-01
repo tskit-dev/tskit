@@ -787,17 +787,18 @@ class TestVariantGenerator(HighLevelTestCase):
         tables.sites.add_row(0.9, "A")
         tables.sort()
         ts = tables.tree_sequence()
-        G = ts.genotype_matrix()
+        G = ts.genotype_matrix(impute_missing_data=True)
         self.assertTrue(np.all(G[0] == 0))
         self.assertTrue(np.all(G[1] == 0))
         self.assertTrue(np.all(G[-1] == 0))
         self.assertTrue(np.all(G[-2] == 0))
         G = isolated_samples_genotype_matrix(ts)
-        # G = ts.genotype_matrix(isolated_sample_missing=True)
         self.assertTrue(np.all(G[0] == -1))
         self.assertTrue(np.all(G[1] == -1))
         self.assertTrue(np.all(G[-1] == -1))
         self.assertTrue(np.all(G[-2] == -1))
+        Gp = ts.genotype_matrix(impute_missing_data=False)
+        self.assertTrue(np.array_equal(G, Gp))
 
 
 class TestHaplotypeGenerator(HighLevelTestCase):
