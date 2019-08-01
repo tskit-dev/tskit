@@ -1916,24 +1916,53 @@ out:
  * Allele frequency spectrum
  ***********************************/
 
+static inline void
+fold(tsk_size_t *restrict coordinate, const tsk_size_t *restrict dims, tsk_size_t num_dims)
+{
+    tsk_size_t k;
+    double n = 0;
+    int s = 0;
+
+    for (k = 0; k < num_dims; k++) {
+        assert(coordinate[k] < dims[k]);
+        n += dims[k] - 1;
+        s += (int) coordinate[k];
+    }
+    n /= 2;
+    k = num_dims;
+    while (s == n && k > 0) {
+        k--;
+        n -= ((double) (dims[k] - 1)) / 2;
+        s -= (int) coordinate[k];
+    }
+    if (s > n) {
+        for (k = 0; k < num_dims; k++) {
+            s = (int) (dims[k] - 1 - coordinate[k]);
+            assert(s >= 0);
+            coordinate[k] = (tsk_size_t) s;
+        }
+    }
+}
+
 static int
-update_site_afs(tsk_site_t *site,
+tsk_treeseq_update_site_afs(tsk_treeseq_t *self, tsk_site_t *site,
         double *total_counts, double *counts, tsk_size_t num_sample_sets,
         tsk_size_t window_index, tsk_size_t *result_dims, double *result,
         tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t afs_size;
-    tsk_size_t k, c, allele, num_alleles;
-    double increment, sum, *afs, *allele_counts, *allele_count;
+    tsk_size_t k, allele, num_alleles, all_samples;
+    double increment, *afs, *allele_counts, *allele_count;
     tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
+    const tsk_size_t K = num_sample_sets + 1;
 
     if (coordinate == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = get_allele_weights(site, counts, num_sample_sets, total_counts, &num_alleles,
+    ret = get_allele_weights(site, counts, K, total_counts, &num_alleles,
             &allele_counts);
     if (ret != 0) {
         goto out;
@@ -1945,18 +1974,15 @@ update_site_afs(tsk_site_t *site,
     increment = polarised? 1: 0.5;
     /* Sum over the allele weights. Skip the ancestral state if polarised. */
     for (allele = polarised? 1: 0; allele < num_alleles; allele++) {
-        sum = 0;
-        allele_count = GET_2D_ROW(allele_counts, num_sample_sets, allele);
-        for (k = 0; k < num_sample_sets; k++) {
-            c = (tsk_size_t) allele_count[k];
-            if (! polarised) {
-                /* Fold the count */
-                c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - c));
+        allele_count = GET_2D_ROW(allele_counts, K, allele);
+        all_samples = (tsk_size_t) allele_count[num_sample_sets];
+        if (all_samples > 0 && all_samples < self->num_samples) {
+            for (k = 0; k < num_sample_sets; k++) {
+                coordinate[k] = (tsk_size_t) allele_count[k];
             }
-            sum += c;
-            coordinate[k] = c;
-        }
-        if (sum > 0) {
+            if (!polarised) {
+                fold(coordinate, result_dims, num_sample_sets);
+            }
             increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, increment);
         }
     }
@@ -1968,7 +1994,7 @@ out:
 
 static int
 tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
-    tsk_size_t num_sample_sets, double *total_counts, double *counts,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes, double *counts,
     tsk_size_t num_windows, double *windows,
     tsk_size_t *result_dims, double *result, tsk_flags_t options)
 {
@@ -1987,13 +2013,21 @@ tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
     tsk_site_t *site;
     tsk_id_t tj, tk, h;
+    tsk_size_t j;
+    const tsk_size_t K = num_sample_sets + 1;
     double t_left, t_right;
+    double *total_counts = malloc((1 + num_sample_sets) * sizeof(*total_counts));
 
-    if (parent == NULL) {
+    if (parent == NULL || total_counts == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     memset(parent, 0xff, num_nodes * sizeof(*parent));
+
+    for (j = 0; j < num_sample_sets; j++) {
+        total_counts[j] = sample_set_sizes[j];
+    }
+    total_counts[num_sample_sets] = self->num_samples;
 
     /* Iterate over the trees */
     tj = 0;
@@ -2008,7 +2042,7 @@ tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
             u = edge_child[h];
             v = edge_parent[h];
             while (v != TSK_NULL) {
-                update_state(counts, num_sample_sets, v, u, -1);
+                update_state(counts, K, v, u, -1);
                 v = parent[v];
             }
             parent[u] = TSK_NULL;
@@ -2021,7 +2055,7 @@ tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
             v = edge_parent[h];
             parent[u] = v;
             while (v != TSK_NULL) {
-                update_state(counts, num_sample_sets, v, u, +1);
+                update_state(counts, K, v, u, +1);
                 v = parent[v];
             }
         }
@@ -2040,8 +2074,8 @@ tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
                 window_index++;
                 assert(window_index < num_windows);
             }
-            ret = update_site_afs(site, total_counts, counts, num_sample_sets, window_index,
-                    result_dims, result, options);
+            ret = tsk_treeseq_update_site_afs(self, site, total_counts, counts,
+                    num_sample_sets, window_index, result_dims, result, options);
             if (ret != 0) {
                 goto out;
             }
@@ -2056,6 +2090,7 @@ out:
     if (parent != NULL) {
         free(parent);
     }
+    tsk_safe_free(total_counts);
     return ret;
 }
 
@@ -2063,13 +2098,13 @@ static int TSK_WARN_UNUSED
 update_branch_afs(
         tsk_id_t u, double right,
         const double *restrict branch_length, double *restrict last_update,
-        const double *total_counts, const double *counts, tsk_size_t num_sample_sets,
+        const double *counts, tsk_size_t num_sample_sets,
         size_t window_index, const tsk_size_t *result_dims, double *result,
         tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t afs_size;
-    tsk_size_t k, c;
+    tsk_size_t k;
     double *afs;
     tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
@@ -2088,12 +2123,10 @@ update_branch_afs(
         afs_size = result_dims[num_sample_sets];
         afs = result + afs_size * window_index;
         for (k = 0; k < num_sample_sets; k++) {
-            c = (tsk_size_t) count_row[k];
-            if (! polarised) {
-                /* Fold the count */
-                c = TSK_MIN(c, (tsk_size_t) (total_counts[k] - c));
-            }
-            coordinate[k] = c;
+            coordinate[k] = (tsk_size_t) count_row[k];
+        }
+        if (! polarised) {
+            fold(coordinate, result_dims, num_sample_sets);
         }
         increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, x);
     }
@@ -2105,7 +2138,7 @@ out:
 
 static int
 tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
-    tsk_size_t num_sample_sets, double *total_counts, double *counts,
+    tsk_size_t num_sample_sets, double *counts,
     tsk_size_t num_windows, double *windows,
     tsk_size_t *result_dims, double *result, tsk_flags_t options)
 {
@@ -2149,7 +2182,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             v = edge_parent[h];
             ret = update_branch_afs(u, t_left,
                     branch_length, last_update,
-                    total_counts, counts, num_sample_sets, window_index,
+                    counts, num_sample_sets, window_index,
                     result_dims, result, options);
             if (ret != 0) {
                 goto out;
@@ -2157,7 +2190,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             while (v != TSK_NULL) {
                 ret = update_branch_afs(v, t_left,
                         branch_length, last_update,
-                        total_counts, counts, num_sample_sets, window_index,
+                        counts, num_sample_sets, window_index,
                         result_dims, result, options);
                 if (ret != 0) {
                     goto out;
@@ -2179,7 +2212,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             while (v != TSK_NULL) {
                 ret = update_branch_afs(v, t_left,
                         branch_length, last_update,
-                        total_counts, counts, num_sample_sets, window_index,
+                        counts, num_sample_sets, window_index,
                         result_dims, result, options);
                 if (ret != 0) {
                     goto out;
@@ -2204,7 +2237,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
                 assert(last_update[u] < w_right);
                 ret = update_branch_afs(u, w_right,
                         branch_length, last_update,
-                        total_counts, counts, num_sample_sets, window_index,
+                        counts, num_sample_sets, window_index,
                         result_dims, result, options);
                 if (ret != 0) {
                     goto out;
@@ -2238,17 +2271,15 @@ tsk_treeseq_allele_frequency_spectrum(tsk_treeseq_t *self,
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool stat_node = !!(options & TSK_STAT_NODE);
-    bool polarised = !!(options & TSK_STAT_POLARISED);
     double default_windows[] = {0, self->tables->sequence_length};
     const size_t num_nodes = self->tables->nodes.num_rows;
-    const size_t K = num_sample_sets + stat_branch;
+    const size_t K = num_sample_sets + 1;
     size_t j, k, l, afs_size;
     tsk_id_t u;
     tsk_size_t *result_dims = NULL;
     /* These counts should really be ints, but we use doubles so that we can
      * reuse code from the general_stats code paths. */
     double *counts = NULL;
-    double *total_counts = NULL;
     double *count_row;
 
     if (stat_node) {
@@ -2281,22 +2312,16 @@ tsk_treeseq_allele_frequency_spectrum(tsk_treeseq_t *self,
 
     /* the last element of result_dims stores the total size of the dimenensions */
     result_dims = malloc((num_sample_sets + 1) * sizeof(*result_dims));
-    total_counts = malloc(num_sample_sets * sizeof(*total_counts));
     counts = calloc(num_nodes * K, sizeof(*counts));
-    if (counts == NULL || total_counts == NULL || result_dims == NULL) {
+    if (counts == NULL || result_dims == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     afs_size = 1;
     j = 0;
     for (k = 0; k < num_sample_sets; k++) {
-        if (polarised) {
-            result_dims[k] = 1 + sample_set_sizes[k];
-        } else {
-            result_dims[k] = 1 + sample_set_sizes[k] / 2;
-        }
+        result_dims[k] = 1 + sample_set_sizes[k];
         afs_size *= result_dims[k];
-        total_counts[k] = sample_set_sizes[k];
         for (l = 0; l < sample_set_sizes[k]; l++) {
             u = sample_sets[j];
             count_row = GET_2D_ROW(counts, K, u);
@@ -2308,26 +2333,21 @@ tsk_treeseq_allele_frequency_spectrum(tsk_treeseq_t *self,
             j++;
         }
     }
-    if (stat_branch) {
-        /* The last column counts all samples */
-        /* TODO should we be doing this for site stats as well? */
-        for (j = 0; j < self->num_samples; j++) {
-            u = self->samples[j];
-            count_row = GET_2D_ROW(counts, K, u);
-            count_row[num_sample_sets] = 1;
-        }
+    for (j = 0; j < self->num_samples; j++) {
+        u = self->samples[j];
+        count_row = GET_2D_ROW(counts, K, u);
+        count_row[num_sample_sets] = 1;
     }
-
     result_dims[num_sample_sets] = (tsk_size_t) afs_size;
 
     memset(result, 0, num_windows * afs_size * sizeof(*result));
     if (stat_site) {
         ret = tsk_treeseq_site_allele_frequency_spectrum(self,
-            num_sample_sets, total_counts, counts, num_windows, windows,
+            num_sample_sets, sample_set_sizes, counts, num_windows, windows,
             result_dims, result, options);
     } else {
         ret = tsk_treeseq_branch_allele_frequency_spectrum(self,
-            num_sample_sets, total_counts, counts, num_windows, windows,
+            num_sample_sets, counts, num_windows, windows,
             result_dims, result, options);
     }
 
@@ -2336,7 +2356,6 @@ tsk_treeseq_allele_frequency_spectrum(tsk_treeseq_t *self,
     }
 out:
     tsk_safe_free(counts);
-    tsk_safe_free(total_counts);
     tsk_safe_free(result_dims);
     return ret;
 }

@@ -2635,6 +2635,74 @@ class TestSitef4(Testf4, MutatedTopologyExamplesMixin):
 # Allele frequency spectrum
 ############################################
 
+def fold(x, dims):
+    """
+    Folds the specified coordinates.
+    """
+    x = np.array(x, dtype=int)
+    dims = np.array(dims, dtype=int)
+    k = len(dims)
+    n = np.sum(dims - 1) / 2
+    s = np.sum(x)
+    while s == n and k > 0:
+        k -= 1
+        assert k >= 0
+        n -= (dims[k] - 1) / 2
+        s -= x[k]
+    if s > n:
+        x = dims - 1 - x
+    assert np.all(x >= 0)
+    return tuple(x)
+
+
+def foldit(A):
+    B = np.zeros(A.shape)
+    dims = A.shape
+    inds = [range(k) for k in dims]
+    for ij in itertools.product(*inds):
+        nij = fold(ij, dims)
+        B[nij] += A[ij]
+    return B
+
+
+class TestFold(unittest.TestCase):
+    """
+    Tests for the fold operation used in the AFS.
+    """
+
+    def test_examples(self):
+        A = np.arange(12)
+        Af = np.array(
+            [11., 11., 11., 11., 11., 11.,  0.,  0.,  0.,  0.,  0.,  0.])
+
+        self.assertTrue(np.all(foldit(A) == Af))
+
+        B = A.copy().reshape(3, 4)
+        Bf = np.array([[11., 11., 11.,  0.],
+                       [11., 11.,  0.,  0.],
+                       [11.,  0.,  0.,  0.]])
+        self.assertTrue(np.all(foldit(B) == Bf))
+
+        C = A.copy().reshape(3, 2, 2)
+        Cf = np.array([[[11., 11.],
+                        [11., 11.]],
+                       [[11., 11.],
+                        [0.,  0.]],
+                       [[0.,  0.],
+                        [0.,  0.]]])
+        self.assertTrue(np.all(foldit(C) == Cf))
+
+        D = np.arange(9).reshape((3, 3))
+        Df = np.array([[8., 8., 8.],
+                       [8., 4., 0.],
+                       [0., 0., 0.]])
+        self.assertTrue(np.all(foldit(D) == Df))
+
+        E = np.arange(9)
+        Ef = np.array([8., 8., 8., 8., 4., 0., 0., 0., 0.])
+        self.assertTrue(np.all(foldit(E) == Ef))
+
+
 def naive_site_allele_frequency_spectrum(
         ts, sample_sets, windows=None, polarised=False, span_normalise=True):
     """
@@ -2642,10 +2710,7 @@ def naive_site_allele_frequency_spectrum(
     """
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     out = np.zeros([num_windows] + out_dim)
     G = ts.genotype_matrix()
     samples = ts.samples()
@@ -2673,11 +2738,7 @@ def naive_site_allele_frequency_spectrum(
                 for k, sample_set in enumerate(sample_set_indexes):
                     allele_counts = zip(*np.unique(g[sample_set], return_counts=True))
                     for allele, c in allele_counts:
-                        if polarised:
-                            count[allele][k] = c
-                        else:
-                            # Fold the allele counts
-                            count[allele][k] = min(c, len(sample_set) - c)
+                        count[allele][k] = c
                 increment = 0.5
                 if polarised:
                     increment = 1
@@ -2685,7 +2746,10 @@ def naive_site_allele_frequency_spectrum(
                     if 0 in count:
                         del count[0]
                 for allele_count in count.values():
-                    S[tuple(allele_count)] += increment
+                    x = tuple(allele_count)
+                    if not polarised:
+                        x = fold(x, out_dim)
+                    S[x] += increment
             if span_normalise:
                 S /= (end - begin)
             out[j, :] += S
@@ -2699,10 +2763,7 @@ def naive_branch_allele_frequency_spectrum(
     """
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     out = np.zeros([num_windows] + out_dim)
     for j in range(num_windows):
         begin = windows[j]
@@ -2723,9 +2784,7 @@ def naive_branch_allele_frequency_spectrum(
                             if polarised:
                                 S[tuple(x)] += t.branch_length(node) * tr_len
                             else:
-                                x = [
-                                    min(x[k], len(sample_set) - x[k])
-                                    for k, sample_set in enumerate(sample_sets)]
+                                x = fold(x, out_dim)
                                 S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
 
                 # Advance the trees
@@ -2762,10 +2821,7 @@ def branch_allele_frequency_spectrum(
     num_sample_sets = len(sample_sets)
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     time = ts.tables.nodes.time
 
     result = np.zeros([num_windows] + out_dim)
@@ -2787,10 +2843,7 @@ def branch_allele_frequency_spectrum(
             x = (right - last_update[u]) * branch_length[u]
             c = count[u, :num_sample_sets]
             if not polarised:
-                # Fold the counts
-                c = c.copy()
-                for k in range(num_sample_sets):
-                    c[k] = min(c[k], len(sample_sets[k]) - c[k])
+                c = fold(c, out_dim)
                 x *= 0.5
             index = tuple([window_index] + list(c))
             result[index] += x
@@ -2853,10 +2906,7 @@ def site_allele_frequency_spectrum(
     """
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
 
     result = np.zeros([num_windows] + out_dim)
     # Add an extra sample set to count across all samples
@@ -2924,12 +2974,10 @@ def site_allele_frequency_spectrum(
 
             increment = 1 if polarised else 0.5
             for allele, c in allele_count.items():
+                x = tuple(c[:-1])
                 if not polarised:
-                    # Fold the counts
-                    c = [
-                        min(c[k], len(sample_set) - c[k])
-                        for k, sample_set in enumerate(sample_sets)]
-                site_result[tuple(c[:-1])] += increment
+                    x = fold(x, out_dim)
+                site_result[x] += increment
             site_index += 1
 
     if span_normalise:
@@ -2999,20 +3047,20 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
             self.assertEqual(sfs1.shape[0], len(windows) - 1)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             for j, sample_set in enumerate(sample_sets):
-                n = 1 + (len(sample_set) if polarised else len(sample_set) // 2)
+                n = 1 + len(sample_set)
                 self.assertEqual(sfs1.shape[j + 1], n)
 
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             self.assertEqual(sfs1.shape, sfs2.shape)
             self.assertEqual(sfs1.shape, sfs3.shape)
-            if not np.allclose(sfs1, sfs2):
+            if not np.allclose(sfs1, sfs3):
                 print()
                 print("sample sets", sample_sets)
                 print("simple", sfs1)
                 print("effic ", sfs2)
                 print("ts    ", sfs3)
             self.assertArrayAlmostEqual(sfs1, sfs2)
-            # self.assertArrayAlmostEqual(sfs1, sfs3)
+            self.assertArrayAlmostEqual(sfs1, sfs3)
 
 
 class TestBranchAlleleFrequencySpectrum(
