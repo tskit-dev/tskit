@@ -571,8 +571,8 @@ class StatsTestCase(unittest.TestCase):
     def assertArrayEqual(self, x, y):
         nt.assert_equal(x, y)
 
-    def assertArrayAlmostEqual(self, x, y):
-        nt.assert_array_almost_equal(x, y)
+    def assertArrayAlmostEqual(self, x, y, atol=1e-6, rtol=1e-7):
+        nt.assert_allclose(x, y, atol=atol, rtol=rtol)
 
 
 class TopologyExamplesMixin(object):
