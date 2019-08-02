@@ -1079,7 +1079,7 @@ def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix().T
+        haps = ts.genotype_matrix(impute_missing_data=True).T
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             S = 0
@@ -1214,7 +1214,7 @@ def site_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix()
+        haps = ts.genotype_matrix(impute_missing_data=True)
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             X_index = np.where(np.in1d(X, samples))[0]
@@ -1350,7 +1350,7 @@ def site_tajimas_d(ts, sample_sets, windows=None):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix()
+        haps = ts.genotype_matrix(impute_missing_data=True)
         site_positions = [x.position for x in ts.sites()]
         n = np.array([len(X) for X in sample_sets])
         for i, X in enumerate(sample_sets):
@@ -1473,7 +1473,7 @@ def site_Y1(ts, sample_sets, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix().T
+        haps = ts.genotype_matrix(impute_missing_data=True).T
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             S = 0
@@ -1579,7 +1579,7 @@ def site_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix().T
+        haps = ts.genotype_matrix(impute_missing_data=True).T
         site_positions = [x.position for x in ts.sites()]
         for i, (ix, iy) in enumerate(indexes):
             X = sample_sets[ix]
@@ -1838,7 +1838,7 @@ def site_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix().T
+        haps = ts.genotype_matrix(impute_missing_data=True).T
         site_positions = [x.position for x in ts.sites()]
         for i, (ix, iy) in enumerate(indexes):
             X = sample_sets[ix]
@@ -2003,7 +2003,7 @@ def branch_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
 def site_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
-    haps = ts.genotype_matrix().T
+    haps = ts.genotype_matrix(impute_missing_data=True).T
     site_positions = ts.tables.sites.position
     samples = ts.samples()
     for j in range(len(windows) - 1):
@@ -2162,7 +2162,7 @@ def site_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     samples = ts.samples()
-    haps = ts.genotype_matrix().T
+    haps = ts.genotype_matrix(impute_missing_data=True).T
     site_positions = ts.tables.sites.position
     for j in range(len(windows) - 1):
         begin = windows[j]
@@ -2330,7 +2330,7 @@ def site_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     samples = ts.samples()
-    haps = ts.genotype_matrix().T
+    haps = ts.genotype_matrix(impute_missing_data=True).T
     site_positions = ts.tables.sites.position
     for j in range(len(windows) - 1):
         begin = windows[j]
@@ -2501,7 +2501,7 @@ def branch_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
 def site_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
     windows = ts.parse_windows(windows)
     samples = ts.samples()
-    haps = ts.genotype_matrix().T
+    haps = ts.genotype_matrix(impute_missing_data=True).T
     site_positions = ts.tables.sites.position
     out = np.zeros((len(windows) - 1, len(indexes)))
     for j in range(len(windows) - 1):
@@ -2713,7 +2713,7 @@ def naive_site_allele_frequency_spectrum(
     num_windows = len(windows) - 1
     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     out = np.zeros([num_windows] + out_dim)
-    G = ts.genotype_matrix()
+    G = ts.genotype_matrix(impute_missing_data=True)
     samples = ts.samples()
     # Indexes of the samples within the sample sets into the samples array.
     sample_set_indexes = [
@@ -3610,7 +3610,7 @@ def site_trait_covariance(ts, W, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix()
+        haps = ts.genotype_matrix(impute_missing_data=True)
         site_positions = [x.position for x in ts.sites()]
         for i in range(K):
             w = W[:, i].copy()
@@ -3813,7 +3813,7 @@ def site_trait_correlation(ts, W, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix()
+        haps = ts.genotype_matrix(impute_missing_data=True)
         site_positions = [x.position for x in ts.sites()]
         for i in range(K):
             w = W[:, i].copy()
@@ -4054,7 +4054,7 @@ def site_trait_regression(ts, W, Z, windows=None, span_normalise=True):
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        haps = ts.genotype_matrix()
+        haps = ts.genotype_matrix(impute_missing_data=True)
         site_positions = [x.position for x in ts.sites()]
         for i in range(K):
             w = W[:, i]

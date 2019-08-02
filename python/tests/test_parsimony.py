@@ -572,7 +572,7 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
         tables = ts.dump_tables()
         tables.sites.clear()
         tables.mutations.clear()
-        G = ts.genotype_matrix()
+        G = ts.genotype_matrix(impute_missing_data=True)
         # Set the first sample to missing data everywhere
         G[:, 0] = -1
         alleles = [v.alleles for v in ts.variants()]
@@ -591,8 +591,8 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
                         derived_state=m.derived_state)
         other_ts = tables.tree_sequence()
         self.assertEqual(ts.num_samples, other_ts.num_samples)
-        H1 = list(ts.haplotypes())
-        H2 = list(other_ts.haplotypes())
+        H1 = list(ts.haplotypes(impute_missing_data=True))
+        H2 = list(other_ts.haplotypes(impute_missing_data=True))
         # All samples except 0 should be reproduced exactly.
         self.assertEqual(H1[1:], H2[1:])
 

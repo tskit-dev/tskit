@@ -2656,7 +2656,7 @@ class TreeSequence(object):
             sample_lists=sample_lists)
         return TreeIterator(tree)
 
-    def haplotypes(self):
+    def haplotypes(self, impute_missing_data=False):
         """
         Returns an iterator over the haplotypes resulting from the trees
         and mutations in this tree sequence as a string.
@@ -2680,7 +2680,7 @@ class TreeSequence(object):
         :raises: LibraryError if called on a tree sequence containing
             multiletter alleles.
         """
-        hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence)
+        hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence, impute_missing_data)
         for j in range(self.num_samples):
             yield hapgen.get_haplotype(j)
 
