@@ -904,8 +904,11 @@ class WeightStatsMixin(object):
             with suppress_division_by_zero_warning():
                 return summary_func(x)
 
+        # Determine output_dim of the function
+        M = len(wrapped_summary_func(gW[0]))
         for sn in [True, False]:
-            sigma1 = ts.general_stat(gW, wrapped_summary_func, windows, mode=self.mode,
+            sigma1 = ts.general_stat(gW, wrapped_summary_func, M,
+                                     windows, mode=self.mode,
                                      span_normalise=sn)
             sigma2 = general_stat(ts, gW, wrapped_summary_func, windows, mode=self.mode,
                                   span_normalise=sn)
@@ -943,7 +946,9 @@ class SampleSetStatsMixin(object):
                 return summary_func(x)
 
         for sn in [True, False]:
-            sigma1 = ts.general_stat(W, wrapped_summary_func, windows, mode=self.mode,
+            # Determine output_dim of the function
+            M = len(summary_func(W[0]))
+            sigma1 = ts.general_stat(W, wrapped_summary_func, M, windows, mode=self.mode,
                                      span_normalise=sn)
             sigma2 = general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode,
                                   span_normalise=sn)
@@ -975,7 +980,9 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
 
         W = np.array(
             [[u in A for A in sample_sets] for u in ts.samples()], dtype=float)
-        sigma1 = ts.general_stat(W, wrapped_summary_func, windows, mode=self.mode)
+        # Determine output_dim of the function
+        M = len(wrapped_summary_func(W[0]))
+        sigma1 = ts.general_stat(W, wrapped_summary_func, M, windows, mode=self.mode)
         sigma2 = general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
         sigma3 = ts_method(
             sample_sets, indexes=indexes, windows=windows, mode=self.mode)
@@ -3070,7 +3077,7 @@ class TestSampleSets(StatsTestCase):
             with self.assertRaises(exceptions.LibraryError):
                 ts.divergence([[0, 1], bad_set])
             with self.assertRaises(ValueError):
-                ts.sample_count_stat([bad_set], lambda x: x)
+                ts.sample_count_stat([bad_set], lambda x: x, 1)
 
     def test_empty_sample_set(self):
         ts = self.get_example_ts()
@@ -3082,7 +3089,7 @@ class TestSampleSets(StatsTestCase):
             with self.assertRaises(ValueError):
                 ts.divergence(bad_sample_sets)
             with self.assertRaises(ValueError):
-                ts.sample_count_stat(bad_sample_sets, lambda x: x)
+                ts.sample_count_stat(bad_sample_sets, lambda x: x, 1)
 
     def test_non_samples(self):
         ts = self.get_example_ts()
@@ -3093,7 +3100,7 @@ class TestSampleSets(StatsTestCase):
             ts.divergence([[10], [1, 2]])
 
         with self.assertRaises(ValueError):
-            ts.sample_count_stat([[10]], lambda x: x)
+            ts.sample_count_stat([[10]], lambda x: x, 1)
 
     def test_span_normalise(self):
         ts = self.get_example_ts()
@@ -3106,11 +3113,13 @@ class TestSampleSets(StatsTestCase):
         def f(x):
             return x
 
+        # Determine output_dim of the function
+        M = len(f(sample_sets))
         for mode in ('site', 'branch', 'node'):
-            sigma1 = ts.sample_count_stat(sample_sets, f, windows=windows)
-            sigma2 = ts.sample_count_stat(sample_sets, f, windows=windows,
+            sigma1 = ts.sample_count_stat(sample_sets, f, M, windows=windows)
+            sigma2 = ts.sample_count_stat(sample_sets, f, M, windows=windows,
                                           span_normalise=True)
-            sigma3 = ts.sample_count_stat(sample_sets, f, windows=windows,
+            sigma3 = ts.sample_count_stat(sample_sets, f, M, windows=windows,
                                           span_normalise=False)
             denom = np.diff(windows)[:, np.newaxis]
             self.assertEqual(sigma1.shape, sigma2.shape)
@@ -3216,8 +3225,8 @@ class TestGeneralStatInterface(StatsTestCase):
     def test_default_mode(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
-        sigma1 = ts.general_stat(W, lambda x: x)
-        sigma2 = ts.general_stat(W, lambda x: x, mode="site")
+        sigma1 = ts.general_stat(W, lambda x: x, W.shape[1])
+        sigma2 = ts.general_stat(W, lambda x: x, W.shape[1], mode="site")
         self.assertArrayEqual(sigma1, sigma2)
 
     def test_bad_mode(self):
@@ -3225,7 +3234,7 @@ class TestGeneralStatInterface(StatsTestCase):
         W = np.ones((ts.num_samples, 2))
         for bad_mode in ["", "MODE", "x" * 8192]:
             with self.assertRaises(ValueError):
-                ts.general_stat(W, lambda x: x, mode=bad_mode)
+                ts.general_stat(W, lambda x: x, W.shape[1], mode=bad_mode)
 
     def test_bad_window_strings(self):
         ts = self.get_tree_sequence()
@@ -3242,8 +3251,10 @@ class TestGeneralBranchStats(StatsTestCase):
     Tests for general branch stats (using functions and arbitrary weights)
     """
     def compare_general_stat(self, ts, W, f, windows=None, polarised=False):
+        # Determine output_dim of the function
+        M = len(f(W[0]))
         sigma1 = naive_branch_general_stat(ts, W, f, windows, polarised=polarised)
-        sigma2 = ts.general_stat(W, f, windows, polarised=polarised, mode="branch")
+        sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="branch")
         sigma3 = branch_general_stat(ts, W, f, windows, polarised=polarised)
         self.assertEqual(sigma1.shape, sigma2.shape)
         self.assertEqual(sigma1.shape, sigma3.shape)
@@ -3327,9 +3338,11 @@ class TestGeneralSiteStats(StatsTestCase):
     Tests for general site stats (using functions and arbitrary weights)
     """
     def compare_general_stat(self, ts, W, f, windows=None, polarised=False):
+        # Determine output_dim of the function
+        M = len(f(W[0]))
         py_ssc = PythonSiteStatCalculator(ts)
         sigma1 = py_ssc.naive_general_stat(W, f, windows, polarised=polarised)
-        sigma2 = ts.general_stat(W, f, windows, polarised=polarised, mode="site")
+        sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="site")
         sigma3 = site_general_stat(ts, W, f, windows, polarised=polarised)
         self.assertEqual(sigma1.shape, sigma2.shape)
         self.assertEqual(sigma1.shape, sigma3.shape)
@@ -3381,8 +3394,10 @@ class TestGeneralNodeStats(StatsTestCase):
     Tests for general node stats (using functions and arbitrary weights)
     """
     def compare_general_stat(self, ts, W, f, windows=None, polarised=False):
+        # Determine output_dim of the function
+        M = len(f(W[0]))
         sigma1 = naive_node_general_stat(ts, W, f, windows, polarised=polarised)
-        sigma2 = ts.general_stat(W, f, windows, polarised=polarised, mode="node")
+        sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="node")
         sigma3 = node_general_stat(ts, W, f, windows, polarised=polarised)
         self.assertEqual(sigma1.shape, sigma2.shape)
         self.assertEqual(sigma1.shape, sigma3.shape)
@@ -4113,8 +4128,11 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
             with suppress_division_by_zero_warning():
                 return f(x)
 
+        # Determine output_dim of the function
+        M = len(wrapped_summary_func(gW[0]))
         for sn in [True, False]:
-            sigma1 = ts.general_stat(gW, wrapped_summary_func, windows, mode=self.mode,
+            sigma1 = ts.general_stat(gW, wrapped_summary_func, M,
+                                     windows, mode=self.mode,
                                      span_normalise=sn)
             sigma2 = general_stat(ts, gW, wrapped_summary_func, windows, mode=self.mode,
                                   span_normalise=sn)
@@ -4438,7 +4456,7 @@ class SpecificTreesTestCase(StatsTestCase):
                                branch_true_diversity_01)
         self.assertAlmostEqual(ts.divergence([[0], [1]], [(0, 1)], mode=mode),
                                branch_true_diversity_01)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0],
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
                                branch_true_diversity_01)
         self.assertAlmostEqual(ts.diversity([[0, 1]], mode=mode)[0][0],
                                branch_true_diversity_01)
@@ -4458,7 +4476,7 @@ class SpecificTreesTestCase(StatsTestCase):
                                branch_true_mean_diversity)
         self.assertAlmostEqual(ts.divergence([A[0], A[1]], [(0, 1)], mode=mode),
                                branch_true_mean_diversity)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0],
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
                                branch_true_mean_diversity)
 
         # Y-statistic for (0/12)
@@ -4473,7 +4491,7 @@ class SpecificTreesTestCase(StatsTestCase):
         py_bsc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode=mode)
         self.assertArrayAlmostEqual(bts_Y, branch_true_Y)
         self.assertArrayAlmostEqual(py_bsc_Y, branch_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0],
+        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
                                     branch_true_Y)
 
         mode = "site"
@@ -4482,7 +4500,7 @@ class SpecificTreesTestCase(StatsTestCase):
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode=mode)
         self.assertArrayAlmostEqual(sts_Y, site_true_Y)
         self.assertArrayAlmostEqual(py_ssc_Y, site_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0],
+        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
                                     site_true_Y)
 
         A = [[0, 1, 2]]
@@ -4861,7 +4879,7 @@ class SpecificTreesTestCase(StatsTestCase):
                  branch_true_diversity_02]):
 
             self.assertAlmostEqual(diversity(ts, A, mode=mode)[0][0], truth)
-            self.assertAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0], truth)
+            self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0], truth)
             self.assertAlmostEqual(ts.diversity(A, mode="branch")[0][0], truth)
 
         # Y-statistic for (0/12)
@@ -4876,7 +4894,7 @@ class SpecificTreesTestCase(StatsTestCase):
                                     branch_true_Y)
         self.assertArrayAlmostEqual(ts.Y3([[0], [1], [2]], [(0, 1, 2)], mode=mode),
                                     branch_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0],
+        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
                                     branch_true_Y)
 
         # sites:
@@ -4885,7 +4903,8 @@ class SpecificTreesTestCase(StatsTestCase):
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0])
         self.assertAlmostEqual(site_tsc_Y, site_true_Y)
         self.assertAlmostEqual(py_ssc_Y, site_true_Y)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, mode=mode)[0][0], site_true_Y)
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+                               site_true_Y)
 
 
 ############################################

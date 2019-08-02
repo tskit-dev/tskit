@@ -3254,7 +3254,7 @@ class TreeSequence(object):
     #
     ############################################
 
-    def general_stat(self, W, f, windows=None, polarised=False, mode=None,
+    def general_stat(self, W, f, output_dim, windows=None, polarised=False, mode=None,
                      span_normalise=True):
         """
         Compute a windowed statistic from weights and a summary function.  See
@@ -3287,6 +3287,7 @@ class TreeSequence(object):
         :param function f: A function that takes a one-dimensional array of length
             equal to the number of columns of ``W`` and returns a one-dimensional
             array.
+        :param int output_dim: The length of ``f``'s return value.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param bool polarised: Whether to leave the ancestral state out of computations:
@@ -3299,14 +3300,13 @@ class TreeSequence(object):
         """
         if mode is None:
             mode = "site"
-        output_dim = f(W[0]).shape[0]
         windows = self.parse_windows(windows)
         return self.ll_tree_sequence.general_stat(
             W, f, output_dim, windows, polarised=polarised,
             span_normalise=span_normalise, mode=mode)
 
     def sample_count_stat(
-            self, sample_sets, f, windows=None, polarised=False, mode=None,
+            self, sample_sets, f, output_dim, windows=None, polarised=False, mode=None,
             span_normalise=True):
         """
         Compute a windowed statistic from sample counts and a summary function.
@@ -3325,6 +3325,7 @@ class TreeSequence(object):
             groups of individuals to compute the statistic with.
         :param function f: A function that takes a one-dimensional array of length
             equal to the number of sample sets and returns a one-dimensional array.
+        :param int output_dim: The length of ``f``'s return value.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param bool polarised: Whether to leave the ancestral state out of computations:
@@ -3347,8 +3348,8 @@ class TreeSequence(object):
                     raise ValueError("Not all elements of sample_sets are samples.")
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
-        return self.general_stat(W, f, windows=windows, polarised=polarised, mode=mode,
-                                 span_normalise=span_normalise)
+        return self.general_stat(W, f, output_dim, windows=windows, polarised=polarised,
+                                 mode=mode, span_normalise=span_normalise)
 
     def parse_windows(self, windows):
         # Note: need to make sure windows is a string or we try to compare the
