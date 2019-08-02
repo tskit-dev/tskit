@@ -3649,6 +3649,16 @@ class TestMapToAncestors(unittest.TestCase):
         self.assertEqual(all(tss.left), 0)
         self.assertEqual(all(tss.right), 1)
 
+    def test_single_tree_samples_descend_from_samples(self):
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        tss = self.do_map(ts, samples=[3, 6], ancestors=[8])
+        self.assertEqual(list(tss.parent), [6, 8])
+        self.assertEqual(list(tss.child), [3, 6])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
+
     def test_multiple_trees_to_single_tree(self):
         nodes = io.StringIO(self.nodes0)
         edges = io.StringIO(self.edges0)
@@ -3692,7 +3702,7 @@ class TestMapToAncestors(unittest.TestCase):
                     current_descendants = list(set(current_descendants))
                     for des in current_descendants:
                         par = tree.get_parent(des)
-                        while par not in ancestral_nodes:
+                        while par not in ancestral_nodes and par not in sample_nodes:
                             par = tree.get_parent(par)
                         self.assertEqual(par, current_ancestor)
                 # Reset the current ancestor and descendants, left and right coords.
@@ -3708,17 +3718,23 @@ class TestMapToAncestors(unittest.TestCase):
         ts = msprime.simulate(30, random_seed=1, length=10)
         ancestors = [3*n for n in np.arange(0, ts.num_nodes // 3)]
         self.verify(ts, ts.samples(), ancestors)
+        random_samples = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(ts, random_samples, ancestors)
 
     def test_sim_coalescent_trees(self):
         ts = msprime.simulate(8, recombination_rate=5, random_seed=1, length=2)
         ancestors = [3*n for n in np.arange(0, ts.num_nodes // 3)]
         self.verify(ts, ts.samples(), ancestors)
+        random_samples = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(ts, random_samples, ancestors)
 
     def test_sim_coalescent_trees_internal_samples(self):
         ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
         self.assertGreater(ts.num_trees, 2)
         ancestors = [4*n for n in np.arange(0, ts.num_nodes // 4)]
         self.verify(tsutil.jiggle_samples(ts), ts.samples(), ancestors)
+        random_samples = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(tsutil.jiggle_samples(ts), random_samples, ancestors)
 
     def test_sim_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
@@ -3726,6 +3742,8 @@ class TestMapToAncestors(unittest.TestCase):
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
         ancestors = [4*n for n in np.arange(0, ts.num_nodes // 4)]
         self.verify(ts, ts.samples(), ancestors)
+        random_samples = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(ts, random_samples, ancestors)
 
     def test_sim_wright_fisher_generations(self):
         number_of_gens = 5
@@ -3737,6 +3755,12 @@ class TestMapToAncestors(unittest.TestCase):
         for gen in range(1, number_of_gens):
             ancestors = [u.id for u in ts.nodes() if u.time == gen]
             self.verify(ts, ts.samples(), ancestors)
+
+        random_samples = [4*n for n in np.arange(0, ts.num_nodes // 4)]
+        self.verify(ts, random_samples, ancestors)
+        for gen in range(1, number_of_gens):
+            ancestors = [u.id for u in ts.nodes() if u.time == gen]
+            self.verify(ts, random_samples, ancestors)
 
 
 class TestMutationParent(unittest.TestCase):
