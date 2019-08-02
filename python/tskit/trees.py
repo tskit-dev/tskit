@@ -3789,14 +3789,15 @@ class TreeSequence(object):
         If more than one sample set is specified, the **joint** allele frequency
         spectrum within windows is returned. For example, if we set
         ``sample_sets = [S0, S1]``, then afs[1, 2] counts the number of sites that
-        at singletons within S0 and doubletons in S1.
+        at singletons within S0 and doubletons in S1. The dimensions of the
+        output array will be ``[num_windows] + [1 + len(S) for S in sample_sets]``.
 
-        If ``polarised`` is False (the default) the AFS will be *folded* such that
-        a frequency ``c`` is mapped to ``min(c, len(S) - c)``, where ``S`` is the sample
-        set in question. The dimensions of the output array will therefore be
-        ``[num_windows] + [1 + len(S) // 2 for S in sample_sets]``.
-        Otherwise, the dimensions of the output array will be
-        ``[num_windows] + [1 + len(S) for S in sample_sets]``.
+        If ``polarised`` is False (the default) the AFS will be *folded*, so that
+        the counts do not depend on knowing which allele is ancestral. If folded,
+        the frequency spectrum for a single sample set ``S`` has ``afs[j] = 0`` for
+        all `j > len(S) / 2`, so that alleles at frequency ``j`` and ``len(S) - j``
+        both add to the same entry. If there is more than one sample set, the
+        returned array is "lower triangular" in a similar way.
 
         What is computed depends on ``mode``:
 
@@ -3812,6 +3813,10 @@ class TreeSequence(object):
 
         "node"
             Not supported for this method (raises a ValueError).
+
+        The method does *not* currently count the number of fixed alleles
+        (for "site") or the length of branches above the root (for "branch"),
+        so the final entry is always zero.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of samples to compute the joint allele frequency
