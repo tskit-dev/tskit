@@ -685,7 +685,7 @@ class TestY1(LowLevelTestCase, OneWaySampleStatsMixin):
         return ts, ts.Y1
 
 
-class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
+class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
     """
     Tests for the diversity method.
     """
@@ -698,7 +698,7 @@ class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin)
         n = ts.get_num_samples()
         result = ts.allele_frequency_spectrum(
             [n], ts.get_samples(), [0, ts.get_sequence_length()])
-        self.assertEqual(result.shape, (1, n // 2 + 1))
+        self.assertEqual(result.shape, (1, n + 1))
         result = ts.allele_frequency_spectrum(
             [n], ts.get_samples(), [0, ts.get_sequence_length()], polarised=True)
         self.assertEqual(result.shape, (1, n + 1))
@@ -719,8 +719,7 @@ class TestJointAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin)
                     self.assertEqual(jafs.shape, tuple([len(windows) - 1] + list(s + 1)))
                     jafs = ts.allele_frequency_spectrum(
                         s, samples, windows, mode=mode, polarised=False)
-                    self.assertEqual(
-                        jafs.shape, tuple([len(windows) - 1] + list(s // 2 + 1)))
+                    self.assertEqual(jafs.shape, tuple([len(windows) - 1] + list(s + 1)))
 
     def test_node_mode_not_supported(self):
         ts = self.get_example_tree_sequence()

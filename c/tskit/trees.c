@@ -2095,8 +2095,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-update_branch_afs(
-        tsk_id_t u, double right,
+tsk_treeseq_update_branch_afs(tsk_treeseq_t *self, tsk_id_t u, double right,
         const double *restrict branch_length, double *restrict last_update,
         const double *counts, tsk_size_t num_sample_sets,
         size_t window_index, const tsk_size_t *result_dims, double *result,
@@ -2110,13 +2109,14 @@ update_branch_afs(
     bool polarised = !!(options & TSK_STAT_POLARISED);
     const double *count_row = GET_2D_ROW(counts, num_sample_sets + 1, u);
     double x = (right - last_update[u]) * branch_length[u];
+    const tsk_size_t all_samples = (tsk_size_t) count_row[num_sample_sets];
 
     if (coordinate == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
 
-    if (count_row[num_sample_sets] > 0) {
+    if (0 < all_samples && all_samples < self->num_samples) {
         if (!polarised) {
             x *= 0.5;
         }
@@ -2180,7 +2180,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             tk++;
             u = edge_child[h];
             v = edge_parent[h];
-            ret = update_branch_afs(u, t_left,
+            ret = tsk_treeseq_update_branch_afs(self, u, t_left,
                     branch_length, last_update,
                     counts, num_sample_sets, window_index,
                     result_dims, result, options);
@@ -2188,7 +2188,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
                 goto out;
             }
             while (v != TSK_NULL) {
-                ret = update_branch_afs(v, t_left,
+                ret = tsk_treeseq_update_branch_afs(self, v, t_left,
                         branch_length, last_update,
                         counts, num_sample_sets, window_index,
                         result_dims, result, options);
@@ -2210,7 +2210,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             parent[u] = v;
             branch_length[u] = node_time[v] - node_time[u];
             while (v != TSK_NULL) {
-                ret = update_branch_afs(v, t_left,
+                ret = tsk_treeseq_update_branch_afs(self, v, t_left,
                         branch_length, last_update,
                         counts, num_sample_sets, window_index,
                         result_dims, result, options);
@@ -2235,7 +2235,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             /* Flush the contributions of all nodes to the current window */
             for (u = 0; u < (tsk_id_t) num_nodes; u++) {
                 assert(last_update[u] < w_right);
-                ret = update_branch_afs(u, w_right,
+                ret = tsk_treeseq_update_branch_afs(self, u, w_right,
                         branch_length, last_update,
                         counts, num_sample_sets, window_index,
                         result_dims, result, options);

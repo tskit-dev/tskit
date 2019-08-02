@@ -2778,7 +2778,7 @@ def naive_branch_allele_frequency_spectrum(
                 tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
                 if tr_len > 0:
                     for node in t.nodes():
-                        if t.num_samples(node) > 0:
+                        if 0 < t.num_samples(node) < ts.num_samples:
                             x = [tree.num_tracked_samples(node) for tree in trees]
                             # Note x must be a tuple for indexing to work
                             if polarised:
@@ -2839,7 +2839,7 @@ def branch_allele_frequency_spectrum(
     tree_index = 0
 
     def update_result(window_index, u, right):
-        if count[u, -1] > 0:
+        if 0 < count[u, -1] < ts.num_samples:
             x = (right - last_update[u]) * branch_length[u]
             c = count[u, :num_sample_sets]
             if not polarised:
@@ -3108,15 +3108,11 @@ class TestBranchAlleleFrequencySpectrumProperties(StatsTestCase, TopologyExample
             examples += [
                 [S[:1], S[2:], S[:3]]
             ]
-        # The definition of total branch length is tricky here, and
-        # slightly different to what we have for segregrating sites
-        # in that we exclude branches subtending 0 samples, but not
-        # those subtending n, and so unary paths over an MRCA of all
-        # samples will still be counted.
+        # This is the same definition that we use for segregating_sites
         tbl = [
             sum(
                 tree.branch_length(u) for u in tree.nodes()
-                if tree.num_samples(u) > 0)
+                if 0 < tree.num_samples(u) < ts.num_samples)
             for tree in ts.trees()]
         for polarised in [True, False]:
             for sample_sets in examples:
