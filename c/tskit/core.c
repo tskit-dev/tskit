@@ -282,6 +282,10 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_SAMPLES:
             ret = "Bad sample configuration provided";
             break;
+        case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
+            ret = "Cannot generate genotypes for non-samples unless missing data "
+                    "imputation is enabled";
+            break;
 
         /* Table errors */
         case TSK_ERR_BAD_TABLE_POSITION:

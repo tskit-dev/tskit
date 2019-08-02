@@ -118,9 +118,11 @@ tsk_hapgen_generate_all_haplotypes(tsk_hapgen_t *self)
 {
     int ret = 0;
     tsk_size_t j;
+    tsk_id_t root;
     tsk_size_t num_sites = 0;
     tsk_site_t *sites = NULL;
     tsk_tree_t *t = &self->tree;
+    const bool impute_missing = !!(self->options & TSK_IMPUTE_MISSING_DATA);
 
     for (ret = tsk_tree_first(t); ret == 1; ret = tsk_tree_next(t)) {
         ret = tsk_tree_get_sites(t, &sites, &num_sites);
@@ -133,13 +135,22 @@ tsk_hapgen_generate_all_haplotypes(tsk_hapgen_t *self)
                 goto out;
             }
         }
+        if (! impute_missing) {
+            /* If any missing data is present raise an error */
+            for (root = t->left_root; root != TSK_NULL; root = t->right_sib[root]) {
+                if (t->left_child[root] == TSK_NULL) {
+                    ret = TSK_ERR_MUST_IMPUTE_HAPLOTYPES;
+                    goto out;
+                }
+            }
+        }
     }
 out:
     return ret;
 }
 
 int
-tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
+tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options)
 {
     int ret = 0;
     size_t j, k;
@@ -148,9 +159,9 @@ tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence)
     assert(tree_sequence != NULL);
     memset(self, 0, sizeof(tsk_hapgen_t));
     self->num_samples = tsk_treeseq_get_num_samples(tree_sequence);
-    self->sequence_length = tsk_treeseq_get_sequence_length(tree_sequence);
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->tree_sequence = tree_sequence;
+    self->options = options;
 
     self->sample_index_map = tsk_treeseq_get_sample_index_map(tree_sequence);
     ret = tsk_tree_init(&self->tree, tree_sequence, TSK_SAMPLE_LISTS);
@@ -244,23 +255,26 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
 {
     int ret = TSK_ERR_NO_MEMORY;
     tsk_flags_t tree_options;
+    const tsk_flags_t *flags = tree_sequence->tables->nodes.flags;
     size_t j, num_nodes, num_samples_alloc;
+    bool impute_missing = !!(options & TSK_IMPUTE_MISSING_DATA);
     tsk_size_t max_alleles = 4;
+    tsk_id_t u;
 
     assert(tree_sequence != NULL);
     memset(self, 0, sizeof(tsk_vargen_t));
 
-    self->sample_index_map_allocated = false;
     if (samples == NULL) {
+        self->sample_index_map_allocated = false;
         self->num_samples = tsk_treeseq_get_num_samples(tree_sequence);
         self->sample_index_map = tsk_treeseq_get_sample_index_map(tree_sequence);
         num_samples_alloc = self->num_samples;
     } else {
+        self->sample_index_map_allocated = true;
         /* Take a copy of the samples for simplicity */
         num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
         /* We can have num_samples = 0 here, so guard against malloc(0) */
         num_samples_alloc = num_samples + 1;
-        self->sample_index_map_allocated = true;
         self->samples = malloc(num_samples_alloc * sizeof(*self->samples));
         self->sample_index_map = malloc(num_nodes * sizeof(*self->sample_index_map));
         if (self->samples == NULL || self->sample_index_map == NULL) {
@@ -271,12 +285,18 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
         memset(self->sample_index_map, 0xff, num_nodes * sizeof(*self->sample_index_map));
         /* Create the reverse mapping */
         for (j = 0; j < num_samples; j++) {
-            if (samples[j] < 0 || samples[j] >= (tsk_id_t) num_nodes) {
+            u = samples[j];
+            if (u < 0 || u >= (tsk_id_t) num_nodes) {
                 ret = TSK_ERR_OUT_OF_BOUNDS;
                 goto out;
             }
-            if (self->sample_index_map[samples[j]] != TSK_NULL) {
+            if (self->sample_index_map[u] != TSK_NULL) {
                 ret = TSK_ERR_DUPLICATE_SAMPLE;
+                goto out;
+            }
+            /* We can only detect missing data for samples */
+            if (!impute_missing && !(flags[u] & TSK_NODE_IS_SAMPLE)) {
+                ret = TSK_ERR_MUST_IMPUTE_NON_SAMPLES;
                 goto out;
             }
             self->sample_index_map[samples[j]] = (tsk_id_t) j;
@@ -535,8 +555,8 @@ tsk_vargen_mark_missing_i16(tsk_vargen_t *self)
     tsk_id_t root, sample_index;
 
     for (root = self->tree.left_root; root != TSK_NULL; root = right_sib[root]) {
-        sample_index = sample_index_map[root];
-        if (left_child[root] == TSK_NULL && sample_index != TSK_NULL) {
+        if (left_child[root] == TSK_NULL) {
+            sample_index = sample_index_map[root];
             genotypes[sample_index] = TSK_MISSING_DATA;
             ret = true;
         }
@@ -555,8 +575,8 @@ tsk_vargen_mark_missing_i8(tsk_vargen_t *self)
     tsk_id_t root, sample_index;
 
     for (root = self->tree.left_root; root != TSK_NULL; root = right_sib[root]) {
-        sample_index = sample_index_map[root];
-        if (left_child[root] == TSK_NULL && sample_index != TSK_NULL) {
+        if (left_child[root] == TSK_NULL) {
+            sample_index = sample_index_map[root];
             genotypes[sample_index] = TSK_MISSING_DATA;
             ret = true;
         }

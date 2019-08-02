@@ -36,8 +36,8 @@ extern "C" {
 #define TSK_IMPUTE_MISSING_DATA     (1 << 1)
 
 typedef struct {
+    tsk_flags_t options;
     size_t num_samples;
-    double sequence_length;
     size_t num_sites;
     tsk_treeseq_t *tree_sequence;
     tsk_id_t *sample_index_map;
@@ -73,7 +73,8 @@ typedef struct {
     tsk_variant_t variant;
 } tsk_vargen_t;
 
-int tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence);
+int tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence,
+        tsk_flags_t options);
 /* FIXME this is inconsistent with the tables API which uses size_t for
  * IDs in functions. Not clear which is better */
 int tsk_hapgen_get_haplotype(tsk_hapgen_t *self, tsk_id_t j, char **haplotype);

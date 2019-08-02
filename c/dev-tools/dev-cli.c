@@ -98,7 +98,7 @@ print_haplotypes(tsk_treeseq_t *ts)
     char *haplotype;
 
     printf("haplotypes \n");
-    ret = tsk_hapgen_init(&hg, ts);
+    ret = tsk_hapgen_init(&hg, ts, 0);
     if (ret != 0) {
         fatal_library_error(ret, "tsk_hapgen_alloc");
     }

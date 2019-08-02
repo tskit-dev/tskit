@@ -1149,7 +1149,9 @@ class TestHaplotypeGenerator(LowLevelTestCase):
 
     def test_constructor(self):
         self.assertRaises(TypeError, _tskit.HaplotypeGenerator)
-        self.assertRaises(TypeError, _tskit.HaplotypeGenerator, None)
+        self.assertRaises(
+            TypeError, _tskit.HaplotypeGenerator, impute_missing_data=None)
+        self.assertRaises(TypeError, _tskit.HaplotypeGenerator, True, None)
 
     def test_bad_id(self):
         ts = self.get_example_tree_sequence()
