@@ -585,6 +585,10 @@ class TopologyExamplesMixin(object):
         ts = msprime.simulate(6, random_seed=1)
         self.verify(ts)
 
+    def test_single_tree_sequence_length(self):
+        ts = msprime.simulate(6, length=10, random_seed=1)
+        self.verify(ts)
+
     def test_single_tree_multiple_roots(self):
         ts = msprime.simulate(8, random_seed=1)
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
@@ -717,6 +721,35 @@ class MutatedTopologyExamplesMixin(object):
         tables.mutations.add_row(site=0, node=0, derived_state="T")
         # Mutate back to the ancestral state so that all genotypes are zero
         tables.mutations.add_row(site=0, node=0, derived_state="A", parent=0)
+        ts = tables.tree_sequence()
+        self.verify(ts)
+
+    def test_non_sample_ancestry(self):
+        # 2.00┊       5   ┊
+        #     ┊    ┏━━┻━┓ ┊
+        # 1.00┊    4    ┃ ┊
+        #     ┊ ┏━┳┻┳━┓ ┃ ┊
+        # 0.00┊ 0 1 2 3 6 ┊
+        #    0.00        1.00
+        tables = tskit.TableCollection(1)
+        # Four sample nodes
+        for j in range(4):
+            tables.nodes.add_row(flags=1, time=0)
+            tables.edges.add_row(0, 1, 4, j)
+        # Their MRCA, 4, joins to older ancestor 5
+        tables.nodes.add_row(flags=0, time=1)
+        tables.nodes.add_row(flags=0, time=2)
+        tables.edges.add_row(0, 1, 5, 4)
+        # Which has non-sample leaf at time 0
+        tables.nodes.add_row(flags=0, time=0)
+        tables.edges.add_row(0, 1, 5, 6)
+        # Two sites with mutations. One over the MRCA of the
+        # samples so it's fixed at 1 and one over the non sample
+        # leaf so that samples are fixed at zero.
+        tables.sites.add_row(position=0.25, ancestral_state="0")
+        tables.sites.add_row(position=0.5, ancestral_state="0")
+        tables.mutations.add_row(site=0, node=4, derived_state="1")
+        tables.mutations.add_row(site=1, node=6, derived_state="1")
         ts = tables.tree_sequence()
         self.verify(ts)
 
@@ -1282,6 +1315,28 @@ class TestNodeSegregatingSites(TestSegregatingSites, TopologyExamplesMixin):
 
 class TestSiteSegregatingSites(TestSegregatingSites, MutatedTopologyExamplesMixin):
     mode = "site"
+
+
+class TestBranchSegregatingSitesProperties(StatsTestCase, TopologyExamplesMixin):
+
+    def verify(self, ts):
+        windows = ts.breakpoints(as_array=True)
+        # If we split by tree, this should always be equal to the total
+        # branch length. The definition of total_branch_length here is slightly
+        # tricky: it's the sum of all branch lengths that subtend between 0
+        # and n samples. This differs from the built-in total_branch_length
+        # function, which just sums that total branch length reachable from
+        # roots.
+        tbl_tree = [
+            sum(
+                tree.branch_length(u) for u in tree.nodes()
+                if 0 < tree.num_samples(u) < ts.num_samples)
+            for tree in ts.trees()]
+        # We must span_normalise, because these values are always weighted
+        # by the span, so we're effectively cancelling out this contribution
+        tbl = ts.segregating_sites([ts.samples()], windows=windows, mode="branch")
+        tbl = tbl.reshape(tbl.shape[:-1])
+        self.assertArrayAlmostEqual(tbl_tree, tbl)
 
 
 ############################################
@@ -2580,6 +2635,74 @@ class TestSitef4(Testf4, MutatedTopologyExamplesMixin):
 # Allele frequency spectrum
 ############################################
 
+def fold(x, dims):
+    """
+    Folds the specified coordinates.
+    """
+    x = np.array(x, dtype=int)
+    dims = np.array(dims, dtype=int)
+    k = len(dims)
+    n = np.sum(dims - 1) / 2
+    s = np.sum(x)
+    while s == n and k > 0:
+        k -= 1
+        assert k >= 0
+        n -= (dims[k] - 1) / 2
+        s -= x[k]
+    if s > n:
+        x = dims - 1 - x
+    assert np.all(x >= 0)
+    return tuple(x)
+
+
+def foldit(A):
+    B = np.zeros(A.shape)
+    dims = A.shape
+    inds = [range(k) for k in dims]
+    for ij in itertools.product(*inds):
+        nij = fold(ij, dims)
+        B[nij] += A[ij]
+    return B
+
+
+class TestFold(unittest.TestCase):
+    """
+    Tests for the fold operation used in the AFS.
+    """
+
+    def test_examples(self):
+        A = np.arange(12)
+        Af = np.array(
+            [11., 11., 11., 11., 11., 11.,  0.,  0.,  0.,  0.,  0.,  0.])
+
+        self.assertTrue(np.all(foldit(A) == Af))
+
+        B = A.copy().reshape(3, 4)
+        Bf = np.array([[11., 11., 11.,  0.],
+                       [11., 11.,  0.,  0.],
+                       [11.,  0.,  0.,  0.]])
+        self.assertTrue(np.all(foldit(B) == Bf))
+
+        C = A.copy().reshape(3, 2, 2)
+        Cf = np.array([[[11., 11.],
+                        [11., 11.]],
+                       [[11., 11.],
+                        [0.,  0.]],
+                       [[0.,  0.],
+                        [0.,  0.]]])
+        self.assertTrue(np.all(foldit(C) == Cf))
+
+        D = np.arange(9).reshape((3, 3))
+        Df = np.array([[8., 8., 8.],
+                       [8., 4., 0.],
+                       [0., 0., 0.]])
+        self.assertTrue(np.all(foldit(D) == Df))
+
+        E = np.arange(9)
+        Ef = np.array([8., 8., 8., 8., 4., 0., 0., 0., 0.])
+        self.assertTrue(np.all(foldit(E) == Ef))
+
+
 def naive_site_allele_frequency_spectrum(
         ts, sample_sets, windows=None, polarised=False, span_normalise=True):
     """
@@ -2587,10 +2710,7 @@ def naive_site_allele_frequency_spectrum(
     """
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     out = np.zeros([num_windows] + out_dim)
     G = ts.genotype_matrix()
     samples = ts.samples()
@@ -2605,17 +2725,20 @@ def naive_site_allele_frequency_spectrum(
             S = np.zeros(out_dim)
             if begin <= site.position < end:
                 g = G[site.id]
+                alleles = np.unique(g)
+
+                # Any site monomorphic across all samples does not contribute
+                if len(alleles) == 1:
+                    continue
+
                 # For each allele, count the number present in each sample set.
-                count = collections.defaultdict(
-                    functools.partial(np.zeros, len(sample_sets), dtype=int))
+                count = {
+                    allele: np.zeros(len(sample_sets), dtype=int)
+                    for allele in alleles}
                 for k, sample_set in enumerate(sample_set_indexes):
                     allele_counts = zip(*np.unique(g[sample_set], return_counts=True))
                     for allele, c in allele_counts:
-                        if polarised:
-                            count[allele][k] = c
-                        else:
-                            # Fold the allele counts
-                            count[allele][k] = min(c, len(sample_set) - c)
+                        count[allele][k] = c
                 increment = 0.5
                 if polarised:
                     increment = 1
@@ -2623,12 +2746,10 @@ def naive_site_allele_frequency_spectrum(
                     if 0 in count:
                         del count[0]
                 for allele_count in count.values():
-                    # TODO: clarify whether this is the right semantics when dealing with
-                    # https://github.com/tskit-dev/tskit/issues/263. Probably the right
-                    # thing to do is have an extra count over all samples here, if this
-                    # is what we do in the branch length case.
-                    if sum(allele_count) > 0:
-                        S[tuple(allele_count)] += increment
+                    x = tuple(allele_count)
+                    if not polarised:
+                        x = fold(x, out_dim)
+                    S[x] += increment
             if span_normalise:
                 S /= (end - begin)
             out[j, :] += S
@@ -2642,10 +2763,7 @@ def naive_branch_allele_frequency_spectrum(
     """
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     out = np.zeros([num_windows] + out_dim)
     for j in range(num_windows):
         begin = windows[j]
@@ -2660,15 +2778,14 @@ def naive_branch_allele_frequency_spectrum(
                 tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
                 if tr_len > 0:
                     for node in t.nodes():
-                        x = [tree.num_tracked_samples(node) for tree in trees]
-                        # Note x must be a tuple for indexing to work
-                        if polarised:
-                            S[tuple(x)] += t.branch_length(node) * tr_len
-                        else:
-                            x = [
-                                min(x[k], len(sample_set) - x[k])
-                                for k, sample_set in enumerate(sample_sets)]
-                            S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
+                        if 0 < t.num_samples(node) < ts.num_samples:
+                            x = [tree.num_tracked_samples(node) for tree in trees]
+                            # Note x must be a tuple for indexing to work
+                            if polarised:
+                                S[tuple(x)] += t.branch_length(node) * tr_len
+                            else:
+                                x = fold(x, out_dim)
+                                S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
 
                 # Advance the trees
                 more = [tree.next() for tree in trees]
@@ -2704,17 +2821,16 @@ def branch_allele_frequency_spectrum(
     num_sample_sets = len(sample_sets)
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     time = ts.tables.nodes.time
 
     result = np.zeros([num_windows] + out_dim)
     # Number of nodes in sample_set j ancestral to each node u.
-    count = np.zeros((ts.num_nodes, num_sample_sets), dtype=np.uint32)
+    count = np.zeros((ts.num_nodes, num_sample_sets + 1), dtype=np.uint32)
     for j in range(num_sample_sets):
         count[sample_sets[j], j] = 1
+    # The last column counts across all samples
+    count[ts.samples(), -1] = 1
     # contains the location of the last time we updated the output for a node.
     last_update = np.zeros((ts.num_nodes))
     window_index = 0
@@ -2723,16 +2839,14 @@ def branch_allele_frequency_spectrum(
     tree_index = 0
 
     def update_result(window_index, u, right):
-        x = (right - last_update[u]) * branch_length[u]
-        c = count[u]
-        if not polarised:
-            # Fold the counts
-            c = c.copy()
-            for k in range(num_sample_sets):
-                c[k] = min(c[k], len(sample_sets[k]) - c[k])
-            x *= 0.5
-        index = tuple([window_index] + list(c))
-        result[index] += x
+        if 0 < count[u, -1] < ts.num_samples:
+            x = (right - last_update[u]) * branch_length[u]
+            c = count[u, :num_sample_sets]
+            if not polarised:
+                c = fold(c, out_dim)
+                x *= 0.5
+            index = tuple([window_index] + list(c))
+            result[index] += x
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -2790,18 +2904,16 @@ def site_allele_frequency_spectrum(
     Efficient implementation of the algorithm used as the basis for the
     underlying C version.
     """
-    num_sample_sets = len(sample_sets)
     windows = ts.parse_windows(windows)
     num_windows = windows.shape[0] - 1
-    if polarised:
-        out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    else:
-        out_dim = [1 + len(sample_set) // 2 for sample_set in sample_sets]
+    out_dim = [1 + len(sample_set) for sample_set in sample_sets]
 
     result = np.zeros([num_windows] + out_dim)
+    # Add an extra sample set to count across all samples
+    sample_sets = list(sample_sets) + [ts.samples()]
     # Number of nodes in sample_set j ancestral to each node u.
-    count = np.zeros((ts.num_nodes, num_sample_sets), dtype=np.uint32)
-    for j in range(num_sample_sets):
+    count = np.zeros((ts.num_nodes, len(sample_sets)), dtype=np.uint32)
+    for j in range(len(sample_sets)):
         count[sample_sets[j], j] = 1
 
     site_index = 0
@@ -2831,7 +2943,7 @@ def site_allele_frequency_spectrum(
             assert t_left <= sites.position[site_index]
             ancestral_state = sites[site_index].ancestral_state
             allele_count = collections.defaultdict(
-                functools.partial(np.zeros, num_sample_sets, dtype=int))
+                functools.partial(np.zeros, len(sample_sets), dtype=int))
             allele_count[ancestral_state][:] = [
                 len(sample_set) for sample_set in sample_sets]
             while (
@@ -2845,8 +2957,6 @@ def site_allele_frequency_spectrum(
                 else:
                     allele_count[ancestral_state] -= count[mutation.node]
                 mutation_index += 1
-            if polarised:
-                del allele_count[ancestral_state]
 
             pos = sites.position[site_index]
             while windows[window_index + 1] <= pos:
@@ -2854,19 +2964,20 @@ def site_allele_frequency_spectrum(
             assert windows[window_index] <= pos < windows[window_index + 1]
             site_result = result[window_index]
 
+            for allele, c in dict(allele_count).items():
+                # Any allele monomorphic across all samples does not
+                # contribute to the AFS
+                if 0 == c[-1] or c[-1] == ts.num_samples:
+                    del allele_count[allele]
+            if polarised and ancestral_state in allele_count:
+                del allele_count[ancestral_state]
+
             increment = 1 if polarised else 0.5
             for allele, c in allele_count.items():
+                x = tuple(c[:-1])
                 if not polarised:
-                    # Fold the counts
-                    c = [
-                        min(c[k], len(sample_set) - c[k])
-                        for k, sample_set in enumerate(sample_sets)]
-                # TODO: clarify whether this is the right semantics when dealing with
-                # https://github.com/tskit-dev/tskit/issues/263. Probably the right
-                # thing to do is have an extra count over all samples here, if this
-                # is what we do in the branch length case.
-                if sum(c) > 0:
-                    site_result[tuple(c)] += increment
+                    x = fold(x, out_dim)
+                site_result[x] += increment
             site_index += 1
 
     if span_normalise:
@@ -2921,8 +3032,8 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
     def verify_sample_sets(self, ts, sample_sets, windows):
         # print(ts.genotype_matrix())
         # print(ts.draw_text())
+        # print("sample_sets = ", sample_sets)
         windows = ts.parse_windows(windows)
-        sample_sets = [ts.samples()]
         for span_normalise, polarised in itertools.product([True, False], [True, False]):
             sfs1 = naive_allele_frequency_spectrum(
                 ts, sample_sets, windows, mode=self.mode, polarised=polarised,
@@ -2936,16 +3047,18 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
             self.assertEqual(sfs1.shape[0], len(windows) - 1)
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             for j, sample_set in enumerate(sample_sets):
-                n = 1 + (len(sample_set) if polarised else len(sample_set) // 2)
+                n = 1 + len(sample_set)
                 self.assertEqual(sfs1.shape[j + 1], n)
 
             self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
             self.assertEqual(sfs1.shape, sfs2.shape)
             self.assertEqual(sfs1.shape, sfs3.shape)
-            # print()
-            # print("simple", sfs1)
-            # print("effic ", sfs2)
-            # print("ts    ", sfs3)
+            if not np.allclose(sfs1, sfs3):
+                print()
+                print("sample sets", sample_sets)
+                print("simple", sfs1)
+                print("effic ", sfs2)
+                print("ts    ", sfs3)
             self.assertArrayAlmostEqual(sfs1, sfs2)
             self.assertArrayAlmostEqual(sfs1, sfs3)
 
@@ -2965,14 +3078,6 @@ class TestBranchAlleleFrequencySpectrum(
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
 
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_non_sample_ancestry(self):
-        pass
-
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
-
 
 class TestSiteAlleleFrequencySpectrum(
         TestAlleleFrequencySpectrum, MutatedTopologyExamplesMixin):
@@ -2982,6 +3087,7 @@ class TestSiteAlleleFrequencySpectrum(
         ts = msprime.simulate(6, mutation_rate=0.2, random_seed=1)
         self.verify_single_sample_set(ts)
 
+        self.verify_sample_sets(ts, [[0]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2, 3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1, 2], [3, 4, 5]], [0, 1])
         self.verify_sample_sets(ts, [[0, 1], [2, 3], [4, 5]], [0, 1])
@@ -3002,23 +3108,21 @@ class TestBranchAlleleFrequencySpectrumProperties(StatsTestCase, TopologyExample
             examples += [
                 [S[:1], S[2:], S[:3]]
             ]
+        # This is the same definition that we use for segregating_sites
+        tbl = [
+            sum(
+                tree.branch_length(u) for u in tree.nodes()
+                if 0 < tree.num_samples(u) < ts.num_samples)
+            for tree in ts.trees()]
         for polarised in [True, False]:
             for sample_sets in examples:
                 afs = ts.allele_frequency_spectrum(
-                    sample_sets,  windows=windows, mode="branch", polarised=polarised)
+                    sample_sets,  windows=windows, mode="branch", polarised=polarised,
+                    span_normalise=True)
                 if not polarised:
                     afs *= 2
-                tbl = [tree.total_branch_length for tree in ts.trees()]
                 afs_sum = [np.sum(window) for window in afs]
                 self.assertArrayAlmostEqual(afs_sum, tbl)
-
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_non_sample_ancestry(self):
-        pass
-
-    @unittest.skip("clarify non sample ancestry, #263")
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        pass
 
 
 ############################################

@@ -7109,7 +7109,7 @@ TreeSequence_allele_frequency_spectrum(TreeSequence *self, PyObject *args, PyObj
     sizes = PyArray_DATA(sample_set_sizes_array);
     shape[0] = num_windows;
     for (k = 0; k < num_sample_sets; k++) {
-        shape[k + 1] = 1 + (polarised? sizes[k]: sizes[k] / 2);
+        shape[k + 1] = 1 + sizes[k];
     }
     result_array = (PyArrayObject *) PyArray_SimpleNew(1 + num_sample_sets, shape, NPY_FLOAT64);
     if (result_array == NULL) {
