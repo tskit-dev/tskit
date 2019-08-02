@@ -1682,6 +1682,8 @@ class TableCollection(object):
 
         The following table shows which ``parent->child`` pairs will be shown in the
         output of ``map_ancestors``.
+        A node is a relevant descendant on a given interval if it also appears somewhere
+        in the ``parent`` column of the outputted table.
 
         | Type of relationship     | Shown in output of ``map_ancestors``            |
         | ------------------------ | ----------------------------------------------- |
@@ -1697,10 +1699,12 @@ class TableCollection(object):
         The node IDs in ``parent`` and ``child`` refer to the IDs in the node table
         of the inputted tree sequence.
 
-        The supplied nodes must be non-empty lists of the node IDs in the tree sequence.
-        The lists of ``samples`` and ``ancestors`` may overlap.
-        If ``samples`` and ``ancestors`` are the same list of nodes, the function will
-        find all genealogical relationships within this list.
+        The supplied nodes must be non-empty lists of the node IDs in the tree sequence:
+        in particular, they do not have to be *samples* of the tree sequence. The lists
+        of ``samples`` and ``ancestors`` may overlap, although adding a node from
+        ``samples`` to ``ancestors`` will not change the output. So, setting ``samples``
+        and ``ancestors`` to the same list of nodes will find all genealogical
+        relationships within this list.
 
         If none of the nodes in ``ancestors`` or ``samples`` are ancestral to ``samples``
         anywhere in the tree sequence, an empty table will be returned.
