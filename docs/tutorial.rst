@@ -934,9 +934,9 @@ Thus, the total branch length over example one sample is 4.86, over two is
 
 .. _sec_tutorial_afs_zeroth_entry:
 
-+++++++++++++++++++++++
-Zeroth entry in the AFS
-+++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++
+Zeroth and final entries in the AFS
++++++++++++++++++++++++++++++++++++
 
 The zeroth element of the AFS is significant when we are working with
 sample sets that are a subset of all samples in the tree sequence.
@@ -954,7 +954,7 @@ Thus, the total branch length over 0, 1 and 2 is 5.3, and over pairs from this s
 is 5.25. What does the zeroth value of 4.33 signify? This is the total branch length
 over all samples that are **not** in this sample set. By including this value, we
 maintain the property that for each tree, the sum of the AFS for any sample set
-is alway equal to the total branch length. For example, here we compute::
+is always equal to the total branch length. For example, here we compute::
 
     print("sum afs          = ", np.sum(afs))
     print("total branch len = ", tree.total_branch_length)
@@ -963,3 +963,9 @@ getting::
 
     sum afs          =  14.884117086717392
     total branch len =  14.884117086717396
+
+The final entry of the AFS is similar: it counts alleles (for mode="site") or
+branches (for mode="branch") that are ancestral to all of the given sample set,
+but are still polymorphic in the entire set of samples of the tree sequence.
+Note, however, that alleles fixed among all the samples, e.g., ones above
+the root of the tree, will not be included.

@@ -246,6 +246,7 @@ grouped by basic classification and type.
 Single site statistics
 ++++++++++++++++++++++
 
+- :meth:`.TreeSequence.allele_frequency_spectrum`
 - :meth:`.TreeSequence.diversity`
 - :meth:`.TreeSequence.divergence`
 - :meth:`.TreeSequence.segregating_sites`

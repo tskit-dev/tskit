@@ -3759,11 +3759,10 @@ class TreeSequence(object):
         """
         Computes the allele frequency spectrum (AFS) in windows across the genome for
         with respect to the specified ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``windows``, ``mode``, ``span_normalise`` and ``polarised``.
+        details of ``windows``, ``mode``, ``span_normalise`` and ``polarised``,
+        and see :ref:`sec_tutorial_afs` for examples of how to use this method.
 
-        Please see the :ref:`sec_tutorial_afs` for examples of how to use this method.
-
-        Similar to other windowed stats, the first dimension in the returned array is
+        Similar to other windowed stats, the first dimension in the returned array
         corresponds to windows, such that ``result[i]`` is the AFS in the ith
         window. The AFS in each window is a k-dimensional numpy array, where k is
         the number of input sample sets, such that ``result[i, j0, j1, ...]`` is the
@@ -3775,13 +3774,14 @@ class TreeSequence(object):
         If a single sample set is specified, the allele frequency spectrum within
         this set is returned, such that ``afs[j]`` is the value associated with
         frequency ``j``. Thus, singletons are counted in ``afs[1]``, doubletons in
-        ``afs[2]``, and so on.
+        ``afs[2]``, and so on. The zeroth entry counts alleles or branches not
+        seen in the samples but that are polymorphic among the rest of the samples
+        of the tree sequence; likewise, the last entry counts alleles fixed in
+        the sample set but polymorphic in the entire set of samples. Please see
+        the :ref:`sec_tutorial_afs_zeroth_entry` for an illustration.
 
         .. warning:: Please note that singletons are **not** counted in the initial
-            entry in each AFS array (i.e., ``afs[0]``), but in ``afs[1]``. The
-            zeroth entry in the AFS can usually be omitted, but is significant
-            when subsets of all samples are provided as input. Please see
-            the :ref:`sec_tutorial_afs_zeroth_entry` for an illustration.
+            entry in each AFS array (i.e., ``afs[0]``), but in ``afs[1]``.
 
         If ``sample_sets`` is None (the default), the allele frequency spectrum
         for all samples in the tree sequence is returned.
@@ -3813,10 +3813,6 @@ class TreeSequence(object):
 
         "node"
             Not supported for this method (raises a ValueError).
-
-        The method does *not* currently count the number of fixed alleles
-        (for "site") or the length of branches above the root (for "branch"),
-        so the final entry is always zero.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of samples to compute the joint allele frequency
