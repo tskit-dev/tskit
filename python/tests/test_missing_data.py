@@ -22,101 +22,59 @@
 """
 Test cases for missing data.
 """
-import bisect
 import unittest
 
 import numpy as np
 import msprime
 
-
 import tskit
+import tests.tsutil as tsutil
+import tests.test_wright_fisher as wf
 
 
-def get_ancestral_haplotypes(ts):
+def naive_get_ancestral_haplotypes(ts):
     """
-    Returns a numpy array of the haplotypes of the ancestors in the
-    specified tree sequence.
+    Simple implementation using tree traversals. Note that this definition
+    won't work when we have topology that's not reachable from a root,
+    but this seems more trouble than it's worth dealing with.
     """
-    tables = ts.dump_tables()
-    nodes = tables.nodes
-    flags = nodes.flags[:]
-    flags[:] = 1
-    nodes.set_columns(time=nodes.time, flags=flags)
-
-    sites = tables.sites.position
-    tsp = tables.tree_sequence()
-    B = tsp.genotype_matrix().T
-
     A = np.zeros((ts.num_nodes, ts.num_sites), dtype=np.int8)
     A[:] = tskit.MISSING_DATA
-    for edge in ts.edges():
-        start = bisect.bisect_left(sites, edge.left)
-        end = bisect.bisect_right(sites, edge.right)
-        if sites[end - 1] == edge.right:
-            end -= 1
-        A[edge.parent, start:end] = B[edge.parent, start:end]
-    A[:ts.num_samples] = B[:ts.num_samples]
+    for t in ts.trees():
+        for site in t.sites():
+            alleles = {site.ancestral_state: 0}
+            for u in t.nodes():
+                A[u, site.id] = 0
+            j = 1
+            for mutation in site.mutations:
+                if mutation.derived_state not in alleles:
+                    alleles[mutation.derived_state] = j
+                    j += 1
+                for u in t.nodes(mutation.node):
+                    A[u, site.id] = alleles[mutation.derived_state]
     return A
-
 
 
 class TestGetAncestralHaplotypes(unittest.TestCase):
     """
     Tests for the engine to the actual ancestors from a simulation.
     """
-    def get_matrix(self, ts):
-        """
-        Simple implementation using tree traversals.
-        """
-        A = np.zeros((ts.num_nodes, ts.num_sites), dtype=np.int8)
-        A[:] = tskit.MISSING_DATA
-        for t in ts.trees():
-            for site in t.sites():
-                for u in t.nodes():
-                    A[u, site.id] = 0
-                for mutation in site.mutations:
-                    # Every node underneath this node will have the value set
-                    # at this site.
-                    for u in t.nodes(mutation.node):
-                        A[u, site.id] = 1
-        return A
-
-    def verify_samples(self, ts, A):
-        # Samples should be nodes rows 0 to n - 1, and should be equal to
-        # the genotypes.
-        G = ts.genotype_matrix()
-        self.assertTrue(np.array_equal(G.T, A[:ts.num_samples]))
-
-    def verify_haplotypes(self, ts, A):
-        self.verify_samples(ts, A)
-        for tree in ts.trees():
-            for site in tree.sites():
-                self.assertEqual(len(site.mutations), 1)
-                mutation = site.mutations[0]
-                below = np.array(list(tree.nodes(mutation.node)), dtype=int)
-                self.assertTrue(np.all(A[below, site.id] == 1))
-                above = np.array(list(
-                    set(tree.nodes()) - set(tree.nodes(mutation.node))), dtype=int)
-                self.assertTrue(np.all(A[above, site.id] == 0))
-                outside = np.array(list(
-                    set(range(ts.num_nodes)) - set(tree.nodes())), dtype=int)
-                self.assertTrue(np.all(A[outside, site.id] == tskit.MISSING_DATA))
 
     def verify(self, ts):
-        A = get_ancestral_haplotypes(ts)
-        B = self.get_matrix(ts)
-        # Build the matrix using the variants iterator
-        nodes = np.arange(ts.num_nodes, dtype=np.int32)
-        # C = np.zeros((ts.num_nodes, ts.num_sites), dtype=np.int8)
-        # for var in ts.variants(samples=nodes):
-        #     C[:, var.index] = var.genotypes
-        # print(C)
+        A = naive_get_ancestral_haplotypes(ts)
+        # To detect missing data in ancestors we must set all nodes
+        # to be samples
+        tables = ts.dump_tables()
+        nodes = tables.nodes
+        flags = nodes.flags[:]
+        flags[:] = 1
+        nodes.set_columns(time=nodes.time, flags=flags)
+        ts = tables.tree_sequence()
+        B = ts.genotype_matrix().T
         self.assertTrue(np.array_equal(A, B))
-        # self.assertTrue(np.array_equal(A, C))
-        self.verify_haplotypes(ts, A)
 
     def test_single_tree(self):
-        ts = msprime.simulate(5, mutation_rate=10, random_seed=234)
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=234)
         self.verify(ts)
 
     def test_many_trees(self):
@@ -124,4 +82,47 @@ class TestGetAncestralHaplotypes(unittest.TestCase):
             8, recombination_rate=10, mutation_rate=10, random_seed=234)
         self.assertGreater(ts.num_trees, 1)
         self.assertGreater(ts.num_sites, 1)
+        self.verify(ts)
+
+    def test_single_tree_jukes_cantor(self):
+        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
+        ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
+        self.verify(ts)
+
+    def test_single_tree_multichar_mutations(self):
+        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
+        ts = tsutil.insert_multichar_mutations(ts)
+        self.verify(ts)
+
+    def test_many_trees_infinite_sites(self):
+        ts = msprime.simulate(6, recombination_rate=2, mutation_rate=2, random_seed=1)
+        self.assertGreater(ts.num_sites, 0)
+        self.assertGreater(ts.num_trees, 2)
+        self.verify(ts)
+
+    def test_wright_fisher_initial_generation(self):
+        tables = wf.wf_sim(
+            6, 5, seed=3, deep_history=True, initial_generation_samples=True,
+            num_loci=2)
+        tables.sort()
+        tables.simplify()
+        ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
+        self.assertGreater(ts.num_sites, 0)
+        self.verify(ts)
+
+    def test_wright_fisher_simplified(self):
+        tables = wf.wf_sim(
+            9, 10, seed=1, deep_history=True, initial_generation_samples=False,
+            num_loci=5)
+        tables.sort()
+        ts = tables.tree_sequence().simplify()
+        ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
+        self.assertGreater(ts.num_sites, 0)
+        self.verify(ts)
+
+    def test_empty_ts(self):
+        tables = tskit.TableCollection(1.0)
+        for _ in range(10):
+            tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        ts = tables.tree_sequence()
         self.verify(ts)
