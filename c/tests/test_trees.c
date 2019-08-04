@@ -1414,7 +1414,7 @@ test_simplest_holey_tree_sequence(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 3);
 
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1524,7 +1524,7 @@ test_simplest_initial_gap_tree_sequence(void)
 
     verify_trees(&ts, num_trees, parents);
 
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1731,7 +1731,7 @@ test_simplest_final_gap_tree_sequence(void)
 
     verify_trees(&ts, num_trees, parents);
 
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -4904,7 +4904,7 @@ test_zero_edges(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&tss), 1);
     tsk_treeseq_print_state(&ts, _devnull);
 
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -4916,9 +4916,6 @@ test_zero_edges(void)
     tsk_treeseq_free(&ts);
     tsk_treeseq_free(&tss);
 }
-
-
-
 
 int
 main(int argc, char **argv)

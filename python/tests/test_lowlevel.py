@@ -1138,6 +1138,18 @@ class TestVariantGenerator(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         self.verify_iterator(_tskit.VariantGenerator(ts))
 
+    def test_missing_data(self):
+        tables = _tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.sites.add_row(0.1, "A")
+        ts = _tskit.TreeSequence(0)
+        ts.load_tables(tables)
+        variant = list(_tskit.VariantGenerator(ts))[0]
+        _, genotypes, alleles = variant
+        self.assertTrue(np.all(genotypes == -1))
+        self.assertEqual(alleles, ("A", None))
+
 
 class TestHaplotypeGenerator(LowLevelTestCase):
     """

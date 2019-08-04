@@ -339,7 +339,7 @@ class Variant(SimpleContainer):
     :vartype site: :class:`.Site`
     :ivar alleles: A tuple of the allelic values that may be observed at the
         samples at the current site. The first element of this tuple is always
-        the sites's ancestral state.
+        the site's ancestral state.
     :vartype alleles: tuple(str)
     :ivar genotypes: An array of indexes into the list ``alleles``, giving the
         state of each sample at the current site.
@@ -348,6 +348,8 @@ class Variant(SimpleContainer):
     def __init__(self, site, alleles, genotypes):
         self.site = site
         self.alleles = alleles
+        self.has_missing_data = alleles[-1] is None
+        self.num_alleles = len(alleles) - self.has_missing_data
         self.genotypes = genotypes
         # Deprecated aliases to avoid breaking existing code.
         self.position = site.position

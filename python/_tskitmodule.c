@@ -475,7 +475,7 @@ make_alleles(tsk_variant_t *variant)
     PyObject *item, *t;
     size_t j;
 
-    t = PyTuple_New(variant->num_alleles);
+    t = PyTuple_New(variant->num_alleles + variant->has_missing_data);
     if (t == NULL) {
         goto out;
     }
@@ -486,6 +486,14 @@ make_alleles(tsk_variant_t *variant)
             goto out;
         }
         PyTuple_SET_ITEM(t, j, item);
+    }
+    if (variant->has_missing_data) {
+        item = Py_BuildValue("");
+        if (item == NULL) {
+            Py_DECREF(t);
+            goto out;
+        }
+        PyTuple_SET_ITEM(t, variant->num_alleles, item);
     }
     ret = t;
 out:
