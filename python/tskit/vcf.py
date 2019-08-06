@@ -24,6 +24,7 @@
 Convert tree sequences to VCF.
 """
 import math
+import time
 
 import numpy as np
 
@@ -69,7 +70,7 @@ def write_vcf(ts, output, ploidy=1, contig_id="1"):
     gt_array[-1] = ord("\n")
     str_dtype = "U{}".format(len(gt_array))
     # TODO assuming that unicode array is int32. Can we do this better?
-    gt_array = np.array(gt_array, dtype=np.int32)
+    gt_array = np.array(gt_array, dtype=np.int8)
     indexes = np.array(indexes)
 
     for variant in ts.variants():
@@ -79,7 +80,8 @@ def write_vcf(ts, output, ploidy=1, contig_id="1"):
             sep="\t", end="\t", file=output)
         # This assumes we're using utf-8. We could get the correct encoding
         # via the file object, presumably.
-        ascii_genotypes = variant.genotypes + ord("0")
-        gt_array[indexes] = ascii_genotypes
-        str_view = gt_array.view(dtype=str_dtype)
-        print(str_view[0], end="", file=output)
+        variant.genotypes += ord("0")
+        gt_array[indexes] = variant.genotypes
+        g_bytes = memoryview(gt_array).tobytes()
+        g_str = g_bytes.decode()
+        print(g_str, end="", file=output)
