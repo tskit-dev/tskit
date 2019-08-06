@@ -340,6 +340,10 @@ class TestTreeSequence(LowLevelTestCase):
             num_sites = ts.get_num_sites()
             G = ts.get_genotype_matrix()
             self.assertEqual(G.shape, (num_sites, num_samples))
+            self.assertRaises(
+                    TypeError, ts.get_genotype_matrix, impute_missing_data=None)
+            G = ts.get_genotype_matrix(impute_missing_data=True)
+            self.assertEqual(G.shape, (num_sites, num_samples))
 
     def test_get_migration_interface(self):
         ts = self.get_example_migration_tree_sequence()
@@ -1126,11 +1130,25 @@ class TestVariantGenerator(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         self.assertRaises(ValueError, _tskit.VariantGenerator, ts, samples={})
         self.assertRaises(
+            TypeError, _tskit.VariantGenerator, ts, impute_missing_data=None)
+        self.assertRaises(
             _tskit.LibraryError, _tskit.VariantGenerator, ts, samples=[-1, 2])
 
     def test_iterator(self):
         ts = self.get_example_tree_sequence()
         self.verify_iterator(_tskit.VariantGenerator(ts))
+
+    def test_missing_data(self):
+        tables = _tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.sites.add_row(0.1, "A")
+        ts = _tskit.TreeSequence(0)
+        ts.load_tables(tables)
+        variant = list(_tskit.VariantGenerator(ts))[0]
+        _, genotypes, alleles = variant
+        self.assertTrue(np.all(genotypes == -1))
+        self.assertEqual(alleles, ("A", None))
 
 
 class TestHaplotypeGenerator(LowLevelTestCase):
@@ -1143,7 +1161,9 @@ class TestHaplotypeGenerator(LowLevelTestCase):
 
     def test_constructor(self):
         self.assertRaises(TypeError, _tskit.HaplotypeGenerator)
-        self.assertRaises(TypeError, _tskit.HaplotypeGenerator, None)
+        self.assertRaises(
+            TypeError, _tskit.HaplotypeGenerator, impute_missing_data=None)
+        self.assertRaises(TypeError, _tskit.HaplotypeGenerator, True, None)
 
     def test_bad_id(self):
         ts = self.get_example_tree_sequence()

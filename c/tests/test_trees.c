@@ -434,7 +434,7 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
 
     ret = tsk_vargen_init(&vargen, ts, NULL, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_vargen_init(&subset_vargen, subset, NULL, 0, 0);
+    ret = tsk_vargen_init(&subset_vargen, subset, NULL, 0, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(m, tsk_treeseq_get_num_sites(subset));
 
@@ -1006,7 +1006,7 @@ test_simplest_non_sample_leaf_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 4);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_hapgen_get_haplotype(&hapgen, 0, &haplotype);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1222,7 +1222,7 @@ test_simplest_root_mutations(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 1);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1279,7 +1279,7 @@ test_simplest_back_mutations(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1345,7 +1345,7 @@ test_simplest_general_samples(void)
     CU_ASSERT_EQUAL(s[0], 0);
     CU_ASSERT_EQUAL(s[1], 2);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1363,7 +1363,7 @@ test_simplest_general_samples(void)
     CU_ASSERT_EQUAL(s[0], 0);
     CU_ASSERT_EQUAL(s[1], 1);
 
-    ret = tsk_hapgen_init(&hapgen, &simplified);
+    ret = tsk_hapgen_init(&hapgen, &simplified, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1414,7 +1414,7 @@ test_simplest_holey_tree_sequence(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 3);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1524,7 +1524,7 @@ test_simplest_initial_gap_tree_sequence(void)
 
     verify_trees(&ts, num_trees, parents);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -1731,7 +1731,7 @@ test_simplest_final_gap_tree_sequence(void)
 
     verify_trees(&ts, num_trees, parents);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -4904,7 +4904,7 @@ test_zero_edges(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&tss), 1);
     tsk_treeseq_print_state(&ts, _devnull);
 
-    ret = tsk_hapgen_init(&hapgen, &ts);
+    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_hapgen_print_state(&hapgen, _devnull);
     for (j = 0; j < 2; j++) {
@@ -4916,9 +4916,6 @@ test_zero_edges(void)
     tsk_treeseq_free(&ts);
     tsk_treeseq_free(&tss);
 }
-
-
-
 
 int
 main(int argc, char **argv)

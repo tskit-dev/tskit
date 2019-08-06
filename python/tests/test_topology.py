@@ -422,7 +422,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         self.assertEqual(t.root, 0)
         self.assertEqual(t.parent_dict, {})
         self.assertEqual(list(t.nodes()), [0])
-        self.assertEqual(list(ts.haplotypes()), [""])
+        self.assertEqual(list(ts.haplotypes(impute_missing_data=True)), [""])
         self.assertEqual(list(ts.variants()), [])
         methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
         for method in methods:
@@ -454,7 +454,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         self.assertEqual(t.root, 0)
         self.assertEqual(t.parent_dict, {})
         self.assertEqual(list(t.nodes()), [0])
-        self.assertEqual(list(ts.haplotypes()), ["1"])
+        self.assertEqual(list(ts.haplotypes(impute_missing_data=True)), ["1"])
         self.assertEqual(len(list(ts.variants())), 1)
         methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
         for method in methods:
@@ -1602,9 +1602,10 @@ class TestMultipleRoots(TopologyTestCase):
         t = next(ts.trees())
         self.assertEqual(t.parent_dict, {})
         self.assertEqual(sorted(t.roots), [0, 1])
-        self.assertEqual(list(ts.haplotypes()), ["10", "01"])
+        self.assertEqual(list(ts.haplotypes(impute_missing_data=True)), ["10", "01"])
         self.assertEqual(
-            [v.genotypes for v in ts.variants(as_bytes=True)], [b"10", b"01"])
+            [v.genotypes for v in ts.variants(as_bytes=True, impute_missing_data=True)],
+            [b"10", b"01"])
         simplified = ts.simplify()
         t1 = ts.dump_tables()
         t2 = simplified.dump_tables()
@@ -1829,9 +1830,12 @@ class TestMultipleRoots(TopologyTestCase):
         self.assertEqual(list(ts.haplotypes()), haplotypes)
         self.assertEqual([v.genotypes for v in ts.variants(as_bytes=True)], variants)
         ts_simplified = ts.simplify(filter_sites=False)
-        self.assertEqual(list(ts_simplified.haplotypes()), haplotypes)
         self.assertEqual(
-            [v.genotypes for v in ts_simplified.variants(as_bytes=True)], variants)
+            list(ts_simplified.haplotypes(impute_missing_data=True)), haplotypes)
+        self.assertEqual(
+            variants, [
+                v.genotypes for v in
+                ts_simplified.variants(as_bytes=True, impute_missing_data=True)])
 
     def test_break_single_tree(self):
         # Take a single largish tree from tskit, and remove the oldest record.
@@ -3200,7 +3204,7 @@ class TestSimplify(unittest.TestCase):
             tss, node_map = self.do_simplify(ts, keep_unary=keep)
             self.assertEqual(tss.num_sites, 1)
             self.assertEqual(tss.num_mutations, 2)
-            self.assertEqual(list(tss.haplotypes()), ["0"])
+            self.assertEqual(list(tss.haplotypes(impute_missing_data=True)), ["0"])
 
     def test_many_mutations_over_single_sample_derived_state(self):
         nodes = io.StringIO("""\
@@ -3232,7 +3236,7 @@ class TestSimplify(unittest.TestCase):
             tss, node_map = self.do_simplify(ts, keep_unary=keep)
             self.assertEqual(tss.num_sites, 1)
             self.assertEqual(tss.num_mutations, 3)
-            self.assertEqual(list(tss.haplotypes()), ["1"])
+            self.assertEqual(list(tss.haplotypes(impute_missing_data=True)), ["1"])
 
     def test_many_trees_filter_zero_mutations(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=10)
@@ -3388,10 +3392,10 @@ class TestSimplify(unittest.TestCase):
         sub_ts, node_map = self.do_simplify(
             ts, samples, filter_sites=False, keep_unary=keep_unary)
         self.assertEqual(ts.num_sites, sub_ts.num_sites)
-        sub_haplotypes = list(sub_ts.haplotypes())
+        sub_haplotypes = list(sub_ts.haplotypes(impute_missing_data=True))
         all_samples = list(ts.samples())
         k = 0
-        for j, h in enumerate(ts.haplotypes()):
+        for j, h in enumerate(ts.haplotypes(impute_missing_data=True)):
             if k == len(samples):
                 break
             if samples[k] == all_samples[j]:

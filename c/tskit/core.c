@@ -356,6 +356,17 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_GENOTYPE:
             ret = "Bad genotype value provided";
             break;
+
+        /* Missing data errors */
+        case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
+            ret = "Cannot generate genotypes for non-samples unless missing data "
+                    "imputation is enabled";
+            break;
+        case TSK_ERR_MUST_IMPUTE_HAPLOTYPES:
+            ret = "Generated haplotypes contain missing data, which cannot be "
+                "represented. Either generate variants (which support missing "
+                "data) or use the impute missing data option.";
+            break;
     }
     return ret;
 }

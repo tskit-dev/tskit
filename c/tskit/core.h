@@ -217,6 +217,10 @@ of tskit.
 #define TSK_ERR_GENOTYPES_ALL_MISSING                              -1000
 #define TSK_ERR_BAD_GENOTYPE                                       -1001
 
+/* Missing data errors */
+#define TSK_ERR_MUST_IMPUTE_NON_SAMPLES                            -1100
+#define TSK_ERR_MUST_IMPUTE_HAPLOTYPES                             -1101
+
 
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14

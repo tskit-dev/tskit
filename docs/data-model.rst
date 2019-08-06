@@ -852,6 +852,34 @@ they occur, because these operations have the following properties:
 7. ``compute_mutation_parents`` fills in the ``parent`` information by using
     property (1).
 
+.. _sec_data_model_missing_data:
+
+************
+Missing data
+************
+
+Missing data is encoding in tskit using the idea of *isolated samples*. An
+isolated sample is a sample node (see :ref:`sec_data_model_definitions`)
+that has no children and no parent, in a particular tree. This is encodes
+the idea that we don't know anything about a given sample over a specific
+interval. This definition covers the standard idea of missing data in
+genomics (where we do not know the sequence of a given contemporary sample at
+some site, for whatever reason), but also more generally the idea that
+we may not know anything about large sections of the genomes of ancestral
+samples.
+
+Consider the following example:
+
+.. image:: _static/missing_data1.svg
+   :width: 200px
+   :alt: A tree with an isolated sample
+
+
+In this tree, node 4 is isolated, and therefore for any sites that are
+on this tree, the state that it is assigned is a special value
+``tskit.MISSING_DATA``, or ``-1``. See the :meth:`TreeSequence.variants`
+method and :class:`.Variant` class for more information on how missing
+data is represented.
 
 .. _sec_text_file_format:
 

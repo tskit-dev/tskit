@@ -165,7 +165,17 @@ def allele_frequency_spectra():
     print("sum afs          = ", np.sum(afs))
     print("total branch len = ", tree.total_branch_length)
 
+def missing_data():
+
+    ts = msprime.simulate(4, random_seed=2)
+    tables = ts.dump_tables()
+    tables.nodes.add_row(time=0, flags=1)
+    tables.simplify()
+    ts = tables.tree_sequence()
+    tree = ts.first()
+    tree.draw("_static/missing_data1.svg")
 
 # moving_along_tree_sequence()
 # parsimony()
-allele_frequency_spectra()
+# allele_frequency_spectra()
+missing_data()

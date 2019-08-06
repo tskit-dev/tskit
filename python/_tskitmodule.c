@@ -475,7 +475,7 @@ make_alleles(tsk_variant_t *variant)
     PyObject *item, *t;
     size_t j;
 
-    t = PyTuple_New(variant->num_alleles);
+    t = PyTuple_New(variant->num_alleles + variant->has_missing_data);
     if (t == NULL) {
         goto out;
     }
@@ -486,6 +486,14 @@ make_alleles(tsk_variant_t *variant)
             goto out;
         }
         PyTuple_SET_ITEM(t, j, item);
+    }
+    if (variant->has_missing_data) {
+        item = Py_BuildValue("");
+        if (item == NULL) {
+            Py_DECREF(t);
+            goto out;
+        }
+        PyTuple_SET_ITEM(t, variant->num_alleles, item);
     }
     ret = t;
 out:
@@ -7342,9 +7350,10 @@ out:
 }
 
 static PyObject *
-TreeSequence_get_genotype_matrix(TreeSequence  *self)
+TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
+    static char *kwlist[] = {"impute_missing_data", NULL};
     int err;
     size_t num_sites;
     size_t num_samples;
@@ -7354,11 +7363,19 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
     char *V;
     tsk_variant_t *variant;
     size_t j;
-
-    /* TODO add option for 16 bit genotypes */
+    int impute_missing_data = 0;
+    tsk_flags_t options = 0;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
+    }
+
+    /* TODO add option for 16 bit genotypes */
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &impute_missing_data)) {
+        goto out;
+    }
+    if (impute_missing_data) {
+        options |= TSK_IMPUTE_MISSING_DATA;
     }
     num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
     num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
@@ -7375,7 +7392,7 @@ TreeSequence_get_genotype_matrix(TreeSequence  *self)
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, 0);
+    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -7521,7 +7538,8 @@ static PyMethodDef TreeSequence_methods[] = {
     {"f4",
         (PyCFunction) TreeSequence_f4,
         METH_VARARGS|METH_KEYWORDS, "Computes the f4 statistic." },
-    {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix, METH_NOARGS,
+    {"get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix,
+        METH_VARARGS|METH_KEYWORDS,
         "Returns the genotypes matrix." },
     {NULL}  /* Sentinel */
 };
@@ -8912,13 +8930,15 @@ HaplotypeGenerator_init(HaplotypeGenerator *self, PyObject *args, PyObject *kwds
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", NULL};
+    static char *kwlist[] = {"tree_sequence", "impute_missing_data", NULL};
     TreeSequence *tree_sequence;
+    int impute_missing_data = 0;
+    tsk_flags_t options = 0;
 
     self->haplotype_generator = NULL;
     self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!", kwlist,
-            &TreeSequenceType, &tree_sequence)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|i", kwlist,
+            &TreeSequenceType, &tree_sequence, &impute_missing_data)) {
         goto out;
     }
     self->tree_sequence = tree_sequence;
@@ -8931,9 +8951,11 @@ HaplotypeGenerator_init(HaplotypeGenerator *self, PyObject *args, PyObject *kwds
         PyErr_NoMemory();
         goto out;
     }
-    memset(self->haplotype_generator, 0, sizeof(tsk_hapgen_t));
+    if (impute_missing_data) {
+        options |= TSK_IMPUTE_MISSING_DATA;
+    }
     err = tsk_hapgen_init(self->haplotype_generator,
-            self->tree_sequence->tree_sequence);
+            self->tree_sequence->tree_sequence, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9051,20 +9073,25 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "samples", NULL};
+    static char *kwlist[] = {"tree_sequence", "samples", "impute_missing_data", NULL};
     TreeSequence *tree_sequence = NULL;
     PyObject *samples_input = Py_None;
     PyArrayObject *samples_array = NULL;
     tsk_id_t *samples = NULL;
     size_t num_samples = 0;
+    int impute_missing_data = 0;
     npy_intp *shape;
+    tsk_flags_t options = 0;
 
     /* TODO add option for 16 bit genotypes */
     self->variant_generator = NULL;
     self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|O", kwlist,
-            &TreeSequenceType, &tree_sequence, &samples_input)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Oi", kwlist,
+            &TreeSequenceType, &tree_sequence, &samples_input, &impute_missing_data)) {
         goto out;
+    }
+    if (impute_missing_data) {
+        options |= TSK_IMPUTE_MISSING_DATA;
     }
     self->tree_sequence = tree_sequence;
     Py_INCREF(self->tree_sequence);
@@ -9090,7 +9117,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
      * to avoid this we would INCREF the samples array above and keep a reference
      * to in the object struct */
     err = tsk_vargen_init(self->variant_generator,
-            self->tree_sequence->tree_sequence, samples, num_samples, 0);
+            self->tree_sequence->tree_sequence, samples, num_samples, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
