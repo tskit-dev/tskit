@@ -229,6 +229,7 @@ class TestVariantGenerator(unittest.TestCase):
                 self.assertRaises(exceptions.LibraryError, next, ts.variants())
             else:
                 var = next(ts.variants())
+                self.assertFalse(var.has_missing_data)
                 self.assertEqual(var.num_alleles, num_alleles)
                 self.assertEqual(len(var.alleles), num_alleles)
                 self.assertEqual(list(var.alleles), alleles[:num_alleles])
@@ -259,6 +260,7 @@ class TestVariantGenerator(unittest.TestCase):
                 self.assertRaises(exceptions.LibraryError, next, ts.variants())
             else:
                 var = next(ts.variants())
+                self.assertTrue(var.has_missing_data)
                 self.assertEqual(var.num_alleles, num_alleles)
                 self.assertEqual(len(var.alleles), num_alleles + 1)
                 self.assertEqual(list(var.alleles)[:-1], alleles[:num_alleles])
@@ -385,6 +387,7 @@ class TestVariantGenerator(unittest.TestCase):
         self.assertTrue(np.array_equal(ts.genotype_matrix(), ts.genotype_matrix()))
         tree = ts.first()
         for variant in ts.variants():
+            self.assertFalse(variant.has_missing_data)
             mutations = {
                 mutation.node: mutation.derived_state
                 for mutation in variant.site.mutations}

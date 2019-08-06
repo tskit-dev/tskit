@@ -309,7 +309,7 @@ class Population(SimpleContainer):
 
 class Variant(SimpleContainer):
     """
-    A variant represents the observed variation among the samples
+    A variant represents the observed variation among samples
     for a given site. A variant consists (a) of a reference to the
     :class:`.Site` instance in question; (b) the **alleles** that may be
     observed at the samples for this site; and (c) the **genotypes**
@@ -324,13 +324,26 @@ class Variant(SimpleContainer):
     (i.e., we have a mutation over the tree root), all genotypes will be 1, but
     the alleles list will be equal to ``('0', '1')``. Other than the
     ancestral state being the first allele, the alleles are listed in
-    no particular order, and the ordering should not be relied upon.
+    no particular order, and the ordering should not be relied upon
+    (but see the notes on missing data below).
 
     The ``genotypes`` represent the observed allelic states for each sample,
     such that ``var.alleles[var.genotypes[j]]`` gives the string allele
     for sample ID ``j``. Thus, the elements of the genotypes array are
     indexes into the ``alleles`` list. The genotypes are provided in this
     way via a numpy array to enable efficient calculations.
+
+    When :ref:`missing data<sec_data_model_missing_data>` is present at a given
+    site boolean flag ``has_missing_data`` will be True, at least one element
+    of the ``genotypes`` array will be equal to ``tskit.MISSING_DATA``, and the
+    last element of the ``alleles`` array will be ``None``. Note that in this
+    case ``variant.num_alleles`` will **not** be equal to
+    ``len(variant.alleles)``. The rationale for adding ``None`` to the end of
+    the ``alleles`` list is to help code that does not handle missing data
+    correctly fail early rather than introducing subtle and hard-to-find bugs.
+    As ``tskit.MISSING_DATA`` is equal to -1, code that decodes genotypes into
+    allelic values without taking missing data into account would otherwise
+    output the last allele in the list rather missing data.
 
     Modifying the attributes in this class will have **no effect** on the
     underlying tree sequence data.
@@ -343,6 +356,13 @@ class Variant(SimpleContainer):
     :vartype alleles: tuple(str)
     :ivar genotypes: An array of indexes into the list ``alleles``, giving the
         state of each sample at the current site.
+    :ivar has_missing_data: True if there is missing data for any of the
+        samples at the current site.
+    :vartype has_missing_data: bool
+    :ivar num_alleles: The number of distinct alleles at this site. Note that
+        this may be greater than the number of distinct values in the genotypes
+        array.
+    :vartype num_alleles: int
     :vartype genotypes: numpy.ndarray
     """
     def __init__(self, site, alleles, genotypes):
@@ -2671,16 +2691,28 @@ class TreeSequence(object):
         For a given haplotype ``h``, the value of ``h[j]`` is the observed
         allelic state at site ``j``.
 
-        See also the :meth:`variants` iterator for site-centric access
+        See also the :meth:`.variants` iterator for site-centric access
         to sample genotypes.
 
         This method is only supported for single-letter alleles.
 
+        As :ref:`missing data<sec_data_model_missing_data>` cannot be
+        represented directly in the haplotypes array, an error will be raised
+        if missing data is present. However, if ``impute_missing_data`` set
+        to True, missing data will be imputed such that all isolated samples
+        are assigned the ancestral state. This was the default behaviour in
+        versions prior to 0.2.0.
+
         :return: An iterator over the haplotype strings for the samples in
             this tree sequence.
+        :param bool impute_missing_data: If True, the allele assigned to any
+            isolated samples is the ancestral state; that is, we impute
+            missing data as the ancestral state. Default: False.
         :rtype: iter
         :raises: LibraryError if called on a tree sequence containing
             multiletter alleles.
+        :raises: LibraryError if missing data is present and impute_missing_data
+            is False
         """
         hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence, impute_missing_data)
         for j in range(self.num_samples):
@@ -2695,6 +2727,26 @@ class TreeSequence(object):
         ``as_bytes`` parameter is true, these allelic values are recorded
         directly into a bytes array.
 
+        By default, genotypes are generated for all samples. The ``samples``
+        parameter allows us to specify the nodes for which genotypes are
+        generated; output order of genotypes in the returned variants
+        corresponds to the order of the samples in this list. It is also
+        possible to provide **non-sample** nodes as an argument here, if you
+        wish to generate genotypes for (e.g.) internal nodes. However,
+        ``impute_missing_data`` must be True in this case, as it is not
+        possible to detect missing data for non-sample nodes.
+
+        If :ref:`missing data<sec_data_model_missing_data>` is present
+        at a given site, the genotypes array will contain a special value
+        ``tskit.MISSING_DATA`` (-1) to identify these missing samples.
+        See the :class:`.Variant` class for more details on how missing
+        data is reported.
+
+        Missing data is reported by default, but if ``impute_missing_data``
+        is set to to True, missing data will be imputed such that all
+        isolated samples are assigned the ancestral state. This was the
+        default behaviour in versions prior to 0.2.0.
+
         .. note::
             The ``as_bytes`` parameter is kept as a compatibility
             option for older code. It is not the recommended way of
@@ -2707,6 +2759,11 @@ class TreeSequence(object):
             (i.e., directly printing the genotypes) or when numpy is
             not available. Otherwise, genotypes are returned as a numpy
             array (the default).
+        :param array_like samples: An array of sample IDs for which to generate
+            genotypes, or None for all samples. Default: None.
+        :param bool impute_missing_data: If True, the allele assigned to any
+            isolated samples is the ancestral state; that is, we impute
+            missing data as the ancestral state. Default: False.
         :return: An iterator of all variants this tree sequence.
         :rtype: iter(:class:`Variant`)
         """
@@ -2736,11 +2793,22 @@ class TreeSequence(object):
         0 always corresponds to the ancestal state, and values > 0 represent
         distinct derived states.
 
+        If there is :ref:`missing data<sec_data_model_missing_data>` present
+        the genotypes array will contain a special value
+        ``tskit.MISSING_DATA`` (-1) to identify these missing samples.
+        Missing data is reported by default, but if ``impute_missing_data``
+        is set to to True, missing data will be imputed such that all
+        isolated samples are assigned the ancestral state. This was the
+        default behaviour in versions prior to 0.2.0.
+
         .. warning::
             This method can consume a **very large** amount of memory! If
             all genotypes are not needed at once, it is usually better to
             access them sequentially using the :meth:`.variants` iterator.
 
+        :param bool impute_missing_data: If True, the allele assigned to any
+            isolated samples is the ancestral state; that is, we impute
+            missing data as the ancestral state. Default: False.
         :return: The full matrix of genotypes.
         :rtype: numpy.ndarray (dtype=np.int8)
         """
