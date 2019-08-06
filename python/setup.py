@@ -73,7 +73,7 @@ setup(
     version=tskit_version,
     # TODO setup a tskit developers email address.
     author_email='jerome.kelleher@well.ox.ac.uk',
-    python_requires='>=3.5',
+    python_requires='>=3.4',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',

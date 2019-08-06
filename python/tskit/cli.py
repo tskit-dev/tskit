@@ -71,7 +71,7 @@ def run_trees(args):
         print("tree {}:".format(tree.index))
         print("  num_sites: {}".format(tree.num_sites))
         print("  interval:  ({0:.{2}f}, {1:.{2}f})".format(
-            *tree.interval, args.precision))
+            *tree.interval, precision=args.precision))
         if args.draw:
             print(tree.draw(format="unicode"))
 
