@@ -181,36 +181,6 @@ print_stats(tsk_treeseq_t *ts)
 }
 
 static void
-print_vcf(tsk_treeseq_t *ts, unsigned int ploidy, const char *chrom, int verbose)
-{
-    int ret = 0;
-    char *record = NULL;
-    char *header = NULL;
-    tsk_vcf_converter_t vc;
-
-    ret = tsk_vcf_converter_init(&vc, ts, ploidy, chrom);
-    if (ret != 0) {
-        fatal_library_error(ret, "vcf alloc");
-    }
-    if (verbose > 0) {
-        tsk_vcf_converter_print_state(&vc, stdout);
-        printf("START VCF\n");
-    }
-    ret = tsk_vcf_converter_get_header(&vc, &header);
-    if (ret != 0) {
-        fatal_library_error(ret, "vcf get header");
-    }
-    printf("%s", header);
-    while ((ret = tsk_vcf_converter_next(&vc, &record)) == 1) {
-        printf("%s", record);
-    }
-    if (ret != 0) {
-        fatal_library_error(ret, "vcf next");
-    }
-    tsk_vcf_converter_free(&vc);
-}
-
-static void
 print_newick_trees(tsk_treeseq_t *ts)
 {
     int ret = 0;
@@ -299,16 +269,6 @@ run_variants(const char *filename, int TSK_UNUSED(verbose))
 
     load_tree_sequence(&ts, filename);
     print_variants(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-run_vcf(const char *filename, int verbose, int ploidy, const char *chrom)
-{
-    tsk_treeseq_t ts;
-
-    load_tree_sequence(&ts, filename);
-    print_vcf(&ts, (unsigned int) ploidy, chrom, verbose);
     tsk_treeseq_free(&ts);
 }
 
@@ -423,48 +383,34 @@ main(int argc, char** argv)
     void* argtable4[] = {cmd4, verbose4, infiles4, end4};
     int nerrors4;
 
-    /* SYNTAX 5: vcf [-v] <input-file> */
-    struct arg_rex *cmd5 = arg_rex1(NULL, NULL, "vcf", NULL, REG_ICASE, NULL);
+    /* SYNTAX 5: print  [-v] <input-file> */
+    struct arg_rex *cmd5 = arg_rex1(NULL, NULL, "print", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose5 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles5 = arg_file1(NULL, NULL, NULL, NULL);
-    struct arg_int *ploidy5 = arg_int0("p", "ploidy", "<ploidy>",
-            "Ploidy level of the VCF");
-    struct arg_str *chrom5 = arg_str0("c", "chrom", "<chrom>",
-            "Value for the CHROM column in the VCF (default='1')");
     struct arg_end *end5 = arg_end(20);
-    void* argtable5[] = {cmd5, verbose5, infiles5, ploidy5, chrom5, end5};
+    void* argtable5[] = {cmd5, verbose5, infiles5, end5};
     int nerrors5;
 
-    /* SYNTAX 6: print  [-v] <input-file> */
-    struct arg_rex *cmd6 = arg_rex1(NULL, NULL, "print", NULL, REG_ICASE, NULL);
+    /* SYNTAX 6: newick [-v] <input-file> */
+    struct arg_rex *cmd6 = arg_rex1(NULL, NULL, "newick", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose6 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles6 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end6 = arg_end(20);
     void* argtable6[] = {cmd6, verbose6, infiles6, end6};
     int nerrors6;
 
-    /* SYNTAX 7: newick [-v] <input-file> */
-    struct arg_rex *cmd7 = arg_rex1(NULL, NULL, "newick", NULL, REG_ICASE, NULL);
+    /* SYNTAX 7: stats [-v] <input-file> */
+    struct arg_rex *cmd7 = arg_rex1(NULL, NULL, "stats", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose7 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles7 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end7 = arg_end(20);
     void* argtable7[] = {cmd7, verbose7, infiles7, end7};
     int nerrors7;
 
-    /* SYNTAX 8: stats [-v] <input-file> */
-    struct arg_rex *cmd8 = arg_rex1(NULL, NULL, "stats", NULL, REG_ICASE, NULL);
-    struct arg_lit *verbose8 = arg_lit0("v", "verbose", NULL);
-    struct arg_file *infiles8 = arg_file1(NULL, NULL, NULL, NULL);
-    struct arg_end *end8 = arg_end(20);
-    void* argtable8[] = {cmd8, verbose8, infiles8, end8};
-    int nerrors8;
-
     int exitcode = EXIT_SUCCESS;
     const char *progname = "main";
 
     /* Set defaults */
-    ploidy5->ival[0] = 1;
-    chrom5->sval[0] = "1";
     num_samples1->ival[0] = 0;
 
     nerrors1 = arg_parse(argc, argv, argtable1);
@@ -474,7 +420,6 @@ main(int argc, char** argv)
     nerrors5 = arg_parse(argc, argv, argtable5);
     nerrors6 = arg_parse(argc, argv, argtable6);
     nerrors7 = arg_parse(argc, argv, argtable7);
-    nerrors8 = arg_parse(argc, argv, argtable8);
 
     if (nerrors1 == 0) {
         run_simplify(infiles1->filename[0], outfiles1->filename[0],
@@ -487,13 +432,11 @@ main(int argc, char** argv)
     } else if (nerrors4 == 0) {
         run_variants(infiles4->filename[0], verbose4->count);
     } else if (nerrors5 == 0) {
-        run_vcf(infiles5->filename[0], verbose5->count, ploidy5->ival[0], chrom5->sval[0]);
+        run_stats(infiles5->filename[0], verbose5->count);
     } else if (nerrors6 == 0) {
         run_print(infiles6->filename[0], verbose6->count);
     } else if (nerrors7 == 0) {
         run_newick(infiles7->filename[0], verbose7->count);
-    } else if (nerrors8 == 0) {
-        run_stats(infiles8->filename[0], verbose8->count);
     } else {
         /* We get here if the command line matched none of the possible syntaxes */
         if (cmd1->count > 0) {
@@ -524,10 +467,6 @@ main(int argc, char** argv)
             arg_print_errors(stdout, end7, progname);
             printf("usage: %s ", progname);
             arg_print_syntax(stdout, argtable7, "\n");
-        } else if (cmd8->count > 0) {
-            arg_print_errors(stdout, end8, progname);
-            printf("usage: %s ", progname);
-            arg_print_syntax(stdout, argtable8, "\n");
         } else {
             /* no correct cmd literals were given, so we cant presume which syntax was intended */
             printf("%s: missing command.\n",progname);
@@ -538,7 +477,6 @@ main(int argc, char** argv)
             printf("usage 5: %s ", progname);  arg_print_syntax(stdout, argtable5, "\n");
             printf("usage 6: %s ", progname);  arg_print_syntax(stdout, argtable6, "\n");
             printf("usage 7: %s ", progname);  arg_print_syntax(stdout, argtable7, "\n");
-            printf("usage 8: %s ", progname);  arg_print_syntax(stdout, argtable8, "\n");
         }
     }
 
@@ -549,7 +487,6 @@ main(int argc, char** argv)
     arg_freetable(argtable5, sizeof(argtable5) / sizeof(argtable5[0]));
     arg_freetable(argtable6, sizeof(argtable6) / sizeof(argtable6[0]));
     arg_freetable(argtable7, sizeof(argtable7) / sizeof(argtable7[0]));
-    arg_freetable(argtable8, sizeof(argtable8) / sizeof(argtable8[0]));
 
     return exitcode;
 }

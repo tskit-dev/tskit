@@ -157,12 +157,6 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     TreeSequence *tree_sequence;
-    tsk_vcf_converter_t *tsk_vcf_converter;
-} VcfConverter;
-
-typedef struct {
-    PyObject_HEAD
-    TreeSequence *tree_sequence;
     tsk_hapgen_t *haplotype_generator;
 } HaplotypeGenerator;
 
@@ -8734,170 +8728,6 @@ static PyTypeObject TreeDiffIteratorType = {
 };
 
 /*===================================================================
- * VcfConverter
- *===================================================================
- */
-
-static int
-VcfConverter_check_state(VcfConverter *self)
-{
-    int ret = 0;
-    if (self->tsk_vcf_converter == NULL) {
-        PyErr_SetString(PyExc_SystemError, "converter not initialised");
-        ret = -1;
-    }
-    return ret;
-}
-
-static void
-VcfConverter_dealloc(VcfConverter* self)
-{
-    if (self->tsk_vcf_converter != NULL) {
-        tsk_vcf_converter_free(self->tsk_vcf_converter);
-        PyMem_Free(self->tsk_vcf_converter);
-        self->tsk_vcf_converter = NULL;
-    }
-    Py_XDECREF(self->tree_sequence);
-    Py_TYPE(self)->tp_free((PyObject*)self);
-}
-
-static int
-VcfConverter_init(VcfConverter *self, PyObject *args, PyObject *kwds)
-{
-    int ret = -1;
-    int err;
-    static char *kwlist[] = {"tree_sequence", "ploidy", "contig_id", NULL};
-    unsigned int ploidy = 1;
-    const char *contig_id = "1";
-    TreeSequence *tree_sequence;
-
-    self->tsk_vcf_converter = NULL;
-    self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Is", kwlist,
-            &TreeSequenceType, &tree_sequence, &ploidy, &contig_id)) {
-        goto out;
-    }
-    self->tree_sequence = tree_sequence;
-    Py_INCREF(self->tree_sequence);
-    if (TreeSequence_check_tree_sequence(self->tree_sequence) != 0) {
-        goto out;
-    }
-    if (ploidy < 1) {
-        PyErr_SetString(PyExc_ValueError, "Ploidy must be >= 1");
-        goto out;
-    }
-    if (strlen(contig_id) == 0) {
-        PyErr_SetString(PyExc_ValueError, "contig_id cannot be the empty string");
-        goto out;
-    }
-    self->tsk_vcf_converter = PyMem_Malloc(sizeof(tsk_vcf_converter_t));
-    if (self->tsk_vcf_converter == NULL) {
-        PyErr_NoMemory();
-        goto out;
-    }
-    err = tsk_vcf_converter_init(self->tsk_vcf_converter,
-            self->tree_sequence->tree_sequence, ploidy, contig_id);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    ret = 0;
-out:
-    return ret;
-}
-
-static PyObject *
-VcfConverter_next(VcfConverter  *self)
-{
-    PyObject *ret = NULL;
-    char *record;
-    int err;
-
-    if (VcfConverter_check_state(self) != 0) {
-        goto out;
-    }
-    err = tsk_vcf_converter_next(self->tsk_vcf_converter, &record);
-    if (err < 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    if (err == 1) {
-        ret = Py_BuildValue("s", record);
-    }
-out:
-    return ret;
-}
-
-static PyObject *
-VcfConverter_get_header(VcfConverter *self)
-{
-    PyObject *ret = NULL;
-    int err;
-    char *header;
-
-    if (VcfConverter_check_state(self) != 0) {
-        goto out;
-    }
-    err = tsk_vcf_converter_get_header(self->tsk_vcf_converter, &header);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    ret = Py_BuildValue("s", header);
-out:
-    return ret;
-}
-
-static PyMemberDef VcfConverter_members[] = {
-    {NULL}  /* Sentinel */
-};
-
-static PyMethodDef VcfConverter_methods[] = {
-    {"get_header", (PyCFunction) VcfConverter_get_header, METH_NOARGS,
-            "Returns the VCF header as plain text." },
-    {NULL}  /* Sentinel */
-};
-
-static PyTypeObject VcfConverterType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    "_tskit.VcfConverter",             /* tp_name */
-    sizeof(VcfConverter),             /* tp_basicsize */
-    0,                         /* tp_itemsize */
-    (destructor)VcfConverter_dealloc, /* tp_dealloc */
-    0,                         /* tp_print */
-    0,                         /* tp_getattr */
-    0,                         /* tp_setattr */
-    0,                         /* tp_reserved */
-    0,                         /* tp_repr */
-    0,                         /* tp_as_number */
-    0,                         /* tp_as_sequence */
-    0,                         /* tp_as_mapping */
-    0,                         /* tp_hash  */
-    0,                         /* tp_call */
-    0,                         /* tp_str */
-    0,                         /* tp_getattro */
-    0,                         /* tp_setattro */
-    0,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,        /* tp_flags */
-    "VcfConverter objects",           /* tp_doc */
-    0,                     /* tp_traverse */
-    0,                     /* tp_clear */
-    0,                     /* tp_richcompare */
-    0,                     /* tp_weaklistoffset */
-    PyObject_SelfIter,                    /* tp_iter */
-    (iternextfunc) VcfConverter_next, /* tp_iternext */
-    VcfConverter_methods,             /* tp_methods */
-    VcfConverter_members,             /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    (initproc)VcfConverter_init,      /* tp_init */
-};
-
-/*===================================================================
  * HaplotypeGenerator
  *===================================================================
  */
@@ -9557,14 +9387,6 @@ PyInit__tskit(void)
     }
     Py_INCREF(&TreeDiffIteratorType);
     PyModule_AddObject(module, "TreeDiffIterator", (PyObject *) &TreeDiffIteratorType);
-
-    /* VcfConverter type */
-    VcfConverterType.tp_new = PyType_GenericNew;
-    if (PyType_Ready(&VcfConverterType) < 0) {
-        return NULL;
-    }
-    Py_INCREF(&VcfConverterType);
-    PyModule_AddObject(module, "VcfConverter", (PyObject *) &VcfConverterType);
 
     /* HaplotypeGenerator type */
     HaplotypeGeneratorType.tp_new = PyType_GenericNew;
