@@ -1949,3 +1949,56 @@ class TestBaseTable(unittest.TestCase):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
             t.asdict()
+
+
+class TestIntervalOps(unittest.TestCase):
+    """
+    Test cases for the interval operations used in masks and slicing operations.
+    """
+    def test_bad_intervals(self):
+        for bad_type in [{}, Exception]:
+            with self.assertRaises(TypeError):
+                tskit.intervals_to_np_array(bad_type, 0, 1)
+        for bad_depth in [[[[]]]]:
+            with self.assertRaises(ValueError):
+                tskit.intervals_to_np_array(bad_depth, 0, 1)
+        for bad_shape in [[[0], [0]], [[[0, 1, 2], [0, 1]]]]:
+            with self.assertRaises(ValueError):
+                tskit.intervals_to_np_array(bad_shape, 0, 1)
+
+        # Out of bounds
+        with self.assertRaises(ValueError):
+            tskit.intervals_to_np_array([[-1, 0]], 0, 1)
+        with self.assertRaises(ValueError):
+            tskit.intervals_to_np_array([[0, 1]], 1, 2)
+        with self.assertRaises(ValueError):
+            tskit.intervals_to_np_array([[0, 1]], 0, 0.5)
+
+        # Overlapping intervals
+        with self.assertRaises(ValueError):
+            tskit.intervals_to_np_array([[0, 1], [0.9, 2.0]], 0, 10)
+
+        # Empty intervals
+        for bad_interval in [[0, 0], [1, 0]]:
+            with self.assertRaises(ValueError):
+                tskit.intervals_to_np_array([bad_interval], 0, 10)
+
+    def test_empty_interval_list(self):
+        intervals = tskit.intervals_to_np_array([], 0, 10)
+        self.assertEqual(len(intervals), 0)
+
+    def test_negate_intervals(self):
+        L = 10
+        cases = [
+            ([], [[0, L]]),
+            ([[0, 5], [6, L]], [[5, 6]]),
+            ([[0, 5]], [[5, L]]),
+            ([[5, L]], [[0, 5]]),
+            (
+                [[0, 1], [2, 3], [3, 4], [5, 6]],
+                [[1, 2], [4, 5], [6, L]]
+            ),
+        ]
+        for source, dest in cases:
+            self.assertTrue(np.array_equal(
+                tskit.negate_intervals(source, 0, L), dest))
