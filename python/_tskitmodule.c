@@ -2996,6 +2996,25 @@ out:
 }
 
 static PyObject *
+EdgeTable_squash(EdgeTable *self)
+{
+    PyObject *ret = NULL;
+    int err;
+
+    if(EdgeTable_check_state(self) != 0){
+        goto out;
+    }
+    err = tsk_edge_table_squash(self->table);
+    if (err!= 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 EdgeTable_get_max_rows_increment(EdgeTable *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -3121,6 +3140,8 @@ static PyMethodDef EdgeTable_methods[] = {
         "Clears this table."},
     {"truncate", (PyCFunction) EdgeTable_truncate, METH_VARARGS,
         "Truncates this table to the specified number of rows."},
+    {"squash", (PyCFunction) EdgeTable_squash, METH_NOARGS,
+        "Squashes sets of edges with adjacent L,R and identical P,C values."},
     {NULL}  /* Sentinel */
 };
 
