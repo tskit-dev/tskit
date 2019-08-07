@@ -28,11 +28,12 @@ import math
 import os
 import tempfile
 import unittest
+import io
 
 import msprime
 import vcf
 
-import _tskit
+import tskit
 
 # Pysam is not available on windows, so we don't make it mandatory here.
 _pysam_imported = False
@@ -93,7 +94,7 @@ def write_vcf(tree_sequence, output, ploidy, contig_id):
     if len(positions) > 0:
         contig_length = max(positions[-1], contig_length)
     print("##fileformat=VCFv4.2", file=output)
-    print("##source=tskit {}.{}.{}".format(*_tskit.get_tskit_version()), file=output)
+    print("##source=tskit {}".format(tskit.__version__), file=output)
     print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
     print("##contig=<ID={},length={}>".format(contig_id, contig_length), file=output)
     print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output)
@@ -254,3 +255,16 @@ class TestContigLengths(unittest.TestCase):
         self.assertGreater(ts.num_mutations, 1)
         contig_length = self.get_contig_length(ts)
         self.assertEqual(contig_length, ts.num_mutations)
+
+
+class TestInterface(unittest.TestCase):
+    """
+    Tests for the interface.
+    """
+    def test_bad_ploidy(self):
+        ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+        for bad_ploidy in [-1, 0, 20]:
+            self.assertRaises(ValueError, ts.write_vcf, io.StringIO, bad_ploidy)
+        # Non divisible
+        for bad_ploidy in [3, 7]:
+            self.assertRaises(ValueError, ts.write_vcf, io.StringIO, bad_ploidy)

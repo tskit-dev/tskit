@@ -1094,28 +1094,6 @@ class TestTreeDiffIterator(LowLevelTestCase):
         self.verify_iterator(_tskit.TreeDiffIterator(ts))
 
 
-class TestVcfConverter(LowLevelTestCase):
-    """
-    Tests for the VcfConverter class.
-    """
-    def test_uninitialised_tree_sequence(self):
-        ts = _tskit.TreeSequence()
-        self.assertRaises(ValueError, _tskit.VcfConverter, ts)
-
-    def test_constructor(self):
-        self.assertRaises(TypeError, _tskit.VcfConverter)
-        self.assertRaises(TypeError, _tskit.VcfConverter, None)
-        ts = self.get_example_tree_sequence()
-        self.assertRaises(TypeError, _tskit.VcfConverter, ts, ploidy="xyt")
-        self.assertRaises(ValueError, _tskit.VcfConverter, ts, ploidy=0)
-        self.assertRaises(TypeError, _tskit.VcfConverter, ts, contig_id=None)
-        self.assertRaises(ValueError, _tskit.VcfConverter, ts, contig_id="")
-
-    def test_iterator(self):
-        ts = self.get_example_tree_sequence()
-        self.verify_iterator(_tskit.VcfConverter(ts))
-
-
 class TestVariantGenerator(LowLevelTestCase):
     """
     Tests for the VariantGenerator class.

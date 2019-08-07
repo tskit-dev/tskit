@@ -3095,15 +3095,6 @@ class TreeSequence(object):
         :param str contig_id: The value of the CHROM column in the output VCF.
         """
         return vcf.write_vcf(self, output, ploidy, contig_id)
-        # if ploidy < 1:
-        #     raise ValueError("Ploidy must be >= sample size")
-        # if self.get_sample_size() % ploidy != 0:
-        #     raise ValueError("Sample size must be divisible by ploidy")
-        # converter = _tskit.VcfConverter(
-        #     self._ll_tree_sequence, ploidy=ploidy, contig_id=contig_id)
-        # output.write(converter.get_header())
-        # for record in converter:
-        #     output.write(record)
 
     def simplify(
             self, samples=None,

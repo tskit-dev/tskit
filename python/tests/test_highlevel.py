@@ -968,13 +968,6 @@ class TestTreeSequence(HighLevelTestCase):
         tables.edges.add_row(0, 1, 3, 1)
         self.assertEqual(tables.tree_sequence().max_root_time, 3)
 
-    @unittest.skip("TODO: update VCF tests")
-    def test_write_vcf_interface(self):
-        for ts in get_example_tree_sequences():
-            n = ts.get_sample_size()
-            for bad_ploidy in [-1, 0, n + 1]:
-                self.assertRaises(ValueError, ts.write_vcf, self.temp_file, bad_ploidy)
-
     def verify_simplify_provenance(self, ts):
         new_ts = ts.simplify()
         self.assertEqual(new_ts.num_provenances, ts.num_provenances + 1)

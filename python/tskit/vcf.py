@@ -24,31 +24,46 @@
 Convert tree sequences to VCF.
 """
 import math
-import time
 
 import numpy as np
 
-import _tskit
+from . import provenance
 
 
 def write_vcf(ts, output, ploidy=1, contig_id="1"):
+    # See TreeSequence.write_vcf for documentation.
 
-    n = ts.get_sample_size() // ploidy
+    if ploidy < 1:
+        raise ValueError("Ploidy must be >= 1")
+    if ts.num_samples % ploidy != 0:
+        raise ValueError("Sample size must be divisible by ploidy")
+
+    n = ts.sample_size // ploidy
     sample_names = ["msp_{}".format(j) for j in range(n)]
+
+    # This is faster, but not quite behaving the same way as the legacy
+    # coordinate conversion.
+
+    # positions = np.round(ts.tables.sites.position).astype(int)
+    # zp = (np.diff(positions) == 0)
+    # while np.any(zp):
+    #     positions[1:] += np.cumsum(zp)
+    #     zp = (np.diff(positions) == 0)
+
     last_pos = 0
     positions = []
-    for variant in ts.variants():
-        pos = int(round(variant.position))
+    for site in ts.sites():
+        pos = int(round(site.position))
         if pos <= last_pos:
             pos = last_pos + 1
         positions.append(pos)
         last_pos = pos
-    contig_length = int(math.ceil(ts.get_sequence_length()))
+    contig_length = int(math.ceil(ts.sequence_length))
     if len(positions) > 0:
         contig_length = max(positions[-1], contig_length)
+
     print("##fileformat=VCFv4.2", file=output)
-    # FIXME, just using this version so the tests pass.
-    print("##source=tskit {}.{}.{}".format(*_tskit.get_tskit_version()), file=output)
+    print("##source=tskit {}".format(provenance.__version__), file=output)
     print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
     print("##contig=<ID={},length={}>".format(contig_id, contig_length), file=output)
     print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output)
@@ -68,8 +83,6 @@ def write_vcf(ts, output, ploidy=1, contig_id="1"):
             gt_array.extend([ord("X"), ord("|")])
         gt_array[-1] = ord("\t")
     gt_array[-1] = ord("\n")
-    str_dtype = "U{}".format(len(gt_array))
-    # TODO assuming that unicode array is int32. Can we do this better?
     gt_array = np.array(gt_array, dtype=np.int8)
     indexes = np.array(indexes)
 
