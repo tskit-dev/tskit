@@ -1353,6 +1353,11 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
     edges = malloc(self->num_rows * sizeof(tsk_edge_t));
     tsk_size_t num_output_edges;
 
+    if (edges == NULL){
+        ret = 1;
+        goto out;
+    }
+
     for (k = 0; k < (int) self->num_rows; k++){
         e.left = self->left[k];
         e.right = self->right[k];
@@ -1366,6 +1371,10 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
         goto out;
     }
     tsk_edge_table_clear(self);
+    if (num_output_edges > self->max_rows){
+        ret = 1;
+        goto out;
+    }
     self->num_rows = num_output_edges;
     for (k = 0; k < (int) num_output_edges; k++){
         self->left[k] = edges[k].left;
@@ -1373,10 +1382,8 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
         self->parent[k] = edges[k].parent;
         self->child[k] = edges[k].child;
      }
-
-     // Free edge list.
-     free(edges);
 out:
+    tsk_safe_free(edges);
     return ret;
 }
 

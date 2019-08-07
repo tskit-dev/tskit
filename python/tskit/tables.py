@@ -602,6 +602,26 @@ class EdgeTable(BaseTable):
         self.ll_table.append_columns(dict(
             left=left, right=right, parent=parent, child=child))
 
+    def asdict(self):
+        return {
+            "left": self.left,
+            "right": self.right,
+            "parent": self.parent,
+            "child": self.child,
+        }
+
+    def squash(self):
+        """
+        Sorts, then condenses the table into the smallest possible number of rows.
+        A single edge replaces any set of edges with the same parent and child node
+        such that the union of (left, right] intervals is a single interval.
+        The new edge will have the same parent and child node, a left coordinate
+        equal to the smallest left coordinate in the set, and a right coordinate
+        equal to the largest right coordinate in the set.
+        The new edge table will be sorted in the canonical order.
+        """
+        self.ll_table.squash()
+
 
 class MigrationTable(BaseTable):
     """

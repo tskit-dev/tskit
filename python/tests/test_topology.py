@@ -4018,6 +4018,33 @@ class TestSampleLists(unittest.TestCase):
         self.verify(ts)
 
 
+class TestSquashEdges(unittest.TestCase):
+    """
+    Tests of the squash_edges function.
+    """
+    def test_simple_case(self):
+        #   2
+        #  / \
+        # 0   1
+        nodes = io.StringIO("""\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       0       0               1.00000000000000
+        """)
+        edges = io.StringIO("""\
+        id      left            right           parent  child
+        0       0.00000000      0.50000000      2       0
+        1       0.00000000      0.50000000      2       1
+        2       0.50000000      1.00000000      2       0
+        3       0.50000000      1.00000000      2       1
+        """)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        # print(ts.tables.edges)
+
+        # Further tests of squash edges go here...
+
+
 def squash_edges(ts):
     """
     Returns the edges in the tree sequence squashed.
