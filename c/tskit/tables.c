@@ -1348,22 +1348,20 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
 {
     int k;
     int ret = 0;
-    tsk_edge_t e;
-    tsk_edge_t * edges;
-    edges = malloc(self->num_rows * sizeof(tsk_edge_t));
+    tsk_edge_t *edges = NULL;
     tsk_size_t num_output_edges;
 
+    edges = malloc(self->num_rows * sizeof(tsk_edge_t));
     if (edges == NULL){
-        ret = 1;
+        ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
 
     for (k = 0; k < (int) self->num_rows; k++){
-        e.left = self->left[k];
-        e.right = self->right[k];
-        e.parent = self->parent[k];
-        e.child = self->child[k];
-        edges[k] = e;
+        edges[k].left = self->left[k];
+        edges[k].right = self->right[k];
+        edges[k].parent = self->parent[k];
+        edges[k].child = self->child[k];
     }
 
     ret = tsk_squash_edges(edges, self->num_rows, &num_output_edges);
@@ -1371,10 +1369,7 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
         goto out;
     }
     tsk_edge_table_clear(self);
-    if (num_output_edges > self->max_rows){
-        ret = 1;
-        goto out;
-    }
+    assert(num_output_edges <= self->max_rows);
     self->num_rows = num_output_edges;
     for (k = 0; k < (int) num_output_edges; k++){
         self->left[k] = edges[k].left;
@@ -6827,9 +6822,9 @@ cmp_edge_cl(const void *a, const void *b) {
     int ret = (ia->parent > ib->parent) - (ia->parent < ib->parent);
     if (ret == 0)  {
         ret = (ia->child > ib->child) - (ia->child < ib->child);
-    }
-    if (ret == 0)  {
-        ret = (ia->left > ib->left) - (ia->left < ib->left);
+        if (ret == 0)  {
+            ret = (ia->left > ib->left) - (ia->left < ib->left);
+        }
     }
     return ret;
 }
@@ -6839,40 +6834,51 @@ cmp_edge_cl(const void *a, const void *b) {
  */
 
 int TSK_WARN_UNUSED
-tsk_squash_edges(tsk_edge_t *edges, size_t num_edges, tsk_size_t *num_output_edges)
+tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges)
 {
     int ret = 0;
     size_t j, k, l;
-    tsk_edge_t e;
+
+    if (num_edges < 2){
+        *num_output_edges = num_edges;
+        return ret;
+    }
 
     qsort(edges, num_edges, sizeof(tsk_edge_t), cmp_edge_cl);
     j = 0;
     l = 0;
     for (k = 1; k < num_edges; k++) {
 
-        if (edges[k-1].parent != edges[k].parent || edges[k-1].right != edges[k].left
-            || edges[j].child != edges[k].child) {
+        /* Check for overlapping edges. */
+        if (edges[k - 1].parent == edges[k].parent &&
+                edges[k - 1].child == edges[k].child &&
+                edges[k - 1].right > edges[k].left) {
+            ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
+            goto out;
+        }
 
-            e.left = edges[j].left;
-            e.right = edges[k-1].right;
-            e.parent = edges[j].parent;
-            e.child = edges[j].child;
+        /* Add squashed edge. */
+        if (edges[k - 1].parent != edges[k].parent 
+                || edges[k - 1].right != edges[k].left
+                || edges[j].child != edges[k].child) {
 
-            edges[j] = e;
+            edges[l].left = edges[j].left;
+            edges[l].right = edges[k - 1].right;
+            edges[l].parent = edges[j].parent;
+            edges[l].child = edges[j].child;
 
             j = k;
             l++;
-        }
+        } 
     }
-    e.left = edges[j].left;
-    e.right = edges[k-1].right;
-    e.parent = edges[j].parent;
-    e.child = edges[j].child;
-
-    edges[l] = e;
+    edges[l].left = edges[j].left;
+    edges[l].right = edges[k - 1].right;
+    edges[l].parent = edges[j].parent;
+    edges[l].child = edges[j].child;
 
     *num_output_edges = (tsk_size_t) l + 1;
 
+out:
     return ret;
 }
 

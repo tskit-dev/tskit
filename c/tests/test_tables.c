@@ -728,7 +728,6 @@ test_edge_table_squash(void)
 {
     int ret;
     tsk_table_collection_t tables;
-    tsk_edge_table_t *edges;
 
     const char *nodes_ex =
         "1  0       -1   -1\n"
@@ -755,16 +754,145 @@ test_edge_table_squash(void)
     parse_edges(edges_ex, &tables.edges);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 4);
 
-    edges = &tables.edges;
-
-    ret = tsk_edge_table_squash(edges);
+    ret = tsk_edge_table_squash(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Check output.
-    CU_ASSERT_EQUAL(edges->num_rows, 2);
+    CU_ASSERT_EQUAL(tables.edges.num_rows, 2);
 
     // Free things.
-    tsk_edge_table_free(edges);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_edge_table_squash_multiple_parents(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    const char *nodes_ex =
+        "1  0.000   -1    -1\n"
+        "1  0.000   -1    -1\n"
+        "1  0.000   -1    -1\n"
+        "1  0.000   -1    -1\n"
+        "0  1.000   -1    -1\n"
+        "0  1.000   -1    -1\n";
+    const char *edges_ex =
+        "5  10  5   3\n"
+        "5  10  5   2\n"
+        "0  5   5   3\n"
+        "0  5   5   2\n"
+        "4  10  4   1\n"
+        "0  4   4   1\n"
+        "4  10  4   0\n"
+        "0  4   4   0\n";
+/*
+            4       5  
+           / \     / \
+          0   1   2   3
+*/    
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 10;
+
+    parse_nodes(nodes_ex, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 6);
+    parse_edges(edges_ex, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 8);
+
+    ret = tsk_edge_table_squash(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Check output.
+    CU_ASSERT_EQUAL(tables.edges.num_rows, 4);
+
+    // Free things.
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_edge_table_squash_empty(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    const char *nodes_ex =
+        "1  0       -1   -1\n"
+        "1  0       -1   -1\n"
+        "0  0.253   -1   -1\n";
+    const char *edges_ex =
+        "";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 10;
+
+    parse_nodes(nodes_ex, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 3);
+    parse_edges(edges_ex, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 0);
+
+    ret = tsk_edge_table_squash(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Free things.
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_edge_table_squash_single_edge(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    const char *nodes_ex =
+        "1  0   -1   -1\n"
+        "0  0   -1   -1\n";
+    const char *edges_ex =
+        "0  1   1   0\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    parse_nodes(nodes_ex, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 2);
+    parse_edges(edges_ex, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 1);
+
+    ret = tsk_edge_table_squash(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Free things.
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_edge_table_squash_bad_intervals(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    const char *nodes_ex =
+        "1  0   -1   -1\n"
+        "0  0   -1   -1\n";
+    const char *edges_ex =
+        "0  0.6   1   0\n"
+        "0.4  1   1   0\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    parse_nodes(nodes_ex, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 2);
+    parse_edges(edges_ex, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 2);
+
+    ret = tsk_edge_table_squash(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN);
+
+    // Free things.
     tsk_table_collection_free(&tables);
 }
 
@@ -2486,6 +2614,11 @@ main(int argc, char **argv)
         {"test_node_table", test_node_table},
         {"test_edge_table", test_edge_table},
         {"test_edge_table_squash", test_edge_table_squash},
+        {"test_edge_table_squash_multiple_parents", 
+            test_edge_table_squash_multiple_parents},
+        {"test_edge_table_squash_empty", test_edge_table_squash_empty},
+        {"test_edge_table_squash_single_edge", test_edge_table_squash_single_edge},
+        {"test_edge_table_squash_bad_intervals", test_edge_table_squash_bad_intervals},
         {"test_site_table", test_site_table},
         {"test_mutation_table", test_mutation_table},
         {"test_migration_table", test_migration_table},
@@ -2507,7 +2640,7 @@ main(int argc, char **argv)
         {"test_map_ancestors_samples_and_ancestors_overlap",
             test_map_ancestors_samples_and_ancestors_overlap},
         {"test_map_ancestors_multiple_to_single_tree",
-        test_map_ancestors_multiple_to_single_tree},
+            test_map_ancestors_multiple_to_single_tree},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
         {"test_sort_tables_errors", test_sort_tables_errors},

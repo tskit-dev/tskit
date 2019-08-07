@@ -4022,6 +4022,18 @@ class TestSquashEdges(unittest.TestCase):
     """
     Tests of the squash_edges function.
     """
+    def do_squash(self, ts, compare_lib=True):
+        squashed = ts.tables.edges
+        squashed.squash()
+        if compare_lib:
+            squashed_list = squash_edges(ts)
+            squashed_py = tskit.EdgeTable()
+            for e in squashed_list:
+                squashed_py.add_row(e.left, e.right, e.parent, e.child)
+            # Check the Python and C implementations produce the same output.
+            self.assertEqual(squashed_py, squashed)
+        return squashed
+
     def test_simple_case(self):
         #   2
         #  / \
@@ -4040,9 +4052,180 @@ class TestSquashEdges(unittest.TestCase):
         3       0.50000000      1.00000000      2       1
         """)
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        # print(ts.tables.edges)
+        edges = self.do_squash(ts)
+        self.assertEqual(all(edges.left), 0)
+        self.assertEqual(all(edges.right), 1)
+        self.assertEqual(list(edges.parent), [2, 2])
+        self.assertEqual(list(edges.child), [0, 1])
 
-        # Further tests of squash edges go here...
+    def test_simple_case_unordered_intervals(self):
+        # 1
+        # |
+        # 0
+        nodes = io.StringIO("""\
+        id      is_sample   population      time
+        0       1           0               0.0
+        1       0           0               1.0
+        """)
+        edges = io.StringIO("""\
+        id      left            right           parent  child
+        0       0.40            1.0             1       0
+        0       0.00            0.40            1       0
+        """)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        edges = self.do_squash(ts)
+        self.assertEqual(edges.left[0], 0)
+        self.assertEqual(edges.right[0], 1)
+        self.assertEqual(edges.parent[0], 1)
+        self.assertEqual(edges.child[0], 0)
+
+    def test_simple_case_unordered_children(self):
+        #   2
+        #  / \
+        # 0   1
+        nodes = io.StringIO("""\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       0       0               1.00000000000000
+        """)
+        edges = io.StringIO("""\
+        id      left            right           parent  child
+        0       0.50000000      1.00000000      2       1
+        1       0.50000000      1.00000000      2       0
+        2       0.00000000      0.50000000      2       1
+        3       0.00000000      0.50000000      2       0
+        """)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        edges = self.do_squash(ts)
+        self.assertEqual(all(edges.left), 0)
+        self.assertEqual(all(edges.right), 1)
+        self.assertEqual(list(edges.parent), [2, 2])
+        self.assertEqual(list(edges.child), [0, 1])
+
+    def test_simple_case_unordered_children_and_intervals(self):
+        #   2
+        #  / \
+        # 0   1
+        nodes = io.StringIO("""\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       0       0               1.00000000000000
+        """)
+        edges = io.StringIO("""\
+        id      left            right           parent  child
+        0       0.50000000      1.00000000      2       1
+        2       0.00000000      0.50000000      2       1
+        3       0.00000000      0.50000000      2       0
+        1       0.50000000      1.00000000      2       0
+        """)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        edges = self.do_squash(ts)
+        self.assertEqual(all(edges.left), 0)
+        self.assertEqual(all(edges.right), 1)
+        self.assertEqual(list(edges.parent), [2, 2])
+        self.assertEqual(list(edges.child), [0, 1])
+
+    def test_squash_multiple_parents_and_children(self):
+        #   4       5
+        #  / \     / \
+        # 0   1   2   3
+        nodes = io.StringIO("""\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       1       0               0.00000000000000
+        3       1       0               0.00000000000000
+        4       0       0               1.00000000000000
+        5       0       0               1.00000000000000
+        """)
+        edges = io.StringIO("""\
+        id      left            right           parent  child
+        5       0.50000000      1.00000000      5       3
+        6       0.50000000      1.00000000      5       2
+        7       0.00000000      0.50000000      5       3
+        8       0.00000000      0.50000000      5       2
+        9       0.40000000      1.00000000      4       1
+        10      0.00000000      0.40000000      4       1
+        11      0.40000000      1.00000000      4       0
+        12      0.00000000      0.40000000      4       0
+        """)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        edges = self.do_squash(ts)
+        self.assertEqual(all(edges.left), 0)
+        self.assertEqual(all(edges.right), 1)
+        self.assertEqual(list(edges.parent), [4, 4, 5, 5])
+        self.assertEqual(list(edges.child), [0, 1, 2, 3])
+
+    def test_squash_overlapping_intervals(self):
+        nodes = io.StringIO("""\
+        id      is_sample   population      time
+        0       1           0               0.0
+        1       0           0               1.0
+        """)
+        edges = io.StringIO("""\
+        id      left            right           parent  child
+        0       0.00            0.50            1       0
+        1       0.40            0.80            1       0
+        2       0.60            1.00            1       0
+        """)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+
+        with self.assertRaises(tskit.LibraryError):
+            self.do_squash(ts)
+
+    def verify_slice_and_squash(self, ts):
+        """
+        Slices a tree sequence so that there are edge endpoints at
+        all integer locations, then squashes these edges and verifies
+        that the resulting edge table is the same as the input edge table.
+        """
+        sliced_edges = []
+        # Create new sliced edge table.
+        for e in ts.edges():
+            left = e.left
+            right = e.right
+
+            if left == np.floor(left):
+                r_left = np.ceil(left) + 1
+            else:
+                r_left = np.ceil(left)
+            if right == np.floor(right):
+                r_right = np.floor(right)
+            else:
+                r_right = np.floor(right) + 1
+
+            new_range = [left]
+            for r in np.arange(r_left, r_right):
+                new_range.append((r))
+            new_range.append(right)
+            assert len(new_range) > 1
+
+            # Add new edges to the list.
+            for r in range(1, len(new_range)):
+                new = tskit.Edge(new_range[r-1], new_range[r], e.parent, e.child)
+                sliced_edges.append(new)
+
+        # Shuffle the edges and create a new edge table.
+        random.shuffle(sliced_edges)
+        sliced_table = tskit.EdgeTable()
+        for e in sliced_edges:
+            sliced_table.add_row(e.left, e.right, e.parent, e.child)
+
+        # Squash the edges and check against input table.
+        sliced_table.squash()
+        self.assertEqual(sliced_table, ts.tables.edges)
+
+    def test_sim_single_coalescent_tree(self):
+        ts = msprime.simulate(20, random_seed=4, length=10)
+        self.assertEqual(ts.num_trees, 1)
+        self.verify_slice_and_squash(ts)
+
+    def test_sim_big_coalescent_trees(self):
+        ts = msprime.simulate(20, recombination_rate=5, random_seed=4, length=10)
+        self.assertGreater(ts.num_trees, 2)
+        self.verify_slice_and_squash(ts)
 
 
 def squash_edges(ts):

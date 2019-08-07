@@ -2222,7 +2222,7 @@ int tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags
 
 
 
-int tsk_squash_edges(tsk_edge_t *edges, size_t num_edges, tsk_size_t *num_output_edges);
+int tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
 
 #ifdef __cplusplus
 }

@@ -612,13 +612,17 @@ class EdgeTable(BaseTable):
 
     def squash(self):
         """
-        Sorts, then condenses the table into the smallest possible number of rows.
-        A single edge replaces any set of edges with the same parent and child node
-        such that the union of (left, right] intervals is a single interval.
+        Sorts, then condenses the table into the smallest possible number of rows by
+        combining any adjacent edges.
+        A pair of edges is said to be `adjacent` if they have the same parent and child
+        nodes, and if the left coordinate of one of the edges is equal to the right
+        coordinate of the other edge.
+        The ``squash`` method modifies an :class:`EdgeTable` in place so that any set of
+        adjacent edges is replaced by a single edge.
         The new edge will have the same parent and child node, a left coordinate
         equal to the smallest left coordinate in the set, and a right coordinate
         equal to the largest right coordinate in the set.
-        The new edge table will be sorted in the canonical order.
+        The new edge table will be sorted in the canonical order (P, C, L, R).
         """
         self.ll_table.squash()
 
