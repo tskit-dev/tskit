@@ -173,7 +173,7 @@ def intervals_to_np_array(intervals, start, end):
 def negate_intervals(intervals, start, end):
     """
     Returns the set of intervals *not* covered by the specified set of
-    disjoint intervals in the specfied range.
+    disjoint intervals in the specified range.
     """
     intervals = intervals_to_np_array(intervals, start, end)
     other_intervals = []
@@ -185,3 +185,15 @@ def negate_intervals(intervals, start, end):
     if last_right != end:
         other_intervals.append((last_right, end))
     return np.array(other_intervals)
+
+
+def keep_with_offset(keep, data, offset):
+    """
+    Used e.g. in keep_intervals and other functions to do fast numpy removal from tables
+    """
+    # We need the astype here for 32 bit machines
+    lens = np.diff(offset).astype(np.int32)
+    return (data[np.repeat(keep, lens)],
+            np.concatenate([
+                np.array([0], dtype=offset.dtype),
+                np.cumsum(lens[keep], dtype=offset.dtype)]))

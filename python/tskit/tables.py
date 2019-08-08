@@ -1858,14 +1858,6 @@ class TableCollection(object):
         :rtype: tskit.TableCollection
         """
 
-        def keep_with_offset(keep, data, offset):
-            # We need the astype here for 32 bit machines
-            lens = np.diff(offset).astype(np.int32)
-            return (data[np.repeat(keep, lens)],
-                    np.concatenate([
-                        np.array([0], dtype=offset.dtype),
-                        np.cumsum(lens[keep], dtype=offset.dtype)]))
-
         intervals = util.intervals_to_np_array(intervals, 0, self.sequence_length)
         if len(self.migrations) > 0:
             raise ValueError("Migrations not supported by keep_intervals")
@@ -1882,9 +1874,9 @@ class TableCollection(object):
         for s, e in intervals:
             curr_keep_sites = np.logical_and(sites.position >= s, sites.position < e)
             keep_sites = np.logical_or(keep_sites, curr_keep_sites)
-            new_as, new_as_offset = keep_with_offset(
+            new_as, new_as_offset = util.keep_with_offset(
                 curr_keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
-            new_md, new_md_offset = keep_with_offset(
+            new_md, new_md_offset = util.keep_with_offset(
                 curr_keep_sites, sites.metadata, sites.metadata_offset)
             keep_mutations = np.logical_or(
                 keep_mutations, curr_keep_sites[mutations.site])
@@ -1900,9 +1892,9 @@ class TableCollection(object):
                 ancestral_state_offset=new_as_offset,
                 metadata=new_md,
                 metadata_offset=new_md_offset)
-        new_ds, new_ds_offset = keep_with_offset(
+        new_ds, new_ds_offset = util.keep_with_offset(
             keep_mutations, mutations.derived_state, mutations.derived_state_offset)
-        new_md, new_md_offset = keep_with_offset(
+        new_md, new_md_offset = util.keep_with_offset(
             keep_mutations, mutations.metadata, mutations.metadata_offset)
         site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
         tables.mutations.set_columns(
@@ -1932,6 +1924,121 @@ class TableCollection(object):
             tables.provenances.add_row(record=json.dumps(
                 provenance.get_provenance_dict(parameters)))
         return tables
+
+    def remove_sites(self, site_ids, record_provenance=True):
+        """
+        Remove the specified sites entirely from the sites and mutations tables in this
+        collection.
+
+        :param list[int] site_ids: A list of site IDs to remove.
+        :param bool record_provenance: If True, record details of this call to
+            ``remove_sites`` in the returned tree sequence's provenance information.
+            (Default: True).
+        """
+        if len(site_ids) != 0:
+            keep_sites = np.ones(self.sites.num_rows, dtype=bool)
+            keep_sites[util.safe_np_int_cast(site_ids, np.uint32)] = 0
+            new_as, new_as_offset = util.keep_with_offset(
+                keep_sites, self.sites.ancestral_state,
+                self.sites.ancestral_state_offset)
+            new_md, new_md_offset = util.keep_with_offset(
+                keep_sites, self.sites.metadata, self.sites.metadata_offset)
+            self.sites.set_columns(
+                position=self.sites.position[keep_sites],
+                ancestral_state=new_as,
+                ancestral_state_offset=new_as_offset,
+                metadata=new_md,
+                metadata_offset=new_md_offset)
+            # We also need to adjust the mutations table, as it references into sites
+            keep_mutations = keep_sites[self.mutations.site]
+            new_ds, new_ds_offset = util.keep_with_offset(
+                keep_mutations, self.mutations.derived_state,
+                self.mutations.derived_state_offset)
+            new_md, new_md_offset = util.keep_with_offset(
+                keep_mutations, self.mutations.metadata, self.mutations.metadata_offset)
+            site_map = np.cumsum(keep_sites, dtype=self.mutations.site.dtype) - 1
+            self.mutations.set_columns(
+                site=site_map[self.mutations.site[keep_mutations]],
+                node=self.mutations.node[keep_mutations],
+                derived_state=new_ds,
+                derived_state_offset=new_ds_offset,
+                parent=self.mutations.parent[keep_mutations],
+                metadata=new_md,
+                metadata_offset=new_md_offset)
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "remove_sites",
+                "TODO": "add parameters"
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def ltrim(self, record_provenance=True):
+        """
+        Reset the coordinate system, changing the left and right genomic positions in the
+        edge table such that the leftmost edge is at position 0. Positions in the sites
+        table are also adjusted accordingly. Additionally, sites (and associated
+        mutations) to the left of the new zero point are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            ``remove_sites`` in the returned tree sequence's provenance information.
+            (Default: True).
+        """
+        leftmost = np.max(self.edges.left)
+        self.remove_sites(
+            np.where(self.sites.position < leftmost), record_provenance=False)
+        self.edges.set_columns(
+            left=self.edges.left - leftmost, right=self.edges.right - leftmost,
+            parent=self.edges.parent, child=self.edges.child)
+        self.sites.set_columns(
+            position=self.sites.position - leftmost,
+            ancestral_state=self.sites.ancestral_state,
+            ancestral_state_offset=self.sites.ancestral_state_offset,
+            metadata=self.sites.metadata,
+            metadata_offset=self.sites.metadata_offset)
+        self.sequence_length = self.sequence_length - leftmost
+
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "ltrim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def rtrim(self, record_provenance=True):
+        """
+        Reset the ``sequence_length`` property so that the sequence ends at maximum value
+        of ``edges.right``. Additionally, sites (and associated mutations) at positions
+        greater than the new ``sequence_length`` are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            ``rtrim`` in the returned tree sequence's provenance information.
+            (Default: True).
+        """
+        rightmost = np.max(self.edges.right)
+        self.remove_sites(
+            np.where(self.sites.position >= rightmost), record_provenance=False)
+        self.sequence_length = rightmost
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "rtrim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def trim(self, record_provenance=True):
+        self.rtrim(record_provenance=False)
+        self.ltrim(record_provenance=False)
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "trim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
 
     def has_index(self):
         """

@@ -3222,11 +3222,11 @@ class TreeSequence(object):
             sequence.
         :rtype: .TreeSequence or a (.TreeSequence, numpy.array) tuple
         """
-        tables = self.dump_tables()
+        ts_tables = self.dump_tables()
         if samples is None:
             samples = self.get_samples()
-        assert tables.sequence_length == self.sequence_length
-        node_map = tables.simplify(
+        assert ts_tables.sequence_length == self.sequence_length
+        node_map = ts_tables.simplify(
             samples=samples,
             filter_zero_mutation_sites=filter_zero_mutation_sites,
             reduce_to_site_topology=reduce_to_site_topology,
@@ -3242,14 +3242,111 @@ class TreeSequence(object):
                 "command": "simplify",
                 "TODO": "add simplify parameters"
             }
-            tables.provenances.add_row(record=json.dumps(
+            ts_tables.provenances.add_row(record=json.dumps(
                 provenance.get_provenance_dict(parameters)))
-        new_ts = tables.tree_sequence()
+        new_ts = ts_tables.tree_sequence()
         assert new_ts.sequence_length == self.sequence_length
         if map_nodes:
             return new_ts, node_map
         else:
             return new_ts
+
+    def remove_sites(self, site_ids, record_provenance=True):
+        """
+        Remove the specified sites entirely from a tree sequence
+
+        :param list site_ids: The list of sites to remove. This
+            may be a numpy array (or array-like) object (dtype=np.uint32).
+        :param bool record_provenance: If True, record details of this call to
+            slice in the returned tree sequence's provenance information.
+            (Default: True).
+        :return: The sliced tree sequence.
+        :rtype: .TreeSequence
+        """
+        ts_tables = self.dump_tables()
+        ts_tables.remove_sites(site_ids, record_provenance)
+        return ts_tables.tree_sequence()
+
+    def ltrim(self, record_provenance=True):
+        """
+        Trim from the left side of this tree sequence any genomic region with no trees.
+        This is equivalent to resetting the coordinate system so that the leftmost edge
+        in the tree sequence starts at position 0. Sites and mutations within the trimmed
+        region are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            slice in the returned tree sequence's provenance information (Default: True).
+        :return: The sliced tree sequence.
+        :rtype: .TreeSequence
+        """
+        ts_tables = self.dump_tables()
+        ts_tables.ltrim(record_provenance)
+        return ts_tables.tree_sequence()
+
+    def rtrim(self, record_provenance=True):
+        """
+        Trim from the right side of this tree sequence any genomic region with no trees.
+        This is equivalent to setting the sequence_length to the end point of the
+        rightmost edge in the tree sequence. Sites and mutations within the trimmed
+        region are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            slice in the returned tree sequence's provenance information (Default: True).
+        :return: The sliced tree sequence.
+        :rtype: .TreeSequence
+        """
+        ts_tables = self.dump_tables()
+        ts_tables.rtrim(record_provenance)
+        return ts_tables.tree_sequence()
+
+    def trim(self, record_provenance=True):
+        """
+        Trim from the right side of this tree sequence any genomic region with no trees.
+        This is equivalent to setting the sequence_length to the end point of the
+        rightmost edge in the tree sequence. Sites and mutations within the trimmed
+        region are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            slice in the returned tree sequence's provenance information.
+            (Default: True).
+        :return: The sliced tree sequence.
+        :rtype: .TreeSequence
+        """
+        ts_tables = self.dump_tables()
+        ts_tables.trim(record_provenance)
+        return ts_tables.tree_sequence()
+
+    def slice(self, start=None, stop=None, simplify=True, record_provenance=True):
+        """
+        Extract a portion of the tree sequence covering a restricted genomic region. This
+        is essentially a wrapper that runs ``keep_intervals([(start, stop)]).trim()``
+        on the tables that describe this tree sequence.
+
+        :param float start: The leftmost genomic position, giving the start point
+            of the kept region. Tree sequence information along the genome prior to (but
+            not including) this point will be discarded. If None, treat as zero.
+        :param float stop: The rightmost genomic position, giving the end point of the
+            kept region. Tree sequence information at this point and further along the
+            genomic sequence will be discarded. If None, treat as equal to the current
+            tree sequence's ``sequence_length``.
+        :param bool simplify: If True, simplify the resulting tree sequence so that nodes
+            no longer used in the resulting trees are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this call to
+            slice in the returned tree sequence's provenance information (Default: True).
+        :return: The sliced tree sequence.
+        :rtype: .TreeSequence
+        """
+        ts_tables = self.dump_tables()
+        ts_tables.keep_interval([(start, stop)], simplify=simplify).trim()
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "slice",
+                "TODO": "add slice parameters"
+            }
+            ts_tables.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+        return ts_tables.tree_sequence()
 
     def draw_svg(self, path=None, **kwargs):
         # TODO document this method, including semantic details of the
