@@ -1685,12 +1685,14 @@ class TableCollection(object):
         A node is a relevant descendant on a given interval if it also appears somewhere
         in the ``parent`` column of the outputted table.
 
-        | Type of relationship     | Shown in output of ``map_ancestors``            |
-        | ------------------------ | ----------------------------------------------- |
-        | ``ancestor->sample``     | Always                                          |
-        | ``ancestor1->ancestor2`` | Only if ``ancestor2`` has a relevant descendant |
-        | ``sample1->sample2``     | Always                                          |
-        | ``sample->ancestor``     | Only if ``ancestor`` has a relevant descendant  |
+        ========================  ===============================================
+        Type of relationship      Shown in output of ``map_ancestors``
+        ------------------------  -----------------------------------------------
+        ``ancestor->sample``      Always
+        ``ancestor1->ancestor2``  Only if ``ancestor2`` has a relevant descendant
+        ``sample1->sample2``      Always
+        ``sample->ancestor``      Only if ``ancestor`` has a relevant descendant
+        ========================  ===============================================
 
         The difference between ``samples`` and ``ancestors`` is that information about
         the ancestors of a node in ``ancestors`` will only be retained if it also has a
