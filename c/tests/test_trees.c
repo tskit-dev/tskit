@@ -1802,6 +1802,7 @@ test_simplest_individuals(void)
     tsk_treeseq_t ts;
     tsk_node_t node;
     tsk_individual_t individual;
+    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
     int ret;
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -1846,9 +1847,21 @@ test_simplest_individuals(void)
 
     ret = tsk_treeseq_get_individual(&ts, 3, &individual);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    tsk_treeseq_free(&ts);
+
+    tables.individuals.location[0] = NAN;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_SPATIAL_LOCATION_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.individuals.location[0] = 0.25;
+
+    tables.individuals.location[2] = INFINITY;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_SPATIAL_LOCATION_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.individuals.location[0] = 0.25;
 
     tsk_table_collection_free(&tables);
-    tsk_treeseq_free(&ts);
 }
 
 static void
@@ -1973,6 +1986,31 @@ test_simplest_bad_edges(void)
     tables.edges.right[0] = 0.0;
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
+    tsk_treeseq_free(&ts);
+    tables.edges.right[0]= 1.0;
+
+    /* Nonfinite coords */
+    tables.edges.left[0] = NAN;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.edges.left[0]= 1.0;
+
+    tables.edges.left[0] = INFINITY;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.edges.left[0]= 1.0;
+
+    tables.edges.right[0] = NAN;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.edges.right[0]= 1.0;
+
+    tables.edges.right[0] = -INFINITY;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
     tsk_treeseq_free(&ts);
     tables.edges.right[0]= 1.0;
 
@@ -2208,16 +2246,47 @@ test_simplest_bad_migrations(void)
     CU_ASSERT_EQUAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     tables.migrations.dest[0] = 1;
 
+    /* Bad time values */
+    tables.migrations.time[0] = NAN;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_TIME_NONFINITE);
+    tables.migrations.time[0] = 1.0;
+
+    tables.migrations.time[0] = INFINITY;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_TIME_NONFINITE);
+    tables.migrations.time[0] = 1.0;
+
     /* Bad left coordinate */
     tables.migrations.left[0] = -1;
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_LEFT_LESS_ZERO);
     tables.migrations.left[0] = 0;
 
+    tables.migrations.left[0] = NAN;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+    tables.migrations.left[0] = 0;
+
+    tables.migrations.left[0] = -INFINITY;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+    tables.migrations.left[0] = 0;
+
     /* Bad right coordinate */
     tables.migrations.right[0] = 2;
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_RIGHT_GREATER_SEQ_LENGTH);
+    tables.migrations.right[0] = 1;
+
+    tables.migrations.right[0] = NAN;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+    tables.migrations.right[0] = 1;
+
+    tables.migrations.right[0] = INFINITY;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
     tables.migrations.right[0] = 1;
 
     /* Bad interval coordinate */
@@ -3066,6 +3135,19 @@ test_single_tree_bad_records(void)
     tsk_treeseq_free(&ts);
     tables.edges.left[2] = 0.0;
 
+    /* Non finite */
+    tables.nodes.time[5] = INFINITY;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_TIME_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.nodes.time[5] = 2.0;
+
+    tables.nodes.time[5] = NAN;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_TIME_NONFINITE);
+    tsk_treeseq_free(&ts);
+    tables.nodes.time[5] = 2.0;
+
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
     CU_ASSERT_EQUAL(ret, 0);
     tsk_treeseq_free(&ts);
@@ -3175,6 +3257,19 @@ test_single_tree_bad_mutations(void)
 
     /* negative coordinate */
     tables.sites.position[0] = -1.0;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_SITE_POSITION);
+    tsk_treeseq_free(&ts);
+    tables.sites.position[0] = 0.0;
+
+    /* non finite coordinates */
+    tables.sites.position[0] = NAN;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_SITE_POSITION);
+    tsk_treeseq_free(&ts);
+    tables.sites.position[0] = 0.0;
+
+    tables.sites.position[0] = INFINITY;
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_SITE_POSITION);
     tsk_treeseq_free(&ts);

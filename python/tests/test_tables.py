@@ -1321,6 +1321,60 @@ class TestSortMutations(unittest.TestCase):
             sequence_length=1, strict=False)
 
 
+class TestTablesToTreeSequence(unittest.TestCase):
+    """
+    Tests for the .tree_sequence() method of a TableCollection.
+    """
+    random_seed = 42
+
+    def test_round_trip(self):
+        a = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+        tables = a.dump_tables()
+        b = tables.tree_sequence()
+        self.assertTrue(
+            all(a == b for a, b in zip(a.tables, b.tables) if a[0] != 'provenances'))
+
+    def test_bad_edge_coords(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+
+        tables = ts.dump_tables()
+        bad_coords = tables.edges.left + float('inf')
+        tables.edges.set_columns(**dict(tables.edges.asdict(), left=bad_coords))
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+        tables = ts.dump_tables()
+        bad_coords = tables.edges.right + float('nan')
+        tables.edges.set_columns(**dict(tables.edges.asdict(), right=bad_coords))
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+    def test_bad_site_positions(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+        tables = ts.dump_tables()
+        bad_pos = tables.sites.position.copy()
+        bad_pos[-1] = np.inf
+        tables.sites.set_columns(**dict(tables.sites.asdict(), position=bad_pos))
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+    def test_bad_node_times(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+        tables = ts.dump_tables()
+        bad_times = tables.nodes.time.copy()
+        bad_times[-1] = np.inf
+        tables.nodes.set_columns(**dict(tables.nodes.asdict(), time=bad_times))
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+    def test_bad_individual(self):
+        ts = msprime.simulate(12,  mutation_rate=1, random_seed=self.random_seed)
+        ts = tsutil.insert_random_ploidy_individuals(ts, seed=self.random_seed)
+        self.assertGreater(ts.num_individuals, 1)
+        tables = ts.dump_tables()
+        bad_locations = tables.individuals.location.copy()
+        bad_locations[0] = np.inf
+        tables.individuals.set_columns(
+            **dict(tables.individuals.asdict(), location=bad_locations))
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+
 class TestSimplifyTables(unittest.TestCase):
     """
     Tests for the simplify_tables function.

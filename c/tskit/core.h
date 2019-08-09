@@ -154,6 +154,9 @@ of tskit.
 #define TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS                            -207
 #define TSK_ERR_MIGRATION_OUT_OF_BOUNDS                             -208
 #define TSK_ERR_PROVENANCE_OUT_OF_BOUNDS                            -209
+#define TSK_ERR_TIME_NONFINITE                                      -210
+#define TSK_ERR_GENOME_COORDS_NONFINITE                             -211
+#define TSK_ERR_SPATIAL_LOCATION_NONFINITE                            -212
 
 /* Edge errors */
 #define TSK_ERR_NULL_PARENT                                         -300

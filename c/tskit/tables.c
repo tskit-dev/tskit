@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <float.h>
+#include <math.h>
 
 #include <tskit/tables.h>
 
@@ -5600,7 +5601,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
 {
     int ret = TSK_ERR_GENERIC;
     tsk_size_t j;
-    double left, right, position;
+    double node_time, left, right, position;
     double L = self->sequence_length;
     double *time = self->nodes.time;
     tsk_id_t parent, child;
@@ -5622,8 +5623,21 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
         goto out;
     }
 
+    /* Individuals */
+    for (j = 0; j < self->individuals.location_offset[self->individuals.num_rows]; j++) {
+        if (! isfinite(self->individuals.location[j])) {
+            ret = TSK_ERR_SPATIAL_LOCATION_NONFINITE;
+            goto out;
+        }
+    }
+
     /* Nodes */
     for (j = 0; j < self->nodes.num_rows; j++) {
+        node_time = self->nodes.time[j];
+        if (! isfinite(node_time)) {
+            ret = TSK_ERR_TIME_NONFINITE;
+            goto out;
+        }
         population = self->nodes.population[j];
         if (population < TSK_NULL || population >= num_populations) {
             ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
@@ -5660,6 +5674,10 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
         /* Spatial requirements for edges */
+        if (! (isfinite(left) && isfinite(right))) {
+            ret = TSK_ERR_GENOME_COORDS_NONFINITE;
+            goto out;
+        }
         if (left < 0) {
             ret = TSK_ERR_LEFT_LESS_ZERO;
             goto out;
@@ -5678,9 +5696,15 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
     }
+    
+    /* Sites */
     for (j = 0; j < self->sites.num_rows; j++) {
         position = self->sites.position[j];
         /* Spatial requirements */
+        if (! isfinite(position)) {
+            ret = TSK_ERR_BAD_SITE_POSITION;
+            goto out;
+        }
         if (position < 0 || position >= L) {
             ret = TSK_ERR_BAD_SITE_POSITION;
             goto out;
@@ -5753,10 +5777,18 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
             goto out;
         }
+        if (! isfinite(self->migrations.time[j])) {
+            ret = TSK_ERR_TIME_NONFINITE;
+            goto out;
+        }
         left = self->migrations.left[j];
         right = self->migrations.right[j];
         /* Spatial requirements */
         /* TODO it's a bit misleading to use the edge-specific errors here. */
+        if (! (isfinite(left) && isfinite(right))) {
+            ret = TSK_ERR_GENOME_COORDS_NONFINITE;
+            goto out;
+        }
         if (left < 0) {
             ret = TSK_ERR_LEFT_LESS_ZERO;
             goto out;

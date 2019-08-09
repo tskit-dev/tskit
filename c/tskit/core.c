@@ -198,6 +198,15 @@ tsk_strerror_internal(int err)
         case TSK_ERR_PROVENANCE_OUT_OF_BOUNDS:
             ret = "Provenance out of bounds";
             break;
+        case TSK_ERR_TIME_NONFINITE:
+            ret = "Times must be finite";
+            break;
+        case TSK_ERR_GENOME_COORDS_NONFINITE:
+            ret = "Genome coordinates must be finite numbers";
+            break;
+        case TSK_ERR_SPATIAL_LOCATION_NONFINITE:
+            ret = "Location values must be finite numbers";
+            break;
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:
@@ -249,7 +258,7 @@ tsk_strerror_internal(int err)
             ret = "Duplicate site positions";
             break;
         case TSK_ERR_BAD_SITE_POSITION:
-            ret = "Sites positions must be between 0 and sequence_length";
+            ret = "Site positions must be between 0 and sequence_length";
             break;
 
         /* Mutation errors */
