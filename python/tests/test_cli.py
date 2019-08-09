@@ -240,7 +240,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
         self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.ploidy, 1)
+        self.assertEqual(args.ploidy, None)
 
     def test_vcf_short_args(self):
         parser = cli.get_tskit_parser()
