@@ -1185,7 +1185,8 @@ class TestDiversity(StatsTestCase, SampleSetStatsMixin):
         n = np.array([len(x) for x in sample_sets])
 
         def f(x):
-            return x * (n - x) / (n * (n - 1))
+            with np.errstate(invalid='ignore'):
+                return x * (n - x) / (n * (n - 1))
 
         self.verify_definition(
             ts, sample_sets, windows, f, ts.diversity, diversity)
