@@ -34,3 +34,4 @@ from tskit.trees import *  # NOQA
 from tskit.tables import *  # NOQA
 from tskit.stats import *  # NOQA
 from tskit.exceptions import *  # NOQA
+from tskit.util import *  # NOQA
