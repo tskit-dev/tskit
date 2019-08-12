@@ -1019,7 +1019,7 @@ class TestBytePacking(unittest.TestCase):
 
 class TestSortTables(unittest.TestCase):
     """
-    Tests for the sort_tables method.
+    Tests for the TableCollection.sort() method.
     """
     random_seed = 12345
 
@@ -1228,7 +1228,7 @@ class TestSortTables(unittest.TestCase):
 
 class TestSortMutations(unittest.TestCase):
     """
-    Tests that mutations are correctly sorted by sort_tables.
+    Tests that mutations are correctly ordered when sorting tables.
     """
 
     def test_sort_mutations_stability(self):
@@ -1255,7 +1255,7 @@ class TestSortMutations(unittest.TestCase):
         ts = tskit.load_text(
             nodes=nodes, edges=edges, sites=sites, mutations=mutations,
             sequence_length=1, strict=False)
-        # Load text automatically calls sort tables, so we can test the
+        # Load text automatically calls tables.sort(), so we can test the
         # output directly.
         sites = ts.tables.sites
         mutations = ts.tables.mutations

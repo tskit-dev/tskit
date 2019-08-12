@@ -1887,7 +1887,7 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
     example, if a deletion is encoded in the mutation table this will not
     be parseable when ``strict=False``.
 
-    After parsing the tables, :func:`sort_tables` is called to ensure that
+    After parsing the tables, :meth:`TableCollection.sort` is called to ensure that
     the loaded tables satisfy the tree sequence :ref:`ordering requirements
     <sec_valid_tree_sequence_requirements>`. Note that this may result in the
     IDs of various entities changing from their positions in the input file.
