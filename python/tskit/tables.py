@@ -1611,7 +1611,7 @@ class TableCollection(object):
         the output tables, this mapping will equal ``-1``.
 
         Tables operated on by this function must: be sorted (see
-        :meth:`TableCollection.sort`)), have children be born strictly after their
+        :meth:`TableCollection.sort`), have children be born strictly after their
         parents, and the intervals on which any individual is a child must be
         disjoint. Other than this the tables need not satisfy remaining
         requirements to specify a valid tree sequence (but the resulting tables
