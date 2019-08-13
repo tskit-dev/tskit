@@ -3048,7 +3048,16 @@ class TreeSequence(object):
         Each individual in the output is identified by a string; these are the
         VCF "sample" names. By default, these are of the form ``tsk_0``,
         ``tsk_1`` etc, up to the number of individuals, but can be manually
-        specified using the ``individual_names`` argument.
+        specified using the ``individual_names`` argument. We do not check
+        for duplicates in this array, or perform any checks to ensure that
+        the output VCF is well-formed.
+
+        The REF value in the output VCF is the ancestral allele for a site
+        and ALT values are the remaining alleles. It is important to note,
+        therefore, that for real data this means that the REF value for a given
+        site **may not** be equal to the reference allele. We also do not
+        check that the alleles result in a valid VCF---for example, it is possible
+        to use the tab character as an allele, leading to a broken VCF.
 
         The ``position_transform`` argument provides a way to flexibly translate
         the genomic location of sites in tskit to the appropriate value in VCF.
