@@ -175,6 +175,30 @@ def insert_random_ploidy_individuals(ts, max_ploidy=5, max_dimension=3, seed=1):
     return tables.tree_sequence()
 
 
+def insert_individuals(ts, samples=None, ploidy=1):
+    """
+    Inserts individuals into the tree sequence using the specified list
+    of samples (or all samples if None) with the specified ploidy by combining
+    ploidy-sized chunks of the list.
+    """
+    if samples is None:
+        samples = ts.samples()
+    if len(samples) % ploidy != 0:
+        raise ValueError("number of samples must be divisible by ploidy")
+    tables = ts.dump_tables()
+    tables.individuals.clear()
+    individual = tables.nodes.individual[:]
+    individual[:] = tskit.NULL
+    j = 0
+    while j < len(samples):
+        nodes = samples[j: j + ploidy]
+        ind_id = tables.individuals.add_row()
+        individual[nodes] = ind_id
+        j += ploidy
+    tables.nodes.individual = individual
+    return tables.tree_sequence()
+
+
 def permute_nodes(ts, node_map):
     """
     Returns a copy of the specified tree sequence such that the nodes are

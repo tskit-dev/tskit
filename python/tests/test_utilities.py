@@ -51,3 +51,33 @@ class TestJukesCantor(unittest.TestCase):
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(ts)
+
+
+class TestInsertIndividuals(unittest.TestCase):
+    """
+    Test that we insert individuals correctly.
+    """
+    def test_ploidy_1(self):
+        ts = msprime.simulate(10, random_seed=1)
+        self.assertEqual(ts.num_individuals, 0)
+        ts = tsutil.insert_individuals(ts, ploidy=1)
+        self.assertEqual(ts.num_individuals, 10)
+        for j, ind in enumerate(ts.individuals()):
+            self.assertEqual(list(ind.nodes), [j])
+
+    def test_ploidy_2(self):
+        ts = msprime.simulate(10, random_seed=1)
+        self.assertEqual(ts.num_individuals, 0)
+        ts = tsutil.insert_individuals(ts, ploidy=2)
+        self.assertEqual(ts.num_individuals, 5)
+        for j, ind in enumerate(ts.individuals()):
+            self.assertEqual(list(ind.nodes), [2 * j, 2 * j + 1])
+
+    def test_ploidy_2_reversed(self):
+        ts = msprime.simulate(10, random_seed=1)
+        self.assertEqual(ts.num_individuals, 0)
+        samples = ts.samples()[::-1]
+        ts = tsutil.insert_individuals(ts, samples=samples, ploidy=2)
+        self.assertEqual(ts.num_individuals, 5)
+        for j, ind in enumerate(ts.individuals()):
+            self.assertEqual(list(ind.nodes), [samples[2 * j + 1], samples[2 * j]])

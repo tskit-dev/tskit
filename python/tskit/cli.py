@@ -70,8 +70,8 @@ def run_trees(args):
     for tree in ts.trees():
         print("tree {}:".format(tree.index))
         print("  num_sites: {}".format(tree.num_sites))
-        print("  interval:  ({0:.{2}f}, {1:.{2}f})".format(
-            *tree.interval, args.precision))
+        left, right = tree.interval
+        print("  interval:  ({0:.{2}f}, {1:.{2}f})".format(left, right, args.precision))
         if args.draw:
             print(tree.draw(format="unicode"))
 
@@ -131,7 +131,7 @@ def run_provenances(args):
 
 def run_vcf(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
-    tree_sequence.write_vcf(sys.stdout, args.ploidy)
+    tree_sequence.write_vcf(sys.stdout, ploidy=args.ploidy)
 
 
 def add_tree_sequence_argument(parser):
@@ -187,8 +187,13 @@ def get_tskit_parser():
         help="Convert the tree sequence genotypes to VCF format.")
     add_tree_sequence_argument(parser)
     parser.add_argument(
-        "--ploidy", "-P", type=int, default=1,
-        help="The ploidy level of samples")
+        "--ploidy", "-P", type=int, default=None,
+        help=(
+            "If the tree sequence does not contain information about "
+            "individuals, create them by combining adjacent samples nodes "
+            "into individuals of the specified ploidy. It is an error "
+            "to provide this argument if the tree sequence does contain "
+            "individuals"))
     parser.set_defaults(runner=run_vcf)
 
     parser = subparsers.add_parser(
