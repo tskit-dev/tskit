@@ -26,6 +26,7 @@ Tree sequence IO via the tables API.
 import base64
 import collections
 import datetime
+import json
 import warnings
 
 import numpy as np
@@ -37,6 +38,7 @@ import _tskit
 # can't do this in Py3.
 import tskit
 import tskit.util as util
+import tskit.provenance as provenance
 
 
 IndividualTableRow = collections.namedtuple(
@@ -221,7 +223,7 @@ class IndividualTable(BaseTable):
         flags = self.flags
         location = self.location
         location_offset = self.location_offset
-        metadata = unpack_bytes(self.metadata, self.metadata_offset)
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tflags\tlocation\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
@@ -411,7 +413,7 @@ class NodeTable(BaseTable):
         flags = self.flags
         population = self.population
         individual = self.individual
-        metadata = unpack_bytes(self.metadata, self.metadata_offset)
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tflags\tpopulation\tindividual\ttime\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
@@ -874,9 +876,9 @@ class SiteTable(BaseTable):
 
     def __str__(self):
         position = self.position
-        ancestral_state = unpack_strings(
+        ancestral_state = util.unpack_strings(
             self.ancestral_state, self.ancestral_state_offset)
-        metadata = unpack_bytes(self.metadata, self.metadata_offset)
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tposition\tancestral_state\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
@@ -1070,8 +1072,9 @@ class MutationTable(BaseTable):
         site = self.site
         node = self.node
         parent = self.parent
-        derived_state = unpack_strings(self.derived_state, self.derived_state_offset)
-        metadata = unpack_bytes(self.metadata, self.metadata_offset)
+        derived_state = util.unpack_strings(
+            self.derived_state, self.derived_state_offset)
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tsite\tnode\tderived_state\tparent\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
@@ -1257,7 +1260,7 @@ class PopulationTable(BaseTable):
         return self.ll_table.add_row(metadata=metadata)
 
     def __str__(self):
-        metadata = unpack_bytes(self.metadata, self.metadata_offset)
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
@@ -1368,8 +1371,8 @@ class ProvenanceTable(BaseTable):
             record=record, record_offset=record_offset))
 
     def __str__(self):
-        timestamp = unpack_strings(self.timestamp, self.timestamp_offset)
-        record = unpack_strings(self.record, self.record_offset)
+        timestamp = util.unpack_strings(self.timestamp, self.timestamp_offset)
+        record = util.unpack_strings(self.record, self.record_offset)
         ret = "id\ttimestamp\trecord\n"
         for j in range(self.num_rows):
             ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
@@ -1575,6 +1578,15 @@ class TableCollection(object):
         tables.populations.set_columns(**tables_dict["populations"])
         tables.provenances.set_columns(**tables_dict["provenances"])
         return tables
+
+    def copy(self):
+        """
+        Returns a deep copy of this TableCollection.
+
+        :return: A deep copy of this TableCollection.
+        :rtype: .TableCollection
+        """
+        return TableCollection.fromdict(self.asdict())
 
     def tree_sequence(self):
         """
@@ -1791,6 +1803,136 @@ class TableCollection(object):
         self.ll_tables.deduplicate_sites()
         # TODO add provenance
 
+    def delete_intervals(self, intervals, simplify=True, record_provenance=True):
+        """
+        Returns a copy of this set of tables for which information in the
+        specified list of genomic intervals has been deleted.  Edges spanning
+        these intervals are truncated or deleted, and sites falling within them are
+        discarded.
+
+        Note that node IDs may change as a result of this operation,
+        as by default :meth:`.simplify` is called on the resulting tables to
+        remove redundant nodes. If you wish to keep node IDs stable between
+        this set of tables and the returned tables, specify ``simplify=True``.
+
+        See also :meth:`.keep_intervals`.
+
+        :param array_like intervals: A list (start, end) pairs describing the
+            genomic intervals to delete. Intervals must be non-overlapping and
+            in increasing order. The list of intervals must be interpretable as a
+            2D numpy array with shape (N, 2), where N is the number of intervals.
+        :param bool simplify: If True, run simplify on the tables so that nodes
+            no longer used are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this operation
+            in the returned table collection's provenance information.
+            (Default: True).
+        :rtype: tskit.TableCollection
+        """
+        return self.keep_intervals(
+            util.negate_intervals(intervals, 0, self.sequence_length),
+            simplify=simplify, record_provenance=record_provenance)
+
+    def keep_intervals(self, intervals, simplify=True, record_provenance=True):
+        """
+        Returns a copy of this set of tables which include only information in
+        the specified list of genomic intervals.  Edges are truncated to within
+        these intervals, and sites not falling within these intervals are
+        discarded.
+
+        Note that node IDs may change as a result of this operation,
+        as by default :meth:`.simplify` is called on the resulting tables to
+        remove redundant nodes. If you wish to keep node IDs stable between
+        this set of tables and the returned tables, specify ``simplify=True``.
+
+        See also :meth:`.delete_intervals`.
+
+        :param array_like intervals: A list (start, end) pairs describing the
+            genomic intervals to keep. Intervals must be non-overlapping and
+            in increasing order. The list of intervals must be interpretable as a
+            2D numpy array with shape (N, 2), where N is the number of intervals.
+        :param bool simplify: If True, run simplify on the tables so that nodes
+            no longer used are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this operation
+            in the returned table collection's provenance information.
+            (Default: True).
+        :rtype: tskit.TableCollection
+        """
+
+        def keep_with_offset(keep, data, offset):
+            # We need the astype here for 32 bit machines
+            lens = np.diff(offset).astype(np.int32)
+            return (data[np.repeat(keep, lens)],
+                    np.concatenate([
+                        np.array([0], dtype=offset.dtype),
+                        np.cumsum(lens[keep], dtype=offset.dtype)]))
+
+        intervals = util.intervals_to_np_array(intervals, 0, self.sequence_length)
+        if len(self.migrations) > 0:
+            raise ValueError("Migrations not supported by keep_intervals")
+
+        tables = self.copy()
+        sites = self.sites
+        edges = self.edges
+        mutations = self.mutations
+        tables.edges.clear()
+        tables.sites.clear()
+        tables.mutations.clear()
+        keep_sites = np.repeat(False, sites.num_rows)
+        keep_mutations = np.repeat(False, mutations.num_rows)
+        for s, e in intervals:
+            curr_keep_sites = np.logical_and(sites.position >= s, sites.position < e)
+            keep_sites = np.logical_or(keep_sites, curr_keep_sites)
+            new_as, new_as_offset = keep_with_offset(
+                curr_keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
+            new_md, new_md_offset = keep_with_offset(
+                curr_keep_sites, sites.metadata, sites.metadata_offset)
+            keep_mutations = np.logical_or(
+                keep_mutations, curr_keep_sites[mutations.site])
+            keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
+            tables.edges.append_columns(
+                left=np.fmax(s, edges.left[keep_edges]),
+                right=np.fmin(e, edges.right[keep_edges]),
+                parent=edges.parent[keep_edges],
+                child=edges.child[keep_edges])
+            tables.sites.append_columns(
+                position=sites.position[curr_keep_sites],
+                ancestral_state=new_as,
+                ancestral_state_offset=new_as_offset,
+                metadata=new_md,
+                metadata_offset=new_md_offset)
+        new_ds, new_ds_offset = keep_with_offset(
+            keep_mutations, mutations.derived_state, mutations.derived_state_offset)
+        new_md, new_md_offset = keep_with_offset(
+            keep_mutations, mutations.metadata, mutations.metadata_offset)
+        site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
+        tables.mutations.set_columns(
+            site=site_map[mutations.site[keep_mutations]],
+            node=mutations.node[keep_mutations],
+            derived_state=new_ds,
+            derived_state_offset=new_ds_offset,
+            # TODO Compute the mutation parents properly here. We're being
+            # lazy right now and just asking compute_mutation_parents to do
+            # it for us, but we have to build_index to do this and also
+            # run compute_mutation_parents.
+            parent=np.zeros(np.sum(keep_mutations), dtype=np.int32) - 1,
+            metadata=new_md,
+            metadata_offset=new_md_offset)
+        tables.sort()
+        # See note above on compute_mutation_parents; we don't need these
+        # two steps if we do it properly.
+        tables.build_index()
+        tables.compute_mutation_parents()
+        if simplify:
+            tables.simplify()
+        if record_provenance:
+            parameters = {
+                "command": "keep_intervals",
+                "TODO": "add parameters"
+            }
+            tables.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+        return tables
+
     def has_index(self):
         """
         Returns True if this TableCollection is indexed.
@@ -1810,83 +1952,3 @@ class TableCollection(object):
         indexed this method has no effect.
         """
         self.ll_tables.drop_index()
-
-
-#############################################
-# Table functions.
-#############################################
-
-def pack_bytes(data):
-    """
-    Packs the specified list of bytes into a flattened numpy array of 8 bit integers
-    and corresponding offsets. See :ref:`sec_encoding_ragged_columns` for details
-    of this encoding.
-
-    :param list[bytes] data: The list of bytes values to encode.
-    :return: The tuple (packed, offset) of numpy arrays representing the flattened
-        input data and offsets.
-    :rtype: numpy.array (dtype=np.int8), numpy.array (dtype=np.uint32).
-    """
-    n = len(data)
-    offsets = np.zeros(n + 1, dtype=np.uint32)
-    for j in range(n):
-        offsets[j + 1] = offsets[j] + len(data[j])
-    column = np.zeros(offsets[-1], dtype=np.int8)
-    for j, value in enumerate(data):
-        column[offsets[j]: offsets[j + 1]] = bytearray(value)
-    return column, offsets
-
-
-def unpack_bytes(packed, offset):
-    """
-    Unpacks a list of bytes from the specified numpy arrays of packed byte
-    data and corresponding offsets. See :ref:`sec_encoding_ragged_columns` for details
-    of this encoding.
-
-    :param numpy.ndarray packed: The flattened array of byte values.
-    :param numpy.ndarray offset: The array of offsets into the ``packed`` array.
-    :return: The list of bytes values unpacked from the parameter arrays.
-    :rtype: list[bytes]
-    """
-    # This could be done a lot more efficiently...
-    ret = []
-    for j in range(offset.shape[0] - 1):
-        raw = packed[offset[j]: offset[j + 1]].tobytes()
-        ret.append(raw)
-    return ret
-
-
-def pack_strings(strings, encoding="utf8"):
-    """
-    Packs the specified list of strings into a flattened numpy array of 8 bit integers
-    and corresponding offsets using the specified text encoding.
-    See :ref:`sec_encoding_ragged_columns` for details of this encoding of
-    columns of variable length data.
-
-    :param list[str] data: The list of strings to encode.
-    :param str encoding: The text encoding to use when converting string data
-        to bytes. See the :mod:`codecs` module for information on available
-        string encodings.
-    :return: The tuple (packed, offset) of numpy arrays representing the flattened
-        input data and offsets.
-    :rtype: numpy.array (dtype=np.int8), numpy.array (dtype=np.uint32).
-    """
-    return pack_bytes([bytearray(s.encode(encoding)) for s in strings])
-
-
-def unpack_strings(packed, offset, encoding="utf8"):
-    """
-    Unpacks a list of strings from the specified numpy arrays of packed byte
-    data and corresponding offsets using the specified text encoding.
-    See :ref:`sec_encoding_ragged_columns` for details of this encoding of
-    columns of variable length data.
-
-    :param numpy.ndarray packed: The flattened array of byte values.
-    :param numpy.ndarray offset: The array of offsets into the ``packed`` array.
-    :param str encoding: The text encoding to use when converting string data
-        to bytes. See the :mod:`codecs` module for information on available
-        string encodings.
-    :return: The list of strings unpacked from the parameter arrays.
-    :rtype: list[str]
-    """
-    return [b.decode(encoding) for b in unpack_bytes(packed, offset)]

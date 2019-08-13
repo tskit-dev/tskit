@@ -1600,7 +1600,22 @@ class TestTableCollection(unittest.TestCase):
             "provenances": t.provenances.asdict()}
         d2 = t.asdict()
         self.assertEqual(set(d1.keys()), set(d2.keys()))
-        # TODO test the fromdict constructor
+
+    def test_from_dict(self):
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+        t1 = ts.tables
+        d = {
+            "sequence_length": t1.sequence_length,
+            "individuals": t1.individuals.asdict(),
+            "populations": t1.populations.asdict(),
+            "nodes": t1.nodes.asdict(),
+            "edges": t1.edges.asdict(),
+            "sites": t1.sites.asdict(),
+            "mutations": t1.mutations.asdict(),
+            "migrations": t1.migrations.asdict(),
+            "provenances": t1.provenances.asdict()}
+        t2 = tskit.TableCollection.fromdict(d)
+        self.assertEquals(t1, t2)
 
     def test_iter(self):
         def test_iter(table_collection):
@@ -1621,6 +1636,21 @@ class TestTableCollection(unittest.TestCase):
             tskit.TableCollection(sequence_length=1),
             tskit.TableCollection(sequence_length=2))
 
+    def test_copy(self):
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 1], [1, 0]]
+        t1 = msprime.simulate(
+               population_configurations=pop_configs,
+               migration_matrix=migration_matrix,
+               mutation_rate=1,
+               record_migrations=True,
+               random_seed=100).dump_tables()
+        t2 = t1.copy()
+        self.assertIsNot(t1, t2)
+        self.assertEqual(t1, t2)
+        t1.edges.clear()
+        self.assertNotEqual(t1, t2)
+
     def test_equals(self):
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]
@@ -1637,6 +1667,9 @@ class TestTableCollection(unittest.TestCase):
                record_migrations=True,
                random_seed=1).dump_tables()
         self.assertEqual(t1, t1)
+        self.assertEqual(t1, t1.copy())
+        self.assertEqual(t1.copy(), t1)
+
         # The provenances may or may not be equal depending on the clock
         # precision for record. So clear them first.
         t1.provenances.clear()
