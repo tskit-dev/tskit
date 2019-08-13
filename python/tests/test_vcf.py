@@ -71,6 +71,18 @@ def ts_to_pysam(ts, *args, **kwargs):
         yield pysam.VariantFile(vcf_path)
 
 
+def example_individuals(ts, ploidy=1):
+    if ts.num_individuals == 0:
+        yield None, ts.num_samples / ploidy
+    else:
+        yield None, ts.num_individuals
+        yield list(range(ts.num_individuals)), ts.num_individuals
+    if ts.num_individuals > 3:
+        n = ts.num_individuals - 2
+        yield list(range(n)), n
+        yield 2 + np.random.choice(np.arange(n), n, replace=False), n
+
+
 def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
     """
     Writes a VCF under the legacy conversion rules used in versions before 0.2.0.
@@ -258,19 +270,22 @@ class TestParseHeaderPyvcf(unittest.TestCase, ExamplesMixin):
     """
     def verify(self, ts):
         contig_id = "pyvcf"
-        with ts_to_pyvcf(ts, contig_id=contig_id) as reader:
-            self.assertEqual(len(reader.contigs), 1)
-            contig = reader.contigs[contig_id]
-            self.assertEqual(contig.id, contig_id)
-            self.assertGreater(contig.length, 0)
-            self.assertEqual(len(reader.alts), 0)
-            self.assertEqual(len(reader.filters), 1)
-            p = reader.filters["PASS"]
-            self.assertEqual(p.id, "PASS")
-            self.assertEqual(len(reader.formats), 1)
-            f = reader.formats["GT"]
-            self.assertEqual(f.id, "GT")
-            self.assertEqual(len(reader.infos), 0)
+        for indivs, num_indivs in example_individuals(ts):
+            with ts_to_pyvcf(ts, contig_id=contig_id,
+                             individuals=indivs) as reader:
+                self.assertEqual(len(reader.contigs), 1)
+                contig = reader.contigs[contig_id]
+                self.assertEqual(contig.id, contig_id)
+                self.assertGreater(contig.length, 0)
+                self.assertEqual(len(reader.alts), 0)
+                self.assertEqual(len(reader.filters), 1)
+                p = reader.filters["PASS"]
+                self.assertEqual(p.id, "PASS")
+                self.assertEqual(len(reader.formats), 1)
+                f = reader.formats["GT"]
+                self.assertEqual(f.id, "GT")
+                self.assertEqual(len(reader.infos), 0)
+                self.assertEqual(len(reader.samples), num_indivs)
 
 
 @unittest.skipIf(not _pysam_imported, "pysam not available")
@@ -280,25 +295,28 @@ class TestParseHeaderPysam(unittest.TestCase, ExamplesMixin):
     """
     def verify(self, ts):
         contig_id = "pysam"
-        with ts_to_pysam(ts, contig_id=contig_id) as bcf_file:
-            self.assertEqual(bcf_file.format, "VCF")
-            self.assertEqual(bcf_file.version, (4, 2))
-            header = bcf_file.header
-            self.assertEqual(len(header.contigs), 1)
-            contig = header.contigs[0]
-            self.assertEqual(contig.name, contig_id)
-            self.assertGreater(contig.length, 0)
-            self.assertEqual(len(header.filters), 1)
-            p = header.filters["PASS"]
-            self.assertEqual(p.name, "PASS")
-            self.assertEqual(p.description, "All filters passed")
-            self.assertEqual(len(header.info), 0)
-            self.assertEqual(len(header.formats), 1)
-            fmt = header.formats["GT"]
-            self.assertEqual(fmt.name, "GT")
-            self.assertEqual(fmt.number, 1)
-            self.assertEqual(fmt.type, "String")
-            self.assertEqual(fmt.description, "Genotype")
+        for indivs, num_indivs in example_individuals(ts):
+            with ts_to_pysam(ts, contig_id=contig_id,
+                             individuals=indivs) as bcf_file:
+                self.assertEqual(bcf_file.format, "VCF")
+                self.assertEqual(bcf_file.version, (4, 2))
+                header = bcf_file.header
+                self.assertEqual(len(header.contigs), 1)
+                contig = header.contigs[0]
+                self.assertEqual(contig.name, contig_id)
+                self.assertGreater(contig.length, 0)
+                self.assertEqual(len(header.filters), 1)
+                p = header.filters["PASS"]
+                self.assertEqual(p.name, "PASS")
+                self.assertEqual(p.description, "All filters passed")
+                self.assertEqual(len(header.info), 0)
+                self.assertEqual(len(header.formats), 1)
+                fmt = header.formats["GT"]
+                self.assertEqual(fmt.name, "GT")
+                self.assertEqual(fmt.number, 1)
+                self.assertEqual(fmt.type, "String")
+                self.assertEqual(fmt.description, "Genotype")
+                self.assertEqual(len(bcf_file.header.samples), num_indivs)
 
 
 @unittest.skipIf(not _pysam_imported, "pysam not available")
@@ -326,10 +344,12 @@ class TestRecordsEqual(unittest.TestCase, ExamplesMixin):
                 self.assertEqual(list(pysam_sample.alleles), pyvcf_alleles)
 
     def verify(self, ts):
-        with ts_to_pysam(ts) as bcf_file, ts_to_pyvcf(ts) as vcf_reader:
-            pyvcf_records = list(vcf_reader)
-            pysam_records = list(bcf_file)
-            self.verify_records(pyvcf_records, pysam_records)
+        for indivs, num_indivs in example_individuals(ts):
+            with ts_to_pysam(ts, individuals=indivs) as bcf_file, \
+                    ts_to_pyvcf(ts, individuals=indivs) as vcf_reader:
+                pyvcf_records = list(vcf_reader)
+                pysam_records = list(bcf_file)
+                self.verify_records(pyvcf_records, pysam_records)
 
 
 class TestContigLengths(unittest.TestCase):
@@ -391,32 +411,43 @@ class TestInterface(unittest.TestCase):
         with self.assertRaises(ValueError):
             ts.write_vcf(io.StringIO(), ploidy=2)
 
+    def test_bad_individuals(self):
+        ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+        ts = tsutil.insert_individuals(ts, ploidy=2)
+        with self.assertRaises(ValueError):
+            ts.write_vcf(io.StringIO(), individuals=[0, -1])
+        with self.assertRaises(ValueError):
+            ts.write_vcf(io.StringIO(), individuals=[1, 2, ts.num_individuals])
+
 
 class TestRoundTripIndividuals(unittest.TestCase, ExamplesMixin):
     """
     Tests that we can round-trip genotype data through VCF using pyvcf.
     """
     def verify(self, ts):
-        with ts_to_pyvcf(ts) as vcf_reader:
-            samples = []
-            for ind in ts.individuals():
-                samples.extend(ind.nodes)
-            for variant, vcf_row in itertools.zip_longest(
-                    ts.variants(samples=samples), vcf_reader):
-                self.assertEqual(vcf_row.POS, np.round(variant.site.position))
-                self.assertEqual(variant.alleles[0], vcf_row.REF)
-                self.assertEqual(list(variant.alleles[1:]), vcf_row.ALT)
-                j = 0
-                for individual, sample in itertools.zip_longest(
-                        ts.individuals(), vcf_row.samples):
-                    calls = sample.data.GT.split("|")
-                    allele_calls = sample.gt_bases.split("|")
-                    self.assertEqual(len(calls), len(individual.nodes))
-                    for allele_call, call in zip(allele_calls, calls):
-                        self.assertEqual(int(call), variant.genotypes[j])
-                        self.assertEqual(
-                            allele_call, variant.alleles[variant.genotypes[j]])
-                        j += 1
+        for indivs, num_indivs in example_individuals(ts):
+            with ts_to_pyvcf(ts, individuals=indivs) as vcf_reader:
+                samples = []
+                if indivs is None:
+                    indivs = range(ts.num_individuals)
+                for ind in map(ts.individual, indivs):
+                    samples.extend(ind.nodes)
+                for variant, vcf_row in itertools.zip_longest(
+                        ts.variants(samples=samples), vcf_reader):
+                    self.assertEqual(vcf_row.POS, np.round(variant.site.position))
+                    self.assertEqual(variant.alleles[0], vcf_row.REF)
+                    self.assertEqual(list(variant.alleles[1:]), vcf_row.ALT)
+                    j = 0
+                    for individual, sample in itertools.zip_longest(
+                            map(ts.individual, indivs), vcf_row.samples):
+                        calls = sample.data.GT.split("|")
+                        allele_calls = sample.gt_bases.split("|")
+                        self.assertEqual(len(calls), len(individual.nodes))
+                        for allele_call, call in zip(allele_calls, calls):
+                            self.assertEqual(int(call), variant.genotypes[j])
+                            self.assertEqual(
+                                allele_call, variant.alleles[variant.genotypes[j]])
+                            j += 1
 
 
 class TestLimitations(unittest.TestCase):
@@ -492,6 +523,16 @@ class TestIndividualNames(unittest.TestCase):
             ts.write_vcf(io.StringIO(), individual_names=[])
         with self.assertRaises(ValueError):
             ts.write_vcf(io.StringIO(), individual_names=["x" for _ in range(4)])
+        with self.assertRaises(ValueError):
+            ts.write_vcf(
+                    io.StringIO(),
+                    individuals=list(range(ts.num_individuals)),
+                    individual_names=["x" for _ in range(ts.num_individuals - 1)])
+        with self.assertRaises(ValueError):
+            ts.write_vcf(
+                    io.StringIO(),
+                    individuals=list(range(ts.num_individuals - 1)),
+                    individual_names=["x" for _ in range(ts.num_individuals)])
 
     def test_bad_length_ploidy(self):
         ts = msprime.simulate(6, mutation_rate=2, random_seed=1)
