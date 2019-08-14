@@ -3338,6 +3338,27 @@ class TreeSequence(object):
         below the node that ``f`` is being evaluated for. See
         :meth:`.general_stat`  for more details.
 
+        Here is a contrived example: suppose that ``A`` and ``B`` are two sets
+        of samples with ``nA`` and ``nB`` elements, respectively. Passing these
+        as sample sets will give ``f`` an argument of length two, giving the number
+        of samples in ``A`` and ``B`` below the node in question. So, if we define
+
+            def f(x):
+                pA = x[0] / nA
+                pB = x[1] / nB
+                return np.array([pA * pB])
+
+        then if all sites are biallelic,
+
+            ts.sample_count_stat([A, B], f, windows="site",
+                                 polarised=False, mode="site")
+
+        would compute, for each site, the product of the derived allele
+        frequencies in the two sample sets, in a (num sites, 1) array.  If
+        instead ``f`` returns ``np.array([pA, pB, pA * pB])``, then the
+        output would be a (num sites, 3) array, with the first two columns
+        giving the allele frequencies in ``A`` and ``B``, respectively.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param function f: A function that takes a one-dimensional array of length

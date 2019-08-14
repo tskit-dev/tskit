@@ -284,6 +284,17 @@ pairwise) and Patterson's f statistics (which are four-way).
 - :meth:`.TreeSequence.Y3`
 - :meth:`.TreeSequence.Y2`
 
+------------------
+Trait correlations
+------------------
+
+These methods compute correlations and covariances of traits (i.e., an
+arbitrary vector) with allelic state, possibly in the context of a multivariate
+regression with other covariates (as in GWAS).
+
+- :meth:`.TreeSequence.trait_covariance`
+- :meth:`.TreeSequence.trait_correlation`
+
 ---------------
 General methods
 ---------------
