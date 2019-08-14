@@ -50,10 +50,14 @@ class VcfWriter(object):
     file-like object.
     """
     def __init__(
-            self, tree_sequence, ploidy=None, contig_id="1", individual_names=None,
-            position_transform=None):
+            self, tree_sequence, ploidy=None, contig_id="1", individuals=None,
+            individual_names=None, position_transform=None):
         self.tree_sequence = tree_sequence
         self.contig_id = contig_id
+
+        if individuals is None:
+            individuals = np.arange(tree_sequence.num_individuals, dtype=int)
+        self.individuals = individuals
 
         self.__make_sample_mapping(ploidy)
 
@@ -92,18 +96,19 @@ class VcfWriter(object):
         """
         self.samples = None
         self.individual_ploidies = []
-        if self.tree_sequence.num_individuals > 0:
+        if len(self.individuals) > 0:
             if ploidy is not None:
                 raise ValueError("Cannot specify ploidy when individuals present")
             self.samples = []
-            for ind in self.tree_sequence.individuals():
+            for i in self.individuals:
+                if i < 0 or i >= self.tree_sequence.num_individuals:
+                    raise ValueError("Invalid individual IDs provided.")
+                ind = self.tree_sequence.individual(i)
                 self.samples.extend(ind.nodes)
                 self.individual_ploidies.append(len(ind.nodes))
             if len(self.samples) == 0:
                 raise ValueError(
-                    "Individuals are present but do not map to any nodes. This is "
-                    "probably an error. If you wish to generate a VCF from this "
-                    "tree sequence, run simplify() first to remove these individuals")
+                    "The individuals do not map to any sampled nodes.")
         else:
             if ploidy is None:
                 ploidy = 1

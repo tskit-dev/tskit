@@ -3027,8 +3027,8 @@ class TreeSequence(object):
         return samples
 
     def write_vcf(
-            self, output, ploidy=None, contig_id="1", individual_names=None,
-            position_transform=None):
+            self, output, ploidy=None, contig_id="1", individuals=None,
+            individual_names=None, position_transform=None):
         """
         Writes a VCF formatted file to the specified file-like object.
         If there is individual information present in the tree sequence
@@ -3121,6 +3121,8 @@ class TreeSequence(object):
         :param int ploidy: The ploidy of the individuals to be written to
             VCF. This sample size must be evenly divisible by ploidy.
         :param str contig_id: The value of the CHROM column in the output VCF.
+        :param list(int) individuals: A list containing the individual IDs to
+            write out to VCF. Defaults to all individuals in the tree sequence.
         :param list(str) individual_names: A list of string names to identify
             individual columns in the VCF. In VCF nomenclature, these are the
             sample IDs. If specified, this must be a list of strings of
@@ -3141,6 +3143,7 @@ class TreeSequence(object):
         """
         writer = vcf.VcfWriter(
             self, ploidy=ploidy, contig_id=contig_id,
+            individuals=individuals,
             individual_names=individual_names,
             position_transform=position_transform)
         writer.write(output)
