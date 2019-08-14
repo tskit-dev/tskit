@@ -296,7 +296,8 @@ class Migration(SimpleContainer):
     :ivar time: The time at which this migration occured at.
     :vartype time: float
     """
-    def __init__(self, left, right, node, source, dest, time):
+    def __init__(self, left, right, node, source, dest, time, id_=None):
+        self.id = id_
         self.left = left
         self.right = right
         self.node = node
@@ -430,7 +431,7 @@ def add_deprecated_mutation_attrs(site, mutation):
     """
     Add in attributes for the older deprecated way of defining
     mutations. These attributes will be removed in future releases
-    and are deliberately undocumented in version 0.5.0.
+    and are deliberately undocumented in tskit v0.2.2.
     """
     mutation.position = site.position
     mutation.index = site.id
@@ -2159,6 +2160,27 @@ class TreeIterator(object):
         return self.tree.tree_sequence.num_trees
 
 
+class SimpleContainerSequence(object):
+    """
+    Simple wrapper to allow arrays of SimpleContainers (e.g. edges, nodes) that have a
+    function allowing access by index (e.g. ts.edge(i), ts.node(i)) to be treated as a
+    python sequence, allowing forward and reverse iteration.
+    """
+    def __init__(self, getter, length):
+        self.getter = getter
+        self.length = length
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index):
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("Index out of bounds")
+        return self.getter(index)
+
+
 class TreeSequence(object):
     """
     A single tree sequence, as defined by the :ref:`data model <sec_data_model>`.
@@ -2584,42 +2606,39 @@ class TreeSequence(object):
 
     def migrations(self):
         """
-        Returns an iterator over all the
+        Returns an iterable sequence of all the
         :ref:`migrations <sec_migration_table_definition>` in this tree sequence.
 
         Migrations are returned in nondecreasing order of the ``time`` value.
 
-        :return: An iterator over all migrations.
-        :rtype: :class:`collections.abc.Iterable`, :class:`Migration`
+        :return: An iterable sequence of all migrations.
+        :rtype: Sequence(:class:`.Migration`)
         """
-        for j in range(self._ll_tree_sequence.get_num_migrations()):
-            yield Migration(*self._ll_tree_sequence.get_migration(j))
+        return SimpleContainerSequence(self.migration, self.num_migrations)
 
     def individuals(self):
         """
-        Returns an iterator over all the
+        Returns an iterable sequence of all the
         :ref:`individuals <sec_individual_table_definition>` in this tree sequence.
 
-        :return: An iterator over all individuals.
-        :rtype: :class:`collections.abc.Iterable`, :class:`Individual`
+        :return: An iterable sequence of all individuals.
+        :rtype: Sequence(:class:`.Individual`)
         """
-        for j in range(self.num_individuals):
-            yield self.individual(j)
+        return SimpleContainerSequence(self.individual, self.num_individuals)
 
     def nodes(self):
         """
-        Returns an iterator over all the :ref:`nodes <sec_node_table_definition>`
+        Returns an iterable sequence of all the :ref:`nodes <sec_node_table_definition>`
         in this tree sequence.
 
-        :return: An iterator over all nodes.
-        :rtype: :class:`collections.abc.Iterable`, :class:`Node`
+        :return: An iterable sequence of all nodes.
+        :rtype: Sequence(:class:`.Node`)
         """
-        for j in range(self.num_nodes):
-            yield self.node(j)
+        return SimpleContainerSequence(self.node, self.num_nodes)
 
     def edges(self):
         """
-        Returns an iterator over all the :ref:`edges <sec_edge_table_definition>`
+        Returns an iterable sequence of all the :ref:`edges <sec_edge_table_definition>`
         in this tree sequence. Edges are returned in the order required
         for a :ref:`valid tree sequence <sec_valid_tree_sequence_requirements>`. So,
         edges are guaranteed to be ordered such that (a) all parents with a
@@ -2627,11 +2646,10 @@ class TreeSequence(object):
         order of parent time ago; (c) within the edges for a given parent, edges
         are sorted first by child ID and then by left coordinate.
 
-        :return: An iterator over all edges.
-        :rtype: :class:`collections.abc.Iterable`, :class:`Edge`
+        :return: An iterable sequence of all edges.
+        :rtype: Sequence(:class:`.Edge`)
         """
-        for j in range(self.num_edges):
-            yield self.edge(j)
+        return SimpleContainerSequence(self.edge, self.num_edges)
 
     def edgesets(self):
         # TODO the order that these records are returned in is not well specified.
@@ -2691,16 +2709,15 @@ class TreeSequence(object):
 
     def sites(self):
         """
-        Returns an iterator over all the :ref:`sites <sec_site_table_definition>`
+        Returns an iterable sequence of all the :ref:`sites <sec_site_table_definition>`
         in this tree sequence. Sites are returned in order of increasing ID
         (and also position). See the :class:`Site` class for details on
         the available fields for each site.
 
-        :return: An iterator over all sites.
-        :rtype: iter(:class:`Site`)
+        :return: An iterable sequence of all sites.
+        :rtype: Sequence(:class:`.Site`)
         """
-        for j in range(self.num_sites):
-            yield self.site(j)
+        return SimpleContainerSequence(self.site, self.num_sites)
 
     def mutations(self):
         """
@@ -2726,25 +2743,23 @@ class TreeSequence(object):
 
     def populations(self):
         """
-        Returns an iterator over all the
+        Returns an iterable sequence of all the
         :ref:`populations <sec_population_table_definition>` in this tree sequence.
 
-        :return: An iterator over all populations.
-        :rtype: iter(:class:`Population`)
+        :return: An iterable sequence of all populations.
+        :rtype: Sequence(:class:`.Population`)
         """
-        for j in range(self.num_populations):
-            yield self.population(j)
+        return SimpleContainerSequence(self.population, self.num_populations)
 
     def provenances(self):
         """
-        Returns an iterator over all the
+        Returns an iterable sequence of all the
         :ref:`provenances <sec_provenance_table_definition>` in this tree sequence.
 
-        :return: An iterator over all provenances.
-        :rtype: iter(:class:`Provenance`)
+        :return: An iterable sequence of all provenances.
+        :rtype: Sequence(:class:`.Provenance`)
         """
-        for j in range(self.num_provenances):
-            yield self.provenance(j)
+        return SimpleContainerSequence(self.provenance, self.num_provenances)
 
     def breakpoints(self, as_array=False):
         """
@@ -3093,8 +3108,20 @@ class TreeSequence(object):
 
         :rtype: :class:`Edge`
         """
-        (left, right, parent, child) = self._ll_tree_sequence.get_edge(id_)
+        left, right, parent, child = self._ll_tree_sequence.get_edge(id_)
         return Edge(id_=id_, left=left, right=right, parent=parent, child=child)
+
+    def migration(self, id_):
+        """
+        Returns the :ref:`migration <sec_migration_table_definition>` in this tree
+        sequence with the specified ID.
+
+        :rtype: :class:`.Migration`
+        """
+        left, right, node, source, dest, time = self._ll_tree_sequence.get_migration(id_)
+        return Migration(
+            id_=id_, left=left, right=right, node=node, source=source, dest=dest,
+            time=time)
 
     def mutation(self, id_):
         """
@@ -3103,10 +3130,11 @@ class TreeSequence(object):
 
         :rtype: :class:`Mutation`
         """
-        ll_mut = self._ll_tree_sequence.get_mutation(id_)
+        (site, node, derived_state, parent,
+         metadata) = self._ll_tree_sequence.get_mutation(id_)
         return Mutation(
-            id_=id_, site=ll_mut[0], node=ll_mut[1], derived_state=ll_mut[2],
-            parent=ll_mut[3], metadata=ll_mut[4])
+            id_=id_, site=site, node=node, derived_state=derived_state, parent=parent,
+            metadata=metadata)
 
     def site(self, id_):
         """
