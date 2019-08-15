@@ -245,7 +245,6 @@ class CommonTestsMixin(object):
                     self.assertRaises(ValueError, table.set_columns, **kwargs)
                     self.assertRaises(ValueError, table.append_columns, **kwargs)
 
-    @unittest.skip("Fix or remove when column setter done. #492")
     def test_set_read_only_attributes(self):
         table = self.table_class()
         with self.assertRaises(AttributeError):
@@ -255,11 +254,82 @@ class CommonTestsMixin(object):
         for param, default in self.input_parameters:
             with self.assertRaises(AttributeError):
                 setattr(table, param, 2)
-        for col in self.columns:
-            with self.assertRaises(AttributeError):
-                setattr(table, col.name, np.zeros(5))
         self.assertEqual(table.num_rows, 0)
         self.assertEqual(len(table), 0)
+
+    def test_set_column_attributes_empty(self):
+        table = self.table_class()
+        input_data = {col.name: col.get_input(0) for col in self.columns}
+        for col, data in input_data.items():
+            setattr(table, col, data)
+            self.assertEqual(len(getattr(table, col)), 0)
+
+    def test_set_column_attributes_data(self):
+        table = self.table_class()
+        for num_rows in [1, 10, 100]:
+            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            for list_col, offset_col in self.ragged_list_columns:
+                value = list_col.get_input(num_rows)
+                input_data[list_col.name] = value
+                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            table.set_columns(**input_data)
+
+            for list_col, offset_col in self.ragged_list_columns:
+                list_data = input_data[list_col.name]
+                self.assertTrue(
+                    np.array_equal(getattr(table, list_col.name), list_data))
+                list_data += 1
+                self.assertFalse(
+                    np.array_equal(getattr(table, list_col.name), list_data))
+                setattr(table, list_col.name, list_data)
+                self.assertTrue(
+                    np.array_equal(getattr(table, list_col.name), list_data))
+                list_value = getattr(table[0], list_col.name)
+                self.assertEqual(len(list_value), 1)
+
+                # Reset the offsets so that all the full array is associated with the
+                # first element.
+                offset_data = np.zeros(num_rows + 1, dtype=np.uint32) + num_rows
+                offset_data[0] = 0
+                setattr(table, offset_col.name, offset_data)
+                list_value = getattr(table[0], list_col.name)
+                self.assertEqual(len(list_value), num_rows)
+
+                del input_data[list_col.name]
+                del input_data[offset_col.name]
+
+            for col, data in input_data.items():
+                self.assertTrue(np.array_equal(getattr(table, col), data))
+                data += 1
+                self.assertFalse(np.array_equal(getattr(table, col), data))
+                setattr(table, col, data)
+                self.assertTrue(np.array_equal(getattr(table, col), data))
+
+    def test_set_column_attributes_errors(self):
+        table = self.table_class()
+        num_rows = 10
+        input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+        for list_col, offset_col in self.ragged_list_columns:
+            value = list_col.get_input(num_rows)
+            input_data[list_col.name] = value
+            input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+        table.set_columns(**input_data)
+
+        for list_col, offset_col in self.ragged_list_columns:
+            for bad_list_col in [[], input_data[list_col.name][:-1]]:
+                with self.assertRaises(ValueError):
+                    setattr(table, list_col.name, bad_list_col)
+            for bad_offset_col in [[], np.arange(num_rows + 2, dtype=np.uint32)]:
+                with self.assertRaises(ValueError):
+                    setattr(table, offset_col.name, bad_offset_col)
+
+            del input_data[list_col.name]
+            del input_data[offset_col.name]
+
+        for col, data in input_data.items():
+            for bad_data in [[], data[:-1]]:
+                with self.assertRaises(ValueError):
+                    setattr(table, col, bad_data)
 
     def test_defaults(self):
         table = self.table_class()
@@ -1945,11 +2015,6 @@ class TestBaseTable(unittest.TestCase):
     """
     Tests of the table superclass.
     """
-    def test_asdict_not_implemented(self):
-        t = tskit.BaseTable(None, None)
-        with self.assertRaises(NotImplementedError):
-            t.asdict()
-
     def test_set_columns_not_implemented(self):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
