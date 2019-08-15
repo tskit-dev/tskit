@@ -1339,12 +1339,12 @@ class TestTablesToTreeSequence(unittest.TestCase):
 
         tables = ts.dump_tables()
         bad_coords = tables.edges.left + float('inf')
-        tables.edges.set_columns(**dict(tables.edges.asdict(), left=bad_coords))
+        tables.edges.amend_columns(left=bad_coords)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
         tables = ts.dump_tables()
         bad_coords = tables.edges.right + float('nan')
-        tables.edges.set_columns(**dict(tables.edges.asdict(), right=bad_coords))
+        tables.edges.amend_columns(right=bad_coords)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_bad_site_positions(self):
@@ -1352,7 +1352,7 @@ class TestTablesToTreeSequence(unittest.TestCase):
         tables = ts.dump_tables()
         bad_pos = tables.sites.position.copy()
         bad_pos[-1] = np.inf
-        tables.sites.set_columns(**dict(tables.sites.asdict(), position=bad_pos))
+        tables.sites.amend_columns(position=bad_pos)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_bad_node_times(self):
@@ -1360,7 +1360,7 @@ class TestTablesToTreeSequence(unittest.TestCase):
         tables = ts.dump_tables()
         bad_times = tables.nodes.time.copy()
         bad_times[-1] = np.inf
-        tables.nodes.set_columns(**dict(tables.nodes.asdict(), time=bad_times))
+        tables.nodes.amend_columns(time=bad_times)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_bad_individual(self):
@@ -1370,8 +1370,7 @@ class TestTablesToTreeSequence(unittest.TestCase):
         tables = ts.dump_tables()
         bad_locations = tables.individuals.location.copy()
         bad_locations[0] = np.inf
-        tables.individuals.set_columns(
-            **dict(tables.individuals.asdict(), location=bad_locations))
+        tables.individuals.amend_columns(location=bad_locations)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
 

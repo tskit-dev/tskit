@@ -180,6 +180,14 @@ class BaseTable(object):
         """
         raise NotImplementedError()
 
+    def amend_columns(self, **kwargs):
+        """
+        Amend the values for each column listed in ``kwargs`` in this :class:`.Table`.
+        Each argument should be a numpy array of the same length as the number of
+        existing rows in the table. Any non-specified columns are left unchanged.
+        """
+        self.set_columns(**dict(self.asdict(), **kwargs))
+
 
 class IndividualTable(BaseTable):
     """
