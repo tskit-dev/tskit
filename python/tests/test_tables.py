@@ -1949,3 +1949,8 @@ class TestBaseTable(unittest.TestCase):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
             t.asdict()
+
+    def test_set_columns_not_implemented(self):
+        t = tskit.BaseTable(None, None)
+        with self.assertRaises(NotImplementedError):
+            t.set_columns()

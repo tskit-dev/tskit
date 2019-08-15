@@ -148,7 +148,7 @@ class BaseTable(object):
         """
         return self.ll_table.truncate(num_rows)
 
-    # Picle support
+    # Pickle support
     def __getstate__(self):
         return self.asdict()
 
@@ -157,10 +157,26 @@ class BaseTable(object):
         self.__init__()
         self.set_columns(**state)
 
+    def copy(self):
+        """
+        Returns a deep copy of this table
+        """
+        copy = self.__class__()
+        copy.set_columns(**self.asdict())
+        return copy
+
     def asdict(self):
         """
         Returns a dictionary mapping the names of the columns in this table
         to the corresponding numpy arrays.
+        """
+        raise NotImplementedError()
+
+    def set_columns(self, **kwargs):
+        """
+        Sets the values for each column in this :class:`.Table` using
+        values provided in numpy arrays. Overwrites any data currently stored in
+        the table.
         """
         raise NotImplementedError()
 
@@ -231,17 +247,6 @@ class IndividualTable(BaseTable):
                 str, location[location_offset[j]: location_offset[j + 1]]))
             ret += "{}\t{}\t{}\t{}\n".format(j, flags[j], location_str, md)
         return ret[:-1]
-
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = IndividualTable()
-        copy.set_columns(
-            flags=self.flags,
-            location=self.location, location_offset=self.location_offset,
-            metadata=self.metadata, metadata_offset=self.metadata_offset)
-        return copy
 
     def add_row(self, flags=0, location=None, metadata=None):
         """
@@ -421,17 +426,6 @@ class NodeTable(BaseTable):
                 j, flags[j], population[j], individual[j], time[j], md)
         return ret[:-1]
 
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = NodeTable()
-        copy.set_columns(
-            flags=self.flags, time=self.time, population=self.population,
-            individual=self.individual, metadata=self.metadata,
-            metadata_offset=self.metadata_offset)
-        return copy
-
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
         """
         Adds a new row to this :class:`NodeTable` and returns the ID of the
@@ -586,15 +580,6 @@ class EdgeTable(BaseTable):
                 j, left[j], right[j], parent[j], child[j])
         return ret[:-1]
 
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = EdgeTable()
-        copy.set_columns(
-            left=self.left, right=self.right, parent=self.parent, child=self.child)
-        return copy
-
     def add_row(self, left, right, parent, child):
         """
         Adds a new row to this :class:`EdgeTable` and returns the ID of the
@@ -729,16 +714,6 @@ class MigrationTable(BaseTable):
             ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\n".format(
                 j, left[j], right[j], node[j], source[j], dest[j], time[j])
         return ret[:-1]
-
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = MigrationTable()
-        copy.set_columns(
-            left=self.left, right=self.right, node=self.node, source=self.source,
-            dest=self.dest, time=self.time)
-        return copy
 
     def add_row(self, left, right, node, source, dest, time):
         """
@@ -885,19 +860,6 @@ class SiteTable(BaseTable):
             ret += "{}\t{:.8f}\t{}\t{}\n".format(
                 j, position[j], ancestral_state[j], md)
         return ret[:-1]
-
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = SiteTable()
-        copy.set_columns(
-            position=self.position,
-            ancestral_state=self.ancestral_state,
-            ancestral_state_offset=self.ancestral_state_offset,
-            metadata=self.metadata,
-            metadata_offset=self.metadata_offset)
-        return copy
 
     def add_row(self, position, ancestral_state, metadata=None):
         """
@@ -1082,18 +1044,6 @@ class MutationTable(BaseTable):
                 j, site[j], node[j], derived_state[j], parent[j], md)
         return ret[:-1]
 
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = MutationTable()
-        copy.set_columns(
-            site=self.site, node=self.node, parent=self.parent,
-            derived_state=self.derived_state,
-            derived_state_offset=self.derived_state_offset,
-            metadata=self.metadata, metadata_offset=self.metadata_offset)
-        return copy
-
     def add_row(self, site, node, derived_state, parent=-1, metadata=None):
         """
         Adds a new row to this :class:`MutationTable` and returns the ID of the
@@ -1267,16 +1217,6 @@ class PopulationTable(BaseTable):
             ret += "{}\t{}\n".format(j, md)
         return ret[:-1]
 
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = PopulationTable()
-        copy.set_columns(
-            metadata=self.metadata,
-            metadata_offset=self.metadata_offset)
-        return copy
-
     def set_columns(self, metadata=None, metadata_offset=None):
         self.ll_table.set_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset))
@@ -1377,18 +1317,6 @@ class ProvenanceTable(BaseTable):
         for j in range(self.num_rows):
             ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
         return ret[:-1]
-
-    def copy(self):
-        """
-        Returns a deep copy of this table.
-        """
-        copy = ProvenanceTable()
-        copy.set_columns(
-            timestamp=self.timestamp,
-            timestamp_offset=self.timestamp_offset,
-            record=self.record,
-            record_offset=self.record_offset)
-        return copy
 
     def asdict(self):
         return {
