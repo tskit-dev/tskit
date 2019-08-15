@@ -237,10 +237,7 @@ class IndividualTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = IndividualTable()
-        copy.set_columns(
-            flags=self.flags,
-            location=self.location, location_offset=self.location_offset,
-            metadata=self.metadata, metadata_offset=self.metadata_offset)
+        copy.set_columns(**self.asdict())
         return copy
 
     def add_row(self, flags=0, location=None, metadata=None):
@@ -426,10 +423,7 @@ class NodeTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = NodeTable()
-        copy.set_columns(
-            flags=self.flags, time=self.time, population=self.population,
-            individual=self.individual, metadata=self.metadata,
-            metadata_offset=self.metadata_offset)
+        copy.set_columns(**self.asdict())
         return copy
 
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
@@ -591,8 +585,7 @@ class EdgeTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = EdgeTable()
-        copy.set_columns(
-            left=self.left, right=self.right, parent=self.parent, child=self.child)
+        copy.set_columns(**self.asdict())
         return copy
 
     def add_row(self, left, right, parent, child):
@@ -735,9 +728,7 @@ class MigrationTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = MigrationTable()
-        copy.set_columns(
-            left=self.left, right=self.right, node=self.node, source=self.source,
-            dest=self.dest, time=self.time)
+        copy.set_columns(**self.asdict())
         return copy
 
     def add_row(self, left, right, node, source, dest, time):
@@ -891,12 +882,7 @@ class SiteTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = SiteTable()
-        copy.set_columns(
-            position=self.position,
-            ancestral_state=self.ancestral_state,
-            ancestral_state_offset=self.ancestral_state_offset,
-            metadata=self.metadata,
-            metadata_offset=self.metadata_offset)
+        copy.set_columns(**self.asdict())
         return copy
 
     def add_row(self, position, ancestral_state, metadata=None):
@@ -1087,11 +1073,7 @@ class MutationTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = MutationTable()
-        copy.set_columns(
-            site=self.site, node=self.node, parent=self.parent,
-            derived_state=self.derived_state,
-            derived_state_offset=self.derived_state_offset,
-            metadata=self.metadata, metadata_offset=self.metadata_offset)
+        copy.set_columns(**self.asdict())
         return copy
 
     def add_row(self, site, node, derived_state, parent=-1, metadata=None):
@@ -1272,9 +1254,7 @@ class PopulationTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = PopulationTable()
-        copy.set_columns(
-            metadata=self.metadata,
-            metadata_offset=self.metadata_offset)
+        copy.set_columns(**self.asdict())
         return copy
 
     def set_columns(self, metadata=None, metadata_offset=None):
@@ -1383,11 +1363,7 @@ class ProvenanceTable(BaseTable):
         Returns a deep copy of this table.
         """
         copy = ProvenanceTable()
-        copy.set_columns(
-            timestamp=self.timestamp,
-            timestamp_offset=self.timestamp_offset,
-            record=self.record,
-            record_offset=self.record_offset)
+        copy.set_columns(**self.asdict())
         return copy
 
     def asdict(self):
