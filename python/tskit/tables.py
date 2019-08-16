@@ -122,7 +122,11 @@ class BaseTable(object):
         return self.num_rows
 
     def __getattr__(self, name):
-        return getattr(self.ll_table, name)
+        if name in self.column_names:
+            return getattr(self.ll_table, name)
+        else:
+            raise AttributeError("{} object has no attribute {}".format(
+                self.__class__.__name__, name))
 
     def __setattr__(self, name, value):
         if name in self.column_names:
@@ -190,7 +194,26 @@ class BaseTable(object):
         raise NotImplementedError()
 
 
-class IndividualTable(BaseTable):
+class MetadataMixin(object):
+    """
+    Mixin class for tables that have a metadata column.
+    """
+    def packset_metadata(self, metadatas):
+        """
+        Packs the specified list of metadata values and updates the ``metadata``
+        and ``metadata_offset`` columns. The length of the metadatas array
+        must be equal to the number of rows in the table.
+
+        :param list metadatas: A list of metadata bytes values.
+        """
+        packed, offset = util.pack_bytes(metadatas)
+        d = self.asdict()
+        d["metadata"] = packed
+        d["metadata_offset"] = offset
+        self.set_columns(**d)
+
+
+class IndividualTable(BaseTable, MetadataMixin):
     """
     A table defining the individuals in a tree sequence. Note that although
     each Individual has associated nodes, reference to these is not stored in
@@ -230,14 +253,12 @@ class IndividualTable(BaseTable):
 
     def __str__(self):
         flags = self.flags
-        location = self.location
-        location_offset = self.location_offset
+        location = util.unpack_arrays(self.location, self.location_offset)
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tflags\tlocation\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
-            location_str = ",".join(map(
-                str, location[location_offset[j]: location_offset[j + 1]]))
+            location_str = ",".join(map(str, location))
             ret += "{}\t{}\t{}\t{}\n".format(j, flags[j], location_str, md)
         return ret[:-1]
 
@@ -328,8 +349,23 @@ class IndividualTable(BaseTable):
             flags=flags, location=location, location_offset=location_offset,
             metadata=metadata, metadata_offset=metadata_offset))
 
+    def packset_location(self, locations):
+        """
+        Packs the specified list of location values and updates the ``location``
+        and ``location_offset`` columns. The length of the locations array
+        must be equal to the number of rows in the table.
 
-class NodeTable(BaseTable):
+        :param list locations: A list of locations interpreted as numpy float64
+            arrays.
+        """
+        packed, offset = util.pack_arrays(locations)
+        d = self.asdict()
+        d["location"] = packed
+        d["location_offset"] = offset
+        self.set_columns(**d)
+
+
+class NodeTable(BaseTable, MetadataMixin):
     """
     A table defining the nodes in a tree sequence. See the
     :ref:`definitions <sec_node_table_definition>` for details on the columns
@@ -685,7 +721,7 @@ class MigrationTable(BaseTable):
             left=left, right=right, node=node, source=source, dest=dest, time=time))
 
 
-class SiteTable(BaseTable):
+class SiteTable(BaseTable, MetadataMixin):
     """
     A table defining the sites in a tree sequence. See the
     :ref:`definitions <sec_site_table_definition>` for details on the columns
@@ -829,8 +865,23 @@ class SiteTable(BaseTable):
             ancestral_state_offset=ancestral_state_offset,
             metadata=metadata, metadata_offset=metadata_offset))
 
+    def packset_ancestral_state(self, ancestral_states):
+        """
+        Packs the specified list of ancestral_state values and updates the
+        ``ancestral_state`` and ``ancestral_state_offset`` columns. The length
+        of the ancestral_states array must be equal to the number of rows in
+        the table.
 
-class MutationTable(BaseTable):
+        :param list(str) ancestral_states: A list of string ancestral state values.
+        """
+        packed, offset = util.pack_strings(ancestral_states)
+        d = self.asdict()
+        d["ancestral_state"] = packed
+        d["ancestral_state_offset"] = offset
+        self.set_columns(**d)
+
+
+class MutationTable(BaseTable, MetadataMixin):
     """
     A table defining the mutations in a tree sequence. See the
     :ref:`definitions <sec_mutation_table_definition>` for details on the columns
@@ -994,8 +1045,23 @@ class MutationTable(BaseTable):
             derived_state=derived_state, derived_state_offset=derived_state_offset,
             metadata=metadata, metadata_offset=metadata_offset))
 
+    def packset_derived_state(self, derived_states):
+        """
+        Packs the specified list of derived_state values and updates the
+        ``derived_state`` and ``derived_state_offset`` columns. The length
+        of the derived_states array must be equal to the number of rows in
+        the table.
 
-class PopulationTable(BaseTable):
+        :param list(str) derived_states: A list of string derived state values.
+        """
+        packed, offset = util.pack_strings(derived_states)
+        d = self.asdict()
+        d["derived_state"] = packed
+        d["derived_state_offset"] = offset
+        self.set_columns(**d)
+
+
+class PopulationTable(BaseTable, MetadataMixin):
     """
     A table defining the populations referred to in a tree sequence.
     The PopulationTable stores metadata for populations that may be referred to
@@ -1125,6 +1191,36 @@ class ProvenanceTable(BaseTable):
         for j in range(self.num_rows):
             ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
         return ret[:-1]
+
+    def packset_record(self, records):
+        """
+        Packs the specified list of record values and updates the
+        ``record`` and ``record_offset`` columns. The length
+        of the records array must be equal to the number of rows in
+        the table.
+
+        :param list(str) records: A list of string record values.
+        """
+        packed, offset = util.pack_strings(records)
+        d = self.asdict()
+        d["record"] = packed
+        d["record_offset"] = offset
+        self.set_columns(**d)
+
+    def packset_timestamp(self, timestamps):
+        """
+        Packs the specified list of timestamp values and updates the
+        ``timestamp`` and ``timestamp_offset`` columns. The length
+        of the timestamps array must be equal to the number of rows in
+        the table.
+
+        :param list(str) timestamps: A list of string timestamp values.
+        """
+        packed, offset = util.pack_strings(timestamps)
+        d = self.asdict()
+        d["timestamp"] = packed
+        d["timestamp_offset"] = offset
+        self.set_columns(**d)
 
 
 class TableCollection(object):

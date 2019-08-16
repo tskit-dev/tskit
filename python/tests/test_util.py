@@ -24,9 +24,12 @@ Tests for functions in util.py
 """
 import unittest
 import pickle
+import itertools
 
 import numpy as np
+
 import tskit.util as util
+import tests.tsutil as tsutil
 
 
 class TestNumpyArrayCasting(unittest.TestCase):
@@ -148,3 +151,106 @@ class TestIntervalOps(unittest.TestCase):
         for source, dest in cases:
             self.assertTrue(np.array_equal(
                 util.negate_intervals(source, 0, L), dest))
+
+
+class TestStringPacking(unittest.TestCase):
+    """
+    Tests the code for packing and unpacking unicode string data into numpy arrays.
+    """
+
+    def test_simple_string_case(self):
+        strings = ["hello", "world"]
+        packed, offset = util.pack_strings(strings)
+        self.assertEqual(list(offset), [0, 5, 10])
+        self.assertEqual(packed.shape, (10,))
+        returned = util.unpack_strings(packed, offset)
+        self.assertEqual(returned, strings)
+
+    def verify_packing(self, strings):
+        packed, offset = util.pack_strings(strings)
+        self.assertEqual(packed.dtype, np.int8)
+        self.assertEqual(offset.dtype, np.uint32)
+        self.assertEqual(packed.shape[0], offset[-1])
+        returned = util.unpack_strings(packed, offset)
+        self.assertEqual(strings, returned)
+
+    def test_regular_cases(self):
+        for n in range(10):
+            strings = ["a" * j for j in range(n)]
+            self.verify_packing(strings)
+
+    def test_random_cases(self):
+        for n in range(100):
+            strings = [tsutil.random_strings(10) for _ in range(n)]
+            self.verify_packing(strings)
+
+    def test_unicode(self):
+        self.verify_packing(['abcdé', '€'])
+
+
+class TestBytePacking(unittest.TestCase):
+    """
+    Tests the code for packing and unpacking binary data into numpy arrays.
+    """
+
+    def test_simple_string_case(self):
+        strings = [b"hello", b"world"]
+        packed, offset = util.pack_bytes(strings)
+        self.assertEqual(list(offset), [0, 5, 10])
+        self.assertEqual(packed.shape, (10,))
+        returned = util.unpack_bytes(packed, offset)
+        self.assertEqual(returned, strings)
+
+    def verify_packing(self, data):
+        packed, offset = util.pack_bytes(data)
+        self.assertEqual(packed.dtype, np.int8)
+        self.assertEqual(offset.dtype, np.uint32)
+        self.assertEqual(packed.shape[0], offset[-1])
+        returned = util.unpack_bytes(packed, offset)
+        self.assertEqual(data, returned)
+        return returned
+
+    def test_random_cases(self):
+        for n in range(100):
+            data = [tsutil.random_bytes(10) for _ in range(n)]
+            self.verify_packing(data)
+
+    def test_pickle_packing(self):
+        data = [list(range(j)) for j in range(10)]
+        # Pickle each of these in turn
+        pickled = [pickle.dumps(d) for d in data]
+        unpacked = self.verify_packing(pickled)
+        unpickled = [pickle.loads(p) for p in unpacked]
+        self.assertEqual(data, unpickled)
+
+
+class TestArrayPacking(unittest.TestCase):
+    """
+    Tests the code for packing and unpacking numpy data into numpy arrays.
+    """
+
+    def test_simple_case(self):
+        lists = [[0], [1.125, 1.25]]
+        packed, offset = util.pack_arrays(lists)
+        self.assertEqual(list(offset), [0, 1, 3])
+        self.assertEqual(list(packed), [0, 1.125, 1.25])
+        returned = util.unpack_arrays(packed, offset)
+        for a1, a2 in itertools.zip_longest(lists, returned):
+            self.assertEqual(a1, list(a2))
+
+    def verify_packing(self, data):
+        packed, offset = util.pack_arrays(data)
+        self.assertEqual(packed.dtype, np.float64)
+        self.assertEqual(offset.dtype, np.uint32)
+        self.assertEqual(packed.shape[0], offset[-1])
+        returned = util.unpack_arrays(packed, offset)
+        for a1, a2 in itertools.zip_longest(data, returned):
+            self.assertTrue(np.array_equal(a1, a2))
+        return returned
+
+    def test_regular_cases(self):
+        for n in range(100):
+            data = [np.arange(n) for _ in range(n)]
+            self.verify_packing(data)
+            data = [1 / (1 + np.arange(n)) for _ in range(n)]
+            self.verify_packing(data)

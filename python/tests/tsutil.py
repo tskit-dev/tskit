@@ -25,11 +25,28 @@ A collection of utilities to edit and construct tree sequences.
 """
 import json
 import random
+import string
 
 import numpy as np
 
 import tskit.provenance as provenance
 import tskit
+
+
+def random_bytes(max_length):
+    """
+    Returns a random bytearray of the specified maximum length.
+    """
+    length = random.randint(0, max_length)
+    return bytearray(random.randint(0, 255) for _ in range(length))
+
+
+def random_strings(max_length):
+    """
+    Returns a random bytearray of the specified maximum length.
+    """
+    length = random.randint(0, max_length)
+    return "".join(random.choice(string.printable) for _ in range(length))
 
 
 def add_provenance(provenance_table, method_name):

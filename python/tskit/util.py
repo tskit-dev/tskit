@@ -139,6 +139,47 @@ def unpack_strings(packed, offset, encoding="utf8"):
     return [b.decode(encoding) for b in unpack_bytes(packed, offset)]
 
 
+def pack_arrays(list_of_lists):
+    """
+    Packs the specified list of numberic lists into a flattened numpy array of
+    numpy float64 and corresponding offsets. See
+    :ref:`sec_encoding_ragged_columns` for details of this encoding of columns
+    of variable length data.
+
+    :param list[list] list_of_lists: The list of numeric lists to encode.
+    :return: The tuple (packed, offset) of numpy arrays representing the flattened
+        input data and offsets.
+    :rtype: numpy.array (dtype=np.float64), numpy.array (dtype=np.uint32).
+    """
+    # TODO must be possible to do this more efficiently with numpy
+    n = len(list_of_lists)
+    offset = np.zeros(n + 1, dtype=np.uint32)
+    for j in range(n):
+        offset[j + 1] = offset[j] + len(list_of_lists[j])
+    data = np.empty(offset[-1], dtype=np.float64)
+    for j in range(n):
+        data[offset[j]: offset[j + 1]] = list_of_lists[j]
+    return data, offset
+
+
+def unpack_arrays(packed, offset):
+    """
+    Unpacks a list of arrays from the specified numpy arrays of packed
+    data and corresponding offsets. See
+    :ref:`sec_encoding_ragged_columns` for details of this encoding of columns
+    of variable length data.
+
+    :param numpy.ndarray packed: The flattened array of data.
+    :param numpy.ndarray offset: The array of offsets into the ``packed`` array.
+    :return: The list numpy arrays unpacked from the parameter arrays.
+    :rtype: list[numpy.ndarray]
+    """
+    ret = []
+    for j in range(offset.shape[0] - 1):
+        ret.append(packed[offset[j]: offset[j + 1]])
+    return ret
+
+
 #
 # Interval utilities
 #
