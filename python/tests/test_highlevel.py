@@ -148,19 +148,19 @@ def get_internal_samples_examples():
     flags = nodes.flags
     # Set all nodes to be samples.
     flags[:] = tskit.NODE_IS_SAMPLE
-    nodes.set_columns(flags=flags, time=nodes.time, population=nodes.population)
+    nodes.flags = flags
     yield tables.tree_sequence()
 
     # Set just internal nodes to be samples.
     flags[:] = 0
     flags[n:] = tskit.NODE_IS_SAMPLE
-    nodes.set_columns(flags=flags, time=nodes.time, population=nodes.population)
+    nodes.flags = flags
     yield tables.tree_sequence()
 
     # Set a mixture of internal and leaf samples.
     flags[:] = 0
     flags[n // 2: n + n // 2] = tskit.NODE_IS_SAMPLE
-    nodes.set_columns(flags=flags, time=nodes.time, population=nodes.population)
+    nodes.flags = flags
     yield tables.tree_sequence()
 
 

@@ -81,15 +81,13 @@ ProvenanceTableRow = collections.namedtuple(
     ["timestamp", "record"])
 
 
-# TODO We could abstract quite a lot more functionality up into this baseclass
-# if each class kept a list of its columns. Then it would be pretty simple to
-# define generic implementation of copy, etc.
-
-
 class BaseTable(object):
     """
     Superclass of high-level tables. Not intended for direct instantiation.
     """
+    # The list of columns in the table. Must be set by subclasses.
+    column_names = []
+
     def __init__(self, ll_table, row_class):
         self.ll_table = ll_table
         self.row_class = row_class
@@ -122,6 +120,21 @@ class BaseTable(object):
 
     def __len__(self):
         return self.num_rows
+
+    def __getattr__(self, name):
+        if name in self.column_names:
+            return getattr(self.ll_table, name)
+        else:
+            raise AttributeError("{} object has no attribute {}".format(
+                self.__class__.__name__, name))
+
+    def __setattr__(self, name, value):
+        if name in self.column_names:
+            d = self.asdict()
+            d[name] = value
+            self.set_columns(**d)
+        else:
+            object.__setattr__(self, name, value)
 
     def __getitem__(self, index):
         if index < 0:
@@ -170,7 +183,7 @@ class BaseTable(object):
         Returns a dictionary mapping the names of the columns in this table
         to the corresponding numpy arrays.
         """
-        raise NotImplementedError()
+        return {col: getattr(self, col) for col in self.column_names}
 
     def set_columns(self, **kwargs):
         """
@@ -181,7 +194,26 @@ class BaseTable(object):
         raise NotImplementedError()
 
 
-class IndividualTable(BaseTable):
+class MetadataMixin(object):
+    """
+    Mixin class for tables that have a metadata column.
+    """
+    def packset_metadata(self, metadatas):
+        """
+        Packs the specified list of metadata values and updates the ``metadata``
+        and ``metadata_offset`` columns. The length of the metadatas array
+        must be equal to the number of rows in the table.
+
+        :param list metadatas: A list of metadata bytes values.
+        """
+        packed, offset = util.pack_bytes(metadatas)
+        d = self.asdict()
+        d["metadata"] = packed
+        d["metadata_offset"] = offset
+        self.set_columns(**d)
+
+
+class IndividualTable(BaseTable, MetadataMixin):
     """
     A table defining the individuals in a tree sequence. Note that although
     each Individual has associated nodes, reference to these is not stored in
@@ -210,41 +242,23 @@ class IndividualTable(BaseTable):
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
+
+    column_names = [
+        "flags", "location", "location_offset", "metadata", "metadata_offset"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, IndividualTableRow)
 
-    @property
-    def flags(self):
-        return self.ll_table.flags
-
-    @property
-    def location(self):
-        return self.ll_table.location
-
-    @property
-    def location_offset(self):
-        return self.ll_table.location_offset
-
-    @property
-    def metadata(self):
-        return self.ll_table.metadata
-
-    @property
-    def metadata_offset(self):
-        return self.ll_table.metadata_offset
-
     def __str__(self):
         flags = self.flags
-        location = self.location
-        location_offset = self.location_offset
+        location = util.unpack_arrays(self.location, self.location_offset)
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tflags\tlocation\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode('utf8')
-            location_str = ",".join(map(
-                str, location[location_offset[j]: location_offset[j + 1]]))
+            location_str = ",".join(map(str, location))
             ret += "{}\t{}\t{}\t{}\n".format(j, flags[j], location_str, md)
         return ret[:-1]
 
@@ -335,17 +349,23 @@ class IndividualTable(BaseTable):
             flags=flags, location=location, location_offset=location_offset,
             metadata=metadata, metadata_offset=metadata_offset))
 
-    def asdict(self):
-        return {
-            "flags": self.flags,
-            "location": self.location,
-            "location_offset": self.location_offset,
-            "metadata": self.metadata,
-            "metadata_offset": self.metadata_offset,
-        }
+    def packset_location(self, locations):
+        """
+        Packs the specified list of location values and updates the ``location``
+        and ``location_offset`` columns. The length of the locations array
+        must be equal to the number of rows in the table.
+
+        :param list locations: A list of locations interpreted as numpy float64
+            arrays.
+        """
+        packed, offset = util.pack_arrays(locations)
+        d = self.asdict()
+        d["location"] = packed
+        d["location_offset"] = offset
+        self.set_columns(**d)
 
 
-class NodeTable(BaseTable):
+class NodeTable(BaseTable, MetadataMixin):
     """
     A table defining the nodes in a tree sequence. See the
     :ref:`definitions <sec_node_table_definition>` for details on the columns
@@ -374,44 +394,13 @@ class NodeTable(BaseTable):
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
+    column_names = [
+        "time", "flags", "population", "individual", "metadata", "metadata_offset"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, NodeTableRow)
-
-    @property
-    def time(self):
-        return self.ll_table.time
-
-    @property
-    def flags(self):
-        return self.ll_table.flags
-
-    @property
-    def population(self):
-        return self.ll_table.population
-
-    @property
-    def individual(self):
-        return self.ll_table.individual
-
-    # EXPERIMENTAL interface for setting a single column. This is done
-    # quite a bit in tests. Not part of the public API as yet, but we
-    # probably will want to allow something like this in general.
-    @individual.setter
-    def individual(self, individual):
-        self.set_columns(
-            flags=self.flags, time=self.time, population=self.population,
-            metadata=self.metadata, metadata_offset=self.metadata_offset,
-            individual=individual)
-
-    @property
-    def metadata(self):
-        return self.ll_table.metadata
-
-    @property
-    def metadata_offset(self):
-        return self.ll_table.metadata_offset
 
     def __str__(self):
         time = self.time
@@ -514,16 +503,6 @@ class NodeTable(BaseTable):
             flags=flags, time=time, population=population, individual=individual,
             metadata=metadata, metadata_offset=metadata_offset))
 
-    def asdict(self):
-        return {
-            "time": self.time,
-            "flags": self.flags,
-            "population": self.population,
-            "individual": self.individual,
-            "metadata": self.metadata,
-            "metadata_offset": self.metadata_offset,
-        }
-
 
 class EdgeTable(BaseTable):
     """
@@ -548,26 +527,13 @@ class EdgeTable(BaseTable):
     :ivar child: The array of child node IDs.
     :vartype child: numpy.ndarray, dtype=np.int32
     """
+
+    column_names = ["left", "right", "parent", "child"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, EdgeTableRow)
-
-    @property
-    def left(self):
-        return self.ll_table.left
-
-    @property
-    def right(self):
-        return self.ll_table.right
-
-    @property
-    def parent(self):
-        return self.ll_table.parent
-
-    @property
-    def child(self):
-        return self.ll_table.child
 
     def __str__(self):
         left = self.left
@@ -636,14 +602,6 @@ class EdgeTable(BaseTable):
         self.ll_table.append_columns(dict(
             left=left, right=right, parent=parent, child=child))
 
-    def asdict(self):
-        return {
-            "left": self.left,
-            "right": self.right,
-            "parent": self.parent,
-            "child": self.child,
-        }
-
 
 class MigrationTable(BaseTable):
     """
@@ -673,34 +631,13 @@ class MigrationTable(BaseTable):
     :ivar time: The array of time values.
     :vartype time: numpy.ndarray, dtype=np.float64
     """
+
+    column_names = ["left", "right", "node", "source", "dest", "time"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MigrationTableRow)
-
-    @property
-    def left(self):
-        return self.ll_table.left
-
-    @property
-    def right(self):
-        return self.ll_table.right
-
-    @property
-    def node(self):
-        return self.ll_table.node
-
-    @property
-    def source(self):
-        return self.ll_table.source
-
-    @property
-    def dest(self):
-        return self.ll_table.dest
-
-    @property
-    def time(self):
-        return self.ll_table.time
 
     def __str__(self):
         left = self.left
@@ -783,18 +720,8 @@ class MigrationTable(BaseTable):
         self.ll_table.append_columns(dict(
             left=left, right=right, node=node, source=source, dest=dest, time=time))
 
-    def asdict(self):
-        return {
-            "left": self.left,
-            "right": self.right,
-            "node": self.node,
-            "source": self.source,
-            "dest": self.dest,
-            "time": self.time,
-        }
 
-
-class SiteTable(BaseTable):
+class SiteTable(BaseTable, MetadataMixin):
     """
     A table defining the sites in a tree sequence. See the
     :ref:`definitions <sec_site_table_definition>` for details on the columns
@@ -824,30 +751,15 @@ class SiteTable(BaseTable):
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
+
+    column_names = [
+        "position", "ancestral_state", "ancestral_state_offset",
+        "metadata", "metadata_offset"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, SiteTableRow)
-
-    @property
-    def position(self):
-        return self.ll_table.position
-
-    @property
-    def ancestral_state(self):
-        return self.ll_table.ancestral_state
-
-    @property
-    def ancestral_state_offset(self):
-        return self.ll_table.ancestral_state_offset
-
-    @property
-    def metadata(self):
-        return self.ll_table.metadata
-
-    @property
-    def metadata_offset(self):
-        return self.ll_table.metadata_offset
 
     def __str__(self):
         position = self.position
@@ -953,17 +865,23 @@ class SiteTable(BaseTable):
             ancestral_state_offset=ancestral_state_offset,
             metadata=metadata, metadata_offset=metadata_offset))
 
-    def asdict(self):
-        return {
-            "position": self.position,
-            "ancestral_state": self.ancestral_state,
-            "ancestral_state_offset": self.ancestral_state_offset,
-            "metadata": self.metadata,
-            "metadata_offset": self.metadata_offset,
-        }
+    def packset_ancestral_state(self, ancestral_states):
+        """
+        Packs the specified list of ancestral_state values and updates the
+        ``ancestral_state`` and ``ancestral_state_offset`` columns. The length
+        of the ancestral_states array must be equal to the number of rows in
+        the table.
+
+        :param list(str) ancestral_states: A list of string ancestral state values.
+        """
+        packed, offset = util.pack_strings(ancestral_states)
+        d = self.asdict()
+        d["ancestral_state"] = packed
+        d["ancestral_state_offset"] = offset
+        self.set_columns(**d)
 
 
-class MutationTable(BaseTable):
+class MutationTable(BaseTable, MetadataMixin):
     """
     A table defining the mutations in a tree sequence. See the
     :ref:`definitions <sec_mutation_table_definition>` for details on the columns
@@ -997,38 +915,15 @@ class MutationTable(BaseTable):
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
+
+    column_names = [
+        "site", "node", "derived_state", "derived_state_offset", "parent",
+        "metadata", "metadata_offset"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MutationTableRow)
-
-    @property
-    def site(self):
-        return self.ll_table.site
-
-    @property
-    def node(self):
-        return self.ll_table.node
-
-    @property
-    def parent(self):
-        return self.ll_table.parent
-
-    @property
-    def derived_state(self):
-        return self.ll_table.derived_state
-
-    @property
-    def derived_state_offset(self):
-        return self.ll_table.derived_state_offset
-
-    @property
-    def metadata(self):
-        return self.ll_table.metadata
-
-    @property
-    def metadata_offset(self):
-        return self.ll_table.metadata_offset
 
     def __str__(self):
         site = self.site
@@ -1150,19 +1045,23 @@ class MutationTable(BaseTable):
             derived_state=derived_state, derived_state_offset=derived_state_offset,
             metadata=metadata, metadata_offset=metadata_offset))
 
-    def asdict(self):
-        return {
-            "site": self.site,
-            "node": self.node,
-            "parent": self.parent,
-            "derived_state": self.derived_state,
-            "derived_state_offset": self.derived_state_offset,
-            "metadata": self.metadata,
-            "metadata_offset": self.metadata_offset,
-        }
+    def packset_derived_state(self, derived_states):
+        """
+        Packs the specified list of derived_state values and updates the
+        ``derived_state`` and ``derived_state_offset`` columns. The length
+        of the derived_states array must be equal to the number of rows in
+        the table.
+
+        :param list(str) derived_states: A list of string derived state values.
+        """
+        packed, offset = util.pack_strings(derived_states)
+        d = self.asdict()
+        d["derived_state"] = packed
+        d["derived_state_offset"] = offset
+        self.set_columns(**d)
 
 
-class PopulationTable(BaseTable):
+class PopulationTable(BaseTable, MetadataMixin):
     """
     A table defining the populations referred to in a tree sequence.
     The PopulationTable stores metadata for populations that may be referred to
@@ -1184,18 +1083,13 @@ class PopulationTable(BaseTable):
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
+
+    column_names = ["metadata", "metadata_offset"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.PopulationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, PopulationTableRow)
-
-    @property
-    def metadata(self):
-        return self.ll_table.metadata
-
-    @property
-    def metadata_offset(self):
-        return self.ll_table.metadata_offset
 
     def add_row(self, metadata=None):
         """
@@ -1225,12 +1119,6 @@ class PopulationTable(BaseTable):
         self.ll_table.append_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset))
 
-    def asdict(self):
-        return {
-            "metadata": self.metadata,
-            "metadata_offset": self.metadata_offset,
-        }
-
 
 class ProvenanceTable(BaseTable):
     """
@@ -1255,28 +1143,14 @@ class ProvenanceTable(BaseTable):
     :ivar timestamp_offset: The array of offsets into the timestamp column. See
         :ref:`sec_tables_api_text_columns` for more details.
     :vartype timestamp_offset: numpy.ndarray, dtype=np.uint32
-
     """
+
+    column_names = ["record", "record_offset", "timestamp", "timestamp_offset"]
+
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.ProvenanceTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, ProvenanceTableRow)
-
-    @property
-    def record(self):
-        return self.ll_table.record
-
-    @property
-    def record_offset(self):
-        return self.ll_table.record_offset
-
-    @property
-    def timestamp(self):
-        return self.ll_table.timestamp
-
-    @property
-    def timestamp_offset(self):
-        return self.ll_table.timestamp_offset
 
     def add_row(self, record, timestamp=None):
         """
@@ -1318,13 +1192,35 @@ class ProvenanceTable(BaseTable):
             ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
         return ret[:-1]
 
-    def asdict(self):
-        return {
-            "timestamp": self.timestamp,
-            "timestamp_offset": self.timestamp_offset,
-            "record": self.record,
-            "record_offset": self.record_offset,
-        }
+    def packset_record(self, records):
+        """
+        Packs the specified list of record values and updates the
+        ``record`` and ``record_offset`` columns. The length
+        of the records array must be equal to the number of rows in
+        the table.
+
+        :param list(str) records: A list of string record values.
+        """
+        packed, offset = util.pack_strings(records)
+        d = self.asdict()
+        d["record"] = packed
+        d["record_offset"] = offset
+        self.set_columns(**d)
+
+    def packset_timestamp(self, timestamps):
+        """
+        Packs the specified list of timestamp values and updates the
+        ``timestamp`` and ``timestamp_offset`` columns. The length
+        of the timestamps array must be equal to the number of rows in
+        the table.
+
+        :param list(str) timestamps: A list of string timestamp values.
+        """
+        packed, offset = util.pack_strings(timestamps)
+        d = self.asdict()
+        d["timestamp"] = packed
+        d["timestamp_offset"] = offset
+        self.set_columns(**d)
 
 
 class TableCollection(object):

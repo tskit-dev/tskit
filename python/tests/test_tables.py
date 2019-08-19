@@ -27,7 +27,6 @@ between simulations and the tree sequence.
 import io
 import pickle
 import random
-import string
 import unittest
 import warnings
 import itertools
@@ -39,22 +38,6 @@ import _tskit
 import msprime
 
 import tests.tsutil as tsutil
-
-
-def random_bytes(max_length):
-    """
-    Returns a random bytearray of the specified maximum length.
-    """
-    length = random.randint(0, max_length)
-    return bytearray(random.randint(0, 255) for _ in range(length))
-
-
-def random_strings(max_length):
-    """
-    Returns a random bytearray of the specified maximum length.
-    """
-    length = random.randint(0, max_length)
-    return "".join(random.choice(string.printable) for _ in range(length))
 
 
 class Column(object):
@@ -245,7 +228,6 @@ class CommonTestsMixin(object):
                     self.assertRaises(ValueError, table.set_columns, **kwargs)
                     self.assertRaises(ValueError, table.append_columns, **kwargs)
 
-    @unittest.skip("Fix or remove when column setter done. #492")
     def test_set_read_only_attributes(self):
         table = self.table_class()
         with self.assertRaises(AttributeError):
@@ -255,11 +237,87 @@ class CommonTestsMixin(object):
         for param, default in self.input_parameters:
             with self.assertRaises(AttributeError):
                 setattr(table, param, 2)
-        for col in self.columns:
-            with self.assertRaises(AttributeError):
-                setattr(table, col.name, np.zeros(5))
         self.assertEqual(table.num_rows, 0)
         self.assertEqual(len(table), 0)
+
+    def test_set_column_attributes_empty(self):
+        table = self.table_class()
+        input_data = {col.name: col.get_input(0) for col in self.columns}
+        for col, data in input_data.items():
+            setattr(table, col, data)
+            self.assertEqual(len(getattr(table, col)), 0)
+
+    def test_set_column_attributes_data(self):
+        table = self.table_class()
+        for num_rows in [1, 10, 100]:
+            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            for list_col, offset_col in self.ragged_list_columns:
+                value = list_col.get_input(num_rows)
+                input_data[list_col.name] = value
+                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            table.set_columns(**input_data)
+
+            for list_col, offset_col in self.ragged_list_columns:
+                list_data = input_data[list_col.name]
+                self.assertTrue(
+                    np.array_equal(getattr(table, list_col.name), list_data))
+                list_data += 1
+                self.assertFalse(
+                    np.array_equal(getattr(table, list_col.name), list_data))
+                setattr(table, list_col.name, list_data)
+                self.assertTrue(
+                    np.array_equal(getattr(table, list_col.name), list_data))
+                list_value = getattr(table[0], list_col.name)
+                self.assertEqual(len(list_value), 1)
+
+                # Reset the offsets so that all the full array is associated with the
+                # first element.
+                offset_data = np.zeros(num_rows + 1, dtype=np.uint32) + num_rows
+                offset_data[0] = 0
+                setattr(table, offset_col.name, offset_data)
+                list_value = getattr(table[0], list_col.name)
+                self.assertEqual(len(list_value), num_rows)
+
+                del input_data[list_col.name]
+                del input_data[offset_col.name]
+
+            for col, data in input_data.items():
+                self.assertTrue(np.array_equal(getattr(table, col), data))
+                data += 1
+                self.assertFalse(np.array_equal(getattr(table, col), data))
+                setattr(table, col, data)
+                self.assertTrue(np.array_equal(getattr(table, col), data))
+
+    def test_set_column_attributes_errors(self):
+        table = self.table_class()
+        num_rows = 10
+        input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+        for list_col, offset_col in self.ragged_list_columns:
+            value = list_col.get_input(num_rows)
+            input_data[list_col.name] = value
+            input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+        table.set_columns(**input_data)
+
+        for list_col, offset_col in self.ragged_list_columns:
+            for bad_list_col in [[], input_data[list_col.name][:-1]]:
+                with self.assertRaises(ValueError):
+                    setattr(table, list_col.name, bad_list_col)
+            for bad_offset_col in [[], np.arange(num_rows + 2, dtype=np.uint32)]:
+                with self.assertRaises(ValueError):
+                    setattr(table, offset_col.name, bad_offset_col)
+
+            del input_data[list_col.name]
+            del input_data[offset_col.name]
+
+        for col, data in input_data.items():
+            for bad_data in [[], data[:-1]]:
+                with self.assertRaises(ValueError):
+                    setattr(table, col, bad_data)
+
+        # Try to read a column that isn't there. (We can always write to new attributes
+        # in Python, so there's nothing to test in that case.)
+        with self.assertRaises(AttributeError):
+            _ = table.no_such_column
 
     def test_defaults(self):
         table = self.table_class()
@@ -571,7 +629,7 @@ class MetadataTestsMixin(object):
                 input_data[list_col.name] = value
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
             table = self.table_class()
-            metadatas = [random_bytes(10) for _ in range(num_rows)]
+            metadatas = [tsutil.random_bytes(10) for _ in range(num_rows)]
             metadata, metadata_offset = tskit.pack_bytes(metadatas)
             input_data["metadata"] = metadata
             input_data["metadata_offset"] = metadata_offset
@@ -601,6 +659,21 @@ class MetadataTestsMixin(object):
             self.assertEqual(len(list(table.metadata)), 0)
             self.assertEqual(
                 list(table.metadata_offset), [0 for _ in range(num_rows + 1)])
+
+    def test_packset_metadata(self):
+        for num_rows in [0, 10, 100]:
+            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            for list_col, offset_col in self.ragged_list_columns:
+                value = list_col.get_input(num_rows)
+                input_data[list_col.name] = value
+                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            table = self.table_class()
+            table.set_columns(**input_data)
+            metadatas = [tsutil.random_bytes(10) for _ in range(num_rows)]
+            metadata, metadata_offset = tskit.pack_bytes(metadatas)
+            table.packset_metadata(metadatas)
+            self.assertTrue(np.array_equal(table.metadata, metadata))
+            self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
 
 
 class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
@@ -647,6 +720,17 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
             t.add_row(metadata=123)
         with self.assertRaises(ValueError):
             t.add_row(location="1234")
+
+    def test_packset_location(self):
+        t = tskit.IndividualTable()
+        t.add_row(flags=0)
+        t.packset_location([[0.125, 2]])
+        self.assertEqual(list(t[0].location), [0.125, 2])
+        t.add_row(flags=1)
+        self.assertEqual(list(t[1].location), [])
+        t.packset_location([[0], [1, 2, 3]])
+        self.assertEqual(list(t[0].location), [0])
+        self.assertEqual(list(t[1].location), [1, 2, 3])
 
 
 class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
@@ -800,6 +884,23 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
         with self.assertRaises(TypeError):
             t.add_row(0, "A", metadata=[0, 1, 2])
 
+    def test_packset_ancestral_state(self):
+        for num_rows in [0, 10, 100]:
+            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            for list_col, offset_col in self.ragged_list_columns:
+                value = list_col.get_input(num_rows)
+                input_data[list_col.name] = value
+                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            table = self.table_class()
+            table.set_columns(**input_data)
+            ancestral_states = [tsutil.random_strings(10) for _ in range(num_rows)]
+            ancestral_state, ancestral_state_offset = tskit.pack_strings(
+                    ancestral_states)
+            table.packset_ancestral_state(ancestral_states)
+            self.assertTrue(np.array_equal(table.ancestral_state, ancestral_state))
+            self.assertTrue(np.array_equal(
+                table.ancestral_state_offset, ancestral_state_offset))
+
 
 class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
     columns = [
@@ -842,6 +943,22 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
             t.add_row(0, 0, "A", parent=None)
         with self.assertRaises(TypeError):
             t.add_row(0, 0, "A", metadata=[0])
+
+    def test_packset_derived_state(self):
+        for num_rows in [0, 10, 100]:
+            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            for list_col, offset_col in self.ragged_list_columns:
+                value = list_col.get_input(num_rows)
+                input_data[list_col.name] = value
+                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            table = self.table_class()
+            table.set_columns(**input_data)
+            derived_states = [tsutil.random_strings(10) for _ in range(num_rows)]
+            derived_state, derived_state_offset = tskit.pack_strings(derived_states)
+            table.packset_derived_state(derived_states)
+            self.assertTrue(np.array_equal(table.derived_state, derived_state))
+            self.assertTrue(np.array_equal(
+                table.derived_state_offset, derived_state_offset))
 
 
 class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
@@ -916,6 +1033,22 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
         with self.assertRaises(TypeError):
             t.add_row("a", 0)
 
+    def test_packset_timestamp(self):
+        t = tskit.ProvenanceTable()
+        t.add_row(timestamp="0", record="1")
+        t.add_row(timestamp="1", record="2")
+        t.packset_timestamp(["AAAA", "BBBB"])
+        self.assertEqual(t[0].timestamp, "AAAA")
+        self.assertEqual(t[1].timestamp, "BBBB")
+
+    def test_packset_record(self):
+        t = tskit.ProvenanceTable()
+        t.add_row(timestamp="0", record="1")
+        t.add_row(timestamp="1", record="2")
+        t.packset_record(["AAAA", "BBBB"])
+        self.assertEqual(t[0].record, "AAAA")
+        self.assertEqual(t[1].record, "BBBB")
+
 
 class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
     columns = []
@@ -944,77 +1077,6 @@ class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
         t.add_row()
         with self.assertRaises(TypeError):
             t.add_row(metadata=[0])
-
-
-class TestStringPacking(unittest.TestCase):
-    """
-    Tests the code for packing and unpacking unicode string data into numpy arrays.
-    """
-
-    def test_simple_string_case(self):
-        strings = ["hello", "world"]
-        packed, offset = tskit.pack_strings(strings)
-        self.assertEqual(list(offset), [0, 5, 10])
-        self.assertEqual(packed.shape, (10,))
-        returned = tskit.unpack_strings(packed, offset)
-        self.assertEqual(returned, strings)
-
-    def verify_packing(self, strings):
-        packed, offset = tskit.pack_strings(strings)
-        self.assertEqual(packed.dtype, np.int8)
-        self.assertEqual(offset.dtype, np.uint32)
-        self.assertEqual(packed.shape[0], offset[-1])
-        returned = tskit.unpack_strings(packed, offset)
-        self.assertEqual(strings, returned)
-
-    def test_regular_cases(self):
-        for n in range(10):
-            strings = ["a" * j for j in range(n)]
-            self.verify_packing(strings)
-
-    def test_random_cases(self):
-        for n in range(100):
-            strings = [random_strings(10) for _ in range(n)]
-            self.verify_packing(strings)
-
-    def test_unicode(self):
-        self.verify_packing(['abcdé', '€'])
-
-
-class TestBytePacking(unittest.TestCase):
-    """
-    Tests the code for packing and unpacking binary data into numpy arrays.
-    """
-
-    def test_simple_string_case(self):
-        strings = [b"hello", b"world"]
-        packed, offset = tskit.pack_bytes(strings)
-        self.assertEqual(list(offset), [0, 5, 10])
-        self.assertEqual(packed.shape, (10,))
-        returned = tskit.unpack_bytes(packed, offset)
-        self.assertEqual(returned, strings)
-
-    def verify_packing(self, data):
-        packed, offset = tskit.pack_bytes(data)
-        self.assertEqual(packed.dtype, np.int8)
-        self.assertEqual(offset.dtype, np.uint32)
-        self.assertEqual(packed.shape[0], offset[-1])
-        returned = tskit.unpack_bytes(packed, offset)
-        self.assertEqual(data, returned)
-        return returned
-
-    def test_random_cases(self):
-        for n in range(100):
-            data = [random_bytes(10) for _ in range(n)]
-            self.verify_packing(data)
-
-    def test_pickle_packing(self):
-        data = [list(range(j)) for j in range(10)]
-        # Pickle each of these in turn
-        pickled = [pickle.dumps(d) for d in data]
-        unpacked = self.verify_packing(pickled)
-        unpickled = [pickle.loads(p) for p in unpacked]
-        self.assertEqual(data, unpickled)
 
 
 class TestSortTables(unittest.TestCase):
@@ -1945,11 +2007,6 @@ class TestBaseTable(unittest.TestCase):
     """
     Tests of the table superclass.
     """
-    def test_asdict_not_implemented(self):
-        t = tskit.BaseTable(None, None)
-        with self.assertRaises(NotImplementedError):
-            t.asdict()
-
     def test_set_columns_not_implemented(self):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
