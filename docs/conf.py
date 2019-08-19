@@ -181,6 +181,7 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
+html_logo = '_static/tskit_logo_pale.svg'
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
