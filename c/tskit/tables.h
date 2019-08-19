@@ -1217,7 +1217,7 @@ int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t n
         tsk_id_t *dest, double *time);
 int tsk_migration_table_dump_text(tsk_migration_table_t *self, FILE *out);
 
-/** @} */
+
 
 /**
 @defgroup SITE_TABLE_API_GROUP Site table API.
@@ -1371,7 +1371,7 @@ int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows, d
         const char *metadata, tsk_size_t *metadata_length);
 int tsk_site_table_dump_text(tsk_site_table_t *self, FILE *out);
 
-/** @} */
+
 
 /**
 @defgroup MUTATION_TABLE_API_GROUP Mutation table API.
@@ -1537,7 +1537,7 @@ int tsk_mutation_table_dump_text(tsk_mutation_table_t *self, FILE *out);
 void tsk_mutation_table_print_state(tsk_mutation_table_t *self, FILE *out);
 int tsk_mutation_table_get_row(tsk_mutation_table_t *self, tsk_id_t index, tsk_mutation_t *row);
 
-/** @} */
+
 
 /**
 @defgroup POPULATION_TABLE_API_GROUP Population table API.
@@ -1682,7 +1682,7 @@ int tsk_population_table_append_columns(tsk_population_table_t *self, tsk_size_t
         const char *metadata, tsk_size_t *metadata_offset);
 int tsk_population_table_dump_text(tsk_population_table_t *self, FILE *out);
 
-/** @} */
+
 
 /**
 @defgroup PROVENANCE_TABLE_API_GROUP Provenance table API.
@@ -1839,7 +1839,7 @@ void tsk_provenance_table_print_state(tsk_provenance_table_t *self, FILE *out);
 bool tsk_provenance_table_equals(tsk_provenance_table_t *self, tsk_provenance_table_t *other);
 int tsk_provenance_table_get_row(tsk_provenance_table_t *self, tsk_id_t index, tsk_provenance_t *row);
 
-/** @} */
+
 
 /****************************************************************************/
 /* Table collection .*/
@@ -2218,7 +2218,7 @@ int tsk_table_collection_deduplicate_sites(tsk_table_collection_t *tables, tsk_f
 int tsk_table_collection_compute_mutation_parents(tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options);
 
-/** @} */
+
 
 int tsk_squash_edges(tsk_edge_t *edges, size_t num_edges, size_t *num_output_edges);
 
