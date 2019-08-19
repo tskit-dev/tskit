@@ -283,9 +283,7 @@ class TestZeroRoots(unittest.TestCase):
     """
     def remove_samples(self, ts):
         tables = ts.dump_tables()
-        tables.nodes.set_columns(
-            flags=np.zeros_like(tables.nodes.flags),
-            time=tables.nodes.time)
+        tables.nodes.flags = np.zeros_like(tables.nodes.flags)
         return tables.tree_sequence()
 
     def verify(self, ts, no_root_ts):
@@ -2712,12 +2710,7 @@ class TestSimplify(unittest.TestCase):
         tree sequence when we run simplify.
         """
         t1 = ts.dump_tables()
-        t1.nodes.set_columns(
-            flags=np.zeros_like(t1.nodes.flags),
-            time=t1.nodes.time,
-            population=t1.nodes.population,
-            metadata=t1.nodes.metadata,
-            metadata_offset=t1.nodes.metadata_offset)
+        t1.nodes.flags = np.zeros_like(t1.nodes.flags)
         ts1, node_map1 = self.do_simplify(
             ts, samples=ts.samples(), keep_unary=keep_unary)
         t1 = ts1.dump_tables()
@@ -2831,7 +2824,7 @@ class TestSimplify(unittest.TestCase):
         flags[0] = 0
         flags[0] = 0
         flags[5] = tskit.NODE_IS_SAMPLE
-        tables.nodes.set_columns(flags=flags, time=nodes.time)
+        nodes.flags = flags
         ts = tables.tree_sequence()
         self.assertEqual(ts.sample_size, 5)
         tss, node_map = self.do_simplify(ts, [3, 5])
@@ -2859,7 +2852,7 @@ class TestSimplify(unittest.TestCase):
         flags[:] = 0
         flags[0] = tskit.NODE_IS_SAMPLE
         flags[7] = tskit.NODE_IS_SAMPLE
-        nodes.set_columns(flags=flags, time=nodes.time)
+        nodes.flags = flags
         ts = tables.tree_sequence()
         self.assertEqual(ts.sample_size, 2)
         tss, node_map = self.do_simplify(ts, [0, 7])
@@ -2889,7 +2882,7 @@ class TestSimplify(unittest.TestCase):
         flags[0] = tskit.NODE_IS_SAMPLE
         flags[1] = tskit.NODE_IS_SAMPLE
         flags[7] = tskit.NODE_IS_SAMPLE
-        nodes.set_columns(flags=flags, time=nodes.time)
+        nodes.flags = flags
         ts = tables.tree_sequence()
         self.assertEqual(ts.sample_size, 3)
         tss, node_map = self.do_simplify(ts, [0, 1, 7])
@@ -3767,12 +3760,8 @@ class TestMutationParent(unittest.TestCase):
         parent = tsutil.compute_mutation_parent(ts)
         tables = ts.tables
         self.assertTrue(np.array_equal(parent, tables.mutations.parent))
-        mutations = tables.mutations
-        mutations.set_columns(
-            site=mutations.site, node=mutations.node,
-            derived_state=mutations.derived_state,
-            derived_state_offset=mutations.derived_state_offset)
-        self.assertTrue(np.all(mutations.parent == tskit.NULL))
+        tables.mutations.parent = np.zeros_like(tables.mutations.parent) - 1
+        self.assertTrue(np.all(tables.mutations.parent == tskit.NULL))
         tables.compute_mutation_parents()
         self.assertTrue(np.array_equal(parent, tables.mutations.parent))
 
@@ -3985,9 +3974,8 @@ class TestSampleLists(unittest.TestCase):
         ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
         self.assertGreater(ts.num_trees, 2)
         tables = ts.dump_tables()
-        tables.nodes.set_columns(
-            flags=np.zeros_like(tables.nodes.flags) + tskit.NODE_IS_SAMPLE,
-            time=tables.nodes.time)
+        flags = np.zeros_like(tables.nodes.flags) + tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = flags
         self.verify(tables.tree_sequence())
 
     def test_wright_fisher_trees_unsimplified(self):

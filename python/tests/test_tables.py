@@ -314,9 +314,10 @@ class CommonTestsMixin(object):
                 with self.assertRaises(ValueError):
                     setattr(table, col, bad_data)
 
-        # Try to access a column that isn't there.
+        # Try to read a column that isn't there. (We can always write to new attributes
+        # in Python, so there's nothing to test in that case.)
         with self.assertRaises(AttributeError):
-            table.no_such_column *= 1
+            _ = table.no_such_column
 
     def test_defaults(self):
         table = self.table_class()
