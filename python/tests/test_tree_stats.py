@@ -69,68 +69,6 @@ def subset_combos(*args, p=0.5, min_tests=3):
     assert num_tests >= min_tests
 
 
-def naive_general_branch_stats(ts, W, f, windows=None, polarised=False):
-    n, K = W.shape
-    if n != ts.num_samples:
-        raise ValueError("First dimension of W must be number of samples")
-    # Hack to determine M
-    M = len(f(W[0]))
-    total = np.sum(W, axis=0)
-
-    sigma = np.zeros((ts.num_trees, M))
-    for tree in ts.trees():
-        X = np.zeros((ts.num_nodes, K))
-        X[ts.samples()] = W
-        for u in tree.nodes(order="postorder"):
-            for v in tree.children(u):
-                X[u] += X[v]
-        if polarised:
-            s = sum(tree.branch_length(u) * f(X[u]) for u in tree.nodes())
-        else:
-            s = sum(
-                tree.branch_length(u) * (f(X[u]) + f(total - X[u]))
-                for u in tree.nodes())
-        sigma[tree.index] = s * tree.span
-    if windows is None:
-        return sigma
-    else:
-        bsc = tskit.BranchLengthStatCalculator(ts)
-        return bsc.windowed_tree_stat(sigma, windows)
-
-
-def naive_general_site_stats(ts, W, f, windows=None, polarised=False):
-    n, K = W.shape
-    if n != ts.num_samples:
-        raise ValueError("First dimension of W must be number of samples")
-    # Hack to determine M
-    M = len(f(W[0]))
-    sigma = np.zeros((ts.num_sites, M))
-    for tree in ts.trees():
-        X = np.zeros((ts.num_nodes, K))
-        X[ts.samples()] = W
-        for u in tree.nodes(order="postorder"):
-            for v in tree.children(u):
-                X[u] += X[v]
-        for site in tree.sites():
-            state_map = collections.defaultdict(functools.partial(np.zeros, K))
-            state_map[site.ancestral_state] = sum(X[root] for root in tree.roots)
-            for mutation in site.mutations:
-                state_map[mutation.derived_state] += X[mutation.node]
-                if mutation.parent != tskit.NULL:
-                    parent = site.mutations[mutation.parent - site.mutations[0].id]
-                    state_map[parent.derived_state] -= X[mutation.node]
-                else:
-                    state_map[site.ancestral_state] -= X[mutation.node]
-            if polarised:
-                del state_map[site.ancestral_state]
-            sigma[site.id] += sum(map(f, state_map.values()))
-    if windows is None:
-        return sigma
-    else:
-        ssc = tskit.SiteStatCalculator(ts)
-        return ssc.windowed_sitewise_stat(sigma, windows)
-
-
 def path_length(tr, x, y):
     L = 0
     if x >= 0 and y >= 0:
@@ -1774,8 +1712,53 @@ class TestFst(StatsTestCase, TwoWaySampleSetStatsMixin):
         self.assertArrayAlmostEqual(sigma1, sigma2)
 
 
-class TestSiteFst(TestFst, MutatedTopologyExamplesMixin):
+class FstInterfaceMixin(StatsTestCase):
+
+    # Since Fst is defined using diversity and divergence, we don't seriously
+    # test it for correctness, and only test the interface.
+
+    def verify_interface(self):
+        ts = msprime.simulate(10, mutation_rate=0.0)
+        sample_sets = [[0, 1, 2], [6, 7], [4]]
+        with self.assertRaises(ValueError):
+            ts.Fst(sample_sets, mode=self.mode)
+        with self.assertRaises(ValueError):
+            ts.Fst(sample_sets, indexes=[(0, 1, 2), (3, 4, 5)], mode=self.mode)
+        with self.assertRaises(tskit.LibraryError):
+            ts.Fst(sample_sets, indexes=[(0, 1), (0, 20)])
+        sigma1 = ts.Fst(sample_sets, indexes=[(0, 1)], mode=self.mode)
+        sigma2 = ts.Fst(sample_sets, indexes=[(0, 1), (0, 2), (1, 2)], mode=self.mode)
+        if self.mode == "node":
+            self.assertArrayAlmostEqual(sigma1[:, :, 0], sigma2[:, :, 0])
+        else:
+            self.assertArrayAlmostEqual(sigma1[:, 0], sigma2[:, 0])
+        # default indexes with only two sample sets is [(0, 1)]
+        sigma3 = ts.Fst(sample_sets=sample_sets[:2], indexes=None, mode=self.mode)
+        if self.mode == "node":
+            self.assertArrayAlmostEqual(sigma1[:, :, 0], sigma3[:, :, 0])
+        else:
+            self.assertArrayAlmostEqual(sigma1[:, 0], sigma3[:, 0])
+
+
+class TestSiteFst(TestFst, MutatedTopologyExamplesMixin, FstInterfaceMixin):
     mode = "site"
+
+    def test_interface(self):
+        self.verify_interface()
+
+
+class TestNodeFst(FstInterfaceMixin):
+    mode = "node"
+
+    def test_interface(self):
+        self.verify_interface()
+
+
+class TestBranchFst(FstInterfaceMixin):
+    mode = "node"
+
+    def test_interface(self):
+        self.verify_interface()
 
 
 ############################################

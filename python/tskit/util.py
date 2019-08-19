@@ -47,6 +47,9 @@ def safe_np_int_cast(int_array, dtype, copy=False):
     try:
         return int_array.astype(dtype, casting='safe', copy=copy)
     except TypeError:
+        if int_array.dtype == np.dtype('O'):
+            # this occurs e.g. if we're passed a list of lists of different lengths
+            raise TypeError("Cannot convert to a rectangular array.")
         bounds = np.iinfo(dtype)
         if np.any(int_array < bounds.min) or np.any(int_array > bounds.max):
             raise OverflowError("Cannot convert safely to {} type".format(dtype))
