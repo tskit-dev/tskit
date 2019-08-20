@@ -99,6 +99,19 @@ class TestNumpyArrayCasting(unittest.TestCase):
                     pickle.dumps(target),
                     pickle.dumps(util.safe_np_int_cast(np.array([good_node]), dtype)))
 
+    def test_nonrectangular_input(self):
+        bad_inputs = [
+                [0, 1, [2]],
+                [[0, 1, 2], []],
+                [(0, 1, 2), [2, 3]],
+                [(0, 1, 2), tuple()],
+                [(0, 1, 2), (2, )],
+                [(0, 1, 2), [2, 3]]]
+        for dtype in self.dtypes_to_test:
+            for bad_input in bad_inputs:
+                with self.assertRaises(TypeError):
+                    util.safe_np_int_cast(bad_input, dtype)
+
 
 class TestIntervalOps(unittest.TestCase):
     """

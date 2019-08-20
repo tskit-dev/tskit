@@ -3436,8 +3436,9 @@ class TreeSequence(object):
         if indexes is None:
             indexes = [np.arange(k, dtype=np.int32)]
         indexes = util.safe_np_int_cast(indexes, np.int32)
-        if len(indexes.shape) != 2:
-            raise ValueError("Indexes must be convertable to a 2D numpy array")
+        if len(indexes.shape) != 2 or indexes.shape[1] != k:
+            raise ValueError("Indexes must be convertable to a 2D numpy array"
+                             "with {} columns".format(k))
         return ll_method(
             sample_set_sizes, flattened, indexes, windows=windows,
             mode=mode, span_normalise=span_normalise)
@@ -3928,9 +3929,12 @@ class TreeSequence(object):
         What is computed for diversity and divergence depends on ``mode``;
         see those functions for more details.
 
+        If ``indexes`` is None and there are only two sample sets, then the Fst
+        between these sample sets is returned.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
-        :param list indexes: A list of 2-tuples, or None.
+        :param list indexes: A list of 2-tuples.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -3939,12 +3943,22 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
+        windows = self.parse_windows(windows)
+        if indexes is None:
+            if len(sample_sets) == 2:
+                indexes = [(0, 1)]
+            else:
+                raise ValueError("indexes must be a list of pairs of indexes.")
+        indexes = util.safe_np_int_cast(indexes, np.int32)
+        if len(indexes.shape) != 2 or indexes.shape[1] != 2:
+            raise ValueError("Indexes must be convertable to a 2D numpy array"
+                             " with two columns")
         diversities = self.diversity(sample_sets, windows=windows,
                                      mode=mode, span_normalise=span_normalise)
         divergences = self.divergence(sample_sets, indexes=indexes, windows=windows,
                                       mode=mode, span_normalise=span_normalise)
         orig_shape = divergences.shape
-        # "node" statistics might have a 3D array
+        # "node" statistics produce a 3D array
         if len(divergences.shape) == 2:
             divergences.shape = (divergences.shape[0], 1, divergences.shape[1])
             diversities.shape = (diversities.shape[0], 1, diversities.shape[1])
