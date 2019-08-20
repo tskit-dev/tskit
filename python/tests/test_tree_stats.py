@@ -1123,7 +1123,8 @@ class TestDiversity(StatsTestCase, SampleSetStatsMixin):
         n = np.array([len(x) for x in sample_sets])
 
         def f(x):
-            return x * (n - x) / (n * (n - 1))
+            with np.errstate(invalid='ignore', divide='ignore'):
+                return x * (n - x) / (n * (n - 1))
 
         self.verify_definition(
             ts, sample_sets, windows, f, ts.diversity, diversity)
@@ -1732,12 +1733,6 @@ class FstInterfaceMixin(StatsTestCase):
             self.assertArrayAlmostEqual(sigma1[:, :, 0], sigma2[:, :, 0])
         else:
             self.assertArrayAlmostEqual(sigma1[:, 0], sigma2[:, 0])
-        # default indexes with only two sample sets is [(0, 1)]
-        sigma3 = ts.Fst(sample_sets=sample_sets[:2], indexes=None, mode=self.mode)
-        if self.mode == "node":
-            self.assertArrayAlmostEqual(sigma1[:, :, 0], sigma3[:, :, 0])
-        else:
-            self.assertArrayAlmostEqual(sigma1[:, 0], sigma3[:, 0])
 
 
 class TestSiteFst(TestFst, MutatedTopologyExamplesMixin, FstInterfaceMixin):
@@ -3197,17 +3192,17 @@ class TestSampleSets(StatsTestCase):
         windows.sort()
         windows[0] = 0.0
         windows[-1] = ts.sequence_length
+        n = np.array([len(u) for u in sample_sets])
 
         def f(x):
-            return x
+            return x * (x < n)
 
         # Determine output_dim of the function
-        M = len(f(sample_sets))
         for mode in ('site', 'branch', 'node'):
-            sigma1 = ts.sample_count_stat(sample_sets, f, M, windows=windows)
-            sigma2 = ts.sample_count_stat(sample_sets, f, M, windows=windows,
+            sigma1 = ts.sample_count_stat(sample_sets, f, 3, windows=windows)
+            sigma2 = ts.sample_count_stat(sample_sets, f, 3, windows=windows,
                                           span_normalise=True)
-            sigma3 = ts.sample_count_stat(sample_sets, f, M, windows=windows,
+            sigma3 = ts.sample_count_stat(sample_sets, f, 3, windows=windows,
                                           span_normalise=False)
             denom = np.diff(windows)[:, np.newaxis]
             self.assertEqual(sigma1.shape, sigma2.shape)
@@ -3310,11 +3305,14 @@ class TestGeneralStatInterface(StatsTestCase):
                               mutation_rate=2, random_seed=1)
         return ts
 
+    def identity_f(self, ts):
+        return lambda x: x * (x < ts.num_samples)
+
     def test_default_mode(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
-        sigma1 = ts.general_stat(W, lambda x: x, W.shape[1])
-        sigma2 = ts.general_stat(W, lambda x: x, W.shape[1], mode="site")
+        sigma1 = ts.general_stat(W, self.identity_f(ts), W.shape[1])
+        sigma2 = ts.general_stat(W, self.identity_f(ts), W.shape[1], mode="site")
         self.assertArrayEqual(sigma1, sigma2)
 
     def test_bad_mode(self):
@@ -3322,7 +3320,7 @@ class TestGeneralStatInterface(StatsTestCase):
         W = np.ones((ts.num_samples, 2))
         for bad_mode in ["", "MODE", "x" * 8192]:
             with self.assertRaises(ValueError):
-                ts.general_stat(W, lambda x: x, W.shape[1], mode=bad_mode)
+                ts.general_stat(W, self.identity_f(ts), W.shape[1], mode=bad_mode)
 
     def test_bad_window_strings(self):
         ts = self.get_tree_sequence()
@@ -3332,6 +3330,14 @@ class TestGeneralStatInterface(StatsTestCase):
             ts.diversity([list(ts.samples())], mode="site", windows="")
         with self.assertRaises(ValueError):
             ts.diversity([list(ts.samples())], mode="tree", windows="abc")
+
+    def test_bad_summary_function(self):
+        ts = self.get_tree_sequence()
+        W = np.ones((ts.num_samples, 3))
+        with self.assertRaises(ValueError):
+            _ = ts.general_stat(W, lambda x: x, 3, windows="sites")
+        with self.assertRaises(ValueError):
+            _ = ts.general_stat(W, lambda x: np.array([1.0]), 1, windows="sites")
 
 
 class TestGeneralBranchStats(StatsTestCase):
@@ -3350,19 +3356,29 @@ class TestGeneralBranchStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
 
+    def cumsum_f(self, ts):
+        return lambda x: np.cumsum(x) * (x < ts.num_samples)
+
+    def identity_f(self, ts):
+        return lambda x: x * (x < ts.num_samples)
+
+    def sum_f(self, ts):
+        return lambda x: np.array([np.sum(x) * (2 * ts.num_samples - np.sum(x))])
+
     def test_simple_identity_f_w_zeros(self):
         ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
-            sigma = self.compare_general_stat(ts, W, lambda x: x, windows="trees",
-                                              polarised=polarised)
+            sigma = self.compare_general_stat(
+                        ts, W, self.identity_f(ts),
+                        windows="trees", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
 
     def test_simple_identity_f_w_ones(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
-        sigma = self.compare_general_stat(ts, W, lambda x: x, windows="trees",
+        sigma = self.compare_general_stat(ts, W, self.identity_f(ts), windows="trees",
                                           polarised=True)
         self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
         # A W of 1 for every node and identity f counts the samples in the subtree
@@ -3376,7 +3392,7 @@ class TestGeneralBranchStats(StatsTestCase):
         W = np.ones((ts.num_samples, 8))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows="trees", polarised=polarised)
+                ts, W, self.cumsum_f(ts), windows="trees", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
 
     def test_simple_cumsum_f_w_ones_many_windows(self):
@@ -3384,7 +3400,7 @@ class TestGeneralBranchStats(StatsTestCase):
         self.assertGreater(ts.num_trees, 3)
         windows = np.linspace(0, ts.sequence_length, num=ts.num_trees * 10)
         W = np.ones((ts.num_samples, 3))
-        sigma = self.compare_general_stat(ts, W, lambda x: np.cumsum(x), windows=windows)
+        sigma = self.compare_general_stat(ts, W, self.cumsum_f(ts), windows=windows)
         self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
 
     def test_windows_equal_to_ts_breakpoints(self):
@@ -3392,10 +3408,10 @@ class TestGeneralBranchStats(StatsTestCase):
         W = np.ones((ts.num_samples, 1))
         for polarised in [True, False]:
             sigma_no_windows = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows="trees", polarised=polarised)
+                ts, W, self.cumsum_f(ts), windows="trees", polarised=polarised)
             self.assertEqual(sigma_no_windows.shape, (ts.num_trees, W.shape[1]))
             sigma_windows = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows=ts.breakpoints(as_array=True),
+                ts, W, self.cumsum_f(ts), windows=ts.breakpoints(as_array=True),
                 polarised=polarised)
             self.assertEqual(sigma_windows.shape, sigma_no_windows.shape)
             self.assertTrue(np.allclose(sigma_windows.shape, sigma_no_windows.shape))
@@ -3403,19 +3419,20 @@ class TestGeneralBranchStats(StatsTestCase):
     def test_single_tree_windows(self):
         ts = msprime.simulate(15, random_seed=2, length=100)
         W = np.ones((ts.num_samples, 2))
+        f = self.sum_f(ts)
         # for num_windows in range(1, 10):
         for num_windows in [2]:
             windows = np.linspace(0, ts.sequence_length, num=num_windows + 1)
-            sigma = self.compare_general_stat(ts, W, lambda x: np.array([np.sum(x)]),
-                                              windows)
+            sigma = self.compare_general_stat(ts, W, f, windows)
             self.assertEqual(sigma.shape, (num_windows, 1))
 
     def test_simple_identity_f_w_zeros_windows(self):
         ts = msprime.simulate(15, recombination_rate=3, random_seed=2)
         W = np.zeros((ts.num_samples, 3))
+        f = self.identity_f(ts)
         windows = np.linspace(0, ts.sequence_length, num=11)
         for polarised in [True, False]:
-            sigma = self.compare_general_stat(ts, W, lambda x: x, windows,
+            sigma = self.compare_general_stat(ts, W, f, windows,
                                               polarised=polarised)
             self.assertEqual(sigma.shape, (10, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
@@ -3438,13 +3455,20 @@ class TestGeneralSiteStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
 
+    def cumsum_f(self, ts):
+        return lambda x: np.cumsum(x) * (x < ts.num_samples)
+
+    def identity_f(self, ts):
+        return lambda x: x * (x < ts.num_samples)
+
     def test_identity_f_W_0_multiple_alleles(self):
         ts = msprime.simulate(20, recombination_rate=0, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
-            sigma = self.compare_general_stat(ts, W, lambda x: x, windows="sites",
-                                              polarised=polarised)
+            sigma = self.compare_general_stat(
+                        ts, W, self.identity_f(ts),
+                        windows="sites", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
 
@@ -3455,7 +3479,7 @@ class TestGeneralSiteStats(StatsTestCase):
         windows = np.linspace(0, 1, num=11)
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: x, windows=windows, polarised=polarised)
+                ts, W, self.identity_f(ts), windows=windows, polarised=polarised)
             self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
             self.assertTrue(np.all(sigma == 0))
 
@@ -3464,7 +3488,7 @@ class TestGeneralSiteStats(StatsTestCase):
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         W = np.ones((ts.num_samples, 3))
         for polarised in [True, False]:
-            sigma = self.compare_general_stat(ts, W, lambda x: np.cumsum(x),
+            sigma = self.compare_general_stat(ts, W, self.cumsum_f(ts),
                                               windows="sites", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
@@ -3473,7 +3497,7 @@ class TestGeneralSiteStats(StatsTestCase):
         W = np.ones((ts.num_samples, 5))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: np.cumsum(x), windows="sites", polarised=polarised)
+                ts, W, self.cumsum_f(ts), windows="sites", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
 
 
@@ -3493,20 +3517,45 @@ class TestGeneralNodeStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
 
+    def cumsum_f(self, ts):
+        return lambda x: np.cumsum(x) * (x < ts.num_samples)
+
+    def identity_f(self, ts):
+        return lambda x: x * (x < ts.num_samples)
+
+    def sum_f(self, ts, k=1):
+        return lambda x: np.array([sum(x) * (sum(x) < 2 * ts.num_samples)] * k)
+
     def test_simple_sum_f_w_zeros(self):
         ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
-                ts, W, lambda x: x, windows="trees", polarised=polarised)
+                ts, W, self.identity_f(ts), windows="trees", polarised=polarised)
             self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 3))
             self.assertTrue(np.all(sigma == 0))
 
     def test_simple_sum_f_w_ones(self):
         ts = msprime.simulate(44, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
+        f = self.sum_f(ts)
         sigma = self.compare_general_stat(
-            ts, W, lambda x: np.array([sum(x)]), windows="trees", polarised=True)
+            ts, W, f, windows="trees", polarised=True)
+        self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
+        # Drop the last dimension
+        sigma = sigma.reshape((ts.num_trees, ts.num_nodes))
+        # A W of 1 for every node and f(x)=sum(x) counts the samples in the subtree
+        # times 2 if polarised is True.
+        for tree in ts.trees():
+            s = np.array([tree.num_samples(u) if tree.num_samples(u) < ts.num_samples
+                          else 0 for u in range(ts.num_nodes)])
+            self.assertArrayAlmostEqual(sigma[tree.index], 2*s)
+
+    def test_simple_sum_f_w_ones_notstrict(self):
+        ts = msprime.simulate(44, recombination_rate=1, random_seed=2)
+        W = np.ones((ts.num_samples, 2))
+        sigma = ts.general_stat(W, lambda x: np.array([np.sum(x)]), 1, windows="trees",
+                                polarised=True, mode="node", strict=False)
         self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
         # Drop the last dimension
         sigma = sigma.reshape((ts.num_trees, ts.num_nodes))
@@ -3521,7 +3570,7 @@ class TestGeneralNodeStats(StatsTestCase):
         self.assertGreater(ts.num_trees, 1)
         W = np.ones((ts.num_samples, 1))
         sigma = self.compare_general_stat(
-            ts, W, lambda x: np.cumsum(x), windows=ts.breakpoints(as_array=True),
+            ts, W, self.cumsum_f(ts), windows=ts.breakpoints(as_array=True),
             polarised=True)
         self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
 
@@ -3529,16 +3578,15 @@ class TestGeneralNodeStats(StatsTestCase):
         ts = msprime.simulate(4, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 1))
         sigma = self.compare_general_stat(
-            ts, W, lambda x: np.cumsum(x), windows=[0, ts.sequence_length],
+            ts, W, self.cumsum_f(ts), windows=[0, ts.sequence_length],
             polarised=True)
         self.assertEqual(sigma.shape, (1, ts.num_nodes, W.shape[1]))
 
-    @unittest.skip("Funny things happening for unpolarised")
     def test_one_window_unpolarised(self):
         ts = msprime.simulate(4, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
         sigma = self.compare_general_stat(
-            ts, W, lambda x: np.cumsum(x), windows=[0, ts.sequence_length],
+            ts, W, self.cumsum_f(ts), windows=[0, ts.sequence_length],
             polarised=False)
         self.assertEqual(sigma.shape, (1, ts.num_nodes, 2))
 
@@ -3549,19 +3597,21 @@ class TestGeneralNodeStats(StatsTestCase):
             windows = np.linspace(0, 1, num=k + 1)
             for polarised in [True]:
                 sigma = self.compare_general_stat(
-                    ts, W, lambda x: np.cumsum(x), windows=windows, polarised=polarised)
+                    ts, W, self.cumsum_f(ts), windows=windows, polarised=polarised)
             self.assertEqual(sigma.shape, (k, ts.num_nodes, 3))
 
     def test_one_tree(self):
         ts = msprime.simulate(10, random_seed=3)
         W = np.ones((ts.num_samples, 2))
+        f = self.sum_f(ts, k=2)
         sigma = self.compare_general_stat(
-            ts, W, lambda x: np.array([sum(x), sum(x)]), windows=[0, 1], polarised=True)
+            ts, W, f, windows=[0, 1], polarised=True)
         self.assertEqual(sigma.shape, (1, ts.num_nodes, 2))
         # A W of 1 for every node and f(x)=sum(x) counts the samples in the subtree
         # times 2 if polarised is True.
         tree = ts.first()
-        s = np.array([tree.num_samples(u) for u in range(ts.num_nodes)])
+        s = np.array([tree.num_samples(u) if tree.num_samples(u) < ts.num_samples else 0
+                      for u in range(ts.num_nodes)])
         self.assertArrayAlmostEqual(sigma[tree.index, :, 0], 2 * s)
         self.assertArrayAlmostEqual(sigma[tree.index, :, 1], 2 * s)
 
