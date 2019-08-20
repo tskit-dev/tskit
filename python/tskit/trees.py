@@ -3440,9 +3440,13 @@ class TreeSequence(object):
                                  "the only allowed strings are 'sites' or 'trees'")
         return np.array(windows)
 
-    ############################################
-    # Statistics definitions
-    ############################################
+    def __run_windowed_stat(self, windows, method, *args, **kwargs):
+        strip_dim = windows is None
+        windows = self.parse_windows(windows)
+        stat = method(*args, **kwargs, windows=windows)
+        if strip_dim:
+            stat = stat[0]
+        return stat
 
     def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
                                   mode=None, span_normalise=True, polarised=False):
@@ -3451,9 +3455,9 @@ class TreeSequence(object):
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
-        windows = self.parse_windows(windows)
-        return ll_method(sample_set_sizes, flattened, windows=windows,
-                         mode=mode, span_normalise=span_normalise, polarised=polarised)
+        return self.__run_windowed_stat(
+            windows, ll_method, sample_set_sizes, flattened,
+            mode=mode, span_normalise=span_normalise, polarised=polarised)
 
     def __k_way_sample_set_stat(
             self, ll_method, k, sample_sets, indexes=None, windows=None,
@@ -3463,7 +3467,6 @@ class TreeSequence(object):
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
-        windows = self.parse_windows(windows)
         if indexes is None:
             if len(sample_sets) != k:
                 raise ValueError("Must specify indexes "
@@ -3474,9 +3477,13 @@ class TreeSequence(object):
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
             raise ValueError("Indexes must be convertable to a 2D numpy array"
                              "with {} columns".format(k))
-        return ll_method(
-            sample_set_sizes, flattened, indexes, windows=windows,
+        return self.__run_windowed_stat(
+            windows, ll_method, sample_set_sizes, flattened, indexes,
             mode=mode, span_normalise=span_normalise)
+
+    ############################################
+    # Statistics definitions
+    ############################################
 
     def diversity(self, sample_sets, windows=None, mode="site",
                   span_normalise=True):
@@ -3647,10 +3654,9 @@ class TreeSequence(object):
         """
         if W.shape[0] != self.num_samples:
             raise ValueError("First trait dimension must be equal to number of samples.")
-        windows = self.parse_windows(windows)
-        return self._ll_tree_sequence.trait_covariance(
-                        W, windows=windows,
-                        mode=mode, span_normalise=span_normalise)
+        return self.__run_windowed_stat(
+            windows, self._ll_tree_sequence.trait_covariance, W, mode=mode,
+            span_normalise=span_normalise)
 
     def trait_correlation(self, W, windows=None, mode="site", span_normalise=True):
         """
@@ -3707,10 +3713,9 @@ class TreeSequence(object):
         if np.any(sds == 0):
             raise ValueError("Weight columns must have positive variance",
                              "to compute correlation.")
-        windows = self.parse_windows(windows)
-        return self._ll_tree_sequence.trait_correlation(
-                        W, windows=windows,
-                        mode=mode, span_normalise=span_normalise)
+        return self.__run_windowed_stat(
+            windows, self._ll_tree_sequence.trait_correlation, W, mode=mode,
+            span_normalise=span_normalise)
 
     def trait_regression(self, W, Z=None, windows=None, mode="site",
                          span_normalise=True):
@@ -3763,7 +3768,6 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        windows = self.parse_windows(windows)
         if W.shape[0] != self.num_samples:
             raise ValueError("First trait dimension must be equal to number of samples.")
         if Z is None:
@@ -3779,9 +3783,9 @@ class TreeSequence(object):
         # numpy returns a lower-triangular cholesky
         K = np.linalg.cholesky(np.matmul(Z.T, Z)).T
         Z = np.matmul(Z, np.linalg.inv(K))
-        return self._ll_tree_sequence.trait_regression(
-                        W, Z, windows=windows,
-                        mode=mode, span_normalise=span_normalise)
+        return self.__run_windowed_stat(
+            windows, self._ll_tree_sequence.trait_regression,
+            W, Z, mode=mode, span_normalise=span_normalise)
 
     def segregating_sites(self, sample_sets, windows=None, mode="site",
                           span_normalise=True):

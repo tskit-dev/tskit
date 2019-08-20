@@ -70,6 +70,12 @@ e.g., the sites of the SNPs.
 Windowing
 *********
 
+By default, statistics
+
+``windows = None``
+   This is the default, and equivalent to passing ``windows = [0.0, ts.sequence_length]``.
+   The output will still be a two-dimensional array, but with only one row.
+
 Each statistic has an argument, ``windows``,
 which defines a collection of contiguous windows along the genome.
 If ``windows`` is a list of ``n+1`` increasing numbers between 0 and the ``sequence_length``,
@@ -88,10 +94,6 @@ would be equivalent to averaging the rows of ``S``,
 obtaining ``((b - a) * S[0] + (c - b) * S[1]) / (c - a)``.
 
 There are some shortcuts to other useful options:
-
-``windows = None``
-   This is the default, and equivalent to passing ``windows = [0.0, ts.sequence_length]``.
-   The output will still be a two-dimensional array, but with only one row.
 
 ``windows = "trees"``
    This says that you want statistics computed separately on the portion of the genome

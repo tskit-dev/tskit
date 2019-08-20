@@ -833,7 +833,6 @@ def example_windows(ts):
     Generate a series of example windows for the specified tree sequence.
     """
     L = ts.sequence_length
-    yield None
     yield "sites"
     yield "trees"
     yield [0, L]
@@ -3770,9 +3769,8 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
         sigma2 = ts_method(W, windows=None, mode=self.mode)
         sigma3 = ts_method(W, windows=[0.0, ts.sequence_length], mode=self.mode)
         self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
         self.assertArrayAlmostEqual(sigma1, sigma2)
-        self.assertArrayAlmostEqual(sigma1, sigma3)
+        self.assertArrayAlmostEqual(sigma1, sigma3[0])
 
     def verify_centering(self, ts, method, ts_method):
         # Since weights are mean-centered, adding a constant shouldn't change anything.
@@ -4295,11 +4293,12 @@ class TraitRegressionMixin(object):
         sigma4 = ts.trait_regression(W, Z=None, windows=[0.0, ts.sequence_length],
                                      mode=self.mode)
         self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
-        self.assertEqual(sigma1.shape, sigma4.shape)
+        self.assertEqual(sigma3.shape[0], 1)
+        self.assertEqual(sigma1.shape, sigma3.shape[1:])
+        self.assertEqual(sigma1.shape, sigma4.shape[1:])
         self.assertArrayAlmostEqual(sigma1, sigma2)
-        self.assertArrayAlmostEqual(sigma1, sigma3)
-        self.assertArrayAlmostEqual(sigma1, sigma4)
+        self.assertArrayAlmostEqual(sigma1, sigma3[0])
+        self.assertArrayAlmostEqual(sigma1, sigma4[0])
 
     def test_errors(self):
         ts = self.get_example_ts()
@@ -4589,9 +4588,9 @@ class SpecificTreesTestCase(StatsTestCase):
                                branch_true_diversity_01)
         self.assertAlmostEqual(ts.divergence([[0], [1]], [(0, 1)], mode=mode),
                                branch_true_diversity_01)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                branch_true_diversity_01)
-        self.assertAlmostEqual(ts.diversity([[0, 1]], mode=mode)[0][0],
+        self.assertAlmostEqual(ts.diversity([[0, 1]], mode=mode)[0],
                                branch_true_diversity_01)
 
         # mean diversity between [0, 1] and [0, 2]:
@@ -4672,22 +4671,26 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertArrayAlmostEqual(py_sitewise_cor, true_cor)
         self.assertArrayAlmostEqual(ts_sitewise_cor, true_cor)
         # mean
-        ts_mean_cov = ts.trait_covariance(traits, mode="site")
+        ts_mean_cov = ts.trait_covariance(traits, mode="site",
+                                          windows=[0, ts.sequence_length])
         py_mean_cov = site_trait_covariance(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cov,
                                     np.array([np.sum(true_cov, axis=0)]))
         self.assertArrayAlmostEqual(ts_mean_cov, py_mean_cov)
-        ts_mean_cor = ts.trait_correlation(traits, mode="site")
+        ts_mean_cor = ts.trait_correlation(traits, mode="site",
+                                           windows=[0, ts.sequence_length])
         py_mean_cor = site_trait_correlation(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cor,
                                     np.array([np.sum(true_cor, axis=0)]))
         self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
         # mode = 'branch'
-        ts_mean_cov = ts.trait_covariance(traits, mode="branch")
+        ts_mean_cov = ts.trait_covariance(traits, mode="branch",
+                                          windows=[0, ts.sequence_length])
         py_mean_cov = branch_trait_covariance(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cov, true_branch_cov)
         self.assertArrayAlmostEqual(ts_mean_cov, py_mean_cov)
-        ts_mean_cor = ts.trait_correlation(traits, mode="branch")
+        ts_mean_cor = ts.trait_correlation(traits, mode="branch",
+                                           windows=[0, ts.sequence_length])
         py_mean_cor = branch_trait_correlation(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cor, true_branch_cor)
         self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
@@ -4807,7 +4810,7 @@ class SpecificTreesTestCase(StatsTestCase):
         mode = "branch"
         A = [[0], [1], [2], [3]]
         self.assertAlmostEqual(branch_true_f4_0123, f4(ts, A, mode=mode)[0][0])
-        self.assertAlmostEqual(branch_true_f4_0123, ts.f4(A, mode=mode)[0][0])
+        self.assertAlmostEqual(branch_true_f4_0123, ts.f4(A, mode=mode)[0])
         self.assertArrayAlmostEqual(
             branch_true_f4_0123_windowed,
             ts.f4(A, windows=windows, mode=mode).flatten())
@@ -4815,14 +4818,14 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertAlmostEqual(
             branch_true_f4_0321,
             f4(ts, A, [(0, 1, 2, 3)], mode=mode)[0][0])
-        self.assertAlmostEqual(branch_true_f4_0321, ts.f4(A, mode=mode)[0][0])
+        self.assertAlmostEqual(branch_true_f4_0321, ts.f4(A, mode=mode)[0])
         A = [[0], [2], [1], [3]]
-        self.assertAlmostEqual(0.0, f4(ts, A, [(0, 1, 2, 3)], mode=mode)[0])
-        self.assertAlmostEqual(0.0, ts.f4(A, mode=mode)[0][0])
+        self.assertAlmostEqual(0.0, f4(ts, A, [(0, 1, 2, 3)], mode=mode)[0][0])
+        self.assertAlmostEqual(0.0, ts.f4(A, mode=mode)[0])
         A = [[0, 2], [1, 3]]
         self.assertAlmostEqual(
             branch_true_f2_02_13, f2(ts, A, [(0, 1)], mode=mode)[0][0])
-        self.assertAlmostEqual(branch_true_f2_02_13, ts.f2(A, mode=mode)[0][0])
+        self.assertAlmostEqual(branch_true_f2_02_13, ts.f2(A, mode=mode)[0])
 
         # diversity
         A = [[0, 1, 2, 3]]
@@ -5013,7 +5016,7 @@ class SpecificTreesTestCase(StatsTestCase):
 
             self.assertAlmostEqual(diversity(ts, A, mode=mode)[0][0], truth)
             self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0], truth)
-            self.assertAlmostEqual(ts.diversity(A, mode="branch")[0][0], truth)
+            self.assertAlmostEqual(ts.diversity(A, mode="branch")[0], truth)
 
         # Y-statistic for (0/12)
         A = [[0], [1, 2]]
