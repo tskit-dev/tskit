@@ -602,6 +602,30 @@ class EdgeTable(BaseTable):
         self.ll_table.append_columns(dict(
             left=left, right=right, parent=parent, child=child))
 
+    def asdict(self):
+        return {
+            "left": self.left,
+            "right": self.right,
+            "parent": self.parent,
+            "child": self.child,
+        }
+
+    def squash(self):
+        """
+        Sorts, then condenses the table into the smallest possible number of rows by
+        combining any adjacent edges.
+        A pair of edges is said to be `adjacent` if they have the same parent and child
+        nodes, and if the left coordinate of one of the edges is equal to the right
+        coordinate of the other edge.
+        The ``squash`` method modifies an :class:`EdgeTable` in place so that any set of
+        adjacent edges is replaced by a single edge.
+        The new edge will have the same parent and child node, a left coordinate
+        equal to the smallest left coordinate in the set, and a right coordinate
+        equal to the largest right coordinate in the set.
+        The new edge table will be sorted in the canonical order (P, C, L, R).
+        """
+        self.ll_table.squash()
+
 
 class MigrationTable(BaseTable):
     """

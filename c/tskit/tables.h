@@ -1067,6 +1067,8 @@ int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows, d
         double *right, tsk_id_t *parent, tsk_id_t *child);
 int tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out);
 
+int tsk_edge_table_squash(tsk_edge_table_t *self);
+
 
 /**
 @defgroup MIGRATION_TABLE_API_GROUP Migration table API.
@@ -2220,7 +2222,7 @@ int tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags
 
 
 
-int tsk_squash_edges(tsk_edge_t *edges, size_t num_edges, size_t *num_output_edges);
+int tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
 
 #ifdef __cplusplus
 }
