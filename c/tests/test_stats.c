@@ -29,22 +29,6 @@
 #include <stdlib.h>
 #include <float.h>
 
-static tsk_size_t
-get_max_site_mutations(tsk_treeseq_t *ts)
-{
-    int ret;
-    tsk_id_t j;
-    tsk_size_t max_mutations = 0;
-    tsk_site_t site;
-
-    for (j = 0; j < (tsk_id_t) tsk_treeseq_get_num_sites(ts); j++) {
-        ret = tsk_treeseq_get_site(ts, j, &site);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        max_mutations = TSK_MAX(max_mutations, site.mutations_length);
-    }
-    return max_mutations;
-}
-
 static bool
 multi_mutations_exist(tsk_treeseq_t *ts, tsk_id_t start, tsk_id_t end)
 {
@@ -225,36 +209,6 @@ verify_ld(tsk_treeseq_t *ts)
     free(r2_prime);
     free(sites);
     free(num_site_mutations);
-}
-
-static void
-verify_pairwise_diversity(tsk_treeseq_t *ts)
-{
-    int ret;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
-    tsk_id_t *samples;
-    uint32_t j;
-    double pi;
-    tsk_size_t max_site_mutations = get_max_site_mutations(ts);
-
-    ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, 0, &pi);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, 1, &pi);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_treeseq_get_pairwise_diversity(ts, NULL, num_samples + 1, &pi);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-
-    samples = tsk_treeseq_get_samples(ts);
-
-    for (j = 2; j < num_samples; j++) {
-        ret = tsk_treeseq_get_pairwise_diversity(ts, samples, j, &pi);
-        if (max_site_mutations <= 1) {
-            CU_ASSERT_EQUAL_FATAL(ret, 0);
-            CU_ASSERT_TRUE_FATAL(pi >= 0);
-        } else {
-            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
-        }
-    }
 }
 
 /* FIXME: this test is weak and should check the return value somehow.
@@ -1024,17 +978,6 @@ test_single_tree_ld(void)
 }
 
 static void
-test_single_tree_pairwise_diversity(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
-            NULL, single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
-    verify_pairwise_diversity(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
 test_single_tree_mean_descendants(void)
 {
     tsk_treeseq_t ts;
@@ -1092,17 +1035,6 @@ test_paper_ex_ld(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
     verify_ld(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_paper_ex_pairwise_diversity(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
-            NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
-    verify_pairwise_diversity(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -1173,26 +1105,23 @@ test_paper_ex_diversity(void)
     tsk_treeseq_t ts;
     tsk_id_t samples[] = {0, 1, 2, 3};
     tsk_size_t sample_set_sizes = 4;
-    double pi1, pi2;
+    double pi;
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges,
             NULL, paper_ex_sites, paper_ex_mutations, paper_ex_individuals, NULL);
 
     ret = tsk_treeseq_diversity(&ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &pi1, TSK_STAT_SITE);
+            &pi, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    /* This function will probably be removed, but it's a handy test for now */
-    ret = tsk_treeseq_get_pairwise_diversity(&ts, samples, 4, &pi2);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_DOUBLE_EQUAL_FATAL(pi1, pi2, 1e-6);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(pi, 1.5, 1e-6);
 
     /* A sample set size of 1 leads to NaN */
     sample_set_sizes = 1;
     ret = tsk_treeseq_diversity(&ts, 1, &sample_set_sizes, samples, 0, NULL,
-            &pi1, TSK_STAT_SITE);
+            &pi, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT(isnan((float) pi1));
+    CU_ASSERT(isnan((float) pi));
 
     tsk_treeseq_free(&ts);
 }
@@ -1682,17 +1611,6 @@ test_nonbinary_ex_ld(void)
 }
 
 static void
-test_nonbinary_ex_pairwise_diversity(void)
-{
-    tsk_treeseq_t ts;
-
-    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges,
-            NULL, nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
-    verify_pairwise_diversity(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
 test_nonbinary_ex_mean_descendants(void)
 {
     tsk_treeseq_t ts;
@@ -1756,7 +1674,6 @@ main(int argc, char **argv)
         {"test_empty_ts_afs", test_empty_ts_afs},
 
         {"test_single_tree_ld", test_single_tree_ld},
-        {"test_single_tree_pairwise_diversity", test_single_tree_pairwise_diversity},
         {"test_single_tree_mean_descendants", test_single_tree_mean_descendants},
         {"test_single_tree_genealogical_nearest_neighbours",
             test_single_tree_genealogical_nearest_neighbours},
@@ -1764,7 +1681,6 @@ main(int argc, char **argv)
         {"test_single_tree_general_stat_errors", test_single_tree_general_stat_errors},
 
         {"test_paper_ex_ld", test_paper_ex_ld},
-        {"test_paper_ex_pairwise_diversity", test_paper_ex_pairwise_diversity},
         {"test_paper_ex_mean_descendants", test_paper_ex_mean_descendants},
         {"test_paper_ex_genealogical_nearest_neighbours",
             test_paper_ex_genealogical_nearest_neighbours},
@@ -1798,7 +1714,6 @@ main(int argc, char **argv)
         {"test_paper_ex_afs", test_paper_ex_afs},
 
         {"test_nonbinary_ex_ld", test_nonbinary_ex_ld},
-        {"test_nonbinary_ex_pairwise_diversity", test_nonbinary_ex_pairwise_diversity},
         {"test_nonbinary_ex_mean_descendants", test_nonbinary_ex_mean_descendants},
         {"test_nonbinary_ex_genealogical_nearest_neighbours",
             test_nonbinary_ex_genealogical_nearest_neighbours},

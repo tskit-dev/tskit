@@ -566,66 +566,8 @@ tsk_treeseq_is_sample(tsk_treeseq_t *self, tsk_id_t u)
     return ret;
 }
 
-/* Accessors for records */
+/* Stats functions */
 
-int TSK_WARN_UNUSED
-tsk_treeseq_get_pairwise_diversity(tsk_treeseq_t *self,
-    tsk_id_t *samples, size_t num_samples, double *pi)
-{
-    int ret = 0;
-    tsk_tree_t *tree = NULL;
-    double result, denom, n, count;
-    tsk_site_t *sites;
-    tsk_size_t j, k, num_sites;
-
-    if (num_samples < 2 || num_samples > self->num_samples) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
-    n = (double) num_samples;
-    tree = malloc(sizeof(tsk_tree_t));
-    if (tree == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    ret = tsk_tree_init(tree, self, TSK_SAMPLE_COUNTS);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_tree_set_tracked_samples(tree, num_samples, samples);
-    if (ret != 0) {
-        goto out;
-    }
-    /* Allocation done; move onto main algorithm. */
-    result = 0.0;
-    for (ret = tsk_tree_first(tree); ret == 1; ret = tsk_tree_next(tree)) {
-        ret = tsk_tree_get_sites(tree, &sites, &num_sites);
-        if (ret != 0) {
-            goto out;
-        }
-        for (j = 0; j < num_sites; j++) {
-            if (sites[j].mutations_length != 1) {
-                ret = TSK_ERR_ONLY_INFINITE_SITES;
-                goto out;
-            }
-            for (k = 0; k < sites[j].mutations_length; k++) {
-                count = (double) tree->num_tracked_samples[sites[j].mutations[k].node];
-                result += count * (n - count);
-            }
-        }
-    }
-    if (ret != 0) {
-        goto out;
-    }
-    denom = (n * (n - 1)) / 2.0;
-    *pi = result / denom;
-out:
-    if (tree != NULL) {
-        tsk_tree_free(tree);
-        free(tree);
-    }
-    return ret;
-}
 
 #define GET_2D_ROW(array, row_len, row) (array + (((size_t) (row_len)) * (size_t) row))
 
