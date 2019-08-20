@@ -3360,12 +3360,17 @@ class TreeSequence(object):
         as sample sets will give ``f`` an argument of length two, giving the number
         of samples in ``A`` and ``B`` below the node in question. So, if we define
 
+
+        .. code-block:: python
+
             def f(x):
                 pA = x[0] / nA
                 pB = x[1] / nB
                 return np.array([pA * pB])
 
         then if all sites are biallelic,
+
+        .. code-block:: python
 
             ts.sample_count_stat([A, B], f, windows="site",
                                  polarised=False, mode="site")
