@@ -1128,7 +1128,6 @@ class TestDiversity(StatsTestCase, SampleSetStatsMixin):
     mode = None
 
     def verify_sample_sets(self, ts, sample_sets, windows):
-        # print("verify", ts, sample_sets, windows)
         n = np.array([len(x) for x in sample_sets])
 
         def f(x):
@@ -2606,6 +2605,9 @@ class Testf4(StatsTestCase, FourWaySampleSetStatsMixin):
             return numer / denom
         self.verify_definition(ts, sample_sets, indexes, windows, f, ts.f4, f4)
 
+    def verify_interface(self, ts):
+        self.verify_interface_method(ts.f4)
+
 
 class TestBranchf4(Testf4, TopologyExamplesMixin):
     mode = "branch"
@@ -3239,6 +3241,11 @@ class TestSampleSetIndexes(StatsTestCase):
         self.assertEqual(S1.shape, S2.shape)
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
+        sample_sets = np.array_split(ts.samples(), 3)
+        with self.assertRaises(ValueError):
+            _ = ts.divergence(sample_sets)
+        with self.assertRaises(ValueError):
+            _ = ts.divergence(sample_sets[0])
 
     def test_3_way_default(self):
         ts = self.get_example_ts()
@@ -3249,6 +3256,9 @@ class TestSampleSetIndexes(StatsTestCase):
         self.assertEqual(S1.shape, S2.shape)
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
+        sample_sets = np.array_split(ts.samples(), 4)
+        with self.assertRaises(ValueError):
+            _ = ts.f3(sample_sets)
 
     def test_4_way_default(self):
         ts = self.get_example_ts()
@@ -3259,6 +3269,9 @@ class TestSampleSetIndexes(StatsTestCase):
         self.assertEqual(S1.shape, S2.shape)
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
+        sample_sets = np.array_split(ts.samples(), 5)
+        with self.assertRaises(ValueError):
+            _ = ts.f4(sample_sets)
 
     def test_2_way_combinations(self):
         ts = self.get_example_ts()

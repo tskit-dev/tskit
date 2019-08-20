@@ -3463,7 +3463,11 @@ class TreeSequence(object):
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         windows = self.parse_windows(windows)
         if indexes is None:
-            indexes = [np.arange(k, dtype=np.int32)]
+            if len(sample_sets) == k:
+                raise ValueError("Must specify indexes"
+                                 "if there are not exactly {} sample sets.".format(k))
+            else:
+                indexes = [np.arange(k, dtype=np.int32)]
         indexes = util.safe_np_int_cast(indexes, np.int32)
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
             raise ValueError("Indexes must be convertable to a 2D numpy array"
