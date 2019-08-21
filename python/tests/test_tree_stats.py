@@ -512,6 +512,15 @@ class StatsTestCase(unittest.TestCase):
     def assertArrayAlmostEqual(self, x, y, atol=1e-6, rtol=1e-7):
         nt.assert_allclose(x, y, atol=atol, rtol=rtol)
 
+    def identity_f(self, ts):
+        return lambda x: x * (x < ts.num_samples)
+
+    def cumsum_f(self, ts):
+        return lambda x: np.cumsum(x) * (x < ts.num_samples)
+
+    def sum_f(self, ts, k=1):
+        return lambda x: np.array([sum(x) * (sum(x) < 2 * ts.num_samples)] * k)
+
 
 class TopologyExamplesMixin(object):
     """
@@ -3160,7 +3169,7 @@ class TestSampleSets(StatsTestCase):
             with self.assertRaises(exceptions.LibraryError):
                 ts.divergence([[0, 1], bad_set])
             with self.assertRaises(ValueError):
-                ts.sample_count_stat([bad_set], lambda x: x, 1)
+                ts.sample_count_stat([bad_set], self.identity_f(ts), 1)
 
     def test_empty_sample_set(self):
         ts = self.get_example_ts()
@@ -3172,7 +3181,7 @@ class TestSampleSets(StatsTestCase):
             with self.assertRaises(ValueError):
                 ts.divergence(bad_sample_sets)
             with self.assertRaises(ValueError):
-                ts.sample_count_stat(bad_sample_sets, lambda x: x, 1)
+                ts.sample_count_stat(bad_sample_sets, self.identity_f(ts), 1)
 
     def test_non_samples(self):
         ts = self.get_example_ts()
@@ -3183,7 +3192,7 @@ class TestSampleSets(StatsTestCase):
             ts.divergence([[10], [1, 2]])
 
         with self.assertRaises(ValueError):
-            ts.sample_count_stat([[10]], lambda x: x, 1)
+            ts.sample_count_stat([[10]], self.identity_f(ts), 1)
 
     def test_span_normalise(self):
         ts = self.get_example_ts()
@@ -3305,9 +3314,6 @@ class TestGeneralStatInterface(StatsTestCase):
                               mutation_rate=2, random_seed=1)
         return ts
 
-    def identity_f(self, ts):
-        return lambda x: x * (x < ts.num_samples)
-
     def test_default_mode(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
@@ -3335,9 +3341,9 @@ class TestGeneralStatInterface(StatsTestCase):
         ts = self.get_tree_sequence()
         W = np.ones((ts.num_samples, 3))
         with self.assertRaises(ValueError):
-            _ = ts.general_stat(W, lambda x: x, 3, windows="sites")
+            ts.general_stat(W, lambda x: x, 3, windows="sites")
         with self.assertRaises(ValueError):
-            _ = ts.general_stat(W, lambda x: np.array([1.0]), 1, windows="sites")
+            ts.general_stat(W, lambda x: np.array([1.0]), 1, windows="sites")
 
 
 class TestGeneralBranchStats(StatsTestCase):
@@ -3355,15 +3361,6 @@ class TestGeneralBranchStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
-
-    def cumsum_f(self, ts):
-        return lambda x: np.cumsum(x) * (x < ts.num_samples)
-
-    def identity_f(self, ts):
-        return lambda x: x * (x < ts.num_samples)
-
-    def sum_f(self, ts):
-        return lambda x: np.array([np.sum(x) * (2 * ts.num_samples - np.sum(x))])
 
     def test_simple_identity_f_w_zeros(self):
         ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
@@ -3455,12 +3452,6 @@ class TestGeneralSiteStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
 
-    def cumsum_f(self, ts):
-        return lambda x: np.cumsum(x) * (x < ts.num_samples)
-
-    def identity_f(self, ts):
-        return lambda x: x * (x < ts.num_samples)
-
     def test_identity_f_W_0_multiple_alleles(self):
         ts = msprime.simulate(20, recombination_rate=0, random_seed=2)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
@@ -3516,15 +3507,6 @@ class TestGeneralNodeStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
-
-    def cumsum_f(self, ts):
-        return lambda x: np.cumsum(x) * (x < ts.num_samples)
-
-    def identity_f(self, ts):
-        return lambda x: x * (x < ts.num_samples)
-
-    def sum_f(self, ts, k=1):
-        return lambda x: np.array([sum(x) * (sum(x) < 2 * ts.num_samples)] * k)
 
     def test_simple_sum_f_w_zeros(self):
         ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
