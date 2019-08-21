@@ -602,14 +602,6 @@ class EdgeTable(BaseTable):
         self.ll_table.append_columns(dict(
             left=left, right=right, parent=parent, child=child))
 
-    def asdict(self):
-        return {
-            "left": self.left,
-            "right": self.right,
-            "parent": self.parent,
-            "child": self.child,
-        }
-
     def squash(self):
         """
         Sorts, then condenses the table into the smallest possible number of rows by
