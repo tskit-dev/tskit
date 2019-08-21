@@ -213,7 +213,7 @@ class PythonTreeSequence(object):
     def edge_diffs(self):
         M = self._tree_sequence.get_num_edges()
         sequence_length = self._tree_sequence.get_sequence_length()
-        edges = [tskit.Edge(*self._tree_sequence.get_edge(j)) for j in range(M)]
+        edges = [tskit.Edge(*self._tree_sequence.get_edge(j), j) for j in range(M)]
         time = [self._tree_sequence.get_node(edge.parent)[1] for edge in edges]
         in_order = sorted(range(M), key=lambda j: (
             edges[j].left, time[j], edges[j].parent, edges[j].child))
@@ -221,7 +221,7 @@ class PythonTreeSequence(object):
             edges[j].right, -time[j], -edges[j].parent, -edges[j].child))
         j = 0
         k = 0
-        left = 0
+        left = 0.0
         while j < M or left < sequence_length:
             e_out = []
             e_in = []
@@ -245,7 +245,7 @@ class PythonTreeSequence(object):
         M = self._tree_sequence.get_num_edges()
         sequence_length = self._tree_sequence.get_sequence_length()
         edges = [
-            tskit.Edge(*self._tree_sequence.get_edge(j)) for j in range(M)]
+            tskit.Edge(*self._tree_sequence.get_edge(j), j) for j in range(M)]
         t = [
             self._tree_sequence.get_node(j)[1]
             for j in range(self._tree_sequence.get_num_nodes())]

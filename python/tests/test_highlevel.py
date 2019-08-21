@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """
-Test cases for the high level interface to msprime.
+Test cases for the high level interface to tskit.
 """
 import collections
 import itertools
@@ -588,13 +588,17 @@ class TestTreeSequence(HighLevelTestCase):
         children = collections.defaultdict(set)
         trees = iter(ts.trees())
         tree = next(trees)
+        edge_ids = []
         last_right = 0
         for (left, right), edges_out, edges_in in ts.edge_diffs():
-            assert left == last_right
+            self.assertEqual(left, last_right)
             last_right = right
             for edge in edges_out:
+                self.assertEqual(edge, ts.edge(edge.id))
                 children[edge.parent].remove(edge.child)
             for edge in edges_in:
+                edge_ids.append(edge.id)
+                self.assertEqual(edge, ts.edge(edge.id))
                 children[edge.parent].add(edge.child)
             while tree.interval[1] <= left:
                 tree = next(trees)
@@ -605,6 +609,8 @@ class TestTreeSequence(HighLevelTestCase):
                 if tree.is_internal(u):
                     self.assertIn(u, children)
                     self.assertEqual(children[u], set(tree.children(u)))
+        # check that we have seen all the edge ids
+        self.assertTrue(np.array_equal(np.unique(edge_ids), np.arange(0, ts.num_edges)))
 
     def test_edge_diffs(self):
         for ts in get_example_tree_sequences():
@@ -637,6 +643,9 @@ class TestTreeSequence(HighLevelTestCase):
                 last_e = e
             last_e.right = e.right
         squashed.append(last_e)
+        # reset the IDs
+        for i, e in enumerate(squashed):
+            e.id = i
         edges = list(ts.edges())
         self.assertEqual(len(squashed), len(edges))
         self.assertEqual(edges, squashed)
@@ -2113,7 +2122,7 @@ class TestNodeContainer(unittest.TestCase, SimpleContainersMixin):
 class TestEdgeContainer(unittest.TestCase, SimpleContainersMixin):
     def get_instances(self, n):
         return [
-            tskit.Edge(left=j, right=j, parent=j, child=j) for j in range(n)]
+            tskit.Edge(left=j, right=j, parent=j, child=j, id_=j) for j in range(n)]
 
 
 class TestSiteContainer(unittest.TestCase, SimpleContainersMixin):

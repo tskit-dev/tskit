@@ -171,16 +171,20 @@ class Edge(SimpleContainer):
         To obtain further information about a node with a given ID, use
         :meth:`.TreeSequence.node`.
     :vartype child: int
+    :ivar id: The integer ID of this edge. Varies from 0 to
+        :attr:`.TreeSequence.num_edges` - 1.
+    :vartype id: int
     """
-    def __init__(self, left, right, parent, child):
+    def __init__(self, left, right, parent, child, id_=None):
+        self.id = id_
         self.left = left
         self.right = right
         self.parent = parent
         self.child = child
 
     def __repr__(self):
-        return "{{left={:.3f}, right={:.3f}, parent={}, child={}}}".format(
-            self.left, self.right, self.parent, self.child)
+        return "{{left={:.3f}, right={:.3f}, parent={}, child={}, id={}}}".format(
+            self.left, self.right, self.parent, self.child, self.id)
 
 
 class Site(SimpleContainer):
@@ -2852,7 +2856,7 @@ class TreeSequence(object):
         :rtype: :class:`.Edge`
         """
         (left, right, parent, child) = self._ll_tree_sequence.get_edge(id_)
-        return Edge(left=left, right=right, parent=parent, child=child)
+        return Edge(id_=id_, left=left, right=right, parent=parent, child=child)
 
     def mutation(self, id_):
         """
