@@ -3272,7 +3272,7 @@ class TreeSequence(object):
     ############################################
 
     def general_stat(self, W, f, output_dim, windows=None, polarised=False, mode=None,
-                     span_normalise=True):
+                     span_normalise=True, strict=True):
         """
         Compute a windowed statistic from weights and a summary function.  See
         :ref:`sec_general_stats` for details of ``windows``, ``mode``,
@@ -3299,6 +3299,13 @@ class TreeSequence(object):
         then the output will be ``m``-dimensional for each node or window (depending
         on "mode").
 
+        .. note::
+            The summary function ``f`` should return zero when given both 0 and
+            the total weight (i.e., ``f(0) = 0`` and ``f(np.sum(W, axis=0)) = 0``),
+            unless ``strict=False``.  This is necessary for the statistic to be
+            unaffected by parts of the tree sequence ancestral to none or all
+            of the samples, respectively.
+
         :param ndarray W: An array of values with one row for each sample and one column
             for each weight.
         :param function f: A function that takes a one-dimensional array of length
@@ -3313,11 +3320,21 @@ class TreeSequence(object):
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
+        :param bool strict: Whether to check that f(0) and f(total weight) are zero.
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if mode is None:
             mode = "site"
         windows = self.parse_windows(windows)
+        if strict:
+            total_weights = np.sum(W, axis=0)
+            for x in [total_weights, total_weights * 0.0]:
+                with np.errstate(invalid='ignore', divide='ignore'):
+                    fx = f(x)
+                fx[np.isnan(fx)] = 0.0
+                if not np.allclose(fx, np.zeros((output_dim, ))):
+                    raise ValueError("Summary function does not return zero for both"
+                                     "zero weight and total weight.")
         return self.ll_tree_sequence.general_stat(
             W, f, output_dim, windows, polarised=polarised,
             span_normalise=span_normalise, mode=mode)
@@ -3358,6 +3375,13 @@ class TreeSequence(object):
         instead ``f`` returns ``np.array([pA, pB, pA * pB])``, then the
         output would be a (num sites, 3) array, with the first two columns
         giving the allele frequencies in ``A`` and ``B``, respectively.
+
+        .. note::
+            The summary function ``f`` should return zero when given both 0 and
+            the sample size (i.e., ``f(0) = 0`` and
+            ``f(np.array([len(x) for x in sample_sets]) = 0``).  This is
+            necessary for the statistic to be unaffected by parts of the tree
+            sequence ancestral to none or all of the samples, respectively.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
@@ -3929,9 +3953,6 @@ class TreeSequence(object):
         What is computed for diversity and divergence depends on ``mode``;
         see those functions for more details.
 
-        If ``indexes`` is None and there are only two sample sets, then the Fst
-        between these sample sets is returned.
-
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples.
@@ -3945,10 +3966,7 @@ class TreeSequence(object):
         """
         windows = self.parse_windows(windows)
         if indexes is None:
-            if len(sample_sets) == 2:
-                indexes = [(0, 1)]
-            else:
-                raise ValueError("indexes must be a list of pairs of indexes.")
+            raise ValueError("indexes must be a list of pairs of indexes.")
         indexes = util.safe_np_int_cast(indexes, np.int32)
         if len(indexes.shape) != 2 or indexes.shape[1] != 2:
             raise ValueError("Indexes must be convertable to a 2D numpy array"
