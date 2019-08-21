@@ -254,27 +254,6 @@ def simple_get_pairwise_diversity(haplotypes):
     return 2 * pi / (n * (n - 1))
 
 
-def get_pairwise_diversity(tree_sequence, samples=None):
-    """
-    This is the exact algorithm used by the low-level C code
-    and should return identical results.
-    """
-    if samples is None:
-        tracked_samples = tree_sequence.get_samples()
-    else:
-        tracked_samples = list(samples)
-    if len(tracked_samples) < 2:
-        raise ValueError("len(samples) must be >= 2")
-    pi = 0
-    k = len(tracked_samples)
-    denom = k * (k - 1) / 2
-    for t in tree_sequence.trees(tracked_samples=tracked_samples):
-        for mutation in t.mutations():
-            j = t.get_num_tracked_samples(mutation.node)
-            pi += j * (k - j) / denom
-    return pi
-
-
 def simplify_tree_sequence(ts, samples, filter_sites=True):
     """
     Simple tree-by-tree algorithm to get a simplify of a tree sequence.
@@ -483,58 +462,6 @@ class HighLevelTestCase(unittest.TestCase):
         self.assertEqual(breakpoints, list(ts.breakpoints()))
         self.assertAlmostEqual(length, ts.get_sequence_length())
 
-    def verify_haplotype_statistics(self, ts):
-        """
-        Verifies the statistics calculated for the haplotypes
-        in the specified tree sequence.
-        """
-        haplotypes = list(ts.haplotypes())
-        pi1 = ts.get_pairwise_diversity()
-        pi2 = simple_get_pairwise_diversity(haplotypes)
-        pi3 = get_pairwise_diversity(ts)
-        self.assertAlmostEqual(pi1, pi2)
-        self.assertAlmostEqual(pi1, pi3)
-        self.assertGreaterEqual(pi1, 0.0)
-        self.assertFalse(math.isnan(pi1))
-        # Check for a subsample.
-        num_samples = ts.get_sample_size() // 2 + 1
-        samples = list(ts.samples())[:num_samples]
-        pi1 = ts.get_pairwise_diversity(samples)
-        pi2 = simple_get_pairwise_diversity([haplotypes[j] for j in range(num_samples)])
-        pi3 = get_pairwise_diversity(ts, samples)
-        self.assertAlmostEqual(pi1, pi2)
-        self.assertAlmostEqual(pi1, pi3)
-        self.assertGreaterEqual(pi1, 0.0)
-        self.assertFalse(math.isnan(pi1))
-
-    def verify_mutations(self, ts):
-        """
-        Verify the mutations on this tree sequence make sense.
-        """
-        self.verify_haplotype_statistics(ts)
-        all_mutations = list(ts.mutations())
-        # Mutations must be sorted by position
-        self.assertEqual(
-            all_mutations, sorted(all_mutations, key=lambda x: x[0]))
-        self.assertEqual(len(all_mutations), ts.get_num_mutations())
-        all_tree_mutations = []
-        j = 0
-        for st in ts.trees():
-            tree_mutations = list(st.mutations())
-            self.assertEqual(st.get_num_mutations(), len(tree_mutations))
-            all_tree_mutations.extend(tree_mutations)
-            for mutation in tree_mutations:
-                left, right = st.get_interval()
-                self.assertTrue(left <= mutation.position < right)
-                self.assertEqual(mutation.index, j)
-                j += 1
-        self.assertEqual(all_tree_mutations, all_mutations)
-        pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
-        iter1 = ts.trees()
-        iter2 = pts.trees()
-        for st1, st2 in zip(iter1, iter2):
-            self.assertEqual(st1, st2)
-
 
 class TestNumpySamples(unittest.TestCase):
     """
@@ -630,6 +557,26 @@ class TestTreeSequence(HighLevelTestCase):
     def test_mutations(self):
         for ts in get_example_tree_sequences():
             self.verify_mutations(ts)
+
+    def verify_pairwise_diversity(self, ts):
+        haplotypes = ts.genotype_matrix(impute_missing_data=True).T
+        pi1 = ts.get_pairwise_diversity()
+        pi2 = simple_get_pairwise_diversity(haplotypes)
+        self.assertAlmostEqual(pi1, pi2)
+        self.assertGreaterEqual(pi1, 0.0)
+        self.assertFalse(math.isnan(pi1))
+        # Check for a subsample.
+        num_samples = ts.get_sample_size() // 2 + 1
+        samples = list(ts.samples())[:num_samples]
+        pi1 = ts.get_pairwise_diversity(samples)
+        pi2 = simple_get_pairwise_diversity([haplotypes[j] for j in range(num_samples)])
+        self.assertAlmostEqual(pi1, pi2)
+        self.assertGreaterEqual(pi1, 0.0)
+        self.assertFalse(math.isnan(pi1))
+
+    def test_pairwise_diversity(self):
+        for ts in get_example_tree_sequences():
+            self.verify_pairwise_diversity(ts)
 
     def verify_edge_diffs(self, ts):
         pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
@@ -874,21 +821,14 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_get_pairwise_diversity(self):
         for ts in get_example_tree_sequences():
-            n = ts.get_sample_size()
             self.assertRaises(ValueError, ts.get_pairwise_diversity, [])
-            self.assertRaises(ValueError, ts.get_pairwise_diversity, [1])
-            self.assertRaises(ValueError, ts.get_pairwise_diversity, [1, n])
             samples = list(ts.samples())
-            if any(len(site.mutations) > 1 for site in ts.sites()):
-                # Multi-mutations are not currenty supported when computing pi.
-                self.assertRaises(_tskit.LibraryError, ts.get_pairwise_diversity)
-            else:
-                self.assertEqual(
-                    ts.get_pairwise_diversity(),
-                    ts.get_pairwise_diversity(samples))
-                self.assertEqual(
-                    ts.get_pairwise_diversity(samples[:2]),
-                    ts.get_pairwise_diversity(reversed(samples[:2])))
+            self.assertEqual(
+                ts.get_pairwise_diversity(),
+                ts.get_pairwise_diversity(samples))
+            self.assertEqual(
+                ts.get_pairwise_diversity(samples[:2]),
+                ts.get_pairwise_diversity(list(reversed(samples[:2]))))
 
     def test_populations(self):
         more_than_zero = False

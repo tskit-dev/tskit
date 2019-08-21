@@ -2822,16 +2822,17 @@ class TreeSequence(object):
 
     def pairwise_diversity(self, samples=None):
         """
-        Returns the value of :math:`\\pi`, the pairwise nucleotide site
-        diversity, the average number of mutations per unit of genome length
+        Returns the pairwise nucleotide site diversity, the average number of sites
         that differ between a randomly chosen pair of samples.  If `samples` is
         specified, calculate the diversity within this set.
 
-         .. warning:: This method is deprecated; please use :meth:`.diversity`.
-
-        .. note:: This method does not support sites that have more
-            than one mutation. Using it on such a tree sequence will raise
-            a LibraryError with an "Unsupported operation" message.
+         .. deprecated:: 0.2.0
+             please use :meth:`.diversity` instead. Since version 0.2.0 the error
+             semantics have also changed slightly. It is no longer an error
+             when there is one sample and a tskit.LibraryError is raised
+             when non-sample IDs are provided rather than a ValueError. It is
+             also no longer an error to compute pairwise diversity at sites
+             with multiple mutations.
 
         :param iterable samples: The set of samples within which we calculate
             the diversity. If None, calculate diversity within the entire sample.
@@ -2840,7 +2841,8 @@ class TreeSequence(object):
         """
         if samples is None:
             samples = self.samples()
-        return self._ll_tree_sequence.get_pairwise_diversity(list(samples))
+        return float(self.diversity(
+            [samples], windows=[0, self.sequence_length], span_normalise=False)[0])
 
     def mean_descendants(self, reference_sets):
         """

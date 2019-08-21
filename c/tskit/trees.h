@@ -196,8 +196,6 @@ int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples,
 /* TODO do these belong in trees or stats? They should probably be in stats.
  * Keep them here for now until we figure out the correct interface.
  */
-int tsk_treeseq_get_pairwise_diversity(tsk_treeseq_t *self,
-    tsk_id_t *samples, size_t num_samples, double *pi);
 int tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self,
         tsk_id_t *focal, size_t num_focal,
         tsk_id_t **reference_sets, size_t *reference_set_size, size_t num_reference_sets,

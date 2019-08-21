@@ -158,29 +158,6 @@ print_ld_matrix(tsk_treeseq_t *ts)
 }
 
 static void
-print_stats(tsk_treeseq_t *ts)
-{
-    int ret = 0;
-    uint32_t j;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts) / 2;
-    tsk_id_t *sample = malloc(num_samples * sizeof(tsk_id_t));
-    double pi;
-
-    if (sample == NULL) {
-        fatal_error("no memory");
-    }
-    for (j = 0; j < num_samples; j++) {
-        sample[j] = (tsk_id_t) j;
-    }
-    ret = tsk_treeseq_get_pairwise_diversity(ts, sample, num_samples, &pi);
-    if (ret != 0) {
-        fatal_library_error(ret, "get_pairwise_diversity");
-    }
-    printf("pi = %f\n", pi);
-    free(sample);
-}
-
-static void
 print_newick_trees(tsk_treeseq_t *ts)
 {
     int ret = 0;
@@ -293,16 +270,6 @@ run_newick(const char *filename, int TSK_UNUSED(verbose))
 }
 
 static void
-run_stats(const char *filename, int TSK_UNUSED(verbose))
-{
-    tsk_treeseq_t ts;
-
-    load_tree_sequence(&ts, filename);
-    print_stats(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
 run_simplify(const char *input_filename, const char *output_filename, size_t num_samples,
         bool filter_sites, int verbose)
 {
@@ -399,14 +366,6 @@ main(int argc, char** argv)
     void* argtable6[] = {cmd6, verbose6, infiles6, end6};
     int nerrors6;
 
-    /* SYNTAX 7: stats [-v] <input-file> */
-    struct arg_rex *cmd7 = arg_rex1(NULL, NULL, "stats", NULL, REG_ICASE, NULL);
-    struct arg_lit *verbose7 = arg_lit0("v", "verbose", NULL);
-    struct arg_file *infiles7 = arg_file1(NULL, NULL, NULL, NULL);
-    struct arg_end *end7 = arg_end(20);
-    void* argtable7[] = {cmd7, verbose7, infiles7, end7};
-    int nerrors7;
-
     int exitcode = EXIT_SUCCESS;
     const char *progname = "main";
 
@@ -419,7 +378,6 @@ main(int argc, char** argv)
     nerrors4 = arg_parse(argc, argv, argtable4);
     nerrors5 = arg_parse(argc, argv, argtable5);
     nerrors6 = arg_parse(argc, argv, argtable6);
-    nerrors7 = arg_parse(argc, argv, argtable7);
 
     if (nerrors1 == 0) {
         run_simplify(infiles1->filename[0], outfiles1->filename[0],
@@ -432,11 +390,9 @@ main(int argc, char** argv)
     } else if (nerrors4 == 0) {
         run_variants(infiles4->filename[0], verbose4->count);
     } else if (nerrors5 == 0) {
-        run_stats(infiles5->filename[0], verbose5->count);
+        run_print(infiles5->filename[0], verbose5->count);
     } else if (nerrors6 == 0) {
-        run_print(infiles6->filename[0], verbose6->count);
-    } else if (nerrors7 == 0) {
-        run_newick(infiles7->filename[0], verbose7->count);
+        run_newick(infiles6->filename[0], verbose6->count);
     } else {
         /* We get here if the command line matched none of the possible syntaxes */
         if (cmd1->count > 0) {
@@ -463,10 +419,6 @@ main(int argc, char** argv)
             arg_print_errors(stdout, end6, progname);
             printf("usage: %s ", progname);
             arg_print_syntax(stdout, argtable6, "\n");
-        } else if (cmd7->count > 0) {
-            arg_print_errors(stdout, end7, progname);
-            printf("usage: %s ", progname);
-            arg_print_syntax(stdout, argtable7, "\n");
         } else {
             /* no correct cmd literals were given, so we cant presume which syntax was intended */
             printf("%s: missing command.\n",progname);
@@ -476,7 +428,6 @@ main(int argc, char** argv)
             printf("usage 4: %s ", progname);  arg_print_syntax(stdout, argtable4, "\n");
             printf("usage 5: %s ", progname);  arg_print_syntax(stdout, argtable5, "\n");
             printf("usage 6: %s ", progname);  arg_print_syntax(stdout, argtable6, "\n");
-            printf("usage 7: %s ", progname);  arg_print_syntax(stdout, argtable7, "\n");
         }
     }
 
@@ -486,7 +437,6 @@ main(int argc, char** argv)
     arg_freetable(argtable4, sizeof(argtable4) / sizeof(argtable4[0]));
     arg_freetable(argtable5, sizeof(argtable5) / sizeof(argtable5[0]));
     arg_freetable(argtable6, sizeof(argtable6) / sizeof(argtable6[0]));
-    arg_freetable(argtable7, sizeof(argtable7) / sizeof(argtable7[0]));
 
     return exitcode;
 }

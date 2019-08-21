@@ -362,24 +362,6 @@ class TestTreeSequence(LowLevelTestCase):
             self.assertTrue(np.array_equal(
                 np.arange(ts.get_num_samples(), dtype=np.int32), ts.get_samples()))
 
-    def test_pairwise_diversity(self):
-        for ts in self.get_example_tree_sequences():
-            for bad_type in ["", None, {}]:
-                self.assertRaises(TypeError, ts.get_pairwise_diversity, bad_type)
-                self.assertRaises(TypeError, ts.get_pairwise_diversity, [0, bad_type])
-            self.assertRaises(
-                ValueError, ts.get_pairwise_diversity, [])
-            self.assertRaises(
-                ValueError, ts.get_pairwise_diversity, [0])
-            self.assertRaises(
-                ValueError, ts.get_pairwise_diversity,
-                [0, ts.get_num_samples()])
-            self.assertRaises(
-                _tskit.LibraryError, ts.get_pairwise_diversity, [0, 0])
-            samples = list(range(ts.get_num_samples()))
-            pi1 = ts.get_pairwise_diversity(samples)
-            self.assertGreaterEqual(pi1, 0)
-
     def test_genealogical_nearest_neighbours(self):
         for ts in self.get_example_tree_sequences():
             self.assertRaises(TypeError, ts.genealogical_nearest_neighbours)
