@@ -3453,13 +3453,20 @@ class TreeSequence(object):
             polarised=False):
         if sample_sets is None:
             sample_sets = self.samples()
+
         # First try to convert to a 1D numpy array. If it is, then we strip off
         # the corresponding dimension from the output.
         drop_dimension = False
-        sample_sets = np.array(sample_sets)
-        if len(sample_sets.shape) == 1:
-            sample_sets = [sample_sets]
-            drop_dimension = True
+        try:
+            sample_sets = np.array(sample_sets, dtype=np.int32)
+        except ValueError:
+            pass
+        else:
+            # If we've successfully converted sample_sets to a 1D numpy array
+            # of integers then drop the dimension
+            if len(sample_sets.shape) == 1:
+                sample_sets = [sample_sets]
+                drop_dimension = True
 
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
@@ -4006,6 +4013,9 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
+        # TODO recast this as a two-way stat by pushing the computations down
+        # into another function. This will do the dimension stripping automatically
+        # then.
         windows = self.parse_windows(windows)
         if indexes is None:
             raise ValueError("indexes must be a list of pairs of indexes.")
