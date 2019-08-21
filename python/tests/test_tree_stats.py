@@ -3188,13 +3188,13 @@ class TestSampleSets(StatsTestCase):
     def test_non_samples(self):
         ts = self.get_example_ts()
         with self.assertRaises(exceptions.LibraryError):
-            ts.diversity([[10]])
+            ts.diversity([[ts.num_samples]])
 
         with self.assertRaises(exceptions.LibraryError):
-            ts.divergence([[10], [1, 2]])
+            ts.divergence([[ts.num_samples], [1, 2]])
 
         with self.assertRaises(ValueError):
-            ts.sample_count_stat([[10]], self.identity_f(ts), 1)
+            ts.sample_count_stat([[ts.num_samples]], self.identity_f(ts), 1)
 
     def test_span_normalise(self):
         ts = self.get_example_ts()
@@ -3245,7 +3245,7 @@ class TestSampleSetIndexes(StatsTestCase):
         with self.assertRaises(ValueError):
             _ = ts.divergence(sample_sets)
         with self.assertRaises(ValueError):
-            _ = ts.divergence(sample_sets[0])
+            _ = ts.divergence([sample_sets[0]])
 
     def test_3_way_default(self):
         ts = self.get_example_ts()
