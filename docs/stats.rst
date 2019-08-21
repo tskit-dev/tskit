@@ -263,9 +263,9 @@ Patterson's f statistics
 ------------------------
 
 These are the `f` statistics (also called `F` statistics) introduced in
-[Reich et al (2009)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/).
+`Reich et al (2009) <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/>`_.
 See the documentation (link below) for the definition,
-and [Peter (2016)](https://www.genetics.org/content/202/4/1485) for readable
+and `Peter (2016) <https://www.genetics.org/content/202/4/1485>`_ for readable
 discussion of their use.
 
 - :meth:`.TreeSequence.f4`
@@ -277,7 +277,7 @@ Y statistics
 ------------
 
 These are the `Y` statistics introduced by
-[Ashander et al (2018)](https://www.biorxiv.org/content/10.1101/354530v1)
+`Ashander et al (2018) <https://www.biorxiv.org/content/10.1101/354530v1>`_
 as a three-sample intermediate between diversity/divergence (which are
 pairwise) and Patterson's f statistics (which are four-way).
 
