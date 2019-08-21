@@ -5043,6 +5043,243 @@ class SpecificTreesTestCase(StatsTestCase):
                                site_true_Y)
 
 
+class TestOutputDimensions(StatsTestCase):
+    """
+    Tests for the dimension stripping behaviour of the stats functions.
+    """
+    def get_example_ts(self):
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+        self.assertGreater(ts.num_sites, 1)
+        return ts
+
+    def test_afs_default_windows(self):
+        ts = self.get_example_ts()
+        n = ts.num_samples
+        A = ts.samples()[:5]
+        B = ts.samples()[5:]
+        for mode in ["site", "branch"]:
+            x = ts.allele_frequency_spectrum(mode=mode)
+            # x is a 1D numpy array with n + 1 values
+            self.assertEqual(x.shape, (n + 1,))
+            self.assertArrayEqual(
+                x, ts.allele_frequency_spectrum([ts.samples()], mode=mode))
+            x = ts.allele_frequency_spectrum([A, B], mode=mode)
+            self.assertEqual(x.shape, (len(A) + 1, len(B) + 1))
+
+    def test_afs_windows(self):
+        ts = self.get_example_ts()
+        L = ts.sequence_length
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:5]
+        B = ts.samples()[5:]
+        for mode in ["site", "branch"]:
+            x = ts.allele_frequency_spectrum([A, B], windows=windows, mode=mode)
+            self.assertEqual(x.shape, (3, len(A) + 1, len(B) + 1))
+
+            x = ts.allele_frequency_spectrum([A], windows=windows, mode=mode)
+            self.assertEqual(x.shape, (3, len(A) + 1))
+
+            x = ts.allele_frequency_spectrum(windows=windows, mode=mode)
+            # Default returns this for all samples
+            self.assertEqual(x.shape, (3, ts.num_samples + 1))
+            y = ts.allele_frequency_spectrum([ts.samples()], windows=windows, mode=mode)
+            self.assertArrayEqual(x, y)
+
+    def test_one_way_stat_default_windows(self):
+        ts = self.get_example_ts()
+        # Use diversity as the example one-way stat.
+        for mode in ["site", "branch"]:
+            x = ts.diversity(mode=mode)
+            # x is a zero-d numpy value
+            self.assertEqual(np.shape(x), tuple())
+            self.assertEqual(x, float(x))
+            self.assertEqual(x, ts.diversity(ts.samples(), mode=mode))
+            self.assertArrayEqual([x], ts.diversity([ts.samples()], mode=mode))
+
+        mode = "node"
+        x = ts.diversity(mode=mode)
+        # x is a 1D numpy array with N values
+        self.assertEqual(x.shape, (ts.num_nodes,))
+        self.assertArrayEqual(x, ts.diversity(ts.samples(), mode=mode))
+        y = ts.diversity([ts.samples()], mode=mode)
+        # We're adding on the *last* dimension, so must reshape
+        self.assertArrayEqual(x.reshape(ts.num_nodes, 1), y)
+
+    def test_one_way_stat_windows(self):
+        ts = self.get_example_ts()
+        L = ts.sequence_length
+        N = ts.num_nodes
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:5]
+        B = ts.samples()[5:]
+        for mode in ["site", "branch"]:
+            x = ts.diversity([A, B], windows=windows, mode=mode)
+            # Three windows, 2 sets.
+            self.assertEqual(x.shape, (3, 2))
+
+            x = ts.diversity([A], windows=windows, mode=mode)
+            # Three windows, 1 sets.
+            self.assertEqual(x.shape, (3, 1))
+
+            x = ts.diversity(A, windows=windows, mode=mode)
+            # Dropping the outer list removes the last dimension
+            self.assertEqual(x.shape, (3, ))
+
+            x = ts.diversity(windows=windows, mode=mode)
+            # Default returns this for all samples
+            self.assertEqual(x.shape, (3, ))
+            y = ts.diversity(ts.samples(), windows=windows, mode=mode)
+            self.assertArrayEqual(x, y)
+
+        mode = "node"
+        x = ts.diversity([A, B], windows=windows, mode=mode)
+        # Three windows, N nodes and 2 sets.
+        self.assertEqual(x.shape, (3, N, 2))
+
+        x = ts.diversity([A], windows=windows, mode=mode)
+        # Three windows, N nodes and 1 set.
+        self.assertEqual(x.shape, (3, N, 1))
+
+        x = ts.diversity(A, windows=windows, mode=mode)
+        # Drop the outer list, so we lose the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        x = ts.diversity(windows=windows, mode=mode)
+        # The default sample sets also drops the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        self.assertEqual(ts.num_trees, 1)
+        # In this example, we know that the trees are all the same so check this
+        # for sanity.
+        self.assertArrayEqual(x[0], x[1])
+        self.assertArrayEqual(x[0], x[2])
+
+    def test_two_way_stat_default_windows(self):
+        ts = self.get_example_ts()
+        # Use divergence as the example one-way stat.
+        A = ts.samples()[:5]
+        B = ts.samples()[5:]
+        for mode in ["site", "branch"]:
+            x = ts.divergence([A, B], mode=mode)
+            # x is a zero-d numpy value
+            self.assertEqual(np.shape(x), tuple())
+            self.assertEqual(x, float(x))
+            # If indexes is a 1D array, we also drop the outer dimension
+            self.assertEqual(x, ts.divergence([A, B, A], indexes=[0, 1], mode=mode))
+            # But, if it's a 2D array we keep the outer dimension
+            self.assertEqual([x], ts.divergence([A, B], indexes=[[0, 1]], mode=mode))
+
+        mode = "node"
+        x = ts.divergence([A, B], mode=mode)
+        # x is a 1D numpy array with N values
+        self.assertEqual(x.shape, (ts.num_nodes,))
+        self.assertArrayEqual(x, ts.divergence([A, B], indexes=[0, 1], mode=mode))
+        y = ts.divergence([A, B], indexes=[[0, 1]], mode=mode)
+        # We're adding on the *last* dimension, so must reshape
+        self.assertArrayEqual(x.reshape(ts.num_nodes, 1), y)
+
+    def test_two_way_stat_windows(self):
+        ts = self.get_example_ts()
+        L = ts.sequence_length
+        N = ts.num_nodes
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:5]
+        B = ts.samples()[5:]
+        for mode in ["site", "branch"]:
+            x = ts.divergence(
+                [A, B, A], indexes=[[0, 1], [0, 2]], windows=windows, mode=mode)
+            # Three windows, 2 pairs
+            self.assertEqual(x.shape, (3, 2))
+
+            x = ts.divergence([A, B], indexes=[[0, 1]], windows=windows, mode=mode)
+            # Three windows, 1 pair
+            self.assertEqual(x.shape, (3, 1))
+
+            x = ts.divergence([A, B], indexes=[0, 1], windows=windows, mode=mode)
+            # Dropping the outer list removes the last dimension
+            self.assertEqual(x.shape, (3, ))
+
+            y = ts.divergence([A, B], windows=windows, mode=mode)
+            self.assertEqual(y.shape, (3, ))
+            self.assertArrayEqual(x, y)
+
+        mode = "node"
+        x = ts.divergence([A, B], indexes=[[0, 1], [0, 1]], windows=windows, mode=mode)
+        # Three windows, N nodes and 2 pairs
+        self.assertEqual(x.shape, (3, N, 2))
+
+        x = ts.divergence([A, B], indexes=[[0, 1]], windows=windows, mode=mode)
+        # Three windows, N nodes and 1 pairs
+        self.assertEqual(x.shape, (3, N, 1))
+
+        x = ts.divergence([A, B], indexes=[0, 1], windows=windows, mode=mode)
+        # Drop the outer list, so we lose the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        x = ts.divergence([A, B], windows=windows, mode=mode)
+        # The default sample sets also drops the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        self.assertEqual(ts.num_trees, 1)
+        # In this example, we know that the trees are all the same so check this
+        # for sanity.
+        self.assertArrayEqual(x[0], x[1])
+        self.assertArrayEqual(x[0], x[2])
+
+    def test_three_way_stat_windows(self):
+        ts = self.get_example_ts()
+        L = ts.sequence_length
+        N = ts.num_nodes
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:2]
+        B = ts.samples()[2: 4]
+        C = ts.samples()[4:]
+        for mode in ["site", "branch"]:
+            x = ts.Y3(
+                [A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode)
+            # Three windows, 2 triple
+            self.assertEqual(x.shape, (3, 2))
+
+            x = ts.Y3([A, B, C], indexes=[[0, 1, 2]], windows=windows, mode=mode)
+            # Three windows, 1 triple
+            self.assertEqual(x.shape, (3, 1))
+
+            x = ts.Y3([A, B, C], indexes=[0, 1, 2], windows=windows, mode=mode)
+            # Dropping the outer list removes the last dimension
+            self.assertEqual(x.shape, (3, ))
+
+            y = ts.Y3([A, B, C], windows=windows, mode=mode)
+            self.assertEqual(y.shape, (3, ))
+            self.assertArrayEqual(x, y)
+
+        mode = "node"
+        x = ts.Y3([A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode)
+        # Three windows, N nodes and 2 triples
+        self.assertEqual(x.shape, (3, N, 2))
+
+        x = ts.Y3([A, B, C], indexes=[[0, 1, 2]], windows=windows, mode=mode)
+        # Three windows, N nodes and 1 triples
+        self.assertEqual(x.shape, (3, N, 1))
+
+        x = ts.Y3([A, B, C], indexes=[0, 1, 2], windows=windows, mode=mode)
+        # Drop the outer list, so we lose the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        x = ts.Y3([A, B, C], windows=windows, mode=mode)
+        # The default sample sets also drops the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        self.assertEqual(ts.num_trees, 1)
+        # In this example, we know that the trees are all the same so check this
+        # for sanity.
+        self.assertArrayEqual(x[0], x[1])
+        self.assertArrayEqual(x[0], x[2])
+
+
 ############################################
 # Old code where stats are defined within type
 # specific calculattors. These definititions have been

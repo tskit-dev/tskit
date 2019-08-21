@@ -3448,16 +3448,31 @@ class TreeSequence(object):
             stat = stat[0]
         return stat
 
-    def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
-                                  mode=None, span_normalise=True, polarised=False):
+    def __one_way_sample_set_stat(
+            self, ll_method, sample_sets, windows=None, mode=None, span_normalise=True,
+            polarised=False):
+        if sample_sets is None:
+            sample_sets = self.samples()
+        # First try to convert to a 1D numpy array. If it is, then we strip off
+        # the corresponding dimension from the output.
+        drop_dimension = False
+        sample_sets = np.array(sample_sets)
+        if len(sample_sets.shape) == 1:
+            sample_sets = [sample_sets]
+            drop_dimension = True
+
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
+
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
-        return self.__run_windowed_stat(
+        stat = self.__run_windowed_stat(
             windows, ll_method, sample_set_sizes, flattened,
             mode=mode, span_normalise=span_normalise, polarised=polarised)
+        if drop_dimension:
+            stat = stat.reshape(stat.shape[:-1])
+        return stat
 
     def __k_way_sample_set_stat(
             self, ll_method, k, sample_sets, indexes=None, windows=None,
@@ -3469,23 +3484,31 @@ class TreeSequence(object):
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         if indexes is None:
             if len(sample_sets) != k:
-                raise ValueError("Must specify indexes "
-                                 "if there are not exactly {} sample sets.".format(k))
-            else:
-                indexes = [np.arange(k, dtype=np.int32)]
+                raise ValueError(
+                    "Must specify indexes if there are not exactly {} sample "
+                    "sets.".format(k))
+            indexes = np.arange(k, dtype=np.int32)
+        drop_dimension = False
         indexes = util.safe_np_int_cast(indexes, np.int32)
+        if len(indexes.shape) == 1:
+            indexes = indexes.reshape((1, indexes.shape[0]))
+            drop_dimension = True
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
-            raise ValueError("Indexes must be convertable to a 2D numpy array"
-                             "with {} columns".format(k))
-        return self.__run_windowed_stat(
+            raise ValueError(
+                "Indexes must be convertable to a 2D numpy array with {} "
+                "columns".format(k))
+        stat = self.__run_windowed_stat(
             windows, ll_method, sample_set_sizes, flattened, indexes,
             mode=mode, span_normalise=span_normalise)
+        if drop_dimension:
+            stat = stat.reshape(stat.shape[:-1])
+        return stat
 
     ############################################
     # Statistics definitions
     ############################################
 
-    def diversity(self, sample_sets, windows=None, mode="site",
+    def diversity(self, sample_sets=None, windows=None, mode="site",
                   span_normalise=True):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
@@ -3898,6 +3921,8 @@ class TreeSequence(object):
         :return: A (k + 1) dimensional numpy array, where k is the number of sample
             sets specified.
         """
+        # TODO should we allow a single sample_set to be specified here as a 1D array?
+        # This won't change the output dimensions like the other stats.
         if sample_sets is None:
             sample_sets = [self.samples()]
         return self.__one_way_sample_set_stat(
