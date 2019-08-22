@@ -821,6 +821,208 @@ to remember that the algorithm is minimising the number of state transitions;
 this may not correspond always to what we might consider the most parsimonious
 explanation.
 
+.. _sec_tutorial_stats:
+
+********************
+Computing statistics
+********************
+
+Tskit provides an extensive and flexible interface for computing population
+genetic statistics, which is documented in detail in the :ref:`general statistics
+<sec_general_stats>` section. This tutorial aims to give a quick overview of
+how the APIs work how to use them effectively.
+
+First, lets simulate a tree sequence to work with which has roughly human
+parameters for 10 thousand samples and 10Mb chromosomes::
+
+    ts = msprime.simulate(
+        10**4, Ne=10**4, recombination_rate=1e-8, mutation_rate=1e-8, length=10**7,
+        random_seed=42)
+
+We end up with 36K trees 39K segregating sites. We'd now like to compute some statistics on
+this dataset.
+
+++++++++++++++++++
+One-way statistics
+++++++++++++++++++
+
+We refer to statistics that are defined with respect to a single set of
+samples as "one-way". An example of such a statistic is diversity, which
+is computed using the :meth:`.TreeSequence.diversity` method::
+
+    x = ts.diversity()
+    print("Average diversity per unit sequence length = {:.3G}".format(x))
+
+    [Output]
+
+    Average diversity per unit sequence length = 0.000401
+
+This tells the average diversity across the whole sequence and returns a single
+number. We'll usually want to compute statistics in
+:ref:`windows <sec_general_stats_windowing>` along the genome and we
+use the ``windows`` argument to do this::
+
+    windows = np.linspace(0, ts.sequence_length, num=5)
+    x = ts.diversity(windows=windows)
+    print(windows)
+    print(x)
+
+    [Output]
+
+    [       0.  2500000.  5000000.  7500000. 10000000.]
+    [0.00041602 0.00039112 0.00041554 0.00038329]
+
+The ``windows`` argument takes a numpy array specifying the breakpoints
+along the genome. Here, we use numpy to create four equally spaced windows
+of size 2.5 megabases (the windows array contains k + 1 elements to define
+k windows). Because we have asked for values in windows, tskit now returns
+a numpy array rather than a single value. (See
+:ref:`sec_general_stats_output_dimensions` for a full description of how the output
+dimensions of statistics are determined by the ``windows`` argument.)
+
+Suppose we wanted to compute diversity within a specific subset of samples.
+We can do this using the ``sample_sets`` argument::
+
+    A = ts.samples()[:100]
+    x = ts.diversity(sample_sets=A)
+    print(x)
+
+    [Output]
+
+    0.00040166573737371227
+
+Here, we've computed the average diversity within the first hundred samples across
+the whole genome. As we've not specified any windows, this is again a single value.
+
+We can also compute diversity in *multiple* sample sets at the same time by providing
+a list of sample sets as an argument::
+
+    A = ts.samples()[:100]
+    B = ts.samples()[100:200]
+    C = ts.samples()[200:300]
+    x = ts.diversity(sample_sets=[A, B, C])
+    print(x)
+
+    [Output]
+
+    [0.00040167 0.00040008 0.00040103]
+
+Because we've computed multiple statistics concurrently, tskit returns a numpy array
+of these statistics. We have asked for diversity within three different sample sets,
+and tskit therefore returns an array with three values. (In general, the
+dimensions of the input determines the dimensions of the output: see
+:ref:`sec_general_stats_output_dimensions` for a detailed description of the rules.)
+
+We can also compute multiple statistics in multiple windows::
+
+    x = ts.diversity(sample_sets=[A, B, C], windows=windows)
+    print("shape = ", x.shape)
+    print(x)
+
+    [Output]
+
+    shape =  (4, 3)
+    [[0.0004139  0.00041567 0.00041774]
+     [0.00039148 0.00039152 0.00038997]
+     [0.00042019 0.00041039 0.00041475]
+     [0.0003811  0.00038274 0.00038166]]
+
+We have computed diversity within three different sample sets across four
+genomic windows, and our output is therefore a 2D numpy array with four
+rows and three columns: each row contains the diversity values within
+A, B and C for a particular window.
+
+++++++++++++++++++++
+Multi-way statistics
+++++++++++++++++++++
+
+Many population genetic statistics compare multiple sets of samples to
+each other. For example, the :meth:`TreeSequence.divergence` method computes
+the divergence between two subsets of samples::
+
+    A = ts.samples()[:100]
+    B = ts.samples()[:100]
+    x = ts.divergence([A, B])
+    print(x)
+
+    [Output]
+
+    0.00039764908000000676
+
+The divergence between two sets of samples A and B is a single number,
+and we we again return a single floating point value as the result. We can also
+compute this in windows along the genome, as before::
+
+
+    x = ts.divergence([A, B], windows=windows)
+    print(x)
+
+    [Output]
+
+    [0.00040976 0.00038756 0.00041599 0.00037728]
+
+
+Again, as we have defined four genomic windows along the sequence, the result is
+numpy array with four values.
+
+A powerful feature of tskit's stats API is that we can compute the divergences
+between multiple sets of samples simultaneously using the ``indexes`` argument::
+
+
+    x = ts.divergence([A, B, C], indexes=[(0, 1), (0, 2)])
+    print(x)
+
+    [Output]
+
+    [0.00039765 0.00040181]
+
+Here, we've specified three sample sets A, B and C and we've computed the
+divergences between A and B,  and between A and C. The ``indexes`` argument is used
+to specify which pairs of sets we are interested in. In this example
+we've computed two different divergence values and the output is therefore
+a numpy array of length 2.
+
+As before, we can combine computing multiple statistics in multiple windows
+to return a 2D numpy array::
+
+    windows = np.linspace(0, ts.sequence_length, num=5)
+    x = ts.divergence([A, B, C], indexes=[(0, 1), (0, 2)], windows=windows)
+    print(x)
+
+    [Output]
+
+    [[0.00040976 0.0004161 ]
+     [0.00038756 0.00039025]
+     [0.00041599 0.00041847]
+     [0.00037728 0.0003824 ]]
+
+Each row again corresponds to a window, which contains the average divergence
+values between the chosen sets.
+
+If the ``indexes`` parameter is 1D array, we interpret this as specifying
+a single statistic and remove the empty outer dimension::
+
+    x = ts.divergence([A, B, C], indexes=(0, 1))
+    print(x)
+
+    [Output]
+
+    0.00039764908000000676
+
+It's important to note that we don't **have** to remove empty dimensions: tskit
+will only do this if you explicitly ask it to. Here, for example, we can keep the
+output as an array with one value if we wish::
+
+    x = ts.divergence([A, B, C], indexes=[(0, 1)])
+    print(x)
+
+    [Output]
+
+    [0.00039765]
+
+Please see :ref:`sec_general_stats_sample_sets` for a
+full description of the ``sample_sets`` and ``indexes`` arguments.
+
 .. _sec_tutorial_afs:
 
 ************************
@@ -881,7 +1083,7 @@ giving::
 This time, we've asked for the number of sites at each frequency in two
 equal windows. Now we can see that in the first half of the sequence we
 have three sites (compare with the site table above): one singleton,
-one doubleton and one tripleton. 
+one doubleton and one tripleton.
 
 +++++++++++++
 Joint spectra

@@ -14,9 +14,8 @@ and of the underlying trees (whose definition does not depend on the genome sequ
 Furthermore, these statistics have a common interface to easily compute
 (a) averaged statistics in windows along the genome,
 and (b) summary statistics of many combinations of sets of samples simultaneously.
-All methods return numpy arrays,
-whose rows correspond to the windows along the genome,
-and whose remaining dimensions are determined by the statistic.
+All methods return numpy arrays whose dimensions are
+determined by the parameters (see :ref:`sec_general_stats_output_dimensions`).
 
 .. warning:: :ref:`sec_data_model_missing_data` is not currently
    handled correctly by site statistics defined here, as we always
@@ -70,12 +69,6 @@ e.g., the sites of the SNPs.
 Windowing
 *********
 
-By default, statistics
-
-``windows = None``
-   This is the default, and equivalent to passing ``windows = [0.0, ts.sequence_length]``.
-   The output will still be a two-dimensional array, but with only one row.
-
 Each statistic has an argument, ``windows``,
 which defines a collection of contiguous windows along the genome.
 If ``windows`` is a list of ``n+1`` increasing numbers between 0 and the ``sequence_length``,
@@ -94,6 +87,14 @@ would be equivalent to averaging the rows of ``S``,
 obtaining ``((b - a) * S[0] + (c - b) * S[1]) / (c - a)``.
 
 There are some shortcuts to other useful options:
+
+``windows = None``
+   This is the default and computes statistics in single window over the whole
+   sequence. As the first returned array contains only a single
+   value, we drop this dimension as described in the :ref:`output dimensions
+   <sec_general_stats_output_dimensions>` section. **Note:** if you really do
+   want to have an array with a single value as the result, please use
+   ``windows = [0.0, ts.sequence_length]``.
 
 ``windows = "trees"``
    This says that you want statistics computed separately on the portion of the genome
@@ -191,7 +192,9 @@ Here are some additional special cases:
    If the statistic takes ``k`` inputs for ``k > 1``,
    and there are exactly ``k`` lists in ``sample_sets``,
    then this will compute just one statistic, and is equivalent to passing
-   ``indexes = [(0, 1, ..., k-1)]``.
+   ``indexes = (0, 1, ..., k-1)``. Note that this also drops the last
+   dimension of the output, as described in the :ref:`sec_general_stats_output_dimensions`
+   section.
    If there are not exactly ``k`` sample sets, this will throw an error.
 
 ``k=1`` does not allow ``indexes``:
@@ -203,16 +206,16 @@ Here are some additional special cases:
    were that allowed.)
 
 
-.. _sec_general_stats_output:
+.. _sec_general_stats_output_format:
 
-******
-Output
-******
+*************
+Output format
+*************
 
 Each of the statistics methods returns a ``numpy`` ndarray.
 Suppose that the output is name ``out``.
-In all cases, the number of rows of the output is equal to the number of windows,
-so that ``out.shape[0]`` is equal to ``len(windows) - 1``
+If ``windows`` has been specified, the number of rows of the output is equal to the
+number of windows, so that ``out.shape[0]`` is equal to ``len(windows) - 1``
 and ``out[i]`` is an array of statistics describing the portion of the tree sequence
 from ``windows[i]`` to ``windows[i + 1]`` (including the left but not the right endpoint).
 
@@ -229,6 +232,9 @@ from ``windows[i]`` to ``windows[i + 1]`` (including the left but not the right 
 
 The final dimension of the arrays in other cases is specified by the method.
 
+Note, however, that empty dimensions can optionally be dropped,
+as described in the :ref:`sec_general_stats_output_dimensions` section.
+
 A note about **default values** and **division by zero**:
 Under the hood, statistics computation fills in zeros everywhere, then updates these
 (since statistics are all **additive**, this makes sense).
@@ -243,6 +249,46 @@ For ``branch`` statistics, any windows with **no branches** will similarly remai
 That said, you should **not** rely on the specific behavior of whether ``0`` or ``nan`` is returned
 for "empty" cases like these: it is subject to change.
 
+.. _sec_general_stats_output_dimensions:
+
+*****************
+Output dimensions
+*****************
+
+In the general case, tskit outputs two dimensional (or three dimensional, in the case of node
+stats) numpy arrays, as described in the :ref:`sec_general_stats_output_format` section.
+The first dimension corresponds to the window along the genome
+such that for some result array ``x``, ``x[j]`` contains information about the jth window.
+The last dimension corresponds to the statistics being computed, so that ``x[j, k]`` is the
+value of the kth statistic in the jth window (in the two dimensional case). This is
+a powerful and general interface, but in many cases we will not use this full generality
+and the extra dimensions in the numpy arrays are inconvenient.
+
+Tskit optionally removes empty dimensions from the output arrays following a few
+simple rules.
+
+1. If ``windows`` is None we are computing over the single window covering the
+   full sequence. We therefore drop the first dimension of the array.
+
+2. In one-way stats, if the ``sample_sets`` argument is a 1D array we interpret
+   this as specifying a single sample set (and therefore a single statistic), and
+   drop the last dimension of the output array. If ``sample_sets`` is None
+   (the default), we use the sample set ``ts.samples()``, invoking
+   this rule (we therefore drop the last dimension by default).
+
+3. In k-way stats, if the ``indexes`` argument is a 1D array of length k
+   we intepret this as specifying a single statistic and drop the last
+   dimension of the array. If ``indexes`` is None (the default) and
+   there are k sample sets, we compute the statistic from these sample sets
+   and drop the last dimension.
+
+Rules 2 and 3 can be summarised by "the dimensions of the input determines
+the dimensions of the output". Note that dropping these dimensions is
+**optional**: it is always possible to keep the full dimensions of the
+output arrays.
+
+Please see the :ref:`tutorial <sec_tutorial_stats>` for examples of the
+various output dimension options.
 
 ********************
 Available statistics
