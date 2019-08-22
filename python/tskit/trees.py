@@ -3712,7 +3712,8 @@ class TreeSequence(object):
                         W, windows=windows,
                         mode=mode, span_normalise=span_normalise)
 
-    def trait_regression(self, W, Z, windows=None, mode="site", span_normalise=True):
+    def trait_regression(self, W, Z=None, windows=None, mode="site",
+                         span_normalise=True):
         """
         For each trait w (i.e., each column of W), performs the least-squares
         linear regression :math:`w ~ g + Z`,
@@ -3727,7 +3728,8 @@ class TreeSequence(object):
         :math:`Z`, and the :math:`k+2`-vector :math:`b` minimises
         :math:`\\sum_i (w_i - b_0 - b_1 g_i - b_2 z_{2,i} - ... b_{k+2} z_{k+2,i})^2`
         then this returns the number :math:`b_1^2`. If :math:`g` lies in the linear span
-        of the columns of :math:`Z`, then :math:`b_1` is set to 0.
+        of the columns of :math:`Z`, then :math:`b_1` is set to 0. To perform the
+        regression without covariates (only the intercept), set `Z = None`.
 
         What is computed depends on ``mode``:
 
@@ -3752,7 +3754,7 @@ class TreeSequence(object):
         :param ndarray W: An array of values with one row for each sample and one column
             for each "phenotype".
         :param ndarray Z: An array of values with one row for each sample and one column
-            for each "covariate", or None. Columns of `Z` must be linearly independent.
+            for each "covariate", or `None`. Columns of `Z` must be linearly independent.
         :param iterable windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
