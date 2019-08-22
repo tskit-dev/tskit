@@ -4233,7 +4233,7 @@ class TreeSequence(object):
             self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
             mode=mode, span_normalise=span_normalise)
 
-    def mean_descendants(self, sample_sets):
+    def mean_descendants(self, sample_sets, windows=None):
         """
         Computes for every node the mean number of samples in each of the
         `sample_sets` that descend from that node, averaged over the
@@ -4250,18 +4250,22 @@ class TreeSequence(object):
             is an ancestor to anyone may not be the default behaviour in the future.
 
         :param list sample_sets: A list of lists of node IDs.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
         denom = self.sample_count_stat(
                     [self.samples()], lambda x: x > 0, output_dim=1,
-                    polarised=True, strict=False, mode="node", span_normalise=False)
-        numer = self.sample_count_stat(
+                    polarised=True, strict=False, mode="node", span_normalise=False,
+                    windows=windows)
+        C = self.sample_count_stat(
                     sample_sets, lambda x: x, output_dim=len(sample_sets),
-                    polarised=True, strict=False, mode="node", span_normalise=False)
+                    polarised=True, strict=False, mode="node", span_normalise=False,
+                    windows=windows)
         with np.errstate(invalid='ignore', divide='ignore'):
-            C = numer / denom
-        C[np.where(denom == 0)[0]] = 0.0
+            C /= denom
+        C[np.isnan(C)] = 0.0
         return C
 
     def genealogical_nearest_neighbours(self, focal, sample_sets, num_threads=0):

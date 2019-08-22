@@ -5313,3 +5313,148 @@ class TestOutputDimensions(StatsTestCase):
     def test_f3_windows(self):
         ts = self.get_example_ts()
         self.verify_three_way_stat_windows(ts, ts.f3)
+
+
+##########################
+# Ancestry/node statistics
+##########################
+
+# note: maybe these just merge into the sample set stats above; unclear so far
+
+
+def node_mean_descendants(ts, sample_sets, windows=None):
+    """
+    Straightforward implementation of mean sample ancestry by iterating
+    over the trees and nodes in each tree.
+    """
+    # TODO generalise this to allow arbitrary nodes, not just samples.
+    windows = ts.parse_windows(windows)
+    K = len(sample_sets)
+    C = np.zeros((len(windows) - 1, ts.num_nodes, K))
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        T = np.zeros(ts.num_nodes)
+        tree_iters = [ts.trees(tracked_samples=sample_set)
+                      for sample_set in sample_sets]
+        for _ in range(ts.num_trees):
+            trees = [next(tree_iter) for tree_iter in tree_iters]
+            left, right = trees[0].interval
+            if right <= begin:
+                continue
+            if left >= end:
+                break
+            length = min(end, right) - max(begin, left)
+            for node in trees[0].nodes():
+                num_samples = trees[0].num_samples(node)
+                if num_samples > 0:
+                    for k, tree in enumerate(trees):
+                        C[j, node, k] += length * tree.num_tracked_samples(node)
+                    T[node] += length
+        for node in range(ts.num_nodes):
+            if T[node] > 0:
+                C[j, node] /= T[node]
+    return C
+
+
+def mean_descendants(ts, sample_sets, windows=None, mode="node"):
+    drop_dimension = (windows is None)
+    windows = ts.parse_windows(windows)
+    method_map = {
+        "site": None,
+        "node": node_mean_descendants,
+        "branch": None}
+    out = method_map[mode](ts, sample_sets, windows=windows)
+    if drop_dimension:
+        out = out[0]
+    return out
+
+
+class TestMeanDescendants(unittest.TestCase):
+    """
+    Tests the TreeSequence.mean_descendants method.
+    """
+    mode = "node"
+
+    def verify(self, ts, sample_sets, windows=None):
+        C1 = mean_descendants(ts, sample_sets, mode=self.mode, windows=windows)
+        # C2 = tsutil.mean_descendants(ts, sample_sets, windows=windows)
+        C3 = ts.mean_descendants(sample_sets, windows=windows)
+        self.assertEqual(C1.shape, C3.shape)
+        # self.assertTrue(np.allclose(C1, C2))
+        self.assertTrue(np.allclose(C1, C3))
+        return C1
+
+    def test_two_populations_high_migration(self):
+        ts = msprime.simulate(
+            population_configurations=[
+                msprime.PopulationConfiguration(8),
+                msprime.PopulationConfiguration(8)],
+            migration_matrix=[[0, 1], [1, 0]],
+            recombination_rate=3,
+            random_seed=5)
+        self.assertGreater(ts.num_trees, 1)
+        for windows in example_windows(ts):
+            self.verify(ts, [ts.samples(0), ts.samples(1)], windows=windows)
+
+    def test_single_tree(self):
+        ts = msprime.simulate(6, random_seed=1)
+        S = [range(3), range(3, 6)]
+        C = self.verify(ts, S)
+        for j, samples in enumerate(S):
+            tree = next(ts.trees(tracked_samples=samples))
+            for u in tree.nodes():
+                self.assertEqual(tree.num_tracked_samples(u), C[u, j])
+
+    def test_single_tree_partial_samples(self):
+        ts = msprime.simulate(6, random_seed=1)
+        S = [range(3), range(3, 4)]
+        C = self.verify(ts, S)
+        for j, samples in enumerate(S):
+            tree = next(ts.trees(tracked_samples=samples))
+            for u in tree.nodes():
+                self.assertEqual(tree.num_tracked_samples(u), C[u, j])
+
+    def test_single_tree_all_sample_sets(self):
+        ts = msprime.simulate(6, random_seed=1)
+        for S in example_sample_sets(ts):
+            C = self.verify(ts, S)
+            for j, samples in enumerate(S):
+                tree = next(ts.trees(tracked_samples=samples))
+                for u in tree.nodes():
+                    self.assertEqual(tree.num_tracked_samples(u), C[u, j])
+
+    def test_many_trees_all_sample_sets(self):
+        ts = msprime.simulate(6, recombination_rate=2, random_seed=1)
+        self.assertGreater(ts.num_trees, 2)
+        for S in example_sample_sets(ts):
+            self.verify(ts, S)
+
+    def test_wright_fisher_unsimplified_all_sample_sets(self):
+        tables = wf.wf_sim(
+            4, 5, seed=1, deep_history=False, initial_generation_samples=False,
+            num_loci=10)
+        tables.sort()
+        ts = tables.tree_sequence()
+        for S in example_sample_sets(ts):
+            self.verify(ts, S)
+
+    def test_wright_fisher_unsimplified(self):
+        tables = wf.wf_sim(
+            20, 15, seed=1, deep_history=False, initial_generation_samples=False,
+            num_loci=20)
+        tables.sort()
+        ts = tables.tree_sequence()
+        samples = ts.samples()
+        for windows in example_windows(ts):
+            self.verify(ts, [samples[:10], samples[10:]], windows=windows)
+
+    def test_wright_fisher_simplified(self):
+        tables = wf.wf_sim(
+            30, 10, seed=1, deep_history=False, initial_generation_samples=False,
+            num_loci=5)
+        tables.sort()
+        ts = tables.tree_sequence()
+        samples = ts.samples()
+        for windows in example_windows(ts):
+            self.verify(ts, [samples[:10], samples[10:]], windows=windows)
