@@ -266,16 +266,22 @@ class SvgTree(object):
     def assign_y_coordinates(self, tree_height_scale, max_tree_height):
         ts = self.tree.tree_sequence
         node_time = ts.tables.nodes.time
-        if tree_height_scale in [None, "time"]:
-            node_height = node_time
+        if tree_height_scale in [None, "time", "log_time"]:
             if max_tree_height in [None, "tree"]:
                 max_tree_height = max(self.tree.time(root) for root in self.tree.roots)
             elif max_tree_height == "ts":
                 max_tree_height = ts.max_root_time
+        if tree_height_scale == "log_time":
+            # add 1 so that don't reach log(0) = -inf error.
+            # just shifts entire timeset by 1 year so shouldn't affect anything
+            node_height = np.log(ts.tables.nodes.time + 1)
+        elif tree_height_scale in [None, "time"]:
+            node_height = node_time
         else:
             if tree_height_scale != "rank":
                 raise ValueError(
-                    "Only 'time' and 'rank' are supported for tree_height_scale")
+                    "Only 'time', 'log_time', "
+                    "and 'rank' are supported for tree_height_scale")
             depth = {t: 2 * j for j, t in enumerate(np.unique(node_time))}
             node_height = [depth[node_time[u]] for u in range(ts.num_nodes)]
             if max_tree_height is None:
@@ -297,7 +303,13 @@ class SvgTree(object):
             # Allocate a fixed about of space to show the mutations on the
             # 'root branch'
             root_branch_length = height / 10  # FIXME just draw branch??
-        y_scale = (height - root_branch_length - 2 * y_padding) / max_tree_height
+        # y scaling
+        padding_numerator = (height - root_branch_length - 2 * y_padding)
+        if tree_height_scale == "log_time":
+            # again shift time by 1 in log(max_tree_height), so consistent
+            y_scale = padding_numerator / (np.log(max_tree_height + 1))
+        else:
+            y_scale = padding_numerator / max_tree_height
         self.node_y_coord_map = [
                 height - y_scale * node_height[u] - y_padding
                 for u in range(ts.num_nodes)]
