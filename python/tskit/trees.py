@@ -3882,8 +3882,7 @@ class TreeSequence(object):
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
         :ref:`windows <sec_stats_windows>`, :ref:`mode <sec_stats_mode>`,
         and :ref:`return value <sec_stats_output_format>`.
-        Operates on ``k = 1`` sample sets at a
-        time. For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
+        For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
         number of pairwise differing sites in ``X`` and ``S`` is the number of
         sites segregating in ``X`` (computed with :meth:`diversity
         <.TreeSequence.diversity>` and :meth:`segregating sites
@@ -4237,17 +4236,27 @@ class TreeSequence(object):
         """
         Computes for every node the mean number of samples in each of the
         `sample_sets` that descend from that node, averaged over the
-        portions of the genome for which the node is ancestral to *any* sample.
-        The output is an array, `C[node, j]`, which reports the total span of
-        all genomes in `sample_sets[j]` that inherit from `node`, divided by
-        the total span of the genome on which `node` is an ancestor to any
-        sample in the tree sequence.
+        portions of the genome for which the node is ancestral to *any* sample
+        in windows along the genome.
+        Please see the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
+        section for details on how the ``sample_sets`` argument is interpreted
+        and how it interacts with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>` and
+        :ref:`return value <sec_stats_output_format>`.
+
+        For each window, the output is an array, `C[node, j]`, which reports
+        the total span of all genomes in `reference_sets[j]` that inherit from
+        `node`, divided by the total span of the genome on which `node` is an
+        ancestor to any sample in the tree sequence.
 
         .. warning:: The interface for this method is preliminary and may be subject to
             backwards incompatible changes in the near future. The long-term stable
             API for this method will be consistent with other :ref:`sec_stats`.
             In particular, the normalization by proportion of the genome that `node`
             is an ancestor to anyone may not be the default behaviour in the future.
+            This is a "node" statistic, but corresponding branch and site statistics
+            are not currently allowed.
 
         :param list sample_sets: A list of lists of node IDs.
         :param iterable windows: An increasing list of breakpoints between the windows
@@ -4256,13 +4265,13 @@ class TreeSequence(object):
             number of reference sets)
         """
         denom = self.sample_count_stat(
-                    [self.samples()], lambda x: x > 0, output_dim=1,
-                    polarised=True, strict=False, mode="node", span_normalise=False,
-                    windows=windows)
+            [self.samples()], lambda x: x > 0, output_dim=1,
+            polarised=True, strict=False, mode="node", span_normalise=False,
+            windows=windows)
         C = self.sample_count_stat(
-                    sample_sets, lambda x: x, output_dim=len(sample_sets),
-                    polarised=True, strict=False, mode="node", span_normalise=False,
-                    windows=windows)
+            sample_sets, lambda x: x, output_dim=len(sample_sets),
+            polarised=True, strict=False, mode="node", span_normalise=False,
+            windows=windows)
         with np.errstate(invalid='ignore', divide='ignore'):
             C /= denom
         C[np.isnan(C)] = 0.0
