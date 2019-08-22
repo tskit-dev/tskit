@@ -66,12 +66,13 @@ tsk_hapgen_update_sample(tsk_hapgen_t * self, size_t sample_index, tsk_id_t site
 {
     int ret = 0;
     size_t index = sample_index * (self->num_sites + 1) + (size_t) site;
-
-    if (self->haplotype_matrix[index] == derived_state[0]) {
-        ret = TSK_ERR_INCONSISTENT_MUTATIONS;
-        goto out;
+    if (self->haplotype_matrix[index] != self->missing_data_character) {
+        if (self->haplotype_matrix[index] == derived_state[0]) {
+            ret = TSK_ERR_INCONSISTENT_MUTATIONS;
+            goto out;
+        }
+        self->haplotype_matrix[index] = derived_state[0];
     }
-    self->haplotype_matrix[index] = derived_state[0];
 out:
     return ret;
 }
@@ -130,21 +131,24 @@ tsk_hapgen_generate_all_haplotypes(tsk_hapgen_t *self)
         if (ret != 0) {
             goto out;
         }
+        if (! impute_missing) {
+            /* First mark all missing values. These can never change back to any other
+               value (found via isolated samples: each is a root with no children) */
+            for (root = t->left_root; root != TSK_NULL; root = t->right_sib[root]) {
+                if (t->left_child[root] == TSK_NULL) {
+                    /* NB we could probably do this in one go using memcopy */
+                    for (j = 0; j < num_sites; j++) {
+                        index = self->sample_index_map[root] * (self->num_sites + 1) + 
+                            (size_t) sites[j].id;
+                        self->haplotype_matrix[index] = self->missing_data_character;
+                    }
+                }
+            }
+        }
         for (j = 0; j < num_sites; j++) {
             ret = tsk_hapgen_apply_tree_site(self, &sites[j]);
             if (ret != 0) {
                 goto out;
-            }
-        }
-        if (! impute_missing) {
-            /* Isolated samples should each be a root with no children */
-            for (root = t->left_root; root != TSK_NULL; root = t->right_sib[root]) {
-                if (t->left_child[root] == TSK_NULL) {
-                    for (j = 0; j < num_sites; j++) {
-                                index = self->sample_index_map[root] * (self->num_sites + 1) + (size_t) sites[j].id;
-                                self->haplotype_matrix[index] = self->missing_data_character;
-                    }
-                }
             }
         }
     }
