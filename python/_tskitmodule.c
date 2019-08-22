@@ -8694,15 +8694,17 @@ HaplotypeGenerator_init(HaplotypeGenerator *self, PyObject *args, PyObject *kwds
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "impute_missing_data", NULL};
+    static char *kwlist[] = {
+        "tree_sequence", "impute_missing_data", "missing_data_character", NULL};
     TreeSequence *tree_sequence;
     int impute_missing_data = 0;
     tsk_flags_t options = 0;
+    char missing_data_character = '-';
 
     self->haplotype_generator = NULL;
     self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|i", kwlist,
-            &TreeSequenceType, &tree_sequence, &impute_missing_data)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ic", kwlist, &TreeSequenceType,
+            &tree_sequence, &impute_missing_data, &missing_data_character)) {
         goto out;
     }
     self->tree_sequence = tree_sequence;
@@ -8719,7 +8721,7 @@ HaplotypeGenerator_init(HaplotypeGenerator *self, PyObject *args, PyObject *kwds
         options |= TSK_IMPUTE_MISSING_DATA;
     }
     err = tsk_hapgen_init(self->haplotype_generator,
-            self->tree_sequence->tree_sequence, options);
+            self->tree_sequence->tree_sequence, options, missing_data_character);
     if (err != 0) {
         handle_library_error(err);
         goto out;

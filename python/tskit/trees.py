@@ -2680,7 +2680,7 @@ class TreeSequence(object):
             sample_lists=sample_lists)
         return TreeIterator(tree)
 
-    def haplotypes(self, impute_missing_data=False):
+    def haplotypes(self, impute_missing_data=False, missing_data_character="-"):
         """
         Returns an iterator over the haplotypes resulting from the trees
         and mutations in this tree sequence as a string.
@@ -2705,6 +2705,11 @@ class TreeSequence(object):
         are assigned the ancestral state. This was the default behaviour in
         versions prior to 0.2.0.
 
+       .. warning::
+            This method can consume a **very large** amount of memory! Unless you need
+            the full haplotype, it is usually better to access sites sequentially, e.g.
+            using the :meth:`.variants` iterator.
+
         :return: An iterator over the haplotype strings for the samples in
             this tree sequence.
         :param bool impute_missing_data: If True, the allele assigned to any
@@ -2716,7 +2721,15 @@ class TreeSequence(object):
         :raises: LibraryError if missing data is present and impute_missing_data
             is False
         """
-        hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence, impute_missing_data)
+        try:
+            missing_data_character = bytes(missing_data_character, "ascii")
+            if len(missing_data_character) > 1:
+                raise ValueError
+        except (ValueError, UnicodeDecodeError):
+            raise ValueError(
+                "The missing data character must be a single ascii character")
+        hapgen = _tskit.HaplotypeGenerator(
+            self._ll_tree_sequence, impute_missing_data, missing_data_character)
         for j in range(self.num_samples):
             yield hapgen.get_haplotype(j)
 

@@ -122,6 +122,7 @@ tsk_hapgen_generate_all_haplotypes(tsk_hapgen_t *self)
     tsk_size_t num_sites = 0;
     tsk_site_t *sites = NULL;
     tsk_tree_t *t = &self->tree;
+    tsk_id_t index;
     const bool impute_missing = !!(self->options & TSK_IMPUTE_MISSING_DATA);
 
     for (ret = tsk_tree_first(t); ret == 1; ret = tsk_tree_next(t)) {
@@ -136,11 +137,13 @@ tsk_hapgen_generate_all_haplotypes(tsk_hapgen_t *self)
             }
         }
         if (! impute_missing) {
-            /* If any missing data is present raise an error */
+            /* Isolated samples should each be a root with no children */
             for (root = t->left_root; root != TSK_NULL; root = t->right_sib[root]) {
                 if (t->left_child[root] == TSK_NULL) {
-                    ret = TSK_ERR_MUST_IMPUTE_HAPLOTYPES;
-                    goto out;
+                    for (j = 0; j < num_sites; j++) {
+                                index = self->sample_index_map[root] * (self->num_sites + 1) + (size_t) sites[j].id;
+                                self->haplotype_matrix[index] = self->missing_data_character;
+                    }
                 }
             }
         }
@@ -150,7 +153,8 @@ out:
 }
 
 int
-tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options)
+tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options,
+        char missing_data_character)
 {
     int ret = 0;
     size_t j, k;
@@ -162,6 +166,7 @@ tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t op
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->tree_sequence = tree_sequence;
     self->options = options;
+    self->missing_data_character = missing_data_character;
 
     self->sample_index_map = tsk_treeseq_get_sample_index_map(tree_sequence);
     ret = tsk_tree_init(&self->tree, tree_sequence, TSK_SAMPLE_LISTS);

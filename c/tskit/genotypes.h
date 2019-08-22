@@ -43,6 +43,7 @@ typedef struct {
     tsk_id_t *sample_index_map;
     char *output_haplotype;
     char *haplotype_matrix;
+    char missing_data_character;
     tsk_tree_t tree;
 } tsk_hapgen_t;
 
@@ -74,7 +75,7 @@ typedef struct {
 } tsk_vargen_t;
 
 int tsk_hapgen_init(tsk_hapgen_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_flags_t options);
+        tsk_flags_t options, char missing_data_character);
 /* FIXME this is inconsistent with the tables API which uses size_t for
  * IDs in functions. Not clear which is better */
 int tsk_hapgen_get_haplotype(tsk_hapgen_t *self, tsk_id_t j, char **haplotype);
