@@ -4253,7 +4253,28 @@ class TreeSequence(object):
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
-        return self._ll_tree_sequence.mean_descendants(sample_sets)
+        # An array of booleans per tree, true if node u is in the tree else false.
+        in_tree = self.sample_count_stat(
+            [self.samples()], lambda x: x + 1, output_dim=1, polarised=True,
+            strict=False, mode="node", windows="trees")[..., 0] > 1
+        breakpoints = self.breakpoints(as_array=True)
+        tree_span = breakpoints[1:] - breakpoints[:-1]
+        tree_span = tree_span.reshape((tree_span.shape[0], 1))
+        # The total span over which each node is in a tree.
+        node_span = np.sum(in_tree * tree_span, axis=0)
+
+        C = self.sample_count_stat(
+            sample_sets, lambda x: x, output_dim=len(sample_sets), polarised=True,
+            strict=False, mode="node", windows="trees")
+        # Reshape so that we can multiply through by the span of each tree
+        tree_span = tree_span.reshape((tree_span.shape[0], 1, 1))
+        C *= tree_span
+
+        # To replicate the existing code, take the mean weighted by node span.
+        C = np.sum(C, axis=0)
+        index = node_span > 0
+        C[index] /= np.expand_dims(node_span[index], 1)
+        return C
 
     def genealogical_nearest_neighbours(self, focal, sample_sets, num_threads=0):
         """
