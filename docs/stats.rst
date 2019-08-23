@@ -408,3 +408,63 @@ For site statistics, summary functions are applied to the total weight or number
 associated with each allele; but if polarised, then the ancestral allele is left out of this sum.
 For branch or node statistics, summary functions are applied to the total weight or number of samples
 below, and above each branch or node; if polarised, then only the weight below is used.
+
+.. _sec_stat_functions:
+
+*****************
+Summary functions
+*****************
+
+For convenience, here are the summary functions used for many of the statistics.
+Below, :math:`x` denotes the number of samples in a sample set below a node,
+`n` denotes the total size of a sample set,
+and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
+
+``diversity``
+   :math:`f(x) = \frac{x (n - x)}{n (n-1)}`
+
+``segregating_sites``
+   :math:`f(x) =  (x > 0) (1 - x / n)`
+
+   (Note: this works because if :math:`\sum_i p_1 = 1` then :math:`\sum_{i=1}^k (1-p_i) = k-1`.)
+
+``Y1``
+   :math:`f(x) = \frac{x (n - x) (n - x - 1)}{n (n-1) (n-2)}`
+
+``divergence``
+   :math:`f(x_1, x_2) = \frac{x_1 (n_2 - x_2)}{n_1 n_2}`,
+
+   unless the two indices are the same, when the diversity function is used.
+
+``Y2``
+   :math:`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
+
+``f2``
+   :math:`f(x_1, x_2) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 (n_1 - 1) n_2 (n_2 - 1)}`
+
+``Y3``
+   :math:`f(x_1, x_2, x_3) = \frac{x_1 (n_2 - x_2) (n_3 - x_3)}{n_1 n_2 n_3}`
+
+``f3``
+   :math:`f(x_1, x_2, x_3) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_3 - x_3)}{n_1 (n_1 - 1) n_2 n_3}`
+
+``f4``
+   :math:`f(x_1, x_2, x_3, x_4) = \frac{x_1 x_3 (n_2 - x_2) (n_4 - x_4)}{n_1 n_2 n_3 n_4}`
+
+``trait_covariance``
+   :math:`f(w) = \frac{w^2}{2 (n-1)^2}`,
+
+   where :math:`w` is the sum of all trait values of the samples below the node.
+
+``trait_correlation``
+   :math:`f(w, x) = \frac{w^2}{2 x (1 - x/n) (n - 1)}`,
+
+   where as before :math:`x` is the total number of samples below the node,
+   and :math:`n` is the total number of samples.
+
+``trait_regression``
+   :math:`f(w, z, x) = \frac{1}{2}\left( \frac{w - \sum_{j=1}^k z_j v_j}{x - \sum_{j=1}^k z_j^2} \right)^2`,
+
+   where :math:`w` and :math:`x` are as before,
+   :math:`z_j` is the sum of the j-th normalised covariate values below the node,
+   and :math:`v_j` is the covariance of the trait with the j-th covariate.
