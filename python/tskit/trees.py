@@ -445,7 +445,7 @@ class Tree(object):
     sequence or calling calling the :meth:`.Tree.clear` method at any time.
 
     The high-level TreeSequence seeking and iterations methods (e.g,
-    :class:`.TreeSequence.trees`) are built on these low-level state-machine
+    :meth:`.TreeSequence.trees`) are built on these low-level state-machine
     seek operations. We recommend these higher level operations for most
     users.
 
@@ -633,7 +633,7 @@ class Tree(object):
         The branch length for a node that has no parent (e.g., a root) is
         defined as zero.
 
-        Note that this is not related to the property :attr:`.length` which
+        Note that this is not related to the property `.length` which
         is a deprecated alias for the genomic :attr:`.span` covered by a tree.
 
         :param int u: The node of interest.
@@ -1152,7 +1152,6 @@ class Tree(object):
         the available fields for each site.
 
         :return: An iterator over all sites in this tree.
-        :rtype: iter(:class:`.Site`)
         """
         # TODO change the low-level API to just return the IDs of the sites.
         for ll_site in self._ll_tree.get_sites():
@@ -1174,7 +1173,7 @@ class Tree(object):
             >>>     for mutation in site.mutations:
             >>>         yield mutation
 
-        :return: An iterator over all mutations in this tree.
+        :return: An iterator over all :class:`.Mutation` objects in this tree.
         :rtype: iter(:class:`.Mutation`)
         """
         for site in self.sites():
@@ -2252,7 +2251,7 @@ class TreeSequence(object):
         tree sequence with a sequence length :math:`L`, the constituent
         trees will be defined over the half-closed interval
         :math:`[0, L)`. Each tree then covers some subset of this
-        interval --- see :meth:`tskit.Tree.get_interval` for details.
+        interval --- see :attr:`tskit.Tree.interval` for details.
 
         :return: The length of the sequence in this tree sequence in bases.
         :rtype: float
@@ -3168,7 +3167,7 @@ class TreeSequence(object):
         Compute a windowed statistic from weights and a summary function.  See
         :ref:`sec_general_stats` for details of
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         On each tree, this
@@ -3207,7 +3206,7 @@ class TreeSequence(object):
             equal to the number of columns of ``W`` and returns a one-dimensional
             array.
         :param int output_dim: The length of ``f``'s return value.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param bool polarised: Whether to leave the ancestral state out of computations:
             see :ref:`sec_general_stats` for more details.
@@ -3244,7 +3243,7 @@ class TreeSequence(object):
         allele frequency spectrum.  See :ref:`sec_general_stats` for details of
         :ref:`sample sets <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         If ``sample_sets`` is a list of ``k`` sets of samples, then
@@ -3292,7 +3291,7 @@ class TreeSequence(object):
         :param function f: A function that takes a one-dimensional array of length
             equal to the number of sample sets and returns a one-dimensional array.
         :param int output_dim: The length of ``f``'s return value.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param bool polarised: Whether to leave the ancestral state out of computations:
             see :ref:`sec_general_stats` for more details.
@@ -3422,7 +3421,7 @@ class TreeSequence(object):
         details of
         :ref:`sample sets <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 1`` sample set at a time.  Note that this quantity
@@ -3446,7 +3445,7 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3466,7 +3465,7 @@ class TreeSequence(object):
         details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 2`` sample sets at a time. As a special case, an index
@@ -3495,7 +3494,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3549,7 +3548,7 @@ class TreeSequence(object):
         (the "phenotypes") and inheritance along the tree sequence.  See
         :ref:`sec_general_stats` for details of
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on all samples in the tree sequence.
@@ -3586,7 +3585,7 @@ class TreeSequence(object):
 
         :param ndarray W: An array of values with one row for each sample and one column
             for each "phenotype".
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3606,13 +3605,13 @@ class TreeSequence(object):
         (the "phenotypes") and inheritance along the tree sequence.  See
         :ref:`sec_general_stats` for details of
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on all samples in the tree sequence.
 
         This is computed as squared covariance in
-        :meth:`trait_covariance <.TreeSequence.trait_covarance>`,
+        :meth:`trait_covariance <.TreeSequence.trait_covariance>`,
         but divided by :math:`p (1-p)`, where `p` is the proportion of samples
         inheriting from the allele, branch, or node in question.
 
@@ -3622,7 +3621,7 @@ class TreeSequence(object):
             The sum of squared correlations between presence/absence of each allele and
             phenotypes, divided by length of the window (if ``span_normalise=True``).
             This is computed as the
-            :meth:`trait_covariance <.TreeSequence.trait_covarance>`
+            :meth:`trait_covariance <.TreeSequence.trait_covariance>`
             divided by the variance of the relevant column of W
             and by ;math:`p * (1 - p)`, where :math:`p` is the allele frequency.
 
@@ -3630,7 +3629,7 @@ class TreeSequence(object):
             The sum of squared correlations between the split induced by each branch and
             phenotypes, multiplied by branch length, averaged across trees in
             the window. This is computed as the
-            :meth:`trait_covariance <.TreeSequence.trait_covarance>`,
+            :meth:`trait_covariance <.TreeSequence.trait_covariance>`,
             divided by the variance of the column of w
             and by :math:`p * (1 - p)`, where :math:`p` is the proportion of
             the samples lying below the branch.
@@ -3644,7 +3643,7 @@ class TreeSequence(object):
 
         :param ndarray W: An array of values with one row for each sample and one column
             for each "phenotype". Each column must have positive standard deviation.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3671,7 +3670,7 @@ class TreeSequence(object):
         are covariates, and computes the squared coefficient of :math:`g` in this
         regression.  See :ref:`sec_general_stats` for details of
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on all samples in the tree sequence.
@@ -3708,7 +3707,7 @@ class TreeSequence(object):
             for each "phenotype".
         :param ndarray Z: An array of values with one row for each sample and one column
             for each "covariate", or `None`. Columns of `Z` must be linearly independent.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3742,7 +3741,7 @@ class TreeSequence(object):
         from ``sample_sets``, and related quantities.  See
         :ref:`sample sets <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 1`` sample set at a time.
@@ -3766,7 +3765,7 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3787,7 +3786,7 @@ class TreeSequence(object):
         details of
         :ref:`sample sets <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         :ref:`polarised <sec_general_stats_polarisation>`,
         and :ref:`return value <sec_general_stats_output_format>`.
@@ -3847,7 +3846,7 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of samples to compute the joint allele frequency
-        :param iterable windows: An increasing list of breakpoints between windows
+        :param list windows: An increasing list of breakpoints between windows
             along the genome.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3871,7 +3870,7 @@ class TreeSequence(object):
         See :ref:`sec_general_stats` for details of
         :ref:`sample sets <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 1`` sample sets at a
         time. For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
@@ -3896,7 +3895,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3925,7 +3924,7 @@ class TreeSequence(object):
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 2`` sample sets at a time. For sample sets ``X`` and ``Y``,
@@ -3944,7 +3943,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -3993,7 +3992,7 @@ class TreeSequence(object):
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 3`` sample sets at a time.
@@ -4016,7 +4015,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 3-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -4035,7 +4034,7 @@ class TreeSequence(object):
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 2`` sample sets at a time.
@@ -4049,7 +4048,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -4067,7 +4066,7 @@ class TreeSequence(object):
         ``sample_sets``. See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 1`` sample set at a time.
@@ -4079,7 +4078,7 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -4098,7 +4097,7 @@ class TreeSequence(object):
         ``sample_sets``.  See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 4`` sample sets at a time.
@@ -4126,7 +4125,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 4-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -4145,7 +4144,7 @@ class TreeSequence(object):
         ``sample_sets``.  See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 3`` sample sets at a time.
@@ -4159,7 +4158,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 3-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -4178,7 +4177,7 @@ class TreeSequence(object):
         ``sample_sets``.  See :ref:`sec_general_stats` for details of
         :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
         :ref:`windows <sec_general_stats_windowing>`,
-        :ref:`mode <sec_general_stats_type>`,
+        :ref:`mode <sec_general_stats_mode>`,
         :ref:`span normalise <sec_general_stats_span_normalise>`,
         and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 2`` sample sets at a time.
@@ -4194,7 +4193,7 @@ class TreeSequence(object):
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
-        :param iterable windows: An increasing list of breakpoints between the windows
+        :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
@@ -4222,7 +4221,7 @@ class TreeSequence(object):
             In particular, the normalization by proportion of the genome that `node`
             is an ancestor to anyone may not be the default behaviour in the future.
 
-        :param iterable sample_sets: A list of lists of node IDs.
+        :param list sample_sets: A list of lists of node IDs.
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
@@ -4265,8 +4264,8 @@ class TreeSequence(object):
             backwards incompatible changes in the near future. The long-term stable
             API for this method will be consistent with other :ref:`sec_general_stats`.
 
-        :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
-        :param iterable sample_sets: A list of :math:`m` lists of node IDs.
+        :param list focal: A list of :math:`n` nodes whose GNNs should be calculated.
+        :param list sample_sets: A list of :math:`m` lists of node IDs.
         :return: An :math:`n`  by :math:`m` array of focal nodes by GNN proportions.
             Every focal node corresponds to a row. The numbers in each
             row corresponding to the GNN proportion for each of the passed-in reference
@@ -4312,7 +4311,7 @@ class TreeSequence(object):
              also no longer an error to compute pairwise diversity at sites
              with multiple mutations.
 
-        :param iterable samples: The set of samples within which we calculate
+        :param list samples: The set of samples within which we calculate
             the diversity. If None, calculate diversity within the entire sample.
         :return: The pairwise nucleotide site diversity.
         :rtype: float

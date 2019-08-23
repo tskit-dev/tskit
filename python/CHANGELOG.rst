@@ -13,6 +13,10 @@ In development.
   from numpy "u8" to "i8". This should not affect client code in any way
   unless it specifically depends on the type of the returned numpy array.
 
+- The positional parameter ``reference_sets`` in ``genealogical_nearest_neighbours``
+  and ``mean_descendants`` TreeSequence methods has been renamed to
+  ``sample_sets``.
+
 **New features**
 
 - Add the ``keep_unary`` option to simplify (:user:`gtsambos`). See :issue:`1`
