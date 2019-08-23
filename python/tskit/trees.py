@@ -4206,26 +4206,29 @@ class TreeSequence(object):
             self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
             mode=mode, span_normalise=span_normalise)
 
-    def mean_descendants(self, reference_sets):
+    def mean_descendants(self, sample_sets):
         """
         Computes for every node the mean number of samples in each of the
-        `reference_sets` that descend from that node, averaged over the
+        `sample_sets` that descend from that node, averaged over the
         portions of the genome for which the node is ancestral to *any* sample.
         The output is an array, `C[node, j]`, which reports the total span of
-        all genomes in `reference_sets[j]` that inherit from `node`, divided by
+        all genomes in `sample_sets[j]` that inherit from `node`, divided by
         the total span of the genome on which `node` is an ancestor to any
         sample in the tree sequence.
 
-        .. note:: This interface *may change*, particularly the normalization by
-            proportion of the genome that `node` is an ancestor to anyone.
+        .. warning:: The interface for this method is preliminary and may be subject to
+            backwards incompatible changes in the near future. The long-term stable
+            API for this method will be consistent with other :ref:`sec_general_stats`.
+            In particular, the normalization by proportion of the genome that `node`
+            is an ancestor to anyone may not be the default behaviour in the future.
 
-        :param iterable reference_sets: A list of lists of node IDs.
+        :param iterable sample_sets: A list of lists of node IDs.
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
-        return self._ll_tree_sequence.mean_descendants(reference_sets)
+        return self._ll_tree_sequence.mean_descendants(sample_sets)
 
-    def genealogical_nearest_neighbours(self, focal, reference_sets, num_threads=0):
+    def genealogical_nearest_neighbours(self, focal, sample_sets, num_threads=0):
         """
         Return the genealogical nearest neighbours (GNN) proportions for the given
         focal nodes, with reference to two or more sets of interest, averaged over all
@@ -4238,7 +4241,7 @@ class TreeSequence(object):
         :math:`a`, as a proportion of the total number of descendant nodes in any of the
         reference sets.
 
-        For example, consider a case with 2 reference sets, :math:`S_1` and :math:`S_2`.
+        For example, consider a case with 2 sample sets, :math:`S_1` and :math:`S_2`.
         For a given tree, :math:`a` is the node that includes at least one descendant in
         :math:`S_1` or :math:`S_2` (not including the focal node). If the descendants of
         :math:`a` include some nodes in :math:`S_1` but no nodes in :math:`S_2`, then the
@@ -4258,8 +4261,12 @@ class TreeSequence(object):
             as a measure of comparatively distant ancestry, even for tree sequences that
             contain many closely related individuals.
 
+        .. warning:: The interface for this method is preliminary and may be subject to
+            backwards incompatible changes in the near future. The long-term stable
+            API for this method will be consistent with other :ref:`sec_general_stats`.
+
         :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
-        :param iterable reference_sets: A list of :math:`m` lists of node IDs.
+        :param iterable sample_sets: A list of :math:`m` lists of node IDs.
         :return: An :math:`n`  by :math:`m` array of focal nodes by GNN proportions.
             Every focal node corresponds to a row. The numbers in each
             row corresponding to the GNN proportion for each of the passed-in reference
@@ -4269,11 +4276,11 @@ class TreeSequence(object):
         # TODO add windows=None option: https://github.com/tskit-dev/tskit/issues/193
         if num_threads <= 0:
             return self._ll_tree_sequence.genealogical_nearest_neighbours(
-                focal, reference_sets)
+                focal, sample_sets)
         else:
             worker = functools.partial(
                 self._ll_tree_sequence.genealogical_nearest_neighbours,
-                reference_sets=reference_sets)
+                reference_sets=sample_sets)
             focal = util.safe_np_int_cast(focal, np.int32)
             splits = np.array_split(focal, num_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
