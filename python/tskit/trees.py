@@ -3327,7 +3327,6 @@ class TreeSequence(object):
         """
         if mode is None:
             mode = "site"
-        windows = self.parse_windows(windows)
         if strict:
             total_weights = np.sum(W, axis=0)
             for x in [total_weights, total_weights * 0.0]:
@@ -3337,13 +3336,14 @@ class TreeSequence(object):
                 if not np.allclose(fx, np.zeros((output_dim, ))):
                     raise ValueError("Summary function does not return zero for both"
                                      "zero weight and total weight.")
-        return self.ll_tree_sequence.general_stat(
-            W, f, output_dim, windows, polarised=polarised,
+        return self.__run_windowed_stat(
+            windows, self.ll_tree_sequence.general_stat,
+            W, f, output_dim, polarised=polarised,
             span_normalise=span_normalise, mode=mode)
 
     def sample_count_stat(
             self, sample_sets, f, output_dim, windows=None, polarised=False, mode=None,
-            span_normalise=True):
+            span_normalise=True, strict=True):
         """
         Compute a windowed statistic from sample counts and a summary function.
         This is a wrapper around :meth:`.general_stat` for the common case in
@@ -3403,6 +3403,7 @@ class TreeSequence(object):
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
+        :param bool strict: Whether to check that f(0) and f(total weight) are zero.
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         # helper function for common case where weights are indicators of sample sets
@@ -3418,7 +3419,8 @@ class TreeSequence(object):
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
         return self.general_stat(W, f, output_dim, windows=windows, polarised=polarised,
-                                 mode=mode, span_normalise=span_normalise)
+                                 mode=mode, span_normalise=span_normalise,
+                                 strict=strict)
 
     def parse_windows(self, windows):
         # Note: need to make sure windows is a string or we try to compare the

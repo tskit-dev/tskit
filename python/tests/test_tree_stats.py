@@ -796,13 +796,16 @@ def example_sample_sets(ts, min_size=1):
     number of sample sets returned in each example must be at least min_size
     """
     samples = ts.samples()
+    np.random.shuffle(samples)
     splits = np.array_split(samples, min_size)
     yield splits
     yield [[s] for s in samples]
     if min_size == 1:
         yield [samples[:1]]
-    if ts.num_samples <= 2 and min_size >= 2:
+    if ts.num_samples > 2 and min_size <= 2:
         yield [samples[:2], samples[2:]]
+    if ts.num_samples > 7 and min_size <= 4:
+        yield [samples[:2], samples[2:4], samples[4:6], samples[6:]]
 
 
 def example_sample_set_index_pairs(sample_sets):
@@ -1163,7 +1166,7 @@ def site_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
         haps = ts.genotype_matrix(impute_missing_data=True)
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
-            X_index = np.where(np.in1d(X, samples))[0]
+            X_index = np.where(np.in1d(samples, X))[0]
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     num_alleles = len(set(haps[k, X_index]))
@@ -1303,7 +1306,7 @@ def site_tajimas_d(ts, sample_sets, windows=None):
             nn = n[i]
             S = 0
             T = 0
-            X_index = np.where(np.in1d(X, samples))[0]
+            X_index = np.where(np.in1d(samples, X))[0]
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     hX = haps[k, X_index]
@@ -1497,7 +1500,8 @@ class TestY1(StatsTestCase, SampleSetStatsMixin):
         denom = n * (n - 1) * (n - 2)
 
         def f(x):
-            return x * (n - x) * (n - x - 1) / denom
+            with np.errstate(invalid='ignore', divide='ignore'):
+                return x * (n - x) * (n - x - 1) / denom
 
         self.verify_definition(ts, sample_sets, windows, f, ts.Y1, Y1)
 
@@ -1875,8 +1879,6 @@ def node_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
 
 
 def Y2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
-    windows = ts.parse_windows(windows)
-
     windows = ts.parse_windows(windows)
     if indexes is None:
         indexes = [(0, 1)]
@@ -3330,11 +3332,11 @@ class TestGeneralStatInterface(StatsTestCase):
     def test_bad_window_strings(self):
         ts = self.get_tree_sequence()
         with self.assertRaises(ValueError):
-            ts.diversity([list(ts.samples())], mode="site", windows="abc")
+            ts.diversity([ts.samples()], mode="site", windows="abc")
         with self.assertRaises(ValueError):
-            ts.diversity([list(ts.samples())], mode="site", windows="")
+            ts.diversity([ts.samples()], mode="site", windows="")
         with self.assertRaises(ValueError):
-            ts.diversity([list(ts.samples())], mode="tree", windows="abc")
+            ts.diversity([ts.samples()], mode="tree", windows="abc")
 
     def test_bad_summary_function(self):
         ts = self.get_tree_sequence()
@@ -3441,8 +3443,7 @@ class TestGeneralSiteStats(StatsTestCase):
     def compare_general_stat(self, ts, W, f, windows=None, polarised=False):
         # Determine output_dim of the function
         M = len(f(W[0]))
-        py_ssc = PythonSiteStatCalculator(ts)
-        sigma1 = py_ssc.naive_general_stat(W, f, windows, polarised=polarised)
+        sigma1 = naive_site_general_stat(ts, W, f, windows, polarised=polarised)
         sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="site")
         sigma3 = site_general_stat(ts, W, f, windows, polarised=polarised)
         self.assertEqual(sigma1.shape, sigma2.shape)
@@ -4391,7 +4392,6 @@ class BranchSampleSetStatsTestCase(SampleSetStatTestCase):
     def setUp(self):
         self.rng = random.Random(self.random_seed)
         self.stat_type = "branch"
-        self.py_stat_class = PythonBranchStatCalculator
 
     def get_ts(self):
         for N in [12, 15, 20]:
@@ -4595,7 +4595,7 @@ class SpecificTreesTestCase(StatsTestCase):
                                branch_true_mean_diversity)
         self.assertAlmostEqual(ts.divergence([A[0], A[1]], [(0, 1)], mode=mode),
                                branch_true_mean_diversity)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                branch_true_mean_diversity)
 
         # Y-statistic for (0/12)
@@ -4610,7 +4610,7 @@ class SpecificTreesTestCase(StatsTestCase):
         py_bsc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode=mode)
         self.assertArrayAlmostEqual(bts_Y, branch_true_Y)
         self.assertArrayAlmostEqual(py_bsc_Y, branch_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                     branch_true_Y)
 
         mode = "site"
@@ -4619,7 +4619,7 @@ class SpecificTreesTestCase(StatsTestCase):
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode=mode)
         self.assertArrayAlmostEqual(sts_Y, site_true_Y)
         self.assertArrayAlmostEqual(py_ssc_Y, site_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                     site_true_Y)
 
         A = [[0, 1, 2]]
@@ -5002,7 +5002,7 @@ class SpecificTreesTestCase(StatsTestCase):
                  branch_true_diversity_02]):
 
             self.assertAlmostEqual(diversity(ts, A, mode=mode)[0][0], truth)
-            self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0], truth)
+            self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0], truth)
             self.assertAlmostEqual(ts.diversity(A, mode="branch")[0], truth)
 
         # Y-statistic for (0/12)
@@ -5017,7 +5017,7 @@ class SpecificTreesTestCase(StatsTestCase):
                                     branch_true_Y)
         self.assertArrayAlmostEqual(ts.Y3([[0], [1], [2]], [(0, 1, 2)], mode=mode),
                                     branch_true_Y)
-        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertArrayAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                     branch_true_Y)
 
         # sites:
@@ -5026,7 +5026,7 @@ class SpecificTreesTestCase(StatsTestCase):
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0])
         self.assertAlmostEqual(site_tsc_Y, site_true_Y)
         self.assertAlmostEqual(py_ssc_Y, site_true_Y)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                site_true_Y)
 
 
@@ -5294,122 +5294,3 @@ class TestOutputDimensions(StatsTestCase):
     def test_f3_windows(self):
         ts = self.get_example_ts()
         self.verify_three_way_stat_windows(ts, ts.f3)
-
-############################################
-# Old code where stats are defined within type
-# specific calculattors. These definititions have been
-# move to stat-specific regions above
-# The only thing left to port is the SFS code.
-############################################
-
-
-class PythonBranchStatCalculator(object):
-    """
-    Python implementations of various ("tree") branch-length statistics -
-    inefficient but more clear what they are doing.
-    """
-
-    def __init__(self, tree_sequence):
-        self.tree_sequence = tree_sequence
-
-    def site_frequency_spectrum(self, sample_set, windows=None):
-        if windows is None:
-            windows = [0.0, self.tree_sequence.sequence_length]
-        n_out = len(sample_set)
-        out = np.zeros((n_out, len(windows) - 1))
-        for j in range(len(windows) - 1):
-            begin = windows[j]
-            end = windows[j + 1]
-            S = [0.0 for j in range(n_out)]
-            for t in self.tree_sequence.trees(tracked_samples=sample_set,
-                                              sample_counts=True):
-                root = t.root
-                tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
-                if tr_len > 0:
-                    for node in t.nodes():
-                        if node != root:
-                            x = t.num_tracked_samples(node)
-                            if x > 0:
-                                S[x - 1] += t.branch_length(node) * tr_len
-            for j in range(n_out):
-                S[j] /= (end-begin)
-            out[j] = S
-        return(out)
-
-
-class PythonSiteStatCalculator(object):
-    """
-    Python implementations of various single-site statistics -
-    inefficient but more clear what they are doing.
-    """
-
-    def __init__(self, tree_sequence):
-        self.tree_sequence = tree_sequence
-
-    def sample_count_stats(self, sample_sets, f, windows=None, polarised=False):
-        '''
-        Here sample_sets is a list of lists of samples, and f is a function
-        whose argument is a list of integers of the same length as sample_sets
-        that returns a list of numbers; there will be one output for each element.
-        For each value, each allele in a tree is weighted by f(x), where
-        x[i] is the number of samples in sample_sets[i] that inherit that allele.
-        This finds the sum of this value for all alleles at all polymorphic sites,
-        and across the tree sequence ts, weighted by genomic length.
-
-        This version is inefficient as it works directly with haplotypes.
-        '''
-        if windows is None:
-            windows = [0.0, self.tree_sequence.sequence_length]
-        for U in sample_sets:
-            if max([U.count(x) for x in set(U)]) > 1:
-                raise ValueError("elements of sample_sets",
-                                 "cannot contain repeated elements.")
-        haps = list(self.tree_sequence.haplotypes())
-        n_out = len(f([0 for a in sample_sets]))
-        out = np.zeros((n_out, len(windows) - 1))
-        for j in range(len(windows) - 1):
-            begin = windows[j]
-            end = windows[j + 1]
-            site_positions = [x.position for x in self.tree_sequence.sites()]
-            S = [0.0 for j in range(n_out)]
-            for k in range(self.tree_sequence.num_sites):
-                if (site_positions[k] >= begin) and (site_positions[k] < end):
-                    all_g = [haps[j][k] for j in range(self.tree_sequence.num_samples)]
-                    g = [[haps[j][k] for j in u] for u in sample_sets]
-                    for a in set(all_g):
-                        x = [h.count(a) for h in g]
-                        w = f(x)
-                        for j in range(n_out):
-                            S[j] += w[j]
-            for j in range(n_out):
-                S[j] /= (end - begin)
-            out[j] = np.array([S])
-        return out
-
-    def naive_general_stat(self, W, f, windows=None, polarised=False):
-        return naive_site_general_stat(
-            self.tree_sequence, W, f, windows=windows, polarised=polarised)
-
-    def site_frequency_spectrum(self, sample_set, windows=None):
-        if windows is None:
-            windows = [0.0, self.tree_sequence.sequence_length]
-        haps = list(self.tree_sequence.haplotypes())
-        site_positions = [x.position for x in self.tree_sequence.sites()]
-        n_out = len(sample_set)
-        out = np.zeros((n_out, len(windows) - 1))
-        for j in range(len(windows) - 1):
-            begin = windows[j]
-            end = windows[j + 1]
-            S = [0.0 for j in range(n_out)]
-            for k in range(self.tree_sequence.num_sites):
-                if (site_positions[k] >= begin) and (site_positions[k] < end):
-                    all_g = [haps[j][k] for j in range(self.tree_sequence.num_samples)]
-                    g = [haps[j][k] for j in sample_set]
-                    for a in set(all_g):
-                        x = g.count(a)
-                        if x > 0:
-                            S[x - 1] += 1.0
-            for j in range(n_out):
-                S[j] /= (end - begin)
-            out[j] = S
-        return out
