@@ -829,7 +829,7 @@ Computing statistics
 
 Tskit provides an extensive and flexible interface for computing population
 genetic statistics, which is documented in detail in the :ref:`general statistics
-<sec_general_stats>` section. This tutorial aims to give a quick overview of
+<sec_stats>` section. This tutorial aims to give a quick overview of
 how the APIs work how to use them effectively.
 
 First, lets simulate a tree sequence to work with which has roughly human
@@ -859,7 +859,7 @@ is computed using the :meth:`.TreeSequence.diversity` method::
 
 This tells the average diversity across the whole sequence and returns a single
 number. We'll usually want to compute statistics in
-:ref:`windows <sec_general_stats_windowing>` along the genome and we
+:ref:`windows <sec_stats_windows>` along the genome and we
 use the ``windows`` argument to do this::
 
     windows = np.linspace(0, ts.sequence_length, num=5)
@@ -877,7 +877,7 @@ along the genome. Here, we use numpy to create four equally spaced windows
 of size 2.5 megabases (the windows array contains k + 1 elements to define
 k windows). Because we have asked for values in windows, tskit now returns
 a numpy array rather than a single value. (See
-:ref:`sec_general_stats_output_dimensions` for a full description of how the output
+:ref:`sec_stats_output_dimensions` for a full description of how the output
 dimensions of statistics are determined by the ``windows`` argument.)
 
 Suppose we wanted to compute diversity within a specific subset of samples.
@@ -911,7 +911,7 @@ Because we've computed multiple statistics concurrently, tskit returns a numpy a
 of these statistics. We have asked for diversity within three different sample sets,
 and tskit therefore returns an array with three values. (In general, the
 dimensions of the input determines the dimensions of the output: see
-:ref:`sec_general_stats_output_dimensions` for a detailed description of the rules.)
+:ref:`sec_stats_output_dimensions` for a detailed description of the rules.)
 
 We can also compute multiple statistics in multiple windows::
 
@@ -1020,7 +1020,7 @@ output as an array with one value if we wish::
 
     [0.00039765]
 
-Please see :ref:`sec_general_stats_sample_sets` for a
+Please see :ref:`sec_stats_sample_sets` for a
 full description of the ``sample_sets`` and ``indexes`` arguments.
 
 .. _sec_tutorial_afs:
