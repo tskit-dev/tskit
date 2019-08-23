@@ -1992,7 +1992,7 @@ assumptions, if the tables are not already indexed, we index the tables
 before writing to file to save the cost of building these indexes at 
 load time. This behaviour requires that the tables are sorted. 
 If this automatic indexing is not desired, it can be disabled using 
-the :c:macro:`TSK_NO_BUILD_INDEXES` option.
+the `TSK_NO_BUILD_INDEXES` option.
 
 **Options**
 
@@ -2198,7 +2198,7 @@ int tsk_table_collection_drop_index(tsk_table_collection_t *self, tsk_flags_t op
 
 @rst
 Builds the tree traversal :ref:`indexes <sec_table_indexing>` for this table collection.
-Any existing index is first dropped using :c:func:`tsk_table_collection_drop_indexes`.
+Any existing index is first dropped using :c:func:`tsk_table_collection_drop_index`.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.

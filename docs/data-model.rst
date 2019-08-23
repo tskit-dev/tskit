@@ -48,7 +48,6 @@ node
     See :ref:`sec_nodes_or_individuals` for discussion of what a "node" is.
 
 individual
-
     In certain situations we are interested in how nodes (representing
     individual homologous genomes) are grouped together into individuals
     (e.g., two nodes per diploid individual). For example, when we are working
@@ -709,7 +708,7 @@ Schema section (TODO).
 Table transformation methods
 ============================
 
-The following methods operate *in place* on a :class:`TableCollection`,
+The following methods operate *in place* on a :class:`.TableCollection`,
 transforming them while preserving information.
 In some applications, tables may most naturally be produced in a way that is
 logically consistent, but not meeting all the requirements for validity that
@@ -877,7 +876,7 @@ Consider the following example:
 
 In this tree, node 4 is isolated, and therefore for any sites that are
 on this tree, the state that it is assigned is a special value
-``tskit.MISSING_DATA``, or ``-1``. See the :meth:`TreeSequence.variants`
+``tskit.MISSING_DATA``, or ``-1``. See the :meth:`.TreeSequence.variants`
 method and :class:`.Variant` class for more information on how missing
 data is represented.
 

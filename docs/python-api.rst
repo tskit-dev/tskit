@@ -440,12 +440,12 @@ Table functions
 
 .. _sec_stats_api:
 
-**********
-Statistics
-**********
+**********************
+Linkage disequilibrium
+**********************
 
-The ``tskit`` API provides methods for efficiently calculating
-population genetics statistics from a given :class:`.TreeSequence`.
+.. note:: This API will soon be deprecated in favour of multi-site extensions
+    to the :ref:`sec_stats` API.
 
 .. autoclass:: tskit.LdCalculator(tree_sequence)
     :members:

@@ -23,7 +23,7 @@ returns another integer. If '0' does not have a parent in the current tree
 (:math:`-1`) is returned. The children of a node are found using the
 :meth:`.Tree.children` method. To obtain information about a particular node,
 one may either use ``tree.tree_sequence.node(u)`` to which returns the
-corresponding :class:`Node` instance, or use the :meth:`.Tree.time` or
+corresponding :class:`.Node` instance, or use the :meth:`.Tree.time` or
 :meth:`.Tree.population` shorthands. Tree traversals in various orders
 is possible using the :meth:`.Tree.nodes` iterator.
 
@@ -117,7 +117,7 @@ list, we will get unexpected results:
     Tree -1 covers [0.00, 0.00): id=7f290becb3c8
     Tree -1 covers [0.00, 0.00): id=7f290becb3c8
 
-We have stored seven copies of the same :class:`Tree` instance in the
+We have stored seven copies of the same :class:`.Tree` instance in the
 list. Because iteration has ended, this tree is in the "null" state (see
 below for more details) which means that it doesn't represent any of the
 trees in the tree sequence.
@@ -256,7 +256,7 @@ Tables provide a convenient method for viewing, importing and exporting tree
 sequences, and are closely tied to the underlying data structures.
 There are eight tables that together define a tree sequence,
 although some may be empty,
-and together they form a :class:`TableCollection`.
+and together they form a :class:`.TableCollection`.
 The tables are defined in :ref:`Table Definitions <sec_table_definitions>`,
 and the :ref:`Tables API <sec_tables_api>` section describes how to work with them.
 Here we make some general remarks about what you can and cannot do with them.
@@ -356,7 +356,7 @@ along the chromosome of length 1.0.
 
 Each node in each of the above trees represents a particular ancestral genome
 (a *haploid* genome; diploid individuals would be represented by two nodes).
-We record when each of nodes lived in a :class:`NodeTable`::
+We record when each of nodes lived in a :class:`.NodeTable`::
 
     NodeTable:
 
@@ -378,7 +378,7 @@ on the middle portion of the genome, but not on the ends.)
 
 We next need to record each tree's edges. Since some edges are present
 in more than one tree (e.g., node 1 inherits from node 4 across
-the entire sequence), we record in the :class:`EdgeTable` each edge
+the entire sequence), we record in the :class:`.EdgeTable` each edge
 and the genomic region for which it appears in the trees::
 
 
@@ -413,7 +413,7 @@ second tree both occurred at the same position, at 0.5 (with a back mutation).
 To record the inheritance patterns of these, we need only record
 the positions on the genome at which they occurred,
 and on which edge (equivalently, above which node) they occurred.
-The positions are recorded in the :class:`SiteTable`::
+The positions are recorded in the :class:`.SiteTable`::
 
     SiteTable:
 
@@ -443,8 +443,8 @@ samples::
 
 
 To create these tables, and the corresponding tree sequence, we would
-create a :class:`TableCollection`, and then use its
-:meth:`TableCollection.tree_sequence` method::
+create a :class:`.TableCollection`, and then use its
+:meth:`.TableCollection.tree_sequence` method::
 
     tables = tskit.TableCollection(sequence_length=1.0)
 
@@ -829,7 +829,7 @@ Computing statistics
 
 Tskit provides an extensive and flexible interface for computing population
 genetic statistics, which is documented in detail in the :ref:`general statistics
-<sec_general_stats>` section. This tutorial aims to give a quick overview of
+<sec_stats>` section. This tutorial aims to give a quick overview of
 how the APIs work how to use them effectively.
 
 First, lets simulate a tree sequence to work with which has roughly human
@@ -859,7 +859,7 @@ is computed using the :meth:`.TreeSequence.diversity` method::
 
 This tells the average diversity across the whole sequence and returns a single
 number. We'll usually want to compute statistics in
-:ref:`windows <sec_general_stats_windowing>` along the genome and we
+:ref:`windows <sec_stats_windows>` along the genome and we
 use the ``windows`` argument to do this::
 
     windows = np.linspace(0, ts.sequence_length, num=5)
@@ -877,7 +877,7 @@ along the genome. Here, we use numpy to create four equally spaced windows
 of size 2.5 megabases (the windows array contains k + 1 elements to define
 k windows). Because we have asked for values in windows, tskit now returns
 a numpy array rather than a single value. (See
-:ref:`sec_general_stats_output_dimensions` for a full description of how the output
+:ref:`sec_stats_output_dimensions` for a full description of how the output
 dimensions of statistics are determined by the ``windows`` argument.)
 
 Suppose we wanted to compute diversity within a specific subset of samples.
@@ -911,7 +911,7 @@ Because we've computed multiple statistics concurrently, tskit returns a numpy a
 of these statistics. We have asked for diversity within three different sample sets,
 and tskit therefore returns an array with three values. (In general, the
 dimensions of the input determines the dimensions of the output: see
-:ref:`sec_general_stats_output_dimensions` for a detailed description of the rules.)
+:ref:`sec_stats_output_dimensions` for a detailed description of the rules.)
 
 We can also compute multiple statistics in multiple windows::
 
@@ -937,7 +937,7 @@ Multi-way statistics
 ++++++++++++++++++++
 
 Many population genetic statistics compare multiple sets of samples to
-each other. For example, the :meth:`TreeSequence.divergence` method computes
+each other. For example, the :meth:`.TreeSequence.divergence` method computes
 the divergence between two subsets of samples::
 
     A = ts.samples()[:100]
@@ -1020,7 +1020,7 @@ output as an array with one value if we wish::
 
     [0.00039765]
 
-Please see :ref:`sec_general_stats_sample_sets` for a
+Please see :ref:`sec_stats_sample_sets` for a
 full description of the ``sample_sets`` and ``indexes`` arguments.
 
 .. _sec_tutorial_afs:

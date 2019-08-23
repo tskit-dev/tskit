@@ -1,20 +1,69 @@
 .. _sec_installation:
 
-============
+############
 Installation
-============
+############
 
-.. note:: This documentation is incomplete. Once we have a conda package that
-    is installable we'll update the documentation to use that route also. However,
-    as there are no external dependencies, pip should work well for all
-    non-Windows users.
+There are two basic options for installing ``tskit``: either through
+pre-built binary packages using :ref:`sec_installation_conda` or
+by compiling locally using :ref:`sec_installation_pip`. We recommend using ``conda``
+for most users, although ``pip`` can be more convenient in certain cases.
+Tskit is installed to provide succinct tree sequence functionality
+to other software (such as `msprime <https://github.com/tskit-dev/msprime>`_),
+so it may already be installed if you use such software.
 
-The tree sequence toolkit is often installed to provide succinct tree sequence functionality
-to other software (such as `msprime <https://github.com/tskit-dev/msprime>`_). If installing
-as a standalone Python module, users are encouraged to install an official release from PyPI
-using pip::
+.. _sec_installation_requirements:
 
-    $ python -m pip install tskit
+************
+Requirements
+************
+
+Tskit requires Python 3.4+. There are no external C library dependencies. Python
+dependencies are installed automatically by ``pip`` or ``conda``.
+
+.. _sec_installation_conda:
+
+*****
+conda
+*****
+
+Pre-built binary packages for ``tskit`` are available through
+`conda <https://conda.io/docs/>`_, and built using `conda-forge <https://conda-forge.org/>`_.
+Packages for recent version of Python are available for Linux, OSX and Windows. Install
+using::
+
+    $ conda install -c conda-forge tskit
+
+
++++++++++++
+Quick Start
++++++++++++
+
+1. Install ``conda`` using `miniconda <https://conda.io/miniconda.html>`_.
+   Make sure you follow the instructions to fully activate your ``conda``
+   installation!
+2. Set up the `conda-forge channel <https://conda-forge.org/>`_ using
+   ``conda config --add channels conda-forge``.
+3. Install tskit: ``conda install tskit``.
+4. Try it out: ``tskit --version``.
+
+
+There are several different ways to obtain ``conda``. Please see the
+`anaconda installation documentation <https://docs.anaconda.com/anaconda/install/>`_
+for full details.
+
+.. _sec_installation_pip:
+
+***
+pip
+***
+
+Installing using ``pip`` is somewhat more flexible than ``conda`` and
+may result in code that is (slightly) faster on your specific hardware.
+``Pip`` is the recommended method when using the system provided Python
+installations. Installation is straightforward::
+
+    $ python3 -m pip install tskit
 
 For technical reasons it is not possible to install a development version directly using the
 GitHub URL (i.e. ``pip install git+git://...`` will not work)
