@@ -1,8 +1,9 @@
 --------------------
-[0.2.0] - 2019-XX-XX
+[0.2.0] - 2019-08-23
 --------------------
 
-In development.
+Major feature release, adding support for population genetic statistics,
+improved VCF output and many other features.
 
 **Breaking changes**
 
