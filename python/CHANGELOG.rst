@@ -1,9 +1,12 @@
 --------------------
-[0.2.0] - 2019-08-23
+[0.2.1] - 2019-08-23
 --------------------
 
 Major feature release, adding support for population genetic statistics,
 improved VCF output and many other features.
+
+**Note:** Version 0.2.0 was skipped because of an error uploading to PyPI
+which could not be undone.
 
 **Breaking changes**
 
