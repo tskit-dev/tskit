@@ -175,7 +175,58 @@ def missing_data():
     tree = ts.first()
     tree.draw("_static/missing_data1.svg")
 
+
+def stats():
+    ts = msprime.simulate(
+        10**4, Ne=10**4, recombination_rate=1e-8, mutation_rate=1e-8, length=10**7,
+        random_seed=42)
+    print("num_trees = ", ts.num_trees, ", num_sites = ", ts.num_sites, sep="")
+
+    x = ts.diversity()
+    print("Average diversity per unit sequence length = {:.3G}".format(x))
+
+    windows = np.linspace(0, ts.sequence_length, num=5)
+    x = ts.diversity(windows=windows)
+    print(windows)
+    print(x)
+
+    A = ts.samples()[:100]
+    x = ts.diversity(sample_sets=A)
+    print(x)
+
+    B = ts.samples()[100:200]
+    C = ts.samples()[200:300]
+    x = ts.diversity(sample_sets=[A, B, C])
+    print(x)
+
+    x = ts.diversity(sample_sets=[A, B, C], windows=windows)
+    print("shape = ", x.shape)
+    print(x)
+
+    A = ts.samples()[:100]
+    B = ts.samples()[:100]
+    x = ts.divergence([A, B])
+    print(x)
+
+    x = ts.divergence([A, B], windows=windows)
+    print(x)
+
+    x = ts.divergence([A, B, C], indexes=[(0, 1), (0, 2)])
+    print(x)
+
+    x = ts.divergence([A, B, C], indexes=(0, 1))
+    print(x)
+
+    x = ts.divergence([A, B, C], indexes=[(0, 1)])
+    print(x)
+
+    x = ts.divergence([A, B, C], indexes=[(0, 1), (0, 2)], windows=windows)
+    print(x)
+
 # moving_along_tree_sequence()
 # parsimony()
 # allele_frequency_spectra()
-missing_data()
+# missing_data()
+
+stats()
+

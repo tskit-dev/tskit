@@ -3440,20 +3440,46 @@ class TreeSequence(object):
                                  "the only allowed strings are 'sites' or 'trees'")
         return np.array(windows)
 
-    ############################################
-    # Statistics definitions
-    ############################################
+    def __run_windowed_stat(self, windows, method, *args, **kwargs):
+        strip_dim = windows is None
+        windows = self.parse_windows(windows)
+        stat = method(*args, **kwargs, windows=windows)
+        if strip_dim:
+            stat = stat[0]
+        return stat
 
-    def __one_way_sample_set_stat(self, ll_method, sample_sets, windows=None,
-                                  mode=None, span_normalise=True, polarised=False):
+    def __one_way_sample_set_stat(
+            self, ll_method, sample_sets, windows=None, mode=None, span_normalise=True,
+            polarised=False):
+        if sample_sets is None:
+            sample_sets = self.samples()
+
+        # First try to convert to a 1D numpy array. If it is, then we strip off
+        # the corresponding dimension from the output.
+        drop_dimension = False
+        try:
+            sample_sets = np.array(sample_sets, dtype=np.int32)
+        except ValueError:
+            pass
+        else:
+            # If we've successfully converted sample_sets to a 1D numpy array
+            # of integers then drop the dimension
+            if len(sample_sets.shape) == 1:
+                sample_sets = [sample_sets]
+                drop_dimension = True
+
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
+
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
-        windows = self.parse_windows(windows)
-        return ll_method(sample_set_sizes, flattened, windows=windows,
-                         mode=mode, span_normalise=span_normalise, polarised=polarised)
+        stat = self.__run_windowed_stat(
+            windows, ll_method, sample_set_sizes, flattened,
+            mode=mode, span_normalise=span_normalise, polarised=polarised)
+        if drop_dimension:
+            stat = stat.reshape(stat.shape[:-1])
+        return stat
 
     def __k_way_sample_set_stat(
             self, ll_method, k, sample_sets, indexes=None, windows=None,
@@ -3463,22 +3489,33 @@ class TreeSequence(object):
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
-        windows = self.parse_windows(windows)
         if indexes is None:
             if len(sample_sets) != k:
-                raise ValueError("Must specify indexes "
-                                 "if there are not exactly {} sample sets.".format(k))
-            else:
-                indexes = [np.arange(k, dtype=np.int32)]
+                raise ValueError(
+                    "Must specify indexes if there are not exactly {} sample "
+                    "sets.".format(k))
+            indexes = np.arange(k, dtype=np.int32)
+        drop_dimension = False
         indexes = util.safe_np_int_cast(indexes, np.int32)
+        if len(indexes.shape) == 1:
+            indexes = indexes.reshape((1, indexes.shape[0]))
+            drop_dimension = True
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
-            raise ValueError("Indexes must be convertable to a 2D numpy array"
-                             "with {} columns".format(k))
-        return ll_method(
-            sample_set_sizes, flattened, indexes, windows=windows,
+            raise ValueError(
+                "Indexes must be convertable to a 2D numpy array with {} "
+                "columns".format(k))
+        stat = self.__run_windowed_stat(
+            windows, ll_method, sample_set_sizes, flattened, indexes,
             mode=mode, span_normalise=span_normalise)
+        if drop_dimension:
+            stat = stat.reshape(stat.shape[:-1])
+        return stat
 
-    def diversity(self, sample_sets, windows=None, mode="site",
+    ############################################
+    # Statistics definitions
+    ############################################
+
+    def diversity(self, sample_sets=None, windows=None, mode="site",
                   span_normalise=True):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
@@ -3647,10 +3684,9 @@ class TreeSequence(object):
         """
         if W.shape[0] != self.num_samples:
             raise ValueError("First trait dimension must be equal to number of samples.")
-        windows = self.parse_windows(windows)
-        return self._ll_tree_sequence.trait_covariance(
-                        W, windows=windows,
-                        mode=mode, span_normalise=span_normalise)
+        return self.__run_windowed_stat(
+            windows, self._ll_tree_sequence.trait_covariance, W, mode=mode,
+            span_normalise=span_normalise)
 
     def trait_correlation(self, W, windows=None, mode="site", span_normalise=True):
         """
@@ -3707,10 +3743,9 @@ class TreeSequence(object):
         if np.any(sds == 0):
             raise ValueError("Weight columns must have positive variance",
                              "to compute correlation.")
-        windows = self.parse_windows(windows)
-        return self._ll_tree_sequence.trait_correlation(
-                        W, windows=windows,
-                        mode=mode, span_normalise=span_normalise)
+        return self.__run_windowed_stat(
+            windows, self._ll_tree_sequence.trait_correlation, W, mode=mode,
+            span_normalise=span_normalise)
 
     def trait_regression(self, W, Z=None, windows=None, mode="site",
                          span_normalise=True):
@@ -3763,7 +3798,6 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        windows = self.parse_windows(windows)
         if W.shape[0] != self.num_samples:
             raise ValueError("First trait dimension must be equal to number of samples.")
         if Z is None:
@@ -3779,11 +3813,11 @@ class TreeSequence(object):
         # numpy returns a lower-triangular cholesky
         K = np.linalg.cholesky(np.matmul(Z.T, Z)).T
         Z = np.matmul(Z, np.linalg.inv(K))
-        return self._ll_tree_sequence.trait_regression(
-                        W, Z, windows=windows,
-                        mode=mode, span_normalise=span_normalise)
+        return self.__run_windowed_stat(
+            windows, self._ll_tree_sequence.trait_regression,
+            W, Z, mode=mode, span_normalise=span_normalise)
 
-    def segregating_sites(self, sample_sets, windows=None, mode="site",
+    def segregating_sites(self, sample_sets=None, windows=None, mode="site",
                           span_normalise=True):
         """
         Computes the density of segregating sites for each of the sets of nodes
@@ -3894,6 +3928,8 @@ class TreeSequence(object):
         :return: A (k + 1) dimensional numpy array, where k is the number of sample
             sets specified.
         """
+        # TODO should we allow a single sample_set to be specified here as a 1D array?
+        # This won't change the output dimensions like the other stats.
         if sample_sets is None:
             sample_sets = [self.samples()]
         return self.__one_way_sample_set_stat(
@@ -3901,17 +3937,17 @@ class TreeSequence(object):
             sample_sets, windows=windows, mode=mode, span_normalise=span_normalise,
             polarised=polarised)
 
-    def Tajimas_D(self, sample_sets, windows=None, mode="site"):
+    def Tajimas_D(self, sample_sets=None, windows=None, mode="site"):
         """
-        Computes Tajima's D in windows in of sets of nodes from
-        ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value.  Operates on
-        ``k = 1`` sample sets at a time. For a sample set ``X`` of ``n`` nodes,
-        if and ``T`` is the mean number of pairwise differing sites in
-        ``X`` and ``S`` is the number of sites segregating in ``X``
-        (computed with :meth:`diversity <.TreeSequence.diversity>` and
-        :meth:`segregating sites <.TreeSequence.segregating_sites>`,
-        respectively, both not span normalised), then Tajima's D is
+        Computes Tajima's D of sets of nodes from ``sample_sets`` in windows.
+        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
+        ``mode`` and return value.  Operates on ``k = 1`` sample sets at a
+        time. For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
+        number of pairwise differing sites in ``X`` and ``S`` is the number of
+        sites segregating in ``X`` (computed with :meth:`diversity
+        <.TreeSequence.diversity>` and :meth:`segregating sites
+        <.TreeSequence.segregating_sites>`, respectively, both not span
+        normalised), then Tajima's D is
 
         .. code-block:: python
 
@@ -3934,18 +3970,21 @@ class TreeSequence(object):
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        T = self.diversity(sample_sets, windows=windows,
-                           mode=mode, span_normalise=False)
-        S = self.segregating_sites(sample_sets, windows=windows,
-                                   mode=mode, span_normalise=False)
-        with np.errstate(invalid='ignore', divide='ignore'):
-            n = np.array([len(x) for x in sample_sets])
+        # TODO this should be done in C as we'll want to support this method there.
+        def tjd_func(sample_set_sizes, flattened, **kwargs):
+            n = sample_set_sizes
+            T = self.ll_tree_sequence.diversity(n, flattened, **kwargs)
+            S = self.ll_tree_sequence.segregating_sites(n, flattened, **kwargs)
             h = np.array([np.sum(1/np.arange(1, nn)) for nn in n])
             g = np.array([np.sum(1/np.arange(1, nn)**2) for nn in n])
-            a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
-            b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
-            D = (T - S/h) / np.sqrt(a * S + (b / (h**2 + g)) * S * (S - 1))
-        return D
+            with np.errstate(invalid='ignore', divide='ignore'):
+                a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
+                b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
+                D = (T - S/h) / np.sqrt(a * S + (b / (h**2 + g)) * S * (S - 1))
+            return D
+
+        return self.__one_way_sample_set_stat(
+            tjd_func, sample_sets, windows=windows, mode=mode, span_normalise=False)
 
     def Fst(self, sample_sets, indexes=None, windows=None, mode="site",
             span_normalise=True):
@@ -3977,32 +4016,39 @@ class TreeSequence(object):
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        windows = self.parse_windows(windows)
-        if indexes is None:
-            raise ValueError("indexes must be a list of pairs of indexes.")
-        indexes = util.safe_np_int_cast(indexes, np.int32)
-        if len(indexes.shape) != 2 or indexes.shape[1] != 2:
-            raise ValueError("Indexes must be convertable to a 2D numpy array"
-                             " with two columns")
-        diversities = self.diversity(sample_sets, windows=windows,
-                                     mode=mode, span_normalise=span_normalise)
-        divergences = self.divergence(sample_sets, indexes=indexes, windows=windows,
-                                      mode=mode, span_normalise=span_normalise)
-        orig_shape = divergences.shape
-        # "node" statistics produce a 3D array
-        if len(divergences.shape) == 2:
-            divergences.shape = (divergences.shape[0], 1, divergences.shape[1])
-            diversities.shape = (diversities.shape[0], 1, diversities.shape[1])
+        # TODO this should really be implemented in C (presumably C programmers will want
+        # to compute Fst too), but in the mean time implementing using the low-level
+        # calls has two advantages: (a) we automatically change dimensions like the other
+        # two-way stats and (b) it's a bit more efficient because we're not messing
+        # around with indexes and samples sets twice.
 
-        fst = np.repeat(1.0, np.product(divergences.shape))
-        fst.shape = divergences.shape
-        for i, (u, v) in enumerate(indexes):
-            denom = (diversities[:, :, u] + diversities[:, :, v]
-                     + 2 * divergences[:, :, i])
-            with np.errstate(divide='ignore', invalid='ignore'):
-                fst[:, :, i] -= 2 * (diversities[:, :, u] + diversities[:, :, v]) / denom
-        fst.shape = orig_shape
-        return fst
+        def fst_func(sample_set_sizes, flattened, indexes, **kwargs):
+            diversities = self._ll_tree_sequence.diversity(
+                sample_set_sizes, flattened, **kwargs)
+            divergences = self._ll_tree_sequence.divergence(
+                sample_set_sizes, flattened, indexes, **kwargs)
+
+            orig_shape = divergences.shape
+            # "node" statistics produce a 3D array
+            if len(divergences.shape) == 2:
+                divergences.shape = (divergences.shape[0], 1, divergences.shape[1])
+                diversities.shape = (diversities.shape[0], 1, diversities.shape[1])
+
+            fst = np.repeat(1.0, np.product(divergences.shape))
+            fst.shape = divergences.shape
+            for i, (u, v) in enumerate(indexes):
+                denom = (
+                    diversities[:, :, u] + diversities[:, :, v]
+                    + 2 * divergences[:, :, i])
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    fst[:, :, i] -= 2 * (
+                        diversities[:, :, u] + diversities[:, :, v]) / denom
+            fst.shape = orig_shape
+            return fst
+
+        return self.__k_way_sample_set_stat(
+            fst_func, 2, sample_sets, indexes=indexes,
+            windows=windows, mode=mode, span_normalise=span_normalise)
 
     def Y3(self, sample_sets, indexes=None, windows=None, mode="site",
            span_normalise=True):

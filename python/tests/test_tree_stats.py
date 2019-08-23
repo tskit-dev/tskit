@@ -833,7 +833,6 @@ def example_windows(ts):
     Generate a series of example windows for the specified tree sequence.
     """
     L = ts.sequence_length
-    yield None
     yield "sites"
     yield "trees"
     yield [0, L]
@@ -1345,7 +1344,6 @@ class TestTajimasD(StatsTestCase, SampleSetStatsMixin):
             self.verify_persite_tajimas_d(ts, sample_sets)
 
     def get_windows(self, ts):
-        yield None
         yield "sites"
         yield [0, ts.sequence_length]
         yield np.arange(0, 1.1, 0.1) * ts.sequence_length
@@ -1721,12 +1719,9 @@ class TestFst(StatsTestCase, TwoWaySampleSetStatsMixin):
         self.assertArrayAlmostEqual(sigma1, sigma2)
 
 
-class FstInterfaceMixin(StatsTestCase):
+class FstInterfaceMixin(object):
 
-    # Since Fst is defined using diversity and divergence, we don't seriously
-    # test it for correctness, and only test the interface.
-
-    def verify_interface(self):
+    def test_interface(self):
         ts = msprime.simulate(10, mutation_rate=0.0)
         sample_sets = [[0, 1, 2], [6, 7], [4]]
         with self.assertRaises(ValueError):
@@ -1737,31 +1732,22 @@ class FstInterfaceMixin(StatsTestCase):
             ts.Fst(sample_sets, indexes=[(0, 1), (0, 20)])
         sigma1 = ts.Fst(sample_sets, indexes=[(0, 1)], mode=self.mode)
         sigma2 = ts.Fst(sample_sets, indexes=[(0, 1), (0, 2), (1, 2)], mode=self.mode)
-        if self.mode == "node":
-            self.assertArrayAlmostEqual(sigma1[:, :, 0], sigma2[:, :, 0])
-        else:
-            self.assertArrayAlmostEqual(sigma1[:, 0], sigma2[:, 0])
+        self.assertArrayAlmostEqual(sigma1[..., 0], sigma2[..., 0])
 
 
 class TestSiteFst(TestFst, MutatedTopologyExamplesMixin, FstInterfaceMixin):
     mode = "site"
 
-    def test_interface(self):
-        self.verify_interface()
 
+# Since Fst is defined using diversity and divergence, we don't seriously
+# test it for correctness for node and branch, and only test the interface.
 
-class TestNodeFst(FstInterfaceMixin):
+class TestNodeFst(StatsTestCase, FstInterfaceMixin):
     mode = "node"
 
-    def test_interface(self):
-        self.verify_interface()
 
-
-class TestBranchFst(FstInterfaceMixin):
+class TestBranchFst(StatsTestCase, FstInterfaceMixin):
     mode = "node"
-
-    def test_interface(self):
-        self.verify_interface()
 
 
 ############################################
@@ -3236,8 +3222,8 @@ class TestSampleSetIndexes(StatsTestCase):
         ts = self.get_example_ts()
         sample_sets = np.array_split(ts.samples(), 2)
         S1 = ts.divergence(sample_sets)
-        S2 = divergence(ts, sample_sets)
-        S3 = ts.divergence(sample_sets, [[0, 1]])
+        S2 = divergence(ts, sample_sets)[0, 0]
+        S3 = ts.divergence(sample_sets, [0, 1])
         self.assertEqual(S1.shape, S2.shape)
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
@@ -3251,8 +3237,8 @@ class TestSampleSetIndexes(StatsTestCase):
         ts = self.get_example_ts()
         sample_sets = np.array_split(ts.samples(), 3)
         S1 = ts.f3(sample_sets)
-        S2 = f3(ts, sample_sets)
-        S3 = ts.f3(sample_sets, [[0, 1, 2]])
+        S2 = f3(ts, sample_sets)[0, 0]
+        S3 = ts.f3(sample_sets, [0, 1, 2])
         self.assertEqual(S1.shape, S2.shape)
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
@@ -3265,8 +3251,8 @@ class TestSampleSetIndexes(StatsTestCase):
         sample_sets = np.array_split(ts.samples(), 4)
         S1 = ts.f4(sample_sets)
         S2 = f4(ts, sample_sets)
-        S3 = ts.f4(sample_sets, [[0, 1, 2, 3]])
-        self.assertEqual(S1.shape, S2.shape)
+        S3 = ts.f4(sample_sets, [0, 1, 2, 3])
+        self.assertEqual(S1.shape, S3.shape)
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
         sample_sets = np.array_split(ts.samples(), 5)
@@ -3279,7 +3265,7 @@ class TestSampleSetIndexes(StatsTestCase):
         pairs = list(itertools.combinations(range(4), 2))
         for k in range(1, len(pairs)):
             S1 = ts.divergence(sample_sets, pairs[:k])
-            S2 = divergence(ts, sample_sets, pairs[:k])
+            S2 = divergence(ts, sample_sets, pairs[:k])[0]
             self.assertEqual(S1.shape[-1], k)
             self.assertEqual(S1.shape, S2.shape)
             self.assertArrayAlmostEqual(S1, S2)
@@ -3290,7 +3276,7 @@ class TestSampleSetIndexes(StatsTestCase):
         triples = list(itertools.combinations(range(5), 3))
         for k in range(1, len(triples)):
             S1 = ts.Y3(sample_sets, triples[:k])
-            S2 = Y3(ts, sample_sets, triples[:k])
+            S2 = Y3(ts, sample_sets, triples[:k])[0]
             self.assertEqual(S1.shape[-1], k)
             self.assertEqual(S1.shape, S2.shape)
             self.assertArrayAlmostEqual(S1, S2)
@@ -3300,10 +3286,10 @@ class TestSampleSetIndexes(StatsTestCase):
         sample_sets = np.array_split(ts.samples(), 5)
         quads = list(itertools.combinations(range(5), 4))
         for k in range(1, len(quads)):
-            S1 = ts.f4(sample_sets, quads[:k])
+            S1 = ts.f4(sample_sets, quads[:k], windows=[0, ts.sequence_length])
             S2 = f4(ts, sample_sets, quads[:k])
             self.assertEqual(S1.shape[-1], k)
-            self.assertEqual(S1.shape, S2.shape)
+            self.assertEqual(S2.shape, S2.shape)
             self.assertArrayAlmostEqual(S1, S2)
 
     def test_errors(self):
@@ -3770,9 +3756,8 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
         sigma2 = ts_method(W, windows=None, mode=self.mode)
         sigma3 = ts_method(W, windows=[0.0, ts.sequence_length], mode=self.mode)
         self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
         self.assertArrayAlmostEqual(sigma1, sigma2)
-        self.assertArrayAlmostEqual(sigma1, sigma3)
+        self.assertArrayAlmostEqual(sigma1, sigma3[0])
 
     def verify_centering(self, ts, method, ts_method):
         # Since weights are mean-centered, adding a constant shouldn't change anything.
@@ -4295,11 +4280,12 @@ class TraitRegressionMixin(object):
         sigma4 = ts.trait_regression(W, Z=None, windows=[0.0, ts.sequence_length],
                                      mode=self.mode)
         self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
-        self.assertEqual(sigma1.shape, sigma4.shape)
+        self.assertEqual(sigma3.shape[0], 1)
+        self.assertEqual(sigma1.shape, sigma3.shape[1:])
+        self.assertEqual(sigma1.shape, sigma4.shape[1:])
         self.assertArrayAlmostEqual(sigma1, sigma2)
-        self.assertArrayAlmostEqual(sigma1, sigma3)
-        self.assertArrayAlmostEqual(sigma1, sigma4)
+        self.assertArrayAlmostEqual(sigma1, sigma3[0])
+        self.assertArrayAlmostEqual(sigma1, sigma4[0])
 
     def test_errors(self):
         ts = self.get_example_ts()
@@ -4589,9 +4575,9 @@ class SpecificTreesTestCase(StatsTestCase):
                                branch_true_diversity_01)
         self.assertAlmostEqual(ts.divergence([[0], [1]], [(0, 1)], mode=mode),
                                branch_true_diversity_01)
-        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0],
+        self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0],
                                branch_true_diversity_01)
-        self.assertAlmostEqual(ts.diversity([[0, 1]], mode=mode)[0][0],
+        self.assertAlmostEqual(ts.diversity([[0, 1]], mode=mode)[0],
                                branch_true_diversity_01)
 
         # mean diversity between [0, 1] and [0, 2]:
@@ -4620,7 +4606,7 @@ class SpecificTreesTestCase(StatsTestCase):
                                    or ((x[0] == 0) and (x[1] == 2)))/2.0])
 
         # tree lengths:
-        bts_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], mode=mode)[0][0]
+        bts_Y = ts.Y3([[0], [1], [2]], mode=mode)
         py_bsc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode=mode)
         self.assertArrayAlmostEqual(bts_Y, branch_true_Y)
         self.assertArrayAlmostEqual(py_bsc_Y, branch_true_Y)
@@ -4629,7 +4615,7 @@ class SpecificTreesTestCase(StatsTestCase):
 
         mode = "site"
         # sites, Y:
-        sts_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], mode=mode)[0][0]
+        sts_Y = ts.Y3([[0], [1], [2]], mode=mode)
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode=mode)
         self.assertArrayAlmostEqual(sts_Y, site_true_Y)
         self.assertArrayAlmostEqual(py_ssc_Y, site_true_Y)
@@ -4672,22 +4658,26 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertArrayAlmostEqual(py_sitewise_cor, true_cor)
         self.assertArrayAlmostEqual(ts_sitewise_cor, true_cor)
         # mean
-        ts_mean_cov = ts.trait_covariance(traits, mode="site")
+        ts_mean_cov = ts.trait_covariance(traits, mode="site",
+                                          windows=[0, ts.sequence_length])
         py_mean_cov = site_trait_covariance(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cov,
                                     np.array([np.sum(true_cov, axis=0)]))
         self.assertArrayAlmostEqual(ts_mean_cov, py_mean_cov)
-        ts_mean_cor = ts.trait_correlation(traits, mode="site")
+        ts_mean_cor = ts.trait_correlation(traits, mode="site",
+                                           windows=[0, ts.sequence_length])
         py_mean_cor = site_trait_correlation(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cor,
                                     np.array([np.sum(true_cor, axis=0)]))
         self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
         # mode = 'branch'
-        ts_mean_cov = ts.trait_covariance(traits, mode="branch")
+        ts_mean_cov = ts.trait_covariance(traits, mode="branch",
+                                          windows=[0, ts.sequence_length])
         py_mean_cov = branch_trait_covariance(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cov, true_branch_cov)
         self.assertArrayAlmostEqual(ts_mean_cov, py_mean_cov)
-        ts_mean_cor = ts.trait_correlation(traits, mode="branch")
+        ts_mean_cor = ts.trait_correlation(traits, mode="branch",
+                                           windows=[0, ts.sequence_length])
         py_mean_cor = branch_trait_correlation(ts, traits)
         self.assertArrayAlmostEqual(ts_mean_cor, true_branch_cor)
         self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
@@ -4807,7 +4797,7 @@ class SpecificTreesTestCase(StatsTestCase):
         mode = "branch"
         A = [[0], [1], [2], [3]]
         self.assertAlmostEqual(branch_true_f4_0123, f4(ts, A, mode=mode)[0][0])
-        self.assertAlmostEqual(branch_true_f4_0123, ts.f4(A, mode=mode)[0][0])
+        self.assertAlmostEqual(branch_true_f4_0123, ts.f4(A, mode=mode))
         self.assertArrayAlmostEqual(
             branch_true_f4_0123_windowed,
             ts.f4(A, windows=windows, mode=mode).flatten())
@@ -4815,14 +4805,14 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertAlmostEqual(
             branch_true_f4_0321,
             f4(ts, A, [(0, 1, 2, 3)], mode=mode)[0][0])
-        self.assertAlmostEqual(branch_true_f4_0321, ts.f4(A, mode=mode)[0][0])
+        self.assertAlmostEqual(branch_true_f4_0321, ts.f4(A, mode=mode))
         A = [[0], [2], [1], [3]]
         self.assertAlmostEqual(0.0, f4(ts, A, [(0, 1, 2, 3)], mode=mode)[0])
-        self.assertAlmostEqual(0.0, ts.f4(A, mode=mode)[0][0])
+        self.assertAlmostEqual(0.0, ts.f4(A, mode=mode))
         A = [[0, 2], [1, 3]]
         self.assertAlmostEqual(
             branch_true_f2_02_13, f2(ts, A, [(0, 1)], mode=mode)[0][0])
-        self.assertAlmostEqual(branch_true_f2_02_13, ts.f2(A, mode=mode)[0][0])
+        self.assertAlmostEqual(branch_true_f2_02_13, ts.f2(A, mode=mode))
 
         # diversity
         A = [[0, 1, 2, 3]]
@@ -4890,7 +4880,7 @@ class SpecificTreesTestCase(StatsTestCase):
             nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False)
 
         # Y3:
-        site_tsc_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], mode="site")[0][0]
+        site_tsc_Y = ts.Y3([[0], [1], [2]], mode="site")
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0], mode="site")
         self.assertAlmostEqual(site_tsc_Y, site_true_Y)
         self.assertAlmostEqual(py_ssc_Y, site_true_Y)
@@ -5013,7 +5003,7 @@ class SpecificTreesTestCase(StatsTestCase):
 
             self.assertAlmostEqual(diversity(ts, A, mode=mode)[0][0], truth)
             self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0][0], truth)
-            self.assertAlmostEqual(ts.diversity(A, mode="branch")[0][0], truth)
+            self.assertAlmostEqual(ts.diversity(A, mode="branch")[0], truth)
 
         # Y-statistic for (0/12)
         A = [[0], [1, 2]]
@@ -5032,7 +5022,7 @@ class SpecificTreesTestCase(StatsTestCase):
 
         # sites:
         mode = "site"
-        site_tsc_Y = ts.Y3([[0], [1], [2]], windows=[0.0, 1.0], mode=mode)[0][0]
+        site_tsc_Y = ts.Y3([[0], [1], [2]], mode=mode)
         py_ssc_Y = Y3(ts, [[0], [1], [2]], [(0, 1, 2)], windows=[0.0, 1.0])
         self.assertAlmostEqual(site_tsc_Y, site_true_Y)
         self.assertAlmostEqual(py_ssc_Y, site_true_Y)
@@ -5040,12 +5030,278 @@ class SpecificTreesTestCase(StatsTestCase):
                                site_true_Y)
 
 
+class TestOutputDimensions(StatsTestCase):
+    """
+    Tests for the dimension stripping behaviour of the stats functions.
+    """
+    def get_example_ts(self):
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+        self.assertGreater(ts.num_sites, 1)
+        return ts
+
+    def test_afs_default_windows(self):
+        ts = self.get_example_ts()
+        n = ts.num_samples
+        A = ts.samples()[:4]
+        B = ts.samples()[6:]
+        for mode in ["site", "branch"]:
+            x = ts.allele_frequency_spectrum(mode=mode)
+            # x is a 1D numpy array with n + 1 values
+            self.assertEqual(x.shape, (n + 1,))
+            self.assertArrayEqual(
+                x, ts.allele_frequency_spectrum([ts.samples()], mode=mode))
+            x = ts.allele_frequency_spectrum([A, B], mode=mode)
+            self.assertEqual(x.shape, (len(A) + 1, len(B) + 1))
+
+    def test_afs_windows(self):
+        ts = self.get_example_ts()
+        L = ts.sequence_length
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:4]
+        B = ts.samples()[6:]
+        for mode in ["site", "branch"]:
+            x = ts.allele_frequency_spectrum([A, B], windows=windows, mode=mode)
+            self.assertEqual(x.shape, (3, len(A) + 1, len(B) + 1))
+
+            x = ts.allele_frequency_spectrum([A], windows=windows, mode=mode)
+            self.assertEqual(x.shape, (3, len(A) + 1))
+
+            x = ts.allele_frequency_spectrum(windows=windows, mode=mode)
+            # Default returns this for all samples
+            self.assertEqual(x.shape, (3, ts.num_samples + 1))
+            y = ts.allele_frequency_spectrum([ts.samples()], windows=windows, mode=mode)
+            self.assertArrayEqual(x, y)
+
+    def test_one_way_stat_default_windows(self):
+        ts = self.get_example_ts()
+        # Use diversity as the example one-way stat.
+        for mode in ["site", "branch"]:
+            x = ts.diversity(mode=mode)
+            # x is a zero-d numpy value
+            self.assertEqual(np.shape(x), tuple())
+            self.assertEqual(x, float(x))
+            self.assertEqual(x, ts.diversity(ts.samples(), mode=mode))
+            self.assertArrayEqual([x], ts.diversity([ts.samples()], mode=mode))
+
+        mode = "node"
+        x = ts.diversity(mode=mode)
+        # x is a 1D numpy array with N values
+        self.assertEqual(x.shape, (ts.num_nodes,))
+        self.assertArrayEqual(x, ts.diversity(ts.samples(), mode=mode))
+        y = ts.diversity([ts.samples()], mode=mode)
+        # We're adding on the *last* dimension, so must reshape
+        self.assertArrayEqual(x.reshape(ts.num_nodes, 1), y)
+
+    def verify_one_way_stat_windows(self, ts, method):
+        L = ts.sequence_length
+        N = ts.num_nodes
+
+        windows = [0, L / 4, L / 2, 0.75 * L, L]
+        A = ts.samples()[:6]
+        B = ts.samples()[6:]
+        for mode in ["site", "branch"]:
+            x = method([A, B], windows=windows, mode=mode)
+            # Four windows, 2 sets.
+            self.assertEqual(x.shape, (4, 2))
+
+            x = method([A], windows=windows, mode=mode)
+            # Four windows, 1 sets.
+            self.assertEqual(x.shape, (4, 1))
+
+            x = method(A, windows=windows, mode=mode)
+            # Dropping the outer list removes the last dimension
+            self.assertEqual(x.shape, (4, ))
+
+            x = method(windows=windows, mode=mode)
+            # Default returns this for all samples
+            self.assertEqual(x.shape, (4, ))
+            y = method(ts.samples(), windows=windows, mode=mode)
+            self.assertArrayEqual(x, y)
+
+        mode = "node"
+        x = method([A, B], windows=windows, mode=mode)
+        # Four windows, N nodes and 2 sets.
+        self.assertEqual(x.shape, (4, N, 2))
+
+        x = method([A], windows=windows, mode=mode)
+        # Four windows, N nodes and 1 set.
+        self.assertEqual(x.shape, (4, N, 1))
+
+        x = method(A, windows=windows, mode=mode)
+        # Drop the outer list, so we lose the last dimension
+        self.assertEqual(x.shape, (4, N))
+
+        x = method(windows=windows, mode=mode)
+        # The default sample sets also drops the last dimension
+        self.assertEqual(x.shape, (4, N))
+
+        self.assertEqual(ts.num_trees, 1)
+        # In this example, we know that the trees are all the same so check this
+        # for sanity.
+        self.assertArrayEqual(x[0], x[1])
+        self.assertArrayEqual(x[0], x[2])
+
+    def test_diversity_windows(self):
+        ts = self.get_example_ts()
+        self.verify_one_way_stat_windows(ts, ts.diversity)
+
+    def test_Tajimas_D_windows(self):
+        ts = self.get_example_ts()
+        self.verify_one_way_stat_windows(ts, ts.Tajimas_D)
+
+    def test_segregating_sites_windows(self):
+        ts = self.get_example_ts()
+        self.verify_one_way_stat_windows(ts, ts.segregating_sites)
+
+    def test_two_way_stat_default_windows(self):
+        ts = self.get_example_ts()
+        # Use divergence as the example one-way stat.
+        A = ts.samples()[:6]
+        B = ts.samples()[6:]
+        for mode in ["site", "branch"]:
+            x = ts.divergence([A, B], mode=mode)
+            # x is a zero-d numpy value
+            self.assertEqual(np.shape(x), tuple())
+            self.assertEqual(x, float(x))
+            # If indexes is a 1D array, we also drop the outer dimension
+            self.assertEqual(x, ts.divergence([A, B, A], indexes=[0, 1], mode=mode))
+            # But, if it's a 2D array we keep the outer dimension
+            self.assertEqual([x], ts.divergence([A, B], indexes=[[0, 1]], mode=mode))
+
+        mode = "node"
+        x = ts.divergence([A, B], mode=mode)
+        # x is a 1D numpy array with N values
+        self.assertEqual(x.shape, (ts.num_nodes,))
+        self.assertArrayEqual(x, ts.divergence([A, B], indexes=[0, 1], mode=mode))
+        y = ts.divergence([A, B], indexes=[[0, 1]], mode=mode)
+        # We're adding on the *last* dimension, so must reshape
+        self.assertArrayEqual(x.reshape(ts.num_nodes, 1), y)
+
+    def verify_two_way_stat_windows(self, ts, method):
+        L = ts.sequence_length
+        N = ts.num_nodes
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:7]
+        B = ts.samples()[7:]
+        for mode in ["site", "branch"]:
+            x = method(
+                [A, B, A], indexes=[[0, 1], [0, 2]], windows=windows, mode=mode)
+            # Three windows, 2 pairs
+            self.assertEqual(x.shape, (3, 2))
+
+            x = method([A, B], indexes=[[0, 1]], windows=windows, mode=mode)
+            # Three windows, 1 pair
+            self.assertEqual(x.shape, (3, 1))
+
+            x = method([A, B], indexes=[0, 1], windows=windows, mode=mode)
+            # Dropping the outer list removes the last dimension
+            self.assertEqual(x.shape, (3, ))
+
+            y = method([A, B], windows=windows, mode=mode)
+            self.assertEqual(y.shape, (3, ))
+            self.assertArrayEqual(x, y)
+
+        mode = "node"
+        x = method([A, B], indexes=[[0, 1], [0, 1]], windows=windows, mode=mode)
+        # Three windows, N nodes and 2 pairs
+        self.assertEqual(x.shape, (3, N, 2))
+
+        x = method([A, B], indexes=[[0, 1]], windows=windows, mode=mode)
+        # Three windows, N nodes and 1 pairs
+        self.assertEqual(x.shape, (3, N, 1))
+
+        x = method([A, B], indexes=[0, 1], windows=windows, mode=mode)
+        # Drop the outer list, so we lose the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        x = method([A, B], windows=windows, mode=mode)
+        # The default sample sets also drops the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        self.assertEqual(ts.num_trees, 1)
+        # In this example, we know that the trees are all the same so check this
+        # for sanity.
+        self.assertArrayEqual(x[0], x[1])
+        self.assertArrayEqual(x[0], x[2])
+
+    def test_divergence_windows(self):
+        ts = self.get_example_ts()
+        self.verify_two_way_stat_windows(ts, ts.divergence)
+
+    def test_Fst_windows(self):
+        ts = self.get_example_ts()
+        self.verify_two_way_stat_windows(ts, ts.Fst)
+
+    def test_f2_windows(self):
+        ts = self.get_example_ts()
+        self.verify_two_way_stat_windows(ts, ts.f2)
+
+    def verify_three_way_stat_windows(self, ts, method):
+        L = ts.sequence_length
+        N = ts.num_nodes
+
+        windows = [0, L / 4, L / 2, L]
+        A = ts.samples()[:2]
+        B = ts.samples()[2: 4]
+        C = ts.samples()[4:]
+        for mode in ["site", "branch"]:
+            x = method(
+                [A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode)
+            # Three windows, 2 triple
+            self.assertEqual(x.shape, (3, 2))
+
+            x = method([A, B, C], indexes=[[0, 1, 2]], windows=windows, mode=mode)
+            # Three windows, 1 triple
+            self.assertEqual(x.shape, (3, 1))
+
+            x = method([A, B, C], indexes=[0, 1, 2], windows=windows, mode=mode)
+            # Dropping the outer list removes the last dimension
+            self.assertEqual(x.shape, (3, ))
+
+            y = method([A, B, C], windows=windows, mode=mode)
+            self.assertEqual(y.shape, (3, ))
+            self.assertArrayEqual(x, y)
+
+        mode = "node"
+        x = method([A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode)
+        # Three windows, N nodes and 2 triples
+        self.assertEqual(x.shape, (3, N, 2))
+
+        x = method([A, B, C], indexes=[[0, 1, 2]], windows=windows, mode=mode)
+        # Three windows, N nodes and 1 triples
+        self.assertEqual(x.shape, (3, N, 1))
+
+        x = method([A, B, C], indexes=[0, 1, 2], windows=windows, mode=mode)
+        # Drop the outer list, so we lose the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        x = method([A, B, C], windows=windows, mode=mode)
+        # The default sample sets also drops the last dimension
+        self.assertEqual(x.shape, (3, N))
+
+        self.assertEqual(ts.num_trees, 1)
+        # In this example, we know that the trees are all the same so check this
+        # for sanity.
+        self.assertArrayEqual(x[0], x[1])
+        self.assertArrayEqual(x[0], x[2])
+
+    def test_Y3_windows(self):
+        ts = self.get_example_ts()
+        self.verify_three_way_stat_windows(ts, ts.Y3)
+
+    def test_f3_windows(self):
+        ts = self.get_example_ts()
+        self.verify_three_way_stat_windows(ts, ts.f3)
+
 ############################################
 # Old code where stats are defined within type
 # specific calculattors. These definititions have been
 # move to stat-specific regions above
 # The only thing left to port is the SFS code.
 ############################################
+
 
 class PythonBranchStatCalculator(object):
     """
