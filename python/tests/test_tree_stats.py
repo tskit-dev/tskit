@@ -3315,6 +3315,25 @@ class TestGeneralStatInterface(StatsTestCase):
                               mutation_rate=2, random_seed=1)
         return ts
 
+    def test_function_cannot_update_state(self):
+        ts = self.get_tree_sequence()
+
+        def f(x):
+            out = x.copy()
+            x[:] = 0.0
+            return out
+
+        def g(x):
+            return x
+
+        x = ts.sample_count_stat(
+            [ts.samples()], f, output_dim=1, strict=False, mode="node",
+            span_normalise=False)
+        y = ts.sample_count_stat(
+            [ts.samples()], g, output_dim=1, strict=False, mode="node",
+            span_normalise=False)
+        self.assertArrayEqual(x, y)
+
     def test_default_mode(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))

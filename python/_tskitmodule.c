@@ -6503,10 +6503,11 @@ general_stat_func(size_t K, double *X, size_t M, double *Y, void *params)
     npy_intp X_dims = (npy_intp) K;
     npy_intp *Y_dims;
 
-    X_array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &X_dims, NPY_FLOAT64, X);
+    X_array = (PyArrayObject *) PyArray_SimpleNew(1, &X_dims, NPY_FLOAT64);
     if (X_array == NULL) {
         goto out;
     }
+    memcpy(PyArray_DATA(X_array), X, K * sizeof(*X));
     arglist = Py_BuildValue("(O)", X_array);
     if (arglist == NULL) {
         goto out;
