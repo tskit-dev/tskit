@@ -70,13 +70,14 @@ Windowing
 *********
 
 Each statistic has an argument, ``windows``,
-which defines a collection of contiguous windows along the genome.
-If ``windows`` is a list of ``n+1`` increasing numbers between 0 and the ``sequence_length``,
-then the statistic will be computed separately in each of the ``n`` windows,
+which defines a collection of contiguous windows spanning the genome.
+``windows`` should be a list of ``n+1`` increasing numbers beginning with 0
+and ending with the ``sequence_length``.
+The statistic will be computed separately in each of the ``n`` windows,
 and the ``k``-th row of the output will report the values of the statistic
 in the ``k``-th window, i.e., from (and including) ``windows[k]`` to (but not including) ``windows[k+1]``.
 
-All windowed statistics by default return **averages** within each of the windows,
+Most windowed statistics by default return **averages** within each of the windows,
 so the values are comparable between windows, even of different lengths.
 (However, shorter windows may be noisier.)
 Suppose for instance  that you compute some statistic with ``windows = [a, b, c]``
@@ -107,6 +108,13 @@ There are some shortcuts to other useful options:
    This will return one statistic for each site (beware!);
    since the windows are all different sizes you probably want to also pass
    ``span_normalise=False`` (see below).
+
+
+.. _sec_general_stats_span_normalise:
+
++++++++++++++
+Normalisation
++++++++++++++
 
 Furthermore, there is an option, ``span_normalise`` (default ``True``),
 that if ``False`` returns the **sum** of the relevant statistic across each window rather than the average.
@@ -204,6 +212,7 @@ Here are some additional special cases:
    in the order they are given.
    (This would be equivalent to passing ``indexes = [[0], [1], ..., [len(sample_sets)]]``,
    were that allowed.)
+
 
 
 .. _sec_general_stats_output_format:
@@ -343,18 +352,6 @@ regression with other covariates (as in GWAS).
 - :meth:`.TreeSequence.trait_covariance`
 - :meth:`.TreeSequence.trait_correlation`
 
----------------
-General methods
----------------
-
-These methods allow access to the general method of computing statistics,
-using weights or sample counts, and summary functions. See the documentation
-for more details. The pre-implemented statistics above will be faster than
-using these methods directly, so they should be preferred.
-
-- :meth:`.TreeSequence.general_stat`
-- :meth:`.TreeSequence.sample_count_stat`
-
 ------------------
 Derived statistics
 ------------------
@@ -367,3 +364,47 @@ property (since both are ratios of statistics that do have this property).
 - :meth:`.TreeSequence.Fst`
 - :meth:`.TreeSequence.TajimasD`
 
+---------------
+General methods
+---------------
+
+These methods allow access to the general method of computing statistics,
+using weights or sample counts, and summary functions. See the documentation
+for more details. The pre-implemented statistics above will be faster than
+using these methods directly, so they should be preferred.
+
+- :meth:`.TreeSequence.general_stat`
+- :meth:`.TreeSequence.sample_count_stat`
+
+
+.. _sec_general_stats_advanced:
+
+****************
+Advanced methods
+****************
+
+The methods :meth:`.TreeSequence.general_stat` and :meth:`.TreeSequence.sample_count_stat`
+provide access to the general-purpose algorithm for computing statistics.
+Here is a bit more discussion of how to use these.
+
+.. _sec_general_stats_polarisation:
+
+++++++++++++
+Polarisation
+++++++++++++
+
+Many statistics calculated from genome sequence treat all alleles on equal footing,
+as one must without knowledge of the ancestral state and sequence of mutations that produced the data.
+Separating out the *ancestral* allele (e.g., as inferred using an outgroup)
+is known as *polarisiation*.
+For instance, in the allele frequency spectrum, a site with alleles at 20% and 80% frequency
+is no different than another whose alleles are at 80% and 20%,
+unless we know in each case which allele is ancestral,
+and so while the unpolarised allele frequency spectrum gives the distribution of frequencies of *all* alleles,
+the *polarised* allele frequency spectrum gives the distribution of frequencies of only *derived* alleles.
+
+This concept is extended to more general statistics as follows.
+For site statistics, summary functions are applied to the total weight or number of samples
+associated with each allele; but if polarised, then the ancestral allele is left out of this sum.
+For branch or node statistics, summary functions are applied to the total weight or number of samples
+below, and above each branch or node; if polarised, then only the weight below is used.
