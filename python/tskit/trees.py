@@ -4264,18 +4264,24 @@ class TreeSequence(object):
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
-        denom = self.sample_count_stat(
-            [self.samples()], lambda x: x > 0, output_dim=1,
-            polarised=True, strict=False, mode="node", span_normalise=False,
-            windows=windows)
+        def f(x):
+            out = x.copy()
+            out[-1] = (out[-1] > 0)
+            return out
+
+        sample_sets = sample_sets + [self.samples()]
         C = self.sample_count_stat(
-            sample_sets, lambda x: x, output_dim=len(sample_sets),
+            sample_sets, f, output_dim=len(sample_sets),
             polarised=True, strict=False, mode="node", span_normalise=False,
             windows=windows)
+        out_slice = tuple([slice(None)] * (len(C.shape) - 1) + [slice(0, -1)])
+        denom_slice = tuple([slice(None)] * (len(C.shape) - 1) + [-1])
+        out = C[out_slice]
+        denom = C[denom_slice].reshape(list(C.shape[:-1]) + [1])
         with np.errstate(invalid='ignore', divide='ignore'):
-            C /= denom
-        C[np.isnan(C)] = 0.0
-        return C
+            out /= denom
+        out[np.isnan(out)] = 0.0
+        return out
 
     def genealogical_nearest_neighbours(self, focal, sample_sets, num_threads=0):
         """
