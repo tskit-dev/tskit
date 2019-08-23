@@ -2816,117 +2816,6 @@ class TreeSequence(object):
         return self._ll_tree_sequence.get_genotype_matrix(
             impute_missing_data=impute_missing_data)
 
-    def get_pairwise_diversity(self, samples=None):
-        # Deprecated alias for self.pairwise_diversity
-        return self.pairwise_diversity(samples)
-
-    def pairwise_diversity(self, samples=None):
-        """
-        Returns the pairwise nucleotide site diversity, the average number of sites
-        that differ between a randomly chosen pair of samples.  If `samples` is
-        specified, calculate the diversity within this set.
-
-         .. deprecated:: 0.2.0
-             please use :meth:`.diversity` instead. Since version 0.2.0 the error
-             semantics have also changed slightly. It is no longer an error
-             when there is one sample and a tskit.LibraryError is raised
-             when non-sample IDs are provided rather than a ValueError. It is
-             also no longer an error to compute pairwise diversity at sites
-             with multiple mutations.
-
-        :param iterable samples: The set of samples within which we calculate
-            the diversity. If None, calculate diversity within the entire sample.
-        :return: The pairwise nucleotide site diversity.
-        :rtype: float
-        """
-        if samples is None:
-            samples = self.samples()
-        return float(self.diversity(
-            [samples], windows=[0, self.sequence_length], span_normalise=False)[0])
-
-    def mean_descendants(self, reference_sets):
-        """
-        Computes for every node the mean number of samples in each of the
-        `reference_sets` that descend from that node, averaged over the
-        portions of the genome for which the node is ancestral to *any* sample.
-        The output is an array, `C[node, j]`, which reports the total span of
-        all genomes in `reference_sets[j]` that inherit from `node`, divided by
-        the total span of the genome on which `node` is an ancestor to any
-        sample in the tree sequence.
-
-        .. note:: This interface *may change*, particularly the normalization by
-            proportion of the genome that `node` is an ancestor to anyone.
-
-        :param iterable reference_sets: A list of lists of node IDs.
-        :return: An array with dimensions (number of nodes in the tree sequence,
-            number of reference sets)
-        """
-        return self._ll_tree_sequence.mean_descendants(reference_sets)
-
-    def genealogical_nearest_neighbours(self, focal, reference_sets, num_threads=0):
-        """
-        Return the genealogical nearest neighbours (GNN) proportions for the given
-        focal nodes, with reference to two or more sets of interest, averaged over all
-        trees in the tree sequence.
-
-        The GNN proportions for a focal node in a single tree are given by first finding
-        the most recent common ancestral node :math:`a` between the focal node and any
-        other node present in the reference sets. The GNN proportion for a specific
-        reference set, :math:`S` is the number of nodes in :math:`S` that descend from
-        :math:`a`, as a proportion of the total number of descendant nodes in any of the
-        reference sets.
-
-        For example, consider a case with 2 reference sets, :math:`S_1` and :math:`S_2`.
-        For a given tree, :math:`a` is the node that includes at least one descendant in
-        :math:`S_1` or :math:`S_2` (not including the focal node). If the descendants of
-        :math:`a` include some nodes in :math:`S_1` but no nodes in :math:`S_2`, then the
-        GNN proportions for that tree will be 100% :math:`S_1` and 0% :math:`S_2`, or
-        :math:`[1.0, 0.0]`.
-
-        For a given focal node, the GNN proportions returned by this function are an
-        average of the GNNs for each tree, weighted by the genomic distance spanned by
-        that tree.
-
-        For an precise mathematical definition of GNN, see https://doi.org/10.1101/458067
-
-        .. note:: The reference sets need not include all the samples, hence the most
-            recent common ancestral node of the reference sets, :math:`a`, need not be
-            the immediate ancestor of the focal node. If the reference sets only comprise
-            sequences from relatively distant individuals, the GNN statistic may end up
-            as a measure of comparatively distant ancestry, even for tree sequences that
-            contain many closely related individuals.
-
-        :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
-        :param iterable reference_sets: A list of :math:`m` lists of node IDs.
-        :return: An :math:`n`  by :math:`m` array of focal nodes by GNN proportions.
-            Every focal node corresponds to a row. The numbers in each
-            row corresponding to the GNN proportion for each of the passed-in reference
-            sets. Rows therefore sum to one.
-        :rtype: numpy.ndarray
-        """
-        # TODO this may not be a good name because there is another version of the
-        # statistic which may be occasionally useful where we return the tree-by-tree
-        # value. We could do this by adding an extra dimension to the returned array
-        # which would give the values tree-by-tree. The tree spans can be computed
-        # easily enough, *but* there may be occasions when the statistic isn't
-        # defined over particular trees.
-        #
-        # Probably the best thing to do is to add an option which allows us to compute
-        # the tree-wise GNNs, returning the values in a higher dimensional array
-        # rather than have another function entirely.
-        if num_threads <= 0:
-            return self._ll_tree_sequence.genealogical_nearest_neighbours(
-                focal, reference_sets)
-        else:
-            worker = functools.partial(
-                self._ll_tree_sequence.genealogical_nearest_neighbours,
-                reference_sets=reference_sets)
-            focal = util.safe_np_int_cast(focal, np.int32)
-            splits = np.array_split(focal, num_threads)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
-                arrays = pool.map(worker, splits)
-            return np.vstack(list(arrays))
-
     def individual(self, id_):
         """
         Returns the :ref:`individual <sec_individual_table_definition>`
@@ -4317,12 +4206,114 @@ class TreeSequence(object):
             self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
             mode=mode, span_normalise=span_normalise)
 
+    def mean_descendants(self, reference_sets):
+        """
+        Computes for every node the mean number of samples in each of the
+        `reference_sets` that descend from that node, averaged over the
+        portions of the genome for which the node is ancestral to *any* sample.
+        The output is an array, `C[node, j]`, which reports the total span of
+        all genomes in `reference_sets[j]` that inherit from `node`, divided by
+        the total span of the genome on which `node` is an ancestor to any
+        sample in the tree sequence.
+
+        .. note:: This interface *may change*, particularly the normalization by
+            proportion of the genome that `node` is an ancestor to anyone.
+
+        :param iterable reference_sets: A list of lists of node IDs.
+        :return: An array with dimensions (number of nodes in the tree sequence,
+            number of reference sets)
+        """
+        return self._ll_tree_sequence.mean_descendants(reference_sets)
+
+    def genealogical_nearest_neighbours(self, focal, reference_sets, num_threads=0):
+        """
+        Return the genealogical nearest neighbours (GNN) proportions for the given
+        focal nodes, with reference to two or more sets of interest, averaged over all
+        trees in the tree sequence.
+
+        The GNN proportions for a focal node in a single tree are given by first finding
+        the most recent common ancestral node :math:`a` between the focal node and any
+        other node present in the reference sets. The GNN proportion for a specific
+        reference set, :math:`S` is the number of nodes in :math:`S` that descend from
+        :math:`a`, as a proportion of the total number of descendant nodes in any of the
+        reference sets.
+
+        For example, consider a case with 2 reference sets, :math:`S_1` and :math:`S_2`.
+        For a given tree, :math:`a` is the node that includes at least one descendant in
+        :math:`S_1` or :math:`S_2` (not including the focal node). If the descendants of
+        :math:`a` include some nodes in :math:`S_1` but no nodes in :math:`S_2`, then the
+        GNN proportions for that tree will be 100% :math:`S_1` and 0% :math:`S_2`, or
+        :math:`[1.0, 0.0]`.
+
+        For a given focal node, the GNN proportions returned by this function are an
+        average of the GNNs for each tree, weighted by the genomic distance spanned by
+        that tree.
+
+        For an precise mathematical definition of GNN, see https://doi.org/10.1101/458067
+
+        .. note:: The reference sets need not include all the samples, hence the most
+            recent common ancestral node of the reference sets, :math:`a`, need not be
+            the immediate ancestor of the focal node. If the reference sets only comprise
+            sequences from relatively distant individuals, the GNN statistic may end up
+            as a measure of comparatively distant ancestry, even for tree sequences that
+            contain many closely related individuals.
+
+        :param iterable focal: A list of :math:`n` nodes whose GNNs should be calculated.
+        :param iterable reference_sets: A list of :math:`m` lists of node IDs.
+        :return: An :math:`n`  by :math:`m` array of focal nodes by GNN proportions.
+            Every focal node corresponds to a row. The numbers in each
+            row corresponding to the GNN proportion for each of the passed-in reference
+            sets. Rows therefore sum to one.
+        :rtype: numpy.ndarray
+        """
+        # TODO add windows=None option: https://github.com/tskit-dev/tskit/issues/193
+        if num_threads <= 0:
+            return self._ll_tree_sequence.genealogical_nearest_neighbours(
+                focal, reference_sets)
+        else:
+            worker = functools.partial(
+                self._ll_tree_sequence.genealogical_nearest_neighbours,
+                reference_sets=reference_sets)
+            focal = util.safe_np_int_cast(focal, np.int32)
+            splits = np.array_split(focal, num_threads)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
+                arrays = pool.map(worker, splits)
+            return np.vstack(list(arrays))
+
     ############################################
     #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a
     # later release.
     #
     ############################################
+
+    def get_pairwise_diversity(self, samples=None):
+        # Deprecated alias for self.pairwise_diversity
+        return self.pairwise_diversity(samples)
+
+    def pairwise_diversity(self, samples=None):
+        """
+        Returns the pairwise nucleotide site diversity, the average number of sites
+        that differ between a randomly chosen pair of samples.  If `samples` is
+        specified, calculate the diversity within this set.
+
+         .. deprecated:: 0.2.0
+             please use :meth:`.diversity` instead. Since version 0.2.0 the error
+             semantics have also changed slightly. It is no longer an error
+             when there is one sample and a tskit.LibraryError is raised
+             when non-sample IDs are provided rather than a ValueError. It is
+             also no longer an error to compute pairwise diversity at sites
+             with multiple mutations.
+
+        :param iterable samples: The set of samples within which we calculate
+            the diversity. If None, calculate diversity within the entire sample.
+        :return: The pairwise nucleotide site diversity.
+        :rtype: float
+        """
+        if samples is None:
+            samples = self.samples()
+        return float(self.diversity(
+            [samples], windows=[0, self.sequence_length], span_normalise=False)[0])
 
     def get_time(self, u):
         # Deprecated. Use ts.node(u).time
