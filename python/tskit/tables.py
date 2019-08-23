@@ -1745,23 +1745,19 @@ class TableCollection(object):
         new_md, new_md_offset = keep_with_offset(
             keep_mutations, mutations.metadata, mutations.metadata_offset)
         site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
+        parent_map = np.cumsum(keep_mutations, dtype=mutations.parent.dtype) - 1
+        # parent -1 always maps to parent -1
+        parent_map = np.append(parent_map, np.array([-1], dtype=mutations.parent.dtype))
+        # Don't bother dealing with connected mutations as we are removing the whole site
         tables.mutations.set_columns(
             site=site_map[mutations.site[keep_mutations]],
             node=mutations.node[keep_mutations],
             derived_state=new_ds,
             derived_state_offset=new_ds_offset,
-            # TODO Compute the mutation parents properly here. We're being
-            # lazy right now and just asking compute_mutation_parents to do
-            # it for us, but we have to build_index to do this and also
-            # run compute_mutation_parents.
-            parent=np.zeros(np.sum(keep_mutations), dtype=np.int32) - 1,
+            parent=parent_map[mutations.parent[keep_mutations]],
             metadata=new_md,
             metadata_offset=new_md_offset)
         tables.sort()
-        # See note above on compute_mutation_parents; we don't need these
-        # two steps if we do it properly.
-        tables.build_index()
-        tables.compute_mutation_parents()
         if simplify:
             tables.simplify()
         if record_provenance:
