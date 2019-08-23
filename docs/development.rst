@@ -4,14 +4,17 @@
 Development
 ===========
 
-If you would like to add some features to ``tskit``, please read the
-following. If you think there is anything missing,
-please open an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
+If you want to try out the development version of ``tskit``, or add features or
+documentation improvements, please read the following. If you think there is anything
+missing, please open an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
 `pull request <http://github.com/tskit-dev/tskit/pulls>`_ on GitHub!
 
 **********
 Quickstart
 **********
+
+Getting tskit (dev)
+-------------------
 
 - Make a fork of the tskit repo on `GitHub <http://github.com/tskit-dev/tskit>`_
 - Clone your fork into a local directory, making sure that the **submodules
@@ -23,15 +26,29 @@ Quickstart
 
   $ git submodule update --init --recursive
 
+  (note that on Windows you may have to run this as administrator, in order to create the
+  correct symlinks)
 - Install the Python development requirements using
   ``pip install -r python/requirements/development.txt``.
 - Build the low level module by running ``make`` in the ``python`` directory.
 - Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
   all pass.
+
+Adding features
+---------------
+
 - Make your changes in a local branch, and open a pull request on GitHub when you
   are ready. Please make sure that (a) the tests pass before you open the PR; and
-  (b) your code passes PEP8 checks (see below for a git commit hook to ensure this
-  happens automatically) before opening the PR.
+  (b) your code passes PEP8 checks (see :ref:`sec_development_code_style` below
+  for a git commit hook to ensure this happens automatically) before opening the PR.
+
+Installing tskit (dev)
+----------------------
+
+- If you (optionally) want to install your local ``tskit`` version as the default
+  Python version, you should be able to do ``python3 -m pip install -e python``
+  (the ``-e`` flag tells pip to install from the local tskit ``python`` directory).
+  
 
 ****************************
 Continuous integration tests
@@ -52,5 +69,20 @@ combinations of tests on different platforms:
 3. `AppVeyor <https://www.appveyor.com/>`_ Runs Python tests on 32 and 64 bit
    Windows using conda.
 
+.. _sec_development_code_style:
+
+**********
+Code style
+**********
+
+Submitted code should conform to `PEP8 <https://www.python.org/dev/peps/pep-0008/>`_.
+An easy way to ensure this is the case is to add a ``pre-commit`` file to the
+``.git/hooks/`` directory in your local installation. We recommending adding something
+like the following line to your ``pre-commit`` file:
+
+``exec flake8 python/setup.py python/tskit python/tests --max-line-length=89``
+
+(the flake8 python package should have been installed as part of the Python development
+requirements above)
 
 .. todo:: Complete porting the documentation from msprime
