@@ -3277,8 +3277,12 @@ class TreeSequence(object):
                      span_normalise=True, strict=True):
         """
         Compute a windowed statistic from weights and a summary function.  See
-        :ref:`sec_general_stats` for details of ``windows``, ``mode``,
-        ``polarised``, ``span_normalise``, and return value. On each tree, this
+        :ref:`sec_general_stats` for details of
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        On each tree, this
         propagates the weights ``W`` up the tree, so that the "weight" of each
         node is the sum of the weights of all samples at or below the node.
         Then the summary function ``f`` is applied to the weights, giving a
@@ -3349,8 +3353,12 @@ class TreeSequence(object):
         This is a wrapper around :meth:`.general_stat` for the common case in
         which the weights are all either 1 or 0, i.e., functions of the joint
         allele frequency spectrum.  See :ref:`sec_general_stats` for details of
-        ``windows``, ``mode``, ``polarised``, ``span_normalise``, and return
-        value.  If ``sample_sets`` is a list of ``k`` sets of samples, then
+        :ref:`sample sets <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        If ``sample_sets`` is a list of ``k`` sets of samples, then
         ``f`` should be a function that takes an argument of length ``k`` and
         returns a one-dimensional array. The ``j``-th element of the argument
         to ``f`` will be the number of samples in ``sample_sets[j]`` that lie
@@ -3522,7 +3530,12 @@ class TreeSequence(object):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
         sets of nodes from ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``indexes``, ``windows``, ``mode`` and return value.
+        details of
+        :ref:`sample sets <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 1`` sample set at a time.  Note that this quantity
         can also be computed by the :meth:`divergence <.TreeSequence.divergence>` method.
 
@@ -3561,7 +3574,12 @@ class TreeSequence(object):
         """
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes from ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``indexes``, ``windows``, ``mode`` and return value.
+        details of
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
         Operates on ``k = 2`` sample sets at a time. As a special case, an index
         `(j, j)` will compute the :meth:`diversity <.TreeSequence.diversity>` of
         ``sample_set[i]``.
@@ -3640,9 +3658,12 @@ class TreeSequence(object):
         """
         Computes the mean squared covariances between each of the columns of ``W``
         (the "phenotypes") and inheritance along the tree sequence.  See
-        :ref:`sec_general_stats` for details of ``windows``, ``mode``,
-        ``span_normalise`` and return value.  Operates on all samples in the tree
-        sequence.
+        :ref:`sec_general_stats` for details of
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on all samples in the tree sequence.
 
         Concretely, if `g` is a binary vector that indicates inheritance from an allele,
         branch, or node and `w` is a column of W, normalised to have mean zero,
@@ -3694,9 +3715,12 @@ class TreeSequence(object):
         """
         Computes the mean squared correlations between each of the columns of ``W``
         (the "phenotypes") and inheritance along the tree sequence.  See
-        :ref:`sec_general_stats` for details of ``windows``, ``mode``,
-        ``span_normalise`` and return value.  Operates on all samples in the
-        tree sequence.
+        :ref:`sec_general_stats` for details of
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on all samples in the tree sequence.
 
         This is computed as squared covariance in
         :meth:`trait_covariance <.TreeSequence.trait_covarance>`,
@@ -3756,9 +3780,12 @@ class TreeSequence(object):
         linear regression :math:`w ~ g + Z`,
         where :math:`g` is inheritance in the tree sequence and the columns of :math:`Z`
         are covariates, and computes the squared coefficient of :math:`g` in this
-        regression.  See :ref:`sec_general_stats` for details of ``windows``, ``mode``,
-        ``span_normalise`` and return value.  Operates on all samples in the
-        tree sequence.
+        regression.  See :ref:`sec_general_stats` for details of
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on all samples in the tree sequence.
 
         Concretely, if `g` is a binary vector that indicates inheritance from an allele,
         branch, or node and `w` is a column of W, there are :math:`k` columns of
@@ -3824,8 +3851,12 @@ class TreeSequence(object):
         """
         Computes the density of segregating sites for each of the sets of nodes
         from ``sample_sets``, and related quantities.  See
-        :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        ``mode`` and return value.  Operates on ``k = 1`` sample set at a time.
+        :ref:`sample sets <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 1`` sample set at a time.
 
         What is computed depends on ``mode``. For a sample set ``A``, computes:
 
@@ -3864,7 +3895,13 @@ class TreeSequence(object):
         """
         Computes the allele frequency spectrum (AFS) in windows across the genome for
         with respect to the specified ``sample_sets``. See :ref:`sec_general_stats` for
-        details of ``windows``, ``mode``, ``span_normalise`` and ``polarised``,
+        details of
+        :ref:`sample sets <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        :ref:`polarised <sec_general_stats_polarisation>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
         and see :ref:`sec_tutorial_afs` for examples of how to use this method.
 
         Similar to other windowed stats, the first dimension in the returned array
@@ -3900,7 +3937,7 @@ class TreeSequence(object):
         If ``polarised`` is False (the default) the AFS will be *folded*, so that
         the counts do not depend on knowing which allele is ancestral. If folded,
         the frequency spectrum for a single sample set ``S`` has ``afs[j] = 0`` for
-        all `j > len(S) / 2`, so that alleles at frequency ``j`` and ``len(S) - j``
+        all ``j > len(S) / 2``, so that alleles at frequency ``j`` and ``len(S) - j``
         both add to the same entry. If there is more than one sample set, the
         returned array is "lower triangular" in a similar way.
 
@@ -3942,8 +3979,12 @@ class TreeSequence(object):
     def Tajimas_D(self, sample_sets=None, windows=None, mode="site"):
         """
         Computes Tajima's D of sets of nodes from ``sample_sets`` in windows.
-        See :ref:`sec_general_stats` for details of ``indexes``, ``windows``,
-        ``mode`` and return value.  Operates on ``k = 1`` sample sets at a
+        See :ref:`sec_general_stats` for details of
+        :ref:`sample sets <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 1`` sample sets at a
         time. For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
         number of pairwise differing sites in ``X`` and ``S`` is the number of
         sites segregating in ``X`` (computed with :meth:`diversity
@@ -3993,8 +4034,12 @@ class TreeSequence(object):
         """
         Computes "windowed" Fst between pairs of sets of nodes from
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value.  Operates on
-        ``k = 2`` sample sets at a time. For sample sets ``X`` and ``Y``,
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 2`` sample sets at a time. For sample sets ``X`` and ``Y``,
         if ``d(X, Y)`` is the :meth:`divergence <.TreeSequence.divergence>`
         between ``X`` and ``Y``, and ``d(X)`` is the
         :meth:`diversity <.TreeSequence.diversity>` of ``X``, then what is
@@ -4057,8 +4102,12 @@ class TreeSequence(object):
         """
         Computes the 'Y' statistic between triples of sets of nodes from
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value. Operates
-        on ``k = 3`` sample sets at a time.
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 3`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is an average across
         randomly chosen trios of samples ``(a, b, c)``, one from each sample set:
@@ -4095,8 +4144,12 @@ class TreeSequence(object):
         """
         Computes the 'Y2' statistic between pairs of sets of nodes from
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value. Operates
-        on ``k = 2`` sample sets at a time.
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 2`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average across randomly chosen trios of samples
@@ -4123,8 +4176,12 @@ class TreeSequence(object):
         """
         Computes the 'Y1' statistic within each of the sets of nodes given by
         ``sample_sets``. See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value. Operates
-        on ``k = 1`` sample set at a time.
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 1`` sample set at a time.
 
         What is computed depends on ``mode``. Each is computed exactly as
         ``Y3``, except that the average is across a randomly chosen trio of
@@ -4150,8 +4207,12 @@ class TreeSequence(object):
         """
         Computes Patterson's f4 statistic between four groups of nodes from
         ``sample_sets``.  See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value. Operates on
-        ``k = 4`` sample sets at a time.
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 4`` sample sets at a time.
 
         What is computed depends on ``mode``. Each is an average across
         randomly chosen set of four samples ``(a, b; c, d)``, one from each sample set:
@@ -4193,8 +4254,12 @@ class TreeSequence(object):
         """
         Computes Patterson's f3 statistic between three groups of nodes from
         ``sample_sets``.  See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value. Operates on
-        ``k = 3`` sample sets at a time.
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 3`` sample sets at a time.
 
         What is computed depends on ``mode``. Each works exactly as
         :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
@@ -4222,8 +4287,12 @@ class TreeSequence(object):
         """
         Computes Patterson's f3 statistic between two groups of nodes from
         ``sample_sets``.  See :ref:`sec_general_stats` for details of
-        ``indexes``, ``windows``, ``mode`` and return value. Operates on
-        ``k = 2`` sample sets at a time.
+        :ref:`sample sets and indexes <sec_general_stats_sample_sets>`,
+        :ref:`windows <sec_general_stats_windowing>`,
+        :ref:`mode <sec_general_stats_type>`,
+        :ref:`span normalise <sec_general_stats_span_normalise>`,
+        and :ref:`return value <sec_general_stats_output_format>`.
+        Operates on ``k = 2`` sample sets at a time.
 
         What is computed depends on ``mode``. Each works exactly as
         :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
