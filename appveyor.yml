@@ -1,7 +1,6 @@
 environment:
   matrix:
-    # Disabling Py37 x64. Some weird problem with h5py. See github.com/tskit-dev/msprime/issues/678
-    # - PYTHON: "C:\\Miniconda37-x64"
+    - PYTHON: "C:\\Miniconda37-x64"
     - PYTHON: "C:\\Miniconda36-x64"
 
 init:
