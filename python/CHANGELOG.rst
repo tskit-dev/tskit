@@ -1,4 +1,18 @@
 --------------------
+[0.2.2] - xxxx-xx-xx
+--------------------
+
+In development.
+
+**New features**
+
+**Bugfixes**
+
+- Allow 4G metadata columns (:user:`jeromekelleher`). See :pr:`342` and
+  :issue:`341`.
+
+
+--------------------
 [0.2.1] - 2019-08-23
 --------------------
 
