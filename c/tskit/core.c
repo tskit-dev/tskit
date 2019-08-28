@@ -306,7 +306,7 @@ tsk_strerror_internal(int err)
             ret = "Table too large; cannot allocate more than 2**31 rows.";
             break;
         case TSK_ERR_COLUMN_OVERFLOW:
-            ret = "Table column too large; cannot be more than 2**31 bytes.";
+            ret = "Table column too large; cannot be more than 2**32 bytes.";
             break;
 
         /* Limitations */

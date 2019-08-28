@@ -787,10 +787,10 @@ test_edge_table_squash_multiple_parents(void)
         "4  10  4   0\n"
         "0  4   4   0\n";
 /*
-            4       5  
+            4       5
            / \     / \
           0   1   2   3
-*/    
+*/
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 10;
@@ -2573,34 +2573,52 @@ test_column_overflow(void)
 {
     int ret;
     tsk_table_collection_t tables;
-    tsk_size_t too_big = ((tsk_size_t) INT32_MAX) + 2;
+    tsk_size_t too_big = ((tsk_size_t) UINT32_MAX);
+    double zero = 0;
+    char zeros[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* We can't trigger a column overflow with one element because the parameter
+     * value is 32 bit */
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, &zero, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
     ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
+    ret = tsk_site_table_add_row(&tables.sites, 0, zeros, 1, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_site_table_add_row(&tables.sites, 0, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
     ret = tsk_site_table_add_row(&tables.sites, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, zeros, 1, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
+    ret = tsk_provenance_table_add_row(&tables.provenances, zeros, 1, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0)
     ret = tsk_provenance_table_add_row(&tables.provenances, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
     ret = tsk_provenance_table_add_row(&tables.provenances, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
+    ret = tsk_population_table_add_row(&tables.populations, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
@@ -2614,7 +2632,7 @@ main(int argc, char **argv)
         {"test_node_table", test_node_table},
         {"test_edge_table", test_edge_table},
         {"test_edge_table_squash", test_edge_table_squash},
-        {"test_edge_table_squash_multiple_parents", 
+        {"test_edge_table_squash_multiple_parents",
             test_edge_table_squash_multiple_parents},
         {"test_edge_table_squash_empty", test_edge_table_squash_empty},
         {"test_edge_table_squash_single_edge", test_edge_table_squash_single_edge},

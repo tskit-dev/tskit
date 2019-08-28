@@ -57,14 +57,24 @@ typedef struct {
     int type;
 } write_table_col_t;
 
-/* Returns true if adding the specifiec number of rows would result in overflow.
+/* Returns true if adding the specified number of rows would result in overflow.
  * Tables can support indexes from 0 to INT32_MAX, and therefore have at most
  * INT32_MAX + 1 rows */
 static bool
-check_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
+check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
     size_t new_size = (size_t) current_size + (size_t) additional_rows;
     return new_size > ((size_t) INT32_MAX) + 1;
+}
+
+/* Returns true if adding the specified number of elements would result in overflow
+ * of an offset column.
+ */
+static bool
+check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
+{
+    size_t new_size = (size_t) current_size + (size_t) additional_elements;
+    return new_size > UINT32_MAX;
 }
 
 static int
@@ -177,7 +187,7 @@ tsk_individual_table_expand_main_columns(tsk_individual_table_t *self,
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -209,7 +219,7 @@ tsk_individual_table_expand_location(tsk_individual_table_t *self, tsk_size_t ad
     tsk_size_t increment = TSK_MAX(additional_length, self->max_location_length_increment);
     tsk_size_t new_size = self->max_location_length + increment;
 
-    if (check_overflow(self->location_length, increment)) {
+    if (check_offset_overflow(self->location_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -232,7 +242,7 @@ tsk_individual_table_expand_metadata(tsk_individual_table_t *self, tsk_size_t ad
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
-    if (check_overflow(self->metadata_length, increment)) {
+    if (check_offset_overflow(self->metadata_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -667,7 +677,7 @@ tsk_node_table_expand_main_columns(tsk_node_table_t *self, tsk_size_t additional
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -707,7 +717,7 @@ tsk_node_table_expand_metadata(tsk_node_table_t *self, tsk_size_t additional_len
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
-    if (check_overflow(self->metadata_length, increment)) {
+    if (check_offset_overflow(self->metadata_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -1085,7 +1095,7 @@ tsk_edge_table_expand_columns(tsk_edge_table_t *self, size_t additional_rows)
         (tsk_size_t) additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -1393,7 +1403,7 @@ tsk_site_table_expand_main_columns(tsk_site_table_t *self, tsk_size_t additional
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -1426,7 +1436,7 @@ tsk_site_table_expand_ancestral_state(tsk_site_table_t *self, size_t additional_
             self->max_ancestral_state_length_increment);
     tsk_size_t new_size = self->max_ancestral_state_length + increment;
 
-    if (check_overflow(self->ancestral_state_length, increment)) {
+    if (check_offset_overflow(self->ancestral_state_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -1450,7 +1460,7 @@ tsk_site_table_expand_metadata(tsk_site_table_t *self, size_t additional_length)
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
-    if (check_overflow(self->metadata_length, increment)) {
+    if (check_offset_overflow(self->metadata_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -1861,7 +1871,7 @@ tsk_mutation_table_expand_main_columns(tsk_mutation_table_t *self, size_t additi
     tsk_size_t new_size = self->max_rows + increment;
 
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -1902,7 +1912,7 @@ tsk_mutation_table_expand_derived_state(tsk_mutation_table_t *self, size_t addit
             self->max_derived_state_length_increment);
     tsk_size_t new_size = self->max_derived_state_length + increment;
 
-    if (check_overflow(self->derived_state_length, increment)) {
+    if (check_offset_overflow(self->derived_state_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -1926,7 +1936,7 @@ tsk_mutation_table_expand_metadata(tsk_mutation_table_t *self, size_t additional
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
-    if (check_overflow(self->metadata_length, increment)) {
+    if (check_offset_overflow(self->metadata_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -2359,7 +2369,7 @@ tsk_migration_table_expand(tsk_migration_table_t *self, size_t additional_rows)
             (tsk_size_t) additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -2659,7 +2669,7 @@ tsk_population_table_expand_main_columns(tsk_population_table_t *self, tsk_size_
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -2683,7 +2693,7 @@ tsk_population_table_expand_metadata(tsk_population_table_t *self, tsk_size_t ad
             self->max_metadata_length_increment);
     tsk_size_t new_size = self->max_metadata_length + increment;
 
-    if (check_overflow(self->metadata_length, increment)) {
+    if (check_offset_overflow(self->metadata_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -2999,7 +3009,7 @@ tsk_provenance_table_expand_main_columns(tsk_provenance_table_t *self, tsk_size_
     tsk_size_t increment = TSK_MAX(additional_rows, self->max_rows_increment);
     tsk_size_t new_size = self->max_rows + increment;
 
-    if (check_overflow(self->max_rows, increment)) {
+    if (check_table_overflow(self->max_rows, increment)) {
         ret = TSK_ERR_TABLE_OVERFLOW;
         goto out;
     }
@@ -3028,7 +3038,7 @@ tsk_provenance_table_expand_timestamp(tsk_provenance_table_t *self, tsk_size_t a
             self->max_timestamp_length_increment);
     tsk_size_t new_size = self->max_timestamp_length + increment;
 
-    if (check_overflow(self->timestamp_length, increment)) {
+    if (check_offset_overflow(self->timestamp_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -3051,7 +3061,7 @@ tsk_provenance_table_expand_provenance(tsk_provenance_table_t *self, tsk_size_t 
             self->max_record_length_increment);
     tsk_size_t new_size = self->max_record_length + increment;
 
-    if (check_overflow(self->record_length, increment)) {
+    if (check_offset_overflow(self->record_length, increment)) {
         ret = TSK_ERR_COLUMN_OVERFLOW;
         goto out;
     }
@@ -5735,7 +5745,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
     }
-    
+
     /* Sites */
     for (j = 0; j < self->sites.num_rows; j++) {
         position = self->sites.position[j];
@@ -6858,7 +6868,7 @@ tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output
         }
 
         /* Add squashed edge. */
-        if (edges[k - 1].parent != edges[k].parent 
+        if (edges[k - 1].parent != edges[k].parent
                 || edges[k - 1].right != edges[k].left
                 || edges[j].child != edges[k].child) {
 
@@ -6869,7 +6879,7 @@ tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output
 
             j = k;
             l++;
-        } 
+        }
     }
     edges[l].left = edges[j].left;
     edges[l].right = edges[k - 1].right;
