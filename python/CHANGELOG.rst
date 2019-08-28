@@ -6,6 +6,9 @@ In development.
 
 **New features**
 
+- Add log_time height scaling option for drawing SVG trees 
+  (:user:`marianne-aspbury`). See :pr:`324` and :issue:`303`.
+
 **Bugfixes**
 
 - Allow 4G metadata columns (:user:`jeromekelleher`). See :pr:`342` and

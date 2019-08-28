@@ -1094,10 +1094,11 @@ class Tree(object):
             edge being omitted. (Only supported in the SVG format.)
         :param str tree_height_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
-            values. If it is equal to ``"rank"``, node heights are spaced equally
-            according to their ranked times. For SVG output the default is time-scale
-            whereas for text output the default is rank-scale. Time scaling is not
-            currently supported for text output.
+            values. If this is equal to ``"log_time"``, node heights are proportional to
+            their log(time) values. If it is equal to ``"rank"``, node heights are spaced
+            equally according to their ranked times. For SVG output the default is
+            'time'-scale whereas for text output the default is 'rank'-scale.
+            Time scaling is not currently supported for text output.
         :param str,float max_tree_height: The maximum tree height value in the current
             scaling system (see ``tree_height_scale``). Can be either a string or a
             numeric value. If equal to ``"tree"``, the maximum tree height is set to be

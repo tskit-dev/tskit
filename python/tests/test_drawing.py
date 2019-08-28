@@ -1282,6 +1282,8 @@ class TestDrawSvg(TestTreeDraw):
         ts = msprime.simulate(4, random_seed=2)
         svg = ts.draw_svg(tree_height_scale="time")
         self.verify_basic_svg(svg)
+        svg = ts.draw_svg(tree_height_scale="log_time")
+        self.verify_basic_svg(svg)
         svg = ts.draw_svg(tree_height_scale="rank")
         self.verify_basic_svg(svg)
         for bad_scale in [0, "", "NOT A SCALE"]:
