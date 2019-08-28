@@ -94,7 +94,7 @@ which could not be undone.
 - Add ability to set columns directly in the Tables API (:user:`jeromekelleher`).
   See :issue:`12` and :pr:`307`.
 
-- Various documentation improvements from :user:`brianzhang`, :user:`hyanwong`,
+- Various documentation improvements from :user:`brianzhang01`, :user:`hyanwong`,
   :user:`petrelharp` and :user:`jeromekelleher`.
 
 **Deprecated**
