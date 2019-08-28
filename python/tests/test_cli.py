@@ -234,6 +234,32 @@ class TestTskitArgumentParser(unittest.TestCase):
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.human, True)
 
+    def test_fasta_default_values(self):
+        parser = cli.get_tskit_parser()
+        cmd = "fasta"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.wrap, 60)
+
+    def test_fasta_short_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "fasta"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([
+            cmd, tree_sequence, "-w", "100"])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.wrap, 100)
+
+    def test_fasta_long_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "fasta"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([
+            cmd, tree_sequence, "--wrap", "50"])
+        self.assertEqual(args.tree_sequence, tree_sequence)
+        self.assertEqual(args.wrap, 50)
+
     def test_vcf_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
@@ -438,6 +464,19 @@ class TestTskitConversionOutput(unittest.TestCase):
         # TODO Check the actual output here.
         self.assertGreater(len(output_provenances), 0)
 
+    def verify_fasta(self, output_fasta):
+        with tempfile.TemporaryFile("w+") as f:
+            self._tree_sequence.write_fasta(f)
+            f.seek(0)
+            fasta = f.read()
+        self.assertEqual(output_fasta, fasta)
+
+    def test_fasta(self):
+        cmd = "fasta"
+        stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
+        self.assertEqual(len(stderr), 0)
+        self.verify_fasta(stdout)
+
     def verify_vcf(self, output_vcf):
         with tempfile.TemporaryFile("w+") as f:
             self._tree_sequence.write_vcf(f)
@@ -506,6 +545,9 @@ class TestBadFile(unittest.TestCase):
 
     def test_info(self):
         self.verify("info")
+
+    def test_fasta(self):
+        self.verify("fasta")
 
     def test_vcf(self):
         self.verify("vcf")

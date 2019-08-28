@@ -31,6 +31,7 @@ import base64
 import warnings
 import functools
 import concurrent.futures
+import textwrap
 
 import numpy as np
 
@@ -2916,6 +2917,68 @@ class TreeSequence(object):
             sample_population = self.tables.nodes.population[samples]
             samples = samples[sample_population == population]
         return samples
+
+    def write_fasta(self, output, sequence_ids=None, wrap_width=60):
+        """
+        Writes haplotype data for samples in FASTA format to the
+        specified file-like object.
+
+        Default `sequence_ids` (i.e. the text immediately following ">") are
+        "tsk_{sample_number}" e.g. "tsk_0", "tsk_1" etc. They can be set by providing
+        a list of strings to the `sequence_ids` argument, which must equal the length
+        of the number of samples. Please ensure that these are unique and compatible with
+        fasta standards, since we do not check this.
+        Default `wrap_width` for sequences is 60 characters in accordance with fasta
+        standard outputs, but this can be specified. In order to avoid any line-wrapping
+        of sequences, set `wrap_width = 0`.
+
+        Example usage:
+
+        .. code-block:: python
+            with open("output.fasta", "w") as fasta_file:
+                ts.write_fasta(fasta_file)
+
+        This can also be achieved on the command line use the ``tskit fasta`` command,
+        e.g.:
+
+        .. code-block:: bash
+
+            $ tskit fasta example.trees > example.fasta
+
+        :param File output: The file-like object to write the fasta output.
+        :param list(str) sequence_ids: A list of string names to uniquely identify
+            each of the sequences in the fasta file. If specified, this must be a
+            list of strings of length equal to the number of samples which are output.
+            Note that we do not check the form of these strings in any way, so that it
+            is possible to output bad fasta IDs (for example, by including spaces
+            before the unique identifying part of the string).
+            The default is to output ``tsk_j`` for the jth individual.
+        :param int wrap_width: This parameter specifies the number of sequence
+            characters to include on each line in the fasta file, before wrapping
+            to the next line for each sequence. Defaults to 60 characters in
+            accordance with fasta standard outputs. To avoid any line-wrapping of
+            sequences, set `wrap_width = 0`. Otherwise, supply any positive integer.
+        """
+        # if not specified, IDs default to sample index
+        if sequence_ids is None:
+            sequence_ids = ["tsk_{}".format(j) for j in self.samples()]
+        if len(sequence_ids) != self.num_samples:
+            raise ValueError(
+                "sequence_ids must have length equal to the number of samples.")
+
+        wrap_width = int(wrap_width)
+        if wrap_width < 0:
+            raise ValueError("wrap_width must be a non-negative integer. "
+                             "You may specify `wrap_width=0` "
+                             "if you do not want any wrapping.")
+
+        for j, hap in enumerate(self.haplotypes()):
+            print(">", sequence_ids[j], sep="", file=output)
+            if wrap_width == 0:
+                print(hap, file=output)
+            else:
+                for hap_wrap in textwrap.wrap(hap, wrap_width):
+                    print(hap_wrap, file=output)
 
     def write_vcf(
             self, output, ploidy=None, contig_id="1", individuals=None,
