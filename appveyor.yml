@@ -1,10 +1,10 @@
 environment:
   matrix:
-    # Disabling Py37 x64. Some weird problem with h5py. See github.com/tskit-dev/msprime/issues/678
-    # - PYTHON: "C:\\Miniconda37-x64"
-    - PYTHON: "C:\\Miniconda36-x64"
+    - PYTHON_VERSION: "3.6"
+    - PYTHON_VERSION: "3.7"
 
 init:
+  - cmd: SET PYTHON=C:\\Miniconda37-x64
   - cmd: ECHO Using %PYTHON%
 
 install:
@@ -14,16 +14,19 @@ install:
   - cmd: git config core.symlinks true
   - cmd: git reset --hard
   - cmd: conda config --add channels conda-forge
+  - cmd: conda create --yes -n testenv python=%PYTHON_VERSION%
+  - cmd: activate testenv
   - cmd: conda install --yes --file=python\requirements\conda-minimal.txt
   - cmd: conda info -a
+  - cmd: python --version
 
 build_script:
   - cmd: cd python
   - cmd: python setup.py build_ext --inplace
-  - cmd: pip install PyVCF
-  - cmd: pip install newick
-  - cmd: pip install python_jsonschema_objects
-  - cmd: nosetests -vs
+  - cmd: python -m pip install PyVCF
+  - cmd: python -m pip install newick
+  - cmd: python -m pip install python_jsonschema_objects
+  - cmd: python -m nose
 
 after_test:
   - cmd: python setup.py bdist_wheel
