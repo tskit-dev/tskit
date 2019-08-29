@@ -973,6 +973,8 @@ out:
     return ret;
 }
 
+/* TODO make these functions more consistent in how the arguments are ordered */
+
 static inline void
 update_state(double *X, size_t state_dim, tsk_id_t dest, tsk_id_t source, int sign)
 {
@@ -986,35 +988,27 @@ update_state(double *X, size_t state_dim, tsk_id_t dest, tsk_id_t source, int si
 }
 
 static inline int
-update_running_sum(double *s, size_t result_dim, double *X, size_t state_dim,
-        general_stat_func_t *f, void *f_params, tsk_id_t u, tsk_id_t v,
-        const double *time, int sign)
+update_node_summary(tsk_id_t u,
+        size_t result_dim, double *node_summary, double *X, size_t state_dim,
+        general_stat_func_t *f, void *f_params)
 {
-    int ret = 0;
-    size_t m;
     double *X_u = GET_2D_ROW(X, state_dim, u);
-    double branch_length;
-    double *F = malloc(result_dim * sizeof(*F));
+    double *summary_u = GET_2D_ROW(node_summary, result_dim, u);
 
-    if (F == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
+    return f(state_dim, X_u, result_dim, summary_u, f_params);
+}
 
-    /* A branch length of zero means no update to s */
-    if (v != TSK_NULL) {
-        ret = f(state_dim, X_u, result_dim, F, f_params);
-        if (ret != 0) {
-            goto out;
-        }
-        branch_length = time[v] - time[u];
-        for (m = 0; m < result_dim; m++) {
-            s[m] += sign * branch_length * F[m];
-        }
+static inline void
+update_running_sum(tsk_id_t u, double sign, const double *restrict branch_length,
+       const double *summary, size_t result_dim, double *running_sum)
+{
+    const double *summary_u = GET_2D_ROW(summary, result_dim, u);
+    const double x = sign * branch_length[u];
+    size_t m;
+
+    for (m = 0; m < result_dim; m++) {
+        running_sum[m] += x * summary_u[m];
     }
-out:
-    tsk_safe_free(F);
-    return ret;
 }
 
 static int
@@ -1038,13 +1032,16 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
     const double *restrict time = self->tables->nodes.time;
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    double *restrict branch_length = calloc(num_nodes, sizeof(*branch_length));
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_left, w_right, left, right, scale;
-    double *state_u, *weight_u, *result_row;
+    double *state_u, *weight_u, *result_row, *summary_u;
     double *state = calloc(num_nodes * state_dim, sizeof(*state));
+    double *summary = calloc(num_nodes * result_dim, sizeof(*summary));
     double *running_sum = calloc(result_dim, sizeof(*running_sum));
 
-    if (parent == NULL || state == NULL || running_sum == NULL) {
+    if (parent == NULL || branch_length == NULL || state == NULL
+            || running_sum == NULL || summary == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
@@ -1056,6 +1053,11 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
         memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
+        summary_u = GET_2D_ROW(summary, result_dim, u);
+        ret = f(state_dim, state_u, result_dim, summary_u, f_params);
+        if (ret != 0) {
+            goto out;
+        }
     }
     memset(result, 0, num_windows * result_dim * sizeof(*result));
 
@@ -1071,57 +1073,45 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
             tk++;
 
             u = edge_child[h];
-            v = edge_parent[h];
-            ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                    f, f_params, u, v, time, -1);
-            if (ret != 0) {
-                goto out;
-            }
-            u = v;
+            update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
+            parent[u] = TSK_NULL;
+            branch_length[u] = 0;
+
+            u = edge_parent[h];
             while (u != TSK_NULL) {
-                v = parent[u];
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, -1);
-                if (ret != 0) {
-                    goto out;
-                }
+                update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
                 update_state(state, state_dim, u, edge_child[h], -1);
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, +1);
+                ret = update_node_summary(
+                        u, result_dim, summary, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
-                u = v;
+                update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+                u = parent[u];
             }
-            parent[edge_child[h]] = TSK_NULL;
         }
 
         while (tj < num_edges && edge_left[I[tj]] == t_left) {
             h = I[tj];
             tj++;
+
             u = edge_child[h];
             v = edge_parent[h];
             parent[u] = v;
-            ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                    f, f_params, u, v, time, +1);
-            if (ret != 0) {
-                goto out;
-            }
+            branch_length[u] = time[v] - time[u];
+            update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+
             u = v;
             while (u != TSK_NULL) {
-                v = parent[u];
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, -1);
-                if (ret != 0) {
-                    goto out;
-                }
+                update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
                 update_state(state, state_dim, u, edge_child[h], +1);
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, +1);
+                ret = update_node_summary(
+                        u, result_dim, summary, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
-                u = v;
+                update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+                u = parent[u];
             }
         }
 
@@ -1164,7 +1154,11 @@ out:
     if (parent != NULL) {
         free(parent);
     }
+    if (branch_length != NULL) {
+        free(branch_length);
+    }
     tsk_safe_free(state);
+    tsk_safe_free(summary);
     tsk_safe_free(running_sum);
     return ret;
 }
@@ -1417,18 +1411,6 @@ out:
     return ret;
 }
 
-/* TODO we probably don't need this function any more, it's not doing very much
- * and we're probably reusing the row values we're finding */
-static inline int
-update_node_summary(tsk_id_t u,
-        size_t result_dim, double *node_summary, double *X, size_t state_dim,
-        general_stat_func_t *f, void *f_params)
-{
-    double *X_u = GET_2D_ROW(X, state_dim, u);
-    double *summary_u = GET_2D_ROW(node_summary, result_dim, u);
-
-    return f(state_dim, X_u, result_dim, summary_u, f_params);
-}
 
 static inline void
 increment_row(size_t length, double multiplier, double *source, double *dest)
