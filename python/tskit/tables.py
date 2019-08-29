@@ -1630,13 +1630,9 @@ class TableCollection(object):
         encountered traversing the tree upwards from that mutation, or
         ``NULL`` if there is no such mutation.
 
-        .. note:: Setting new parents for mutations is likely to result in the
-            ``derived_state`` for some mutations being the same as the
-            ``derived_state`` of their parents, which violates the
-            :ref:`mutation table requirements <sec_mutation_requirements>` during
-            reconstruction of sample haplotypes or genotypes. To ensure validity,
-            you may therefore wish to recalculate the ``derived_state`` column of
-            the mutation table after running this method.
+        .. note:: note: This method does not check that all mutations result
+            in a change of state, as required; see :ref:`sec_mutation_requirements`.
+
         """
         self.ll_tables.compute_mutation_parents()
         # TODO add provenance
