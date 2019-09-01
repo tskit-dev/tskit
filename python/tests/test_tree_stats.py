@@ -175,42 +175,49 @@ def branch_general_stat(ts, sample_weights, summary_func, windows=None,
     state[ts.samples()] = sample_weights
     total_weight = np.sum(sample_weights, axis=0)
 
-    def area_weighted_summary(u):
-        v = parent[u]
-        branch_length = 0
-        if v != -1:
-            branch_length = time[v] - time[u]
+    time = ts.tables.nodes.time
+    parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
+    branch_length = np.zeros(ts.num_nodes)
+    # The value of summary_func(u) for every node.
+    summary = np.zeros((ts.num_nodes, result_dim))
+    # The result for the current tree *not* weighted by span.
+    running_sum = np.zeros(result_dim)
+
+    def polarised_summary(u):
         s = summary_func(state[u])
         if not polarised:
             s += summary_func(total_weight - state[u])
-        return branch_length * s
+        return s
 
-    tree_index = 0
+    for u in ts.samples():
+        summary[u] = polarised_summary(u)
+
     window_index = 0
-    time = ts.tables.nodes.time
-    parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
-    running_sum = np.zeros(result_dim)
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
         for edge in edges_out:
             u = edge.child
-            running_sum -= area_weighted_summary(u)
+            running_sum -= branch_length[u] * summary[u]
             u = edge.parent
             while u != -1:
-                running_sum -= area_weighted_summary(u)
+                running_sum -= branch_length[u] * summary[u]
                 state[u] -= state[edge.child]
-                running_sum += area_weighted_summary(u)
+                summary[u] = polarised_summary(u)
+                running_sum += branch_length[u] * summary[u]
                 u = parent[u]
             parent[edge.child] = -1
+            branch_length[edge.child] = 0
 
         for edge in edges_in:
             parent[edge.child] = edge.parent
+            branch_length[edge.child] = time[edge.parent] - time[edge.child]
             u = edge.child
-            running_sum += area_weighted_summary(u)
+            running_sum += branch_length[u] * summary[u]
             u = edge.parent
             while u != -1:
-                running_sum -= area_weighted_summary(u)
+                running_sum -= branch_length[u] * summary[u]
                 state[u] += state[edge.child]
-                running_sum += area_weighted_summary(u)
+                summary[u] = polarised_summary(u)
+                running_sum += branch_length[u] * summary[u]
                 u = parent[u]
 
         # Update the windows
@@ -220,17 +227,15 @@ def branch_general_stat(ts, sample_weights, summary_func, windows=None,
             w_right = windows[window_index + 1]
             left = max(t_left, w_left)
             right = min(t_right, w_right)
-            weight = right - left
-            assert weight > 0
-            result[window_index] += running_sum * weight
+            span = right - left
+            assert span > 0
+            result[window_index] += running_sum * span
             if w_right <= t_right:
                 window_index += 1
             else:
                 # This interval crosses a tree boundary, so we update it again in the
                 # for the next tree
                 break
-
-        tree_index += 1
 
     # print("window_index:", window_index, windows.shape)
     assert window_index == windows.shape[0] - 1
@@ -410,7 +415,6 @@ def node_general_stat(ts, sample_weights, summary_func, windows=None, polarised=
             s += summary_func(total_weight - state[u])
         return s
 
-    tree_index = 0
     window_index = 0
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
     # contains summary_func(state[u]) for each node
@@ -451,7 +455,6 @@ def node_general_stat(ts, sample_weights, summary_func, windows=None, polarised=
                 result[window_index, u] += (w_right - last_update[u]) * current_values[u]
                 last_update[u] = w_right
             window_index += 1
-        tree_index += 1
 
     assert window_index == windows.shape[0] - 1
     if span_normalise:

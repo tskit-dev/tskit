@@ -973,6 +973,8 @@ out:
     return ret;
 }
 
+/* TODO make these functions more consistent in how the arguments are ordered */
+
 static inline void
 update_state(double *X, size_t state_dim, tsk_id_t dest, tsk_id_t source, int sign)
 {
@@ -986,53 +988,27 @@ update_state(double *X, size_t state_dim, tsk_id_t dest, tsk_id_t source, int si
 }
 
 static inline int
-update_running_sum(double *s, size_t result_dim, double *X, size_t state_dim,
-        general_stat_func_t *f, void *f_params, tsk_id_t u, tsk_id_t v,
-        const double *time, double *total_W,
-        bool polarised, int sign)
+update_node_summary(tsk_id_t u,
+        size_t result_dim, double *node_summary, double *X, size_t state_dim,
+        general_stat_func_t *f, void *f_params)
 {
-    int ret = 0;
-    size_t k, m;
     double *X_u = GET_2D_ROW(X, state_dim, u);
-    double branch_length;
-    double *total_minus_Xu = malloc(state_dim * sizeof(*total_minus_Xu));
-    double *F = malloc(result_dim * sizeof(*F));
-    double *F_tmp = malloc(result_dim * sizeof(*F_tmp));
+    double *summary_u = GET_2D_ROW(node_summary, result_dim, u);
 
-    /* s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u])) */
-    if (F == NULL || F_tmp == NULL || total_minus_Xu == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
+    return f(state_dim, X_u, result_dim, summary_u, f_params);
+}
 
-    /* A branch length of zero means no update to s */
-    if (v != TSK_NULL) {
-        ret = f(state_dim, X_u, result_dim, F, f_params);
-        if (ret != 0) {
-            goto out;
-        }
-        if (! polarised) {
-            for (k = 0; k < state_dim; k++) {
-                total_minus_Xu[k] = total_W[k] - X_u[k];
-            }
-            ret = f(state_dim, total_minus_Xu, result_dim, F_tmp, f_params);
-            if (ret != 0) {
-                goto out;
-            }
-            for (m = 0; m < result_dim; m++) {
-                F[m] += F_tmp[m];
-            }
-        }
-        branch_length = time[v] - time[u];
-        for (m = 0; m < result_dim; m++) {
-            s[m] += sign * branch_length * F[m];
-        }
+static inline void
+update_running_sum(tsk_id_t u, double sign, const double *restrict branch_length,
+       const double *summary, size_t result_dim, double *running_sum)
+{
+    const double *summary_u = GET_2D_ROW(summary, result_dim, u);
+    const double x = sign * branch_length[u];
+    size_t m;
+
+    for (m = 0; m < result_dim; m++) {
+        running_sum[m] += x * summary_u[m];
     }
-out:
-    tsk_safe_free(F);
-    tsk_safe_free(F_tmp);
-    tsk_safe_free(total_minus_Xu);
-    return ret;
 }
 
 static int
@@ -1040,7 +1016,7 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
         size_t state_dim, double *sample_weights,
         size_t result_dim, general_stat_func_t *f, void *f_params,
         size_t num_windows, double *windows, double *result,
-        tsk_flags_t options)
+        tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -1056,23 +1032,20 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
     const double *restrict time = self->tables->nodes.time;
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    double *restrict branch_length = calloc(num_nodes, sizeof(*branch_length));
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_left, w_right, left, right, scale;
-    double *state_u, *weight_u, *result_row;
+    double *state_u, *weight_u, *result_row, *summary_u;
     double *state = calloc(num_nodes * state_dim, sizeof(*state));
-    double *total_weight = calloc(state_dim, sizeof(*total_weight));
+    double *summary = calloc(num_nodes * result_dim, sizeof(*summary));
     double *running_sum = calloc(result_dim, sizeof(*running_sum));
-    bool polarised = false;
 
-    if (parent == NULL || state == NULL || running_sum == NULL || total_weight == NULL) {
+    if (parent == NULL || branch_length == NULL || state == NULL
+            || running_sum == NULL || summary == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     memset(parent, 0xff, num_nodes * sizeof(*parent));
-
-    if (options & TSK_STAT_POLARISED) {
-        polarised = true;
-    }
 
     /* Set the initial conditions */
     for (j = 0; j < self->num_samples; j++) {
@@ -1080,8 +1053,10 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
         memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
-        for (k = 0; k < state_dim; k++) {
-            total_weight[k] += weight_u[k];
+        summary_u = GET_2D_ROW(summary, result_dim, u);
+        ret = f(state_dim, state_u, result_dim, summary_u, f_params);
+        if (ret != 0) {
+            goto out;
         }
     }
     memset(result, 0, num_windows * result_dim * sizeof(*result));
@@ -1098,57 +1073,45 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self,
             tk++;
 
             u = edge_child[h];
-            v = edge_parent[h];
-            ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                    f, f_params, u, v, time, total_weight, polarised, -1);
-            if (ret != 0) {
-                goto out;
-            }
-            u = v;
+            update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
+            parent[u] = TSK_NULL;
+            branch_length[u] = 0;
+
+            u = edge_parent[h];
             while (u != TSK_NULL) {
-                v = parent[u];
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, total_weight, polarised, -1);
-                if (ret != 0) {
-                    goto out;
-                }
+                update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
                 update_state(state, state_dim, u, edge_child[h], -1);
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, total_weight, polarised, +1);
+                ret = update_node_summary(
+                        u, result_dim, summary, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
-                u = v;
+                update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+                u = parent[u];
             }
-            parent[edge_child[h]] = TSK_NULL;
         }
 
         while (tj < num_edges && edge_left[I[tj]] == t_left) {
             h = I[tj];
             tj++;
+
             u = edge_child[h];
             v = edge_parent[h];
             parent[u] = v;
-            ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                    f, f_params, u, v, time, total_weight, polarised, +1);
-            if (ret != 0) {
-                goto out;
-            }
+            branch_length[u] = time[v] - time[u];
+            update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+
             u = v;
             while (u != TSK_NULL) {
-                v = parent[u];
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, total_weight, polarised, -1);
-                if (ret != 0) {
-                    goto out;
-                }
+                update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
                 update_state(state, state_dim, u, edge_child[h], +1);
-                ret = update_running_sum(running_sum, result_dim, state, state_dim,
-                        f, f_params, u, v, time, total_weight, polarised, +1);
+                ret = update_node_summary(
+                        u, result_dim, summary, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
-                u = v;
+                update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+                u = parent[u];
             }
         }
 
@@ -1191,9 +1154,12 @@ out:
     if (parent != NULL) {
         free(parent);
     }
+    if (branch_length != NULL) {
+        free(branch_length);
+    }
     tsk_safe_free(state);
+    tsk_safe_free(summary);
     tsk_safe_free(running_sum);
-    tsk_safe_free(total_weight);
     return ret;
 }
 
@@ -1445,51 +1411,6 @@ out:
     return ret;
 }
 
-static inline int
-update_node_summary(tsk_id_t u,
-        size_t result_dim, double *node_summary, double *X, size_t state_dim,
-        general_stat_func_t *f, void *f_params,
-        double *total_W, bool polarised)
-{
-    int ret = 0;
-    size_t k, m;
-    double *X_u = GET_2D_ROW(X, state_dim, u);
-    double *summary_u = GET_2D_ROW(node_summary, result_dim, u);
-    double *total_minus_Xu = malloc(state_dim * sizeof(*total_minus_Xu));
-    double *F = malloc(result_dim * sizeof(*F));
-    double *F_tmp = malloc(result_dim * sizeof(*F_tmp));
-
-    /* s += branch_length * (f(X[u]) + (not polarised) * f(total - X[u])) */
-    if (F == NULL || F_tmp == NULL || total_minus_Xu == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-
-    ret = f(state_dim, X_u, result_dim, F, f_params);
-    if (ret != 0) {
-        goto out;
-    }
-    if (! polarised) {
-        for (k = 0; k < state_dim; k++) {
-            total_minus_Xu[k] = total_W[k] - X_u[k];
-        }
-        ret = f(state_dim, total_minus_Xu, result_dim, F_tmp, f_params);
-        if (ret != 0) {
-            goto out;
-        }
-        for (m = 0; m < result_dim; m++) {
-            F[m] += F_tmp[m];
-        }
-    }
-    for (m = 0; m < result_dim; m++) {
-        summary_u[m] = F[m];
-    }
-out:
-    tsk_safe_free(F);
-    tsk_safe_free(F_tmp);
-    tsk_safe_free(total_minus_Xu);
-    return ret;
-}
 
 static inline void
 increment_row(size_t length, double multiplier, double *source, double *dest)
@@ -1506,11 +1427,11 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self,
         size_t state_dim, double *sample_weights,
         size_t result_dim, general_stat_func_t *f, void *f_params,
         size_t num_windows, double *windows, double *result,
-        tsk_flags_t options)
+        tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t u, v;
-    size_t j, k, window_index;
+    size_t j, window_index;
     size_t num_nodes = self->tables->nodes.num_rows;
     const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
@@ -1524,39 +1445,26 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self,
     tsk_id_t tj, tk, h;
     double *state_u, *weight_u;
     double *state = calloc(num_nodes * state_dim, sizeof(*state));
-    double *total_weight = calloc(state_dim, sizeof(*total_weight));
     double *node_summary = calloc(num_nodes * result_dim, sizeof(*node_summary));
     double *last_update = calloc(num_nodes, sizeof(*last_update));
     double t_left, t_right, w_right;
-    bool polarised = false;
 
-    if (parent == NULL || total_weight == NULL || state == NULL || node_summary == NULL
-            || last_update == NULL) {
+    if (parent == NULL || state == NULL || node_summary == NULL || last_update == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     memset(parent, 0xff, num_nodes * sizeof(*parent));
     memset(result, 0, num_windows * num_nodes * result_dim * sizeof(*result));
 
-    if (options & TSK_STAT_POLARISED) {
-        polarised = true;
-    }
-
     /* Set the initial conditions */
     for (j = 0; j < self->num_samples; j++) {
-        // total_weight is used in the next loop
-        weight_u = GET_2D_ROW(sample_weights, state_dim, j);
-        for (k = 0; k < state_dim; k++) {
-            total_weight[k] += weight_u[k];
-        }
         u = self->samples[j];
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
         memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
     }
     for (u = 0; u < (tsk_id_t) num_nodes; u++) {
-        ret = update_node_summary(u, result_dim, node_summary, state, state_dim,
-            f, f_params, total_weight, polarised);
+        ret = update_node_summary(u, result_dim, node_summary, state, state_dim, f, f_params);
         if (ret != 0) {
             goto out;
         }
@@ -1581,8 +1489,8 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self,
                         GET_3D_ROW(result, num_nodes, result_dim, window_index, v));
                 last_update[v] = t_left;
                 update_state(state, state_dim, v, u, -1);
-                ret = update_node_summary(v, result_dim, node_summary, state, state_dim,
-                    f, f_params, total_weight, polarised);
+                ret = update_node_summary(
+                        v, result_dim, node_summary, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
@@ -1604,8 +1512,8 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self,
                         GET_3D_ROW(result, num_nodes, result_dim, window_index, v));
                 last_update[v] = t_left;
                 update_state(state, state_dim, v, u, +1);
-                ret = update_node_summary(v, result_dim, node_summary, state, state_dim,
-                    f, f_params, total_weight, polarised);
+                ret = update_node_summary(
+                        v, result_dim, node_summary, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
@@ -1643,7 +1551,6 @@ out:
         free(parent);
     }
     tsk_safe_free(state);
-    tsk_safe_free(total_weight);
     tsk_safe_free(node_summary);
     tsk_safe_free(last_update);
     return ret;
@@ -1662,6 +1569,106 @@ span_normalise(size_t num_windows, double *windows, size_t row_size, double *arr
             row[k] /= span;
         }
     }
+}
+
+typedef struct {
+    general_stat_func_t *f;
+    void *f_params;
+    double *total_weight;
+    double *total_minus_state;
+    double *result_tmp;
+} unpolarised_summary_func_args;
+
+static int
+unpolarised_summary_func(size_t state_dim, double *state, size_t result_dim,
+        double *result, void *params)
+{
+    int ret = 0;
+    unpolarised_summary_func_args *upargs = (unpolarised_summary_func_args *) params;
+    const double *total_weight = upargs->total_weight;
+    double *total_minus_state = upargs->total_minus_state;
+    double *result_tmp = upargs->result_tmp;
+    size_t k, m;
+
+    ret = upargs->f(state_dim, state, result_dim, result, upargs->f_params);
+    if (ret != 0) {
+        goto out;
+    }
+    for (k = 0; k < state_dim; k++) {
+        total_minus_state[k] = total_weight[k] - state[k];
+    }
+    ret = upargs->f(state_dim, total_minus_state, result_dim, result_tmp, upargs->f_params);
+    if (ret != 0) {
+        goto out;
+    }
+    for (m = 0; m < result_dim; m++) {
+        result[m] += result_tmp[m];
+    }
+out:
+    return ret;
+}
+
+/* Abstracts the running of node and branch stats where the summary function
+ * is run twice when non-polarised. We replace the call to the input summary
+ * function with a call of the required form when non-polarised, simplifying
+ * the implementation and memory management for the node and branch stats.
+ */
+static int
+tsk_polarisable_func_general_stat(tsk_treeseq_t *self,
+        size_t state_dim, double *sample_weights,
+        size_t result_dim, general_stat_func_t *f, void *f_params,
+        size_t num_windows, double *windows, double *result,
+        tsk_flags_t options)
+{
+    int ret = 0;
+    bool stat_branch = !!(options & TSK_STAT_BRANCH);
+    bool polarised = options & TSK_STAT_POLARISED;
+    general_stat_func_t *wrapped_f = f;
+    void *wrapped_f_params = f_params;
+    double *weight_u;
+    unpolarised_summary_func_args upargs;
+    tsk_size_t j, k;
+
+    memset(&upargs, 0, sizeof(upargs));
+    if (! polarised) {
+        upargs.f = f;
+        upargs.f_params = f_params;
+        upargs.total_weight = calloc(state_dim, sizeof(double));
+        upargs.total_minus_state = calloc(state_dim, sizeof(double));
+        upargs.result_tmp = calloc(result_dim, sizeof(double));
+
+        if (upargs.total_weight == NULL || upargs.total_minus_state == NULL
+                || upargs.result_tmp == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+
+        /* Compute the total weight */
+        for (j = 0; j < self->num_samples; j++) {
+            weight_u = GET_2D_ROW(sample_weights, state_dim, j);
+            for (k = 0; k < state_dim; k++) {
+                upargs.total_weight[k] += weight_u[k];
+            }
+        }
+
+        wrapped_f = unpolarised_summary_func;
+        wrapped_f_params = &upargs;
+    }
+
+    if (stat_branch) {
+        ret = tsk_treeseq_branch_general_stat(self,
+                state_dim, sample_weights, result_dim, wrapped_f, wrapped_f_params,
+                num_windows, windows, result, options);
+    } else {
+        ret = tsk_treeseq_node_general_stat(self,
+                state_dim, sample_weights, result_dim, wrapped_f, wrapped_f_params,
+                num_windows, windows, result, options);
+    }
+out:
+    tsk_safe_free(upargs.total_weight);
+    tsk_safe_free(upargs.total_minus_state);
+    tsk_safe_free(upargs.result_tmp);
+    return ret;
 }
 
 int
@@ -1710,15 +1717,12 @@ tsk_treeseq_general_stat(tsk_treeseq_t *self,
         ret = tsk_treeseq_site_general_stat(self,
                 state_dim, sample_weights, result_dim, f, f_params,
                 num_windows, windows, result, options);
-    } else if (stat_branch) {
-        ret = tsk_treeseq_branch_general_stat(self,
-                state_dim, sample_weights, result_dim, f, f_params,
-                num_windows, windows, result, options);
     } else {
-        ret = tsk_treeseq_node_general_stat(self,
+        ret = tsk_polarisable_func_general_stat(self,
                 state_dim, sample_weights, result_dim, f, f_params,
                 num_windows, windows, result, options);
     }
+
 
     if (options & TSK_STAT_SPAN_NORMALISE) {
         row_size = result_dim;
