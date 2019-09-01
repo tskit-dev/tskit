@@ -204,9 +204,6 @@ tsk_strerror_internal(int err)
         case TSK_ERR_GENOME_COORDS_NONFINITE:
             ret = "Genome coordinates must be finite numbers";
             break;
-        case TSK_ERR_SPATIAL_LOCATION_NONFINITE:
-            ret = "Location values must be finite numbers";
-            break;
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:
