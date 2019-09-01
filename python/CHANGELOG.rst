@@ -1,12 +1,16 @@
 --------------------
-[0.2.2] - xxxx-xx-xx
+[0.2.2] - 2019-09-01
 --------------------
 
-In development.
+Minor bugfix release.
+
+Relaxes overly-strict input requirements on individual location data that
+caused some SLiM tree sequences to fail loading in version 0.2.1
+(see :issue:`351`).
 
 **New features**
 
-- Add log_time height scaling option for drawing SVG trees 
+- Add log_time height scaling option for drawing SVG trees
   (:user:`marianne-aspbury`). See :pr:`324` and :issue:`303`.
 
 **Bugfixes**
