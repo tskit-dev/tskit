@@ -5672,14 +5672,6 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
         goto out;
     }
 
-    /* Individuals */
-    for (j = 0; j < self->individuals.location_offset[self->individuals.num_rows]; j++) {
-        if (! isfinite(self->individuals.location[j])) {
-            ret = TSK_ERR_SPATIAL_LOCATION_NONFINITE;
-            goto out;
-        }
-    }
-
     /* Nodes */
     for (j = 0; j < self->nodes.num_rows; j++) {
         node_time = self->nodes.time[j];

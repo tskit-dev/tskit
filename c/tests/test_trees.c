@@ -1849,17 +1849,15 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
     tsk_treeseq_free(&ts);
 
+    /* NaN/ifinity values are allowed in locations they do not
+     * affect the integrity of the model. */
     tables.individuals.location[0] = NAN;
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_SPATIAL_LOCATION_NONFINITE);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_treeseq_get_individual(&ts, 0, &individual);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(! isfinite(individual.location[0]));
     tsk_treeseq_free(&ts);
-    tables.individuals.location[0] = 0.25;
-
-    tables.individuals.location[2] = INFINITY;
-    ret = tsk_treeseq_init(&ts, &tables, load_flags);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_SPATIAL_LOCATION_NONFINITE);
-    tsk_treeseq_free(&ts);
-    tables.individuals.location[0] = 0.25;
 
     tsk_table_collection_free(&tables);
 }

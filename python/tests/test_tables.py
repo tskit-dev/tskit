@@ -1396,45 +1396,68 @@ class TestTablesToTreeSequence(unittest.TestCase):
         self.assertTrue(
             all(a == b for a, b in zip(a.tables, b.tables) if a[0] != 'provenances'))
 
-    def test_bad_edge_coords(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+
+class TestNanDoubleValues(unittest.TestCase):
+    """
+    In some tables we need to guard against NaN/infinite values in the input.
+    """
+
+    def test_edge_coords(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
 
         tables = ts.dump_tables()
         bad_coords = tables.edges.left + float('inf')
-        tables.edges.set_columns(**dict(tables.edges.asdict(), left=bad_coords))
+        tables.edges.left = bad_coords
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
         tables = ts.dump_tables()
         bad_coords = tables.edges.right + float('nan')
-        tables.edges.set_columns(**dict(tables.edges.asdict(), right=bad_coords))
+        tables.edges.right = bad_coords
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
-    def test_bad_site_positions(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+    def test_migrations(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
+
+        tables = ts.dump_tables()
+        tables.populations.add_row()
+        tables.migrations.add_row(float('inf'), 1, time=0, node=0, source=0, dest=1)
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+        tables = ts.dump_tables()
+        tables.populations.add_row()
+        tables.migrations.add_row(0, float('nan'), time=0, node=0, source=0, dest=1)
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+        tables = ts.dump_tables()
+        tables.populations.add_row()
+        tables.migrations.add_row(0, 1, time=float('nan'), node=0, source=0, dest=1)
+        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+
+    def test_site_positions(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
         tables = ts.dump_tables()
         bad_pos = tables.sites.position.copy()
         bad_pos[-1] = np.inf
-        tables.sites.set_columns(**dict(tables.sites.asdict(), position=bad_pos))
+        tables.sites.position = bad_pos
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
-    def test_bad_node_times(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+    def test_node_times(self):
+        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
         tables = ts.dump_tables()
         bad_times = tables.nodes.time.copy()
         bad_times[-1] = np.inf
-        tables.nodes.set_columns(**dict(tables.nodes.asdict(), time=bad_times))
+        tables.nodes.time = bad_times
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
-    def test_bad_individual(self):
-        ts = msprime.simulate(12,  mutation_rate=1, random_seed=self.random_seed)
-        ts = tsutil.insert_random_ploidy_individuals(ts, seed=self.random_seed)
+    def test_individual(self):
+        ts = msprime.simulate(12,  mutation_rate=1, random_seed=42)
+        ts = tsutil.insert_random_ploidy_individuals(ts, seed=42)
         self.assertGreater(ts.num_individuals, 1)
         tables = ts.dump_tables()
         bad_locations = tables.individuals.location.copy()
         bad_locations[0] = np.inf
-        tables.individuals.set_columns(
-            **dict(tables.individuals.asdict(), location=bad_locations))
-        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+        tables.individuals.location = bad_locations
+        ts = tables.tree_sequence()
 
 
 class TestSimplifyTables(unittest.TestCase):
