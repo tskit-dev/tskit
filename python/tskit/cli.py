@@ -129,6 +129,11 @@ def run_provenances(args):
         tree_sequence.dump_text(provenances=sys.stdout)
 
 
+def run_fasta(args):
+    tree_sequence = load_tree_sequence(args.tree_sequence)
+    tree_sequence.write_fasta(sys.stdout, wrap_width=args.wrap)
+
+
 def run_vcf(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     tree_sequence.write_vcf(sys.stdout, ploidy=args.ploidy)
@@ -181,6 +186,15 @@ def get_tskit_parser():
         "--remove-duplicate-positions", "-d", action="store_true", default=False,
         help="Remove any duplicated mutation positions in the source file. ")
     parser.set_defaults(runner=run_upgrade)
+
+    parser = subparsers.add_parser(
+        "fasta",
+        help="Convert the tree sequence haplotypes to fasta format")
+    add_tree_sequence_argument(parser)
+    parser.add_argument(
+        "--wrap", "-w", type=int, default=60,
+        help=("line-wrapping width for printed sequences"))
+    parser.set_defaults(runner=run_fasta)
 
     parser = subparsers.add_parser(
         "vcf",
