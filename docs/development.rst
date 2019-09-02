@@ -4,9 +4,9 @@
 Development
 ===========
 
-If you would like to add some features to ``tskit``, please read the
-following. If you think there is anything missing,
-please open an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
+If you want to try out the development version of ``tskit``, or add features or
+documentation improvements, please read the following. If you think there is anything
+missing, please open an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
 `pull request <http://github.com/tskit-dev/tskit/pulls>`_ on GitHub!
 
 **********
@@ -23,15 +23,19 @@ Quickstart
 
   $ git submodule update --init --recursive
 
+  (note that on Windows you may have to run this as administrator, in order to create the
+  correct symlinks)
 - Install the Python development requirements using
   ``pip install -r python/requirements/development.txt``.
 - Build the low level module by running ``make`` in the ``python`` directory.
 - Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
   all pass.
+
 - Make your changes in a local branch, and open a pull request on GitHub when you
   are ready. Please make sure that (a) the tests pass before you open the PR; and
-  (b) your code passes PEP8 checks (see below for a git commit hook to ensure this
-  happens automatically) before opening the PR.
+  (b) your code passes PEP8 checks (see :ref:`sec_development_code_style` below
+  for a git commit hook to ensure this happens automatically) before opening the PR.
+
 
 ****************************
 Continuous integration tests
@@ -52,5 +56,35 @@ combinations of tests on different platforms:
 3. `AppVeyor <https://www.appveyor.com/>`_ Runs Python tests on 32 and 64 bit
    Windows using conda.
 
+.. _sec_development_code_style:
 
-.. todo:: Complete porting the documentation from msprime
+**********
+Code style
+**********
+
+Submitted code should conform to `PEP8 <https://www.python.org/dev/peps/pep-0008/>`_.
+An easy way to ensure this is the case is to add a ``pre-commit`` file to the
+``.git/hooks/`` directory in your local installation. We recommending adding something
+like the following line to your ``pre-commit`` file:
+
+``exec flake8 python/setup.py python/tskit python/tests --max-line-length=89``
+
+(the flake8 python package should have been installed as part of the Python development
+requirements above)
+
+.. _sec_development_installing:
+
+*******************************
+Installing development versions
+*******************************
+
+It is not possible to install a development version directly using
+the GitHub URL (i.e. ``python3 -m pip install git+git://github.com/tskit-dev/tskit``
+will not work) because the python package is not defined in the project root
+directory.
+
+The recommended approach to installing a development version is to first build
+a release tarball (within the ``python`` directory) and then use pip to install it::
+
+    $ python3 setup.py sdist
+    $ python3 -m pip install dist/tskit-[VERSION].tar.gz [pip options]

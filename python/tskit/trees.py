@@ -2935,6 +2935,7 @@ class TreeSequence(object):
         Example usage:
 
         .. code-block:: python
+
             with open("output.fasta", "w") as fasta_file:
                 ts.write_fasta(fasta_file)
 
