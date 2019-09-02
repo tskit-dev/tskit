@@ -71,9 +71,7 @@ installations. Installation is straightforward::
 Development versions
 ********************
 
-For general use, we do not recommend installing development versions. Indeed, for
-technical reasons it is not possible to install a development version directly using
-the GitHub URL (i.e. ``python3 -m pip install git+git://github.com/tskit-dev/tskit``
-will not work). Occasionally pre-release versions are made available, which can be
+For general use, we do not recommend installing development versions.
+Occasionally pre-release versions are made available, which can be
 installed using ``python3 -m pip install --pre tskit``. If you really need to install a
-bleeding-edge version, see :ref:`sec_development`.
+bleeding-edge version, see :ref:`sec_development_installing`.

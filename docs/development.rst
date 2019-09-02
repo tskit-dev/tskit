@@ -13,9 +13,6 @@ missing, please open an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
 Quickstart
 **********
 
-Getting tskit (dev)
--------------------
-
 - Make a fork of the tskit repo on `GitHub <http://github.com/tskit-dev/tskit>`_
 - Clone your fork into a local directory, making sure that the **submodules
   are correctly initialised**::
@@ -34,21 +31,11 @@ Getting tskit (dev)
 - Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
   all pass.
 
-Adding features
----------------
-
 - Make your changes in a local branch, and open a pull request on GitHub when you
   are ready. Please make sure that (a) the tests pass before you open the PR; and
   (b) your code passes PEP8 checks (see :ref:`sec_development_code_style` below
   for a git commit hook to ensure this happens automatically) before opening the PR.
 
-Installing tskit (dev)
-----------------------
-
-- If you (optionally) want to install your local ``tskit`` version as the default
-  Python version, you should be able to do ``python3 -m pip install -e python``
-  (the ``-e`` flag tells pip to install from the local tskit ``python`` directory).
-  
 
 ****************************
 Continuous integration tests
@@ -85,4 +72,19 @@ like the following line to your ``pre-commit`` file:
 (the flake8 python package should have been installed as part of the Python development
 requirements above)
 
-.. todo:: Complete porting the documentation from msprime
+.. _sec_development_installing:
+
+*******************************
+Installing development versions
+*******************************
+
+It is not possible to install a development version directly using
+the GitHub URL (i.e. ``python3 -m pip install git+git://github.com/tskit-dev/tskit``
+will not work) because the python package is not defined in the project root
+directory.
+
+The recommended approach to installing a development version is to first build
+a release tarball (within the ``python`` directory) and then use pip to install it::
+
+    $ python3 setup.py sdist
+    $ python3 -m pip install dist/tskit-[VERSION].tar.gz [pip options]
