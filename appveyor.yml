@@ -1,6 +1,6 @@
 environment:
   matrix:
-    - PYTHON_VERSION: "3.6"
+    # We only test on one Python version as builds are slow and sequential.
     - PYTHON_VERSION: "3.7"
 
 init:
