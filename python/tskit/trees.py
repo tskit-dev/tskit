@@ -2489,12 +2489,15 @@ class TreeSequence(object):
         build the trees as we move from left-to-right along the tree sequence.
         The iterator yields a sequence of 3-tuples, ``(interval, edges_out,
         edges_in)``. The ``interval`` is a pair ``(left, right)`` representing
-        the genomic interval (see :attr:`Tree.interval`). The
-        ``edges_out`` value is a tuple of the edges that were just-removed to
-        create the tree covering the interval (hence, ``edges_out`` will always
-        be empty for the first tree). The ``edges_in`` value is a tuple of
-        edges that were just inserted to contruct the tree convering the
-        current interval.
+        the genomic interval (see :attr:`Tree.interval`). The ``edges_out``
+        value is a tuple of the edges that were just-removed to create the tree
+        covering the interval (hence ``edges_out`` will always be empty for the
+        first tree). The ``edges_in`` value is a tuple of edges that were just
+        inserted to construct the tree convering the current interval. The
+        iterator terminates after the final interval in the tree sequence (i.e.
+        it does not report a final removal of all remaining edges); the number
+        of iterations is thus always equal to the number of trees in the tree
+        sequence.
 
         :return: An iterator over the (interval, edges_out, edges_in) tuples.
         :rtype: iter(tuple, tuple, tuple)
