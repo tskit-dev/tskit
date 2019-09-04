@@ -970,7 +970,7 @@ class Tree(object):
         interval returned by :attr:`.interval`.
 
         :return: The genomic distance covered by this tree.
-        :rtype: int
+        :rtype: float
         """
         left, right = self.get_interval()
         return right - left
