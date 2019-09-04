@@ -3554,10 +3554,10 @@ class TreeSequence(object):
             total_weights = np.sum(W, axis=0)
             for x in [total_weights, total_weights * 0.0]:
                 with np.errstate(invalid='ignore', divide='ignore'):
-                    fx = f(x)
+                    fx = np.array(f(x))
                 fx[np.isnan(fx)] = 0.0
                 if not np.allclose(fx, np.zeros((output_dim, ))):
-                    raise ValueError("Summary function does not return zero for both"
+                    raise ValueError("Summary function does not return zero for both "
                                      "zero weight and total weight.")
         return self.__run_windowed_stat(
             windows, self.ll_tree_sequence.general_stat,

@@ -3368,6 +3368,13 @@ class TestGeneralStatInterface(StatsTestCase):
         with self.assertRaises(ValueError):
             ts.general_stat(W, lambda x: np.array([1.0]), 1, windows="sites")
 
+    def test_nonnumpy_summary_function(self):
+        ts = self.get_tree_sequence()
+        W = np.ones((ts.num_samples, 3))
+        sigma1 = ts.general_stat(W, lambda x: [0.0], 1)
+        sigma2 = ts.general_stat(W, lambda x: np.array([0.0]), 1)
+        self.assertArrayEqual(sigma1, sigma2)
+
 
 class TestGeneralBranchStats(StatsTestCase):
     """
