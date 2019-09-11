@@ -2026,6 +2026,76 @@ class TestDeduplicateSites(unittest.TestCase):
             self.assertEqual(site.metadata, site.id * b"A")
 
 
+class TestDeleteSites(unittest.TestCase):
+    """
+    Tests for the TableCollection.remove_sites method.
+    """
+    def tc_with_4_sites(self):
+        ts = msprime.simulate(8, random_seed=3)
+        tables = ts.dump_tables()
+        tables.sites.set_columns(np.arange(0, 1, 0.25), *tskit.pack_strings(['G'] * 4))
+        tables.mutations.add_row(site=1, node=ts.first().parent(0), derived_state='C')
+        tables.mutations.add_row(site=1, node=0, derived_state='T', parent=0)
+        tables.mutations.add_row(site=2, node=1, derived_state='A')
+        return tables
+
+    def test_remove_by_bool(self):
+        tables = self.tc_with_4_sites()
+        tables.delete_sites(np.array([0, 0, 0, 0], dtype=bool))
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 4)
+        self.assertEquals(ts.num_mutations, 3)
+        tables.delete_sites(np.array([0, 1, 0, 1], dtype=bool))
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 2)
+        self.assertEquals(ts.num_mutations, 1)
+
+    def test_remove_by_index(self):
+        tables = self.tc_with_4_sites()
+        tables.delete_sites([])
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 4)
+        self.assertEquals(ts.num_mutations, 3)
+        tables.delete_sites(2)
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 3)
+        self.assertEquals(ts.num_mutations, 2)
+        tables.delete_sites([1, 2])
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 1)
+        self.assertEquals(ts.num_mutations, 0)
+
+    def test_remove_by_negative_index(self):
+        tables = self.tc_with_4_sites()
+        tables.delete_sites([-2])
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 3)
+        self.assertEquals(ts.num_mutations, 2)
+        tables.delete_sites(np.array([-2, 2]))
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 1)
+        self.assertEquals(ts.num_mutations, 0)
+
+    def test_remove_all(self):
+        tables = self.tc_with_4_sites()
+        tables.delete_sites(range(4))
+        ts = tables.tree_sequence()
+        self.assertEquals(ts.num_sites, 0)
+        self.assertEquals(ts.num_mutations, 0)
+        # should be OK to run on a siteless table collection is no sites specified
+        tables.delete_sites([])
+
+    def test_remove_bad(self):
+        tables = self.tc_with_4_sites()
+        self.assertRaises(IndexError, tables.delete_sites, 4)
+        self.assertRaises(IndexError, tables.delete_sites, -5)
+        self.assertRaises(IndexError, tables.delete_sites, np.zeros((5, ), dtype=bool))
+        self.assertRaises(IndexError, tables.delete_sites, np.zeros((3, ), dtype=bool))
+        tables.delete_sites(np.ones((4, ), dtype=bool))
+        self.assertRaises(IndexError, tables.delete_sites, 0)
+        self.assertRaises(IndexError, tables.delete_sites, np.zeros((1, ), dtype=bool))
+
+
 class TestBaseTable(unittest.TestCase):
     """
     Tests of the table superclass.

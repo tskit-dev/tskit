@@ -81,6 +81,18 @@ ProvenanceTableRow = collections.namedtuple(
     ["timestamp", "record"])
 
 
+def keep_with_offset(keep, data, offset):
+    """
+    Used when filtering _offset columns in tables
+    """
+    # We need the astype here for 32 bit machines
+    lens = np.diff(offset).astype(np.int32)
+    return (data[np.repeat(keep, lens)],
+            np.concatenate([
+                np.array([0], dtype=offset.dtype),
+                np.cumsum(lens[keep], dtype=offset.dtype)]))
+
+
 class BaseTable(object):
     """
     Superclass of high-level tables. Not intended for direct instantiation.
@@ -1647,6 +1659,60 @@ class TableCollection(object):
         self.ll_tables.deduplicate_sites()
         # TODO add provenance
 
+    def delete_sites(self, to_delete, record_provenance=True):
+        """
+        Remove the specified sites entirely from the sites and mutations tables in this
+        collection.
+
+        :param list[int] site_ids: A list of site IDs, or a numpy boolean vector of
+            length num_sites specifying the sites to remove.
+        :param bool record_provenance: If True, record details of this call to
+            ``delete_sites`` in the returned tree sequence's provenance information.
+            (Default: True).
+        """
+        if getattr(to_delete, 'dtype', None) == bool:
+            if to_delete.shape != (self.sites.num_rows, ):
+                raise IndexError("boolean index did not match indexed array length")
+            keep_sites = np.logical_not(to_delete)
+        else:
+            keep_sites = np.ones(self.sites.num_rows, dtype=bool)
+            keep_sites[util.safe_np_int_cast(to_delete, np.int32)] = 0
+        new_as, new_as_offset = keep_with_offset(
+            keep_sites, self.sites.ancestral_state,
+            self.sites.ancestral_state_offset)
+        new_md, new_md_offset = keep_with_offset(
+            keep_sites, self.sites.metadata, self.sites.metadata_offset)
+        self.sites.set_columns(
+            position=self.sites.position[keep_sites],
+            ancestral_state=new_as,
+            ancestral_state_offset=new_as_offset,
+            metadata=new_md,
+            metadata_offset=new_md_offset)
+        # We also need to adjust the mutations table, as it references into sites
+        keep_mutations = keep_sites[self.mutations.site]
+        new_ds, new_ds_offset = keep_with_offset(
+            keep_mutations, self.mutations.derived_state,
+            self.mutations.derived_state_offset)
+        new_md, new_md_offset = keep_with_offset(
+            keep_mutations, self.mutations.metadata, self.mutations.metadata_offset)
+        site_map = np.cumsum(keep_sites, dtype=self.mutations.site.dtype) - 1
+        self.mutations.set_columns(
+            site=site_map[self.mutations.site[keep_mutations]],
+            node=self.mutations.node[keep_mutations],
+            derived_state=new_ds,
+            derived_state_offset=new_ds_offset,
+            parent=self.mutations.parent[keep_mutations],
+            metadata=new_md,
+            metadata_offset=new_md_offset)
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "delete_sites",
+                "TODO": "add parameters"
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
     def delete_intervals(self, intervals, simplify=True, record_provenance=True):
         """
         Returns a copy of this set of tables for which information in the
@@ -1701,15 +1767,6 @@ class TableCollection(object):
             (Default: True).
         :rtype: tskit.TableCollection
         """
-
-        def keep_with_offset(keep, data, offset):
-            # We need the astype here for 32 bit machines
-            lens = np.diff(offset).astype(np.int32)
-            return (data[np.repeat(keep, lens)],
-                    np.concatenate([
-                        np.array([0], dtype=offset.dtype),
-                        np.cumsum(lens[keep], dtype=offset.dtype)]))
-
         intervals = util.intervals_to_np_array(intervals, 0, self.sequence_length)
         if len(self.migrations) > 0:
             raise ValueError("Migrations not supported by keep_intervals")
