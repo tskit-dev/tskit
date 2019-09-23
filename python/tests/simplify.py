@@ -198,8 +198,7 @@ class Simplifier(object):
             if last.right == left:
                 last.right = right
             else:
-                self.edge_buffer[child].append(
-                    tskit.Edge(left, right, parent, child))
+                self.edge_buffer[child].append(tskit.Edge(left, right, parent, child))
 
     def print_state(self):
         print(".................")
@@ -549,8 +548,7 @@ class AncestorMap(object):
             if last.right == left:
                 last.right = right
             else:
-                self.edge_buffer[child].append(
-                    tskit.Edge(left, right, parent, child))
+                self.edge_buffer[child].append(tskit.Edge(left, right, parent, child))
 
     def add_ancestry(self, left, right, node, current_node):
         tail = self.A_tail[current_node]

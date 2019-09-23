@@ -650,6 +650,11 @@ class TestTreeSequence(HighLevelTestCase):
         self.assertEqual(len(squashed), len(edges))
         self.assertEqual(edges, squashed)
 
+    def test_edge_ids(self):
+        for ts in get_example_tree_sequences():
+            for index, edge in enumerate(ts.edges()):
+                self.assertEqual(edge.id, index)
+
     def test_edgesets(self):
         for ts in get_example_tree_sequences():
             self.verify_edgesets(ts)
