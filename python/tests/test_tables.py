@@ -2039,17 +2039,6 @@ class TestDeleteSites(unittest.TestCase):
         tables.mutations.add_row(site=2, node=1, derived_state='A')
         return tables
 
-    def test_remove_by_bool(self):
-        tables = self.tc_with_4_sites()
-        tables.delete_sites(np.array([0, 0, 0, 0], dtype=bool))
-        ts = tables.tree_sequence()
-        self.assertEquals(ts.num_sites, 4)
-        self.assertEquals(ts.num_mutations, 3)
-        tables.delete_sites(np.array([0, 1, 0, 1], dtype=bool))
-        ts = tables.tree_sequence()
-        self.assertEquals(ts.num_sites, 2)
-        self.assertEquals(ts.num_mutations, 1)
-
     def test_remove_by_index(self):
         tables = self.tc_with_4_sites()
         tables.delete_sites([])
@@ -2065,17 +2054,6 @@ class TestDeleteSites(unittest.TestCase):
         self.assertEquals(ts.num_sites, 1)
         self.assertEquals(ts.num_mutations, 0)
 
-    def test_remove_by_negative_index(self):
-        tables = self.tc_with_4_sites()
-        tables.delete_sites([-2])
-        ts = tables.tree_sequence()
-        self.assertEquals(ts.num_sites, 3)
-        self.assertEquals(ts.num_mutations, 2)
-        tables.delete_sites(np.array([-2, 2]))
-        ts = tables.tree_sequence()
-        self.assertEquals(ts.num_sites, 1)
-        self.assertEquals(ts.num_mutations, 0)
-
     def test_remove_all(self):
         tables = self.tc_with_4_sites()
         tables.delete_sites(range(4))
@@ -2087,13 +2065,54 @@ class TestDeleteSites(unittest.TestCase):
 
     def test_remove_bad(self):
         tables = self.tc_with_4_sites()
-        self.assertRaises(IndexError, tables.delete_sites, 4)
-        self.assertRaises(IndexError, tables.delete_sites, -5)
-        self.assertRaises(IndexError, tables.delete_sites, np.zeros((5, ), dtype=bool))
-        self.assertRaises(IndexError, tables.delete_sites, np.zeros((3, ), dtype=bool))
-        tables.delete_sites(np.ones((4, ), dtype=bool))
-        self.assertRaises(IndexError, tables.delete_sites, 0)
-        self.assertRaises(IndexError, tables.delete_sites, np.zeros((1, ), dtype=bool))
+        self.assertRaises(TypeError, tables.delete_sites, ["1"])
+        self.assertRaises(ValueError, tables.delete_sites, 4)
+        self.assertRaises(ValueError, tables.delete_sites, -5)
+
+    def verify_removal(self, ts, remove_sites):
+        tables = ts.dump_tables()
+        tables.delete_sites(remove_sites)
+        tsd = tables.tree_sequence()
+        self.assertEqual(tsd.num_sites, ts.num_sites - len(remove_sites))
+        source_sites = [site for site in ts.sites() if site.id not in remove_sites]
+        self.assertEqual(len(source_sites), tsd.num_sites)
+        for s1, s2 in zip(source_sites, tsd.sites()):
+            self.assertEqual(s1.position, s2.position)
+            self.assertEqual(s1.ancestral_state, s2.ancestral_state)
+            self.assertEqual(s1.metadata, s2.metadata)
+            self.assertEqual(len(s1.mutations), len(s2.mutations))
+            for m1, m2 in zip(s1.mutations, s2.mutations):
+                self.assertEqual(m1.node, m2.node)
+                self.assertEqual(m1.derived_state, m2.derived_state)
+                self.assertEqual(m1.metadata, m2.metadata)
+        G1 = ts.genotype_matrix()
+        G2 = tsd.genotype_matrix()
+        keep = np.ones(ts.num_sites, dtype=bool)
+        keep[remove_sites] = 0
+        self.assertTrue(np.array_equal(G1[keep], G2))
+
+    def test_simple_random_metadata(self):
+        ts = msprime.simulate(10, mutation_rate=10, random_seed=2)
+        ts = tsutil.add_random_metadata(ts)
+        self.assertGreater(ts.num_mutations, 5)
+        self.verify_removal(ts, [1, 3])
+
+    def test_simple_mixed_length_states(self):
+        ts = msprime.simulate(10, random_seed=2, length=10)
+        tables = ts.dump_tables()
+        for j in range(10):
+            tables.sites.add_row(j, "X" * j)
+            tables.mutations.add_row(site=j, node=j, derived_state="X" * (j + 1))
+        ts = tables.tree_sequence()
+        self.verify_removal(ts, [9])
+
+    def test_jukes_cantor_random_metadata(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 10, 1, seed=2)
+        ts = tsutil.add_random_metadata(ts)
+        self.assertGreater(ts.num_mutations, 10)
+        self.verify_removal(ts, [])
+        self.verify_removal(ts, [0, 2, 4, 8])
 
 
 class TestBaseTable(unittest.TestCase):

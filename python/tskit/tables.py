@@ -1659,24 +1659,21 @@ class TableCollection(object):
         self.ll_tables.deduplicate_sites()
         # TODO add provenance
 
-    def delete_sites(self, to_delete, record_provenance=True):
+    def delete_sites(self, site_ids, record_provenance=True):
         """
         Remove the specified sites entirely from the sites and mutations tables in this
         collection.
 
-        :param list[int] site_ids: A list of site IDs, or a numpy boolean vector of
-            length num_sites specifying the sites to remove.
+        :param list[int] site_ids: A list of site IDs specifying the sites to remove.
         :param bool record_provenance: If True, record details of this call to
-            ``delete_sites`` in the returned tree sequence's provenance information.
+            ``delete_sites`` in the this TableCollection's provenance information.
             (Default: True).
         """
-        if getattr(to_delete, 'dtype', None) == bool:
-            if to_delete.shape != (self.sites.num_rows, ):
-                raise IndexError("boolean index did not match indexed array length")
-            keep_sites = np.logical_not(to_delete)
-        else:
-            keep_sites = np.ones(self.sites.num_rows, dtype=bool)
-            keep_sites[util.safe_np_int_cast(to_delete, np.int32)] = 0
+        keep_sites = np.ones(len(self.sites), dtype=bool)
+        site_ids = util.safe_np_int_cast(site_ids, np.int32)
+        if np.any(site_ids < 0) or np.any(site_ids >= len(self.sites)):
+            raise ValueError("Site ID out of bounds")
+        keep_sites[site_ids] = 0
         new_as, new_as_offset = keep_with_offset(
             keep_sites, self.sites.ancestral_state,
             self.sites.ancestral_state_offset)
