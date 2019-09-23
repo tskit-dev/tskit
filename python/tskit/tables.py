@@ -1692,13 +1692,19 @@ class TableCollection(object):
             self.mutations.derived_state_offset)
         new_md, new_md_offset = keep_with_offset(
             keep_mutations, self.mutations.metadata, self.mutations.metadata_offset)
+        # Site numbers will have changed
         site_map = np.cumsum(keep_sites, dtype=self.mutations.site.dtype) - 1
+        # Mutation numbers will change, so the parent references need altering
+        mutation_map = np.cumsum(keep_mutations, dtype=self.mutations.parent.dtype) - 1
+        # Map parent == -1 to -1, and check this has worked (assumes tskit.NULL == -1)
+        mutation_map = np.append(mutation_map, -1).astype(self.mutations.parent.dtype)
+        assert mutation_map[tskit.NULL] == tskit.NULL
         self.mutations.set_columns(
             site=site_map[self.mutations.site[keep_mutations]],
             node=self.mutations.node[keep_mutations],
             derived_state=new_ds,
             derived_state_offset=new_ds_offset,
-            parent=self.mutations.parent[keep_mutations],
+            parent=mutation_map[self.mutations.parent[keep_mutations]],
             metadata=new_md,
             metadata_offset=new_md_offset)
         if record_provenance:
