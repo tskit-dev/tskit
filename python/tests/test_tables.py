@@ -2063,6 +2063,28 @@ class TestDeleteSites(unittest.TestCase):
         # should be OK to run on a siteless table collection is no sites specified
         tables.delete_sites([])
 
+    def test_remove_repeated_sites(self):
+        tables = self.tc_with_4_sites()
+        t1 = tables.copy()
+        t2 = tables.copy()
+        t3 = tables.copy()
+        t1.delete_sites([0, 1], record_provenance=False)
+        t2.delete_sites([0, 0, 1], record_provenance=False)
+        t3.delete_sites([0, 0, 0, 1], record_provenance=False)
+        self.assertEquals(t1, t2)
+        self.assertEquals(t1, t3)
+
+    def test_remove_different_orders(self):
+        tables = self.tc_with_4_sites()
+        t1 = tables.copy()
+        t2 = tables.copy()
+        t3 = tables.copy()
+        t1.delete_sites([0, 1, 3], record_provenance=False)
+        t2.delete_sites([0, 3, 1], record_provenance=False)
+        t3.delete_sites([3, 0, 1], record_provenance=False)
+        self.assertEquals(t1, t2)
+        self.assertEquals(t1, t3)
+
     def test_remove_bad(self):
         tables = self.tc_with_4_sites()
         self.assertRaises(TypeError, tables.delete_sites, ["1"])
@@ -2072,6 +2094,12 @@ class TestDeleteSites(unittest.TestCase):
     def verify_removal(self, ts, remove_sites):
         tables = ts.dump_tables()
         tables.delete_sites(remove_sites)
+
+        # Make sure we've computed the mutation parents properly.
+        mutation_parent = tables.mutations.parent
+        tables.compute_mutation_parents()
+        self.assertTrue(np.array_equal(mutation_parent, tables.mutations.parent))
+
         tsd = tables.tree_sequence()
         self.assertEqual(tsd.num_sites, ts.num_sites - len(remove_sites))
         source_sites = [site for site in ts.sites() if site.id not in remove_sites]
@@ -2085,6 +2113,8 @@ class TestDeleteSites(unittest.TestCase):
                 self.assertEqual(m1.node, m2.node)
                 self.assertEqual(m1.derived_state, m2.derived_state)
                 self.assertEqual(m1.metadata, m2.metadata)
+
+        # Check we get the same genotype_matrix
         G1 = ts.genotype_matrix()
         G2 = tsd.genotype_matrix()
         keep = np.ones(ts.num_sites, dtype=bool)
@@ -2113,6 +2143,22 @@ class TestDeleteSites(unittest.TestCase):
         self.assertGreater(ts.num_mutations, 10)
         self.verify_removal(ts, [])
         self.verify_removal(ts, [0, 2, 4, 8])
+        self.verify_removal(ts, range(5))
+
+    def test_jukes_cantor_many_mutations(self):
+        ts = msprime.simulate(2, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 10, mu=10, seed=2)
+        self.assertGreater(ts.num_mutations, 100)
+        self.verify_removal(ts, [1, 3, 5, 7])
+        self.verify_removal(ts, [1])
+        self.verify_removal(ts, [9])
+
+    def test_jukes_cantor_one_site(self):
+        ts = msprime.simulate(5, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 1, mu=10, seed=2)
+        self.assertGreater(ts.num_mutations, 10)
+        self.verify_removal(ts, [])
+        self.verify_removal(ts, [0])
 
 
 class TestBaseTable(unittest.TestCase):

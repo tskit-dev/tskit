@@ -1662,7 +1662,10 @@ class TableCollection(object):
     def delete_sites(self, site_ids, record_provenance=True):
         """
         Remove the specified sites entirely from the sites and mutations tables in this
-        collection.
+        collection. The site IDs do not need to be in any particular order, and
+        specifying the same ID multiple times does not have any effect (i.e., calling
+        ``tables.delete_sites([0, 1, 1])`` has the same effect as calling
+        ``tables.delete_sites([0, 1])``.
 
         :param list[int] site_ids: A list of site IDs specifying the sites to remove.
         :param bool record_provenance: If True, record details of this call to
