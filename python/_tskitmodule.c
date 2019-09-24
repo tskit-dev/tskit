@@ -8574,8 +8574,8 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
         record = records_out;
         j = 0;
         while (record != NULL) {
-            value = Py_BuildValue("ddii", record->edge.left, record->edge.right,
-                    record->edge.parent, record->edge.child);
+            value = Py_BuildValue("ddiii", record->edge.left, record->edge.right,
+                record->edge.parent, record->edge.child, record->edge.id);
             if (value == NULL) {
                 goto out;
             }
@@ -8597,8 +8597,8 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
         record = records_in;
         j = 0;
         while (record != NULL) {
-            value = Py_BuildValue("ddii", record->edge.left, record->edge.right,
-                    record->edge.parent, record->edge.child);
+            value = Py_BuildValue("ddiii", record->edge.left, record->edge.right,
+                record->edge.parent, record->edge.child, record->edge.id);
             if (value == NULL) {
                 goto out;
             }

@@ -4368,6 +4368,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             assert(next_edge_list_node < self->num_edges);
             w = &self->edge_list_nodes[next_edge_list_node];
             next_edge_list_node++;
+            w->edge.id = k;
             w->edge.left = edges->left[k];
             w->edge.right = edges->right[k];
             w->edge.parent = edges->parent[k];
@@ -4390,6 +4391,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             assert(next_edge_list_node < self->num_edges);
             w = &self->edge_list_nodes[next_edge_list_node];
             next_edge_list_node++;
+            w->edge.id = k;
             w->edge.left = edges->left[k];
             w->edge.right = edges->right[k];
             w->edge.parent = edges->parent[k];
