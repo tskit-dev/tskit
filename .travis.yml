@@ -38,6 +38,9 @@ install:
     fi
   - conda install --yes --file=python/requirements/conda-minimal.txt
   - conda install -c bioconda --yes pysam
+  # codecov requires a more recent version of certifi, but we can't uninstall the old one
+  # see https://github.com/tskit-dev/tskit/issues/366
+  - pip install --ignore-installed certifi
   - pip install -r python/requirements/development.txt
   - pip install -e python
 
