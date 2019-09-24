@@ -106,7 +106,7 @@ def draw_tree(
         return str(text_tree)
 
 
-class SvgTreeSequence(object):
+class SvgTreeSequence():
     """
     Draw a TreeSequence in SVG.
     """
@@ -178,7 +178,7 @@ class SvgTreeSequence(object):
                 font_size=14, text_anchor="middle", font_weight="bold"))
 
 
-class SvgTree(object):
+class SvgTree():
     """
     An SVG representation of a single tree.
 
@@ -403,7 +403,7 @@ class SvgTree(object):
                 y -= delta
 
 
-class TextTreeSequence(object):
+class TextTreeSequence():
     """
     Draw a tree sequence as horizontal line of trees.
     """
@@ -565,7 +565,7 @@ def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
     return depth, current_depth
 
 
-class TextTree(object):
+class TextTree():
     """
     Draws a reprentation of a tree using unicode drawing characters written
     to a 2D array.

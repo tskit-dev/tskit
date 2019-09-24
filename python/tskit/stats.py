@@ -31,7 +31,7 @@ import numpy as np
 import _tskit
 
 
-class LdCalculator(object):
+class LdCalculator():
     """
     Class for calculating `linkage disequilibrium
     <https://en.wikipedia.org/wiki/Linkage_disequilibrium>`_ coefficients

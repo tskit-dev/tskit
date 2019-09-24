@@ -44,7 +44,7 @@ def legacy_position_transform(positions):
     return transformed
 
 
-class VcfWriter(object):
+class VcfWriter():
     """
     Writes a VCF representation of the genotypes tree sequence to a
     file-like object.

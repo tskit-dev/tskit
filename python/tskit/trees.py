@@ -55,7 +55,7 @@ CoalescenceRecord = collections.namedtuple(
 
 # TODO this interface is rubbish. Should have much better printing options.
 # TODO we should be use __slots__ here probably.
-class SimpleContainer(object):
+class SimpleContainer():
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
@@ -414,7 +414,7 @@ def add_deprecated_mutation_attrs(site, mutation):
     return mutation
 
 
-class Tree(object):
+class Tree():
     """
     A single tree in a :class:`.TreeSequence`. Please see the
     :ref:`sec_tutorial_moving_along_a_tree_sequence` section for information
@@ -1956,7 +1956,7 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
     return tc.tree_sequence()
 
 
-class TreeIterator(object):
+class TreeIterator():
     """
     Simple class providing forward and backward iteration over a tree sequence.
     """
@@ -1982,7 +1982,7 @@ class TreeIterator(object):
         return self.tree
 
 
-class TreeSequence(object):
+class TreeSequence():
     """
     A single tree sequence, as defined by the :ref:`data model <sec_data_model>`.
     A TreeSequence instance can be created from a set of

@@ -81,7 +81,7 @@ ProvenanceTableRow = collections.namedtuple(
     ["timestamp", "record"])
 
 
-class BaseTable(object):
+class BaseTable():
     """
     Superclass of high-level tables. Not intended for direct instantiation.
     """
@@ -134,7 +134,7 @@ class BaseTable(object):
             d[name] = value
             self.set_columns(**d)
         else:
-            object.__setattr__(self, name, value)
+            super().__setattr__(name, value)
 
     def __getitem__(self, index):
         if index < 0:
@@ -194,7 +194,7 @@ class BaseTable(object):
         raise NotImplementedError()
 
 
-class MetadataMixin(object):
+class MetadataMixin():
     """
     Mixin class for tables that have a metadata column.
     """
@@ -1239,7 +1239,7 @@ class ProvenanceTable(BaseTable):
         self.set_columns(**d)
 
 
-class TableCollection(object):
+class TableCollection():
     """
     A collection of mutable tables defining a tree sequence. See the
     :ref:`sec_data_model` section for definition on the various tables
