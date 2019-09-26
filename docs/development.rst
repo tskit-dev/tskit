@@ -78,13 +78,8 @@ requirements above)
 Installing development versions
 *******************************
 
-It is not possible to install a development version directly using
-the GitHub URL (i.e. ``python3 -m pip install git+git://github.com/tskit-dev/tskit``
-will not work) because the python package is not defined in the project root
-directory.
+Because the python package is not defined in the project root directory, using pip to 
+install the bleeding-edge package directly from the tskit github repository requires you
+to specify ``subdirectory=python``:
 
-The recommended approach to installing a development version is to first build
-a release tarball (within the ``python`` directory) and then use pip to install it::
-
-    $ python3 setup.py sdist
-    $ python3 -m pip install dist/tskit-[VERSION].tar.gz [pip options]
+``python3 -m pip install git+https://github.com/tskit-dev/tskit.git#subdirectory=python``
