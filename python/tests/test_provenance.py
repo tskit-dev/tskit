@@ -209,3 +209,20 @@ class TestGetSchema(unittest.TestCase):
         s = provenance.get_schema()
         self.assertEqual(s["schema"], "http://json-schema.org/draft-07/schema#")
         self.assertEqual(s["version"], "1.0.0")
+
+
+class TestTreeSeqEditMethods(unittest.TestCase):
+    """
+    Ensure that tree sequence 'edit' methods correctly record themselves
+    """
+    def test_keep_delete_different(self):
+        ts = msprime.simulate(5, random_seed=1)
+        ts_keep = ts.keep_intervals([[0.25, 0.5]])
+        ts_del = ts.delete_intervals([[0, 0.25], [0.5, 1.0]])
+        self.assertEqual(ts_keep.num_provenances, ts_del.num_provenances)
+        for i, (p1, p2) in enumerate(zip(ts_keep.provenances(), ts_del.provenances())):
+            if i == ts_keep.num_provenances - 1:
+                # last one should be different
+                self.assertNotEqual(p1.record, p2.record)
+            else:
+                self.assertEqual(p1.record, p2.record)
