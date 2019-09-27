@@ -4579,6 +4579,129 @@ class TestSearchSorted(unittest.TestCase):
             self.assertEqual(search_sorted([1], v), np.searchsorted([1], v))
 
 
+class TestDeleteSites(unittest.TestCase):
+    """
+    Tests for the TreeSequence.delete_sites method
+    """
+    def ts_with_4_sites(self):
+        ts = msprime.simulate(8, random_seed=3)
+        tables = ts.dump_tables()
+        tables.sites.set_columns(np.arange(0, 1, 0.25), *tskit.pack_strings(['G'] * 4))
+        tables.mutations.add_row(site=1, node=ts.first().parent(0), derived_state='C')
+        tables.mutations.add_row(site=1, node=0, derived_state='T', parent=0)
+        tables.mutations.add_row(site=2, node=1, derived_state='A')
+        return tables.tree_sequence()
+
+    def test_remove_by_index(self):
+        ts = self.ts_with_4_sites().delete_sites([])
+        self.assertEquals(ts.num_sites, 4)
+        self.assertEquals(ts.num_mutations, 3)
+        ts = ts.delete_sites(2)
+        self.assertEquals(ts.num_sites, 3)
+        self.assertEquals(ts.num_mutations, 2)
+        ts = ts.delete_sites([1, 2])
+        self.assertEquals(ts.num_sites, 1)
+        self.assertEquals(ts.num_mutations, 0)
+
+    def test_remove_all(self):
+        ts = self.ts_with_4_sites().delete_sites(range(4))
+        self.assertEquals(ts.num_sites, 0)
+        self.assertEquals(ts.num_mutations, 0)
+        # should be OK to run on a siteless tree seq as no sites specified
+        ts.delete_sites([])
+
+    def test_remove_repeated_sites(self):
+        ts = self.ts_with_4_sites()
+        t1 = ts.delete_sites([0, 1], record_provenance=False)
+        t2 = ts.delete_sites([0, 0, 1], record_provenance=False)
+        t3 = ts.delete_sites([0, 0, 0, 1], record_provenance=False)
+        self.assertEquals(t1.tables, t2.tables)
+        self.assertEquals(t1.tables, t3.tables)
+
+    def test_remove_different_orders(self):
+        ts = self.ts_with_4_sites()
+        t1 = ts.delete_sites([0, 1, 3], record_provenance=False)
+        t2 = ts.delete_sites([0, 3, 1], record_provenance=False)
+        t3 = ts.delete_sites([3, 0, 1], record_provenance=False)
+        self.assertEquals(t1.tables, t2.tables)
+        self.assertEquals(t1.tables, t3.tables)
+
+    def test_remove_bad(self):
+        ts = self.ts_with_4_sites()
+        self.assertRaises(TypeError, ts.delete_sites, ["1"])
+        self.assertRaises(ValueError, ts.delete_sites, 4)
+        self.assertRaises(ValueError, ts.delete_sites, -5)
+
+    def verify_removal(self, ts, remove_sites):
+        tables = ts.dump_tables()
+        tables.delete_sites(remove_sites)
+
+        # Make sure we've computed the mutation parents properly.
+        mutation_parent = tables.mutations.parent
+        tables.compute_mutation_parents()
+        self.assertTrue(np.array_equal(mutation_parent, tables.mutations.parent))
+
+        tsd = tables.tree_sequence()
+        self.assertEqual(tsd.num_sites, ts.num_sites - len(remove_sites))
+        source_sites = [site for site in ts.sites() if site.id not in remove_sites]
+        self.assertEqual(len(source_sites), tsd.num_sites)
+        for s1, s2 in zip(source_sites, tsd.sites()):
+            self.assertEqual(s1.position, s2.position)
+            self.assertEqual(s1.ancestral_state, s2.ancestral_state)
+            self.assertEqual(s1.metadata, s2.metadata)
+            self.assertEqual(len(s1.mutations), len(s2.mutations))
+            for m1, m2 in zip(s1.mutations, s2.mutations):
+                self.assertEqual(m1.node, m2.node)
+                self.assertEqual(m1.derived_state, m2.derived_state)
+                self.assertEqual(m1.metadata, m2.metadata)
+
+        # Check we get the same genotype_matrix
+        G1 = ts.genotype_matrix()
+        G2 = tsd.genotype_matrix()
+        keep = np.ones(ts.num_sites, dtype=bool)
+        keep[remove_sites] = 0
+        self.assertTrue(np.array_equal(G1[keep], G2))
+
+    def test_simple_random_metadata(self):
+        ts = msprime.simulate(10, mutation_rate=10, random_seed=2)
+        ts = tsutil.add_random_metadata(ts)
+        self.assertGreater(ts.num_mutations, 5)
+        self.verify_removal(ts, [1, 3])
+
+    def test_simple_mixed_length_states(self):
+        ts = msprime.simulate(10, random_seed=2, length=10)
+        tables = ts.dump_tables()
+        for j in range(10):
+            tables.sites.add_row(j, "X" * j)
+            tables.mutations.add_row(site=j, node=j, derived_state="X" * (j + 1))
+        ts = tables.tree_sequence()
+        self.verify_removal(ts, [9])
+
+    def test_jukes_cantor_random_metadata(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 10, 1, seed=2)
+        ts = tsutil.add_random_metadata(ts)
+        self.assertGreater(ts.num_mutations, 10)
+        self.verify_removal(ts, [])
+        self.verify_removal(ts, [0, 2, 4, 8])
+        self.verify_removal(ts, range(5))
+
+    def test_jukes_cantor_many_mutations(self):
+        ts = msprime.simulate(2, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 10, mu=10, seed=2)
+        self.assertGreater(ts.num_mutations, 100)
+        self.verify_removal(ts, [1, 3, 5, 7])
+        self.verify_removal(ts, [1])
+        self.verify_removal(ts, [9])
+
+    def test_jukes_cantor_one_site(self):
+        ts = msprime.simulate(5, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, 1, mu=10, seed=2)
+        self.assertGreater(ts.num_mutations, 10)
+        self.verify_removal(ts, [])
+        self.verify_removal(ts, [0])
+
+
 class TestKeepSingleInterval(unittest.TestCase):
     """
     Tests for cutting up tree sequences along the genome.
@@ -4840,8 +4963,6 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
         t_keep.keep_intervals([[0.25, 0.5]], record_provenance=False)
         t_delete = ts.dump_tables()
         t_delete.delete_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
-        t_keep.provenances.clear()
-        t_delete.provenances.clear()
         self.assertEqual(t_keep, t_delete)
 
     def test_tables_single_tree_delete_middle(self):
@@ -4850,8 +4971,6 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
         t_keep.delete_intervals([[0.25, 0.5]], record_provenance=False)
         t_delete = ts.dump_tables()
         t_delete.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
-        t_keep.provenances.clear()
-        t_delete.provenances.clear()
         self.assertEqual(t_keep, t_delete)
 
     def test_ts_single_tree_keep_middle(self):
@@ -4864,5 +4983,4 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
         ts = msprime.simulate(10, random_seed=2)
         ts_keep = ts.delete_intervals([[0.25, 0.5]], record_provenance=False)
         ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
-        #  One provenance should have "delete_intervals", the other "keep_intervals")
         self.assertTrue(ts_equal(ts_keep, ts_delete))
