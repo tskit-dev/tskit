@@ -1808,6 +1808,88 @@ class TableCollection(object):
             self.provenances.add_row(record=json.dumps(
                 provenance.get_provenance_dict(parameters)))
 
+    def ltrim(self, record_provenance=True):
+        """
+        Reset the coordinate system used in these tables, changing the left and right
+        genomic positions in the edge table such that the leftmost edge now starts at
+        position 0. Positions in the sites table are also adjusted accordingly.
+        Additionally, sites and their associated mutations to the left of the new zero
+        point are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            ``ltrim`` in the returned tree sequence's provenance information.
+            (Default: True).
+        """
+        leftmost = np.min(self.edges.left)
+        self.delete_sites(
+            np.where(self.sites.position < leftmost), record_provenance=False)
+        self.edges.set_columns(
+            left=self.edges.left - leftmost, right=self.edges.right - leftmost,
+            parent=self.edges.parent, child=self.edges.child)
+        self.sites.set_columns(
+            position=self.sites.position - leftmost,
+            ancestral_state=self.sites.ancestral_state,
+            ancestral_state_offset=self.sites.ancestral_state_offset,
+            metadata=self.sites.metadata,
+            metadata_offset=self.sites.metadata_offset)
+        self.sequence_length = self.sequence_length - leftmost
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "ltrim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def rtrim(self, record_provenance=True):
+        """
+        Reset the ``sequence_length`` property so that the sequence ends at the end of
+        the last edge (i.e. the sequence length is set to the maximum value of
+        ``edges.right``). Additionally, sites and their associated mutations at positions
+        greater than the new ``sequence_length`` are thrown away.
+
+        :param bool record_provenance: If True, record details of this call to
+            ``rtrim`` in the returned tree sequence's provenance information.
+            (Default: True).
+        """
+        rightmost = np.max(self.edges.right)
+        self.delete_sites(
+            np.where(self.sites.position >= rightmost), record_provenance=False)
+        self.sequence_length = rightmost
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "rtrim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def trim(self, record_provenance=True):
+        """
+        Trim away any empty regions (i.e. not covered by any edge) on the right and left
+        of the tree sequence encoded by these tables. This may reset both the
+        coordinate system and the ``sequence_length`` property. It is exactly equivalent
+        to :meth:`.rtrim` followed by :meth:`.ltrim` (see those methods for further
+        documentation. Sites and their associated mutations in the empty regions are
+        thrown away.
+        """
+        self.rtrim(record_provenance=False)
+        self.ltrim(record_provenance=False)
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "trim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def slice(self, start, stop):
+        """
+        Convenience function for keep_intervals([start, stop]) followed by trim()
+        """
+        self.keep_intervals([start, stop])
+        self.trim()
+
     def has_index(self):
         """
         Returns True if this TableCollection is indexed.

@@ -4871,3 +4871,62 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
         ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         #  One provenance should have "delete_intervals", the other "keep_intervals")
         self.assertTrue(ts_equal(ts_keep, ts_delete))
+
+
+class TestTrim(unittest.TestCase):
+    """
+    Test the trimming functionality
+    """
+    def test_rtrim_simple(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        tables = ts.dump_tables()
+        tables.keep_intervals([[0.25, 0.5]])
+        tables.rtrim()
+        self.assertTrue(np.all(tables.edges.right <= tables.sequence_length))
+        new_ts = tables.tree_sequence()
+        self.assertAlmostEqual(new_ts.sequence_length, 0.5)
+
+    def test_rtrim_no_effect(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        tables = ts.dump_tables()
+        tables.delete_intervals([[0.25, 0.5]])
+        trimmed_tables = tables.copy()
+        trimmed_tables.rtrim(record_provenance=False)
+        self.assertTrue(tables_equal(tables, trimmed_tables))
+
+    def test_ltrim_simple(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        tables = ts.dump_tables()
+        tables.keep_intervals([[0.25, 0.5]])
+        self.assertNotEqual(np.min(tables.edges.left), 0)
+        tables.ltrim()
+        self.assertEqual(np.min(tables.edges.left), 0)
+        new_ts = tables.tree_sequence()
+        self.assertAlmostEqual(new_ts.sequence_length, 0.75)
+
+    def test_ltrim_no_effect(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        tables = ts.dump_tables()
+        tables.delete_intervals([[0.25, 0.5]])
+        trimmed_tables = tables.copy()
+        trimmed_tables.ltrim(record_provenance=False)
+        self.assertTrue(tables_equal(tables, trimmed_tables))
+
+    def test_trim_simple(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        tables = ts.dump_tables()
+        tables.keep_intervals([[0.25, 0.5]])
+        self.assertNotEqual(np.min(tables.edges.left), 0)
+        tables.trim()
+        self.assertEqual(np.min(tables.edges.left), 0)
+        self.assertTrue(np.all(tables.edges.right <= tables.sequence_length))
+        new_ts = tables.tree_sequence()
+        self.assertAlmostEqual(new_ts.sequence_length, 0.25)
+
+    def test_trim_no_effect(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        tables = ts.dump_tables()
+        tables.delete_intervals([[0.25, 0.5]])
+        trimmed_tables = tables.copy()
+        trimmed_tables.ltrim(record_provenance=False)
+        self.assertTrue(tables_equal(tables, trimmed_tables))
