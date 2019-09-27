@@ -28,6 +28,7 @@ import unittest
 import itertools
 import random
 import json
+import sys
 
 import numpy as np
 import msprime
@@ -4984,3 +4985,242 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
         ts_keep = ts.delete_intervals([[0.25, 0.5]], record_provenance=False)
         ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         self.assertTrue(ts_equal(ts_keep, ts_delete))
+
+
+class TestTrim(unittest.TestCase):
+    """
+    Test the trimming functionality
+    """
+    def add_mutations(self, ts, position, ancestral_state, derived_states, nodes):
+        """
+        Create a site at the specified position and assign mutations to the specified
+        nodes (could be sequential mutations)
+        """
+        tables = ts.dump_tables()
+        site = tables.sites.add_row(position, ancestral_state)
+        for state, node in zip(derived_states, nodes):
+            tables.mutations.add_row(site, node, state)
+        tables.sort()
+        tables.build_index()
+        tables.compute_mutation_parents()
+        return tables.tree_sequence()
+
+    def verify_sites(self, source_tree, trimmed_tree, position_offset):
+        source_sites = list(source_tree.sites())
+        trimmed_sites = list(trimmed_tree.sites())
+        self.assertEqual(len(source_sites), len(trimmed_sites))
+        for source_site, trimmed_site in zip(source_sites, trimmed_sites):
+            self.assertAlmostEqual(
+                source_site.position, position_offset + trimmed_site.position)
+            self.assertEqual(
+                source_site.ancestral_state, trimmed_site.ancestral_state)
+            self.assertEqual(source_site.metadata, trimmed_site.metadata)
+            self.assertEqual(
+                len(source_site.mutations), len(trimmed_site.mutations))
+            for source_mut, trimmed_mut in zip(
+                    source_site.mutations, trimmed_site.mutations):
+                self.assertEqual(source_mut.node, trimmed_mut.node)
+                self.assertEqual(
+                    source_mut.derived_state, trimmed_mut.derived_state)
+                self.assertEqual(
+                    source_mut.metadata, trimmed_mut.metadata)
+                # mutation.parent id may have changed after deleting redundant mutations
+                if source_mut.parent == trimmed_mut.parent == tskit.NULL:
+                    pass
+                else:
+                    self.assertEqual(
+                        source_tree.tree_sequence.mutation(source_mut.parent).node,
+                        trimmed_tree.tree_sequence.mutation(trimmed_mut.parent).node)
+
+    def verify_ltrim(self, source_ts, trimmed_ts):
+        deleted_span = source_ts.first().span
+        self.assertAlmostEqual(
+            source_ts.sequence_length, trimmed_ts.sequence_length + deleted_span)
+        self.assertEqual(source_ts.num_trees, trimmed_ts.num_trees + 1)
+        for j in range(trimmed_ts.num_trees):
+            source_tree = source_ts.at_index(j + 1)
+            trimmed_tree = trimmed_ts.at_index(j)
+            self.assertEqual(source_tree.parent_dict, trimmed_tree.parent_dict)
+            self.assertAlmostEqual(source_tree.span, trimmed_tree.span)
+            self.assertAlmostEqual(
+                source_tree.interval[0], trimmed_tree.interval[0] + deleted_span)
+            self.verify_sites(source_tree, trimmed_tree, deleted_span)
+
+    def verify_rtrim(self, source_ts, trimmed_ts):
+        deleted_span = source_ts.last().span
+        self.assertAlmostEqual(
+            source_ts.sequence_length, trimmed_ts.sequence_length + deleted_span)
+        self.assertEqual(source_ts.num_trees, trimmed_ts.num_trees + 1)
+        for j in range(trimmed_ts.num_trees):
+            source_tree = source_ts.at_index(j)
+            trimmed_tree = trimmed_ts.at_index(j)
+            self.assertEqual(source_tree.parent_dict, trimmed_tree.parent_dict)
+            self.assertEqual(source_tree.interval, trimmed_tree.interval)
+            self.verify_sites(source_tree, trimmed_tree, 0)
+
+    def clear_left_mutate(self, ts, left, num_sites):
+        """
+        Clear the edges from a tree sequence left of the specified coordinate
+        and add in num_sites regularly spaced sites into the cleared region.
+        """
+        new_ts = ts.delete_intervals([[0.0, left]])
+        for j, x in enumerate(np.linspace(0, left, num_sites, endpoint=False)):
+            new_ts = self.add_mutations(new_ts, x, 'A' * j, ['T'] * j, range(j+1))
+        return new_ts
+
+    def clear_right_mutate(self, ts, right, num_sites):
+        """
+        Clear the edges from a tree sequence right of the specified coordinate
+        and add in num_sites regularly spaced sites into the cleared region.
+        """
+        new_ts = ts.delete_intervals([[right, ts.sequence_length]])
+        for j, x in enumerate(
+                np.linspace(right, ts.sequence_length, num_sites, endpoint=False)):
+            new_ts = self.add_mutations(new_ts, x, 'A' * j, ['T'] * j, range(j+1))
+        return new_ts
+
+    def clear_left_right_234(self, left, right):
+        """
+        Clear edges to left and right and add 2 mutations at the same site into the left
+        cleared region, 3 at the same site into the untouched region, and 4 into the
+        right cleared region.
+        """
+        assert 0.0 < left < right < 1.0
+        ts = msprime.simulate(10, recombination_rate=10, random_seed=2)
+        left_pos = np.mean([0.0, left])
+        left_root = ts.at(left_pos).root
+        mid_pos = np.mean([left, right])
+        mid_root = ts.at(mid_pos).root
+        right_pos = np.mean([right, ts.sequence_length])
+        right_root = ts.at(right_pos).root
+        # Clear
+        ts = ts.keep_intervals([[left, right]], simplify=False)
+        ts = self.add_mutations(ts, left_pos, 'A', ['T', 'C'], [left_root, 0])
+        ts = self.add_mutations(ts, mid_pos, 'T', ['A', 'C', 'G'], [mid_root, 0, 1])
+        ts = self.add_mutations(
+            ts, right_pos, 'X', ['T', 'C', 'G', 'A'], [right_root, 0, 1, 2])
+        self.assertNotEqual(np.min(ts.tables.edges.left), 0)
+        self.assertEqual(ts.num_mutations, 9)
+        self.assertEqual(ts.num_sites, 3)
+        return ts
+
+    def test_ltrim_single_tree(self):
+        ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
+        ts = self.clear_left_mutate(ts, 0.5, 10)
+        self.verify_ltrim(ts, ts.ltrim())
+
+    def test_ltrim_single_tree_no_mutations(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = self.clear_left_mutate(ts, 0.5, 0)
+        self.verify_ltrim(ts, ts.ltrim())
+
+    def test_ltrim_single_tree_tiny_left(self):
+        ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
+        ts = self.clear_left_mutate(ts, 1e-200, 10)
+        self.verify_ltrim(ts, ts.ltrim())
+
+    def test_ltrim_many_trees(self):
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
+        ts = self.clear_left_mutate(ts, 0.5, 10)
+        self.verify_ltrim(ts, ts.ltrim())
+
+    def test_ltrim_many_trees_left_min(self):
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
+        ts = self.clear_left_mutate(ts, sys.float_info.min, 10)
+        self.verify_ltrim(ts, ts.ltrim())
+
+    def test_ltrim_many_trees_left_epsilon(self):
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
+        ts = self.clear_left_mutate(ts, sys.float_info.epsilon, 0)
+        self.verify_ltrim(ts, ts.ltrim())
+
+    def test_ltrim_empty(self):
+        ts = msprime.simulate(2, random_seed=2)
+        ts = ts.delete_intervals([[0, 1]])
+        self.assertRaises(ValueError, ts.ltrim)
+
+    def test_ltrim_multiple_mutations(self):
+        ts = self.clear_left_right_234(0.1, 0.5)
+        trimmed_ts = ts.ltrim()
+        self.assertAlmostEqual(trimmed_ts.sequence_length, 0.9)
+        self.assertEqual(trimmed_ts.num_sites, 2)
+        self.assertEqual(trimmed_ts.num_mutations, 7)  # We should have deleted 2
+        self.assertEqual(np.min(trimmed_ts.tables.edges.left), 0)
+        self.verify_ltrim(ts, trimmed_ts)
+
+    def test_rtrim_single_tree(self):
+        ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
+        ts = self.clear_right_mutate(ts, 0.5, 10)
+        self.verify_rtrim(ts, ts.rtrim())
+
+    def test_rtrim_single_tree_no_mutations(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = self.clear_right_mutate(ts, 0.5, 0)
+        self.verify_rtrim(ts, ts.rtrim())
+
+    def test_rtrim_single_tree_tiny_left(self):
+        ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
+        ts = self.clear_right_mutate(ts, 1e-200, 10)
+        self.verify_rtrim(ts, ts.rtrim())
+
+    def test_rtrim_many_trees(self):
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
+        ts = self.clear_right_mutate(ts, 0.5, 10)
+        self.verify_rtrim(ts, ts.rtrim())
+
+    def test_rtrim_many_trees_left_min(self):
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
+        ts = self.clear_right_mutate(ts, sys.float_info.min, 10)
+        self.verify_rtrim(ts, ts.rtrim())
+
+    def test_rtrim_many_trees_left_epsilon(self):
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
+        ts = self.clear_right_mutate(ts, sys.float_info.epsilon, 0)
+        self.verify_rtrim(ts, ts.rtrim())
+
+    def test_rtrim_empty(self):
+        ts = msprime.simulate(2, random_seed=2)
+        ts = ts.delete_intervals([[0, 1]])
+        self.assertRaises(ValueError, ts.rtrim)
+
+    def test_rtrim_multiple_mutations(self):
+        ts = self.clear_left_right_234(0.1, 0.5)
+        trimmed_ts = ts.rtrim()
+        self.assertAlmostEqual(trimmed_ts.sequence_length, 0.5)
+        self.assertEqual(trimmed_ts.num_sites, 2)
+        self.assertEqual(trimmed_ts.num_mutations, 5)  # We should have deleted 4
+        self.assertEqual(
+            np.max(trimmed_ts.tables.edges.right), trimmed_ts.tables.sequence_length)
+        self.verify_rtrim(ts, trimmed_ts)
+
+    def test_trim_multiple_mutations(self):
+        ts = self.clear_left_right_234(0.1, 0.5)
+        trimmed_ts = ts.trim()
+        self.assertAlmostEqual(trimmed_ts.sequence_length, 0.4)
+        self.assertEqual(trimmed_ts.num_mutations, 3)
+        self.assertEqual(trimmed_ts.num_sites, 1)
+        self.assertEqual(np.min(trimmed_ts.tables.edges.left), 0)
+        self.assertEqual(
+            np.max(trimmed_ts.tables.edges.right), trimmed_ts.tables.sequence_length)
+
+    def test_trims_no_effect(self):
+        # Deleting from middle should have no effect on any trim function
+        ts = msprime.simulate(10, recombination_rate=2, mutation_rate=50, random_seed=2)
+        ts = ts.delete_intervals([[0.1, 0.5]])
+        trimmed_ts = ts.ltrim(record_provenance=False)
+        self.assertTrue(ts_equal(ts, trimmed_ts))
+        trimmed_ts = ts.rtrim(record_provenance=False)
+        self.assertTrue(ts_equal(ts, trimmed_ts))
+        trimmed_ts = ts.trim(record_provenance=False)
+        self.assertTrue(ts_equal(ts, trimmed_ts))
+
+    def test_failure_with_migrations(self):
+        # All trim functions fail if migrations present
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
+        ts = ts.keep_intervals([[0.1, 0.5]])
+        tables = ts.dump_tables()
+        tables.migrations.add_row(0, 1, 0, 0, 0, 0)
+        ts = tables.tree_sequence()
+        self.assertRaises(ValueError, ts.ltrim)
+        self.assertRaises(ValueError, ts.rtrim)
+        self.assertRaises(ValueError, ts.trim)
