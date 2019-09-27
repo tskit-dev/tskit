@@ -1780,50 +1780,19 @@ class TableCollection(object):
         tables = self.copy()
         sites = self.sites
         edges = self.edges
-        mutations = self.mutations
         tables.edges.clear()
-        tables.sites.clear()
-        tables.mutations.clear()
         keep_sites = np.repeat(False, sites.num_rows)
-        keep_mutations = np.repeat(False, mutations.num_rows)
         for s, e in intervals:
             curr_keep_sites = np.logical_and(sites.position >= s, sites.position < e)
             keep_sites = np.logical_or(keep_sites, curr_keep_sites)
-            new_as, new_as_offset = keep_with_offset(
-                curr_keep_sites, sites.ancestral_state, sites.ancestral_state_offset)
-            new_md, new_md_offset = keep_with_offset(
-                curr_keep_sites, sites.metadata, sites.metadata_offset)
-            keep_mutations = np.logical_or(
-                keep_mutations, curr_keep_sites[mutations.site])
             keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
             tables.edges.append_columns(
                 left=np.fmax(s, edges.left[keep_edges]),
                 right=np.fmin(e, edges.right[keep_edges]),
                 parent=edges.parent[keep_edges],
                 child=edges.child[keep_edges])
-            tables.sites.append_columns(
-                position=sites.position[curr_keep_sites],
-                ancestral_state=new_as,
-                ancestral_state_offset=new_as_offset,
-                metadata=new_md,
-                metadata_offset=new_md_offset)
-        new_ds, new_ds_offset = keep_with_offset(
-            keep_mutations, mutations.derived_state, mutations.derived_state_offset)
-        new_md, new_md_offset = keep_with_offset(
-            keep_mutations, mutations.metadata, mutations.metadata_offset)
-        site_map = np.cumsum(keep_sites, dtype=mutations.site.dtype) - 1
-        parent_map = np.cumsum(keep_mutations, dtype=mutations.parent.dtype) - 1
-        # parent -1 always maps to parent -1
-        parent_map = np.append(parent_map, np.array([-1], dtype=mutations.parent.dtype))
-        # Don't bother dealing with connected mutations as we are removing the whole site
-        tables.mutations.set_columns(
-            site=site_map[mutations.site[keep_mutations]],
-            node=mutations.node[keep_mutations],
-            derived_state=new_ds,
-            derived_state_offset=new_ds_offset,
-            parent=parent_map[mutations.parent[keep_mutations]],
-            metadata=new_md,
-            metadata_offset=new_md_offset)
+        tables.delete_sites(
+            np.where(np.logical_not(keep_sites))[0], record_provenance=False)
         tables.sort()
         if simplify:
             tables.simplify()
