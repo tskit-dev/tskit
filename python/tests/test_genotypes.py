@@ -410,7 +410,8 @@ class TestVariantGenerator(unittest.TestCase):
 
     def test_zero_edge_missing_data(self):
         ts = msprime.simulate(10, random_seed=2, mutation_rate=2)
-        tables = ts.tables.keep_intervals([[0.25, 0.75]])
+        tables = ts.dump_tables()
+        tables.keep_intervals([[0.25, 0.75]])
         # add some sites in the deleted regions
         tables.sites.add_row(0.1, "A")
         tables.sites.add_row(0.2, "A")

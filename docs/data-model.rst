@@ -708,13 +708,20 @@ Schema section (TODO).
 Table transformation methods
 ============================
 
-The following methods operate *in place* on a :class:`.TableCollection`,
-transforming them while preserving information.
+In general, table methods operate *in place* on a :class:`.TableCollection`,
+directly altering the data stored within its constituent tables.
+
 In some applications, tables may most naturally be produced in a way that is
 logically consistent, but not meeting all the requirements for validity that
-are established for algorithmic and efficiency reasons.
-These methods (while having other uses), can be used to make such a set of
-tables valid, and thus ready to be loaded into a tree sequence.
+are established for algorithmic and efficiency reasons. Several of the methods
+below (while also having other uses), can be used to make such a set of tables
+valid, and thus ready to be loaded into a tree sequence.
+
+Some of the other methods described in this section also have an equivalant
+:class:`.TreeSequence` version: an important distinction is that unlike the
+methods here, :class:`.TreeSequence` methods do *not* operate in place, but
+rather act in a functional way, returning a new tree sequence while leaving
+the original one unchanged.
 
 This section is best skipped unless you are writing a program that records
 tables directly.

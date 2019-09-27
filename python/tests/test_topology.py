@@ -40,6 +40,29 @@ import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
 
 
+def ts_equal(ts_1, ts_2):
+    """
+    Check equality of tree sequences, ignoring provenance timestamps (but not contents)
+    """
+    return tables_equal(ts_1.tables, ts_2.tables)
+
+
+def tables_equal(table_collection_1, table_collection_2):
+    """
+    Check equality of tables, ignoring provenance timestamps (but not contents)
+    """
+    for (_, table_1), (_, table_2) in zip(table_collection_1, table_collection_2):
+        if isinstance(table_1, tskit.ProvenanceTable):
+            if any(table_1.record != table_2.record):
+                return False
+            if any(table_1.record_offset != table_2.record_offset):
+                return False
+        else:
+            if table_1 != table_2:
+                return False
+    return True
+
+
 def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=True):
     """
     Simple Python implementation of keep_intervals.
@@ -54,7 +77,6 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
         if start < last_stop:
             raise ValueError("Intervals must be disjoint")
         last_stop = stop
-    tables = tables.copy()
     tables.edges.clear()
     tables.sites.clear()
     tables.mutations.clear()
@@ -83,7 +105,6 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
         }
         tables.provenances.add_row(record=json.dumps(
             provenance.get_provenance_dict(parameters)))
-    return tables
 
 
 def generate_segments(n, sequence_length=100, seed=None):
@@ -4566,8 +4587,7 @@ class TestKeepSingleInterval(unittest.TestCase):
         breakpoints = list(ts.breakpoints())
 
         # Keep the last 3 trees (from 4th last breakpoint onwards)
-        ts_sliced = ts.tables.keep_intervals(
-            [[breakpoints[-4], ts.sequence_length]]).tree_sequence()
+        ts_sliced = ts.keep_intervals([[breakpoints[-4], ts.sequence_length]])
         self.assertEqual(ts_sliced.num_trees, 4)
         self.assertLess(ts_sliced.num_edges, ts.num_edges)
         self.assertAlmostEqual(ts_sliced.sequence_length, 1.0)
@@ -4577,8 +4597,7 @@ class TestKeepSingleInterval(unittest.TestCase):
         self.assertEqual(ts_sliced.num_mutations, last_3_mutations)
 
         # Keep the first 3 trees
-        ts_sliced = ts.tables.keep_intervals(
-            [[0, breakpoints[3]]]).tree_sequence()
+        ts_sliced = ts.keep_intervals([[0, breakpoints[3]]])
         self.assertEqual(ts_sliced.num_trees, 4)
         self.assertLess(ts_sliced.num_edges, ts.num_edges)
         self.assertAlmostEqual(ts_sliced.sequence_length, 1)
@@ -4588,8 +4607,7 @@ class TestKeepSingleInterval(unittest.TestCase):
         self.assertEqual(ts_sliced.num_mutations, first_3_mutations)
 
         # Slice out the middle
-        ts_sliced = ts.tables.keep_intervals(
-            [[breakpoints[3], breakpoints[-4]]]).tree_sequence()
+        ts_sliced = ts.keep_intervals([[breakpoints[3], breakpoints[-4]]])
         self.assertEqual(ts_sliced.num_trees, ts.num_trees - 4)
         self.assertLess(ts_sliced.num_edges, ts.num_edges)
         self.assertAlmostEqual(ts_sliced.sequence_length, 1.0)
@@ -4599,24 +4617,23 @@ class TestKeepSingleInterval(unittest.TestCase):
 
     def test_slice_by_position(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
-        ts_sliced = ts.tables.keep_intervals([[0.4, 0.6]]).tree_sequence()
+        ts_sliced = ts.keep_intervals([[0.4, 0.6]])
         positions = ts.tables.sites.position
         self.assertEqual(
             ts_sliced.num_sites, np.sum((positions >= 0.4) & (positions < 0.6)))
 
     def test_slice_unsimplified(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
-        ts_sliced = ts.tables.keep_intervals([[0.4, 0.6]], simplify=True).tree_sequence()
+        ts_sliced = ts.keep_intervals([[0.4, 0.6]], simplify=True)
         self.assertNotEqual(ts.num_nodes, ts_sliced.num_nodes)
         self.assertAlmostEqual(ts_sliced.sequence_length, 1.0)
-        ts_sliced = ts.tables.keep_intervals(
-            [[0.4, 0.6]], simplify=False).tree_sequence()
+        ts_sliced = ts.keep_intervals([[0.4, 0.6]], simplify=False)
         self.assertEqual(ts.num_nodes, ts_sliced.num_nodes)
         self.assertAlmostEqual(ts_sliced.sequence_length, 1.0)
 
     def test_slice_coordinates(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
-        ts_sliced = ts.tables.keep_intervals([[0.4, 0.6]]).tree_sequence()
+        ts_sliced = ts.keep_intervals([[0.4, 0.6]])
         self.assertAlmostEqual(ts_sliced.sequence_length, 1)
         self.assertNotEqual(ts_sliced.num_trees, ts.num_trees)
         self.assertEqual(ts_sliced.at_index(0).total_branch_length, 0)
@@ -4647,16 +4664,17 @@ class TestKeepIntervals(TopologyTestCase):
 
     def do_keep_intervals(
             self, tables, intervals, simplify=True, record_provenance=True):
-        t1 = simple_keep_intervals(tables, intervals, simplify, record_provenance)
-        t2 = tables.keep_intervals(intervals, simplify, record_provenance)
-        t3 = t2.copy()
+        t1 = tables.copy()
+        simple_keep_intervals(t1, intervals, simplify, record_provenance)
+        t2 = tables.copy()
+        t2.keep_intervals(intervals, simplify, record_provenance)
         self.assertEqual(len(t1.provenances), len(t2.provenances))
         # Provenances may differ using timestamps, so ignore them
         # (this is a hack, as we prob want to compare their contents)
         t1.provenances.clear()
         t2.provenances.clear()
         self.assertEqual(t1, t2)
-        return t3
+        return t2
 
     def test_migration_error(self):
         tables = tskit.TableCollection(1)
@@ -4713,15 +4731,6 @@ class TestKeepIntervals(TopologyTestCase):
         for simplify in (True, False):
             for rec_prov in (True, False):
                 self.do_keep_intervals(tables, intervals, simplify, rec_prov)
-
-    def test_read_only(self):
-        # tables.keep_intervals should not alter the source tables
-        ts = msprime.simulate(10, random_seed=4, recombination_rate=2, mutation_rate=2)
-        source_tables = ts.tables
-        source_tables.keep_intervals([(0.5, 0.511)])
-        self.assertEqual(source_tables, ts.dump_tables())
-        source_tables.keep_intervals([(0.5, 0.511)], simplify=False)
-        self.assertEqual(source_tables, ts.dump_tables())
 
     def test_regular_intervals(self):
         ts = msprime.simulate(
@@ -4829,20 +4838,34 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
     Simple examples of keep/delete intervals at work.
     """
 
-    def test_single_tree_keep_middle(self):
+    def test_tables_single_tree_keep_middle(self):
         ts = msprime.simulate(10, random_seed=2)
-        tables = ts.tables
-        t_keep = tables.keep_intervals([[0.25, 0.5]])
-        t_delete = tables.delete_intervals([[0, 0.25], [0.5, 1.0]])
+        t_keep = ts.dump_tables()
+        t_keep.keep_intervals([[0.25, 0.5]])
+        t_delete = ts.dump_tables()
+        t_delete.delete_intervals([[0, 0.25], [0.5, 1.0]])
         t_keep.provenances.clear()
         t_delete.provenances.clear()
         self.assertEqual(t_keep, t_delete)
 
-    def test_single_tree_delete_middle(self):
+    def test_tables_single_tree_delete_middle(self):
         ts = msprime.simulate(10, random_seed=2)
-        tables = ts.tables
-        t_keep = tables.delete_intervals([[0.25, 0.5]])
-        t_delete = tables.keep_intervals([[0, 0.25], [0.5, 1.0]])
+        t_keep = ts.dump_tables()
+        t_keep.delete_intervals([[0.25, 0.5]])
+        t_delete = ts.dump_tables()
+        t_delete.keep_intervals([[0, 0.25], [0.5, 1.0]])
         t_keep.provenances.clear()
         t_delete.provenances.clear()
         self.assertEqual(t_keep, t_delete)
+
+    def test_ts_single_tree_keep_middle(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts_keep = ts.keep_intervals([[0.25, 0.5]])
+        ts_delete = ts.delete_intervals([[0, 0.25], [0.5, 1.0]])
+        self.assertTrue(ts_equal(ts_keep, ts_delete))
+
+    def test_ts_single_tree_delete_middle(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts_keep = ts.delete_intervals([[0.25, 0.5]])
+        ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]])
+        self.assertTrue(ts_equal(ts_keep, ts_delete))

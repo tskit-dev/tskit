@@ -1260,8 +1260,8 @@ class TableCollection(object):
     :ref:`requirements <sec_valid_tree_sequence_requirements>` that must be
     satisfied for these tables to be interpreted as a tree sequence.
 
-    To obtain a :class:`TreeSequence` instance corresponding to the current
-    state of a ``TableCollection``, please use the :meth:`.tree_sequence`
+    To obtain an immutable :class:`TreeSequence` instance corresponding to the
+    current state of a ``TableCollection``, please use the :meth:`.tree_sequence`
     method.
 
     :ivar individuals: The individual table.
@@ -1721,15 +1721,15 @@ class TableCollection(object):
 
     def delete_intervals(self, intervals, simplify=True, record_provenance=True):
         """
-        Returns a copy of this set of tables for which information in the
-        specified list of genomic intervals has been deleted.  Edges spanning
-        these intervals are truncated or deleted, and sites falling within them are
+        Delete all information from this set of tables which lies *within* the
+        specified list of genomic intervals. Edges spanning these intervals
+        are truncated or deleted, and sites and mutations falling within them are
         discarded.
 
         Note that node IDs may change as a result of this operation,
-        as by default :meth:`.simplify` is called on the resulting tables to
-        remove redundant nodes. If you wish to keep node IDs stable between
-        this set of tables and the returned tables, specify ``simplify=True``.
+        as by default :meth:`.simplify` is called on this TableCollection to
+        remove redundant nodes. If you wish to map node IDs onto the same
+        nodes before and after this method has been called, specify ``simplify=False``.
 
         See also :meth:`.keep_intervals`.
 
@@ -1737,28 +1737,27 @@ class TableCollection(object):
             genomic intervals to delete. Intervals must be non-overlapping and
             in increasing order. The list of intervals must be interpretable as a
             2D numpy array with shape (N, 2), where N is the number of intervals.
-        :param bool simplify: If True, run simplify on the tables so that nodes
+        :param bool simplify: If True, run simplify on this tables so that nodes
             no longer used are discarded. (Default: True).
         :param bool record_provenance: If True, record details of this operation
-            in the returned table collection's provenance information.
+            in the table collection's provenance information.
             (Default: True).
-        :rtype: tskit.TableCollection
         """
-        return self.keep_intervals(
+        self.keep_intervals(
             util.negate_intervals(intervals, 0, self.sequence_length),
             simplify=simplify, record_provenance=record_provenance)
 
     def keep_intervals(self, intervals, simplify=True, record_provenance=True):
         """
-        Returns a copy of this set of tables which include only information in
-        the specified list of genomic intervals.  Edges are truncated to within
-        these intervals, and sites not falling within these intervals are
-        discarded.
+        Delete all information from this set of tables which lies *outside* the
+        specified list of genomic intervals. Edges are truncated to lie within
+        these intervals, and sites and mutations falling outside these intervals
+        are discarded.
 
         Note that node IDs may change as a result of this operation,
-        as by default :meth:`.simplify` is called on the resulting tables to
-        remove redundant nodes. If you wish to keep node IDs stable between
-        this set of tables and the returned tables, specify ``simplify=True``.
+        as by default :meth:`.simplify` is called on this TableCollection to
+        remove redundant nodes. If you wish to map node IDs onto the same
+        nodes before and after this method has been called, specify ``simplify=False``.
 
         See also :meth:`.delete_intervals`.
 
@@ -1766,44 +1765,41 @@ class TableCollection(object):
             genomic intervals to keep. Intervals must be non-overlapping and
             in increasing order. The list of intervals must be interpretable as a
             2D numpy array with shape (N, 2), where N is the number of intervals.
-        :param bool simplify: If True, run simplify on the tables so that nodes
+        :param bool simplify: If True, run simplify on this tables so that nodes
             no longer used are discarded. (Default: True).
         :param bool record_provenance: If True, record details of this operation
-            in the returned table collection's provenance information.
+            in this table collection's provenance information.
             (Default: True).
-        :rtype: tskit.TableCollection
         """
         intervals = util.intervals_to_np_array(intervals, 0, self.sequence_length)
         if len(self.migrations) > 0:
             raise ValueError("Migrations not supported by keep_intervals")
 
-        tables = self.copy()
-        sites = self.sites
-        edges = self.edges
-        tables.edges.clear()
-        keep_sites = np.repeat(False, sites.num_rows)
+        edges = self.edges.copy()
+        self.edges.clear()
+        keep_sites = np.repeat(False, self.sites.num_rows)
         for s, e in intervals:
-            curr_keep_sites = np.logical_and(sites.position >= s, sites.position < e)
+            curr_keep_sites = np.logical_and(
+                self.sites.position >= s, self.sites.position < e)
             keep_sites = np.logical_or(keep_sites, curr_keep_sites)
             keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
-            tables.edges.append_columns(
+            self.edges.append_columns(
                 left=np.fmax(s, edges.left[keep_edges]),
                 right=np.fmin(e, edges.right[keep_edges]),
                 parent=edges.parent[keep_edges],
                 child=edges.child[keep_edges])
-        tables.delete_sites(
+        self.delete_sites(
             np.where(np.logical_not(keep_sites))[0], record_provenance=False)
-        tables.sort()
+        self.sort()
         if simplify:
-            tables.simplify()
+            self.simplify()
         if record_provenance:
             parameters = {
                 "command": "keep_intervals",
                 "TODO": "add parameters"
             }
-            tables.provenances.add_row(record=json.dumps(
+            self.provenances.add_row(record=json.dumps(
                 provenance.get_provenance_dict(parameters)))
-        return tables
 
     def has_index(self):
         """

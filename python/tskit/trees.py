@@ -3213,6 +3213,64 @@ class TreeSequence(object):
         else:
             return new_ts
 
+    def delete_intervals(self, intervals, simplify=True, record_provenance=True):
+        """
+        Returns a copy of this tree sequence for which information in the
+        specified list of genomic intervals has been deleted. Edges spanning these
+        intervals are truncated or deleted, and sites and mutations falling within
+        them are discarded.
+
+        Note that node IDs may change as a result of this operation,
+        as by default :meth:`.simplify` is called on the returned tree sequence
+        to remove redundant nodes. If you wish to map node IDs onto the same
+        nodes before and after this method has been called, specify ``simplify=False``.
+
+        See also :meth:`.keep_intervals`.
+
+        :param array_like intervals: A list (start, end) pairs describing the
+            genomic intervals to delete. Intervals must be non-overlapping and
+            in increasing order. The list of intervals must be interpretable as a
+            2D numpy array with shape (N, 2), where N is the number of intervals.
+        :param bool simplify: If True, return a simplified tree sequence where nodes
+            no longer used are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this operation
+            in the tree sequence's provenance information.
+            (Default: True).
+        :rtype: .TreeSequence
+        """
+        tables = self.dump_tables()
+        tables.delete_intervals(intervals, simplify, record_provenance)
+        return tables.tree_sequence()
+
+    def keep_intervals(self, intervals, simplify=True, record_provenance=True):
+        """
+        Returns a copy of this tree sequence which includes only information in
+        the specified list of genomic intervals. Edges are truncated to lie within
+        these intervals, and sites and mutations falling outside these intervals
+        are discarded.
+
+        Note that node IDs may change as a result of this operation,
+        as by default :meth:`.simplify` is called on the returned tree sequence
+        to remove redundant nodes. If you wish to map node IDs onto the same
+        nodes before and after this method has been called, specify ``simplify=False``.
+
+        See also :meth:`.delete_intervals`.
+
+        :param array_like intervals: A list (start, end) pairs describing the
+            genomic intervals to keep. Intervals must be non-overlapping and
+            in increasing order. The list of intervals must be interpretable as a
+            2D numpy array with shape (N, 2), where N is the number of intervals.
+        :param bool simplify: If True, return a simplified tree sequence where nodes
+            no longer used are discarded. (Default: True).
+        :param bool record_provenance: If True, record details of this operation
+            in the tree sequence's provenance information.
+            (Default: True).
+        :rtype: .TreeSequence
+        """
+        tables = self.dump_tables()
+        tables.keep_intervals(intervals, simplify, record_provenance)
+        return tables.tree_sequence()
+
     def draw_svg(self, path=None, **kwargs):
         # TODO document this method, including semantic details of the
         # returned SVG object.
