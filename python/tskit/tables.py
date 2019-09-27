@@ -1745,7 +1745,14 @@ class TableCollection(object):
         """
         self.keep_intervals(
             util.negate_intervals(intervals, 0, self.sequence_length),
-            simplify=simplify, record_provenance=record_provenance)
+            simplify=simplify, record_provenance=False)
+        if record_provenance:
+            parameters = {
+                "command": "delete_intervals",
+                "TODO": "add parameters"
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
 
     def keep_intervals(self, intervals, simplify=True, record_provenance=True):
         """

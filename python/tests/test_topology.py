@@ -40,23 +40,24 @@ import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
 
 
-def ts_equal(ts_1, ts_2):
+def ts_equal(ts_1, ts_2, compare_provenances=True):
     """
     Check equality of tree sequences, ignoring provenance timestamps (but not contents)
     """
-    return tables_equal(ts_1.tables, ts_2.tables)
+    return tables_equal(ts_1.tables, ts_2.tables, compare_provenances)
 
 
-def tables_equal(table_collection_1, table_collection_2):
+def tables_equal(table_collection_1, table_collection_2, compare_provenances=True):
     """
     Check equality of tables, ignoring provenance timestamps (but not contents)
     """
     for (_, table_1), (_, table_2) in zip(table_collection_1, table_collection_2):
         if isinstance(table_1, tskit.ProvenanceTable):
-            if any(table_1.record != table_2.record):
-                return False
-            if any(table_1.record_offset != table_2.record_offset):
-                return False
+            if compare_provenances:
+                if np.any(table_1.record != table_2.record):
+                    return False
+                if np.any(table_1.record_offset != table_2.record_offset):
+                    return False
         else:
             if table_1 != table_2:
                 return False
@@ -4841,9 +4842,9 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
     def test_tables_single_tree_keep_middle(self):
         ts = msprime.simulate(10, random_seed=2)
         t_keep = ts.dump_tables()
-        t_keep.keep_intervals([[0.25, 0.5]])
+        t_keep.keep_intervals([[0.25, 0.5]], record_provenance=False)
         t_delete = ts.dump_tables()
-        t_delete.delete_intervals([[0, 0.25], [0.5, 1.0]])
+        t_delete.delete_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         t_keep.provenances.clear()
         t_delete.provenances.clear()
         self.assertEqual(t_keep, t_delete)
@@ -4851,21 +4852,22 @@ class TestKeepDeleteIntervalsExamples(unittest.TestCase):
     def test_tables_single_tree_delete_middle(self):
         ts = msprime.simulate(10, random_seed=2)
         t_keep = ts.dump_tables()
-        t_keep.delete_intervals([[0.25, 0.5]])
+        t_keep.delete_intervals([[0.25, 0.5]], record_provenance=False)
         t_delete = ts.dump_tables()
-        t_delete.keep_intervals([[0, 0.25], [0.5, 1.0]])
+        t_delete.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         t_keep.provenances.clear()
         t_delete.provenances.clear()
         self.assertEqual(t_keep, t_delete)
 
     def test_ts_single_tree_keep_middle(self):
         ts = msprime.simulate(10, random_seed=2)
-        ts_keep = ts.keep_intervals([[0.25, 0.5]])
-        ts_delete = ts.delete_intervals([[0, 0.25], [0.5, 1.0]])
+        ts_keep = ts.keep_intervals([[0.25, 0.5]], record_provenance=False)
+        ts_delete = ts.delete_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         self.assertTrue(ts_equal(ts_keep, ts_delete))
 
     def test_ts_single_tree_delete_middle(self):
         ts = msprime.simulate(10, random_seed=2)
-        ts_keep = ts.delete_intervals([[0.25, 0.5]])
-        ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]])
+        ts_keep = ts.delete_intervals([[0.25, 0.5]], record_provenance=False)
+        ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
+        #  One provenance should have "delete_intervals", the other "keep_intervals")
         self.assertTrue(ts_equal(ts_keep, ts_delete))
