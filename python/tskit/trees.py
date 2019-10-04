@@ -3197,7 +3197,7 @@ class TreeSequence(object):
             filter_sites=filter_sites,
             keep_unary=keep_unary)
         if record_provenance:
-            # TODO add simplify arguments here
+            # TODO move this into tables.simplify. See issue #374
             # TODO also make sure we convert all the arguments so that they are
             # definitely JSON encodable.
             parameters = {
@@ -3212,6 +3212,22 @@ class TreeSequence(object):
             return new_ts, node_map
         else:
             return new_ts
+
+    def delete_sites(self, site_ids, record_provenance=True):
+        """
+        Returns a copy of this tree sequence with the specified sites (and their
+        associated mutations) entirely removed. The site IDs do not need to be in any
+        particular order, and specifying the same ID multiple times does not have any
+        effect (i.e., calling ``tree_sequence.delete_sites([0, 1, 1])`` has the same
+        effect as calling ``tree_sequence.delete_sites([0, 1])``.
+
+        :param list[int] site_ids: A list of site IDs specifying the sites to remove.
+        :param bool record_provenance: If ``True``, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: ``True``).
+        """
+        tables = self.dump_tables()
+        tables.delete_sites(site_ids, record_provenance)
+        return tables.tree_sequence()
 
     def delete_intervals(self, intervals, simplify=True, record_provenance=True):
         """
