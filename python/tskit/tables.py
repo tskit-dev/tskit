@@ -41,44 +41,17 @@ import tskit.util as util
 import tskit.provenance as provenance
 
 
-IndividualTableRow = collections.namedtuple(
+# The normal Individual(SimpleContainer) class also contains the nodes that individual
+# points to, which are not part of the table, so we need a simpler version to report here
+SimpleIndividual = collections.namedtuple(
     "IndividualTableRow",
     ["flags", "location", "metadata"])
 
-
-NodeTableRow = collections.namedtuple(
-    "NodeTableRow",
-    ["flags", "time", "population", "individual", "metadata"])
-
-
-EdgeTableRow = collections.namedtuple(
-    "EdgeTableRow",
-    ["left", "right", "parent", "child"])
-
-
-MigrationTableRow = collections.namedtuple(
-    "MigrationTableRow",
-    ["left", "right", "node", "source", "dest", "time"])
-
-
-SiteTableRow = collections.namedtuple(
+# The normal Site(SimpleContainer) class also contains the mutations at that site,
+# which are not part of the table, so we need a simpler version to report here
+SimpleSite = collections.namedtuple(
     "SiteTableRow",
     ["position", "ancestral_state", "metadata"])
-
-
-MutationTableRow = collections.namedtuple(
-    "MutationTableRow",
-    ["site", "node", "derived_state", "parent", "metadata"])
-
-
-PopulationTableRow = collections.namedtuple(
-    "PopulationTableRow",
-    ["metadata"])
-
-
-ProvenanceTableRow = collections.namedtuple(
-    "ProvenanceTableRow",
-    ["timestamp", "record"])
 
 
 def keep_with_offset(keep, data, offset):
@@ -153,7 +126,13 @@ class BaseTable(object):
             index += len(self)
         if index < 0 or index >= len(self):
             raise IndexError("Index out of bounds")
-        return self.row_class(*self.ll_table.get_row(index))
+        try:
+            return self.row_class(index, *self.ll_table.get_row(index))
+        except TypeError:
+            # this is an Individual or a Site table, so we are not using the
+            # SimpleContainer class to return the row details
+            assert not issubclass(self.row_class, tskit.SimpleContainer)
+            return self.row_class(*self.ll_table.get_row(index))
 
     def clear(self):
         """
@@ -261,7 +240,7 @@ class IndividualTable(BaseTable, MetadataMixin):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, IndividualTableRow)
+        super().__init__(ll_table, SimpleIndividual)
 
     def __str__(self):
         flags = self.flags
@@ -412,7 +391,7 @@ class NodeTable(BaseTable, MetadataMixin):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, NodeTableRow)
+        super().__init__(ll_table, tskit.Node)
 
     def __str__(self):
         time = self.time
@@ -545,7 +524,18 @@ class EdgeTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, EdgeTableRow)
+        super().__init__(ll_table, tskit.Edge)
+
+    def __getitem__(self, index):
+        """
+        The Edge(SimpleContainer) class is initialised with id_ last, not first, so
+        needs bespoke treatment here
+        """
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("Index out of bounds")
+        return self.row_class(*self.ll_table.get_row(index), index)
 
     def __str__(self):
         left = self.left
@@ -665,7 +655,18 @@ class MigrationTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, MigrationTableRow)
+        super().__init__(ll_table, tskit.Migration)
+
+    def __getitem__(self, index):
+        """
+        The Migration(SimpleContainer) class is initialised with id_ last, not first, so
+        needs bespoke treatment here
+        """
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("Index out of bounds")
+        return self.row_class(*self.ll_table.get_row(index), index)
 
     def __str__(self):
         left = self.left
@@ -787,7 +788,7 @@ class SiteTable(BaseTable, MetadataMixin):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, SiteTableRow)
+        super().__init__(ll_table, SimpleSite)
 
     def __str__(self):
         position = self.position
@@ -951,7 +952,7 @@ class MutationTable(BaseTable, MetadataMixin):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, MutationTableRow)
+        super().__init__(ll_table, tskit.Mutation)
 
     def __str__(self):
         site = self.site
@@ -1117,7 +1118,7 @@ class PopulationTable(BaseTable, MetadataMixin):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.PopulationTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, PopulationTableRow)
+        super().__init__(ll_table, tskit.Population)
 
     def add_row(self, metadata=None):
         """
@@ -1178,7 +1179,7 @@ class ProvenanceTable(BaseTable):
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.ProvenanceTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, ProvenanceTableRow)
+        super().__init__(ll_table, tskit.Provenance)
 
     def add_row(self, record, timestamp=None):
         """

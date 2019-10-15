@@ -1262,6 +1262,18 @@ class TestTreeSequence(HighLevelTestCase):
                     self.assertEqual(t3.interval, t2.interval)
                     self.assertEqual(t3.parent_dict, t2.parent_dict)
 
+    def test_reversible_iterators(self):
+        for ts in get_example_tree_sequences():
+            for table_name, _ in ts.tables:
+                if table_name not in ['individuals', 'sites', 'mutations']:
+                    # ts.individuals(), ts.sites() and ts.mutations() are not currently
+                    # reversible, as they do not return the equivalent tables
+                    ts_iterator = getattr(ts, table_name)()
+                    n_rows = ts_iterator.num_rows
+                    for i, n in enumerate(reversed(ts_iterator)):
+                        self.assertEqual(i, n_rows - 1 - n.id)
+                    self.assertEqual(n.id, 0)
+
 
 class TestFileUuid(HighLevelTestCase):
     """

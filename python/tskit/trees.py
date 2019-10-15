@@ -66,6 +66,14 @@ class SimpleContainer(object):
     def __repr__(self):
         return repr(self.__dict__)
 
+    def _asdict(self):
+        """
+        Emulate the namedtuple _asdict() method
+        Don't report the id when returning as a dict - allows simple comparison even
+        if the id (i.e. row position) differs
+        """
+        return {k: v for k, v in self.__dict__.items() if k != 'id'}
+
 
 class Individual(SimpleContainer):
     """
@@ -88,11 +96,11 @@ class Individual(SimpleContainer):
     :ivar nodes: The IDs of the nodes that are associated with this individual as
         a numpy array (dtype=np.int32). If no nodes are associated with the
         individual this array will be empty.
-    :vartype location: numpy.ndarray
+    :vartype nodes: numpy.ndarray
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this individual.
     :vartype metadata: bytes
     """
-    def __init__(self, id_=None, flags=0, location=None, nodes=None, metadata=""):
+    def __init__(self, id_=None, flags=0, location=None, nodes=None, metadata=b''):
         self.id = id_
         self.flags = flags
         self.location = location
@@ -133,8 +141,8 @@ class Node(SimpleContainer):
     :vartype metadata: bytes
     """
     def __init__(
-            self, id_=None, flags=0, time=0, population=NULL,
-            individual=NULL, metadata=""):
+            self, id_=None, flags=0, time=0, population=NULL, individual=NULL,
+            metadata=b''):
         self.id = id_
         self.time = time
         self.population = population
@@ -285,8 +293,12 @@ class Migration(SimpleContainer):
     :vartype dest: int
     :ivar time: The time at which this migration occured at.
     :vartype time: float
+    :ivar id: The integer ID of this migration. Varies from 0 to
+        :attr:`.TreeSequence.num_migrations` - 1.
+    :vartype id: int
     """
-    def __init__(self, left, right, node, source, dest, time):
+    def __init__(self, left, right, node, source, dest, time, id_=NULL):
+        self.id = id_
         self.left = left
         self.right = right
         self.node = node
@@ -308,7 +320,7 @@ class Population(SimpleContainer):
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this population.
     :vartype metadata: bytes
     """
-    def __init__(self, id_, metadata=""):
+    def __init__(self, id_=NULL, metadata=""):
         self.id = id_
         self.metadata = metadata
 
@@ -2415,8 +2427,7 @@ class TreeSequence(object):
         :return: An iterator over all migrations.
         :rtype: iter(:class:`.Migration`)
         """
-        for j in range(self._ll_tree_sequence.get_num_migrations()):
-            yield Migration(*self._ll_tree_sequence.get_migration(j))
+        return self.tables.migrations
 
     def individuals(self):
         """
@@ -2428,6 +2439,8 @@ class TreeSequence(object):
         """
         for j in range(self.num_individuals):
             yield self.individual(j)
+        # NB - can't return self.tables.individuals here as the table iterator doesn't
+        # return the nodes associated with an individual
 
     def nodes(self):
         """
@@ -2437,24 +2450,22 @@ class TreeSequence(object):
         :return: An iterator over all nodes.
         :rtype: iter(:class:`.Node`)
         """
-        for j in range(self.num_nodes):
-            yield self.node(j)
+        return self.tables.nodes
 
     def edges(self):
         """
-        Returns an iterator over all the :ref:`edges <sec_edge_table_definition>`
-        in this tree sequence. Edges are returned in the order required
+        Returns the :ref:`edges <sec_edge_table_definition>` in this tree sequence.
+        These can be iterated over, and will be returned in the order required
         for a :ref:`valid tree sequence <sec_valid_tree_sequence_requirements>`. So,
         edges are guaranteed to be ordered such that (a) all parents with a
         given ID are contiguous; (b) edges are returned in non-descreasing
         order of parent time ago; (c) within the edges for a given parent, edges
         are sorted first by child ID and then by left coordinate.
 
-        :return: An iterator over all edges.
+        :return: The edges in this ts.
         :rtype: iter(:class:`.Edge`)
         """
-        for j in range(self.num_edges):
-            yield self.edge(j)
+        return self.tables.edges
 
     def edgesets(self):
         # TODO the order that these records are returned in is not well specified.
@@ -2543,6 +2554,8 @@ class TreeSequence(object):
         :return: An iterator over all mutations in this tree sequence.
         :rtype: iter(:class:`.Mutation`)
         """
+        # TODO - replace with `return ts.tables.mutations` when
+        # add_deprecated_mutation_attrs is obsoleted
         for site in self.sites():
             for mutation in site.mutations:
                 yield add_deprecated_mutation_attrs(site, mutation)
@@ -2555,8 +2568,7 @@ class TreeSequence(object):
         :return: An iterator over all populations.
         :rtype: iter(:class:`.Population`)
         """
-        for j in range(self.num_populations):
-            yield self.population(j)
+        return self.tables.populations
 
     def provenances(self):
         """
@@ -2566,8 +2578,7 @@ class TreeSequence(object):
         :return: An iterator over all provenances.
         :rtype: iter(:class:`.Provenance`)
         """
-        for j in range(self.num_provenances):
-            yield self.provenance(j)
+        return self.tables.provenances
 
     def breakpoints(self, as_array=False):
         """
@@ -2843,7 +2854,7 @@ class TreeSequence(object):
         :rtype: :class:`.Node`
         """
         (flags, time, population, individual,
-         metadata) = self._ll_tree_sequence.get_node(id_)
+            metadata) = self._ll_tree_sequence.get_node(id_)
         return Node(
             id_=id_, flags=flags, time=time, population=population,
             individual=individual, metadata=metadata)
@@ -2855,8 +2866,7 @@ class TreeSequence(object):
 
         :rtype: :class:`.Edge`
         """
-        (left, right, parent, child) = self._ll_tree_sequence.get_edge(id_)
-        return Edge(id_=id_, left=left, right=right, parent=parent, child=child)
+        return Edge(*self._ll_tree_sequence.get_edge(id_), id_=id_)
 
     def mutation(self, id_):
         """
@@ -2865,10 +2875,11 @@ class TreeSequence(object):
 
         :rtype: :class:`.Mutation`
         """
-        ll_mut = self._ll_tree_sequence.get_mutation(id_)
+        (site, node, derived_state, parent,
+            metadata) = self._ll_tree_sequence.get_mutation(id_)
         return Mutation(
-            id_=id_, site=ll_mut[0], node=ll_mut[1], derived_state=ll_mut[2],
-            parent=ll_mut[3], metadata=ll_mut[4])
+            id_=id_, site=site, node=node, derived_state=derived_state, parent=parent,
+            metadata=metadata)
 
     def site(self, id_):
         """
