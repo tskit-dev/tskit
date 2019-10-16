@@ -143,6 +143,11 @@ jobs:
             ./api_structure
 
       - run:
+          name: Run example make file
+          command: |
+            make -C c/examples
+
+      - run:
           name: Build docs
           command: |
             cd docs && make
