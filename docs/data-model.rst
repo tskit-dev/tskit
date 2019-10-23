@@ -829,7 +829,7 @@ But, it's all OK because here's what we do:
 2. Periodically, ``sort``, ``deduplicate_sites``,  and ``simplify``, then
    return to (1.), except that
 3. Sometimes, to output the tables, ``sort``, ``compute_mutation_parents``,
-    (optionally ``simplify``), and dump these out to a file.
+   (optionally ``simplify``), and dump these out to a file.
 
 *Note:* as things are going along we do *not* have to
 ``compute_mutation_parents``, which is nice, because this is a nontrivial step
@@ -856,7 +856,7 @@ they occur, because these operations have the following properties:
 6. ``deduplicate_sites`` goes through and collapses all sites at the same
    position to only one site, maintaining order otherwise.
 7. ``compute_mutation_parents`` fills in the ``parent`` information by using
-    property (1).
+   property (1).
 
 .. _sec_data_model_missing_data:
 
