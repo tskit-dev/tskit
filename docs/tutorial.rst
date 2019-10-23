@@ -8,11 +8,11 @@ Tutorial
     needs to be reorganised to make a coherent narrative.
 
 
-.. _sec_tutorial_traversing_trees:
+.. _sec_tutorial_trees:
 
-****************
-Traversing trees
-****************
+*****
+Trees
+*****
 
 A :class:`.Tree` represents a single tree in a :class:`.TreeSequence`.
 The ``tskit`` Tree implementation differs from most tree libraries by
@@ -24,11 +24,91 @@ returns another integer. If '0' does not have a parent in the current tree
 :meth:`.Tree.children` method. To obtain information about a particular node,
 one may either use ``tree.tree_sequence.node(u)`` to which returns the
 corresponding :class:`.Node` instance, or use the :meth:`.Tree.time` or
-:meth:`.Tree.population` shorthands. Tree traversals in various orders
-is possible using the :meth:`.Tree.nodes` iterator.
+:meth:`.Tree.population` shorthands.
 
-.. todo:: Add tree diagram and example. Also describe the left_child,
-    right_child, left_sib, right_sib functions.
+.. _sec_tutorial_trees_traversals:
+
+++++++++++
+Traversals
+++++++++++
+
+Tree traversals in various orders are possible using the :meth:`.Tree.nodes` iterator.
+For example, in the following tree we can visit the nodes in different orders:
+
+.. image:: _static/tree_structure1.svg
+   :width: 200px
+   :alt: An example tree
+
+
+.. code-block:: python
+
+    for order in ["preorder", "inorder", "postorder"]:
+        print(f"{order}:\t", list(tree.nodes(order=order)))
+
+::
+
+   preorder:        [7, 5, 0, 1, 2, 6, 3, 4]
+   inorder:         [0, 5, 1, 2, 7, 3, 6, 4]
+   postorder:       [0, 1, 2, 5, 3, 4, 6, 7]
+
+Much of the time, the specific ordering of the nodes is not important
+and we can leave it out (defaulting to preorder traversal). For example,
+here we compute the total branch length of a tree::
+
+    total_branch_length = sum(tree.branch_length(u) for u in tree.nodes())
+
+This is also available as the :attr:`tskit.Tree.total_branch_length` attribute.
+
+++++++++++++++++++
+Traversing upwards
+++++++++++++++++++
+
+For many applications it is useful to be able to traverse upwards from the
+leaves. We can do this using the :meth:`.Tree.parent` method, which
+returns the parent of a node. For example, we can traverse upwards from
+each of the samples in the tree::
+
+    for u in tree.samples():
+        path = []
+        v = u
+        while v != tskit.NULL:
+            path.append(v)
+            v = tree.parent(v)
+        print(u, "->", path)
+
+giving::
+
+   0 -> [0, 5, 7]
+   1 -> [1, 5, 7]
+   2 -> [2, 5, 7]
+   3 -> [3, 6, 7]
+   4 -> [4, 6, 7]
+
++++++++++++++++++++++++++++
+Traversals with information
++++++++++++++++++++++++++++
+
+Sometimes we will need to traverse down the tree while maintaining
+some information about the nodes that are above it. While this
+can be done using recursive algorithms, it is often more convenient
+and efficient to use an iterative approach. Here, for example,
+we define an iterator that yields all nodes in preorder along with
+their path length to root::
+
+    def preorder_dist(tree):
+        for root in tree.roots:
+            stack = [(root, 0)]
+            while len(stack) > 0:
+                u, distance = stack.pop()
+                yield u, distance
+                for v in tree.children(u):
+                    stack.append((v, distance + 1))
+
+    print(list(preorder_dist(tree)))
+
+Running this on the example above gives us::
+
+   [(7, 0), (6, 1), (4, 2), (3, 2), (5, 1), (2, 2), (1, 2), (0, 2)]
 
 
 .. _sec_tutorial_moving_along_a_tree_sequence:

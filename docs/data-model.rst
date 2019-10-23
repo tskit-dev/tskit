@@ -858,6 +858,107 @@ they occur, because these operations have the following properties:
 7. ``compute_mutation_parents`` fills in the ``parent`` information by using
    property (1).
 
+.. _sec_data_model_tree_structure:
+
+**************
+Tree structure
+**************
+
+Quintuply linked trees
+======================
+
+Tree structure in ``tskit`` is encoded internally as a "quintuply
+linked tree", a generalisation of the triply linked tree encoding
+used by Knuth and others. Nodes are represented by their integer
+IDs, and their relationships to other nodes are recorded in the
+``parent``, ``left_child``, ``right_child``, ``left_sib`` and
+``right_sib`` arrays. For example, consider the following tree
+and associated arrays:
+
+.. image:: _static/tree_structure1.svg
+   :width: 200px
+   :alt: An example tree
+
+
+
+=========== =========== =========== =========== =========== ===========
+node        parent      left_child  right_child left_sib    right_sib
+=========== =========== =========== =========== =========== ===========
+0           5           -1          -1          -1          1
+1           5           -1          -1          0           2
+2           5           -1          -1          1           -1
+3           6           -1          -1          -1          4
+4           6           -1          -1          3           -1
+5           7           0           2           -1          6
+6           7           3           4           5           -1
+7           -1          5           6           -1          -1
+=========== =========== =========== =========== =========== ===========
+
+Each node in the tree sequence corresponds to a row in this table, and
+the columns are the individual arrays recording the quintuply linked
+structure. Thus, we can see that the parent of nodes ``0``, ``1`` and ``2``
+is ``5``. Similarly, the left child of ``5`` is ``0`` and the
+right child of ``5`` is ``2``. The ``left_sib`` and ``right_sib`` arrays
+then record each nodes sibling on its left or right, respectively;
+hence the right sib of ``0`` is ``1``, and the right sib of ``1`` is ``2``.
+Thus, sibling information allows us to efficiently support trees
+with arbitrary numbers of children. In each of the five pointer arrays,
+the null node (-1) is used to indicate the end of a path; thus,
+for example, the parent of ``7`` and left sib of ``0`` are null.
+
+See the :ref:`sec_tutorial_traversing_trees` of the tutorial for more
+details on how to use this encoding to perform custom tree traversals,
+and this :ref:`example <sec_c_api_examples_tree_traversals>` for an
+how to use the quintuply linked structure in the C API.
+
+.. note:: For many applications we do not need the quintuply linked trees,
+   and (for example) the ``left_sib`` and ``right_child`` arrays can be
+   ignored. The reason for using a quintuply instead of triply linked
+   encoding is that it is not possible to efficiently update the trees
+   as we move along the sequence without the quintuply linked structure.
+
+.. warning:: The left-to-right ordering of nodes is determined by the order
+   in which edges are inserted into the tree during iteration along the sequence.
+   Thus, if we arrive at the same tree by iterating from different directions,
+   the left-to-right ordering of nodes may be different! The specific
+   ordering of the children of a node should therefore not be depended on.
+
+
+Accessing roots
+===============
+
+The roots of a tree are defined as the unique endpoints of upward paths
+starting from sample nodes. Thus, trees can have multiple roots in ``tskit``.
+For example, if we delete the edge joining ``6`` and ``7`` in the previous
+example, we get a tree with two roots:
+
+
+.. image:: _static/tree_structure2.svg
+   :width: 200px
+   :alt: An example tree with multiple roots
+
+
+=========== =========== =========== =========== =========== ===========
+node        parent      left_child  right_child left_sib    right_sib
+=========== =========== =========== =========== =========== ===========
+0           5           -1          -1          -1          1
+1           5           -1          -1          0           2
+2           5           -1          -1          1           -1
+3           6           -1          -1          -1          4
+4           6           -1          -1          3           -1
+5           7           0           2           -1          -1
+6           -1          3           4           7           -1
+7           -1          5           5           -1          6
+=========== =========== =========== =========== =========== ===========
+
+To gain efficient access to the roots in the quintuply linked encoding we keep
+one extra piece of information: the ``left_root``. In this example
+the leftmost root is ``7``. Roots are considered siblings, and so
+once we have one root we can find all the other roots efficiently using
+the ``left_sib`` and ``right_sib`` arrays. For example, we can see here
+that the right sibling of ``7`` is ``6``, and the left sibling of ``6``
+is ``7``.
+
 .. _sec_data_model_missing_data:
 
 ************

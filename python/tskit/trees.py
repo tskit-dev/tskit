@@ -717,7 +717,7 @@ class Tree(object):
     def parent(self, u):
         """
         Returns the parent of the specified node. Returns
-        the :const:`.NULL` if u is the root or is not a node in
+        :const:`.NULL` if u is a root or is not a node in
         the current tree.
 
         :param int u: The node of interest.
@@ -729,15 +729,71 @@ class Tree(object):
     # Quintuply linked tree structure.
 
     def left_child(self, u):
+        """
+        Returns the leftmost child of the specified node. Returns
+        :const:`.NULL` if u is a leaf or is not a node in
+        the current tree. The left-to-right ordering of children
+        is arbitrary and should not be depended on; see the
+        :ref:`data model <sec_data_model_tree_structure>` section
+        for details.
+
+        This is a low-level method giving access to the quintuply linked
+        tree structure in memory; the :meth:`.children` method is a more
+        convenient way to obtain the children of a given node.
+
+        :param int u: The node of interest.
+        :return: The leftmost child of u.
+        :rtype: int
+        """
         return self._ll_tree.get_left_child(u)
 
     def right_child(self, u):
+        """
+        Returns the rightmost child of the specified node. Returns
+        :const:`.NULL` if u is a leaf or is not a node in
+        the current tree. The left-to-right ordering of children
+        is arbitrary and should not be depended on; see the
+        :ref:`data model <sec_data_model_tree_structure>` section
+        for details.
+
+        This is a low-level method giving access to the quintuply linked
+        tree structure in memory; the :meth:`.children` method is a more
+        convenient way to obtain the children of a given node.
+
+        :param int u: The node of interest.
+        :return: The rightmost child of u.
+        :rtype: int
+        """
         return self._ll_tree.get_right_child(u)
 
     def left_sib(self, u):
+        """
+        Returns the sibling node to the left of u, or :const:`.NULL`
+        if u does not have a left sibling.
+        The left-to-right ordering of children
+        is arbitrary and should not be depended on; see the
+        :ref:`data model <sec_data_model_tree_structure>` section
+        for details.
+
+        :param int u: The node of interest.
+        :return: The sibling node to the left of u.
+        :rtype: int
+        """
         return self._ll_tree.get_left_sib(u)
 
     def right_sib(self, u):
+        """
+        Returns the sibling node to the right of u, or :const:`.NULL`
+        if u does not have a right sibling.
+        The left-to-right ordering of children
+        is arbitrary and should not be depended on; see the
+        :ref:`data model <sec_data_model_tree_structure>` section
+        for details.
+
+        :param int u: The node of interest.
+        :return: The sibling node to the right of u.
+        :rtype: int
+        """
         return self._ll_tree.get_right_sib(u)
 
     # Sample list.
@@ -754,6 +810,36 @@ class Tree(object):
     # TODO do we also have right_root?
     @property
     def left_root(self):
+        """
+        The leftmost root in this tree. If there are multiple roots
+        in this tree, they are siblings of this node, and so we can
+        use :meth:`.right_sib` to iterate over all roots:
+
+        .. code-block:: python
+
+            u = tree.left_root
+            while u != tskit.NULL:
+                print("Root:", u)
+                u = tree.right_sib(u)
+
+        The left-to-right ordering of roots is arbitrary and should
+        not be depended on; see the
+        :ref:`data model <sec_data_model_tree_structure>`
+        section for details.
+
+        This is a low-level method giving access to the quintuply linked
+        tree structure in memory; the :attr:`.roots` attribute is a more
+        convenient way to obtain the roots of a tree. If you are assuming
+        that there is a single root in the tree you should use the
+        :attr:`.root` property.
+
+        .. warning:: Do not use this property if you are assuming that there
+            is a single root in trees that are being processed. The
+            :attr:`.root` property should be used in this case, as it will
+            raise an error when multiple roots exists.
+
+        :rtype: int
+        """
         return self._ll_tree.get_left_root()
 
     def get_children(self, u):
@@ -763,7 +849,10 @@ class Tree(object):
     def children(self, u):
         """
         Returns the children of the specified node ``u`` as a tuple of integer node IDs.
-        If ``u`` is a leaf, return the empty tuple.
+        If ``u`` is a leaf, return the empty tuple. The ordering of children
+        is arbitrary and should not be depended on; see the
+        :ref:`data model <sec_data_model_tree_structure>` section
+        for details.
 
         :param int u: The node of interest.
         :return: The children of ``u`` as a tuple of integers

@@ -408,3 +408,13 @@ Tree iteration
 .. literalinclude:: ../c/examples/tree_iteration.c
     :language: c
 
+
+.. _sec_c_api_examples_tree_traversals:
+
+---------------
+Tree traversals
+---------------
+
+.. literalinclude:: ../c/examples/tree_iteration.c
+    :language: c
+

@@ -2,6 +2,7 @@
 Examples for the tutorial.
 """
 import os
+import io
 import sys
 sys.path.insert(0, os.path.abspath('../python'))
 
@@ -223,10 +224,118 @@ def stats():
     x = ts.divergence([A, B, C], indexes=[(0, 1), (0, 2)], windows=windows)
     print(x)
 
+def tree_structure():
+
+    def write_table(tree):
+        fmt = "{:<12}"
+        heading = ["node", "parent", "left_child",  "right_child", "left_sib", "right_sib"]
+        line = "".join(fmt.format(s) for s in heading)
+        col_def = " ".join(["=" * 11] * 6)
+        print(col_def)
+        print(line)
+        print(col_def)
+
+        for u in range(ts.num_nodes):
+            line = "".join(
+                fmt.format(v) for v in [u, tree.parent(u), tree.left_child(u), tree.right_child(u),
+                    tree.left_sib(u), tree.right_sib(u)])
+            print(line)
+        print(col_def)
+
+    nodes = """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       1           0
+    4       1           0
+    5       0           1
+    6       0           2
+    7       0           3
+    """
+    edges = """\
+    left    right   parent  child
+    0       1       5       0,1,2
+    0       1       6       3,4
+    0       1       7       5,6
+    """
+    ts = tskit.load_text(
+        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False)
+    tree = ts.first()
+
+    write_table(tree)
+    print(tree.draw_text())
+    tree.draw_svg("_static/tree_structure1.svg", tree_height_scale="rank")
+
+    edges = """\
+    left    right   parent  child
+    0       1       5       0,1,2
+    0       1       6       3,4
+    0       1       7       5
+    """
+    ts = tskit.load_text(
+        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False)
+    tree = ts.first()
+
+    write_table(tree)
+    print(tree.draw_text())
+    tree.draw_svg("_static/tree_structure2.svg", tree_height_scale="rank")
+
+
+def tree_traversal():
+    nodes = """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       1           0
+    4       1           0
+    5       0           1
+    6       0           2
+    7       0           3
+    """
+    edges = """\
+    left    right   parent  child
+    0       1       5       0,1,2
+    0       1       6       3,4
+    0       1       7       5,6
+    """
+    # NB same tree as used above, and we're using the same diagram.
+    ts = tskit.load_text(
+        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False)
+    tree = ts.first()
+
+    for order in ["preorder", "inorder", "postorder"]:
+        print(f"{order}:\t", list(tree.nodes(order=order)))
+
+
+    total_branch_length = sum(tree.branch_length(u) for u in tree.nodes())
+    print(total_branch_length, tree.total_branch_length)
+
+    for u in tree.samples():
+        path = []
+        v = u
+        while v != tskit.NULL:
+            path.append(v)
+            v = tree.parent(v)
+        print(u, "->", path)
+
+    def preorder_dist(tree):
+        for root in tree.roots:
+            stack = [(root, 0)]
+            while len(stack) > 0:
+                u, distance = stack.pop()
+                yield u, distance
+                for v in tree.children(u):
+                    stack.append((v, distance + 1))
+
+    print(list(preorder_dist(tree)))
+
 # moving_along_tree_sequence()
 # parsimony()
 # allele_frequency_spectra()
 # missing_data()
-
-stats()
+# stats()
+# tree_structure()
+tree_traversal()
 
