@@ -77,22 +77,77 @@ typedef struct {
     tsk_table_collection_t *tables;
 } tsk_treeseq_t;
 
+
+/**
+@brief A single tree in a tree sequence.
+
+@rst
+A ``tsk_tree_t`` object has two basic functions:
+
+1. Represent the state of a single tree in a tree sequence;
+2. Provide methods to transform this state into different trees in the sequence.
+
+The state of a single tree in the tree sequence is represented using the
+quintuply linked encoding: please see the
+:ref:`data model <sec_data_model_tree_structure>` section for details on
+how this works. The left-to-right ordering of nodes in this encoding
+is arbitrary, and may change depending on the order in which trees are
+accessed within the sequence. Please see the
+:ref:`sec_c_api_examples_tree_traversals` examples for recommended
+usage.
+
+On initialisation, a tree is in a "null" state: each sample is a
+root and there are no edges. We must call one of the 'seeking' methods
+to make the state of the tree object correspond to a particular tree
+in the sequence. Please see the
+:ref:`sec_c_api_examples_tree_iteration` examples for recommended
+usage.
+
+@endrst
+ */
 typedef struct {
+    /**
+     * @brief The parent tree sequence.
+     */
     tsk_treeseq_t *tree_sequence;
+    /**
+     * @brief The leftmost root in the tree. Roots are siblings, and
+     * other roots can be found using right_sib.
+     */
+    tsk_id_t left_root;
+    /**
+     @brief The parent of node u is parent[u]. Equal to TSK_NULL if node u is a
+     root or is not a node in the current tree.
+     */
+    tsk_id_t *parent;
+    /**
+     @brief The leftmost child of node u is left_child[u]. Equal to TSK_NULL
+     if node u is a leaf or is not a node in the current tree.
+     */
+    tsk_id_t *left_child;
+    /**
+     @brief The rightmost child of node u is right_child[u]. Equal to TSK_NULL
+     if node u is a leaf or is not a node in the current tree.
+     */
+    tsk_id_t *right_child;
+    /**
+     @brief The sibling to the left of node u is left_sib[u]. Equal to TSK_NULL
+     if node u has no siblings to its left.
+     */
+    tsk_id_t *left_sib;
+    /**
+     @brief The sibling to the right of node u is right_sib[u]. Equal to TSK_NULL
+     if node u has no siblings to its right.
+     */
+    tsk_id_t *right_sib;
+
     tsk_size_t num_nodes;
     tsk_flags_t options;
     tsk_id_t *samples;
-    /* The left-most root in the forest. Roots are sibs and all roots are found
-     * via left_sib and right_sib */
-    tsk_id_t left_root;
+    /* TODO before documenting this should be change to interval. */
     /* Left and right physical coordinates of the tree */
     double left;
     double right;
-    tsk_id_t *parent;          /* parent of node u */
-    tsk_id_t *left_child;      /* leftmost child of node u */
-    tsk_id_t *right_child;     /* rightmost child of node u */
-    tsk_id_t *left_sib;        /* sibling to right of node u */
-    tsk_id_t *right_sib;       /* sibling to the left of node u */
     bool *above_sample;
     tsk_id_t index;
     /* These are involved in the optional sample tracking; num_samples counts
@@ -309,7 +364,6 @@ int tsk_tree_set_tracked_samples(tsk_tree_t *self,
         size_t num_tracked_samples, tsk_id_t *tracked_samples);
 int tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,
         tsk_tree_t *other, tsk_id_t node);
-int tsk_tree_get_root(tsk_tree_t *self, tsk_id_t *root);
 
 int tsk_tree_get_parent(tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_time(tsk_tree_t *self, tsk_id_t u, double *t);

@@ -906,10 +906,8 @@ with arbitrary numbers of children. In each of the five pointer arrays,
 the null node (-1) is used to indicate the end of a path; thus,
 for example, the parent of ``7`` and left sib of ``0`` are null.
 
-See the :ref:`sec_tutorial_traversing_trees` of the tutorial for more
-details on how to use this encoding to perform custom tree traversals,
-and this :ref:`example <sec_c_api_examples_tree_traversals>` for an
-how to use the quintuply linked structure in the C API.
+Please see this :ref:`example <sec_c_api_examples_tree_traversals>` for
+details of how to use the quintuply linked structure in the C API.
 
 .. note:: For many applications we do not need the quintuply linked trees,
    and (for example) the ``left_sib`` and ``right_child`` arrays can be

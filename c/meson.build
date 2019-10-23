@@ -87,6 +87,8 @@ if not meson.is_subproject()
         sources: ['examples/error_handling.c'], link_with: [tskit_lib], dependencies: lib_deps)
     executable('tree_iteration', 
         sources: ['examples/tree_iteration.c'], link_with: [tskit_lib], dependencies: lib_deps)
+    executable('tree_traversal', 
+        sources: ['examples/tree_traversal.c'], link_with: [tskit_lib], dependencies: lib_deps)
 
     gsl_dep = dependency('gsl', required: false)
     if gsl_dep.found()

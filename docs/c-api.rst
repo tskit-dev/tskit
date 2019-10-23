@@ -401,6 +401,8 @@ should not be used as the basis of a large-scale simulator.
 .. literalinclude:: ../c/examples/haploid_wright_fisher.c
     :language: c
 
+.. _sec_c_api_examples_tree_iteration:
+
 --------------
 Tree iteration
 --------------
@@ -415,6 +417,28 @@ Tree iteration
 Tree traversals
 ---------------
 
-.. literalinclude:: ../c/examples/tree_iteration.c
+In this example we load a tree sequence file, and then traverse the first
+tree in three different ways:
+
+1. We first traverse the tree in preorder using recursion. This is a very
+   common way of navigating around trees and can be very convenient for
+   some applications. For example, here we compute the depth of each node
+   (i.e., it's distance from the root) and use this when printing out the
+   nodes as we visit them.
+
+2. Then we traverse the tree in preorder using an iterative approach. This
+   is a little more efficient than using recursion, and is sometimes
+   more convenient than structuring the calculation recursively. Note that
+   we allocate a stack here with space to hold the total number of nodes
+   in the tree sequence. This is safe, but it likely to be a massive
+   over estimate. However, this makes very little difference in practise
+   even for tree sequences with millions of nodes since it's likely
+   only the first page (usually 4K) will be written to and the
+   rest of the stack will never therefore be mapped to physical memory.
+
+3. In the third example we iterate upwards from the samples rather than
+   downwards from the root.
+
+.. literalinclude:: ../c/examples/tree_traversal.c
     :language: c
 

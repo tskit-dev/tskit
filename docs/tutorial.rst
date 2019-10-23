@@ -110,7 +110,6 @@ Running this on the example above gives us::
 
    [(7, 0), (6, 1), (4, 2), (3, 2), (5, 1), (2, 2), (1, 2), (0, 2)]
 
-
 .. _sec_tutorial_moving_along_a_tree_sequence:
 
 ****************************
