@@ -20,9 +20,12 @@
 CFLAGS=-I../ -I../subprojects/kastore
 TSKIT_SOURCE=../tskit/*.c ../subprojects/kastore/kastore.c
 
-all: tree_iteration haploid_wright_fisher
+all: tree_iteration haploid_wright_fisher tree_traversal
 
 tree_iteration: tree_iteration.c 
+	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
+
+tree_traversal: tree_traversal.c 
 	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
 
 # This needs GSL
