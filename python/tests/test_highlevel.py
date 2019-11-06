@@ -1621,6 +1621,23 @@ class TestTree(HighLevelTestCase):
             tree = next(ts.trees())
             self.verify_traversals(tree)
 
+            # To verify time-ordered traversal we can't use the method used for the
+            # other traversals above, it checks for one-to-one correspondence.
+            # As more than one ordering is valid for time, we do it separately here
+            for root in tree.roots:
+                time_ordered = tree.nodes(root, order="timeasc")
+                t = tree.time(next(time_ordered))
+                for u in time_ordered:
+                    next_t = tree.time(u)
+                    self.assertGreaterEqual(next_t, t)
+                    t = next_t
+                time_ordered = tree.nodes(root, order="timedesc")
+                t = tree.time(next(time_ordered))
+                for u in time_ordered:
+                    next_t = tree.time(u)
+                    self.assertLessEqual(next_t, t)
+                    t = next_t
+
     def verify_traversals(self, tree):
         t1 = tree
         t2 = tests.PythonTree.from_tree(t1)

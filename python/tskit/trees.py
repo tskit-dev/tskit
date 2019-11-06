@@ -1449,6 +1449,12 @@ class Tree(object):
                 queue.extend(self.children(v))
             yield v
 
+    def _timeasc_traversal(self, u):
+        yield from sorted(self.nodes(u, order="levelorder"), key=self.time)
+
+    def _timedesc_traversal(self, u):
+        yield from sorted(self.nodes(u, order="levelorder"), key=self.time, reverse=True)
+
     def nodes(self, root=None, order="preorder"):
         """
         Returns an iterator over the nodes in this tree. If the root parameter
@@ -1458,8 +1464,8 @@ class Tree(object):
 
         :param int root: The root of the subtree we are traversing.
         :param str order: The traversal ordering. Currently 'preorder',
-            'inorder', 'postorder' and 'levelorder' ('breadthfirst')
-            are supported.
+            'inorder', 'postorder', 'levelorder' ('breadthfirst'), 'timeasc' and
+            'timedesc' are supported.
         :return: An iterator over the nodes in the tree in some traversal order.
         :rtype: iterator
         """
@@ -1468,7 +1474,9 @@ class Tree(object):
             "inorder": self._inorder_traversal,
             "postorder": self._postorder_traversal,
             "levelorder": self._levelorder_traversal,
-            "breadthfirst": self._levelorder_traversal
+            "breadthfirst": self._levelorder_traversal,
+            "timeasc": self._timeasc_traversal,
+            "timedesc": self._timedesc_traversal
         }
         try:
             iterator = methods[order]
