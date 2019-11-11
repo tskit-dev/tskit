@@ -54,9 +54,6 @@ class LdCalculator(object):
         self._tree_sequence = tree_sequence
         self._ll_ld_calculator = _tskit.LdCalculator(
             tree_sequence.get_ll_tree_sequence())
-        item_size = struct.calcsize('d')
-        self._buffer = bytearray(
-            tree_sequence.get_num_mutations() * item_size)
         # To protect low-level C code, only one method may execute on the
         # low-level objects at one time.
         self._instance_lock = threading.Lock()
@@ -130,11 +127,13 @@ class LdCalculator(object):
             max_mutations = -1
         if max_distance is None:
             max_distance = sys.float_info.max
+        item_size = struct.calcsize('d')
+        buffer = bytearray(self._tree_sequence.get_num_mutations() * item_size)
         with self._instance_lock:
             num_values = self._ll_ld_calculator.get_r2_array(
-                self._buffer, a, direction=direction,
+                buffer, a, direction=direction,
                 max_mutations=max_mutations, max_distance=max_distance)
-        return np.frombuffer(self._buffer, "d", num_values)
+        return np.frombuffer(buffer, "d", num_values)
 
     def get_r2_matrix(self):
         # Deprecated alias for r2_matrix
