@@ -4,6 +4,11 @@
 
 In development.
 
+**Bugfixes**
+
+- Do not reuse buffers in LdCalculator (:user:`jeromekelleher`). See :pr:`397` and
+  :issue:`396`.
+
 
 --------------------
 [0.2.2] - 2019-09-01
