@@ -1416,6 +1416,8 @@ class Tree(object):
         pop = stack.pop
         extend = stack.extend
         get_children = self.children
+        # Note: the usual style is to be explicit about what we're testing
+        # and use while len(stack) > 0, but this form is slightly faster.
         while stack:
             v = pop()
             extend(reversed(get_children(v)))
@@ -1429,6 +1431,8 @@ class Tree(object):
         extend = stack.extend
         get_children = self.children
         get_parent = self.get_parent
+        # Note: the usual style is to be explicit about what we're testing
+        # and use while len(stack) > 0, but this form is slightly faster.
         while stack:
             v = stack[-1]
             children = [] if v == parent else get_children(v)
@@ -1456,6 +1460,8 @@ class Tree(object):
         pop = queue.popleft
         extend = queue.extend
         children = self.children
+        # Note: the usual style is to be explicit about what we're testing
+        # and use while len(queue) > 0, but this form is slightly faster.
         while queue:
             v = pop()
             extend(children(v))
