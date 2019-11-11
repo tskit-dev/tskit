@@ -1411,23 +1411,36 @@ class Tree(object):
         return sum(self._ll_tree.get_num_tracked_samples(root) for root in roots)
 
     def _preorder_traversal(self, u):
-        stack = [u]
-        while len(stack) > 0:
-            v = stack.pop()
-            if self.is_internal(v):
-                stack.extend(reversed(self.children(v)))
+        stack = collections.deque([u])
+        # For perf we store these to avoid lookups in the tight loop
+        pop = stack.pop
+        extend = stack.extend
+        get_children = self.children
+        # Note: the usual style is to be explicit about what we're testing
+        # and use while len(stack) > 0, but this form is slightly faster.
+        while stack:
+            v = pop()
+            extend(reversed(get_children(v)))
             yield v
 
     def _postorder_traversal(self, u):
-        stack = [u]
+        stack = collections.deque([u])
         parent = NULL
-        while len(stack) > 0:
+        # For perf we store these to avoid lookups in the tight loop
+        pop = stack.pop
+        extend = stack.extend
+        get_children = self.children
+        get_parent = self.get_parent
+        # Note: the usual style is to be explicit about what we're testing
+        # and use while len(stack) > 0, but this form is slightly faster.
+        while stack:
             v = stack[-1]
-            if self.is_internal(v) and v != parent:
-                stack.extend(reversed(self.children(v)))
+            children = [] if v == parent else get_children(v)
+            if children:
+                extend(reversed(children))
             else:
-                parent = self.parent(v)
-                yield stack.pop()
+                parent = get_parent(v)
+                yield pop()
 
     def _inorder_traversal(self, u):
         # TODO add a nonrecursive version of the inorder traversal.
@@ -1443,10 +1456,15 @@ class Tree(object):
 
     def _levelorder_traversal(self, u):
         queue = collections.deque([u])
+        # For perf we store these to avoid lookups in the tight loop
+        pop = queue.popleft
+        extend = queue.extend
+        children = self.children
+        # Note: the usual style is to be explicit about what we're testing
+        # and use while len(queue) > 0, but this form is slightly faster.
         while queue:
-            v = queue.popleft()
-            if self.is_internal(v):
-                queue.extend(self.children(v))
+            v = pop()
+            extend(children(v))
             yield v
 
     def _timeasc_traversal(self, u):
