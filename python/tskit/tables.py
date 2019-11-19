@@ -1791,6 +1791,88 @@ class TableCollection(object):
             self.provenances.add_row(record=json.dumps(
                 provenance.get_provenance_dict(parameters)))
 
+    def _check_trim_conditions(self):
+        if self.migrations.num_rows > 0:
+            raise ValueError(
+                "You cannot trim a tree sequence containing migrations")
+        if self.edges.num_rows == 0:
+            raise ValueError(
+                "Trimming a tree sequence with no edges would reduce the sequence length"
+                " to zero, which is not allowed")
+
+    def ltrim(self, record_provenance=True):
+        """
+        Reset the coordinate system used in these tables, changing the left and right
+        genomic positions in the edge table such that the leftmost edge now starts at
+        position 0. This is identical to :meth:`TreeSequence.ltrim` but acts *in place*
+        to alter the data in this :class:`TableCollection`.
+
+        :param bool record_provenance: If ``True``, add details of this operation
+            to the provenance table in this TableCollection. (Default: ``True``).
+        """
+        self._check_trim_conditions()
+        leftmost = np.min(self.edges.left)
+        self.delete_sites(
+            np.where(self.sites.position < leftmost), record_provenance=False)
+        self.edges.set_columns(
+            left=self.edges.left - leftmost, right=self.edges.right - leftmost,
+            parent=self.edges.parent, child=self.edges.child)
+        self.sites.set_columns(
+            position=self.sites.position - leftmost,
+            ancestral_state=self.sites.ancestral_state,
+            ancestral_state_offset=self.sites.ancestral_state_offset,
+            metadata=self.sites.metadata,
+            metadata_offset=self.sites.metadata_offset)
+        self.sequence_length = self.sequence_length - leftmost
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "ltrim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def rtrim(self, record_provenance=True):
+        """
+        Reset the ``sequence_length`` property so that the sequence ends at the end of
+        the last edge. This is identical to :meth:`TreeSequence.rtrim` but acts
+        *in place* to alter the data in this :class:`TableCollection`.
+
+        :param bool record_provenance: If ``True``, add details of this operation
+            to the provenance table in this TableCollection. (Default: ``True``).
+        """
+        self._check_trim_conditions()
+        rightmost = np.max(self.edges.right)
+        self.delete_sites(
+            np.where(self.sites.position >= rightmost), record_provenance=False)
+        self.sequence_length = rightmost
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "rtrim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
+    def trim(self, record_provenance=True):
+        """
+        Trim away any empty regions on the right and left of the tree sequence encoded by
+        these tables. This is identical to :meth:`TreeSequence.trim` but acts *in place*
+        to alter the data in this :class:`TableCollection`.
+
+        :param bool record_provenance: If ``True``, add details of this operation
+            to the provenance table in this TableCollection. (Default: ``True``).
+        """
+        self.rtrim(record_provenance=False)
+        self.ltrim(record_provenance=False)
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {
+                "command": "trim",
+            }
+            self.provenances.add_row(record=json.dumps(
+                provenance.get_provenance_dict(parameters)))
+
     def has_index(self):
         """
         Returns True if this TableCollection is indexed.

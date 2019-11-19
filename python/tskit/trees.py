@@ -3401,6 +3401,50 @@ class TreeSequence(object):
         tables.keep_intervals(intervals, simplify, record_provenance)
         return tables.tree_sequence()
 
+    def ltrim(self, record_provenance=True):
+        """
+        Returns a copy of this tree sequence with a potentially changed coordinate
+        system, such that empty regions (i.e. those not covered by any edge) at the start
+        of the tree sequence are trimmed away, and the leftmost edge starts at position
+        0. This affects the reported position of sites and edges. Additionally, sites and
+        their associated mutations to the left of the new zero point are thrown away.
+
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        """
+        tables = self.dump_tables()
+        tables.ltrim(record_provenance)
+        return tables.tree_sequence()
+
+    def rtrim(self, record_provenance=True):
+        """
+        Returns a copy of this tree sequence with the ``sequence_length`` property reset
+        so that the sequence ends at the end of the rightmost edge. Additionally, sites
+        and their associated mutations at positions greater than the new
+        ``sequence_length`` are thrown away.
+
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        """
+        tables = self.dump_tables()
+        tables.rtrim(record_provenance)
+        return tables.tree_sequence()
+
+    def trim(self, record_provenance=True):
+        """
+        Returns a copy of this tree sequence with any empty regions (i.e. those not
+        covered by any edge) on the right and left trimmed away. This may reset both the
+        coordinate system and the ``sequence_length`` property. It is functionally
+        equivalent to :meth:`.rtrim` followed by :meth:`.ltrim`. Sites and their
+        associated mutations in the empty regions are thrown away.
+
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        """
+        tables = self.dump_tables()
+        tables.trim(record_provenance)
+        return tables.tree_sequence()
+
     def draw_svg(self, path=None, **kwargs):
         # TODO document this method, including semantic details of the
         # returned SVG object.
