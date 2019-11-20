@@ -24,10 +24,49 @@
 Module responsible for visualisations.
 """
 import collections
-from _tskit import NULL
+import numbers
 
 import svgwrite
 import numpy as np
+
+from _tskit import NULL
+
+LEFT = "left"
+RIGHT = "right"
+TOP = "top"
+BOTTOM = "bottom"
+
+
+def check_orientation(orientation):
+    if orientation is None:
+        orientation = TOP
+    else:
+        orientation = orientation.lower()
+        orientations = [LEFT, RIGHT, TOP, BOTTOM]
+        if orientation not in orientations:
+            raise ValueError(
+                "Unknown orientiation: choose from {}".format(orientations))
+    return orientation
+
+
+def check_max_tree_height(max_tree_height, allow_numeric=True):
+    if max_tree_height is None:
+        max_tree_height = "tree"
+    is_numeric = isinstance(max_tree_height, numbers.Real)
+    if max_tree_height not in ["tree", "ts"] and not allow_numeric:
+        raise ValueError("max_tree_height must be 'tree' or 'ts'")
+    if max_tree_height not in ["tree", "ts"] and (allow_numeric and not is_numeric):
+        raise ValueError(
+            "max_tree_height must be a numeric value or one of 'tree' or 'ts'")
+    return max_tree_height
+
+
+def check_tree_height_scale(tree_height_scale):
+    if tree_height_scale is None:
+        tree_height_scale = "time"
+    if tree_height_scale not in ["time", "log_time", "rank"]:
+        raise ValueError("tree_height_scale must be 'time', 'log_time' or 'rank'")
+    return tree_height_scale
 
 
 def check_format(format):
@@ -264,28 +303,39 @@ class SvgTree(object):
         self.mutation_right_labels = self.mutation_labels.add(dwg.g(text_anchor="end"))
 
     def assign_y_coordinates(self, tree_height_scale, max_tree_height):
+        tree_height_scale = check_tree_height_scale(tree_height_scale)
+        max_tree_height = check_max_tree_height(
+            max_tree_height, tree_height_scale != "rank")
         ts = self.tree.tree_sequence
         node_time = ts.tables.nodes.time
-        if tree_height_scale in [None, "time", "log_time"]:
-            if max_tree_height in [None, "tree"]:
+
+        if tree_height_scale == "rank":
+            assert tree_height_scale == "rank"
+            if max_tree_height == "tree":
+                # We only rank the times within the tree in this case.
+                t = np.zeros_like(node_time) + node_time[self.tree.left_root]
+                for u in self.tree.nodes():
+                    t[u] = node_time[u]
+                node_time = t
+            depth = {t: 2 * j for j, t in enumerate(np.unique(node_time))}
+            node_height = [depth[node_time[u]] for u in range(ts.num_nodes)]
+            max_tree_height = max(depth.values())
+        else:
+            assert tree_height_scale in ["time", "log_time"]
+            if max_tree_height == "tree":
                 max_tree_height = max(self.tree.time(root) for root in self.tree.roots)
             elif max_tree_height == "ts":
                 max_tree_height = ts.max_root_time
-        if tree_height_scale == "log_time":
-            # add 1 so that don't reach log(0) = -inf error.
-            # just shifts entire timeset by 1 year so shouldn't affect anything
-            node_height = np.log(ts.tables.nodes.time + 1)
-        elif tree_height_scale in [None, "time"]:
-            node_height = node_time
-        else:
-            if tree_height_scale != "rank":
-                raise ValueError(
-                    "Only 'time', 'log_time', "
-                    "and 'rank' are supported for tree_height_scale")
-            depth = {t: 2 * j for j, t in enumerate(np.unique(node_time))}
-            node_height = [depth[node_time[u]] for u in range(ts.num_nodes)]
-            if max_tree_height is None:
-                max_tree_height = max(depth.values())
+
+            if tree_height_scale == "log_time":
+                # add 1 so that don't reach log(0) = -inf error.
+                # just shifts entire timeset by 1 year so shouldn't affect anything
+                node_height = np.log(ts.tables.nodes.time + 1)
+            elif tree_height_scale == "time":
+                node_height = node_time
+
+        assert float(max_tree_height) == max_tree_height
+
         # In pathological cases, all the roots are at 0
         if max_tree_height == 0:
             max_tree_height = 1
@@ -466,32 +516,6 @@ class TextTreeSequence(object):
         return "".join(self.canvas.reshape(self.width * self.height))
 
 
-LEFT = "left"
-RIGHT = "right"
-TOP = "top"
-BOTTOM = "bottom"
-
-
-def check_orientation(orientation):
-    if orientation is None:
-        orientation = TOP
-    else:
-        orientation = orientation.lower()
-        orientations = [LEFT, RIGHT, TOP, BOTTOM]
-        if orientation not in orientations:
-            raise ValueError(
-                "Unknown orientiation: choose from {}".format(orientations))
-    return orientation
-
-
-def check_max_tree_height(max_tree_height):
-    if max_tree_height is None:
-        max_tree_height = "tree"
-    if max_tree_height not in ["tree", "ts"]:
-        raise ValueError("max_tree_height must be 'tree' or 'ts'")
-    return max_tree_height
-
-
 def to_np_unicode(string):
     """
     Converts the specified string to a numpy unicode array.
@@ -574,7 +598,8 @@ class TextTree(object):
             self, tree, node_labels=None, max_tree_height=None, use_ascii=False,
             orientation=None):
         self.tree = tree
-        self.max_tree_height = check_max_tree_height(max_tree_height)
+        self.max_tree_height = check_max_tree_height(
+            max_tree_height, allow_numeric=False)
         self.use_ascii = use_ascii
         self.orientation = check_orientation(orientation)
         self.horizontal_line_char = '━'
