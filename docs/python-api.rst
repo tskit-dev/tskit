@@ -36,19 +36,20 @@ Top level-classes
 Constants
 +++++++++
 
-.. data:: tskit.NULL == -1
+.. autodata:: tskit.NULL
+    :annotation: = -1
 
-    Special reserved value representing a null ID.
+.. autodata:: tskit.NODE_IS_SAMPLE
+    :annotation: = 1
 
-.. data:: tskit.FORWARD == 1
+.. autodata:: tskit.MISSING_DATA
+    :annotation: = -1
 
-    Constant representing the forward direction of travel (i.e.,
-    increasing genomic coordinate values).
+.. autodata:: tskit.FORWARD
+    :annotation: = 1
 
-.. data:: tskit.REVERSE == -1
-
-    Constant representing the reverse direction of travel (i.e.,
-    decreasing genomic coordinate values).
+.. autodata:: tskit.REVERSE
+    :annotation: = -1
 
 
 ++++++++++++++++++++++++
@@ -82,6 +83,9 @@ directly, but are the return types for the various iterators provided by the
     :members:
 
 .. autoclass:: tskit.Population()
+    :members:
+
+.. autoclass:: tskit.Provenance()
     :members:
 
 ++++++++++++
@@ -352,7 +356,7 @@ encoded as signed integers. As for :ref:`sec_tables_api_text_columns`,
 the ``metadata_offset`` column encodes the offsets into this array. So, we
 see that the first metadata value is 9 bytes long and the second is 24.
 
-The :func:`pack_bytes` and :func:`unpack_bytes` functions are also useful
+The :func:`.pack_bytes` and :func:`.unpack_bytes` functions are also useful
 for encoding data in these columns.
 
 +++++++++++++
@@ -429,6 +433,10 @@ Table functions
 .. autofunction:: tskit.parse_sites
 
 .. autofunction:: tskit.parse_mutations
+
+.. autofunction:: tskit.parse_individuals
+
+.. autofunction:: tskit.parse_populations
 
 .. autofunction:: tskit.pack_strings
 

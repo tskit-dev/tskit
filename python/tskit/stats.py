@@ -95,18 +95,18 @@ class LdCalculator(object):
         :math:`b` considered, we then insert the value of :math:`r^2` between
         :math:`a` and :math:`b` at the corresponding index in an array, and
         return the entire array. If the returned array is :math:`x` and
-        ``direction`` is :const:`tskit.FORWARD` then :math:`x[0]` is the
+        ``direction`` is :data:`tskit.FORWARD` then :math:`x[0]` is the
         value of the statistic for :math:`a` and :math:`a + 1`, :math:`x[1]`
         the value for :math:`a` and :math:`a + 2`, etc. Similarly, if
-        ``direction`` is :const:`tskit.REVERSE` then :math:`x[0]` is the
+        ``direction`` is :data:`tskit.REVERSE` then :math:`x[0]` is the
         value of the statistic for :math:`a` and :math:`a - 1`, :math:`x[1]`
         the value for :math:`a` and :math:`a - 2`, etc.
 
         :param int a: The index of the focal mutation.
         :param int direction: The direction in which to travel when
             examining other mutations. Must be either
-            :const:`tskit.FORWARD` or :const:`tskit.REVERSE`. Defaults
-            to :const:`tskit.FORWARD`.
+            :data:`tskit.FORWARD` or :data:`tskit.REVERSE`. Defaults
+            to :data:`tskit.FORWARD`.
         :param int max_mutations: The maximum number of mutations to return
             :math:`r^2` values for. Defaults to as many mutations as
             possible.

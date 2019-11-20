@@ -125,7 +125,7 @@ def validate_provenance(provenance):
 
     :param dict provenance: The dictionary representing a JSON document
         to be validated against the schema.
-    :raises: :class:`.ProvenanceValidationError`
+    :raises: :class:`tskit.ProvenanceValidationError`
     """
     schema = get_schema()
     try:

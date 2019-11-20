@@ -21,10 +21,22 @@
 # SOFTWARE.
 
 import _tskit
+
+#: Special reserved value representing a null ID.
 NULL = _tskit.NULL
+
+#: Special value representing missing data in a genotype array
 MISSING_DATA = _tskit.MISSING_DATA
+
+#: Node flag value indicating that it is a sample.
 NODE_IS_SAMPLE = _tskit.NODE_IS_SAMPLE
+
+#: Constant representing the forward direction of travel (i.e.,
+#: increasing genomic coordinate values).
 FORWARD = _tskit.FORWARD
+
+#: Constant representing the reverse direction of travel (i.e.,
+#: decreasing genomic coordinate values).
 REVERSE = _tskit.REVERSE
 
 from tskit.provenance import __version__  # NOQA

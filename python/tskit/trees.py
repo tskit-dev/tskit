@@ -244,7 +244,7 @@ class Mutation(SimpleContainer):
     :ivar parent: The integer ID of this mutation's parent mutation. When multiple
         mutations occur at a site along a path in the tree, mutations must
         record the mutation that is immediately above them. If the mutation does
-        not have a parent, this is equal to the :const:`NULL` (-1).
+        not have a parent, this is equal to the :data:`NULL` (-1).
         To obtain further information about a mutation with a given ID, use
         :meth:`.TreeSequence.mutation`.
     :vartype parent: int
@@ -717,7 +717,7 @@ class Tree(object):
     def parent(self, u):
         """
         Returns the parent of the specified node. Returns
-        :const:`.NULL` if u is a root or is not a node in
+        :data:`.NULL` if u is a root or is not a node in
         the current tree.
 
         :param int u: The node of interest.
@@ -731,7 +731,7 @@ class Tree(object):
     def left_child(self, u):
         """
         Returns the leftmost child of the specified node. Returns
-        :const:`.NULL` if u is a leaf or is not a node in
+        :data:`.NULL` if u is a leaf or is not a node in
         the current tree. The left-to-right ordering of children
         is arbitrary and should not be depended on; see the
         :ref:`data model <sec_data_model_tree_structure>` section
@@ -750,7 +750,7 @@ class Tree(object):
     def right_child(self, u):
         """
         Returns the rightmost child of the specified node. Returns
-        :const:`.NULL` if u is a leaf or is not a node in
+        :data:`.NULL` if u is a leaf or is not a node in
         the current tree. The left-to-right ordering of children
         is arbitrary and should not be depended on; see the
         :ref:`data model <sec_data_model_tree_structure>` section
@@ -768,7 +768,7 @@ class Tree(object):
 
     def left_sib(self, u):
         """
-        Returns the sibling node to the left of u, or :const:`.NULL`
+        Returns the sibling node to the left of u, or :data:`.NULL`
         if u does not have a left sibling.
         The left-to-right ordering of children
         is arbitrary and should not be depended on; see the
@@ -783,7 +783,7 @@ class Tree(object):
 
     def right_sib(self, u):
         """
-        Returns the sibling node to the right of u, or :const:`.NULL`
+        Returns the sibling node to the right of u, or :data:`.NULL`
         if u does not have a right sibling.
         The left-to-right ordering of children
         is arbitrary and should not be depended on; see the
@@ -1165,24 +1165,24 @@ class Tree(object):
         :param int height: The height of the image in pixels. If not specified, either
             defaults to the minimum size required to depict the tree (text formats)
             or 200 pixels.
-        :param map node_labels: If specified, show custom labels for the nodes
+        :param dict node_labels: If specified, show custom labels for the nodes
             that are present in the map. Any nodes not specified in the map will
             not have a node label.
-        :param map node_colours: If specified, show custom colours for the nodes
+        :param dict node_colours: If specified, show custom colours for the nodes
             given in the map. Any nodes not specified in the map will take the default
             colour; a value of ``None`` is treated as transparent and hence the node
             symbol is not plotted. (Only supported in the SVG format.)
-        :param map mutation_labels: If specified, show custom labels for the mutations
+        :param dict mutation_labels: If specified, show custom labels for the mutations
             (specified by ID) that are present in the map. Any mutations not in the map
             will not have a label. (Showing mutations is currently only supported in the
             SVG format)
-        :param map mutation_colours: If specified, show custom colours for the mutations
+        :param dict mutation_colours: If specified, show custom colours for the mutations
             given in the map (specified by ID). As for ``node_colours``, mutations not
             present in the map take the default colour, and those mapping to ``None``
             are not drawn. (Only supported in the SVG format.)
         :param str format: The format of the returned image. Currently supported
             are 'svg', 'ascii' and 'unicode'.
-        :param map edge_colours: If specified, show custom colours for the edge
+        :param dict edge_colours: If specified, show custom colours for the edge
             joining each node in the map to its parent. As for ``node_colours``,
             unspecified edges take the default colour, and ``None`` values result in the
             edge being omitted. (Only supported in the SVG format.)
@@ -1290,7 +1290,7 @@ class Tree(object):
 
         :param int u: The node of interest.
         :return: An iterator over all leaves in the subtree rooted at u.
-        :rtype: iterator
+        :rtype: collections.abc.Iterable
         """
         roots = [u]
         if u is None:
@@ -1330,7 +1330,7 @@ class Tree(object):
 
         :param int u: The node of interest.
         :return: An iterator over all samples in the subtree rooted at u.
-        :rtype: iterator
+        :rtype: collections.abc.Iterable
         """
         roots = [u]
         if u is None:
@@ -1485,7 +1485,7 @@ class Tree(object):
             'inorder', 'postorder', 'levelorder' ('breadthfirst'), 'timeasc' and
             'timedesc' are supported.
         :return: An iterator over the nodes in the tree in some traversal order.
-        :rtype: iterator
+        :rtype: collections.abc.Iterable
         """
         methods = {
             "preorder": self._preorder_traversal,
@@ -1544,7 +1544,7 @@ class Tree(object):
         :param int precision: The numerical precision with which branch lengths are
             printed.
         :param int root: If specified, return the tree rooted at this node.
-        :param map node_labels: If specified, show custom labels for the nodes
+        :param dict node_labels: If specified, show custom labels for the nodes
             that are present in the map. Any nodes not specified in the map will
             not have a node label.
         :return: A newick representation of this tree.
@@ -1660,10 +1660,10 @@ def parse_individuals(
     See :func:`.load_text` for a detailed explanation of the ``strict``
     parameter.
 
-    :param stream source: The file-like object containing the text.
+    :param io.TextIOBase source: The file-like object containing the text.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
-    :param string encoding: Encoding used for text representation.
+    :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
     :param IndividualTable table: If specified write into this table. If not,
@@ -1719,10 +1719,10 @@ def parse_nodes(
     See :func:`.load_text` for a detailed explanation of the ``strict``
     parameter.
 
-    :param stream source: The file-like object containing the text.
+    :param io.TextIOBase source: The file-like object containing the text.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
-    :param string encoding: Encoding used for text representation.
+    :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
     :param NodeTable table: If specified write into this table. If not,
@@ -1788,7 +1788,7 @@ def parse_edges(source, strict=True, table=None):
 
     See :func:`.load_text` for a detailed explanation of the ``strict`` parameter.
 
-    :param stream source: The file-like object containing the text.
+    :param io.TextIOBase source: The file-like object containing the text.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
     :param EdgeTable table: If specified, write the edges into this table. If
@@ -1829,10 +1829,10 @@ def parse_sites(
     See :func:`.load_text` for a detailed explanation of the ``strict``
     parameter.
 
-    :param stream source: The file-like object containing the text.
+    :param io.TextIOBase source: The file-like object containing the text.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
-    :param string encoding: Encoding used for text representation.
+    :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
     :param SiteTable table: If specified write site into this table. If not,
@@ -1879,10 +1879,10 @@ def parse_mutations(
     See :func:`.load_text` for a detailed explanation of the ``strict``
     parameter.
 
-    :param stream source: The file-like object containing the text.
+    :param io.TextIOBase source: The file-like object containing the text.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
-    :param string encoding: Encoding used for text representation.
+    :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
     :param MutationTable table: If specified, write mutations into this table.
@@ -1941,10 +1941,10 @@ def parse_populations(
     See :func:`.load_text` for a detailed explanation of the ``strict``
     parameter.
 
-    :param stream source: The file-like object containing the text.
+    :param io.TextIOBase source: The file-like object containing the text.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
-    :param string encoding: Encoding used for text representation.
+    :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
     :param PopulationTable table: If specified write into this table. If not,
@@ -2013,23 +2013,23 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
     <sec_valid_tree_sequence_requirements>`. Note that this may result in the
     IDs of various entities changing from their positions in the input file.
 
-    :param stream nodes: The file-like object containing text describing a
+    :param io.TextIOBase nodes: The file-like object containing text describing a
         :class:`.NodeTable`.
-    :param stream edges: The file-like object containing text
+    :param io.TextIOBase edges: The file-like object containing text
         describing an :class:`.EdgeTable`.
-    :param stream sites: The file-like object containing text describing a
+    :param io.TextIOBase sites: The file-like object containing text describing a
         :class:`.SiteTable`.
-    :param stream mutations: The file-like object containing text
+    :param io.TextIOBase mutations: The file-like object containing text
         describing a :class:`MutationTable`.
-    :param stream individuals: The file-like object containing text
+    :param io.TextIOBase individuals: The file-like object containing text
         describing a :class:`IndividualTable`.
-    :param stream populations: The file-like object containing text
+    :param io.TextIOBase populations: The file-like object containing text
         describing a :class:`PopulationTable`.
     :param float sequence_length: The sequence length of the returned tree sequence. If
         not supplied or zero this will be inferred from the set of edges.
     :param bool strict: If True, require strict tab delimiting (default). If
         False, a relaxed whitespace splitting algorithm is used.
-    :param string encoding: Encoding used for text representation.
+    :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
     :return: The tree sequence object containing the information
@@ -2211,16 +2211,20 @@ class TreeSequence(object):
         If Base64 encoding is not used, then metadata will be saved directly, possibly
         resulting in errors reading the tables back in if metadata includes whitespace.
 
-        :param stream nodes: The file-like object (having a .write() method) to write
-            the NodeTable to.
-        :param stream edges: The file-like object to write the EdgeTable to.
-        :param stream sites: The file-like object to write the SiteTable to.
-        :param stream mutations: The file-like object to write the MutationTable to.
-        :param stream individuals: The file-like object to write the IndividualTable to.
-        :param stream populations: The file-like object to write the PopulationTable to.
-        :param stream provenances: The file-like object to write the ProvenanceTable to.
+        :param io.TextIOBase nodes: The file-like object (having a .write() method) to
+            write the NodeTable to.
+        :param io.TextIOBase edges: The file-like object to write the EdgeTable to.
+        :param io.TextIOBase sites: The file-like object to write the SiteTable to.
+        :param io.TextIOBase mutations: The file-like object to write the
+            MutationTable to.
+        :param io.TextIOBase individuals: The file-like object to write the
+            IndividualTable to.
+        :param io.TextIOBase populations: The file-like object to write the
+            PopulationTable to.
+        :param io.TextIOBase provenances: The file-like object to write the
+            ProvenanceTable to.
         :param int precision: The number of digits of precision.
-        :param string encoding: Encoding used for text representation.
+        :param str encoding: Encoding used for text representation.
         :param bool base64_metadata: If True, metadata is encoded using Base64
             encoding; otherwise, as plain text.
         """
@@ -2528,7 +2532,7 @@ class TreeSequence(object):
         Migrations are returned in nondecreasing order of the ``time`` value.
 
         :return: An iterator over all migrations.
-        :rtype: iter(:class:`.Migration`)
+        :rtype: :class:`collections.abc.Iterable`, :class:`.Migration`
         """
         for j in range(self._ll_tree_sequence.get_num_migrations()):
             yield Migration(*self._ll_tree_sequence.get_migration(j))
@@ -2539,7 +2543,7 @@ class TreeSequence(object):
         :ref:`individuals <sec_individual_table_definition>` in this tree sequence.
 
         :return: An iterator over all individuals.
-        :rtype: iter(:class:`.Individual`)
+        :rtype: :class:`collections.abc.Iterable`, :class:`.Individual`
         """
         for j in range(self.num_individuals):
             yield self.individual(j)
@@ -2550,7 +2554,7 @@ class TreeSequence(object):
         in this tree sequence.
 
         :return: An iterator over all nodes.
-        :rtype: iter(:class:`.Node`)
+        :rtype: :class:`collections.abc.Iterable`, :class:`.Node`
         """
         for j in range(self.num_nodes):
             yield self.node(j)
@@ -2566,7 +2570,7 @@ class TreeSequence(object):
         are sorted first by child ID and then by left coordinate.
 
         :return: An iterator over all edges.
-        :rtype: iter(:class:`.Edge`)
+        :rtype: :class:`collections.abc.Iterable`, :class:`.Edge`
         """
         for j in range(self.num_edges):
             yield self.edge(j)
@@ -2619,7 +2623,7 @@ class TreeSequence(object):
         sequence.
 
         :return: An iterator over the (interval, edges_out, edges_in) tuples.
-        :rtype: iter(tuple, tuple, tuple)
+        :rtype: :class:`collections.abc.Iterable`
         """
         iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence)
         for interval, edge_tuples_out, edge_tuples_in in iterator:
@@ -2700,7 +2704,7 @@ class TreeSequence(object):
 
         :param bool as_array: If True, return the breakpoints as a numpy array.
         :return: The breakpoints defined by the tree intervals along the sequence.
-        :rtype: iter or array
+        :rtype: collections.abc.Iterable or array
         """
         breakpoints = self.ll_tree_sequence.get_breakpoints()
         if not as_array:
@@ -2777,15 +2781,15 @@ class TreeSequence(object):
            please use ``ts.aslist()`` instead.
 
         :param list tracked_samples: The list of samples to be tracked and
-            counted using the :meth:`.Tree.get_num_tracked_samples` method.
+            counted using the :meth:`.Tree.num_tracked_samples` method.
         :param bool sample_counts: If True, support constant time sample counts
             via the :meth:`.Tree.num_samples` and
-            :meth:`.Tree.get_num_tracked_samples` methods.
+            :meth:`.Tree.num_tracked_samples` methods.
         :param bool sample_lists: If True, provide more efficient access
             to the samples beneath a give node using the
             :meth:`.Tree.samples` method.
         :return: An iterator over the sparse trees in this tree sequence.
-        :rtype: iter
+        :rtype: collections.abc.Iterable
         """
         # tracked_leaves, leaf_counts and leaf_lists are deprecated aliases
         # for tracked_samples, sample_counts and sample_lists respectively.
@@ -2832,7 +2836,7 @@ class TreeSequence(object):
         :param bool impute_missing_data: If True, the allele assigned to any
             isolated samples is the ancestral state; that is, we impute
             missing data as the ancestral state. Default: False.
-        :rtype: iter
+        :rtype: collections.abc.Iterable
         :raises: LibraryError if called on a tree sequence containing
             multiletter alleles.
         :raises: LibraryError if missing data is present and impute_missing_data
@@ -3068,7 +3072,7 @@ class TreeSequence(object):
 
             $ tskit fasta example.trees > example.fasta
 
-        :param File output: The file-like object to write the fasta output.
+        :param io.IOBase output: The file-like object to write the fasta output.
         :param list(str) sequence_ids: A list of string names to uniquely identify
             each of the sequences in the fasta file. If specified, this must be a
             list of strings of length equal to the number of samples which are output.
@@ -3194,7 +3198,7 @@ class TreeSequence(object):
 
             $ tskit vcf example.trees | bcftools view -O b > example.bcf
 
-        :param File output: The file-like object to write the VCF output.
+        :param io.IOBase output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
             VCF. This sample size must be evenly divisible by ploidy.
         :param str contig_id: The value of the CHROM column in the output VCF.
@@ -3208,11 +3212,11 @@ class TreeSequence(object):
             is possible to output malformed VCF (for example, by embedding a
             tab character within on of the names). The default is to output
             ``tsk_j`` for the jth individual.
-        :param callable position_transform: A callable that transforms the
+        :param position_transform: A callable that transforms the
             site position values into integer valued coordinates suitable for
             VCF. The function takes a single positional parameter x and must
             return an integer numpy array the same dimension as x. By default,
-            this is set to :func:`numpy.round` which will round values to the
+            this is set to ``numpy.round()`` which will round values to the
             nearest integer. If the string "legacy" is provided here, the
             pre 0.2.0 legacy behaviour of rounding values to the nearest integer
             (starting from 1) and avoiding the output of identical positions
@@ -3238,7 +3242,7 @@ class TreeSequence(object):
         also return a numpy array mapping the node IDs in this tree sequence to
         their node IDs in the simplified tree tree sequence. If a node ``u`` is not
         present in the new tree sequence, the value of this mapping will be
-        NULL (-1).
+        :data:`tskit.NULL` (-1).
 
         In the returned tree sequence, the node with ID ``0`` corresponds to
         ``samples[0]``, node ``1`` corresponds to ``samples[1]``, and so on.
@@ -3297,7 +3301,7 @@ class TreeSequence(object):
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
             sequence.
-        :rtype: .TreeSequence or a (.TreeSequence, numpy.array) tuple
+        :rtype: .TreeSequence or (.TreeSequence, numpy.array)
         """
         tables = self.dump_tables()
         if samples is None:
@@ -3506,7 +3510,7 @@ class TreeSequence(object):
 
         :param ndarray W: An array of values with one row for each sample and one column
             for each weight.
-        :param function f: A function that takes a one-dimensional array of length
+        :param f: A function that takes a one-dimensional array of length
             equal to the number of columns of ``W`` and returns a one-dimensional
             array.
         :param int output_dim: The length of ``f``'s return value.
@@ -3593,7 +3597,7 @@ class TreeSequence(object):
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of individuals to compute the statistic with.
-        :param function f: A function that takes a one-dimensional array of length
+        :param f: A function that takes a one-dimensional array of length
             equal to the number of sample sets and returns a one-dimensional array.
         :param int output_dim: The length of ``f``'s return value.
         :param list windows: An increasing list of breakpoints between the windows

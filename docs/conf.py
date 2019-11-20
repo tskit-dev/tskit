@@ -263,7 +263,10 @@ epub_exclude_files = ['search.html']
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    'https://docs.python.org/': None,
+    'http://docs.scipy.org/doc/numpy/': None,
+}
 
 # -- Options for todo extension ----------------------------------------------
 
@@ -287,7 +290,6 @@ nitpick_ignore = [
     ("c:type", "bool"),
     # TODO these have been triaged here to make the docs compile, but we should
     # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
-    ("py:class", "a"),
     ("py:class", "ndarray"),
     ("py:class", "numpy array"),
     ("py:class", "numpy.ndarray"),
@@ -303,29 +305,7 @@ nitpick_ignore = [
     ("py:class", "dtype=np.int8"),
     ("py:class", "dtype=np.float64"),
     ("py:class", "dtype=np.int64"),
-    ("py:class", "iter"),
-    ("py:class", "iterator"),
-    ("py:class", "map"),
     ("py:class", "array"),
     ("py:class", "array_like"),
-    ("py:class", "File"),
-    ("py:class", "callable"),
-    ("py:class", "stream"),
-    ("py:class", "string"),
     ("py:class", ""),
-    ("py:class", "Provenance"),
-    ("py:class", "ProvenanceValidationError"),
-    ("py:class", "function"),
-    ("py:class", "Table"),
-    ("py:const", "tskit.FORWARD"),
-    ("py:const", "tskit.REVERSE"),
-    ("py:const", "NULL"),
-    ("py:attr", "NULL"),
-    ("py:func", "numpy.round"),
-    ("py:func", "numpy.nonzero"),
-    ("py:func", "pack_bytes"),
-    ("py:func", "unpack_bytes"),
-    ("py:func", "parse_individuals"),
-    ("py:func", "parse_populations"),
-    ("py:meth", "Tree.get_num_tracked_samples"),
 ]
