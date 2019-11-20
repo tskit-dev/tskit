@@ -4426,3 +4426,138 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     self->tree_left = right;
     return ret;
 }
+
+
+int
+tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double *result)
+{
+    tsk_size_t num_nodes_self, num_nodes_other;
+    int ret = 0, stack_top = 0;
+    int path_depth, tree_index, pair_index, i;
+    double vT1, vT2, distance_sum, time_depth, root_time;
+    int *m[2], *path_distance[2];
+    double *M[2], *times, *time_distance[2];
+    tsk_id_t N, u, v, mrca, n1, n2, num_samples;
+    tsk_tree_t *trees[2], *tree;
+
+    struct stack_elmt {
+        tsk_id_t node;
+        int path_depth;
+        double time_depth;
+    };
+
+    trees[0] = self;
+    trees[1] = other;
+   
+    struct stack_elmt* stack = NULL;
+    memset(path_distance, 0, sizeof(path_distance));
+    memset(time_distance, 0, sizeof(time_distance));
+    memset(m, 0, sizeof(m));
+    memset(M, 0, sizeof(M));
+
+    if (tsk_tree_get_num_roots(self) != 1 || tsk_tree_get_num_roots(other) != 1) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out; 
+    }
+
+    if (self->tree_sequence->num_samples != other->tree_sequence->num_samples) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
+    num_samples = (tsk_id_t) self->tree_sequence->num_samples;
+    N = (num_samples * (num_samples - 1)) / 2; 
+    num_nodes_self = self->num_nodes;
+    num_nodes_other = other->num_nodes;
+    stack = malloc(TSK_MAX(num_nodes_self, num_nodes_other) * sizeof(*stack));
+    m[0] = calloc((size_t) (N + num_samples), sizeof(m[0]));
+    m[1] = calloc((size_t) (N + num_samples), sizeof(m[1]));
+    M[0] = malloc((size_t) (N + num_samples) * sizeof(M[0]));
+    M[1] = malloc((size_t) (N + num_samples) * sizeof(M[1]));
+    path_distance[0] = malloc(num_nodes_self * sizeof(path_distance[0]));
+    path_distance[1] = malloc(num_nodes_other * sizeof(path_distance[1]));
+    time_distance[0] = malloc(num_nodes_self * sizeof(time_distance[0]));
+    time_distance[1] = malloc(num_nodes_other * sizeof(time_distance[1]));
+    
+    if (stack == NULL 
+            || m[0] == NULL
+            || m[1] == NULL
+            || M[0] == NULL
+            || M[1] == NULL
+            || path_distance[0] == NULL
+            || time_distance[1] == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+ 
+    for (i=0; i <= N + num_samples; i++) {
+        m[0][i] = 1;
+        m[1][i] = 1;
+    }
+
+    for (tree_index=0; tree_index != 2; tree_index++) {
+        tree = trees[tree_index];
+        times = tree->tree_sequence->tables->nodes.time;
+        stack_top = 0;
+        u = tree->left_root;
+        root_time = times[u];
+        stack[stack_top].node = u;
+        stack[stack_top].path_depth = 0;
+        stack[stack_top].time_depth = root_time;
+        while (stack_top >= 0) {
+            u = stack[stack_top].node;
+            path_depth = stack[stack_top].path_depth;
+            time_depth = stack[stack_top].time_depth;
+            stack_top--;
+            for (v = tree->left_child[u]; v != TSK_NULL;
+                v = tree->right_sib[v]) {
+                stack_top++;
+                stack[stack_top].node = v;
+                stack[stack_top].path_depth = path_depth + 1;
+                stack[stack_top].time_depth = times[v];
+            }
+            path_distance[tree_index][u] = path_depth;
+            time_distance[tree_index][u] = root_time - time_depth;
+            if (tree->left_child[u] == TSK_NULL) {
+                M[tree_index][u + N] = times[tree->parent[u]] - times[u];
+            }
+        }
+        for (n1 = 0; n1 != num_samples; n1++) {
+            for (n2 = n1 + 1; n2 != num_samples; n2++){
+                ret = tsk_tree_get_mrca(tree, n1, n2, &mrca);
+                if (ret != 0) {
+                    goto out;
+                }
+                pair_index = (n1 * (n1 - 2 * num_samples + 1)) / (-2) + n2 - n1 -1;
+                assert (m[tree_index][pair_index] == 1);
+                m[tree_index][pair_index] = path_distance[tree_index][mrca];
+                M[tree_index][pair_index] = time_distance[tree_index][mrca];
+            }
+        }
+    }
+
+    vT1 = 0;
+    vT2 = 0;
+    distance_sum=0;
+
+    for (i = 0; i != N + num_samples; i++) {
+        vT1 = (m[0][i] * (1 - lambda)) + (lambda * M[0][i]);
+        vT2 = (m[1][i] * (1 - lambda)) + (lambda * M[1][i]);
+        distance_sum += (vT1 - vT2) * (vT1 - vT2);
+    }
+  
+    *result = sqrt(distance_sum);
+out:
+    tsk_safe_free(stack);
+    tsk_safe_free(m[0]);
+    tsk_safe_free(m[1]);
+    tsk_safe_free(M[0]);
+    tsk_safe_free(M[1]);
+    tsk_safe_free(path_distance[0]);
+    tsk_safe_free(path_distance[1]);
+    tsk_safe_free(time_distance[0]);
+    tsk_safe_free(time_distance[1]);
+    return ret;
+}
+
+
