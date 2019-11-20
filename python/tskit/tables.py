@@ -1609,7 +1609,7 @@ class TableCollection(object):
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary)
 
-    def map_ancestors(self, samples, ancestors):
+    def link_ancestors(self, samples, ancestors):
         """
         Returns an :class:`EdgeTable` instance describing a subset of the genealogical
         relationships between the nodes in``samples`` and ``ancestors``.
@@ -1627,12 +1627,12 @@ class TableCollection(object):
         ``ancestors``.
 
         The following table shows which ``parent->child`` pairs will be shown in the
-        output of ``map_ancestors``.
+        output of ``link_ancestors``.
         A node is a relevant descendant on a given interval if it also appears somewhere
         in the ``parent`` column of the outputted table.
 
         ========================  ===============================================
-        Type of relationship      Shown in output of ``map_ancestors``
+        Type of relationship      Shown in output of ``link_ancestors``
         ------------------------  -----------------------------------------------
         ``ancestor->sample``      Always
         ``ancestor1->ancestor2``  Only if ``ancestor2`` has a relevant descendant
@@ -1664,8 +1664,12 @@ class TableCollection(object):
         """
         samples = util.safe_np_int_cast(samples, np.int32)
         ancestors = util.safe_np_int_cast(ancestors, np.int32)
-        ll_edge_table = self.ll_tables.map_ancestors(samples, ancestors)
+        ll_edge_table = self.ll_tables.link_ancestors(samples, ancestors)
         return EdgeTable(ll_table=ll_edge_table)
+
+    def map_ancestors(self, *args, **kwargs):
+        # A deprecated alias for link_ancestors()
+        return self.link_ancestors(*args, **kwargs)
 
     def sort(self, edge_start=0):
         """

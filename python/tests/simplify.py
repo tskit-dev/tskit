@@ -469,7 +469,7 @@ class AncestorMap(object):
             self.add_ancestry(0, self.sequence_length, sample_id, sample_id)
         self.edge_buffer = {}
 
-    def map_ancestors(self):
+    def link_ancestors(self):
         if self.ts.num_edges > 0:
             all_edges = list(self.ts.edges())
             edges = all_edges[:1]
@@ -659,7 +659,7 @@ if __name__ == "__main__":
         ancestors = list(map(int, ancestors))
 
         s = AncestorMap(ts, samples, ancestors)
-        tss = s.map_ancestors()
+        tss = s.link_ancestors()
         # tables = tss.dump_tables()
         # print(tables.nodes)
         print(tss)

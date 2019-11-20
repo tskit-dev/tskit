@@ -5468,7 +5468,7 @@ out:
 
 
 static PyObject *
-TableCollection_map_ancestors(TableCollection *self, PyObject *args, PyObject *kwds)
+TableCollection_link_ancestors(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
@@ -5510,7 +5510,7 @@ TableCollection_map_ancestors(TableCollection *self, PyObject *args, PyObject *k
     if (result == NULL) {
         goto out;
     }
-    err = tsk_table_collection_map_ancestors(self->tables,
+    err = tsk_table_collection_link_ancestors(self->tables,
             PyArray_DATA(samples_array), num_samples,
             PyArray_DATA(ancestors_array), num_ancestors, 0,
             result->table);
@@ -5660,7 +5660,7 @@ static PyGetSetDef TableCollection_getsetters[] = {
 static PyMethodDef TableCollection_methods[] = {
     {"simplify", (PyCFunction) TableCollection_simplify, METH_VARARGS|METH_KEYWORDS,
         "Simplifies for a given sample subset." },
-    {"map_ancestors", (PyCFunction) TableCollection_map_ancestors,
+    {"link_ancestors", (PyCFunction) TableCollection_link_ancestors,
         METH_VARARGS|METH_KEYWORDS,
         "Returns an edge table linking samples to a set of specified ancestors." },
     {"sort", (PyCFunction) TableCollection_sort, METH_VARARGS|METH_KEYWORDS,

@@ -2211,7 +2211,7 @@ int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t o
 
 /* Undocumented methods */
 
-int tsk_table_collection_map_ancestors(tsk_table_collection_t *self,
+int tsk_table_collection_link_ancestors(tsk_table_collection_t *self,
     tsk_id_t *samples, tsk_size_t num_samples,
     tsk_id_t *ancestors, tsk_size_t num_ancestors, tsk_flags_t options,
     tsk_edge_table_t *result);
