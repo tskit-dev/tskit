@@ -171,6 +171,7 @@ class SvgTreeSequence(object):
         svg_trees = [
             SvgTree(
                 tree, (tree_width, treebox_height),
+                max_tree_height="ts",
                 node_labels=node_labels,
                 mutation_labels=mutation_labels,
                 tree_height_scale=tree_height_scale,
