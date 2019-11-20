@@ -1163,6 +1163,47 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
 
+    def test_bad_tree_height_scale(self):
+        t = self.get_binary_tree()
+        for bad_scale in ["te", "asdf", "", [], b'23']:
+            with self.assertRaises(ValueError):
+                t.draw_svg(tree_height_scale=bad_scale)
+
+    def test_bad_max_tree_height(self):
+        t = self.get_binary_tree()
+        for bad_height in ["te", "asdf", "", [], b'23']:
+            with self.assertRaises(ValueError):
+                t.draw_svg(max_tree_height=bad_height)
+
+    def test_height_scale_time_and_max_tree_height(self):
+        ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
+        t = ts.first()
+        # The default should be the same as tree.
+        svg1 = t.draw_svg(max_tree_height="tree")
+        self.verify_basic_svg(svg1)
+        svg2 = t.draw_svg()
+        self.assertEqual(svg1, svg2)
+        svg3 = t.draw_svg(max_tree_height="ts")
+        self.assertNotEqual(svg1, svg3)
+        svg4 = t.draw_svg(max_tree_height=max(ts.tables.nodes.time))
+        self.assertEqual(svg3, svg4)
+
+    def test_height_scale_rank_and_max_tree_height(self):
+        # Make sure the rank height scale and max_tree_height interact properly.
+        ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
+        t = ts.first()
+        # The default should be the same as tree.
+        svg1 = t.draw_svg(max_tree_height="tree", tree_height_scale="rank")
+        self.verify_basic_svg(svg1)
+        svg2 = t.draw_svg(tree_height_scale="rank")
+        self.assertEqual(svg1, svg2)
+        svg3 = t.draw_svg("tmp.svg", max_tree_height="ts", tree_height_scale="rank")
+        self.assertNotEqual(svg1, svg3)
+        self.verify_basic_svg(svg3)
+        # Numeric max tree height not supported for rank scale.
+        with self.assertRaises(ValueError):
+            t.draw_svg(max_tree_height=2, tree_height_scale="rank")
+
     #
     # TODO: update the tests below here to check the new SVG based interface.
     #
