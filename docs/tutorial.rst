@@ -1,3 +1,4 @@
+.. currentmodule:: tskit
 .. _sec_tutorial:
 
 ========
@@ -14,17 +15,17 @@ Tutorial
 Trees
 *****
 
-A :class:`.Tree` represents a single tree in a :class:`.TreeSequence`.
+A :class:`Tree` represents a single tree in a :class:`TreeSequence`.
 The ``tskit`` Tree implementation differs from most tree libraries by
 using **integer IDs** to refer to nodes rather than objects. Thus, when we wish to
 find the parent of the node with ID '0', we use ``tree.parent(0)``, which
 returns another integer. If '0' does not have a parent in the current tree
-(e.g., if it is a root), then the special value :data:`.NULL`
+(e.g., if it is a root), then the special value :data:`tskit.NULL`
 (:math:`-1`) is returned. The children of a node are found using the
-:meth:`.Tree.children` method. To obtain information about a particular node,
+:meth:`Tree.children` method. To obtain information about a particular node,
 one may either use ``tree.tree_sequence.node(u)`` to which returns the
-corresponding :class:`.Node` instance, or use the :meth:`.Tree.time` or
-:meth:`.Tree.population` shorthands.
+corresponding :class:`Node` instance, or use the :meth:`Tree.time` or
+:meth:`Tree.population` shorthands.
 
 .. _sec_tutorial_trees_traversals:
 
@@ -32,7 +33,7 @@ corresponding :class:`.Node` instance, or use the :meth:`.Tree.time` or
 Traversals
 ++++++++++
 
-Tree traversals in various orders are possible using the :meth:`.Tree.nodes` iterator.
+Tree traversals in various orders are possible using the :meth:`Tree.nodes` iterator.
 For example, in the following tree we can visit the nodes in different orders:
 
 .. image:: _static/tree_structure1.svg
@@ -64,7 +65,7 @@ Traversing upwards
 ++++++++++++++++++
 
 For many applications it is useful to be able to traverse upwards from the
-leaves. We can do this using the :meth:`.Tree.parent` method, which
+leaves. We can do this using the :meth:`Tree.parent` method, which
 returns the parent of a node. For example, we can traverse upwards from
 each of the samples in the tree::
 
@@ -118,7 +119,7 @@ Moving along a tree sequence
 
 Most of the time we will want to iterate over all the trees in a tree sequence
 sequentially as efficiently as possible. The simplest way to do this is to
-use the :meth:`.TreeSequence.trees` method:
+use the :meth:`TreeSequence.trees` method:
 
 .. code-block:: python
 
@@ -146,7 +147,7 @@ Running the code, we get::
 
 Here we run a small simulation using `msprime <https://msprime.readthedocs.io>`_
 which results in 7 distinct trees along a genome of length 1. We then iterate
-over these trees sequentially using the :meth:`.TreeSequence.trees` method,
+over these trees sequentially using the :meth:`TreeSequence.trees` method,
 and print out each tree's index, the interval over which the tree applies
 and the time of the most recent common ancestor of all the samples. This
 method is very efficient, and allows us to quickly iterate over very large
@@ -196,13 +197,13 @@ list, we will get unexpected results:
     Tree -1 covers [0.00, 0.00): id=7f290becb3c8
     Tree -1 covers [0.00, 0.00): id=7f290becb3c8
 
-We have stored seven copies of the same :class:`.Tree` instance in the
+We have stored seven copies of the same :class:`Tree` instance in the
 list. Because iteration has ended, this tree is in the "null" state (see
 below for more details) which means that it doesn't represent any of the
 trees in the tree sequence.
 
 If we do wish to obtain a list of the trees, we can do so by using the
-:meth:`.TreeSequence.aslist` method:
+:meth:`TreeSequence.aslist` method:
 
 .. code-block:: python
 
@@ -222,14 +223,14 @@ If we do wish to obtain a list of the trees, we can do so by using the
 
 Note that we now have a different object for each tree in the list. Please
 note that this is **much** less efficient than iterating over the trees
-using the :meth:`.TreeSequence.trees` method (and uses far more memory!),
+using the :meth:`TreeSequence.trees` method (and uses far more memory!),
 and should only be used as a convenience when working with small trees.
 
 We can also obtain specific trees along the sequence, using the
-:meth:`.TreeSequence.first`,
-:meth:`.TreeSequence.last`
-:meth:`.TreeSequence.at` and
-:meth:`.TreeSequence.at_index` methods. The ``first()`` and ``last()``
+:meth:`TreeSequence.first`,
+:meth:`TreeSequence.last`
+:meth:`TreeSequence.at` and
+:meth:`TreeSequence.at_index` methods. The ``first()`` and ``last()``
 methods return the first and last trees in the sequence, as might be
 imagined. The ``at()`` method returns the tree that covers a
 given genomic location, and the ``at_index()`` method returns the
@@ -253,9 +254,9 @@ tree at a given index along the sequence:
     Tree 0 covers [0.00, 0.08): id=7f9fdb46d160
     Tree 6 covers [0.75, 1.00): id=7f9fdb469630
 
-Note that each call to these methods returns a different :class:`.Tree` instance
+Note that each call to these methods returns a different :class:`Tree` instance
 and so it is much, much less efficient to sequentially access trees
-by their index values than it is to use the :meth:`.TreeSequence.trees`
+by their index values than it is to use the :meth:`TreeSequence.trees`
 iterator.
 
 
@@ -295,11 +296,11 @@ to remove all singleton sites from a given tree sequence.
 This function takes a tree sequence containing some infinite sites mutations as
 input, and returns a copy in which all singleton sites have been removed.
 The approach is very simple: we get a copy of the underlying
-table data in a :class:`.TableCollection` object, and first clear the
+table data in a :class:`TableCollection` object, and first clear the
 site and mutation tables. We then consider each site in turn,
 and if the number of samples with
 the mutation is greater than one, we add the site and mutation to our
-output tables using :meth:`.SiteTable.add_row` and :meth:`.MutationTable.add_row`.
+output tables using :meth:`SiteTable.add_row` and :meth:`MutationTable.add_row`.
 (In this case we consider only simple infinite sites mutations,
 where we cannot have back or recurrent mutations. These would require a slightly
 more involved approach where we keep a map of mutation IDs so that
@@ -307,7 +308,7 @@ mutation ``parent`` values could be computed. We have also omitted the
 site and mutation metadata in the interest of simplicity.)
 
 After considering each site, we then create a new tree sequence using
-the :meth:`.TableCollection.tree_sequence` method on our updated tables.
+the :meth:`TableCollection.tree_sequence` method on our updated tables.
 Using this function then, we get::
 
     >>> ts = msprime.simulate(10, mutation_rate=10)
@@ -335,7 +336,7 @@ Tables provide a convenient method for viewing, importing and exporting tree
 sequences, and are closely tied to the underlying data structures.
 There are eight tables that together define a tree sequence,
 although some may be empty,
-and together they form a :class:`.TableCollection`.
+and together they form a :class:`TableCollection`.
 The tables are defined in :ref:`Table Definitions <sec_table_definitions>`,
 and the :ref:`Tables API <sec_tables_api>` section describes how to work with them.
 Here we make some general remarks about what you can and cannot do with them.
@@ -435,7 +436,7 @@ along the chromosome of length 1.0.
 
 Each node in each of the above trees represents a particular ancestral genome
 (a *haploid* genome; diploid individuals would be represented by two nodes).
-We record when each of nodes lived in a :class:`.NodeTable`::
+We record when each of nodes lived in a :class:`NodeTable`::
 
     NodeTable:
 
@@ -457,7 +458,7 @@ on the middle portion of the genome, but not on the ends.)
 
 We next need to record each tree's edges. Since some edges are present
 in more than one tree (e.g., node 1 inherits from node 4 across
-the entire sequence), we record in the :class:`.EdgeTable` each edge
+the entire sequence), we record in the :class:`EdgeTable` each edge
 and the genomic region for which it appears in the trees::
 
 
@@ -492,7 +493,7 @@ second tree both occurred at the same position, at 0.5 (with a back mutation).
 To record the inheritance patterns of these, we need only record
 the positions on the genome at which they occurred,
 and on which edge (equivalently, above which node) they occurred.
-The positions are recorded in the :class:`.SiteTable`::
+The positions are recorded in the :class:`SiteTable`::
 
     SiteTable:
 
@@ -522,8 +523,8 @@ samples::
 
 
 To create these tables, and the corresponding tree sequence, we would
-create a :class:`.TableCollection`, and then use its
-:meth:`.TableCollection.tree_sequence` method::
+create a :class:`TableCollection`, and then use its
+:meth:`TableCollection.tree_sequence` method::
 
     tables = tskit.TableCollection(sequence_length=1.0)
 
@@ -584,10 +585,10 @@ Calculating LD
 **************
 
 The ``tskit`` API provides methods to efficiently calculate
-population genetics statistics. For example, the :class:`.LdCalculator`
+population genetics statistics. For example, the :class:`LdCalculator`
 class allows us to compute pairwise `linkage disequilibrium
 <https://en.wikipedia.org/wiki/Linkage_disequilibrium>`_ coefficients.
-Here we use the :meth:`.LdCalculator.r2_matrix` method to easily make an
+Here we use the :meth:`LdCalculator.r2_matrix` method to easily make an
 LD plot using `matplotlib <http://matplotlib.org/>`_. (Thanks to
 the excellent `scikit-allel
 <http://scikit-allel.readthedocs.io/en/latest/index.html>`_
@@ -655,7 +656,7 @@ CPU intensive tasks are being undertaken.
 In the following example we wish to find all mutations that are in approximate
 LD (:math:`r^2 \geq 0.5`) with a given set of mutations. We parallelise this
 by splitting the input array between a number of threads, and use the
-:meth:`.LdCalculator.r2_array` method to compute the :math:`r^2` value
+:meth:`LdCalculator.r2_array` method to compute the :math:`r^2` value
 both up and downstream of each focal mutation, filter out those that
 exceed our threshold, and store the results in a dictionary. We also
 use the very cool `tqdm <https://pypi.python.org/pypi/tqdm>`_ module to give us a
@@ -727,8 +728,8 @@ of these doubletons and have an :math:`r^2` statistic of greater than 0.5.
 The ``find_ld_sites()`` function performs these calculations in parallel using
 8 threads. The real work is done in the nested ``thread_worker()`` function,
 which is called once by each thread. In the thread worker, we first allocate an
-instance of the :class:`.LdCalculator` class. (It is **critically important**
-that each thread has its own instance of :class:`.LdCalculator`, as the threads
+instance of the :class:`LdCalculator` class. (It is **critically important**
+that each thread has its own instance of :class:`LdCalculator`, as the threads
 will not work efficiently otherwise.) After this, each thread works out the
 slice of the input array that it is responsible for, and then iterates over
 each focal mutation in turn. After the :math:`r^2` values have been calculated,
@@ -751,7 +752,7 @@ Running this example we get::
 Parsimony
 *********
 
-The :meth:`.Tree.map_mutations` method finds a parsimonious explanation for a
+The :meth:`Tree.map_mutations` method finds a parsimonious explanation for a
 set of discrete character observations on the samples in a tree using classical phylogenetic
 algorithms.
 
@@ -783,7 +784,7 @@ a mutation to blue and green over nodes 4 and 5.
 Building tables
 +++++++++++++++
 
-One of the main uses of :meth:`.Tree.map_mutations` is to position mutations on a tree
+One of the main uses of :meth:`Tree.map_mutations` is to position mutations on a tree
 to encode observed data. In the following example we show how a set
 of tables can be updated using the :ref:`Tables API<sec_tables_api>`; here we
 infer the location of mutations in an simulated tree sequence, and recompute
@@ -842,7 +843,7 @@ The output is::
 Missing data
 ++++++++++++
 
-The Fitch parsimony algorithm in :meth:`.Tree.map_mutations` can also take missing data
+The Fitch parsimony algorithm in :meth:`Tree.map_mutations` can also take missing data
 into account when finding a set of parsimonious state transitions. We do this by
 specifying the special value ``-1`` as the state, which is treated by the algorithm as
 "could be anything".
@@ -927,7 +928,7 @@ One-way statistics
 
 We refer to statistics that are defined with respect to a single set of
 samples as "one-way". An example of such a statistic is diversity, which
-is computed using the :meth:`.TreeSequence.diversity` method::
+is computed using the :meth:`TreeSequence.diversity` method::
 
     x = ts.diversity()
     print("Average diversity per unit sequence length = {:.3G}".format(x))
@@ -1016,7 +1017,7 @@ Multi-way statistics
 ++++++++++++++++++++
 
 Many population genetic statistics compare multiple sets of samples to
-each other. For example, the :meth:`.TreeSequence.divergence` method computes
+each other. For example, the :meth:`TreeSequence.divergence` method computes
 the divergence between two subsets of samples::
 
     A = ts.samples()[:100]
@@ -1197,7 +1198,7 @@ and not present in the other sample set.
 Branch length spectra
 +++++++++++++++++++++
 
-Up to now we've used the :meth:`.TreeSequence.allele_frequency_spectrum` method
+Up to now we've used the :meth:`TreeSequence.allele_frequency_spectrum` method
 to summarise the number of sites that occur at different frequencies. We can also
 use this approach to compute the total branch lengths subtending a given
 number of samples by setting ``mode="branch"``::

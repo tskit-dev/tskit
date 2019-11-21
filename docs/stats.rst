@@ -1,3 +1,4 @@
+.. currentmodule:: tskit
 .. _sec_stats:
 
 ##########
@@ -38,10 +39,10 @@ grouped by basic classification and type.
 Single site statistics
 ++++++++++++++++++++++
 
-- :meth:`.TreeSequence.diversity`
-- :meth:`.TreeSequence.divergence`
-- :meth:`.TreeSequence.segregating_sites`
-- :meth:`.TreeSequence.allele_frequency_spectrum`
+- :meth:`TreeSequence.diversity`
+- :meth:`TreeSequence.divergence`
+- :meth:`TreeSequence.segregating_sites`
+- :meth:`TreeSequence.allele_frequency_spectrum`
 
 ------------------------
 Patterson's f statistics
@@ -53,9 +54,9 @@ See the documentation (link below) for the definition,
 and `Peter (2016) <https://www.genetics.org/content/202/4/1485>`_ for readable
 discussion of their use.
 
-- :meth:`.TreeSequence.f4`
-- :meth:`.TreeSequence.f3`
-- :meth:`.TreeSequence.f2`
+- :meth:`TreeSequence.f4`
+- :meth:`TreeSequence.f3`
+- :meth:`TreeSequence.f2`
 
 ------------
 Y statistics
@@ -66,8 +67,8 @@ These are the `Y` statistics introduced by
 as a three-sample intermediate between diversity/divergence (which are
 pairwise) and Patterson's f statistics (which are four-way).
 
-- :meth:`.TreeSequence.Y3`
-- :meth:`.TreeSequence.Y2`
+- :meth:`TreeSequence.Y3`
+- :meth:`TreeSequence.Y2`
 
 ------------------
 Trait correlations
@@ -77,8 +78,8 @@ These methods compute correlations and covariances of traits (i.e., an
 arbitrary vector) with allelic state, possibly in the context of a multivariate
 regression with other covariates (as in GWAS).
 
-- :meth:`.TreeSequence.trait_covariance`
-- :meth:`.TreeSequence.trait_correlation`
+- :meth:`TreeSequence.trait_covariance`
+- :meth:`TreeSequence.trait_correlation`
 
 ------------------
 Derived statistics
@@ -89,8 +90,8 @@ The other statistics above all have the property that `mode="branch"` and
 a high neutral mutation rate. The following statistics do not have this
 property (since both are ratios of statistics that do have this property).
 
-- :meth:`.TreeSequence.Fst`
-- :meth:`.TreeSequence.Tajimas_D`
+- :meth:`TreeSequence.Fst`
+- :meth:`TreeSequence.Tajimas_D`
 
 ---------------
 General methods
@@ -101,8 +102,8 @@ using weights or sample counts, and summary functions. See the documentation
 for more details. The pre-implemented statistics above will be faster than
 using these methods directly, so they should be preferred.
 
-- :meth:`.TreeSequence.general_stat`
-- :meth:`.TreeSequence.sample_count_stat`
+- :meth:`TreeSequence.general_stat`
+- :meth:`TreeSequence.sample_count_stat`
 
 
 .. _sec_stats_interface:
@@ -222,7 +223,7 @@ that operate on single sample sets and multiple sample sets.
 One-way methods
 ---------------
 
-One-way statistics such as :meth:`.TreeSequence.diversity` are defined over a single
+One-way statistics such as :meth:`TreeSequence.diversity` are defined over a single
 sample set. For these methods, ``sample_sets`` is interpreted in the following way:
 
 - If it is a single list of node IDs (e.g., ``sample_sets=[0, 1 ,2]``), this is
@@ -244,7 +245,7 @@ sample set. For these methods, ``sample_sets`` is interpreted in the following w
 Multi-way methods
 -----------------
 
-Multi-way statistics such as :meth:`.TreeSequence.divergence` are defined over a
+Multi-way statistics such as :meth:`TreeSequence.divergence` are defined over a
 ``k`` sample sets.
 
 In this case, ``sample_sets`` must be a list of lists of sample IDs, and there
@@ -448,7 +449,7 @@ various output dimension options.
 General API
 ***********
 
-The methods :meth:`.TreeSequence.general_stat` and :meth:`.TreeSequence.sample_count_stat`
+The methods :meth:`TreeSequence.general_stat` and :meth:`TreeSequence.sample_count_stat`
 provide access to the general-purpose algorithm for computing statistics.
 Here is a bit more discussion of how to use these.
 

@@ -1,3 +1,4 @@
+.. currentmodule:: tskit
 .. _sec_data_model:
 
 ##########
@@ -20,6 +21,8 @@ store tree sequences on disk in the `Tree sequence file format`_ section.
 
 
 .. _sec_data_model_definitions:
+
+
 
 ***********
 Definitions
@@ -50,7 +53,7 @@ node
 individual
     In certain situations we are interested in how nodes (representing
     individual homologous genomes) are grouped together into individuals
-    (e.g., two nodes per diploid individual). For example, when we are working
+    (e.g. two nodes per diploid individual). For example, when we are working
     with polyploid samples it is useful to associate metadata with a specific
     individual rather than duplicate this information on the constituent nodes.
     See :ref:`sec_nodes_or_individuals` for more discussion on this point.
@@ -58,9 +61,9 @@ individual
 sample
     The focal nodes of a tree sequence, usually thought of as those that we
     have obtained data from. The specification of these affects various
-    methods: (1) :meth:`.TreeSequence.variants` and
-    :meth:`.TreeSequence.haplotypes` will output the genotypes of the samples,
-    and :attr:`.Tree.roots` only return roots ancestral to at least one
+    methods: (1) :meth:`TreeSequence.variants` and 
+    :meth:`TreeSequence.haplotypes` will output the genotypes of the samples,
+    and :attr:`Tree.roots` only return roots ancestral to at least one
     sample. (See the :ref:`node table definitions <sec_node_table_definition>`
     for information on how the sample
     status a node is encoded in the ``flags`` column.)
@@ -214,7 +217,7 @@ is composed of 32 bitwise boolean values. Currently, the only flag defined
 is ``IS_SAMPLE = 1``, which defines the *sample* status of nodes. Marking
 a particular node as a "sample" means, for example, that the mutational state
 of the node will be included in the genotypes produced by
-:meth:`.TreeSequence.variants`.
+:meth:`TreeSequence.variants`.
 
 Bits 0-15 (inclusive) of the ``flags`` column are reserved for internal use by
 ``tskit`` and should not be used by applications for anything other
@@ -511,14 +514,14 @@ Valid tree sequence requirements
 ================================
 
 Arbitrary data can be stored in tables using the classes in the
-:ref:`sec_tables_api`. However, only a :class:`.TableCollection`
+:ref:`sec_tables_api`. However, only a :class:`TableCollection`
 that fulfils a set of requirements represents
-a valid :class:`.TreeSequence` object which can be obtained
-using the :meth:`.TableCollection.tree_sequence` method. In this
+a valid :class:`TreeSequence` object which can be obtained
+using the :meth:`TableCollection.tree_sequence` method. In this
 section we list these requirements, and explain their rationale.
 Violations of most of these requirements are detected when the
-user attempts to load a tree sequence via :func:`.load` or
-:meth:`.TableCollection.tree_sequence`, raising an informative
+user attempts to load a tree sequence via :func:`tskit.load` or
+:meth:`TableCollection.tree_sequence`, raising an informative
 error message. Some more complex requirements may not be detectable at load-time,
 and errors may not occur until certain operations are attempted.
 These are documented below.
@@ -536,7 +539,7 @@ respect to any other tables. Therefore, there are no requirements on
 individuals.
 
 There are no requirements regarding the ordering of individuals.
-Sorting a set of tables using :meth:`.TableCollection.sort` has
+Sorting a set of tables using :meth:`TableCollection.sort` has
 no effect on the individuals.
 
 .. _sec_node_requirements:
@@ -558,7 +561,7 @@ There are no requirements regarding the ordering of nodes with respect to time.
 For simplicity and algorithmic efficiency, all nodes referring to the same
 (non-null) individual must be contiguous.
 
-Sorting a set of tables using :meth:`.TableCollection.sort`
+Sorting a set of tables using :meth:`TableCollection.sort`
 has no effect on nodes.
 
 .. _sec_edge_requirements:
@@ -587,7 +590,7 @@ where a node ``a`` is a child of both ``b`` and ``c``), and ensures that
 at each point on the sequence we have a well-formed forest of trees.
 Because this is a more complex semantic requirement, it is **not** detected
 at load time. This error is detected during tree traversal, via, e.g.,
-the :meth:`.TreeSequence.trees` iterator.
+the :meth:`TreeSequence.trees` iterator.
 
 In the interest of algorithmic efficiency, edges must have the following
 sortedness properties:
@@ -598,7 +601,7 @@ sortedness properties:
   first by ``child`` ID and then by ``left`` coordinate.
 
 Violations of these requirements are detected at load time.
-The :meth:`.TableCollection.sort` method will ensure that these sortedness
+The :meth:`TableCollection.sort` method will ensure that these sortedness
 properties are fulfilled.
 
 .. _sec_site_requirements:
@@ -617,7 +620,7 @@ For simplicity and algorithmic efficiency, sites must also:
 - Be sorted in increasing order of ``position``.
 
 Violations of these requirements are detected at load time.
-The :meth:`.TableCollection.sort` method ensures that sites are sorted
+The :meth:`TableCollection.sort` method ensures that sites are sorted
 according to these criteria.
 
 .. _sec_mutation_requirements:
@@ -646,7 +649,7 @@ For simplicity and algorithmic efficiency, mutations must also:
   ``parent`` with ID :math:`y`, then we must have :math:`y < x`).
 
 Violations of these sorting requirements are detected at load time.
-The :meth:`.TableCollection.sort` method ensures that mutations are sorted
+The :meth:`TableCollection.sort` method ensures that mutations are sorted
 according site ID, but does not at present enforce that mutations occur
 after their parent mutations.
 
@@ -655,7 +658,7 @@ change of state. For example, if we have a site with ancestral state
 of "A" and a single mutation with derived state "A", then this
 mutation does not result in any change of state. This error is
 raised at run-time when we reconstruct sample genotypes, for example
-in the :meth:`.TreeSequence.variants` iterator.
+in the :meth:`TreeSequence.variants` iterator.
 
 .. _sec_migration_requirements:
 
@@ -708,7 +711,7 @@ Schema section (TODO).
 Table transformation methods
 ============================
 
-In general, table methods operate *in place* on a :class:`.TableCollection`,
+In general, table methods operate *in place* on a :class:`TableCollection`,
 directly altering the data stored within its constituent tables.
 
 In some applications, tables may most naturally be produced in a way that is
@@ -718,8 +721,8 @@ below (while also having other uses), can be used to make such a set of tables
 valid, and thus ready to be loaded into a tree sequence.
 
 Some of the other methods described in this section also have an equivalant
-:class:`.TreeSequence` version: an important distinction is that unlike the
-methods here, :class:`.TreeSequence` methods do *not* operate in place, but
+:class:`TreeSequence` version: an important distinction is that unlike the
+methods here, :class:`TreeSequence` methods do *not* operate in place, but
 rather act in a functional way, returning a new tree sequence while leaving
 the original one unchanged.
 
@@ -732,8 +735,8 @@ Simplification
 --------------
 
 Simplification of a tree sequence is in fact a transformation method applied
-to the underlying tables: the method :meth:`.TreeSequence.simplify` calls
-:meth:`.TableCollection.simplify` on the tables, and loads a new tree sequence.
+to the underlying tables: the method :meth:`TreeSequence.simplify` calls
+:meth:`TableCollection.simplify` on the tables, and loads a new tree sequence.
 The main purpose of this method is to remove redundant information,
 only retaining the minimal tree sequence necessary to describe the genealogical
 history of the ``samples`` provided.
@@ -743,7 +746,7 @@ Furthermore, ``simplify`` is guaranteed to:
 - preserve relative ordering of any rows in the Site and Mutation tables
   that are not discarded.
 
-The :meth:`.TableCollection.simplify` method can be applied to a collection of
+The :meth:`TableCollection.simplify` method can be applied to a collection of
 tables that does not have the ``mutations.parent`` entries filled in, as long
 as all other validity requirements are satisfied.
 
@@ -754,7 +757,7 @@ Sorting
 
 The validity requirements for a set of tables to be loaded into a tree sequence
 listed in :ref:`sec_table_definitions` are of two sorts: logical consistency,
-and sortedness. The :meth:`.TableCollection.sort` method can be used to make
+and sortedness. The :meth:`TableCollection.sort` method can be used to make
 completely valid a set of tables that satisfies all requirements other than
 sortedness.
 
@@ -765,7 +768,7 @@ be sorted. The method has two additional properties:
 - it preserves relative ordering between sites at the same position, and
 - it preserves relative ordering between mutations at the same site.
 
-:meth:`.TableCollection.sort` does not check the validity of the `parent`
+:meth:`TableCollection.sort` does not check the validity of the `parent`
 property of the mutation table. However, because the method preserves mutation
 order among mutations at the same site, if mutations are already sorted so that
 each mutation comes after its parent (e.g., if they are ordered by time of
@@ -786,7 +789,7 @@ the tables must be indexed.
 Removing duplicate sites
 ------------------------
 
-The :meth:`.TableCollection.deduplicate_sites` method can be used to save a tree
+The :meth:`TableCollection.deduplicate_sites` method can be used to save a tree
 sequence recording method the bother of checking to see if a given site already
 exists in the site table. If there is more than one site with the same
 position, all but the first is removed, and all mutations referring to the
@@ -802,7 +805,7 @@ of the mutation table would be easily inferred from the tree at that mutation's
 site. If mutations are entered into the mutation table ordered by time of
 appearance, then this sortedness allows us to infer the parent of each mutation
 even for mutations occurring on the same branch. The
-:meth:`.TableCollection.compute_mutation_parents` method will take advantage
+:meth:`TableCollection.compute_mutation_parents` method will take advantage
 of this fact to compute the ``parent`` column of a mutation table, if all
 other information is valid.
 
@@ -982,8 +985,8 @@ Consider the following example:
 
 In this tree, node 4 is isolated, and therefore for any sites that are
 on this tree, the state that it is assigned is a special value
-``tskit.MISSING_DATA``, or ``-1``. See the :meth:`.TreeSequence.variants`
-method and :class:`.Variant` class for more information on how missing
+``tskit.MISSING_DATA``, or ``-1``. See the :meth:`TreeSequence.variants`
+method and :class:`Variant` class for more information on how missing
 data is represented.
 
 .. _sec_text_file_format:
