@@ -3046,6 +3046,8 @@ class TreeSequence(object):
         return samples
 
     def write_fasta(self, output, sequence_ids=None, wrap_width=60):
+        ""
+        # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
         """
         Writes haplotype data for samples in FASTA format to the
         specified file-like object.
