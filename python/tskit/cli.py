@@ -189,7 +189,9 @@ def get_tskit_parser():
 
     parser = subparsers.add_parser(
         "fasta",
-        help="Convert the tree sequence haplotypes to fasta format")
+        # help="Convert the tree sequence haplotypes to fasta format")
+        # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
+        help=argparse.SUPPRESS)
     add_tree_sequence_argument(parser)
     parser.add_argument(
         "--wrap", "-w", type=int, default=60,
