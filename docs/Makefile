@@ -19,6 +19,9 @@ ${DOXYGEN_XML}: ../c/tskit/*.h
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+clean:
+	rm -rf $(BUILDDIR) $(DOXYGEN_XML)
+
 # .PHONY: help Makefile
 
 # # Catch-all target: route all unknown targets to Sphinx using the new
