@@ -19,7 +19,7 @@ The ``tskit`` Tree implementation differs from most tree libraries by
 using **integer IDs** to refer to nodes rather than objects. Thus, when we wish to
 find the parent of the node with ID '0', we use ``tree.parent(0)``, which
 returns another integer. If '0' does not have a parent in the current tree
-(e.g., if it is a root), then the special value :const:`.NULL`
+(e.g., if it is a root), then the special value :data:`.NULL`
 (:math:`-1`) is returned. The children of a node are found using the
 :meth:`.Tree.children` method. To obtain information about a particular node,
 one may either use ``tree.tree_sequence.node(u)`` to which returns the

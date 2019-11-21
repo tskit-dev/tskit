@@ -435,9 +435,9 @@ class NodeTable(BaseTable, MetadataMixin):
         :param int flags: The bitwise flags for the new node.
         :param float time: The birth time for the new node.
         :param int population: The ID of the population in which the new node was born.
-            Defaults to :const:`.NULL`.
+            Defaults to :data:`.NULL`.
         :param int individual: The ID of the individual in which the new node was born.
-            Defaults to :const:`.NULL`.
+            Defaults to :data:`.NULL`.
         :param bytes metadata: The binary-encoded metadata for the new node. If not
             specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added node.
@@ -463,10 +463,10 @@ class NodeTable(BaseTable, MetadataMixin):
         :param time: The time values for each node. Required.
         :type time: numpy.ndarray, dtype=np.float64
         :param population: The population values for each node. If not specified
-            or None, the :const:`.NULL` value is stored for each node.
+            or None, the :data:`.NULL` value is stored for each node.
         :type population: numpy.ndarray, dtype=np.int32
         :param individual: The individual values for each node. If not specified
-            or None, the :const:`.NULL` value is stored for each node.
+            or None, the :data:`.NULL` value is stored for each node.
         :type individual: numpy.ndarray, dtype=np.int32
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
@@ -498,10 +498,10 @@ class NodeTable(BaseTable, MetadataMixin):
         :param time: The time values for each node. Required.
         :type time: numpy.ndarray, dtype=np.float64
         :param population: The population values for each node. If not specified
-            or None, the :const:`.NULL` value is stored for each node.
+            or None, the :data:`.NULL` value is stored for each node.
         :type population: numpy.ndarray, dtype=np.int32
         :param individual: The individual values for each node. If not specified
-            or None, the :const:`.NULL` value is stored for each node.
+            or None, the :data:`.NULL` value is stored for each node.
         :type individual: numpy.ndarray, dtype=np.int32
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
@@ -1140,10 +1140,43 @@ class PopulationTable(BaseTable, MetadataMixin):
         return ret[:-1]
 
     def set_columns(self, metadata=None, metadata_offset=None):
+        """
+        Sets the values for each column in this :class:`.PopulationTable` using the
+        values in the specified arrays. Overwrites any data currently stored in the
+        table.
+
+        The ``metadata`` and ``metadata_offset`` parameters must be supplied
+        together, and meet the requirements for
+        :ref:`sec_encoding_ragged_columns` (see
+        :ref:`sec_tables_api_binary_columns` for more information).
+
+        :param metadata: The flattened metadata array. Must be specified along
+            with ``metadata_offset``. If not specified or None, an empty metadata
+            value is stored for each node.
+        :type metadata: numpy.ndarray, dtype=np.int8
+        :param metadata_offset: The offsets into the ``metadata`` array.
+        :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        """
         self.ll_table.set_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset))
 
     def append_columns(self, metadata=None, metadata_offset=None):
+        """
+        Appends the specified arrays to the end of the columns of this
+        :class:`PopulationTable`. This allows many new rows to be added at once.
+
+        The ``metadata`` and ``metadata_offset`` parameters must be supplied
+        together, and meet the requirements for
+        :ref:`sec_encoding_ragged_columns` (see
+        :ref:`sec_tables_api_binary_columns` for more information).
+
+        :param metadata: The flattened metadata array. Must be specified along
+            with ``metadata_offset``. If not specified or None, an empty metadata
+            value is stored for each node.
+        :type metadata: numpy.ndarray, dtype=np.int8
+        :param metadata_offset: The offsets into the ``metadata`` array.
+        :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        """
         self.ll_table.append_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset))
 
@@ -1201,6 +1234,30 @@ class ProvenanceTable(BaseTable):
     def set_columns(
             self, timestamp=None, timestamp_offset=None,
             record=None, record_offset=None):
+        """
+        Sets the values for each column in this :class:`.ProvenanceTable` using the
+        values in the specified arrays. Overwrites any data currently stored in the
+        table.
+
+        The ``timestamp`` and ``timestamp_offset`` parameters must be supplied
+        together, and meet the requirements for
+        :ref:`sec_encoding_ragged_columns` (see
+        :ref:`sec_tables_api_binary_columns` for more information). Likewise
+        for the ``record`` and ``record_offset`` columns
+
+        :param timestamp: The flattened timestamp array. Must be specified along
+            with ``timestamp_offset``. If not specified or None, an empty timestamp
+            value is stored for each node.
+        :type timestamp: numpy.ndarray, dtype=np.int8
+        :param timestamp_offset: The offsets into the ``timestamp`` array.
+        :type timestamp_offset: numpy.ndarray, dtype=np.uint32.
+        :param record: The flattened record array. Must be specified along
+            with ``record_offset``. If not specified or None, an empty record
+            value is stored for each node.
+        :type record: numpy.ndarray, dtype=np.int8
+        :param record_offset: The offsets into the ``record`` array.
+        :type record_offset: numpy.ndarray, dtype=np.uint32.
+        """
         self.ll_table.set_columns(dict(
             timestamp=timestamp, timestamp_offset=timestamp_offset,
             record=record, record_offset=record_offset))
@@ -1208,6 +1265,29 @@ class ProvenanceTable(BaseTable):
     def append_columns(
             self, timestamp=None, timestamp_offset=None,
             record=None, record_offset=None):
+        """
+        Appends the specified arrays to the end of the columns of this
+        :class:`ProvenanceTable`. This allows many new rows to be added at once.
+
+        The ``timestamp`` and ``timestamp_offset`` parameters must be supplied
+        together, and meet the requirements for
+        :ref:`sec_encoding_ragged_columns` (see
+        :ref:`sec_tables_api_binary_columns` for more information). Likewise
+        for the ``record`` and ``record_offset`` columns
+
+        :param timestamp: The flattened timestamp array. Must be specified along
+            with ``timestamp_offset``. If not specified or None, an empty timestamp
+            value is stored for each node.
+        :type timestamp: numpy.ndarray, dtype=np.int8
+        :param timestamp_offset: The offsets into the ``timestamp`` array.
+        :type timestamp_offset: numpy.ndarray, dtype=np.uint32.
+        :param record: The flattened record array. Must be specified along
+            with ``record_offset``. If not specified or None, an empty record
+            value is stored for each node.
+        :type record: numpy.ndarray, dtype=np.int8
+        :param record_offset: The offsets into the ``record`` array.
+        :type record_offset: numpy.ndarray, dtype=np.uint32.
+        """
         self.ll_table.append_columns(dict(
             timestamp=timestamp, timestamp_offset=timestamp_offset,
             record=record, record_offset=record_offset))

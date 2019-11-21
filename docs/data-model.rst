@@ -1132,6 +1132,7 @@ mutations::
     1      1       A                1
 
 
+.. _sec_population_text_format:
 
 Population text format
 ======================
