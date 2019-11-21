@@ -234,6 +234,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.human, True)
 
+    @unittest.skip("fasta output temporarily disabled")
     def test_fasta_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
@@ -242,6 +243,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.wrap, 60)
 
+    @unittest.skip("fasta output temporarily disabled")
     def test_fasta_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
@@ -251,6 +253,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.wrap, 100)
 
+    @unittest.skip("fasta output temporarily disabled")
     def test_fasta_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
@@ -471,6 +474,7 @@ class TestTskitConversionOutput(unittest.TestCase):
             fasta = f.read()
         self.assertEqual(output_fasta, fasta)
 
+    @unittest.skip("fasta output temporarily disabled")
     def test_fasta(self):
         cmd = "fasta"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])

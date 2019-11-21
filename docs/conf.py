@@ -119,6 +119,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'breathe',
+    'sphinxarg.ext',
     'sphinx_issues',
 ]
 
