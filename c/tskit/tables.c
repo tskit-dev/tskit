@@ -6496,7 +6496,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_map_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
+tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
         tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,
         tsk_flags_t TSK_UNUSED(options), tsk_edge_table_t *result)
 {

@@ -3551,16 +3551,32 @@ class TestMapToAncestors(unittest.TestCase):
 
     def do_map(self, ts, ancestors, samples=None, compare_lib=True):
         """
-        Runs the Python test implementation of map_ancestors.
+        Runs the Python test implementation of link_ancestors.
         """
         if samples is None:
             samples = ts.samples()
         s = tests.AncestorMap(ts, samples, ancestors)
-        ancestor_table = s.map_ancestors()
+        ancestor_table = s.link_ancestors()
         if compare_lib:
-            lib_result = ts.tables.map_ancestors(samples, ancestors)
+            lib_result = ts.tables.link_ancestors(samples, ancestors)
             self.assertEqual(ancestor_table, lib_result)
         return ancestor_table
+
+    def test_deprecated_name(self):
+        # copied from test_single_tree_one_ancestor below
+        nodes = io.StringIO(self.nodes)
+        edges = io.StringIO(self.edges)
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        samples = ts.samples()
+        ancestors = [8]
+        s = tests.AncestorMap(ts, samples, ancestors)
+        tss = s.link_ancestors()
+        lib_result = ts.tables.map_ancestors(samples, ancestors)
+        self.assertEqual(tss, lib_result)
+        self.assertEqual(list(tss.parent), [8, 8, 8, 8, 8])
+        self.assertEqual(list(tss.child), [0, 1, 2, 3, 4])
+        self.assertEqual(all(tss.left), 0)
+        self.assertEqual(all(tss.right), 1)
 
     def test_single_tree_one_ancestor(self):
         nodes = io.StringIO(self.nodes)

@@ -1986,7 +1986,7 @@ test_provenance_table(void)
 }
 
 static void
-test_map_ancestors_input_errors(void)
+test_link_ancestors_input_errors(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -2002,30 +2002,30 @@ test_map_ancestors_input_errors(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, NULL, 2, ancestors, 2, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, NULL, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Bad sample IDs */
     samples[0] = -1;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     /* Bad ancestor IDs */
     samples[0] = 0;
     ancestors[0] = -1;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     /* Duplicate sample IDs */
     ancestors[0] = 4;
     samples[0] = 1;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
 
     /* Duplicate sample IDs */
     ancestors[0] = 6;
     samples[0] = 0;
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
 
     /* TODO more tests! */
@@ -2036,7 +2036,7 @@ test_map_ancestors_input_errors(void)
 }
 
 static void
-test_map_ancestors_single_tree(void)
+test_link_ancestors_single_tree(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -2055,7 +2055,7 @@ test_map_ancestors_single_tree(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Check we get the right result.
@@ -2076,7 +2076,7 @@ test_map_ancestors_single_tree(void)
 }
 
 static void
-test_map_ancestors_no_edges(void)
+test_link_ancestors_no_edges(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -2092,7 +2092,7 @@ test_map_ancestors_no_edges(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 1, ancestors, 1, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 1, ancestors, 1, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_table_collection_free(&tables);
@@ -2102,7 +2102,7 @@ test_map_ancestors_no_edges(void)
 }
 
 static void
-test_map_ancestors_samples_and_ancestors_overlap(void)
+test_link_ancestors_samples_and_ancestors_overlap(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -2118,7 +2118,7 @@ test_map_ancestors_samples_and_ancestors_overlap(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 4, ancestors, 1, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 4, ancestors, 1, 0, &result);
 
     // tsk_edge_table_print_state(&result, stdout);
 
@@ -2143,7 +2143,7 @@ test_map_ancestors_samples_and_ancestors_overlap(void)
 }
 
 static void
-test_map_ancestors_paper(void)
+test_link_ancestors_paper(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -2159,7 +2159,7 @@ test_map_ancestors_paper(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 3, ancestors, 3, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 3, ancestors, 3, 0, &result);
 
     // tsk_edge_table_print_state(&result, stdout);
 
@@ -2183,7 +2183,7 @@ test_map_ancestors_paper(void)
 }
 
 static void
-test_map_ancestors_multiple_to_single_tree(void)
+test_link_ancestors_multiple_to_single_tree(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -2199,7 +2199,7 @@ test_map_ancestors_multiple_to_single_tree(void)
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_map_ancestors(&tables, samples, 2, ancestors, 1, 0, &result);
+    ret = tsk_table_collection_link_ancestors(&tables, samples, 2, ancestors, 1, 0, &result);
 
     // tsk_edge_table_print_state(&result, stdout);
 
@@ -2651,14 +2651,14 @@ main(int argc, char **argv)
         {"test_load_tsk_node_table_errors", test_load_tsk_node_table_errors},
         {"test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes},
         {"test_simplify_empty_tables", test_simplify_empty_tables},
-        {"test_map_ancestors_no_edges", test_map_ancestors_no_edges},
-        {"test_map_ancestors_input_errors", test_map_ancestors_input_errors},
-        {"test_map_ancestors_single_tree", test_map_ancestors_single_tree},
-        {"test_map_ancestors_paper", test_map_ancestors_paper},
-        {"test_map_ancestors_samples_and_ancestors_overlap",
-            test_map_ancestors_samples_and_ancestors_overlap},
-        {"test_map_ancestors_multiple_to_single_tree",
-            test_map_ancestors_multiple_to_single_tree},
+        {"test_link_ancestors_no_edges", test_link_ancestors_no_edges},
+        {"test_link_ancestors_input_errors", test_link_ancestors_input_errors},
+        {"test_link_ancestors_single_tree", test_link_ancestors_single_tree},
+        {"test_link_ancestors_paper", test_link_ancestors_paper},
+        {"test_link_ancestors_samples_and_ancestors_overlap",
+            test_link_ancestors_samples_and_ancestors_overlap},
+        {"test_link_ancestors_multiple_to_single_tree",
+            test_link_ancestors_multiple_to_single_tree},
         {"test_sort_tables_drops_indexes", test_sort_tables_drops_indexes},
         {"test_copy_table_collection", test_copy_table_collection},
         {"test_sort_tables_errors", test_sort_tables_errors},
