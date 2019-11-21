@@ -35,11 +35,11 @@ class LdCalculator(object):
     """
     Class for calculating `linkage disequilibrium
     <https://en.wikipedia.org/wiki/Linkage_disequilibrium>`_ coefficients
-    between pairs of mutations in a :class:`.TreeSequence`. This class requires
+    between pairs of mutations in a :class:`TreeSequence`. This class requires
     the `numpy <http://www.numpy.org/>`_ library.
 
     This class supports multithreaded access using the Python :mod:`threading`
-    module. Separate instances of :class:`.LdCalculator` referencing the
+    module. Separate instances of :class:`LdCalculator` referencing the
     same tree sequence can operate in parallel in multiple threads.
 
     .. note:: This class does not currently support sites that have more than one

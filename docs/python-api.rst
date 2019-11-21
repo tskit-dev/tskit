@@ -1,3 +1,4 @@
+.. currentmodule:: tskit
 .. _sec_python_api:
 
 ==========
@@ -10,14 +11,14 @@ This page provides detailed documentation for the ``tskit`` Python API.
 Trees and tree sequences
 ************************
 
-The :class:`.TreeSequence` class represents a sequence of correlated trees
-output by a simulation. The :class:`.Tree` class represents a single
+The :class:`TreeSequence` class represents a sequence of correlated trees
+output by a simulation. The :class:`Tree` class represents a single
 tree in this sequence.
 These classes are the interfaces used to interact with the trees
 and mutational information stored in a tree sequence returned from a simulation.
 There are also methods for loading data into these objects, either from the native
 format using :func:`tskit.load`, or from another sources
-using :func:`tskit.load_text` or :meth:`.TableCollection.tree_sequence`.
+using :func:`tskit.load_text` or :meth:`TableCollection.tree_sequence`.
 
 
 +++++++++++++++++
@@ -28,7 +29,7 @@ Top level-classes
 .. autoclass:: tskit.TreeSequence()
     :members:
 
-.. autoclass:: tskit.Tree
+.. autoclass:: tskit.Tree()
     :members:
 
 
@@ -59,7 +60,7 @@ Simple container classes
 These classes are simple shallow containers representing the entities defined
 in the :ref:`sec_data_model_definitions`. These classes are not intended to be instantiated
 directly, but are the return types for the various iterators provided by the
-:class:`.TreeSequence` and :class:`.Tree` classes.
+:class:`TreeSequence` and :class:`Tree` classes.
 
 .. autoclass:: tskit.Individual()
     :members:
@@ -92,13 +93,13 @@ directly, but are the return types for the various iterators provided by the
 Loading data
 ++++++++++++
 
-There are several methods for loading data into a :class:`.TreeSequence`
+There are several methods for loading data into a :class:`TreeSequence`
 instance. The simplest and most convenient is the use the :func:`tskit.load`
 function to load a :ref:`tree sequence file <sec_tree_sequence_file_format>`. For small
 scale data and debugging, it is often convenient to use the
 :func:`tskit.load_text` to read data in the :ref:`text file format
-<sec_text_file_format>`. The :meth:`.TableCollection.tree_sequence` function
-efficiently creates a :class:`.TreeSequence` object from a set of tables
+<sec_text_file_format>`. The :meth:`TableCollection.tree_sequence` function
+efficiently creates a :class:`TreeSequence` object from a set of tables
 using the :ref:`Tables API <sec_tables_api>`.
 
 
@@ -115,7 +116,7 @@ Tables
 
 The :ref:`tables API <sec_binary_interchange>` provides an efficient way of working
 with and interchanging :ref:`tree sequence data <sec_data_model>`. Each table
-class (e.g, :class:`.NodeTable`, :class:`.EdgeTable`) has a specific set of
+class (e.g, :class:`NodeTable`, :class:`EdgeTable`) has a specific set of
 columns with fixed types, and a set of methods for setting and getting the data
 in these columns. The number of rows in the table ``t`` is given by ``len(t)``.
 Each table supports accessing the data either by row or column. To access the
@@ -214,7 +215,7 @@ Consider the following example::
     >>> t[3]
     SiteTableRow(position=3.0, ancestral_state='CCC', metadata=b'')
 
-Here we create a :class:`.SiteTable` and add four rows, each with a different
+Here we create a :class:`SiteTable` and add four rows, each with a different
 ``ancestral_state``. We can then access this information from each
 row in a straightforward manner. Working with the data in the columns
 is a little trickier, however::
@@ -228,9 +229,9 @@ is a little trickier, however::
 
 Here, the ``ancestral_state`` array is the UTF8 encoded bytes of the flattened
 strings, and the ``ancestral_state_offset`` is the offset into this array
-for each row. The :func:`.unpack_strings` function, however, is a convient
+for each row. The :func:`tskit.unpack_strings` function, however, is a convient
 way to recover the original strings from this encoding. We can also use the
-:func:`.pack_strings` to insert data using this approach::
+:func:`tskit.pack_strings` to insert data using this approach::
 
     >>> a, off = tskit.pack_strings(["0", "12", ""])
     >>> t.set_columns(position=[0, 1, 2], ancestral_state=a, ancestral_state_offset=off)
@@ -243,7 +244,7 @@ way to recover the original strings from this encoding. We can also use the
 When inserting many rows with standard infinite sites mutations (i.e.,
 ancestral state is "0"), it is more efficient to construct the
 numpy arrays directly than to create a list of strings and use
-:func:`.pack_strings`. When doing this, it is important to note that
+:func:`pack_strings`. When doing this, it is important to note that
 it is the **encoded** byte values that are stored; by default, we
 use UTF8 (which corresponds to ASCII for simple printable characters).::
 
@@ -332,7 +333,7 @@ decoding is done on the data. Consider the following example::
     array([ 0,  9, 33], dtype=uint32)
 
 
-Here we add two rows to a :class:`.NodeTable`, with different
+Here we add two rows to a :class:`NodeTable`, with different
 :ref:`metadata <sec_metadata_definition>`. The first row contains a simple
 byte string, and the second contains a Python dictionary serialised using
 :mod:`pickle`. We then show several different (and seemingly incompatible!)
@@ -356,8 +357,8 @@ encoded as signed integers. As for :ref:`sec_tables_api_text_columns`,
 the ``metadata_offset`` column encodes the offsets into this array. So, we
 see that the first metadata value is 9 bytes long and the second is 24.
 
-The :func:`.pack_bytes` and :func:`.unpack_bytes` functions are also useful
-for encoding data in these columns.
+The :func:`tskit.pack_bytes` and :func:`tskit.unpack_bytes` functions are
+also useful for encoding data in these columns.
 
 +++++++++++++
 Table classes
@@ -410,7 +411,7 @@ Each of the table classes defines a different aspect of the structure of
 a tree sequence. It is convenient to be able to refer to a set of these
 tables which together define a tree sequence. We
 refer to this grouping of related tables as a ``TableCollection``.
-The :class:`.TableCollection` and :class:`.TreeSequence` classes are
+The :class:`TableCollection` and :class:`TreeSequence` classes are
 deeply related. A ``TreeSequence`` instance is based on the information
 encoded in a ``TableCollection``. Tree sequences are **immutable**, and
 provide methods for obtaining trees from the sequence. A ``TableCollection``

@@ -199,7 +199,7 @@ class BaseTable(object):
 
     def set_columns(self, **kwargs):
         """
-        Sets the values for each column in this :class:`.Table` using
+        Sets the values for each column in this :class:`Table` using
         values provided in numpy arrays. Overwrites any data currently stored in
         the table.
         """
@@ -294,7 +294,7 @@ class IndividualTable(BaseTable, MetadataMixin):
             self, flags=None, location=None, location_offset=None,
             metadata=None, metadata_offset=None):
         """
-        Sets the values for each column in this :class:`.IndividualTable` using the
+        Sets the values for each column in this :class:`IndividualTable` using the
         values in the specified arrays. Overwrites any data currently stored in
         the table.
 
@@ -435,9 +435,9 @@ class NodeTable(BaseTable, MetadataMixin):
         :param int flags: The bitwise flags for the new node.
         :param float time: The birth time for the new node.
         :param int population: The ID of the population in which the new node was born.
-            Defaults to :data:`.NULL`.
+            Defaults to :data:`tskit.NULL`.
         :param int individual: The ID of the individual in which the new node was born.
-            Defaults to :data:`.NULL`.
+            Defaults to :data:`tskit.NULL`.
         :param bytes metadata: The binary-encoded metadata for the new node. If not
             specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added node.
@@ -449,7 +449,7 @@ class NodeTable(BaseTable, MetadataMixin):
             self, flags=None, time=None, population=None, individual=None, metadata=None,
             metadata_offset=None):
         """
-        Sets the values for each column in this :class:`.NodeTable` using the values in
+        Sets the values for each column in this :class:`NodeTable` using the values in
         the specified arrays. Overwrites any data currently stored in the table.
 
         The ``flags``, ``time`` and ``population`` arrays must all be of the same length,
@@ -463,10 +463,10 @@ class NodeTable(BaseTable, MetadataMixin):
         :param time: The time values for each node. Required.
         :type time: numpy.ndarray, dtype=np.float64
         :param population: The population values for each node. If not specified
-            or None, the :data:`.NULL` value is stored for each node.
+            or None, the :data:`tskit.NULL` value is stored for each node.
         :type population: numpy.ndarray, dtype=np.int32
         :param individual: The individual values for each node. If not specified
-            or None, the :data:`.NULL` value is stored for each node.
+            or None, the :data:`tskit.NULL` value is stored for each node.
         :type individual: numpy.ndarray, dtype=np.int32
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
@@ -498,10 +498,10 @@ class NodeTable(BaseTable, MetadataMixin):
         :param time: The time values for each node. Required.
         :type time: numpy.ndarray, dtype=np.float64
         :param population: The population values for each node. If not specified
-            or None, the :data:`.NULL` value is stored for each node.
+            or None, the :data:`tskit.NULL` value is stored for each node.
         :type population: numpy.ndarray, dtype=np.int32
         :param individual: The individual values for each node. If not specified
-            or None, the :data:`.NULL` value is stored for each node.
+            or None, the :data:`tskit.NULL` value is stored for each node.
         :type individual: numpy.ndarray, dtype=np.int32
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
@@ -574,7 +574,7 @@ class EdgeTable(BaseTable):
 
     def set_columns(self, left=None, right=None, parent=None, child=None):
         """
-        Sets the values for each column in this :class:`.EdgeTable` using the values
+        Sets the values for each column in this :class:`EdgeTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
         All four parameters are mandatory, and must be numpy arrays of the
@@ -699,7 +699,7 @@ class MigrationTable(BaseTable):
     def set_columns(
             self, left=None, right=None, node=None, source=None, dest=None, time=None):
         """
-        Sets the values for each column in this :class:`.MigrationTable` using the values
+        Sets the values for each column in this :class:`MigrationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
         All six parameters are mandatory, and must be numpy arrays of the
@@ -819,7 +819,7 @@ class SiteTable(BaseTable, MetadataMixin):
             self, position=None, ancestral_state=None, ancestral_state_offset=None,
             metadata=None, metadata_offset=None):
         """
-        Sets the values for each column in this :class:`.SiteTable` using the values
+        Sets the values for each column in this :class:`SiteTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
         The ``position``, ``ancestral_state`` and ``ancestral_state_offset``
@@ -989,7 +989,7 @@ class MutationTable(BaseTable, MetadataMixin):
             self, site=None, node=None, derived_state=None, derived_state_offset=None,
             parent=None, metadata=None, metadata_offset=None):
         """
-        Sets the values for each column in this :class:`.MutationTable` using the values
+        Sets the values for each column in this :class:`MutationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
         The ``site``, ``node``, ``derived_state`` and ``derived_state_offset``
@@ -1141,7 +1141,7 @@ class PopulationTable(BaseTable, MetadataMixin):
 
     def set_columns(self, metadata=None, metadata_offset=None):
         """
-        Sets the values for each column in this :class:`.PopulationTable` using the
+        Sets the values for each column in this :class:`PopulationTable` using the
         values in the specified arrays. Overwrites any data currently stored in the
         table.
 
@@ -1235,7 +1235,7 @@ class ProvenanceTable(BaseTable):
             self, timestamp=None, timestamp_offset=None,
             record=None, record_offset=None):
         """
-        Sets the values for each column in this :class:`.ProvenanceTable` using the
+        Sets the values for each column in this :class:`ProvenanceTable` using the
         values in the specified arrays. Overwrites any data currently stored in the
         table.
 
