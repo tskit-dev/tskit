@@ -32,7 +32,7 @@ test_strerror(void)
 {
     int j;
     const char *msg;
-    int max_error_code = 1024; /* totally arbitrary */
+    int max_error_code = 8192; /* totally arbitrary */
 
     for (j = 0; j < max_error_code; j++) {
         msg = tsk_strerror(-j);

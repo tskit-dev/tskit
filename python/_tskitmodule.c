@@ -8352,6 +8352,30 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_get_kc_distance(Tree *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    Tree *other = NULL;
+    static char *kwlist[] = {"other", "lambda_", NULL};
+    double lambda = 0;
+    double result;
+    int err;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!d", kwlist,
+                &TreeType, &other, &lambda)) {
+        goto out;
+    }
+    err = tsk_tree_kc_distance(self->tree, other->tree, lambda, &result);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("d", result);
+out:
+    return ret;
+}
+
 static PyMemberDef Tree_members[] = {
     {NULL}  /* Sentinel */
 };
@@ -8430,6 +8454,10 @@ static PyMethodDef Tree_methods[] = {
             "Returns True if this tree is equal to the parameter tree." },
     {"copy", (PyCFunction) Tree_copy, METH_NOARGS,
             "Returns a copy of this tree." },
+    {"get_kc_distance", (PyCFunction) Tree_get_kc_distance,
+            METH_VARARGS|METH_KEYWORDS,
+            "Returns the KC distance between this tree and another." },
+
     {NULL}  /* Sentinel */
 };
 

@@ -1628,6 +1628,26 @@ class Tree(object):
             for node, parent, derived_state in transitions]
         return ancestral_state, mutations
 
+    def kc_distance(self, other, lambda_=0.0):
+        """
+        Returns the Kendall-Colijn distance between the specified pair of trees.
+        The ``lambda_`` parameter  determines the relative weight of topology
+        vs branch lengths in calculating the distance. If ``lambda_`` is 0
+        (the default) we only consider topology, and if it is 1 we only
+        consider branch lengths. See `Kendall & Colijn (2016)
+        <https://academic.oup.com/mbe/article/33/10/2735/2925548>`_ for details.
+
+        The trees we are comparing to must have identical lists of sample
+        nodes (i.e., the same IDs in the same order).
+
+        :param Tree other: The other tree to compare to.
+        :param float lambda_: The KC metric lambda parameter determining the
+            relative weight of topology and branch length.
+        :return: The computed KC distance between this tree and other.
+        :rtype: float
+        """
+        return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
+
 
 def load(path):
     """

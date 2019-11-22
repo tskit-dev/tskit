@@ -4420,6 +4420,292 @@ test_internal_sample_sample_sets(void)
 }
 
 
+
+/*=======================================================
+ * KC Distance tests.
+ *=======================================================*/
+
+static void
+test_single_tree_kc(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t, other_t;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_init(&other_t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&other_t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_copy(&t, &other_t, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    check_trees_identical(&t, &other_t);
+    ret = tsk_tree_kc_distance(&t, &other_t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result, 0);
+    ret = tsk_tree_kc_distance(&t, &other_t, 1, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result, 0);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+    tsk_tree_free(&other_t);
+}
+
+static void
+test_two_trees_kc(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  2   0\n"
+        "0  3   0\n";
+    const char *nodes_other =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  4   0\n"
+        "0  6   0\n";
+    const char *edges =
+        "0 1  3 0,1\n"
+        "0 1  4 2,3\n";
+    int ret;
+    tsk_treeseq_t ts, other_ts;
+    tsk_tree_t t, other_t;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    tsk_treeseq_from_text(&other_ts, 1, nodes_other, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&other_t, &other_ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&other_t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &other_t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result, 0);
+    ret = tsk_tree_kc_distance(&t, &other_t, 1, &result);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 4.243, 1e-2);
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&other_ts);
+    tsk_tree_free(&t);
+    tsk_tree_free(&other_t);
+}
+
+static void
+test_empty_tree_kc(void)
+{
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_tree_t t;
+    tsk_id_t v;
+    int ret;
+    double result = 0;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
+    tsk_treeseq_free(&ts);
+    tables.sequence_length = 1.0;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    verify_empty_tree_sequence(&ts, 1.0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(t.left_root, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(t.left, 0);
+    CU_ASSERT_EQUAL_FATAL(t.right, 1);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_parent(&t, 0, &v), TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_tree_kc_distance(&t, &t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_ROOTS);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_nonbinary_tree_kc(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0";
+    const char *edges =
+        "0  1   4   0,1,2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int ret;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    tsk_tree_kc_distance(&t, &t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(result, 0);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_nonzero_samples_kc(void)
+{
+    const char *nodes =
+        "0  0   0\n" /* unused node at the start */
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0";
+    const char *edges =
+        "0  1   3   1,2\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int ret;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result, 0);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_internal_samples_kc(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  1   0";
+    const char *edges =
+        "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int ret;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INTERNAL_SAMPLES);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_unequal_sample_size_kc(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  2   0\n"
+        "0  3   0\n";
+    const char *nodes_other =
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n";
+    const char *edges =
+        "0 1  3 0,1\n"
+        "0 1  4 2,3\n";
+    const char *edges_other =
+        "0 1  2 0,1\n";
+    int ret;
+    tsk_treeseq_t ts, other_ts;
+    tsk_tree_t t, other_t;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    tsk_treeseq_from_text(&other_ts, 1, nodes_other, edges_other,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&other_t, &other_ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&other_t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &other_t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SAMPLE_SIZE_MISMATCH);
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&other_ts);
+    tsk_tree_free(&t);
+    tsk_tree_free(&other_t);
+}
+
+static void
+test_unequal_samples_kc(void)
+{
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  2   0\n"
+        "0  3   0\n";
+    const char *nodes_other =
+        "0  0   0\n" /* Unused node at the start */
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  2   0\n"
+        "0  3   0\n";
+    const char *edges =
+        "0 1  3 0,1\n"
+        "0 1  4 2,3\n";
+    const char *edges_other =
+        "0 1  4 1,2\n"
+        "0 1  5 3,4\n";
+    int ret;
+    tsk_treeseq_t ts, other_ts;
+    tsk_tree_t t, other_t;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    tsk_treeseq_from_text(&other_ts, 1, nodes_other, edges_other,
+            NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&other_t, &other_ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&other_t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &other_t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SAMPLES_NOT_EQUAL);
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&other_ts);
+    tsk_tree_free(&t);
+    tsk_tree_free(&other_t);
+}
+
 /*=======================================================
  * Miscellaneous tests.
  *======================================================*/
@@ -5107,6 +5393,16 @@ main(int argc, char **argv)
         {"test_simple_sample_sets", test_simple_sample_sets},
         {"test_nonbinary_sample_sets", test_nonbinary_sample_sets},
         {"test_internal_sample_sample_sets", test_internal_sample_sample_sets},
+
+        /*KC_Distance tests */
+        {"test_single_tree_kc", test_single_tree_kc},
+        {"test_two_trees_kc", test_two_trees_kc},
+        {"test_empty_tree_kc", test_empty_tree_kc},
+        {"test_nonbinary_tree_kc", test_nonbinary_tree_kc},
+        {"test_nonzero_samples_kc", test_nonzero_samples_kc},
+        {"test_internal_samples_kc", test_internal_samples_kc},
+        {"test_unequal_sample_size_kc", test_unequal_sample_size_kc},
+        {"test_unequal_samples_kc", test_unequal_samples_kc},
 
         /* Misc */
         {"test_tree_errors", test_tree_errors},

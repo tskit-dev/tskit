@@ -373,6 +373,20 @@ tsk_strerror_internal(int err)
                 "represented. Either generate variants (which support missing "
                 "data) or use the impute missing data option.";
             break;
+
+        /* Distance metric errors */
+        case TSK_ERR_SAMPLE_SIZE_MISMATCH:
+            ret = "Cannot compare trees with different numbers of samples.";
+            break;
+        case TSK_ERR_SAMPLES_NOT_EQUAL:
+            ret = "Samples must be identical in trees to compare.";
+            break;
+        case TSK_ERR_INTERNAL_SAMPLES:
+            ret = "Internal samples are not supported.";
+            break;
+        case TSK_ERR_MULTIPLE_ROOTS:
+            ret = "Trees with multiple roots not supported.";
+            break;
     }
     return ret;
 }

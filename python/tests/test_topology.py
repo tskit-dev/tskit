@@ -29,6 +29,7 @@ import itertools
 import random
 import json
 import sys
+import math
 
 import numpy as np
 import msprime
@@ -118,6 +119,671 @@ def generate_segments(n, sequence_length=100, seed=None):
         assert left < right
         segs.append(tests.Segment(left, right, j))
     return segs
+
+
+def kc_distance(tree1, tree2, lambda_=0):
+    """
+    Returns the Kendall-Colijn distance between the specified pair of trees.
+    lambda_ determines weight of topology vs branch lengths in calculating
+    the distance. Set lambda_ at 0 to only consider topology, set at 1 to
+    only consider branch lengths. See Kendall & Colijn (2016):
+    https://academic.oup.com/mbe/article/33/10/2735/2925548
+    """
+    samples = tree1.tree_sequence.samples()
+    if not np.array_equal(samples, tree2.tree_sequence.samples()):
+        raise ValueError("Trees must have the same samples")
+    if not len(tree1.roots) == len(tree2.roots) == 1:
+        raise ValueError("Trees must have one root")
+    sample_index_map = np.zeros(tree1.tree_sequence.num_nodes, dtype=int) - 1
+    for j, u in enumerate(samples):
+        sample_index_map[u] = j
+        if not tree1.is_leaf(u) or not tree2.is_leaf(u):
+            raise ValueError("Internal samples not supported")
+
+    k = samples.shape[0]
+    n = (k * (k - 1)) // 2
+    m = [np.ones(n + k), np.ones(n + k)]
+    M = [np.zeros(n + k), np.zeros(n + k)]
+    for tree_index, tree in enumerate([tree1, tree2]):
+        stack = [(tree.root, 0, tree.time(tree.root))]
+        while len(stack) > 0:
+            node, depth, time = stack.pop()
+            children = tree.children(node)
+            for child in children:
+                stack.append((child, depth + 1, tree.time(child)))
+            for c1, c2 in itertools.combinations(children, 2):
+                for v1 in tree.samples(c1):
+                    index1 = sample_index_map[v1]
+                    for v2 in tree.samples(c2):
+                        index2 = sample_index_map[v2]
+                        a = min(index1, index2)
+                        b = max(index1, index2)
+                        pair_index = a * (a - 2 * k + 1) // -2 + b - a - 1
+                        assert m[tree_index][pair_index] == 1
+                        m[tree_index][pair_index] = depth
+                        M[tree_index][pair_index] = tree.time(tree.root) - time
+            if len(tree.children(node)) == 0:
+                index = sample_index_map[node]
+                M[tree_index][index + n] = tree.branch_length(node)
+    return np.linalg.norm((1 - lambda_) *
+                          (m[0] - m[1]) + lambda_ * (M[0] - M[1]))
+
+
+def kc_distance_simple(tree1, tree2, lambda_=0):
+    """
+    Simplified version of the kc_distance() function above.
+    Written without Python features to aid writing C implementation.
+    """
+    samples = tree1.tree_sequence.samples()
+    for sample1, sample2 in zip(samples, tree2.tree_sequence.samples()):
+        if sample1 != sample2:
+            raise ValueError("Trees must have the same samples")
+    if not len(tree1.roots) == len(tree2.roots) == 1:
+        raise ValueError("Trees must have one root")
+    sample_index_map = np.zeros(tree1.tree_sequence.num_nodes, dtype=int) - 1
+    for j, u in enumerate(samples):
+        sample_index_map[u] = j
+        if not tree1.is_leaf(u) or not tree2.is_leaf(u):
+            raise ValueError("Internal samples not supported")
+
+    n = samples.shape[0]
+    N = (n * (n - 1)) // 2
+    m = [np.ones(N + n), np.ones(N + n)]
+    M = [np.zeros(N + n), np.zeros(N + n)]
+    path_distance = [np.zeros(tree1.num_nodes), np.zeros(tree2.num_nodes)]
+    time_distance = [np.zeros(tree1.num_nodes), np.zeros(tree2.num_nodes)]
+    for tree_index, tree in enumerate([tree1, tree2]):
+        stack = [(tree.root, 0, tree.time(tree.root))]
+        while len(stack) > 0:
+            u, depth, time = stack.pop()
+            children = tree.children(u)
+            for v in children:
+                stack.append((v, depth + 1, tree.time(v)))
+            path_distance[tree_index][u] = depth
+            time_distance[tree_index][u] = tree.time(tree.root) - time
+            if len(tree.children(u)) == 0:
+                u_index = sample_index_map[u]
+                M[tree_index][u_index + N] = tree.branch_length(u)
+
+        for n1 in range(n):
+            for n2 in range(n1 + 1, n):
+                mrca = tree.mrca(samples[n1], samples[n2])
+                pair_index = n1 * (n1 - 2 * n + 1) // -2 + n2 - n1 - 1
+                assert m[tree_index][pair_index] == 1
+                m[tree_index][pair_index] = path_distance[tree_index][mrca]
+                M[tree_index][pair_index] = time_distance[tree_index][mrca]
+
+    vT1 = 0
+    vT2 = 0
+    distance_sum = 0
+    for i in range(N + n):
+        vT1 = (m[0][i] * (1 - lambda_)) + (lambda_ * M[0][i])
+        vT2 = (m[1][i] * (1 - lambda_)) + (lambda_ * M[1][i])
+        distance_sum += (vT1 - vT2) ** 2
+
+    return math.sqrt(distance_sum)
+
+
+class TestKCMetric(unittest.TestCase):
+    """
+    Tests on the KC metric distances.
+    """
+    def test_same_tree_zero_distance(self):
+        for n in range(2, 10):
+            for seed in range(1, 10):
+                ts = msprime.simulate(n, random_seed=seed)
+                tree = ts.first()
+                self.assertEqual(kc_distance(tree, tree), 0)
+                self.assertEqual(kc_distance_simple(tree, tree), 0)
+                self.assertEqual(tree.kc_distance(tree), 0)
+                ts = msprime.simulate(n, random_seed=seed)
+                tree2 = ts.first()
+                self.assertEqual(kc_distance(tree, tree2), 0)
+                self.assertEqual(kc_distance_simple(tree, tree2), 0)
+                self.assertEqual(tree.kc_distance(tree2), 0)
+
+    def test_sample_2_zero_distance(self):
+        # All trees with 2 leaves must be equal distance from each other.
+        for seed in range(1, 10):
+            tree1 = msprime.simulate(2, random_seed=seed).first()
+            tree2 = msprime.simulate(2, random_seed=seed + 1).first()
+            self.assertEqual(kc_distance(tree1, tree2, 0), 0)
+            self.assertEqual(kc_distance_simple(tree1, tree2, 0), 0)
+            self.assertEqual(tree1.kc_distance(tree2, 0), 0)
+
+    def test_different_samples_error(self):
+        tree1 = msprime.simulate(10, random_seed=1).first()
+        tree2 = msprime.simulate(2, random_seed=1).first()
+        self.assertRaises(ValueError, kc_distance, tree1, tree2)
+        self.assertRaises(ValueError, kc_distance_simple, tree1, tree2)
+        self.assertRaises(_tskit.LibraryError, tree1.kc_distance, tree2)
+
+        ts1 = msprime.simulate(10, random_seed=1)
+        nmap = np.arange(0, ts1.num_nodes)[::-1]
+        ts2 = tsutil.permute_nodes(ts1, nmap)
+        tree1 = ts1.first()
+        tree2 = ts2.first()
+        self.assertRaises(ValueError, kc_distance, tree1, tree2)
+        self.assertRaises(ValueError, kc_distance_simple, tree1, tree2)
+        self.assertRaises(_tskit.LibraryError, tree1.kc_distance, tree2)
+
+    def validate_trees(self, n):
+        for seed in range(1, 10):
+            tree1 = msprime.simulate(n, random_seed=seed).first()
+            tree2 = msprime.simulate(n, random_seed=seed + 1).first()
+            kc1 = kc_distance(tree1, tree2)
+            kc2 = kc_distance_simple(tree1, tree2)
+            kc3 = tree1.kc_distance(tree2)
+            self.assertAlmostEqual(kc1, kc2)
+            self.assertAlmostEqual(kc1, kc3)
+            self.assertAlmostEqual(kc1, kc_distance(tree2, tree1))
+            self.assertAlmostEqual(
+                kc2, kc_distance_simple(tree2, tree1))
+            self.assertAlmostEqual(kc3, tree2.kc_distance(tree1))
+
+    def test_sample_3(self):
+        self.validate_trees(3)
+
+    def test_sample_4(self):
+        self.validate_trees(4)
+
+    def test_sample_10(self):
+        self.validate_trees(10)
+
+    def test_sample_20(self):
+        self.validate_trees(20)
+
+    def validate_nonbinary_trees(self, n):
+        demographic_events = [
+            msprime.SimpleBottleneck(0.02, 0, proportion=0.25),
+            msprime.SimpleBottleneck(0.2, 0, proportion=1)]
+
+        for seed in range(1, 10):
+            ts = msprime.simulate(
+                n, random_seed=seed, demographic_events=demographic_events)
+            # Check if this is really nonbinary
+            found = False
+            for edgeset in ts.edgesets():
+                if len(edgeset.children) > 2:
+                    found = True
+                    break
+            self.assertTrue(found)
+            tree1 = ts.first()
+
+            ts = msprime.simulate(
+                n, random_seed=seed + 1, demographic_events=demographic_events)
+            tree2 = ts.first()
+            self.assertAlmostEqual(
+                kc_distance(tree1, tree2), kc_distance(tree1, tree2))
+            self.assertAlmostEqual(
+                kc_distance(tree2, tree1), kc_distance(tree2, tree1))
+            self.assertAlmostEqual(
+                kc_distance_simple(tree1, tree2),
+                kc_distance_simple(tree1, tree2))
+            self.assertAlmostEqual(
+                kc_distance_simple(tree2, tree1),
+                kc_distance_simple(tree2, tree1))
+            # compare to a binary tree also
+            tree2 = msprime.simulate(n, random_seed=seed + 1).first()
+            self.assertAlmostEqual(
+                kc_distance(tree1, tree2), kc_distance(tree1, tree2))
+            self.assertAlmostEqual(
+                kc_distance(tree2, tree1), kc_distance(tree2, tree1))
+            self.assertAlmostEqual(
+                kc_distance_simple(tree1, tree2),
+                kc_distance_simple(tree1, tree2))
+            self.assertAlmostEqual(
+                kc_distance_simple(tree2, tree1),
+                kc_distance_simple(tree2, tree1))
+
+    def test_non_binary_sample_10(self):
+        self.validate_nonbinary_trees(10)
+
+    def test_non_binary_sample_20(self):
+        self.validate_nonbinary_trees(20)
+
+    def test_non_binary_sample_30(self):
+        self.validate_nonbinary_trees(30)
+
+    def verify_result(self, tree1, tree2, lambda_, result, places=None):
+        kc1 = kc_distance(tree1, tree2, lambda_)
+        kc2 = kc_distance_simple(tree1, tree2, lambda_)
+        kc3 = tree1.kc_distance(tree2, lambda_)
+        self.assertAlmostEqual(kc1, result, places=places)
+        self.assertAlmostEqual(kc2, result, places=places)
+        self.assertAlmostEqual(kc3, result, places=places)
+
+        kc1 = kc_distance(tree2, tree1, lambda_)
+        kc2 = kc_distance_simple(tree2, tree1, lambda_)
+        kc3 = tree2.kc_distance(tree1, lambda_)
+        self.assertAlmostEqual(kc1, result, places=places)
+        self.assertAlmostEqual(kc2, result, places=places)
+        self.assertAlmostEqual(kc3, result, places=places)
+
+    def test_known_kc_sample_3(self):
+        # Test with hardcoded known values
+        tables_1 = tskit.TableCollection(sequence_length=1.0)
+        tables_2 = tskit.TableCollection(sequence_length=1.0)
+
+        # Nodes
+        sv = [True, True, True, False, False]
+        tv_1 = [0.0, 0.0, 0.0, 2.0, 3.0]
+        tv_2 = [0.0, 0.0, 0.0, 4.0, 6.0]
+
+        for is_sample, t1, t2 in zip(sv, tv_1, tv_2):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_1.nodes.add_row(flags=flags, time=t1)
+            tables_2.nodes.add_row(flags=flags, time=t2)
+
+        # Edges
+        lv = [0.0, 0.0, 0.0, 0.0]
+        rv = [1.0, 1.0, 1.0, 1.0]
+        pv = [3, 3, 4, 4]
+        cv = [0, 1, 2, 3]
+
+        for l, r, p, c in zip(lv, rv, pv, cv):
+            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
+            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        tree_1 = tables_1.tree_sequence().first()
+        tree_2 = tables_2.tree_sequence().first()
+        self.verify_result(tree_1, tree_2, 0, 0)
+        self.verify_result(tree_1, tree_2, 1, 4.243, places=3)
+
+    def test_10_samples(self):
+        nodes_1 = io.StringIO("""\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1  b''
+        1   1   0.000000    0   -1  b''
+        2   1   0.000000    0   -1  b''
+        3   1   0.000000    0   -1  b''
+        4   1   0.000000    0   -1  b''
+        5   1   0.000000    0   -1  b''
+        6   1   0.000000    0   -1  b''
+        7   1   0.000000    0   -1  b''
+        8   1   0.000000    0   -1  b''
+        9   1   0.000000    0   -1  b''
+        10  0   0.047734    0   -1  b''
+        11  0   0.061603    0   -1  b''
+        12  0   0.189503    0   -1  b''
+        13  0   0.275885    0   -1  b''
+        14  0   0.518301    0   -1  b''
+        15  0   0.543143    0   -1  b''
+        16  0   0.865193    0   -1  b''
+        17  0   1.643658    0   -1  b''
+        18  0   2.942350    0   -1  b''
+        """)
+        edges_1 = io.StringIO("""\
+        left    right   parent  child
+        0.000000    10000.000000    10  0
+        0.000000    10000.000000    10  2
+        0.000000    10000.000000    11  9
+        0.000000    10000.000000    11  10
+        0.000000    10000.000000    12  3
+        0.000000    10000.000000    12  7
+        0.000000    10000.000000    13  5
+        0.000000    10000.000000    13  11
+        0.000000    10000.000000    14  1
+        0.000000    10000.000000    14  8
+        0.000000    10000.000000    15  4
+        0.000000    10000.000000    15  14
+        0.000000    10000.000000    16  13
+        0.000000    10000.000000    16  15
+        0.000000    10000.000000    17  6
+        0.000000    10000.000000    17  12
+        0.000000    10000.000000    18  16
+        0.000000    10000.000000    18  17
+        """)
+        ts_1 = tskit.load_text(nodes_1, edges_1, sequence_length=10000,
+                               strict=False, base64_metadata=False)
+        nodes_2 = io.StringIO("""\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1  b''
+        1   1   0.000000    0   -1  b''
+        2   1   0.000000    0   -1  b''
+        3   1   0.000000    0   -1  b''
+        4   1   0.000000    0   -1  b''
+        5   1   0.000000    0   -1  b''
+        6   1   0.000000    0   -1  b''
+        7   1   0.000000    0   -1  b''
+        8   1   0.000000    0   -1  b''
+        9   1   0.000000    0   -1  b''
+        10  0   0.210194    0   -1  b''
+        11  0   0.212217    0   -1  b''
+        12  0   0.223341    0   -1  b''
+        13  0   0.272703    0   -1  b''
+        14  0   0.443553    0   -1  b''
+        15  0   0.491653    0   -1  b''
+        16  0   0.729369    0   -1  b''
+        17  0   1.604113    0   -1  b''
+        18  0   1.896332    0   -1  b''
+        """)
+        edges_2 = io.StringIO("""\
+        left    right   parent  child
+        0.000000    10000.000000    10  5
+        0.000000    10000.000000    10  7
+        0.000000    10000.000000    11  3
+        0.000000    10000.000000    11  4
+        0.000000    10000.000000    12  6
+        0.000000    10000.000000    12  9
+        0.000000    10000.000000    13  10
+        0.000000    10000.000000    13  12
+        0.000000    10000.000000    14  8
+        0.000000    10000.000000    14  11
+        0.000000    10000.000000    15  1
+        0.000000    10000.000000    15  2
+        0.000000    10000.000000    16  13
+        0.000000    10000.000000    16  14
+        0.000000    10000.000000    17  0
+        0.000000    10000.000000    17  16
+        0.000000    10000.000000    18  15
+        0.000000    10000.000000    18  17
+        """)
+        ts_2 = tskit.load_text(nodes_2, edges_2, sequence_length=10000,
+                               strict=False, base64_metadata=False)
+
+        tree_1 = ts_1.first()
+        tree_2 = ts_2.first()
+        self.verify_result(tree_1, tree_2, 0, 12.85, places=2)
+        self.verify_result(tree_1, tree_2, 1, 10.64, places=2)
+
+    def test_15_samples(self):
+        nodes_1 = io.StringIO("""\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1
+        1   1   0.000000    0   -1
+        2   1   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   1   0.000000    0   -1
+        5   1   0.000000    0   -1
+        6   1   0.000000    0   -1
+        7   1   0.000000    0   -1
+        8   1   0.000000    0   -1
+        9   1   0.000000    0   -1
+        10  1   0.000000    0   -1
+        11  1   0.000000    0   -1
+        12  1   0.000000    0   -1
+        13  1   0.000000    0   -1
+        14  1   0.000000    0   -1
+        15  0   0.026043    0   -1
+        16  0   0.032662    0   -1
+        17  0   0.072032    0   -1
+        18  0   0.086792    0   -1
+        19  0   0.130699    0   -1
+        20  0   0.177640    0   -1
+        21  0   0.199800    0   -1
+        22  0   0.236391    0   -1
+        23  0   0.342445    0   -1
+        24  0   0.380356    0   -1
+        25  0   0.438502    0   -1
+        26  0   0.525632    0   -1
+        27  0   1.180078    0   -1
+        28  0   2.548099    0   -1
+        """)
+        edges_1 = io.StringIO("""\
+        left    right   parent  child
+        0.000000    10000.000000    15  6
+        0.000000    10000.000000    15  13
+        0.000000    10000.000000    16  1
+        0.000000    10000.000000    16  4
+        0.000000    10000.000000    17  0
+        0.000000    10000.000000    17  7
+        0.000000    10000.000000    18  2
+        0.000000    10000.000000    18  17
+        0.000000    10000.000000    19  5
+        0.000000    10000.000000    19  9
+        0.000000    10000.000000    20  12
+        0.000000    10000.000000    20  15
+        0.000000    10000.000000    21  8
+        0.000000    10000.000000    21  20
+        0.000000    10000.000000    22  11
+        0.000000    10000.000000    22  21
+        0.000000    10000.000000    23  10
+        0.000000    10000.000000    23  22
+        0.000000    10000.000000    24  14
+        0.000000    10000.000000    24  16
+        0.000000    10000.000000    25  18
+        0.000000    10000.000000    25  19
+        0.000000    10000.000000    26  23
+        0.000000    10000.000000    26  24
+        0.000000    10000.000000    27  25
+        0.000000    10000.000000    27  26
+        0.000000    10000.000000    28  3
+        0.000000    10000.000000    28  27
+        """)
+        ts_1 = tskit.load_text(nodes_1, edges_1, sequence_length=10000,
+                               strict=False, base64_metadata=False)
+
+        nodes_2 = io.StringIO("""\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1
+        1   1   0.000000    0   -1
+        2   1   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   1   0.000000    0   -1
+        5   1   0.000000    0   -1
+        6   1   0.000000    0   -1
+        7   1   0.000000    0   -1
+        8   1   0.000000    0   -1
+        9   1   0.000000    0   -1
+        10  1   0.000000    0   -1
+        11  1   0.000000    0   -1
+        12  1   0.000000    0   -1
+        13  1   0.000000    0   -1
+        14  1   0.000000    0   -1
+        15  0   0.011443    0   -1
+        16  0   0.055694    0   -1
+        17  0   0.061677    0   -1
+        18  0   0.063416    0   -1
+        19  0   0.163014    0   -1
+        20  0   0.223445    0   -1
+        21  0   0.251724    0   -1
+        22  0   0.268749    0   -1
+        23  0   0.352039    0   -1
+        24  0   0.356134    0   -1
+        25  0   0.399454    0   -1
+        26  0   0.409174    0   -1
+        27  0   2.090839    0   -1
+        28  0   3.772716    0   -1
+        """)
+        edges_2 = io.StringIO("""\
+        left    right   parent  child
+        0.000000    10000.000000    15  6
+        0.000000    10000.000000    15  8
+        0.000000    10000.000000    16  9
+        0.000000    10000.000000    16  12
+        0.000000    10000.000000    17  3
+        0.000000    10000.000000    17  4
+        0.000000    10000.000000    18  13
+        0.000000    10000.000000    18  16
+        0.000000    10000.000000    19  2
+        0.000000    10000.000000    19  11
+        0.000000    10000.000000    20  1
+        0.000000    10000.000000    20  17
+        0.000000    10000.000000    21  0
+        0.000000    10000.000000    21  18
+        0.000000    10000.000000    22  10
+        0.000000    10000.000000    22  15
+        0.000000    10000.000000    23  14
+        0.000000    10000.000000    23  21
+        0.000000    10000.000000    24  5
+        0.000000    10000.000000    24  7
+        0.000000    10000.000000    25  19
+        0.000000    10000.000000    25  22
+        0.000000    10000.000000    26  24
+        0.000000    10000.000000    26  25
+        0.000000    10000.000000    27  20
+        0.000000    10000.000000    27  23
+        0.000000    10000.000000    28  26
+        0.000000    10000.000000    28  27
+        """)
+        ts_2 = tskit.load_text(nodes_2, edges_2, sequence_length=10000,
+                               strict=False, base64_metadata=False)
+
+        tree_1 = ts_1.first()
+        tree_2 = ts_2.first()
+
+        self.verify_result(tree_1, tree_2, 0, 19.95, places=2)
+        self.verify_result(tree_1, tree_2, 1, 17.74, places=2)
+
+    def test_nobinary_trees(self):
+        nodes_1 = io.StringIO("""\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    -1  -1   e30=
+        1   1   0.000000    -1  -1   e30=
+        2   1   0.000000    -1  -1   e30=
+        3   1   0.000000    -1  -1   e30=
+        4   1   0.000000    -1  -1   e30=
+        5   1   0.000000    -1  -1   e30=
+        6   1   0.000000    -1  -1   e30=
+        7   1   0.000000    -1  -1   e30=
+        8   1   0.000000    -1  -1   e30=
+        9   1   0.000000    -1  -1
+        10  1   0.000000    -1  -1
+        11  1   0.000000    -1  -1
+        12  1   0.000000    -1  -1
+        13  1   0.000000    -1  -1
+        14  1   0.000000    -1  -1
+        15  0   2.000000    -1  -1
+        16  0   4.000000    -1  -1
+        17  0   11.000000   -1  -1
+        18  0   12.000000   -1  -1
+        """)
+        edges_1 = io.StringIO("""\
+        left    right   parent  child
+        0.000000    10000.000000    15  8
+        0.000000    10000.000000    15  10
+        0.000000    10000.000000    16  6
+        0.000000    10000.000000    16  12
+        0.000000    10000.000000    16  15
+        0.000000    10000.000000    17  0
+        0.000000    10000.000000    17  1
+        0.000000    10000.000000    17  2
+        0.000000    10000.000000    17  3
+        0.000000    10000.000000    17  4
+        0.000000    10000.000000    17  5
+        0.000000    10000.000000    17  7
+        0.000000    10000.000000    17  9
+        0.000000    10000.000000    17  11
+        0.000000    10000.000000    17  13
+        0.000000    10000.000000    17  14
+        0.000000    10000.000000    18  16
+        0.000000    10000.000000    18  17
+        """)
+        ts_1 = tskit.load_text(nodes_1, edges_1, sequence_length=10000,
+                               strict=False, base64_metadata=False)
+
+        nodes_2 = io.StringIO("""\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    -1  -1   e30=
+        1   1   0.000000    -1  -1   e30=
+        2   1   0.000000    -1  -1   e30=
+        3   1   0.000000    -1  -1   e30=
+        4   1   0.000000    -1  -1   e30=
+        5   1   0.000000    -1  -1   e30=
+        6   1   0.000000    -1  -1   e30=
+        7   1   0.000000    -1  -1   e30=
+        8   1   0.000000    -1  -1   e30=
+        9   1   0.000000    -1  -1   e30=
+        10  1   0.000000    -1  -1  e30=
+        11  1   0.000000    -1  -1  e30=
+        12  1   0.000000    -1  -1  e30=
+        13  1   0.000000    -1  -1  e30=
+        14  1   0.000000    -1  -1  e30=
+        15  0   2.000000    -1  -1
+        16  0   2.000000    -1  -1
+        17  0   3.000000    -1  -1
+        18  0   3.000000    -1  -1
+        19  0   4.000000    -1  -1
+        20  0   4.000000    -1  -1
+        21  0   11.000000   -1  -1
+        22  0   12.000000   -1  -1
+        """)
+        edges_2 = io.StringIO("""\
+        left    right   parent  child
+        0.000000    10000.000000    15  12
+        0.000000    10000.000000    15  14
+        0.000000    10000.000000    16  0
+        0.000000    10000.000000    16  7
+        0.000000    10000.000000    17  6
+        0.000000    10000.000000    17  15
+        0.000000    10000.000000    18  4
+        0.000000    10000.000000    18  8
+        0.000000    10000.000000    18  13
+        0.000000    10000.000000    19  11
+        0.000000    10000.000000    19  18
+        0.000000    10000.000000    20  1
+        0.000000    10000.000000    20  5
+        0.000000    10000.000000    20  9
+        0.000000    10000.000000    20  10
+        0.000000    10000.000000    21  2
+        0.000000    10000.000000    21  3
+        0.000000    10000.000000    21  16
+        0.000000    10000.000000    21  17
+        0.000000    10000.000000    21  20
+        0.000000    10000.000000    22  19
+        0.000000    10000.000000    22  21
+        """)
+        ts_2 = tskit.load_text(nodes_2, edges_2, sequence_length=10000,
+                               strict=False, base64_metadata=False)
+        tree_1 = ts_1.first()
+        tree_2 = ts_2.first()
+        self.verify_result(tree_1, tree_2, 0, 9.434, places=3)
+        self.verify_result(tree_1, tree_2, 1, 44, places=1)
+
+    def test_multiple_roots(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+
+        # Nodes
+        sv = [True, True]
+        tv = [0.0, 0.0]
+
+        for is_sample, t in zip(sv, tv):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables.nodes.add_row(flags=flags, time=t)
+
+        ts = tables.tree_sequence()
+
+        with self.assertRaises(ValueError):
+            kc_distance(ts.first(), ts.first(), 0)
+        with self.assertRaises(ValueError):
+            kc_distance_simple(ts.first(), ts.first(), 0)
+        with self.assertRaises(_tskit.LibraryError):
+            ts.first().kc_distance(ts.first(), 0)
+
+    def do_kc_distance(self, t1, t2, lambda_=0):
+        kc1 = kc_distance(t1, t2, lambda_)
+        kc2 = kc_distance_simple(t1, t2, lambda_)
+        kc3 = t1.kc_distance(t2, lambda_)
+        self.assertAlmostEqual(kc1, kc2)
+        self.assertAlmostEqual(kc1, kc3)
+
+        kc1 = kc_distance(t2, t1, lambda_)
+        kc2 = kc_distance_simple(t1, t1, lambda_)
+        kc3 = t2.kc_distance(t1, lambda_)
+        self.assertAlmostEqual(kc1, kc2)
+        self.assertAlmostEqual(kc1, kc3)
+
+    def test_non_initial_samples(self):
+        ts1 = msprime.simulate(10, random_seed=1)
+        nmap = np.arange(0, ts1.num_nodes)[::-1]
+        ts2 = tsutil.permute_nodes(ts1, nmap)
+        t1 = ts2.first()
+        t2 = ts2.first()
+        self.do_kc_distance(t1, t2)
+
+    def test_internal_samples(self):
+        ts1 = msprime.simulate(10, random_seed=1)
+        ts2 = tsutil.jiggle_samples(ts1)
+        t1 = ts2.first()
+        t2 = ts2.first()
+
+        with self.assertRaises(ValueError):
+            kc_distance(t1, t2)
+        with self.assertRaises(ValueError):
+            kc_distance_simple(t1, t2)
+        with self.assertRaises(_tskit.LibraryError):
+            t1.kc_distance(t2)
 
 
 class TestOverlappingSegments(unittest.TestCase):

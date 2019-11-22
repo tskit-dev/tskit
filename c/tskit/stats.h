@@ -48,7 +48,6 @@ int tsk_ld_calc_get_r2_array(tsk_ld_calc_t *self, tsk_id_t a, int direction,
         tsk_size_t max_sites, double max_distance,
         double *r2, tsk_size_t *num_r2_values);
 
-
 #ifdef __cplusplus
 }
 #endif

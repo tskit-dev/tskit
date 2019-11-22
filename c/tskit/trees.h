@@ -384,6 +384,7 @@ int tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         int8_t *ancestral_state,
         tsk_size_t *num_transitions, tsk_state_transition_t **transitions);
 
+int tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double *result);
 
 /****************************************************************************/
 /* Diff iterator */
