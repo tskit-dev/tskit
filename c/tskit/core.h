@@ -223,6 +223,12 @@ of tskit.
 #define TSK_ERR_MUST_IMPUTE_NON_SAMPLES                            -1100
 #define TSK_ERR_MUST_IMPUTE_HAPLOTYPES                             -1101
 
+/* Distance metric errors */
+#define TSK_ERR_SAMPLE_SIZE_MISMATCH                               -1200
+#define TSK_ERR_SAMPLES_NOT_EQUAL                                  -1201
+#define TSK_ERR_INTERNAL_SAMPLES                                   -1202
+#define TSK_ERR_MULTIPLE_ROOTS                                     -1203
+
 
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14

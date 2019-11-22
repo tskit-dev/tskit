@@ -121,11 +121,11 @@ def generate_segments(n, sequence_length=100, seed=None):
     return segs
 
 
-def kc_distance_tree(tree1, tree2, lambda_param=0):
+def kc_distance(tree1, tree2, lambda_=0):
     """
     Returns the Kendall-Colijn distance between the specified pair of trees.
-    lambda_param determines weight of topology vs branch lengths in calculating
-    the distance. Set lambda_param at 0 to only consider topology, set at 1 to
+    lambda_ determines weight of topology vs branch lengths in calculating
+    the distance. Set lambda_ at 0 to only consider topology, set at 1 to
     only consider branch lengths. See Kendall & Colijn (2016):
     https://academic.oup.com/mbe/article/33/10/2735/2925548
     """
@@ -134,6 +134,12 @@ def kc_distance_tree(tree1, tree2, lambda_param=0):
         raise ValueError("Trees must have the same samples")
     if not len(tree1.roots) == len(tree2.roots) == 1:
         raise ValueError("Trees must have one root")
+    sample_index_map = np.zeros(tree1.tree_sequence.num_nodes, dtype=int) - 1
+    for j, u in enumerate(samples):
+        sample_index_map[u] = j
+        if not tree1.is_leaf(u) or not tree2.is_leaf(u):
+            raise ValueError("Internal samples not supported")
+
     k = samples.shape[0]
     n = (k * (k - 1)) // 2
     m = [np.ones(n + k), np.ones(n + k)]
@@ -141,28 +147,31 @@ def kc_distance_tree(tree1, tree2, lambda_param=0):
     for tree_index, tree in enumerate([tree1, tree2]):
         stack = [(tree.root, 0, tree.time(tree.root))]
         while len(stack) > 0:
-            u, depth, time = stack.pop()
-            children = tree.children(u)
-            for v in children:
-                stack.append((v, depth + 1, tree.time(v)))
+            node, depth, time = stack.pop()
+            children = tree.children(node)
+            for child in children:
+                stack.append((child, depth + 1, tree.time(child)))
             for c1, c2 in itertools.combinations(children, 2):
-                for u in tree.samples(c1):
-                    for v in tree.samples(c2):
-                        a = min(u, v)
-                        b = max(u, v)
+                for v1 in tree.samples(c1):
+                    index1 = sample_index_map[v1]
+                    for v2 in tree.samples(c2):
+                        index2 = sample_index_map[v2]
+                        a = min(index1, index2)
+                        b = max(index1, index2)
                         pair_index = a * (a - 2 * k + 1) // -2 + b - a - 1
                         assert m[tree_index][pair_index] == 1
                         m[tree_index][pair_index] = depth
                         M[tree_index][pair_index] = tree.time(tree.root) - time
-            if len(tree.children(u)) == 0:
-                M[tree_index][u + n] = tree.branch_length(u)
-    return np.linalg.norm((1 - lambda_param) *
-                          (m[0] - m[1]) + lambda_param * (M[0] - M[1]))
+            if len(tree.children(node)) == 0:
+                index = sample_index_map[node]
+                M[tree_index][index + n] = tree.branch_length(node)
+    return np.linalg.norm((1 - lambda_) *
+                          (m[0] - m[1]) + lambda_ * (M[0] - M[1]))
 
 
-def kc_distance_tree_simple(tree1, tree2, lambda_param=0):
+def kc_distance_simple(tree1, tree2, lambda_=0):
     """
-    Simplified version of the kc_distance_tree() function above.
+    Simplified version of the kc_distance() function above.
     Written without Python features to aid writing C implementation.
     """
     samples = tree1.tree_sequence.samples()
@@ -171,10 +180,16 @@ def kc_distance_tree_simple(tree1, tree2, lambda_param=0):
             raise ValueError("Trees must have the same samples")
     if not len(tree1.roots) == len(tree2.roots) == 1:
         raise ValueError("Trees must have one root")
-    k = samples.shape[0]
-    n = (k * (k - 1)) // 2
-    m = [np.ones(n + k), np.ones(n + k)]
-    M = [np.zeros(n + k), np.zeros(n + k)]
+    sample_index_map = np.zeros(tree1.tree_sequence.num_nodes, dtype=int) - 1
+    for j, u in enumerate(samples):
+        sample_index_map[u] = j
+        if not tree1.is_leaf(u) or not tree2.is_leaf(u):
+            raise ValueError("Internal samples not supported")
+
+    n = samples.shape[0]
+    N = (n * (n - 1)) // 2
+    m = [np.ones(N + n), np.ones(N + n)]
+    M = [np.zeros(N + n), np.zeros(N + n)]
     path_distance = [np.zeros(tree1.num_nodes), np.zeros(tree2.num_nodes)]
     time_distance = [np.zeros(tree1.num_nodes), np.zeros(tree2.num_nodes)]
     for tree_index, tree in enumerate([tree1, tree2]):
@@ -187,12 +202,13 @@ def kc_distance_tree_simple(tree1, tree2, lambda_param=0):
             path_distance[tree_index][u] = depth
             time_distance[tree_index][u] = tree.time(tree.root) - time
             if len(tree.children(u)) == 0:
-                M[tree_index][u + n] = tree.branch_length(u)
+                u_index = sample_index_map[u]
+                M[tree_index][u_index + N] = tree.branch_length(u)
 
-        for index, n1 in enumerate(samples):
-            for n2 in samples[index + 1:]:
-                mrca = tree.mrca(n1, n2)
-                pair_index = n1 * (n1 - 2 * k + 1) // -2 + n2 - n1 - 1
+        for n1 in range(n):
+            for n2 in range(n1 + 1, n):
+                mrca = tree.mrca(samples[n1], samples[n2])
+                pair_index = n1 * (n1 - 2 * n + 1) // -2 + n2 - n1 - 1
                 assert m[tree_index][pair_index] == 1
                 m[tree_index][pair_index] = path_distance[tree_index][mrca]
                 M[tree_index][pair_index] = time_distance[tree_index][mrca]
@@ -200,10 +216,9 @@ def kc_distance_tree_simple(tree1, tree2, lambda_param=0):
     vT1 = 0
     vT2 = 0
     distance_sum = 0
-
-    for i in range(n + k):
-        vT1 = (m[0][i] * (1 - lambda_param)) + (lambda_param * M[0][i])
-        vT2 = (m[1][i] * (1 - lambda_param)) + (lambda_param * M[1][i])
+    for i in range(N + n):
+        vT1 = (m[0][i] * (1 - lambda_)) + (lambda_ * M[0][i])
+        vT2 = (m[1][i] * (1 - lambda_)) + (lambda_ * M[1][i])
         distance_sum += (vT1 - vT2) ** 2
 
     return math.sqrt(distance_sum)
@@ -218,36 +233,53 @@ class TestKCMetric(unittest.TestCase):
             for seed in range(1, 10):
                 ts = msprime.simulate(n, random_seed=seed)
                 tree = ts.first()
-                self.assertEqual(kc_distance_tree(tree, tree), 0)
-                self.assertEqual(kc_distance_tree_simple(tree, tree), 0)
+                self.assertEqual(kc_distance(tree, tree), 0)
+                self.assertEqual(kc_distance_simple(tree, tree), 0)
+                self.assertEqual(tree.kc_distance(tree), 0)
                 ts = msprime.simulate(n, random_seed=seed)
                 tree2 = ts.first()
-                self.assertEqual(kc_distance_tree(tree, tree2), 0)
-                self.assertEqual(kc_distance_tree_simple(tree, tree2), 0)
+                self.assertEqual(kc_distance(tree, tree2), 0)
+                self.assertEqual(kc_distance_simple(tree, tree2), 0)
+                self.assertEqual(tree.kc_distance(tree2), 0)
 
     def test_sample_2_zero_distance(self):
         # All trees with 2 leaves must be equal distance from each other.
         for seed in range(1, 10):
             tree1 = msprime.simulate(2, random_seed=seed).first()
             tree2 = msprime.simulate(2, random_seed=seed + 1).first()
-            self.assertEqual(kc_distance_tree(tree1, tree2), 0)
-            self.assertEqual(kc_distance_tree_simple(tree1, tree2), 0)
+            self.assertEqual(kc_distance(tree1, tree2, 0), 0)
+            self.assertEqual(kc_distance_simple(tree1, tree2, 0), 0)
+            self.assertEqual(tree1.kc_distance(tree2, 0), 0)
 
     def test_different_samples_error(self):
         tree1 = msprime.simulate(10, random_seed=1).first()
         tree2 = msprime.simulate(2, random_seed=1).first()
-        self.assertRaises(ValueError, kc_distance_tree, tree1, tree2)
-        self.assertRaises(ValueError, kc_distance_tree_simple, tree1, tree2)
+        self.assertRaises(ValueError, kc_distance, tree1, tree2)
+        self.assertRaises(ValueError, kc_distance_simple, tree1, tree2)
+        self.assertRaises(_tskit.LibraryError, tree1.kc_distance, tree2)
+
+        ts1 = msprime.simulate(10, random_seed=1)
+        nmap = np.arange(0, ts1.num_nodes)[::-1]
+        ts2 = tsutil.permute_nodes(ts1, nmap)
+        tree1 = ts1.first()
+        tree2 = ts2.first()
+        self.assertRaises(ValueError, kc_distance, tree1, tree2)
+        self.assertRaises(ValueError, kc_distance_simple, tree1, tree2)
+        self.assertRaises(_tskit.LibraryError, tree1.kc_distance, tree2)
 
     def validate_trees(self, n):
         for seed in range(1, 10):
             tree1 = msprime.simulate(n, random_seed=seed).first()
             tree2 = msprime.simulate(n, random_seed=seed + 1).first()
+            kc1 = kc_distance(tree1, tree2)
+            kc2 = kc_distance_simple(tree1, tree2)
+            kc3 = tree1.kc_distance(tree2)
+            self.assertAlmostEqual(kc1, kc2)
+            self.assertAlmostEqual(kc1, kc3)
+            self.assertAlmostEqual(kc1, kc_distance(tree2, tree1))
             self.assertAlmostEqual(
-                kc_distance_tree(tree1, tree2), kc_distance_tree(tree1, tree2))
-            self.assertAlmostEqual(
-                kc_distance_tree_simple(tree1, tree2),
-                kc_distance_tree_simple(tree1, tree2))
+                kc2, kc_distance_simple(tree2, tree1))
+            self.assertAlmostEqual(kc3, tree2.kc_distance(tree1))
 
     def test_sample_3(self):
         self.validate_trees(3)
@@ -282,27 +314,27 @@ class TestKCMetric(unittest.TestCase):
                 n, random_seed=seed + 1, demographic_events=demographic_events)
             tree2 = ts.first()
             self.assertAlmostEqual(
-                kc_distance_tree(tree1, tree2), kc_distance_tree(tree1, tree2))
+                kc_distance(tree1, tree2), kc_distance(tree1, tree2))
             self.assertAlmostEqual(
-                kc_distance_tree(tree2, tree1), kc_distance_tree(tree2, tree1))
+                kc_distance(tree2, tree1), kc_distance(tree2, tree1))
             self.assertAlmostEqual(
-                kc_distance_tree_simple(tree1, tree2),
-                kc_distance_tree_simple(tree1, tree2))
+                kc_distance_simple(tree1, tree2),
+                kc_distance_simple(tree1, tree2))
             self.assertAlmostEqual(
-                kc_distance_tree_simple(tree2, tree1),
-                kc_distance_tree_simple(tree2, tree1))
+                kc_distance_simple(tree2, tree1),
+                kc_distance_simple(tree2, tree1))
             # compare to a binary tree also
             tree2 = msprime.simulate(n, random_seed=seed + 1).first()
             self.assertAlmostEqual(
-                kc_distance_tree(tree1, tree2), kc_distance_tree(tree1, tree2))
+                kc_distance(tree1, tree2), kc_distance(tree1, tree2))
             self.assertAlmostEqual(
-                kc_distance_tree(tree2, tree1), kc_distance_tree(tree2, tree1))
+                kc_distance(tree2, tree1), kc_distance(tree2, tree1))
             self.assertAlmostEqual(
-                kc_distance_tree_simple(tree1, tree2),
-                kc_distance_tree_simple(tree1, tree2))
+                kc_distance_simple(tree1, tree2),
+                kc_distance_simple(tree1, tree2))
             self.assertAlmostEqual(
-                kc_distance_tree_simple(tree2, tree1),
-                kc_distance_tree_simple(tree2, tree1))
+                kc_distance_simple(tree2, tree1),
+                kc_distance_simple(tree2, tree1))
 
     def test_non_binary_sample_10(self):
         self.validate_nonbinary_trees(10)
@@ -313,10 +345,23 @@ class TestKCMetric(unittest.TestCase):
     def test_non_binary_sample_30(self):
         self.validate_nonbinary_trees(30)
 
+    def verify_result(self, tree1, tree2, lambda_, result, places=None):
+        kc1 = kc_distance(tree1, tree2, lambda_)
+        kc2 = kc_distance_simple(tree1, tree2, lambda_)
+        kc3 = tree1.kc_distance(tree2, lambda_)
+        self.assertAlmostEqual(kc1, result, places=places)
+        self.assertAlmostEqual(kc2, result, places=places)
+        self.assertAlmostEqual(kc3, result, places=places)
+
+        kc1 = kc_distance(tree2, tree1, lambda_)
+        kc2 = kc_distance_simple(tree2, tree1, lambda_)
+        kc3 = tree2.kc_distance(tree1, lambda_)
+        self.assertAlmostEqual(kc1, result, places=places)
+        self.assertAlmostEqual(kc2, result, places=places)
+        self.assertAlmostEqual(kc3, result, places=places)
+
     def test_known_kc_sample_3(self):
-        """
-        Test with hardcoded known values
-        """
+        # Test with hardcoded known values
         tables_1 = tskit.TableCollection(sequence_length=1.0)
         tables_2 = tskit.TableCollection(sequence_length=1.0)
 
@@ -342,15 +387,8 @@ class TestKCMetric(unittest.TestCase):
 
         tree_1 = tables_1.tree_sequence().first()
         tree_2 = tables_2.tree_sequence().first()
-
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 0), 0)
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 1), 4.243, places=3)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 0), 0)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 1), 4.243, places=3)
+        self.verify_result(tree_1, tree_2, 0, 0)
+        self.verify_result(tree_1, tree_2, 1, 4.243, places=3)
 
     def test_10_samples(self):
         nodes_1 = io.StringIO("""\
@@ -446,15 +484,8 @@ class TestKCMetric(unittest.TestCase):
 
         tree_1 = ts_1.first()
         tree_2 = ts_2.first()
-
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 0), 12.85, places=2)
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 1), 10.64, places=2)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 0), 12.85, places=2)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 1), 10.64, places=2)
+        self.verify_result(tree_1, tree_2, 0, 12.85, places=2)
+        self.verify_result(tree_1, tree_2, 1, 10.64, places=2)
 
     def test_15_samples(self):
         nodes_1 = io.StringIO("""\
@@ -592,14 +623,8 @@ class TestKCMetric(unittest.TestCase):
         tree_1 = ts_1.first()
         tree_2 = ts_2.first()
 
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 0), 19.95, places=2)
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 1), 17.74, places=2)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 0), 19.95, places=2)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 1), 17.74, places=2)
+        self.verify_result(tree_1, tree_2, 0, 19.95, places=2)
+        self.verify_result(tree_1, tree_2, 1, 17.74, places=2)
 
     def test_nobinary_trees(self):
         nodes_1 = io.StringIO("""\
@@ -701,18 +726,10 @@ class TestKCMetric(unittest.TestCase):
         """)
         ts_2 = tskit.load_text(nodes_2, edges_2, sequence_length=10000,
                                strict=False, base64_metadata=False)
-
         tree_1 = ts_1.first()
         tree_2 = ts_2.first()
-
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 0), 9.434, places=3)
-        self.assertAlmostEqual(
-            kc_distance_tree(tree_1, tree_2, 1), 44, places=1)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 0), 9.434, places=3)
-        self.assertAlmostEqual(
-            kc_distance_tree_simple(tree_1, tree_2, 1), 44, places=1)
+        self.verify_result(tree_1, tree_2, 0, 9.434, places=3)
+        self.verify_result(tree_1, tree_2, 1, 44, places=1)
 
     def test_multiple_roots(self):
         tables = tskit.TableCollection(sequence_length=1.0)
@@ -728,9 +745,45 @@ class TestKCMetric(unittest.TestCase):
         ts = tables.tree_sequence()
 
         with self.assertRaises(ValueError):
-            kc_distance_tree(ts.first(), ts.first(), 0)
+            kc_distance(ts.first(), ts.first(), 0)
         with self.assertRaises(ValueError):
-            kc_distance_tree_simple(ts.first(), ts.first(), 0)
+            kc_distance_simple(ts.first(), ts.first(), 0)
+        with self.assertRaises(_tskit.LibraryError):
+            ts.first().kc_distance(ts.first(), 0)
+
+    def do_kc_distance(self, t1, t2, lambda_=0):
+        kc1 = kc_distance(t1, t2, lambda_)
+        kc2 = kc_distance_simple(t1, t2, lambda_)
+        kc3 = t1.kc_distance(t2, lambda_)
+        self.assertAlmostEqual(kc1, kc2)
+        self.assertAlmostEqual(kc1, kc3)
+
+        kc1 = kc_distance(t2, t1, lambda_)
+        kc2 = kc_distance_simple(t1, t1, lambda_)
+        kc3 = t2.kc_distance(t1, lambda_)
+        self.assertAlmostEqual(kc1, kc2)
+        self.assertAlmostEqual(kc1, kc3)
+
+    def test_non_initial_samples(self):
+        ts1 = msprime.simulate(10, random_seed=1)
+        nmap = np.arange(0, ts1.num_nodes)[::-1]
+        ts2 = tsutil.permute_nodes(ts1, nmap)
+        t1 = ts2.first()
+        t2 = ts2.first()
+        self.do_kc_distance(t1, t2)
+
+    def test_internal_samples(self):
+        ts1 = msprime.simulate(10, random_seed=1)
+        ts2 = tsutil.jiggle_samples(ts1)
+        t1 = ts2.first()
+        t2 = ts2.first()
+
+        with self.assertRaises(ValueError):
+            kc_distance(t1, t2)
+        with self.assertRaises(ValueError):
+            kc_distance_simple(t1, t2)
+        with self.assertRaises(_tskit.LibraryError):
+            t1.kc_distance(t2)
 
 
 class TestOverlappingSegments(unittest.TestCase):
