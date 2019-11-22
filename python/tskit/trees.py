@@ -2705,7 +2705,7 @@ class TreeSequence(object):
 
         :param bool as_array: If True, return the breakpoints as a numpy array.
         :return: The breakpoints defined by the tree intervals along the sequence.
-        :rtype: collections.abc.Iterable or array
+        :rtype: collections.abc.Iterable or numpy.ndarray
         """
         breakpoints = self.ll_tree_sequence.get_breakpoints()
         if not as_array:
@@ -3304,7 +3304,7 @@ class TreeSequence(object):
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
             sequence.
-        :rtype: .TreeSequence or (.TreeSequence, numpy.array)
+        :rtype: .TreeSequence or (.TreeSequence, numpy.ndarray)
         """
         tables = self.dump_tables()
         if samples is None:
@@ -3511,8 +3511,8 @@ class TreeSequence(object):
             unaffected by parts of the tree sequence ancestral to none or all
             of the samples, respectively.
 
-        :param ndarray W: An array of values with one row for each sample and one column
-            for each weight.
+        :param numpy.ndarray W: An array of values with one row for each sample and one
+            column for each weight.
         :param f: A function that takes a one-dimensional array of length
             equal to the number of columns of ``W`` and returns a one-dimensional
             array.
@@ -3901,8 +3901,8 @@ class TreeSequence(object):
             For each node, the squared covariance between the property of
             inheriting from this node and phenotypes, computed as in "branch".
 
-        :param ndarray W: An array of values with one row for each sample and one column
-            for each "phenotype".
+        :param numpy.ndarray W: An array of values with one row for each sample and one
+            column for each "phenotype".
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -3959,8 +3959,9 @@ class TreeSequence(object):
         Note that above we divide by the **sample** variance, which for a
         vector x of length n is ``np.var(x) * n / (n-1)``.
 
-        :param ndarray W: An array of values with one row for each sample and one column
-            for each "phenotype". Each column must have positive standard deviation.
+        :param numpy.ndarray W: An array of values with one row for each sample and one
+            column for each "phenotype". Each column must have positive standard
+            deviation.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -4022,10 +4023,11 @@ class TreeSequence(object):
             For each node, the squared coefficient `b_1^2`, computed for the property of
             inheriting from this node, as in "branch".
 
-        :param ndarray W: An array of values with one row for each sample and one column
-            for each "phenotype".
-        :param ndarray Z: An array of values with one row for each sample and one column
-            for each "covariate", or `None`. Columns of `Z` must be linearly independent.
+        :param numpy.ndarray W: An array of values with one row for each sample and one
+            column for each "phenotype".
+        :param numpy.ndarray Z: An array of values with one row for each sample and one
+            column for each "covariate", or `None`. Columns of `Z` must be linearly
+            independent.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed

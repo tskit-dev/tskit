@@ -291,22 +291,12 @@ nitpick_ignore = [
     ("c:type", "bool"),
     # TODO these have been triaged here to make the docs compile, but we should
     # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
-    ("py:class", "ndarray"),
-    ("py:class", "numpy array"),
-    ("py:class", "numpy.ndarray"),
-    ("py:class", "numpy.array"),
+    ("py:class", "array_like"),
     ("py:class", "array-like"),
-    ("py:class", "np.uint32"),
-    ("py:class", "np.float64"),
-    ("py:class", "np.int32"),
-    ("py:class", "np.int8"),
     ("py:class", "dtype=np.uint32"),
     ("py:class", "dtype=np.uint32."),
     ("py:class", "dtype=np.int32"),
     ("py:class", "dtype=np.int8"),
     ("py:class", "dtype=np.float64"),
     ("py:class", "dtype=np.int64"),
-    ("py:class", "array"),
-    ("py:class", "array_like"),
-    ("py:class", ""),
 ]
