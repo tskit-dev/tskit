@@ -9,5 +9,5 @@ sphinx:
 
   python:
     version: 3.7
-      install:
-        - requirements: docs/rtd_requirements.txt
+    install:
+      - requirements: docs/rtd_requirements.txt
