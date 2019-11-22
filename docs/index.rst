@@ -15,6 +15,7 @@ Welcome to tskit's documentation!
    python-api
    stats
    c-api
+   cli
    data-model
    provenance
    development

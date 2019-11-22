@@ -152,6 +152,7 @@ def add_precision_argument(parser):
 
 def get_tskit_parser():
     top_parser = argparse.ArgumentParser(
+        prog="python3 -m tskit",
         description="Command line interface for tskit.")
     top_parser.add_argument(
         "-V", "--version", action='version',
@@ -186,18 +187,15 @@ def get_tskit_parser():
         "--remove-duplicate-positions", "-d", action="store_true", default=False,
         help="Remove any duplicated mutation positions in the source file. ")
     parser.set_defaults(runner=run_upgrade)
-
-    parser = subparsers.add_parser(
-        "fasta",
-        # help="Convert the tree sequence haplotypes to fasta format")
-        # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
-        help=argparse.SUPPRESS)
-    add_tree_sequence_argument(parser)
-    parser.add_argument(
-        "--wrap", "-w", type=int, default=60,
-        help=("line-wrapping width for printed sequences"))
-    parser.set_defaults(runner=run_fasta)
-
+    # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
+    # parser = subparsers.add_parser(
+    #    "fasta",
+    #     help="Convert the tree sequence haplotypes to fasta format")
+    # add_tree_sequence_argument(parser)
+    # parser.add_argument(
+    #     "--wrap", "-w", type=int, default=60,
+    #     help=("line-wrapping width for printed sequences"))
+    # parser.set_defaults(runner=run_fasta)
     parser = subparsers.add_parser(
         "vcf",
         help="Convert the tree sequence genotypes to VCF format.")
