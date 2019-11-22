@@ -75,7 +75,7 @@ def pack_bytes(data):
     :param list[bytes] data: The list of bytes values to encode.
     :return: The tuple (packed, offset) of numpy arrays representing the flattened
         input data and offsets.
-    :rtype: numpy.array (dtype=np.int8), numpy.array (dtype=np.uint32).
+    :rtype: numpy.ndarray (dtype=np.int8), numpy.ndarray (dtype=np.uint32)
     """
     n = len(data)
     offsets = np.zeros(n + 1, dtype=np.uint32)
@@ -119,7 +119,7 @@ def pack_strings(strings, encoding="utf8"):
         string encodings.
     :return: The tuple (packed, offset) of numpy arrays representing the flattened
         input data and offsets.
-    :rtype: numpy.array (dtype=np.int8), numpy.array (dtype=np.uint32).
+    :rtype: numpy.ndarray (dtype=np.int8), numpy.ndarray (dtype=np.uint32)
     """
     return pack_bytes([bytearray(s.encode(encoding)) for s in strings])
 
@@ -152,7 +152,7 @@ def pack_arrays(list_of_lists):
     :param list[list] list_of_lists: The list of numeric lists to encode.
     :return: The tuple (packed, offset) of numpy arrays representing the flattened
         input data and offsets.
-    :rtype: numpy.array (dtype=np.float64), numpy.array (dtype=np.uint32).
+    :rtype: numpy.array (dtype=np.float64), numpy.array (dtype=np.uint32)
     """
     # TODO must be possible to do this more efficiently with numpy
     n = len(list_of_lists)

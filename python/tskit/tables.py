@@ -1588,7 +1588,7 @@ class TableCollection(object):
             in the output. (Default: False)
         :return: A numpy array mapping node IDs in the input tables to their
             corresponding node IDs in the output tables.
-        :rtype: numpy array (dtype=np.int32).
+        :rtype: numpy.ndarray (dtype=np.int32)
         """
         if filter_zero_mutation_sites is not None:
             # Deprecated in 0.6.1.
