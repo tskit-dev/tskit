@@ -1,14 +1,34 @@
 --------------------
-[0.2.3] - 20XX-XX-XX
+[0.2.3] - 2019-11-22
 --------------------
 
-In development.
+Minor feature release, providing a tree distance metric and various
+method to manipulate tree sequence data.
+
+**New features**
+
+- Kendall-Colijn tree distance metric computed by ``Tree.kc_distance``
+  (:user:`awohns`, :pr:`172`).
+- New "timeasc" and "timedesc" orders for tree traversals
+  (:user:`benjeffery`, :issue:`246`, :pr:`399`).
+- Up to 2X performance improvements to tree traversals (:user:`benjeffery`,
+  :pr:`400`).
+- Add ``trim``, ``delete_sites``, ``keep_intervals`` and ``delete_intervals``
+  methods to edit tree sequence data. (:user:`hyanwong`, :pr:`364`,
+  :pr:`372`, :pr:`377`, :pr:`390`).
+- Initial online documentation for CLI (:user:`hyanwong`, :pr:`414`).
+- Various documentation improvements (:user:`hyanwong`, :user:`jeromekelleher`,
+  :user:`petrelharp`).
+- Rename the ``map_ancestors`` function to ``link_ancestors``
+  (:user:`hyanwong`, :user:`gtsambos`; :pr:`406`,
+  :issue:`262`). The original function is retained as an deprecated alias.
 
 **Bugfixes**
 
+- Fix height scaling issues with SVG tree drawing (:user:`jeromekelleher`,
+  :pr:`407`, :issue:`383`, :pr:`378`).
 - Do not reuse buffers in LdCalculator (:user:`jeromekelleher`). See :pr:`397` and
   :issue:`396`.
-
 
 --------------------
 [0.2.2] - 2019-09-01
