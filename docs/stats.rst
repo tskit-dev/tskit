@@ -125,7 +125,8 @@ shared by many statistics, which we describe in detail in the following subsecti
     What section(s) of the genome are we interested in?
 
 :ref:`sec_stats_span_normalise`
-    Should we normalise information in windows by their span along the genome?
+    Should the statistic calculated for each window be normalised by the length
+    (i.e., the span) of that window?
 
 The statistics functions are highly efficient and are based where possible
 on numpy arrays. Each of these statistics will return the results as a numpy
@@ -283,12 +284,12 @@ in the ``k``-th window, i.e., from (and including) ``windows[k]`` to (but not in
 Most windowed statistics by default return **averages** within each of the windows,
 so the values are comparable between windows, even of different lengths.
 (However, shorter windows may be noisier.)
-Suppose for instance  that you compute some statistic with ``windows = [a, b, c]``
-for some valid positions ``a < b < c``,
+Suppose for instance  that you compute some statistic with ``windows = [0, a, b]``
+for some valid positions ``0 < a < b``,
 and get an output array ``S`` with two rows.
-Then, computing the same statistic with ``windows = [a, c]``
+Then, computing the same statistic with ``windows = [0, b]``
 would be equivalent to averaging the rows of ``S``,
-obtaining ``((b - a) * S[0] + (c - b) * S[1]) / (c - a)``.
+obtaining ``((a - 0) * S[0] + (b - a) * S[1]) / (b - 0)``.
 
 There are some shortcuts to other useful options:
 
@@ -319,34 +320,33 @@ There are some shortcuts to other useful options:
 Span normalise
 ++++++++++++++
 
-In addition to windowing there is an option, ``span_normalise`` (default ``True``),
-that if ``False`` returns the **sum** of the relevant statistic across each window rather than the average.
-The statistic that is returned by default is an average because we divide by
-rather than normalizing (i.e., dividing) by the length of the window.
-As above, if the statistic ``S`` was computed with ``span_normalise=False``,
-then the value obtained with ``windows = [a, c]`` would be equal to ``S[0] + S[1]``.
+In addition to windowing there is an option, ``span_normalise`` (which defaults to ``True``),
+All the primary statistics defined here are *sums* across locations in the genome:
+something is computed for each position, and these values are added up across all positions in each window.
+Whether the total length of the window is then taken into account is determined by the option ``span_normalise``:
+if it is ``True`` (the default), the sum for each window is converted into an *average*,
+by dividing by the window's length (i.e., its *span*).
+Otherwise, the sum itself is returned.
+The default is ``span_normalise=True``,
+because this makes the values comparable across windows of different sizes.
+To make this more concrete: :meth:`pairwise sequence divergence <.TreeSequence.divergence>`
+between two samples with ``mode="site"`` is the density of sites that differ between the samples;
+this is computed for each window by counting up the number of sites
+at which the two differ, and dividing by the total length of the window.
+If we wanted the number of sites at which the two differed in each window,
+we'd calculate divergence with ``span_normalise=False``.
+
+Following on from above, suppose we computed the statistic ``S`` with
+``windows = [0, a, b]`` and ``span_normalise=True``,
+and then computed ``T`` in just the same way except with ``span_normalize=False``.
+Then ``S[0]`` would be equal to ``T[0] / a`` and ``S[1] = T[1] / (b - a)``.
+Furthermore, the value obtained with ``windows = [0, b]`` would be equal to ``T[0] + T[1]``.
 However, you probably usually want the (default) normalized version:
 don't get unnormalised values unless you're sure that's what you want.
 The exception is when computing a site statistic with ``windows = "sites"``:
 this case, computes a statistic with the pattern of genotypes at each site,
 and normalising would divide these statistics by the distance to the previous variant site
 (probably not what you want to do).
-
-To explain normalization a bit more:
-a good way to think about these statistics in general
-is that they all have a way of summarizing something **locally**,
-i.e., at each point along the genome,
-and this summary is then **averaged** across each window.
-For instance, pairwise sequence divergence between two samples
-is the density of sites that differ between them;
-this is computed for each window by counting up the number of sites
-at which the two differ, and dividing by the total length of the window.
-Branch statistics do just the same thing,
-except that we average over **all** locations on the sequence,
-not just the locations of mutations.
-So, usually "divergence" gives us the average number of differing sites
-per unit of genome length; but if we set ``span_normalise=False``
-then we'd just obtain the number of differing sites per window.
 
 And, a final note about "length": in tree sequences produced by ``msprime``
 coordinates along the sequence are **continuous**,
@@ -506,16 +506,16 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
    :math:`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
 
 ``f2``
-   :math:`f(x_1, x_2) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 (n_1 - 1) n_2 (n_2 - 1)}`
+   :math:`f(x_1, x_2) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 (n_1 - 1) n_2 (n_2 - 1)} - \frac{x_1 (n_1 - x_1) (n_2 - x_2) x_2}{n_1 (n_1 - 1) n_2 (n_2 - 1)}`
 
 ``Y3``
    :math:`f(x_1, x_2, x_3) = \frac{x_1 (n_2 - x_2) (n_3 - x_3)}{n_1 n_2 n_3}`
 
 ``f3``
-   :math:`f(x_1, x_2, x_3) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_3 - x_3)}{n_1 (n_1 - 1) n_2 n_3}`
+   :math:`f(x_1, x_2, x_3) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_3 - x_3)}{n_1 (n_1 - 1) n_2 n_3} - \frac{x_1 (n_1 - x_1) (n_2 - x_2) x_3}{n_1 (n_1 - 1) n_2 n_3}`
 
 ``f4``
-   :math:`f(x_1, x_2, x_3, x_4) = \frac{x_1 x_3 (n_2 - x_2) (n_4 - x_4)}{n_1 n_2 n_3 n_4}`
+   :math:`f(x_1, x_2, x_3, x_4) = \frac{x_1 x_3 (n_2 - x_2) (n_4 - x_4)}{n_1 n_2 n_3 n_4} - \frac{x_1 x_4 (n_2 - x_2) (n_3 - x_3)}{n_1 n_2 n_3 n_4}`
 
 ``trait_covariance``
    :math:`f(w) = \frac{w^2}{2 (n-1)^2}`,
