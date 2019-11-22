@@ -4215,8 +4215,7 @@ class TreeSequence(object):
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
         :ref:`windows <sec_stats_windows>`, :ref:`mode <sec_stats_mode>`,
         and :ref:`return value <sec_stats_output_format>`.
-        Operates on ``k = 1`` sample sets at a
-        time. For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
+        For a sample set ``X`` of ``n`` nodes, if and ``T`` is the mean
         number of pairwise differing sites in ``X`` and ``S`` is the number of
         sites segregating in ``X`` (computed with :meth:`diversity
         <.TreeSequence.diversity>` and :meth:`segregating sites
@@ -4566,27 +4565,56 @@ class TreeSequence(object):
             self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
             mode=mode, span_normalise=span_normalise)
 
-    def mean_descendants(self, sample_sets):
+    def mean_descendants(self, sample_sets, windows=None):
         """
         Computes for every node the mean number of samples in each of the
         `sample_sets` that descend from that node, averaged over the
-        portions of the genome for which the node is ancestral to *any* sample.
-        The output is an array, `C[node, j]`, which reports the total span of
-        all genomes in `sample_sets[j]` that inherit from `node`, divided by
-        the total span of the genome on which `node` is an ancestor to any
-        sample in the tree sequence.
+        portions of the genome for which the node is ancestral to *any* sample
+        in windows along the genome.
+        Please see the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
+        section for details on how the ``sample_sets`` argument is interpreted
+        and how it interacts with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>` and
+        :ref:`return value <sec_stats_output_format>`.
+
+        For each window, the output is an array, `C[node, j]`, which reports
+        the total span of all genomes in `reference_sets[j]` that inherit from
+        `node`, divided by the total span of the genome on which `node` is an
+        ancestor to any sample in the tree sequence.
 
         .. warning:: The interface for this method is preliminary and may be subject to
             backwards incompatible changes in the near future. The long-term stable
             API for this method will be consistent with other :ref:`sec_stats`.
             In particular, the normalization by proportion of the genome that `node`
             is an ancestor to anyone may not be the default behaviour in the future.
+            This is a "node" statistic, but corresponding branch and site statistics
+            are not currently allowed.
 
         :param list sample_sets: A list of lists of node IDs.
+        :param iterable windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
         :return: An array with dimensions (number of nodes in the tree sequence,
             number of reference sets)
         """
-        return self._ll_tree_sequence.mean_descendants(sample_sets)
+        def f(x):
+            out = x.copy()
+            out[-1] = (out[-1] > 0)
+            return out
+
+        sample_sets = sample_sets + [self.samples()]
+        C = self.sample_count_stat(
+            sample_sets, f, output_dim=len(sample_sets),
+            polarised=True, strict=False, mode="node", span_normalise=False,
+            windows=windows)
+        out_slice = tuple([slice(None)] * (len(C.shape) - 1) + [slice(0, -1)])
+        denom_slice = tuple([slice(None)] * (len(C.shape) - 1) + [-1])
+        out = C[out_slice]
+        denom = C[denom_slice].reshape(list(C.shape[:-1]) + [1])
+        with np.errstate(invalid='ignore', divide='ignore'):
+            out /= denom
+        out[np.isnan(out)] = 0.0
+        return out
 
     def genealogical_nearest_neighbours(self, focal, sample_sets, num_threads=0):
         """
