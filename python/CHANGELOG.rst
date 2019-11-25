@@ -6,6 +6,13 @@ In development
 
 **New features**
 
+- Allow sites with missing data to be output by the `haplotypes` method, by
+  default replacing with ``-``. Errors are no longer raised for missing data
+  with `impute_missing_data=False`; the error types returned for bad alleles
+  (e.g. multiletter or non-ascii) have also changed from `_tskit.LibraryError`
+  to TypeError, or ValueError if the missing data character clashes
+  (:user:`hyanwong`, :pr:`426`).
+
 **Bugfixes**
 
 --------------------
