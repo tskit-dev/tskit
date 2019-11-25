@@ -6381,11 +6381,8 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
     int ret = 0;
     kastore_t store;
 
-    ret = kastore_open(&store, filename, "w", 0);
-    if (ret != 0) {
-        ret = tsk_set_kas_error(ret);
-        goto out;
-    }
+    memset(&store, 0, sizeof(store));
+
     /* By default we build indexes, if they are needed. Note that this will fail if
      * the tables aren't sorted. */
     if ((!(options & TSK_NO_BUILD_INDEXES))
@@ -6394,6 +6391,12 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
         if (ret != 0) {
             goto out;
         }
+    }
+
+    ret = kastore_open(&store, filename, "w", 0);
+    if (ret != 0) {
+        ret = tsk_set_kas_error(ret);
+        goto out;
     }
 
     /* All of these functions will set the kas_error internally, so we don't have
@@ -6442,6 +6445,7 @@ tsk_table_collection_dump(tsk_table_collection_t *self, const char *filename,
     if (ret != 0) {
         ret = tsk_set_kas_error(ret);
     }
+
 out:
     /* It's safe to close a kastore twice. */
     if (ret != 0) {
