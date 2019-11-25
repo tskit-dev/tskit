@@ -2827,32 +2827,34 @@ class TreeSequence(object):
             sample_lists=sample_lists)
         return TreeIterator(tree)
 
-    def haplotypes(self, impute_missing_data=False):
+    def haplotypes(self, impute_missing_data=False, missing_data_character="-"):
         """
-        Returns an iterator over the haplotypes resulting from the trees
-        and mutations in this tree sequence as a string.
-        The iterator returns a total of :math:`n` strings, each of which
-        contains :math:`s` characters (:math:`n` is the sample size
-        returned by :attr:`tskit.TreeSequence.num_samples` and
-        :math:`s` is the number of sites returned by
-        :attr:`tskit.TreeSequence.num_sites`). The first
-        string returned is the haplotype for sample `0`, and so on.
-        For a given haplotype ``h``, the value of ``h[j]`` is the observed
-        allelic state at site ``j``.
+        Returns an iterator over the strings of haplotypes that result from
+        the trees and mutations in this tree sequence. Each haplotype string
+        is guaranteed to be of the same length. A tree sequence with
+        :math:`n` samples and :math:`s` sites will return a total of :math:`n`
+        strings of :math:`s` alleles concatenated together, where an allele
+        consists of a single ascii character (tree sequences that include alleles
+        containing multi-letter or non-ascii characters will raise an error).
+        The first string returned is the haplotype for sample ``0``, and so on.
+
+        The alleles at each site must be represented by single byte characters,
+        (i.e. variants must be single nucleotide polymorphisms, or SNPs), hence
+        the strings returned will all be of length :math:`s`, and for a haplotype
+        ``h``, the value of ``h[j]`` will be the observed allelic state
+        at site ``j``.
+
+        If ``impute_missing_data`` is False,
+        :ref:`missing data<sec_data_model_missing_data>` will be represented
+        in the string by the ``missing_data_character``. If
+        instead it is set to True, missing data will be imputed such that all
+        isolated samples are assigned the ancestral state (unless they have
+        mutations directly above them, in which case they will take the most recent
+        derived  mutational state for that node). This was the default
+        behaviour in versions prior to 0.2.0.
 
         See also the :meth:`.variants` iterator for site-centric access
         to sample genotypes.
-
-        This method is only supported for single-letter alleles.
-
-        As :ref:`missing data<sec_data_model_missing_data>` cannot be
-        represented directly in the haplotypes array, an error will be raised
-        if missing data is present. However, if ``impute_missing_data`` set
-        to True, missing data will be imputed such that all isolated samples
-        are assigned the ancestral state (unless they have mutations directly
-        above them, in which case they will take the most recent derived
-        mutational state for that node). This was the default behaviour in
-        versions prior to 0.2.0.
 
         .. warning::
             For large datasets, this method can consume a **very large** amount of
@@ -2867,25 +2869,41 @@ class TreeSequence(object):
         :param bool impute_missing_data: If True, the allele assigned to any
             isolated samples is the ancestral state; that is, we impute
             missing data as the ancestral state. Default: False.
+        :param str missing_data_character: A single ascii character that will
+            be used to represent missing data.
+            If any normal allele contains this character, an error is raised.
+            Default: '-'.
         :rtype: collections.abc.Iterable
-        :raises: LibraryError if called on a tree sequence containing
-            multiletter alleles.
-        :raises: LibraryError if missing data is present and impute_missing_data
-            is False
+        :raises: TypeError if the ``missing_data_character`` or any of the alleles
+            at a site or the are not a single ascii character.
+        :raises: ValueError
+            if the ``missing_data_character`` exists in one of the alleles
         """
         H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
+        missing_int8 = ord(missing_data_character.encode('ascii'))
         for var in self.variants(impute_missing_data=impute_missing_data):
-            if var.has_missing_data:
-                raise _tskit.LibraryError(
-                    "Generated haplotypes contain missing data, which cannot be "
-                    "represented. Either generate variants (which support missing "
-                    "data) or use the impute missing data option.")
-            alleles = np.empty(len(var.alleles), dtype=np.int8)
+            alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
             for i, allele in enumerate(var.alleles):
-                if len(allele) > 1:
-                    raise _tskit.LibraryError(
-                        "Cannot produce haplotypes from multi-letter alleles")
-                alleles[i] = ord(allele.encode('ascii'))
+                if allele is not None:
+                    try:
+                        ascii_allele = allele.encode('ascii')
+                    except UnicodeEncodeError:
+                        raise TypeError(
+                            "Non-ascii character in allele at site {}"
+                            .format(var.site.id))
+                    if len(ascii_allele) == 0:
+                        pass  # A deletion: acceptable to emit missing data char as-is
+                    if len(ascii_allele) > 1:
+                        raise TypeError(
+                            "Multi-letter allele detected at site {}"
+                            .format(var.site.id))
+                    allele_int8 = ord(ascii_allele)
+                    if allele_int8 == missing_int8:
+                        raise ValueError(
+                            "The missing data character '{}' clashes with an "
+                            "existing allele at site {}"
+                            .format(missing_data_character, var.site.id))
+                    alleles[i] = allele_int8
             H[:, var.site.id] = alleles[var.genotypes]
         for h in H:
             yield h.tostring().decode('ascii')
