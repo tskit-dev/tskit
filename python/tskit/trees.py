@@ -2834,19 +2834,33 @@ class TreeSequence(object):
         is guaranteed to be of the same length. A tree sequence with
         :math:`n` samples and :math:`s` sites will return a total of :math:`n`
         strings of :math:`s` alleles concatenated together, where an allele
-        consists of a single ascii character (tree sequences that include alleles
-        containing multi-letter or non-ascii characters will raise an error).
+        can consist of zero or more ascii characters (tree sequences that
+        include alleles containing non-ascii characters will raise an error).
         The first string returned is the haplotype for sample ``0``, and so on.
 
-        The alleles at each site must be represented by single byte characters,
-        (i.e. variants must be single nucleotide polymorphisms, or SNPs), hence
-        the strings returned will all be of length :math:`s`, and for a haplotype
-        ``h``, the value of ``h[j]`` will be the observed allelic state
-        at site ``j``.
+        Each allele is represented by a number of characters given by the maximum
+        length (in bytes) of any of the alleles at that site. In the simplest
+        instance, the alleles at each site are represented by single byte characters
+        such as when all variants are single nucleotide polymorphisms (SNPs). In
+        this case the strings returned will all be of length :math:`s`, and for a
+        haplotype ``h``, the value of ``h[j]`` is the observed allelic state
+        at site ``j``. If instead, one site contains, say, an indel of
+        length 10 (e.g. if the ancestral state is the empty string and a mutation
+        exists at that site to a derived site of "ATATATATAT"), then the returned
+        strings will each be of length :math:`s` + 9.
+
+        Zero-length alleles (i.e. deletions) are represented in the string by
+        the ``missing_data_character`` repeated :math:`c` times, where :math:`c`
+        is the maximum allele length (in bytes) at that site. Any alleles of
+        length greater than 0 but less than :math:`c`, which could therefore
+        be aligned at different positions in the string, are *not emitted*, but
+        are instead replaced with a string consisting of the
+        ``missing_data_character``, as if they were a deletion, and a warning is
+        given.
 
         If ``impute_missing_data`` is False,
-        :ref:`missing data<sec_data_model_missing_data>` will be represented
-        in the string by the ``missing_data_character``. If
+        :ref:`missing data<sec_data_model_missing_data>` will be also represented
+        in the string by :math:`c` repeats of the ``missing_data_character``. If
         instead it is set to True, missing data will be imputed such that all
         isolated samples are assigned the ancestral state (unless they have
         mutations directly above them, in which case they will take the most recent
@@ -2870,41 +2884,73 @@ class TreeSequence(object):
             isolated samples is the ancestral state; that is, we impute
             missing data as the ancestral state. Default: False.
         :param str missing_data_character: A single ascii character that will
-            be used to represent missing data.
+            be used to represent missing data, deletions, and other alleles that
+            are shorter in length than the maximum allele length at each site.
             If any normal allele contains this character, an error is raised.
             Default: '-'.
         :rtype: collections.abc.Iterable
-        :raises: TypeError if the ``missing_data_character`` or any of the alleles
-            at a site or the are not a single ascii character.
+        :raises: TypeError if the missing_data_character is not a single ascii
+            character, or if any allele contains non-ascii characters
         :raises: ValueError
             if the ``missing_data_character`` exists in one of the alleles
         """
-        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
-        missing_int8 = ord(missing_data_character.encode('ascii'))
-        for var in self.variants(impute_missing_data=impute_missing_data):
-            alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
+        def sitewise_allele_max_bytes(ts):
+            """
+            Return the maximum length in bytes of all the alleles at each site.
+
+            This is equivalent to, but much faster then, the following code
+            ``np.array([max([len(s.encode('utf-8')) for s in v.alleles])
+                for v in ts.variants()])``
+
+            NB: this requires mutations to be sorted by site ID, which is a necessary
+            requirement of a tree sequence, hence this needs to be a ts function
+            not a tables function.
+            """
+            site_mutations_max_bytes = np.zeros((ts.num_sites), dtype=np.uint32)
+            if ts.num_mutations > 0:
+                mutations_bytes = np.diff(ts.tables.mutations.derived_state_offset[:])
+                site_increment = np.append(1, np.diff(ts.tables.mutations.site[:]))
+                site_id = np.cumsum(site_increment[site_increment > 0]) - 1
+                site_breakpoints = np.where(site_increment > 0)[0]
+                site_mutations_max_bytes[site_id] = np.maximum.reduceat(
+                    mutations_bytes, site_breakpoints)
+            ancestral_state_max_bytes = np.diff(ts.tables.sites.ancestral_state_offset)
+            return np.maximum(site_mutations_max_bytes, ancestral_state_max_bytes)
+
+        max_allele_bytes = sitewise_allele_max_bytes(self)
+        output_length_bytes = np.sum(max_allele_bytes)
+        H = np.empty((self.num_samples, output_length_bytes), dtype=np.int8)
+        missing_ascii = missing_data_character.encode('ascii')
+        missing_int8 = ord(missing_ascii)
+        curr_position = 0
+        for max_bytes, var in zip(
+                max_allele_bytes,
+                self.variants(impute_missing_data=impute_missing_data)):
+            # Fill by missing data character by default
+            alleles = np.full((len(var.alleles), max_bytes), missing_int8, dtype=np.int8)
             for i, allele in enumerate(var.alleles):
-                if allele is not None:
+                if allele is not None and len(allele) > 0:
                     try:
                         ascii_allele = allele.encode('ascii')
                     except UnicodeEncodeError:
                         raise TypeError(
                             "Non-ascii character in allele at site {}"
                             .format(var.site.id))
-                    if len(ascii_allele) == 0:
-                        pass  # A deletion: acceptable to emit missing data char as-is
-                    if len(ascii_allele) > 1:
-                        raise TypeError(
-                            "Multi-letter allele detected at site {}"
-                            .format(var.site.id))
-                    allele_int8 = ord(ascii_allele)
-                    if allele_int8 == missing_int8:
-                        raise ValueError(
-                            "The missing data character '{}' clashes with an "
-                            "existing allele at site {}"
-                            .format(missing_data_character, var.site.id))
-                    alleles[i] = allele_int8
-            H[:, var.site.id] = alleles[var.genotypes]
+                    assert len(ascii_allele) <= max_bytes
+                    if len(ascii_allele) < max_bytes:
+                        warnings.warn(
+                            "Site {} (position {}) has alleles of different lengths. "
+                            "Treating any shorter than {} bytes as missing."
+                            .format(var.site.id, var.site.position, max_bytes))
+                    else:
+                        if missing_ascii in ascii_allele:
+                            raise ValueError(
+                                "The missing data character '{}' clashes with an "
+                                "existing allele at site {}"
+                                .format(missing_data_character, var.site.id))
+                        alleles[i, :] = np.frombuffer(ascii_allele, dtype=np.int8)
+            H[:, curr_position:(curr_position + max_bytes)] = alleles[var.genotypes, :]
+            curr_position += max_bytes
         for h in H:
             yield h.tostring().decode('ascii')
 

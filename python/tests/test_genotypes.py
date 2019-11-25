@@ -25,6 +25,7 @@ Test cases for generating genotypes/haplotypes.
 import unittest
 import itertools
 import random
+import warnings
 
 import numpy as np
 import msprime
@@ -552,9 +553,22 @@ class TestHaplotypeGenerator(unittest.TestCase):
     def test_multiletter_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.tables
-        tables.sites.add_row(0, "ACTG")
+        site0 = tables.sites.add_row(0.0, "AT")
+        site1 = tables.sites.add_row(0.1, "T")  # This should raise a warning if mut > 1
+        site2 = tables.sites.add_row(0.2, "A")  # This should raise a warning if mut > 1
+        tables.mutations.add_row(site0, 0, "")
+        tables.mutations.add_row(site1, 1, "GGT")
+        tables.mutations.add_row(site2, 2, "ATCG")
         tsp = tables.tree_sequence()
-        self.assertRaises(TypeError, list, tsp.haplotypes())
+        with warnings.catch_warnings(record=True) as w:
+            hap = list(tsp.haplotypes())
+            self.assertEqual(len(w), 2)
+            for warning in w:
+                self.assertTrue(issubclass(warning.category, UserWarning))
+        self.assertTrue(hap[0] == "--" + "---" + "----")
+        self.assertTrue(hap[1] == "AT" + "GGT" + "----")
+        self.assertTrue(hap[2] == "AT" + "---" + "ATCG")
+        self.assertTrue(all([h == "AT" + "---" + "----" for h in hap[3:]]))
 
     def test_nonascii_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
