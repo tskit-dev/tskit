@@ -933,53 +933,6 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
 }
 
 static void
-verify_hapgen(tsk_treeseq_t *ts)
-{
-    int ret;
-    tsk_hapgen_t hapgen;
-    char *haplotype;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
-    size_t num_sites = tsk_treeseq_get_num_sites(ts);
-    tsk_site_t site;
-    size_t j;
-    int k;
-    bool single_char = true;
-
-    for (j = 0; j < num_sites; j++) {
-        ret = tsk_treeseq_get_site(ts, j, &site);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        if (site.ancestral_state_length != 1) {
-            single_char = false;
-        }
-        for (k = 0; k < site.mutations_length; k++) {
-            if (site.mutations[k].derived_state_length != 1) {
-                single_char = false;
-            }
-        }
-    }
-
-    ret = tsk_hapgen_init(&hapgen, ts);
-    if (single_char) {
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        tsk_hapgen_print_state(&hapgen, _devnull);
-
-        for (j = 0; j < num_samples; j++) {
-            ret = tsk_hapgen_get_haplotype(&hapgen, j, &haplotype);
-            CU_ASSERT_EQUAL(ret, 0);
-            CU_ASSERT_EQUAL(strlen(haplotype), num_sites);
-        }
-        for (j = num_samples; j < num_samples + 10; j++) {
-            ret = tsk_hapgen_get_haplotype(&hapgen, j, &haplotype);
-            CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
-        }
-    } else {
-        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NON_SINGLE_CHAR_MUTATION);
-    }
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-}
-
-static void
 verify_vargen(tsk_treeseq_t *ts)
 {
     int ret;
@@ -1354,7 +1307,6 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     tsk_tree_free(&subset_tree);
     tsk_tree_free(&full_tree);
     verify_vargen(subset);
-    verify_hapgen(subset);
 }
 
 static void
@@ -1774,7 +1726,6 @@ verify_empty_tree_sequence(tsk_treeseq_t *ts, double sequence_length)
     verify_trees_consistent(ts);
     verify_ld(ts);
     verify_stats(ts);
-    verify_hapgen(ts);
     verify_vargen(ts);
     verify_vcf_converter(ts, 1);
 }
@@ -2009,21 +1960,6 @@ test_next_prev_from_examples(void)
     CU_ASSERT_FATAL(examples != NULL);
     for (j = 0; examples[j] != NULL; j++) {
         verify_tree_next_prev(examples[j]);
-        tsk_treeseq_free(examples[j]);
-        free(examples[j]);
-    }
-    free(examples);
-}
-
-static void
-test_tsk_hapgen_from_examples(void)
-{
-    tsk_treeseq_t **examples = get_example_tree_sequences(1);
-    uint32_t j;
-
-    CU_ASSERT_FATAL(examples != NULL);
-    for (j = 0; examples[j] != NULL; j++) {
-        verify_hapgen(examples[j]);
         tsk_treeseq_free(examples[j]);
         free(examples[j]);
     }
@@ -2457,7 +2393,6 @@ test_save_kas(void)
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             verify_tree_sequences_equal(ts1, &ts2, true, true, true);
             tsk_treeseq_print_state(&ts2, _devnull);
-            verify_hapgen(&ts2);
             verify_vargen(&ts2);
             file_uuid = tsk_treeseq_get_file_uuid(&ts2);
             CU_ASSERT_NOT_EQUAL_FATAL(file_uuid, NULL);
@@ -2969,7 +2904,6 @@ main(int argc, char **argv)
         {"test_tree_equals_from_examples", test_tree_equals_from_examples},
         {"test_next_prev_from_examples", test_next_prev_from_examples},
         {"test_sample_sets_from_examples", test_sample_sets_from_examples},
-        {"test_tsk_hapgen_from_examples", test_tsk_hapgen_from_examples},
         {"test_tsk_vargen_from_examples", test_tsk_vargen_from_examples},
         {"test_newick_from_examples", test_newick_from_examples},
         {"test_stats_from_examples", test_stats_from_examples},

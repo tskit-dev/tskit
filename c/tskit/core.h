@@ -221,7 +221,6 @@ of tskit.
 
 /* Missing data errors */
 #define TSK_ERR_MUST_IMPUTE_NON_SAMPLES                            -1100
-#define TSK_ERR_MUST_IMPUTE_HAPLOTYPES                             -1101
 
 /* Distance metric errors */
 #define TSK_ERR_SAMPLE_SIZE_MISMATCH                               -1200

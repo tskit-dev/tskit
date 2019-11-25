@@ -90,29 +90,6 @@ print_variants(tsk_treeseq_t *ts)
 }
 
 static void
-print_haplotypes(tsk_treeseq_t *ts)
-{
-    int ret = 0;
-    tsk_hapgen_t hg;
-    uint32_t j;
-    char *haplotype;
-
-    printf("haplotypes \n");
-    ret = tsk_hapgen_init(&hg, ts, 0);
-    if (ret != 0) {
-        fatal_library_error(ret, "tsk_hapgen_alloc");
-    }
-    for (j = 0; j < ts->num_samples; j++) {
-        ret = tsk_hapgen_get_haplotype(&hg, (tsk_id_t) j, &haplotype);
-        if (ret < 0) {
-            fatal_library_error(ret, "tsk_hapgen_get_haplotype");
-        }
-        printf("%d\t%s\n", j, haplotype);
-    }
-    tsk_hapgen_free(&hg);
-}
-
-static void
 print_ld_matrix(tsk_treeseq_t *ts)
 {
     int ret;
@@ -230,16 +207,6 @@ run_ld(const char *filename, int TSK_UNUSED(verbose))
 }
 
 static void
-run_haplotypes(const char *filename, int TSK_UNUSED(verbose))
-{
-    tsk_treeseq_t ts;
-
-    load_tree_sequence(&ts, filename);
-    print_haplotypes(&ts);
-    tsk_treeseq_free(&ts);
-}
-
-static void
 run_variants(const char *filename, int TSK_UNUSED(verbose))
 {
     tsk_treeseq_t ts;
@@ -334,37 +301,29 @@ main(int argc, char** argv)
     void* argtable2[] = {cmd2, verbose2, infiles2, end2};
     int nerrors2;
 
-    /* SYNTAX 3: haplotypes [-v] <input-file> */
-    struct arg_rex *cmd3 = arg_rex1(NULL, NULL, "haplotypes", NULL, REG_ICASE, NULL);
+    /* SYNTAX 3: variants [-v] <input-file> */
+    struct arg_rex *cmd3 = arg_rex1(NULL, NULL, "variants", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose3 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles3 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end3 = arg_end(20);
     void* argtable3[] = {cmd3, verbose3, infiles3, end3};
     int nerrors3;
 
-    /* SYNTAX 4: variants [-v] <input-file> */
-    struct arg_rex *cmd4 = arg_rex1(NULL, NULL, "variants", NULL, REG_ICASE, NULL);
+    /* SYNTAX 4: print  [-v] <input-file> */
+    struct arg_rex *cmd4 = arg_rex1(NULL, NULL, "print", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose4 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles4 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end4 = arg_end(20);
     void* argtable4[] = {cmd4, verbose4, infiles4, end4};
     int nerrors4;
 
-    /* SYNTAX 5: print  [-v] <input-file> */
-    struct arg_rex *cmd5 = arg_rex1(NULL, NULL, "print", NULL, REG_ICASE, NULL);
+    /* SYNTAX 5: newick [-v] <input-file> */
+    struct arg_rex *cmd5 = arg_rex1(NULL, NULL, "newick", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose5 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles5 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end5 = arg_end(20);
     void* argtable5[] = {cmd5, verbose5, infiles5, end5};
     int nerrors5;
-
-    /* SYNTAX 6: newick [-v] <input-file> */
-    struct arg_rex *cmd6 = arg_rex1(NULL, NULL, "newick", NULL, REG_ICASE, NULL);
-    struct arg_lit *verbose6 = arg_lit0("v", "verbose", NULL);
-    struct arg_file *infiles6 = arg_file1(NULL, NULL, NULL, NULL);
-    struct arg_end *end6 = arg_end(20);
-    void* argtable6[] = {cmd6, verbose6, infiles6, end6};
-    int nerrors6;
 
     int exitcode = EXIT_SUCCESS;
     const char *progname = "main";
@@ -377,7 +336,6 @@ main(int argc, char** argv)
     nerrors3 = arg_parse(argc, argv, argtable3);
     nerrors4 = arg_parse(argc, argv, argtable4);
     nerrors5 = arg_parse(argc, argv, argtable5);
-    nerrors6 = arg_parse(argc, argv, argtable6);
 
     if (nerrors1 == 0) {
         run_simplify(infiles1->filename[0], outfiles1->filename[0],
@@ -386,13 +344,11 @@ main(int argc, char** argv)
     } else if (nerrors2 == 0) {
         run_ld(infiles2->filename[0], verbose2->count);
     } else if (nerrors3 == 0) {
-        run_haplotypes(infiles3->filename[0], verbose3->count);
+        run_variants(infiles3->filename[0], verbose3->count);
     } else if (nerrors4 == 0) {
-        run_variants(infiles4->filename[0], verbose4->count);
+        run_print(infiles4->filename[0], verbose4->count);
     } else if (nerrors5 == 0) {
-        run_print(infiles5->filename[0], verbose5->count);
-    } else if (nerrors6 == 0) {
-        run_newick(infiles6->filename[0], verbose6->count);
+        run_newick(infiles5->filename[0], verbose5->count);
     } else {
         /* We get here if the command line matched none of the possible syntaxes */
         if (cmd1->count > 0) {
@@ -415,10 +371,6 @@ main(int argc, char** argv)
             arg_print_errors(stdout, end5, progname);
             printf("usage: %s ", progname);
             arg_print_syntax(stdout, argtable5, "\n");
-        } else if (cmd6->count > 0) {
-            arg_print_errors(stdout, end6, progname);
-            printf("usage: %s ", progname);
-            arg_print_syntax(stdout, argtable6, "\n");
         } else {
             /* no correct cmd literals were given, so we cant presume which syntax was intended */
             printf("%s: missing command.\n",progname);
@@ -427,7 +379,6 @@ main(int argc, char** argv)
             printf("usage 3: %s ", progname);  arg_print_syntax(stdout, argtable3, "\n");
             printf("usage 4: %s ", progname);  arg_print_syntax(stdout, argtable4, "\n");
             printf("usage 5: %s ", progname);  arg_print_syntax(stdout, argtable5, "\n");
-            printf("usage 6: %s ", progname);  arg_print_syntax(stdout, argtable6, "\n");
         }
     }
 
@@ -436,7 +387,6 @@ main(int argc, char** argv)
     arg_freetable(argtable3, sizeof(argtable3) / sizeof(argtable3[0]));
     arg_freetable(argtable4, sizeof(argtable4) / sizeof(argtable4[0]));
     arg_freetable(argtable5, sizeof(argtable5) / sizeof(argtable5[0]));
-    arg_freetable(argtable6, sizeof(argtable6) / sizeof(argtable6[0]));
 
     return exitcode;
 }

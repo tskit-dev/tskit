@@ -2849,8 +2849,18 @@ class TreeSequence(object):
         represented directly in the haplotypes array, an error will be raised
         if missing data is present. However, if ``impute_missing_data`` set
         to True, missing data will be imputed such that all isolated samples
-        are assigned the ancestral state. This was the default behaviour in
+        are assigned the ancestral state (unless they have mutations directly
+        above them, in which case they will take the most recent derived
+        mutational state for that node). This was the default behaviour in
         versions prior to 0.2.0.
+
+        .. warning::
+            For large datasets, this method can consume a **very large** amount of
+            memory! To output all the sample data, it is more efficient to iterate
+            over sites rather than over samples. If you have a large dataset but only
+            want to output the haplotypes for a subset of samples, it may be worth
+            calling :meth:`.simplify` to reduce tree sequence down to the required
+            samples before outputting haplotypes.
 
         :return: An iterator over the haplotype strings for the samples in
             this tree sequence.
@@ -2863,9 +2873,22 @@ class TreeSequence(object):
         :raises: LibraryError if missing data is present and impute_missing_data
             is False
         """
-        hapgen = _tskit.HaplotypeGenerator(self._ll_tree_sequence, impute_missing_data)
-        for j in range(self.num_samples):
-            yield hapgen.get_haplotype(j)
+        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
+        for var in self.variants(impute_missing_data=impute_missing_data):
+            if var.has_missing_data:
+                raise _tskit.LibraryError(
+                    "Generated haplotypes contain missing data, which cannot be "
+                    "represented. Either generate variants (which support missing "
+                    "data) or use the impute missing data option.")
+            alleles = np.empty(len(var.alleles), dtype=np.int8)
+            for i, allele in enumerate(var.alleles):
+                if len(allele) > 1:
+                    raise _tskit.LibraryError(
+                        "Cannot produce haplotypes from multi-letter alleles")
+                alleles[i] = ord(allele.encode('ascii'))
+            H[:, var.site.id] = alleles[var.genotypes]
+        for h in H:
+            yield h.tostring().decode('ascii')
 
     def variants(self, as_bytes=False, samples=None, impute_missing_data=False):
         """
@@ -2893,7 +2916,9 @@ class TreeSequence(object):
 
         Missing data is reported by default, but if ``impute_missing_data``
         is set to to True, missing data will be imputed such that all
-        isolated samples are assigned the ancestral state. This was the
+        isolated samples are assigned the ancestral state (unless they have
+        mutations directly above them, in which case they will take the most
+        recent derived mutational state for that node). This was the
         default behaviour in versions prior to 0.2.0.
 
         .. note::

@@ -85,105 +85,6 @@ test_simplest_vargen_missing_data(void)
 }
 
 static void
-test_simplest_hapgen_missing_data(void)
-{
-    const char *nodes =
-        "1  0   0\n"
-        "1  0   0\n";
-    const char *sites =
-        "0.0    A\n";
-    tsk_treeseq_t ts;
-    char *haplotype;
-    tsk_hapgen_t hapgen;
-    int ret;
-
-    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL);
-    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
-    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 1);
-
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUST_IMPUTE_HAPLOTYPES);
-    tsk_hapgen_free(&hapgen);
-
-    ret = tsk_hapgen_init(&hapgen, &ts, TSK_IMPUTE_MISSING_DATA);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_hapgen_get_haplotype(&hapgen, 0, &haplotype);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "A");
-
-    ret = tsk_hapgen_get_haplotype(&hapgen, 1, &haplotype);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "A");
-
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_single_tree_hapgen_char_alphabet(void)
-{
-    int ret = 0;
-    const char *sites =
-        "0.0    A\n"
-        "0.1    A\n"
-        "0.2    C\n"
-        "0.4    A\n";
-    const char *mutations =
-        "0    0     T\n"
-        "1    1     T\n"
-        "2    0     G\n"
-        "2    1     A\n"
-        "2    2     T\n"  // A bunch of different sample mutations
-        "3    4     T\n"
-        "3    0     A\n"; // A back mutation from T -> A
-    uint32_t num_samples = 4;
-    tsk_treeseq_t ts;
-    char *haplotype;
-    size_t j;
-    tsk_hapgen_t hapgen;
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-            NULL, NULL, NULL, NULL);
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_hapgen_print_state(&hapgen, _devnull);
-    for (j = 0; j < num_samples; j++) {
-        ret = tsk_hapgen_get_haplotype(&hapgen, (tsk_id_t) j, &haplotype);
-        CU_ASSERT_EQUAL(ret, 0);
-        CU_ASSERT_STRING_EQUAL(haplotype, "");
-    }
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_treeseq_free(&ts);
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-            sites, mutations, NULL, NULL);
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_hapgen_print_state(&hapgen, _devnull);
-
-    ret = tsk_hapgen_get_haplotype(&hapgen, 0, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "TAGA");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 1, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "ATAT");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 2, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "AATA");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 3, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "AACA");
-
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    tsk_treeseq_free(&ts);
-}
-
-static void
 test_single_tree_vargen_char_alphabet(void)
 {
     int ret = 0;
@@ -273,55 +174,6 @@ test_single_tree_vargen_char_alphabet(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_vargen_free(&vargen);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_single_tree_hapgen_binary_alphabet(void)
-{
-    int ret = 0;
-    uint32_t num_samples = 4;
-    tsk_treeseq_t ts;
-    char *haplotype;
-    size_t j;
-    tsk_hapgen_t hapgen;
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-            NULL, NULL, NULL, NULL);
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_hapgen_print_state(&hapgen, _devnull);
-    for (j = 0; j < num_samples; j++) {
-        ret = tsk_hapgen_get_haplotype(&hapgen, (tsk_id_t) j, &haplotype);
-        CU_ASSERT_EQUAL(ret, 0);
-        CU_ASSERT_STRING_EQUAL(haplotype, "");
-    }
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_treeseq_free(&ts);
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-            single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_hapgen_print_state(&hapgen, _devnull);
-
-    ret = tsk_hapgen_get_haplotype(&hapgen, 0, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "001");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 1, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "011");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 2, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "101");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 3, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "001");
-
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
     tsk_treeseq_free(&ts);
 }
 
@@ -626,72 +478,6 @@ test_single_tree_vargen_many_alleles(void)
 }
 
 static void
-test_single_unary_tree_hapgen(void)
-{
-    int ret = 0;
-    const char *nodes =
-        "1  0   0\n"
-        "1  0   0\n"
-        "0  1   0\n"
-        "0  1   0\n"
-        "0  2   0\n"
-        "0  3   0\n"
-        "0  4   0\n";
-    const char *edges =
-        "0 1 2 0\n"
-        "0 1 3 1\n"
-        "0 1 4 2,3\n"
-        "0 1 5 4\n"
-        "0 1 6 5\n";
-    const char *sites =
-        "0     0\n"
-        "0.1   0\n"
-        "0.2   0\n"
-        "0.3   0\n";
-    const char *mutations =
-        "0    0     1\n"
-        "1    1     1\n"
-        "2    4     1\n"
-        "3    5     1\n";
-    tsk_treeseq_t ts;
-    size_t num_samples = 2;
-    size_t j;
-    tsk_hapgen_t hapgen;
-    char *haplotype;
-
-    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
-
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_hapgen_print_state(&hapgen, _devnull);
-    for (j = 0; j < num_samples; j++) {
-        ret = tsk_hapgen_get_haplotype(&hapgen, (tsk_id_t) j, &haplotype);
-        CU_ASSERT_EQUAL(ret, 0);
-        CU_ASSERT_STRING_EQUAL(haplotype, "");
-    }
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_treeseq_free(&ts);
-
-    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, sites, mutations, NULL, NULL);
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_hapgen_print_state(&hapgen, _devnull);
-
-    ret = tsk_hapgen_get_haplotype(&hapgen, 0, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "1011");
-    ret = tsk_hapgen_get_haplotype(&hapgen, 1, &haplotype);
-    CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(haplotype, "0111");
-
-    ret = tsk_hapgen_free(&hapgen);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    tsk_treeseq_free(&ts);
-}
-
-static void
 test_single_tree_inconsistent_mutations(void)
 {
     const char *sites =
@@ -706,7 +492,6 @@ test_single_tree_inconsistent_mutations(void)
     tsk_treeseq_t ts;
     tsk_variant_t *var;
     tsk_vargen_t vargen;
-    tsk_hapgen_t hapgen;
     tsk_flags_t options[] = {0, TSK_16_BIT_GENOTYPES};
     tsk_id_t all_samples[] = {0, 1, 2, 3};
     tsk_id_t *samples[] = {NULL, all_samples};
@@ -716,10 +501,6 @@ test_single_tree_inconsistent_mutations(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
             sites, mutations, NULL, NULL);
-
-    ret = tsk_hapgen_init(&hapgen, &ts, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INCONSISTENT_MUTATIONS);
-    ret = tsk_hapgen_free(&hapgen);
 
     for (s = 0; s < 2; s++) {
         for (f = 0; f < sizeof(options) / sizeof(*options); f++) {
@@ -743,11 +524,6 @@ main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
         {"test_simplest_vargen_missing_data", test_simplest_vargen_missing_data},
-        {"test_simplest_hapgen_missing_data", test_simplest_hapgen_missing_data},
-
-        {"test_single_tree_hapgen_char_alphabet", test_single_tree_hapgen_char_alphabet},
-        {"test_single_tree_hapgen_binary_alphabet", test_single_tree_hapgen_binary_alphabet},
-        {"test_single_unary_tree_hapgen", test_single_unary_tree_hapgen},
         {"test_single_tree_vargen_char_alphabet", test_single_tree_vargen_char_alphabet},
         {"test_single_tree_vargen_binary_alphabet", test_single_tree_vargen_binary_alphabet},
         {"test_single_tree_vargen_non_samples", test_single_tree_vargen_non_samples},
