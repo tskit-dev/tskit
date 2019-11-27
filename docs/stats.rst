@@ -125,8 +125,8 @@ shared by many statistics, which we describe in detail in the following subsecti
     What section(s) of the genome are we interested in?
 
 :ref:`sec_stats_span_normalise`
-    Should the statistic calculated for each window be normalised by the length
-    (i.e., the span) of that window?
+    Should the statistic calculated for each window be normalised by the span
+    (i.e. the sequence length) of that window?
 
 The statistics functions are highly efficient and are based where possible
 on numpy arrays. Each of these statistics will return the results as a numpy
@@ -282,7 +282,7 @@ and the ``k``-th row of the output will report the values of the statistic
 in the ``k``-th window, i.e., from (and including) ``windows[k]`` to (but not including) ``windows[k+1]``.
 
 Most windowed statistics by default return **averages** within each of the windows,
-so the values are comparable between windows, even of different lengths.
+so the values are comparable between windows, even of different spans.
 (However, shorter windows may be noisier.)
 Suppose for instance  that you compute some statistic with ``windows = [0, a, b]``
 for some valid positions ``0 < a < b``,
@@ -323,16 +323,16 @@ Span normalise
 In addition to windowing there is an option, ``span_normalise`` (which defaults to ``True``),
 All the primary statistics defined here are *sums* across locations in the genome:
 something is computed for each position, and these values are added up across all positions in each window.
-Whether the total length of the window is then taken into account is determined by the option ``span_normalise``:
+Whether the total span of the window is then taken into account is determined by the option ``span_normalise``:
 if it is ``True`` (the default), the sum for each window is converted into an *average*,
-by dividing by the window's length (i.e., its *span*).
+by dividing by the window's *span* (i.e. the length of genome that it covers).
 Otherwise, the sum itself is returned.
 The default is ``span_normalise=True``,
 because this makes the values comparable across windows of different sizes.
 To make this more concrete: :meth:`pairwise sequence divergence <.TreeSequence.divergence>`
 between two samples with ``mode="site"`` is the density of sites that differ between the samples;
 this is computed for each window by counting up the number of sites
-at which the two differ, and dividing by the total length of the window.
+at which the two differ, and dividing by the total span of the window.
 If we wanted the number of sites at which the two differed in each window,
 we'd calculate divergence with ``span_normalise=False``.
 
@@ -348,12 +348,12 @@ this case, computes a statistic with the pattern of genotypes at each site,
 and normalising would divide these statistics by the distance to the previous variant site
 (probably not what you want to do).
 
-And, a final note about "length": in tree sequences produced by ``msprime``
+And, a final note about "span": in tree sequences produced by ``msprime``
 coordinates along the sequence are **continuous**,
-so the "lengths" used here may not correspond to distance along the genome in (say) base pairs.
+so the "spans" used here may not correspond to distance along the genome in (say) base pairs.
 For instance, pairwise sequence divergence is usually a number between 0 and 1
 because it is the proportion of bases that differ;
-this will only be true if length is measured in base pairs
+this will only be true if the ``sequence_length``, and hence the "spans" are measured in base pairs
 (which you ensure in ``msprime`` by setting recombination and mutation rates equal to the values
 in units of crossovers and mutations per base pair, respectively).
 
