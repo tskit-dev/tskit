@@ -368,11 +368,6 @@ tsk_strerror_internal(int err)
             ret = "Cannot generate genotypes for non-samples unless missing data "
                     "imputation is enabled";
             break;
-        case TSK_ERR_MUST_IMPUTE_HAPLOTYPES:
-            ret = "Generated haplotypes contain missing data, which cannot be "
-                "represented. Either generate variants (which support missing "
-                "data) or use the impute missing data option.";
-            break;
 
         /* Distance metric errors */
         case TSK_ERR_SAMPLE_SIZE_MISMATCH:

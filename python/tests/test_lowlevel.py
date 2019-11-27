@@ -1111,29 +1111,6 @@ class TestVariantGenerator(LowLevelTestCase):
         self.assertEqual(alleles, ("A", None))
 
 
-class TestHaplotypeGenerator(LowLevelTestCase):
-    """
-    Tests for the HaplotypeGenerator class.
-    """
-    def test_uninitialised_tree_sequence(self):
-        ts = _tskit.TreeSequence()
-        self.assertRaises(ValueError, _tskit.HaplotypeGenerator, ts)
-
-    def test_constructor(self):
-        self.assertRaises(TypeError, _tskit.HaplotypeGenerator)
-        self.assertRaises(
-            TypeError, _tskit.HaplotypeGenerator, impute_missing_data=None)
-        self.assertRaises(TypeError, _tskit.HaplotypeGenerator, True, None)
-
-    def test_bad_id(self):
-        ts = self.get_example_tree_sequence()
-        hg = _tskit.HaplotypeGenerator(ts)
-        n = ts.get_num_samples()
-        for bad_id in [-1, n, n + 1]:
-            with self.assertRaises(_tskit.LibraryError):
-                hg.get_haplotype(bad_id)
-
-
 class TestLdCalculator(LowLevelTestCase):
     """
     Tests for the LdCalculator class.
