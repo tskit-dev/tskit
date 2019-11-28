@@ -7,18 +7,21 @@ Python API
 
 This page provides detailed documentation for the ``tskit`` Python API.
 
+.. _sec_python_api_trees_and_tree_sequences:
+
 ************************
 Trees and tree sequences
 ************************
 
-The :class:`TreeSequence` class represents a sequence of correlated trees
-output by a simulation. The :class:`Tree` class represents a single
-tree in this sequence.
-These classes are the interfaces used to interact with the trees
-and mutational information stored in a tree sequence returned from a simulation.
-There are also methods for loading data into these objects, either from the native
-format using :func:`tskit.load`, or from another sources
-using :func:`tskit.load_text` or :meth:`TableCollection.tree_sequence`.
+The :class:`TreeSequence` class represents a sequence of correlated
+evolutionary trees along a genome. The :class:`Tree` class represents a
+single tree in this sequence. These classes are the interfaces used to
+interact with the trees and mutational information stored in a tree sequence,
+for example one returned from a simulation or inferred from a set of DNA
+sequences. This library also provides methods for loading stored tree
+sequences, either from the native format using :func:`tskit.load`, or from
+another sources using :func:`tskit.load_text` or
+:meth:`TableCollection.tree_sequence`.
 
 
 +++++++++++++++++
