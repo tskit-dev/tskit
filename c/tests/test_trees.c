@@ -432,9 +432,9 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     /* tsk_treeseq_print_state(ts, stdout); */
     /* tsk_treeseq_print_state(subset, stdout); */
 
-    ret = tsk_vargen_init(&vargen, ts, NULL, 0, 0);
+    ret = tsk_vargen_init(&vargen, ts, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_vargen_init(&subset_vargen, subset, NULL, 0, TSK_IMPUTE_MISSING_DATA);
+    ret = tsk_vargen_init(&subset_vargen, subset, NULL, 0, NULL, TSK_IMPUTE_MISSING_DATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(m, tsk_treeseq_get_num_sites(subset));
 
@@ -1004,7 +1004,7 @@ test_simplest_non_sample_leaf_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 4);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
-    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, 0);
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, 0);
     tsk_vargen_print_state(&vargen, _devnull);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -1250,7 +1250,7 @@ test_simplest_back_mutations(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
 
-    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, 0);
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_vargen_next(&vargen, &var);

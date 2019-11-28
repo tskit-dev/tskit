@@ -39,6 +39,14 @@ FORWARD = _tskit.FORWARD
 #: decreasing genomic coordinate values).
 REVERSE = _tskit.REVERSE
 
+#: The allele mapping where the strings "0" and "1" map to genotype
+#: values 0 and 1.
+ALLELES_01 = ("0", "1")
+
+#: The allele mapping where the four nucleotides A, C, G and T map to
+#: the genotype integers 0, 1, 2, and 3, respectively.
+ALLELES_ACGT = ("A", "C", "G", "T")
+
 from tskit.provenance import __version__  # NOQA
 from tskit.provenance import validate_provenance  # NOQA
 from tskit.formats import *  # NOQA

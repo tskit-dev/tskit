@@ -16,6 +16,9 @@ In development
 - Access the number of children of a node in a tree directly using
   ``tree.num_children(u)`` (:user:`hyanwong`, :pr:`436`).
 
+- User specified allele mapping for genotypes in ``variants`` and
+  ``genotype_matrix`` (:user:`jeromekelleher`, :pr:`430`).
+
 **Bugfixes**
 
 --------------------

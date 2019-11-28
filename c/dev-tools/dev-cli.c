@@ -62,7 +62,7 @@ print_variants(tsk_treeseq_t *ts)
     tsk_variant_t* var;
 
     printf("variants (%d) \n", (int) tsk_treeseq_get_num_sites(ts));
-    ret = tsk_vargen_init(&vg, ts, NULL, 0, 0);
+    ret = tsk_vargen_init(&vg, ts, NULL, 0, NULL, 0);
     if (ret != 0) {
         fatal_library_error(ret, "tsk_vargen_alloc");
     }
