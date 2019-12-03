@@ -1476,17 +1476,21 @@ class Tree(object):
 
     def nodes(self, root=None, order="preorder"):
         """
-        Returns an iterator over the nodes in this tree. If the root parameter
-        is provided, iterate over the nodes in the subtree rooted at this
-        node. If this is None, iterate over all nodes. If the order parameter
+        Returns an iterator over the node IDs in this tree. If the root parameter
+        is provided, iterate over the node IDs in the subtree rooted at this
+        node. If this is None, iterate over all node IDs. If the order parameter
         is provided, iterate over the nodes in required tree traversal order.
+
+        .. note::
+            Unlike the :meth:`TreeSequence.nodes` method, this iterator produces
+            integer node IDs, not :class:`Node` objects.
 
         :param int root: The root of the subtree we are traversing.
         :param str order: The traversal ordering. Currently 'preorder',
             'inorder', 'postorder', 'levelorder' ('breadthfirst'), 'timeasc' and
             'timedesc' are supported.
-        :return: An iterator over the nodes in the tree in some traversal order.
-        :rtype: collections.abc.Iterable
+        :return: An iterator over the node IDs in the tree in some traversal order.
+        :rtype: collections.abc.Iterable, int
         """
         methods = {
             "preorder": self._preorder_traversal,
