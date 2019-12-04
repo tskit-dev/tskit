@@ -1579,6 +1579,11 @@ class TestTree(HighLevelTestCase):
                 self.assertEqual(l1, l2)
                 self.assertEqual(t.get_num_samples(u), len(l1))
 
+    def test_num_children(self):
+        tree = self.get_tree()
+        for u in tree.nodes():
+            self.assertEqual(tree.num_children(u), len(tree.children(u)))
+
     def verify_newick(self, tree):
         """
         Verifies that we output the newick tree as expected.
