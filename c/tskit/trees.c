@@ -3225,7 +3225,7 @@ tsk_tree_set_tracked_samples(tsk_tree_t *self, size_t num_tracked_samples,
     size_t j;
     tsk_id_t u;
 
-    /* TODO This is not needed when the sparse tree is new. We should use the
+    /* TODO This is not needed when the tree is new. We should use the
      * state machine to check and only reset the tracked samples when needed.
      */
     ret = tsk_tree_reset_tracked_samples(self);
@@ -3269,7 +3269,7 @@ tsk_tree_set_tracked_samples_from_sample_list(tsk_tree_t *self,
         ret = TSK_ERR_UNSUPPORTED_OPERATION;
         goto out;
     }
-    /* TODO This is not needed when the sparse tree is new. We should use the
+    /* TODO This is not needed when the tree is new. We should use the
      * state machine to check and only reset the tracked samples when needed.
      */
     ret = tsk_tree_reset_tracked_samples(self);
@@ -3653,7 +3653,7 @@ tsk_tree_print_state(tsk_tree_t *self, FILE *out)
     size_t j;
     tsk_site_t site;
 
-    fprintf(out, "Sparse tree state:\n");
+    fprintf(out, "Tree state:\n");
     fprintf(out, "options = %d\n", self->options);
     fprintf(out, "left = %f\n", self->left);
     fprintf(out, "right = %f\n", self->right);
