@@ -3253,7 +3253,7 @@ class TestWithVisuals(TopologyTestCase):
             ts,
             [(0, 0, []), (0, 5, [5, 1, 2, 3]), (0, 4, [2, 3]),
              (1, 5, [5, 1, 2]), (2, 4, [2, 3])])
-        # pedantically check the SparseTree methods on the second tree
+        # pedantically check the Tree methods on the second tree
         tst = ts.trees()
         t = next(tst)
         t = next(tst)

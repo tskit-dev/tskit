@@ -2813,8 +2813,8 @@ class TreeSequence(object):
         :param bool sample_lists: If True, provide more efficient access
             to the samples beneath a give node using the
             :meth:`Tree.samples` method.
-        :return: An iterator over the sparse trees in this tree sequence.
-        :rtype: collections.abc.Iterable
+        :return: An iterator over the Trees in this tree sequence.
+        :rtype: collections.abc.Iterable, :class:`Tree`
         """
         # tracked_leaves, leaf_counts and leaf_lists are deprecated aliases
         # for tracked_samples, sample_counts and sample_lists respectively.

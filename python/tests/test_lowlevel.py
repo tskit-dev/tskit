@@ -57,7 +57,7 @@ def get_tracked_sample_counts(st, tracked_samples):
 
 def get_sample_counts(tree_sequence, st):
     """
-    Returns a list of the sample node counts for the specfied sparse tree.
+    Returns a list of the sample node counts for the specified tree.
     """
     nu = [0 for j in range(st.get_num_nodes())]
     for j in range(tree_sequence.get_num_samples()):
@@ -74,7 +74,7 @@ class LowLevelTestCase(unittest.TestCase):
     """
     def verify_tree_dict(self, n, pi):
         """
-        Verifies that the specified sparse tree in dict format is a
+        Verifies that the specified tree in dict format is a
         consistent coalescent history for a sample of size n.
         """
         self.assertLessEqual(len(pi), 2 * n - 1)
@@ -1164,7 +1164,7 @@ class TestLdCalculator(LowLevelTestCase):
 
 class TestTree(LowLevelTestCase):
     """
-    Tests on the low-level sparse tree interface.
+    Tests on the low-level tree interface.
     """
 
     def test_options(self):
@@ -1261,7 +1261,7 @@ class TestTree(LowLevelTestCase):
         for ts in self.get_example_tree_sequences():
             st = _tskit.Tree(ts)
             self.assertEqual(st.get_num_nodes(), ts.get_num_nodes())
-            # An uninitialised sparse tree should always be zero.
+            # An uninitialised tree should always be zero.
             self.assertEqual(st.get_left_root(), 0)
             self.assertEqual(st.get_left(), 0)
             self.assertEqual(st.get_right(), 0)

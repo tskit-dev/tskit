@@ -1511,7 +1511,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
 
 class TestTree(HighLevelTestCase):
     """
-    Some simple tests on the API for the sparse tree.
+    Some simple tests on the tree API.
     """
     def get_tree(self, sample_lists=False):
         ts = msprime.simulate(10, random_seed=1, mutation_rate=1)
