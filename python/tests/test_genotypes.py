@@ -549,12 +549,26 @@ class TestHaplotypeGenerator(unittest.TestCase):
         H = [h.replace("0", "A").replace("1", "T") for h in ts.haplotypes()]
         self.assertEqual(H, list(tsp.haplotypes()))
 
-    def test_multiletter_mutations(self):
+    def test_fails_multiletter_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.tables
         tables.sites.add_row(0, "ACTG")
         tsp = tables.tree_sequence()
-        self.assertRaises(exceptions.LibraryError, list, tsp.haplotypes())
+        self.assertRaises(TypeError, list, tsp.haplotypes())
+
+    def test_fails_deletion_mutations(self):
+        ts = msprime.simulate(10, random_seed=2)
+        tables = ts.tables
+        tables.sites.add_row(0, "")
+        tsp = tables.tree_sequence()
+        self.assertRaises(TypeError, list, tsp.haplotypes())
+
+    def test_nonascii_mutations(self):
+        ts = msprime.simulate(10, random_seed=2)
+        tables = ts.tables
+        tables.sites.add_row(0, chr(169))  # Copyright symbol
+        tsp = tables.tree_sequence()
+        self.assertRaises(TypeError, list, tsp.haplotypes())
 
     def test_recurrent_mutations_over_samples(self):
         ts = msprime.simulate(10, random_seed=2)
@@ -591,12 +605,15 @@ class TestHaplotypeGenerator(unittest.TestCase):
             ts = tsutil.insert_branch_mutations(base_ts, mutations_per_branch=j)
             self.verify_tree_sequence(ts)
 
-    def test_fails_missing_data(self):
+    def test_missing_data(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.sites.add_row(0.5, "A")
         ts = tables.tree_sequence()
-        self.assertRaises(exceptions.LibraryError, list, ts.haplotypes())
+        self.assertRaises(ValueError, list, ts.haplotypes(missing_data_character="A"))
+        for c in ("-", ".", "a"):
+            h = list(ts.haplotypes(missing_data_character=c))
+            self.assertEqual(h, [c, c])
         h = list(ts.haplotypes(impute_missing_data=True))
         self.assertEqual(h, ["A", "A"])
