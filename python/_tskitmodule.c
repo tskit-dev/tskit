@@ -8137,6 +8137,26 @@ out:
 }
 
 static PyObject *
+Tree_get_num_children(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    unsigned int num_children;
+    int node;
+    tsk_id_t u;
+
+    if (Tree_get_node_argument(self, args, &node) != 0) {
+        goto out;
+    }
+    num_children = 0;
+    for (u = self->tree->left_child[node]; u != TSK_NULL; u = self->tree->right_sib[u]) {
+        num_children++;
+    }
+    ret = Py_BuildValue("I", num_children);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_num_samples(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
@@ -8433,6 +8453,8 @@ static PyMethodDef Tree_methods[] = {
             "Returns the index of the next sample after the specified sample index." },
     {"get_mrca", (PyCFunction) Tree_get_mrca, METH_VARARGS,
             "Returns the MRCA of nodes u and v" },
+    {"get_num_children", (PyCFunction) Tree_get_num_children, METH_VARARGS,
+            "Returns the number of children of node u." },
     {"get_num_samples", (PyCFunction) Tree_get_num_samples, METH_VARARGS,
             "Returns the number of samples below node u." },
     {"get_num_tracked_samples", (PyCFunction) Tree_get_num_tracked_samples,

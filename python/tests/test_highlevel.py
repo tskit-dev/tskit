@@ -1514,7 +1514,7 @@ class TestTree(HighLevelTestCase):
     Some simple tests on the tree API.
     """
     def get_tree(self, sample_lists=False):
-        ts = msprime.simulate(10, random_seed=1, mutation_rate=1)
+        ts = msprime.simulate(10, random_seed=1, mutation_rate=1, record_full_arg=True)
         return next(ts.trees(sample_lists=sample_lists))
 
     def verify_mutations(self, tree):
@@ -1578,6 +1578,11 @@ class TestTree(HighLevelTestCase):
                 l2 = list(test_func(t, u))
                 self.assertEqual(l1, l2)
                 self.assertEqual(t.get_num_samples(u), len(l1))
+
+    def test_num_children(self):
+        tree = self.get_tree()
+        for u in tree.nodes():
+            self.assertEqual(tree.num_children(u), len(tree.children(u)))
 
     def verify_newick(self, tree):
         """

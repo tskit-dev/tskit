@@ -13,6 +13,9 @@ In development
   to TypeError, or ValueError if the missing data character clashes
   (:user:`hyanwong`, :pr:`426`).
 
+- Access the number of children of a node in a tree directly using
+  ``tree.num_children(u)`` (:user:`hyanwong`, :pr:`436`).
+
 **Bugfixes**
 
 --------------------

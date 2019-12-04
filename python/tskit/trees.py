@@ -1340,6 +1340,17 @@ class Tree(object):
             for v in self._sample_generator(root):
                 yield v
 
+    def num_children(self, u):
+        """
+        Returns the number of children of the specified
+        node (i.e. ``len(tree.children(u))``)
+
+        :param int u: The node of interest.
+        :return: The number of immediate children of the node u in this tree.
+        :rtype: int
+        """
+        return self._ll_tree.get_num_children(u)
+
     def get_num_leaves(self, u):
         # Deprecated alias for num_samples. The method name is inaccurate
         # as this will count the number of tracked _samples_. This is only provided to
