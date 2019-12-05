@@ -783,8 +783,8 @@ Indexing
 
 To efficiently iterate over the trees in a tree sequence, ``tskit`` uses
 indexes built on the edges. To create a tree sequence from a table collection
-the tables must be indexed.
-
+the tables must be indexed; the :meth:`TableCollection.build_index` method
+can be used to create an index on a table collection if necessary.
 
 Removing duplicate sites
 ------------------------
