@@ -744,17 +744,17 @@ tables directly.
 Simplification
 --------------
 
-Simplification of a tree sequence is in fact a transformation method applied
-to the underlying tables: the method :meth:`TreeSequence.simplify` calls
-:meth:`TableCollection.simplify` on the tables, and loads a new tree sequence.
-The main purpose of this method is to remove redundant information,
-only retaining the minimal tree sequence necessary to describe the genealogical
-history of the ``samples`` provided.
+Simplifying a tree sequence is an operation commonly used to remove
+redundant information and only retain the minimal tree sequence necessary
+to describe the genealogical history of the ``samples`` provided. In fact all
+that the :meth:`TreeSequence.simplify` method does is to call the equivalent
+table transformation method, :meth:`TableCollection.simplify`, on the
+underlying tables and load them in a new tree sequence.
 
-Furthermore, ``simplify`` is guaranteed to:
-
-- preserve relative ordering of any rows in the Site and Mutation tables
-  that are not discarded.
+Removing information via :meth:`TableCollection.simplify` is done by
+discarding rows from the underlying tables. Nevertheless, simplification is
+guaranteed to preserve relative ordering of any retained rows in the Site
+and Mutation tables.
 
 The :meth:`TableCollection.simplify` method can be applied to a collection of
 tables that does not have the ``mutations.parent`` entries filled in, as long
