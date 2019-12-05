@@ -17,20 +17,29 @@ The :class:`TreeSequence` class represents a sequence of correlated
 evolutionary trees along a genome. The :class:`Tree` class represents a
 single tree in this sequence. These classes are the interfaces used to
 interact with the trees and mutational information stored in a tree sequence,
-for example one returned from a simulation or inferred from a set of DNA
+for example as returned from a simulation or inferred from a set of DNA
 sequences. This library also provides methods for loading stored tree
-sequences, either from the native format using :func:`tskit.load`, or from
-another sources using :func:`tskit.load_text` or
-:meth:`TableCollection.tree_sequence`.
+sequences, for example using :func:`tskit.load`.
 
 
-+++++++++++++++++
-Top level-classes
-+++++++++++++++++
-
+++++++++++++++++++++++++++
+The ``TreeSequence`` class
+++++++++++++++++++++++++++
 
 .. autoclass:: tskit.TreeSequence()
     :members:
+
+
+++++++++++++++++++
+The ``Tree`` class
+++++++++++++++++++
+
+Trees in a tree sequence can be obtained by iterating over
+:meth:`TreeSequence.trees` and specific trees can be accessed using methods
+such as :meth:`TreeSequence.first`, :meth:`TreeSequence.at` and
+:meth:`TreeSequence.at_index`. Each tree is an instance of the following
+class which provides methods, for example, to access information
+about particular nodes in the tree.
 
 .. autoclass:: tskit.Tree()
     :members:
