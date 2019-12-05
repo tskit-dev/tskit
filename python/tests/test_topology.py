@@ -7857,3 +7857,58 @@ class TestTrim(unittest.TestCase):
         self.assertRaises(ValueError, ts.ltrim)
         self.assertRaises(ValueError, ts.rtrim)
         self.assertRaises(ValueError, ts.trim)
+
+
+class TestMissingData(unittest.TestCase):
+    """
+    Test various aspects of missing data functionality
+    """
+
+    # TODO tests for missing data currently sparse: more tests should go here
+
+    def ts_missing_middle(self):
+        # Simple ts with sample 0 missing a middle section
+        ts = msprime.simulate(4, mutation_rate=1, recombination_rate=4, random_seed=2)
+        tables = ts.dump_tables()
+        tables.edges.clear()
+        # mark the middle as missing
+        for e in ts.tables.edges:
+            if e.child == 0:
+                if e.left == 0.0:
+                    missing_from = e.right
+                elif e.right == 1.0:
+                    missing_to = e.left
+                else:
+                    continue  # omit this edge => node is isolated
+            tables.edges.add_row(e.left, e.right, e.parent, e.child)
+        # Check we have non-missing to L & R
+        self.assertTrue(0.0 < missing_from < 1.0)
+        self.assertTrue(0.0 < missing_to < 1.0)
+        return tables.tree_sequence(), missing_from, missing_to
+
+    def test_is_isolated(self):
+        ts, missing_from, missing_to = self.ts_missing_middle()
+        for tree in ts.trees():
+            if tree.interval[1] > missing_from and tree.interval[0] < missing_to:
+                self.assertTrue(tree.is_isolated(0))
+                self.assertFalse(tree.is_isolated(1))
+            else:
+                self.assertFalse(tree.is_isolated(0))
+                self.assertFalse(tree.is_isolated(1))
+            # A non-sample node is isolated if not in the tree
+            tree_nodes = set(tree.nodes())
+            for nonsample_node in np.setdiff1d(np.arange(ts.num_nodes), ts.samples()):
+                if nonsample_node in tree_nodes:
+                    self.assertFalse(tree.is_isolated(nonsample_node))
+                else:
+                    self.assertTrue(tree.is_isolated(nonsample_node))
+
+    def test_is_isolated_bad(self):
+        ts, missing_from, missing_to = self.ts_missing_middle()
+        for tree in ts.trees():
+            self.assertRaises(ValueError, tree.is_isolated, tskit.NULL)
+            self.assertRaises(ValueError, tree.is_isolated, ts.num_nodes)
+            self.assertRaises(ValueError, tree.is_isolated, -2)
+            self.assertRaises(TypeError, tree.is_isolated, None)
+            self.assertRaises(TypeError, tree.is_isolated, "abc")
+            self.assertRaises(TypeError, tree.is_isolated, 1.1)

@@ -1216,6 +1216,19 @@ class Tree:
         """
         return len(self.children(u)) == 0
 
+    def is_isolated(self, u):
+        """
+        Returns True if the specified node is isolated in this tree: that is
+        it has no parents and no children. Sample nodes that are isolated
+        and have no mutations above them are used to represent
+        :ref:`missing data<sec_data_model_missing_data>`.
+
+        :param int u: The node of interest.
+        :return: True if u is an isolated node.
+        :rtype: bool
+        """
+        return self.num_children(u) == 0 and self.parent(u) == NULL
+
     def is_sample(self, u):
         """
         Returns True if the specified node is a sample. A node :math:`u` is a

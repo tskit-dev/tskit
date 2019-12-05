@@ -1016,9 +1016,19 @@ Consider the following example:
 In this tree, node 4 is isolated, and therefore for any sites that are
 on this tree, the state that it is assigned is a special value
 ``tskit.MISSING_DATA``, or ``-1``, as long as there are no mutations above
-that node at that site. See the :meth:`TreeSequence.variants`
-method and :class:`Variant` class for more information on how missing
-data is represented.
+the node at that site. Note that, although isolated, because node 4
+is a sample node it is still considered as being present in the
+tree, meaning it will still returned by the :meth:`Tree.nodes` and
+:meth:`Tree.samples` methods. The :meth:`Tree.is_isolated` method can be used to
+identify nodes which are isolated samples:
+
+    >>> [u for u in tree.samples() if tree.is_isolated(u)]  # isolated samples in this tree
+    [4]
+    >>> [u for u in tree.nodes() if not tree.is_isolated(u)]  # topologically connected nodes
+    [0, 1, 2, 3, 5, 6, 7]
+
+See the :meth:`TreeSequence.variants` method and :class:`Variant` class for
+more information on how missing data is represented in variant data.
 
 
 .. _sec_text_file_format:
