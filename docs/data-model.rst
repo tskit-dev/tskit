@@ -22,8 +22,6 @@ store tree sequences on disk in the `Tree sequence file format`_ section.
 
 .. _sec_data_model_definitions:
 
-
-
 ***********
 Definitions
 ***********
@@ -176,6 +174,7 @@ Table definitions
 Table types
 ===========
 
+
 .. _sec_node_table_definition:
 
 Node Table
@@ -245,8 +244,8 @@ more details on how metadata columns should be used.
     understand. Metadata is for storing auxiliarly information that is
     not necessary for the core tree sequence algorithms.
 
-.. _sec_individual_table_definition:
 
+.. _sec_individual_table_definition:
 
 Individual Table
 ----------------
@@ -321,6 +320,7 @@ columns specify integer IDs in the associated :ref:`sec_node_table_definition`.
 See the :ref:`sec_edge_requirements` section for details on the properties
 required for a valid set of edges.
 
+
 .. _sec_site_table_definition:
 
 Site Table
@@ -352,6 +352,7 @@ more details on how metadata columns should be used.
 
 See the :ref:`sec_site_requirements` section for details on the properties
 required for a valid set of sites.
+
 
 .. _sec_mutation_table_definition:
 
@@ -397,6 +398,7 @@ more details on how metadata columns should be used.
 See the :ref:`sec_mutation_requirements` section for details on the properties
 required for a valid set of mutations.
 
+
 .. _sec_migration_table_definition:
 
 Migration Table
@@ -433,6 +435,7 @@ point values recording the time of the event.
 See the :ref:`sec_migration_requirements` section for details on the properties
 required for a valid set of mutations.
 
+
 .. _sec_population_table_definition:
 
 Population Table
@@ -466,14 +469,12 @@ Provenance Table
 .. todo::
     Document the provenance table.
 
-
 ================    ==============      ===========
 Column              Type                Description
 ================    ==============      ===========
 timestamp           char                Timestamp in `ISO-8601 <https://en.wikipedia.org/wiki/ISO_8601>`_ format.
 record              char                Provenance record.
 ================    ==============      ===========
-
 
 
 .. _sec_metadata_definition:
@@ -529,6 +530,7 @@ We also provide tools that can transform a collection of tables into a valid
 collection of tables, so long as they are logically consistent,
 as described in :ref:`sec_table_transformations`.
 
+
 .. _sec_individual_requirements:
 
 Individual requirements
@@ -541,6 +543,7 @@ individuals.
 There are no requirements regarding the ordering of individuals.
 Sorting a set of tables using :meth:`TableCollection.sort` has
 no effect on the individuals.
+
 
 .. _sec_node_requirements:
 
@@ -563,6 +566,7 @@ For simplicity and algorithmic efficiency, all nodes referring to the same
 
 Sorting a set of tables using :meth:`TableCollection.sort`
 has no effect on nodes.
+
 
 .. _sec_edge_requirements:
 
@@ -604,6 +608,7 @@ Violations of these requirements are detected at load time.
 The :meth:`TableCollection.sort` method will ensure that these sortedness
 properties are fulfilled.
 
+
 .. _sec_site_requirements:
 
 Site requirements
@@ -622,6 +627,7 @@ For simplicity and algorithmic efficiency, sites must also:
 Violations of these requirements are detected at load time.
 The :meth:`TableCollection.sort` method ensures that sites are sorted
 according to these criteria.
+
 
 .. _sec_mutation_requirements:
 
@@ -660,6 +666,7 @@ mutation does not result in any change of state. This error is
 raised at run-time when we reconstruct sample genotypes, for example
 in the :meth:`TreeSequence.variants` iterator.
 
+
 .. _sec_migration_requirements:
 
 Migration requirements
@@ -693,6 +700,7 @@ Population requirements
 -----------------------
 
 There are no requirements on a population table.
+
 
 .. _sec_provenance_requirements:
 
@@ -730,6 +738,7 @@ unchanged.
 This section is best skipped unless you are writing a program that records
 tables directly.
 
+
 .. _sec_table_simplification:
 
 Simplification
@@ -750,6 +759,7 @@ Furthermore, ``simplify`` is guaranteed to:
 The :meth:`TableCollection.simplify` method can be applied to a collection of
 tables that does not have the ``mutations.parent`` entries filled in, as long
 as all other validity requirements are satisfied.
+
 
 .. _sec_table_sorting:
 
@@ -961,6 +971,7 @@ the ``left_sib`` and ``right_sib`` arrays. For example, we can see here
 that the right sibling of ``7`` is ``6``, and the left sibling of ``6``
 is ``7``.
 
+
 .. _sec_data_model_missing_data:
 
 ************
@@ -989,6 +1000,7 @@ on this tree, the state that it is assigned is a special value
 ``tskit.MISSING_DATA``, or ``-1``. See the :meth:`TreeSequence.variants`
 method and :class:`Variant` class for more information on how missing
 data is represented.
+
 
 .. _sec_text_file_format:
 
@@ -1080,6 +1092,7 @@ An example node table::
     0           -1           1.0
     0           -1           3.0
 
+
 .. _sec_edge_text_format:
 
 Edge text format
@@ -1115,6 +1128,7 @@ sites::
     position      ancestral_state
     2.0           AT
     4.0           A
+
 
 .. _sec_mutation_text_format:
 
@@ -1187,6 +1201,7 @@ This approach is very straightforward for columns in which each row contains
 a fixed number of values. However, dealing with columns containing a
 **variable** number of values is more problematic.
 
+
 .. _sec_encoding_ragged_columns:
 
 Encoding ragged columns
@@ -1237,6 +1252,7 @@ gives us the array of bytes for the ancestral state in that row.
 For a table with ``n`` rows, any offset column must have ``n + 1``
 values, the first of which is always ``0``. The values in this column must be
 nondecreasing, and cannot exceed the length of the ragged column in question.
+
 
 .. _sec_tree_sequence_file_format:
 
