@@ -35,7 +35,50 @@ import _tskit
 #import tests.test_wright_fisher as wf
 
 
-def get_ld_matrix(ts, function, population_ids=None, windows=None):
+##############################
+# LD matrix calculator
+##############################
+
+
+def naive_ld_matrix(ts, sample_sets, function, windows=None):
+    ns = [len(ss) for ss in sample_sets]
+    # computes statistics based on genotypes of mutations
+    if windows is None:
+        windows = [0, ts.sequence_length]
+    windows = np.array(windows)
+    
+    num_window_mutations = [0 for w in range(len(windows)-1)]
+    site_indexes = {}
+    for s in ts.sites():
+        # get window index and snp index within that window
+        window_index = min(np.argwhere(s.position < windows)[0]) - 1
+        site_indexes[s.id] = (window_index, num_window_mutations[window_index])
+        num_window_mutations[window_index] += 1
+
+    A = [np.zeros((num_mutations, num_mutations))
+         for num_mutations in num_window_mutations]
+
+    for v1 in ts.variants():
+        w1, m1 = site_indexes[v1.site.id]
+        for v2 in ts.variants():
+            if v2.position >= v1.position:
+                w2, m2 = site_indexes[v2.site.id]
+                if w1 == w2:
+                    genotypes = list(zip(v1.genotypes, v2.genotypes))
+                    sample_genotypes = [[genotypes[sample_index] for
+                                        sample_index in ss]
+                                        for ss in sample_sets]
+                    two_locus_counts = [(gts.count((1, 1)),
+                                         gts.count((1, 0)),
+                                         gts.count((0, 1)))
+                                        for gts in sample_genotypes]
+                    A[w1][m1, m2] = function(two_locus_counts, ns)
+                    A[w1][m2, m1] = function(two_locus_counts, ns)
+
+    return A
+
+
+def ld_matrix(ts, sample_sets, function, windows=None):
     """
     Returns the two-locus stats matrix for a given tree sequence and statistic
     function. Optionally, we can specify population ids for multi-pop statistics
@@ -51,13 +94,15 @@ def get_ld_matrix(ts, function, population_ids=None, windows=None):
 
     The function's arguments are a list of two-locus haplotype counts
     [(n_AB, n_Ab, n_aB)_0, (n_AB, n_Ab, n_aB)_1, ...] for each population, as
-    given in population_ids. If population_ids is None, we use all samples and
-    assume a single population. There are some example functions defined below.
+    given in population_ids.
+
+    sample_sets is a list of lists of sample indexes to compute statistics over.
+    The length of sample_sets has to match the number of two-locus counts that
+    the function takes. If the function is for two populations, sample_sets must
+    have length two, for example.. To compute over all samples, can pass
+    [ts.samples()]
     """
-    if population_ids is None:
-        ns = [ts.get_sample_size()]
-    else:
-        ns = [len(ts.get_samples(population_id=pid)) for pid in population_ids]
+    ns = [len(ss) for ss in sample_sets]
 
     if windows is None:
         # we take all mutations (careful, could be quite large)
@@ -85,12 +130,8 @@ def get_ld_matrix(ts, function, population_ids=None, windows=None):
     # need to keep track of how many mutations within each window we visited
     sites_visited = [0 for w in range(len(ms))]
 
-    # which leaves are in each population
-    if population_ids is None:
-        pop_leaves = [set(ts.samples())]
-    else:
-        pop_leaves = [set(ts.get_samples(population_id=pid)) 
-                      for pid in population_ids]
+    # which leaves are in each population, use sets for set intersections
+    pop_leaves = [set(ss) for ss in sample_sets]
 
     for t1 in ts.trees():
         # if tree is outside of window ranges, skip
@@ -138,7 +179,7 @@ def get_ld_matrix(ts, function, population_ids=None, windows=None):
                     nABs = [len(leaves_below_A & leaves_below_B & pl)
                             for pl in pop_leaves]
 
-                    counts = [(nAB, nA-nAB, nB-nAB) 
+                    counts = [(nAB, nA-nAB, nB-nAB)
                               for nAB, nA, nB in zip(nABs, nAs, nBs)]
 
                     # pass counts and sample sizes to two-locus function, then
@@ -155,9 +196,106 @@ def get_ld_matrix(ts, function, population_ids=None, windows=None):
 
     return A
 
-"""
-One-population two-locus functions
-"""
+
+##############################
+# LD score calculator
+##############################
+
+
+def naive_ld_scores(ts, sample_sets, function, window_size=1e5):
+    ns = [len(ss) for ss in sample_sets]
+    scores = np.zeros(ts.num_mutations)
+    for focal_var in ts.variants():
+        for linked_var in ts.variants():
+            if abs(focal_var.position-linked_var.position) <= window_size:
+                genotypes = list(zip(focal_var.genotypes, linked_var.genotypes))
+                sample_genotypes = [[genotypes[sample_index] for
+                                    sample_index in ss]
+                                    for ss in sample_sets]
+                two_locus_counts = [(gts.count((1, 1)),
+                                     gts.count((1, 0)),
+                                     gts.count((0, 1)))
+                                    for gts in sample_genotypes]
+                scores[focal_var.index] += function(two_locus_counts, ns)
+    return scores
+
+
+def ld_scores(ts, sample_sets, function, window_size=1e5):
+    """
+    Computes LD scores mutations within the tree sequence. The LD score of a
+    SNP is computed as the sum of LD between that focal SNP and all other SNPs
+    within a given distance (window_size to left and right).
+
+    A lot of the logic is copied over from the ld_matrix function.
+    """
+    ns = [len(ss) for ss in sample_sets]
+
+    scores = np.zeros(ts.num_mutations)
+
+    # track current site for indexing the scores
+    current_site = 0
+
+    # which leaves are in each population, use sets for set intersections
+    pop_leaves = [set(ss) for ss in sample_sets]
+
+    for t1 in ts.trees():
+        for sA in t1.sites():
+            mA = sA.mutations[0]
+
+            # get the number of leaves carrying this mutation in each pop
+            leaves_below_A = set(t1.samples(mA.node))
+            nAs = [len(leaves_below_A & pl) for pl in pop_leaves]
+
+            # track the number visited to the right of sA
+            sites_visited_to_right = 0
+
+            for t2 in ts.trees(tracked_samples=leaves_below_A):
+                if t2.interval[1] < t1.interval[1]:
+                    continue
+                if t2.interval[0] > t1.interval[1] + window_size:
+                    break
+                for sB in t2.sites():
+                    assert len(sB.mutations) == 1
+                    if sB.position < sA.position:
+                        continue
+                    if sB.position > sA.position + window_size:
+                        break
+
+                    mB = sB.mutations[0]
+
+                    # get number of leaves carrying B mutation in each pop
+                    leaves_below_B = set(t2.samples(mB.node))
+                    nBs = [len(leaves_below_B & pl) for pl in pop_leaves]
+
+                    # get the number of samples with AB in each pop
+                    nABs = [len(leaves_below_A & leaves_below_B & pl)
+                            for pl in pop_leaves]
+
+                    counts = [(nAB, nA-nAB, nB-nAB) 
+                              for nAB, nA, nB in zip(nABs, nAs, nBs)]
+
+                    # pass counts and sample sizes to two-locus function
+                    val = function(counts, ns)
+                    scores[current_site] += val
+                    if sites_visited_to_right > 0:
+                        scores[current_site+sites_visited_to_right] += val
+
+                    sites_visited_to_right += 1
+
+            current_site += 1
+
+    return scores
+
+
+##############################
+# Common/example summary functions
+##############################
+
+
+####
+# One-populations two-locus functions
+####
+
 
 def r2_function(sample_counts, ns):
     """
@@ -179,6 +317,7 @@ def r2_function(sample_counts, ns):
         r2 = 0
     return r2
 
+
 def r_function(sample_counts, ns):
     assert len(sample_counts) == 1, "compute r^2 for only a single population"
     assert len(ns) == 1, "compute r^2 for only a single population"
@@ -195,9 +334,9 @@ def r_function(sample_counts, ns):
     return r
 
 
-"""
-Two-populations two-locus functions
-"""
+####
+# Two-populations two-locus functions
+####
 
 
 def r1_r2_function(sample_counts, ns):
@@ -227,10 +366,14 @@ def r1_r2_function(sample_counts, ns):
     return r1*r2
 
 
+##############################
+# Test implementations
+##############################
+
+
 #class TestLdMatrixCalculator(unittest.TestCase):
 #    """
 #    Tests for the general LD matrix calculator.
 #    """
-#
+#    
 #    num_test_sites = 50
-    
