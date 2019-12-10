@@ -655,6 +655,11 @@ class TestTreeSequence(HighLevelTestCase):
             for index, edge in enumerate(ts.edges()):
                 self.assertEqual(edge.id, index)
 
+    def test_edge_span_property(self):
+        for ts in get_example_tree_sequences():
+            for edge in ts.edges():
+                self.assertEqual(edge.span, edge.right - edge.left)
+
     def test_edgesets(self):
         for ts in get_example_tree_sequences():
             self.verify_edgesets(ts)

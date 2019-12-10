@@ -186,6 +186,16 @@ class Edge(SimpleContainer):
         return "{{left={:.3f}, right={:.3f}, parent={}, child={}, id={}}}".format(
             self.left, self.right, self.parent, self.child, self.id)
 
+    @property
+    def span(self):
+        """
+        Returns the span of this edge, i.e. the right position minus the left position
+
+        :return: The span of this edge.
+        :rtype: float
+        """
+        return self.right - self.left
+
 
 class Site(SimpleContainer):
     """
