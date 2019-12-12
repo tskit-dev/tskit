@@ -1217,6 +1217,11 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertEqual(migration.right, 1)
             self.assertTrue(0 <= migration.node < ts.num_nodes)
 
+    def test_len_trees(self):
+        for ts in get_example_tree_sequences():
+            tree_iter = ts.trees()
+            self.assertEqual(len(tree_iter), ts.num_trees)
+
     def test_list(self):
         for ts in get_example_tree_sequences():
             tree_list = ts.aslist()
