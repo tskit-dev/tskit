@@ -1567,22 +1567,21 @@ class TestUnaryNodes(TopologyTestCase):
         tables = ts.dump_tables()
         next_node = ts.num_nodes
         node_times = {j: node.time for j, node in enumerate(ts.nodes())}
-        edges = []
+        edge_rows = []
         for e in ts.edges():
             node = ts.node(e.parent)
             t = node.time - 1e-14  # Arbitrary small value.
             next_node = len(tables.nodes)
             tables.nodes.add_row(time=t, population=node.population)
-            edges.append(tskit.Edge(
+            edge_rows.append(tskit.EdgeTableRow(
                 left=e.left, right=e.right, parent=next_node, child=e.child))
             node_times[next_node] = t
-            edges.append(tskit.Edge(
+            edge_rows.append(tskit.EdgeTableRow(
                 left=e.left, right=e.right, parent=e.parent, child=next_node))
-        edges.sort(key=lambda e: node_times[e.parent])
+        edge_rows.sort(key=lambda e: node_times[e.parent])
         tables.edges.reset()
-        for e in edges:
-            tables.edges.add_row(
-                left=e.left, right=e.right, child=e.child, parent=e.parent)
+        for r in edge_rows:
+            tables.edges.add_row(*r)
         ts_new = tables.tree_sequence()
         self.assertGreater(ts_new.num_edges, ts.num_edges)
         self.assert_haplotypes_equal(ts, ts_new)
@@ -2224,9 +2223,9 @@ class TestNonSampleExternalNodes(TopologyTestCase):
         tables = ts.dump_tables()
         next_node = ts.num_nodes
         tables.edges.reset()
-        for e in ts.edges():
-            tables.edges.add_row(e.left, e.right, e.parent, e.child)
-            tables.edges.add_row(e.left, e.right, e.parent, next_node)
+        for row in ts.tables.edges:
+            tables.edges.add_row(*row)
+            tables.edges.add_row(row.left, row.right, row.parent, next_node)
             tables.nodes.add_row(time=0)
             next_node += 1
         tables.sort()
@@ -4909,14 +4908,14 @@ class TestSquashEdges(unittest.TestCase):
 
             # Add new edges to the list.
             for r in range(1, len(new_range)):
-                new = tskit.Edge(new_range[r-1], new_range[r], e.parent, e.child)
+                new = tskit.EdgeTableRow(new_range[r-1], new_range[r], e.parent, e.child)
                 sliced_edges.append(new)
 
         # Shuffle the edges and create a new edge table.
         random.shuffle(sliced_edges)
         sliced_table = tskit.EdgeTable()
-        for e in sliced_edges:
-            sliced_table.add_row(e.left, e.right, e.parent, e.child)
+        for edge_row in sliced_edges:
+            sliced_table.add_row(*edge_row)
 
         # Squash the edges and check against input table.
         sliced_table.squash()

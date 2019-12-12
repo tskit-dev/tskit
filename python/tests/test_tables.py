@@ -30,6 +30,7 @@ import random
 import unittest
 import warnings
 import itertools
+import inspect
 
 import numpy as np
 
@@ -2034,3 +2035,15 @@ class TestBaseTable(unittest.TestCase):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
             t.set_columns()
+
+
+class TestTableRowClasses(unittest.TestCase):
+    """
+    Test classes such as IndividualTableRow, NodeTableRow, etc
+    """
+    def test_same_order_as_add_row(self):
+        # to allow tuple unpacking, e.g. tables.edges.add_row(*edge_row)
+        ts = msprime.simulate(2)
+        for name, table in ts.tables:
+            parameter_names = tuple(inspect.signature(table.add_row).parameters)
+            self.assertEqual(parameter_names, table.row_class._fields)

@@ -78,7 +78,7 @@ PopulationTableRow = collections.namedtuple(
 
 ProvenanceTableRow = collections.namedtuple(
     "ProvenanceTableRow",
-    ["timestamp", "record"])
+    ["record", "timestamp"])
 
 
 def keep_with_offset(keep, data, offset):
