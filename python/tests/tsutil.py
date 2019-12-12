@@ -678,7 +678,7 @@ def mean_descendants(ts, reference_sets):
     # The -1th element of ref_count is for all nodes in the reference set.
     ref_count = np.zeros((ts.num_nodes, K + 1), dtype=int)
     last_update = np.zeros(ts.num_nodes)
-    total_length = np.zeros(ts.num_nodes)
+    total_span = np.zeros(ts.num_nodes)
 
     def update_counts(edge, sign):
         # Update the counts and statistics for a given node. Before we change the
@@ -689,9 +689,9 @@ def mean_descendants(ts, reference_sets):
         while v != -1:
             if last_update[v] != left:
                 if ref_count[v, K] > 0:
-                    length = left - last_update[v]
-                    C[v] += length * ref_count[v, :K]
-                    total_length[v] += length
+                    span = left - last_update[v]
+                    C[v] += span * ref_count[v, :K]
+                    total_span[v] += span
                 last_update[v] = left
             ref_count[v] += sign * ref_count[edge.child]
             v = parent[v]
@@ -710,14 +710,14 @@ def mean_descendants(ts, reference_sets):
             update_counts(edge, +1)
 
     # Finally, add the stats for the last tree and divide by the total
-    # length that each node was an ancestor to > 0 samples.
+    # span that each node was an ancestor to > 0 samples.
     for v in range(ts.num_nodes):
         if ref_count[v, K] > 0:
-            length = ts.sequence_length - last_update[v]
-            total_length[v] += length
-            C[v] += length * ref_count[v, :K]
-        if total_length[v] != 0:
-            C[v] /= total_length[v]
+            span = ts.sequence_length - last_update[v]
+            total_span[v] += span
+            C[v] += span * ref_count[v, :K]
+        if total_span[v] != 0:
+            C[v] /= total_span[v]
     return C
 
 
@@ -765,9 +765,9 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
                     break
                 p = parent[p]
             if p != tskit.NULL:
-                length = right - left
-                L[j] += length
-                scale = length / (total - delta)
+                span = right - left
+                L[j] += span
+                scale = span / (total - delta)
                 for k, reference_set in enumerate(reference_sets):
                     n = sample_count[p, k] - int(focal_reference_set == k)
                     A[j, k] += n * scale
