@@ -217,14 +217,13 @@ def naive_mean_descendants(ts, reference_sets):
     tree_iters = [ts.trees(tracked_samples=sample_set) for sample_set in reference_sets]
     for _ in range(ts.num_trees):
         trees = [next(tree_iter) for tree_iter in tree_iters]
-        left, right = trees[0].interval
-        length = right - left
+        span = trees[0].span
         for node in trees[0].nodes():
             num_samples = trees[0].num_samples(node)
             if num_samples > 0:
                 for j, tree in enumerate(trees):
-                    C[node, j] += length * tree.num_tracked_samples(node)
-                T[node] += length
+                    C[node, j] += span * tree.num_tracked_samples(node)
+                T[node] += span
     for node in range(ts.num_nodes):
         if T[node] > 0:
             C[node] /= T[node]
