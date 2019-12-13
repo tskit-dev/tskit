@@ -205,6 +205,20 @@ class BaseTable(object):
         """
         raise NotImplementedError()
 
+    def copy_row(self, table_row):
+        """
+        Add a new row to this table by copying from the row object of another
+        table of the same type
+
+        :param table_row: An object of class NodeTableRow, EdgeTableRow, etc,
+            corresponding to the type of table
+        """
+        # By default we assume the order in the TableRow is the same as the
+        # parameter order in add_row, which should nearly always be the case.
+        # Using this in the base class means exceptions should be caught, if not
+        # explictly overridden e.g. with self.add_row(**table_row._asdict())
+        self.add_row(*table_row)
+
 
 class MetadataMixin(object):
     """
@@ -1329,6 +1343,11 @@ class ProvenanceTable(BaseTable):
         d["timestamp"] = packed
         d["timestamp_offset"] = offset
         self.set_columns(**d)
+
+    def copy_row(self, table_row):
+        # The ProvenanceTable stores columns in a different order to parameter
+        # order in its `add_row` method, so needs overriding here
+        self.add_row(**table_row._asdict())
 
 
 class TableCollection(object):

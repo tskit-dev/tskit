@@ -510,6 +510,22 @@ class CommonTestsMixin(object):
                 self.assertEqual(copy, table)
                 table = copy
 
+    def test_copy_row(self):
+        for num_rows in [0, 10]:
+            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            for list_col, offset_col in self.ragged_list_columns:
+                value = list_col.get_input(num_rows)
+                input_data[list_col.name] = value
+                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            table = self.table_class()
+            table.set_columns(**input_data)
+            copy = self.table_class()
+            for table_row in table:
+                copy.copy_row(table_row)
+            self.assertNotEqual(id(copy), id(table))
+            self.assertIsInstance(copy, self.table_class)
+            self.assertEqual(copy, table)
+
     def test_pickle(self):
         for num_rows in [0, 10, 100]:
             input_data = {col.name: col.get_input(num_rows) for col in self.columns}

@@ -1567,22 +1567,21 @@ class TestUnaryNodes(TopologyTestCase):
         tables = ts.dump_tables()
         next_node = ts.num_nodes
         node_times = {j: node.time for j, node in enumerate(ts.nodes())}
-        edges = []
+        edge_rows = []
         for e in ts.edges():
             node = ts.node(e.parent)
             t = node.time - 1e-14  # Arbitrary small value.
             next_node = len(tables.nodes)
             tables.nodes.add_row(time=t, population=node.population)
-            edges.append(tskit.Edge(
+            edge_rows.append(tskit.EdgeTableRow(
                 left=e.left, right=e.right, parent=next_node, child=e.child))
             node_times[next_node] = t
-            edges.append(tskit.Edge(
+            edge_rows.append(tskit.EdgeTableRow(
                 left=e.left, right=e.right, parent=e.parent, child=next_node))
-        edges.sort(key=lambda e: node_times[e.parent])
+        edge_rows.sort(key=lambda e: node_times[e.parent])
         tables.edges.reset()
-        for e in edges:
-            tables.edges.add_row(
-                left=e.left, right=e.right, child=e.child, parent=e.parent)
+        for edge_row in edge_rows:
+            tables.edges.copy_row(edge_row)
         ts_new = tables.tree_sequence()
         self.assertGreater(ts_new.num_edges, ts.num_edges)
         self.assert_haplotypes_equal(ts, ts_new)
