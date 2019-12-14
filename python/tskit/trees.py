@@ -2146,6 +2146,9 @@ class TreeIterator(object):
             raise StopIteration()
         return self.tree
 
+    def __len__(self):
+        return self.tree.tree_sequence.num_trees
+
 
 class TreeSequence(object):
     """
