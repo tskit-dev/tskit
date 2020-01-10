@@ -341,7 +341,11 @@ class TestTreeSequence(LowLevelTestCase):
             G = ts.get_genotype_matrix()
             self.assertEqual(G.shape, (num_sites, num_samples))
             self.assertRaises(
-                    TypeError, ts.get_genotype_matrix, impute_missing_data=None)
+                TypeError, ts.get_genotype_matrix, impute_missing_data=None)
+            self.assertRaises(
+                TypeError, ts.get_genotype_matrix, alleles="XYZ")
+            self.assertRaises(
+                ValueError, ts.get_genotype_matrix, alleles=tuple())
             G = ts.get_genotype_matrix(impute_missing_data=True)
             self.assertEqual(G.shape, (num_sites, num_samples))
 
@@ -1093,6 +1097,24 @@ class TestVariantGenerator(LowLevelTestCase):
             TypeError, _tskit.VariantGenerator, ts, impute_missing_data=None)
         self.assertRaises(
             _tskit.LibraryError, _tskit.VariantGenerator, ts, samples=[-1, 2])
+        self.assertRaises(
+            TypeError, _tskit.VariantGenerator, ts, alleles=1234)
+
+    def test_alleles(self):
+        ts = self.get_example_tree_sequence()
+        for bad_type in [["a", "b"], "sdf", 234]:
+            with self.assertRaises(TypeError):
+                _tskit.VariantGenerator(ts, samples=[1, 2], alleles=bad_type)
+        with self.assertRaises(ValueError):
+            _tskit.VariantGenerator(ts, samples=[1, 2], alleles=tuple())
+
+        for bad_allele_type in [None, 0, b"x", []]:
+            with self.assertRaises(TypeError):
+                _tskit.VariantGenerator(ts, samples=[1, 2], alleles=(bad_allele_type,))
+
+        too_many_alleles = tuple(str(j) for j in range(128))
+        with self.assertRaises(_tskit.LibraryError):
+            _tskit.VariantGenerator(ts, samples=[1, 2], alleles=too_many_alleles)
 
     def test_iterator(self):
         ts = self.get_example_tree_sequence()

@@ -16,6 +16,9 @@ In development.
   of distinct alleles supported by 8 bit genotypes has therefore dropped
   from 255 to 127, with a similar reduction for 16 bit genotypes.
 
+- Change the ``tsk_vargen_init`` method to take an extra parameter ``alleles``.
+  To keep the current behaviour, set this parameter to NULL.
+
 **New features**
 
 - Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`

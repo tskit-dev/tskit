@@ -332,16 +332,25 @@ class Variant(SimpleContainer):
     mapping sample IDs to the observed alleles.
 
     Each element in the ``alleles`` tuple is a string, representing the
-    actual observed state for a given sample. The first element of this
-    tuple is guaranteed to be the same as the site's ``ancestral_state`` value.
-    The list of alleles is also guaranteed not to contain any duplicates.
-    However, allelic values may be listed that are not referred to by any
+    actual observed state for a given sample. The ``alleles`` tuple is
+    generated in one of two ways. The first (and default) way is for
+    ``tskit`` to generate the encoding on the fly as alleles are encountered
+    while generating genotypes. In this case, the first element of this
+    tuple is guaranteed to be the same as the site's ``ancestral_state`` value
+    and the list of alleles is also guaranteed not to contain any duplicates.
+    Note that allelic values may be listed that are not referred to by any
     samples. For example, if we have a site that is fixed for the derived state
     (i.e., we have a mutation over the tree root), all genotypes will be 1, but
     the alleles list will be equal to ``('0', '1')``. Other than the
     ancestral state being the first allele, the alleles are listed in
     no particular order, and the ordering should not be relied upon
     (but see the notes on missing data below).
+
+    The second way is for the user to define the mapping between
+    genotype values and allelic state strings using the
+    ``alleles`` parameter to the :meth:`TreeSequence.variants` method.
+    In this case, there is no indication of which allele is the ancestral state,
+    as the ordering is determined by the user.
 
     The ``genotypes`` represent the observed allelic states for each sample,
     such that ``var.alleles[var.genotypes[j]]`` gives the string allele
@@ -2935,14 +2944,25 @@ class TreeSequence(object):
         for h in H:
             yield h.tostring().decode('ascii')
 
-    def variants(self, as_bytes=False, samples=None, impute_missing_data=False):
+    def variants(
+            self, as_bytes=False, samples=None, impute_missing_data=False,
+            alleles=None):
         """
         Returns an iterator over the variants in this tree sequence. See the
         :class:`Variant` class for details on the fields of each returned
-        object. By default the ``genotypes`` for the variants are numpy arrays,
-        corresponding to indexes into the ``alleles`` array. If the
-        ``as_bytes`` parameter is true, these allelic values are recorded
-        directly into a bytes array.
+        object. The ``genotypes`` for the variants are numpy arrays,
+        corresponding to indexes into the ``alleles`` attribute in the
+        :class:`Variant` object. By default, the ``alleles`` for each
+        site are generated automatically, such that the ancestral state
+        is at the zeroth index and subsequent alleles are listed in no
+        particular order. This means that the encoding of alleles in
+        terms of genotype values can vary from site-to-site, which is
+        sometimes inconvenient. It is possible to specify a fixed mapping
+        from allele strings to genotype values using the ``alleles``
+        parameter. For example, if we set ``alleles=("A", "C", "G", "T")``,
+        this will map allele "A" to 0, "C" to 1 and so on (the
+        :data:`ALLELES_ACGT` constant provides a shortcut for this
+        common mapping).
 
         By default, genotypes are generated for all samples. The ``samples``
         parameter allows us to specify the nodes for which genotypes are
@@ -2955,9 +2975,11 @@ class TreeSequence(object):
 
         If :ref:`missing data<sec_data_model_missing_data>` is present
         at a given site, the genotypes array will contain a special value
-        ``tskit.MISSING_DATA`` (-1) to identify these missing samples.
-        See the :class:`Variant` class for more details on how missing
-        data is reported.
+        :data:`MISSING_DATA` (-1) to identify these missing samples,
+        and the ``alleles`` tuple will end with the value ``None``
+        (note that this is true whether we specify a fixed mapping
+        using the ``alleles`` parameter or not). See the :class:`Variant`
+        class for more details on how missing data is reported.
 
         Missing data is reported by default, but if ``impute_missing_data``
         is set to to True, missing data will be imputed such that all
@@ -2970,19 +2992,21 @@ class TreeSequence(object):
             The ``as_bytes`` parameter is kept as a compatibility
             option for older code. It is not the recommended way of
             accessing variant data, and will be deprecated in a later
-            release. Another method will be provided to obtain the allelic
-            states for each site directly.
+            release.
 
         :param bool as_bytes: If True, the genotype values will be returned
-            as a Python bytes object. This is useful in certain situations
-            (i.e., directly printing the genotypes) or when numpy is
-            not available. Otherwise, genotypes are returned as a numpy
-            array (the default).
+            as a Python bytes object. Legacy use only.
         :param array_like samples: An array of sample IDs for which to generate
             genotypes, or None for all samples. Default: None.
         :param bool impute_missing_data: If True, the allele assigned to any
             isolated samples is the ancestral state; that is, we impute
             missing data as the ancestral state. Default: False.
+        :param tuple alleles: A tuple of strings defining the encoding of
+            alleles as integer genotype values. At least one allele must be provided.
+            If duplicate alleles are provided, output genotypes will always be
+            encoded as the first occurance of the allele. If None (the default),
+            the alleles are encoded as they are encountered during genotype
+            generation.
         :return: An iterator of all variants this tree sequence.
         :rtype: iter(:class:`Variant`)
         """
@@ -2990,7 +3014,7 @@ class TreeSequence(object):
         # present form was chosen.
         iterator = _tskit.VariantGenerator(
             self._ll_tree_sequence, samples=samples,
-            impute_missing_data=impute_missing_data)
+            impute_missing_data=impute_missing_data, alleles=alleles)
         for site_id, genotypes, alleles in iterator:
             site = self.site(site_id)
             if as_bytes:
@@ -3003,14 +3027,12 @@ class TreeSequence(object):
                 genotypes = bytes_genotypes.tobytes()
             yield Variant(site, alleles, genotypes)
 
-    def genotype_matrix(self, impute_missing_data=False):
+    def genotype_matrix(self, impute_missing_data=False, alleles=None):
         """
         Returns an :math:`m \\times n` numpy array of the genotypes in this
         tree sequence, where :math:`m` is the number of sites and :math:`n`
         the number of samples. The genotypes are the indexes into the array
-        of ``alleles``, as described for the :class:`Variant` class. The value
-        0 always corresponds to the ancestal state, and values > 0 represent
-        distinct derived states.
+        of ``alleles``, as described for the :class:`Variant` class.
 
         If there is :ref:`missing data<sec_data_model_missing_data>` present
         the genotypes array will contain a special value
@@ -3028,11 +3050,17 @@ class TreeSequence(object):
         :param bool impute_missing_data: If True, the allele assigned to any
             isolated samples is the ancestral state; that is, we impute
             missing data as the ancestral state. Default: False.
+        :param tuple alleles: A tuple of strings describing the encoding of
+            alleles to genotype values. At least one allele must be provided.
+            If duplicate alleles are provided, output genotypes will always be
+            encoded as the first occurance of the allele. If None (the default),
+            the alleles are encoded as they are encountered during genotype
+            generation.
         :return: The full matrix of genotypes.
         :rtype: numpy.ndarray (dtype=np.int8)
         """
         return self._ll_tree_sequence.get_genotype_matrix(
-            impute_missing_data=impute_missing_data)
+            impute_missing_data=impute_missing_data, alleles=alleles)
 
     def individual(self, id_):
         """

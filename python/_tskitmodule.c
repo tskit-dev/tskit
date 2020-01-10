@@ -512,6 +512,57 @@ out:
     return ret;
 }
 
+static const char **
+parse_allele_list(PyObject *allele_tuple)
+{
+    const char **ret = NULL;
+    const char **alleles = NULL;
+    PyObject *str;
+    Py_ssize_t j, num_alleles;
+
+    if (! PyTuple_Check(allele_tuple)) {
+        PyErr_SetString(PyExc_TypeError, "Fixed allele list must be a tuple");
+        goto out;
+    }
+
+    num_alleles = PyTuple_Size(allele_tuple);
+    if (num_alleles == 0) {
+        PyErr_SetString(PyExc_ValueError, "Must specify at least one allele");
+        goto out;
+    }
+    /* Leave space for the sentinel, and initialise to NULL */
+    alleles = PyMem_Calloc(num_alleles + 1, sizeof(*alleles));
+    if (alleles == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    for (j = 0; j < num_alleles; j++) {
+        str = PyTuple_GetItem(allele_tuple, j);
+        if (str == NULL) {
+            goto out;
+        }
+        if (!PyUnicode_Check(str)) {
+            PyErr_SetString(PyExc_TypeError, "alleles must be strings");
+            goto out;
+        }
+        /* PyUnicode_AsUTF8AndSize caches the UTF8 representation of the string
+         * within the object, and we're not responsible for freeing it. Thus,
+         * once we're sure the string object stays alive for the lifetime of the
+         * returned string, we can be sure it's safe. These strings are immediately
+         * copied during tsk_vargen_init, so the operation is safe.
+         */
+        alleles[j] = PyUnicode_AsUTF8AndSize(str, NULL);
+        if (alleles[j] == NULL) {
+            goto out;
+        }
+    }
+    ret = alleles;
+    alleles = NULL;
+out:
+    PyMem_Free(alleles);
+    return ret;
+}
+
 /*===================================================================
  * General table code.
  *===================================================================
@@ -7278,17 +7329,19 @@ static PyObject *
 TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = {"impute_missing_data", NULL};
+    static char *kwlist[] = {"impute_missing_data", "alleles", NULL};
     int err;
     size_t num_sites;
     size_t num_samples;
     npy_intp dims[2];
+    PyObject *py_alleles = Py_None;
     PyArrayObject *genotype_matrix = NULL;
     tsk_vargen_t *vg = NULL;
     char *V;
     tsk_variant_t *variant;
     size_t j;
     int impute_missing_data = 0;
+    const char **alleles = NULL;
     tsk_flags_t options = 0;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
@@ -7296,12 +7349,21 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     }
 
     /* TODO add option for 16 bit genotypes */
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &impute_missing_data)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iO", kwlist,
+                &impute_missing_data, &py_alleles)) {
         goto out;
     }
     if (impute_missing_data) {
         options |= TSK_IMPUTE_MISSING_DATA;
     }
+
+    if (py_alleles != Py_None) {
+        alleles = parse_allele_list(py_alleles);
+        if (alleles == NULL) {
+            goto out;
+        }
+    }
+
     num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
     num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
     dims[0] = num_sites;
@@ -7317,7 +7379,7 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
         PyErr_NoMemory();
         goto out;
     }
-    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, options);
+    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, alleles, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -7339,6 +7401,7 @@ out:
         PyMem_Free(vg);
     }
     Py_XDECREF(genotype_matrix);
+    PyMem_Free(alleles);
     return ret;
 }
 
@@ -8739,21 +8802,25 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "samples", "impute_missing_data", NULL};
+    static char *kwlist[] = {"tree_sequence", "samples", "impute_missing_data",
+        "alleles", NULL};
     TreeSequence *tree_sequence = NULL;
     PyObject *samples_input = Py_None;
+    PyObject *py_alleles = Py_None;
     PyArrayObject *samples_array = NULL;
     tsk_id_t *samples = NULL;
     size_t num_samples = 0;
     int impute_missing_data = 0;
+    const char **alleles = NULL;
     npy_intp *shape;
     tsk_flags_t options = 0;
 
     /* TODO add option for 16 bit genotypes */
     self->variant_generator = NULL;
     self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|Oi", kwlist,
-            &TreeSequenceType, &tree_sequence, &samples_input, &impute_missing_data)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|OiO", kwlist,
+            &TreeSequenceType, &tree_sequence, &samples_input,
+            &impute_missing_data, &py_alleles)) {
         goto out;
     }
     if (impute_missing_data) {
@@ -8774,6 +8841,12 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
         num_samples = (size_t) shape[0];
         samples = PyArray_DATA(samples_array);
     }
+    if (py_alleles != Py_None) {
+        alleles = parse_allele_list(py_alleles);
+        if (alleles == NULL) {
+            goto out;
+        }
+    }
     self->variant_generator = PyMem_Malloc(sizeof(tsk_vargen_t));
     if (self->variant_generator == NULL) {
         PyErr_NoMemory();
@@ -8783,13 +8856,15 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
      * to avoid this we would INCREF the samples array above and keep a reference
      * to in the object struct */
     err = tsk_vargen_init(self->variant_generator,
-            self->tree_sequence->tree_sequence, samples, num_samples, options);
+            self->tree_sequence->tree_sequence, samples, num_samples, alleles,
+            options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
     ret = 0;
 out:
+    PyMem_Free(alleles);
     Py_XDECREF(samples_array);
     return ret;
 }

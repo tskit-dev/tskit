@@ -268,14 +268,8 @@ tsk_strerror_internal(int err)
         case TSK_ERR_MUTATION_PARENT_AFTER_CHILD:
             ret = "Parent mutation ID must be < current ID";
             break;
-        case TSK_ERR_TOO_MANY_ALLELES:
-            ret = "Cannot have more than 127 alleles";
-            break;
         case TSK_ERR_INCONSISTENT_MUTATIONS:
             ret = "Inconsistent mutations: state already equal to derived state";
-            break;
-        case TSK_ERR_NON_SINGLE_CHAR_MUTATION:
-            ret = "Only single char mutations supported";
             break;
         case TSK_ERR_UNSORTED_MUTATIONS:
             ret = "Mutations must be provided in non-decreasing site order";
@@ -363,10 +357,19 @@ tsk_strerror_internal(int err)
             ret = "Bad genotype value provided";
             break;
 
-        /* Missing data errors */
+        /* Genotype decoding errors */
+        case TSK_ERR_TOO_MANY_ALLELES:
+            ret = "Cannot have more than 127 alleles";
+            break;
+        case TSK_ERR_ZERO_ALLELES:
+            ret = "Must have at least one allele when specifying an allele map";
+            break;
         case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
             ret = "Cannot generate genotypes for non-samples unless missing data "
                     "imputation is enabled";
+            break;
+        case TSK_ERR_ALLELE_NOT_FOUND:
+            ret = "An allele was not found in the user-specified allele map";
             break;
 
         /* Distance metric errors */

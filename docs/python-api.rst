@@ -64,6 +64,8 @@ Constants
 .. autodata:: tskit.REVERSE
     :annotation: = -1
 
+.. autodata:: tskit.ALLELES_ACGT
+
 
 ++++++++++++++++++++++++
 Simple container classes

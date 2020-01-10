@@ -30,6 +30,7 @@ import numpy as np
 import msprime
 
 import tskit
+
 from tskit import exceptions
 import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
@@ -617,3 +618,207 @@ class TestHaplotypeGenerator(unittest.TestCase):
             self.assertEqual(h, [c, c])
         h = list(ts.haplotypes(impute_missing_data=True))
         self.assertEqual(h, ["A", "A"])
+
+
+class TestUserAlleles(unittest.TestCase):
+    """
+    Tests the functionality of providing a user-specified allele mapping.
+    """
+
+    def test_simple_01(self):
+        ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        G1 = ts.genotype_matrix()
+        G2 = ts.genotype_matrix(alleles=("0", "1"))
+        self.assertTrue(np.array_equal(G1, G2))
+        for v1, v2 in itertools.zip_longest(
+                ts.variants(), ts.variants(alleles=("0", "1"))):
+            self.assertEqual(v1.alleles, v2.alleles)
+            self.assertEqual(v1.site, v2.site)
+            self.assertTrue(np.array_equal(v1.genotypes, v2.genotypes))
+
+    def test_simple_01_trailing_alleles(self):
+        ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        G1 = ts.genotype_matrix()
+        alleles = ("0", "1", "2", "xxxxx")
+        G2 = ts.genotype_matrix(alleles=alleles)
+        self.assertTrue(np.array_equal(G1, G2))
+        for v1, v2 in itertools.zip_longest(
+                ts.variants(), ts.variants(alleles=alleles)):
+            self.assertEqual(v2.alleles, alleles)
+            self.assertEqual(v1.site, v2.site)
+            self.assertTrue(np.array_equal(v1.genotypes, v2.genotypes))
+
+    def test_simple_01_leading_alleles(self):
+        ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        G1 = ts.genotype_matrix()
+        alleles = ("A", "B", "C", "0", "1")
+        G2 = ts.genotype_matrix(alleles=alleles)
+        self.assertTrue(np.array_equal(G1 + 3, G2))
+        for v1, v2 in itertools.zip_longest(
+                ts.variants(), ts.variants(alleles=alleles)):
+            self.assertEqual(v2.alleles, alleles)
+            self.assertEqual(v1.site, v2.site)
+            self.assertTrue(np.array_equal(v1.genotypes + 3, v2.genotypes))
+
+    def test_simple_01_duplicate_alleles(self):
+        ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
+        self.assertGreater(ts.num_sites, 2)
+        G1 = ts.genotype_matrix()
+        alleles = ("0", "0", "1")
+        G2 = ts.genotype_matrix(alleles=alleles)
+        index = np.where(G1 == 1)
+        G1[index] = 2
+        self.assertTrue(np.array_equal(G1, G2))
+        for v1, v2 in itertools.zip_longest(
+                ts.variants(), ts.variants(alleles=alleles)):
+            self.assertEqual(v2.alleles, alleles)
+            self.assertEqual(v1.site, v2.site)
+            g = v1.genotypes
+            index = np.where(g == 1)
+            g[index] = 2
+            self.assertTrue(np.array_equal(g, v2.genotypes))
+
+    def test_simple_acgt(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = msprime.mutate(
+            ts, rate=4, random_seed=2, model=msprime.InfiniteSites(msprime.NUCLEOTIDES))
+        self.assertGreater(ts.num_sites, 2)
+        alleles = tskit.ALLELES_ACGT
+        G = ts.genotype_matrix(alleles=alleles)
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
+            self.assertEqual(v2.alleles, alleles)
+            self.assertEqual(v1.site, v2.site)
+            h1 = "".join(v1.alleles[g] for g in v1.genotypes)
+            h2 = "".join(v2.alleles[g] for g in v2.genotypes)
+            self.assertEqual(h1, h2)
+            self.assertTrue(np.array_equal(v2.genotypes, G[v1.site.id]))
+
+    def test_missing_alleles(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = msprime.mutate(
+            ts, rate=4, random_seed=2, model=msprime.InfiniteSites(msprime.NUCLEOTIDES))
+        self.assertGreater(ts.num_sites, 2)
+        bad_allele_examples = [
+                tskit.ALLELES_01, tuple(["A"]), ("C", "T", "G"), ("AA", "C", "T", "G"),
+                tuple(["ACTG"])]
+        for bad_alleles in bad_allele_examples:
+            with self.assertRaises(exceptions.LibraryError):
+                ts.genotype_matrix(alleles=bad_alleles)
+            with self.assertRaises(exceptions.LibraryError):
+                list(ts.variants(alleles=bad_alleles))
+
+    def test_too_many_alleles(self):
+        ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
+        for n in range(128, 138):
+            bad_alleles = tuple(["0" for _ in range(n)])
+            with self.assertRaises(exceptions.LibraryError):
+                ts.genotype_matrix(alleles=bad_alleles)
+            with self.assertRaises(exceptions.LibraryError):
+                list(ts.variants(alleles=bad_alleles))
+
+    def test_zero_allele(self):
+        ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
+        with self.assertRaises(ValueError):
+            ts.genotype_matrix(alleles=tuple())
+        with self.assertRaises(ValueError):
+            list(ts.variants(alleles=tuple()))
+
+    def test_missing_data(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(0.5, "0")
+        tables.mutations.add_row(0, 0, "1")
+
+        ts = tables.tree_sequence()
+        for impute in [True, False]:
+            G1 = ts.genotype_matrix(impute_missing_data=impute)
+            G2 = ts.genotype_matrix(
+                impute_missing_data=impute, alleles=tskit.ALLELES_01)
+            self.assertTrue(np.array_equal(G1, G2))
+            vars1 = ts.variants(impute_missing_data=impute)
+            vars2 = ts.variants(impute_missing_data=impute, alleles=tskit.ALLELES_01)
+            for v1, v2 in itertools.zip_longest(vars1, vars2):
+                self.assertEqual(v2.alleles, v1.alleles)
+                self.assertEqual(v1.site, v2.site)
+                self.assertTrue(np.array_equal(v1.genotypes, v2.genotypes))
+
+
+class TestUserAllelesRoundTrip(unittest.TestCase):
+    """
+    Tests that we correctly produce haplotypes in a variety of situations for
+    the user specified allele map encoding.
+    """
+    def verify(self, ts, alleles):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
+            h1 = [v1.alleles[g] for g in v1.genotypes]
+            h2 = [v2.alleles[g] for g in v2.genotypes]
+            self.assertEqual(h1, h2)
+
+    def test_simple_01(self):
+        ts = msprime.simulate(5, mutation_rate=2, random_seed=3)
+        self.assertGreater(ts.num_sites, 3)
+        valid_alleles = [
+            tskit.ALLELES_01,
+            ("0", "1", "xry"),
+            ("xry", "0", "1", "xry"),
+            tuple([str(j) for j in range(127)]),
+            tuple(["0" for j in range(126)] + ["1"]),
+        ]
+        for alleles in valid_alleles:
+            self.verify(ts, alleles)
+
+    def test_simple_acgt(self):
+        ts = msprime.simulate(5, random_seed=3)
+        ts = msprime.mutate(
+            ts, rate=4, random_seed=3, model=msprime.InfiniteSites(msprime.NUCLEOTIDES))
+        self.assertGreater(ts.num_sites, 3)
+        valid_alleles = [
+            tskit.ALLELES_ACGT,
+            ("A", "C", "T", "G", "AAAAAAAAAAAAAA"),
+            ("AA", "CC", "TT", "GG", "A", "C", "T", "G"),
+        ]
+        for alleles in valid_alleles:
+            self.verify(ts, alleles)
+
+    def test_jukes_cantor(self):
+        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
+        ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
+        valid_alleles = [
+            tskit.ALLELES_ACGT,
+            ("A", "C", "T", "G", "AAAAAAAAAAAAAA"),
+            ("AA", "CC", "TT", "GG", "A", "C", "T", "G"),
+        ]
+        for alleles in valid_alleles:
+            self.verify(ts, alleles)
+
+    def test_multichar_mutations(self):
+        ts = msprime.simulate(6, random_seed=1, recombination_rate=2)
+        ts = tsutil.insert_multichar_mutations(ts)
+        self.assertGreater(ts.num_sites, 5)
+        all_alleles = set()
+        for var in ts.variants():
+            all_alleles.update(var.alleles)
+        all_alleles = tuple(all_alleles)
+        self.verify(ts, all_alleles)
+        self.verify(ts, all_alleles[::-1])
+
+    def test_simple_01_missing_data(self):
+        ts = msprime.simulate(6, mutation_rate=2, random_seed=3)
+        tables = ts.dump_tables()
+        # Add another sample node. This will be missing data everywhere.
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+        self.assertGreater(ts.num_sites, 3)
+        valid_alleles = [
+            tskit.ALLELES_01,
+            ("0", "1", "xry"),
+            ("xry", "0", "1", "xry"),
+            tuple([str(j) for j in range(127)]),
+            tuple(["0" for j in range(126)] + ["1"]),
+        ]
+        for alleles in valid_alleles:
+            self.verify(ts, alleles)
