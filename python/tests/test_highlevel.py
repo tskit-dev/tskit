@@ -1272,6 +1272,35 @@ class TestTreeSequence(HighLevelTestCase):
                     self.assertEqual(t3.interval, t2.interval)
                     self.assertEqual(t3.parent_dict, t2.parent_dict)
 
+    def test_sequence_iteration(self):
+        for ts in get_example_tree_sequences():
+            for table_name, _ in ts.tables:
+                sequence = getattr(ts, table_name)()
+                length = getattr(ts, "num_" + table_name)
+                # Test __iter__
+                for i, n in enumerate(sequence):
+                    self.assertEqual(i, n.id)
+                self.assertEqual(n.id, length - 1 if length else 0)
+                if table_name == 'mutations':
+                    # Mutations are not currently sequences, so have no len or idx access
+                    self.assertRaises(TypeError, len, sequence)
+                    if length != 0:
+                        with self.assertRaises(TypeError):
+                            sequence[0]
+                else:
+                    # Test __len__
+                    self.assertEqual(len(sequence), length)
+                    # Test __getitem__ on the last item in the sequence
+                    if length != 0:
+                        self.assertEqual(sequence[length - 1], n)  # +ive indexing
+                        self.assertEqual(sequence[-1], n)          # -ive indexing
+                    with self.assertRaises(IndexError):
+                        sequence[length]
+                    # Test reverse
+                    for i, n in enumerate(reversed(sequence)):
+                        self.assertEqual(i, length - 1 - n.id)
+                    self.assertEqual(n.id, 0)
+
 
 class TestFileUuid(HighLevelTestCase):
     """
