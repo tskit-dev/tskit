@@ -397,6 +397,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_COMPRESSED_MATRIX_NODE:
             ret = "The compressed matrix contains a node that subtends no samples";
             break;
+        case TSK_ERR_TOO_MANY_VALUES:
+            ret = "Too many values to compress";
+            break;
     }
     return ret;
 }

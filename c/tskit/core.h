@@ -234,6 +234,7 @@ of tskit.
 #define TSK_ERR_NULL_VITERBI_MATRIX                                -1300
 #define TSK_ERR_MATCH_IMPOSSIBLE                                   -1301
 #define TSK_ERR_BAD_COMPRESSED_MATRIX_NODE                         -1302
+#define TSK_ERR_TOO_MANY_VALUES                                    -1303
 
 
 /* This bit is 0 for any errors originating from kastore */

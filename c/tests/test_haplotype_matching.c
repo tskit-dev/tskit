@@ -393,13 +393,14 @@ test_single_tree_viterbi_matrix(void)
 
     tsk_viterbi_matrix_free(&viterbi);
 
-    ret = tsk_viterbi_matrix_init(&viterbi, &ts, 0, 1);
+    ret = tsk_viterbi_matrix_init(&viterbi, &ts, 1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Make sure we hit the realloc case for recombination records */
-    for (j = 0; j < 10000; j++) {
+    for (j = 0; j < 100; j++) {
         ret = tsk_viterbi_matrix_add_recombination_required(&viterbi, 0, 6, false);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
     }
+    tsk_viterbi_matrix_print_state(&viterbi, _devnull);
 
     tsk_viterbi_matrix_free(&viterbi);
     tsk_ls_hmm_free(&ls_hmm);
@@ -521,6 +522,20 @@ test_caterpillar_tree_many_values(void)
         tsk_treeseq_free(ts);
         free(ts);
     }
+
+    j = 15000;
+    ts = caterpillar_tree(j, 5, j - 2);
+    ret = tsk_ls_hmm_init(&ls_hmm, ts, unused, unused, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_compressed_matrix_init(&matrix, ts, 1 << 20, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = run_test_hmm(&ls_hmm, h, &matrix);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TOO_MANY_VALUES);
+
+    tsk_ls_hmm_free(&ls_hmm);
+    tsk_compressed_matrix_free(&matrix);
+    tsk_treeseq_free(ts);
+    free(ts);
 }
 
 int

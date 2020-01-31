@@ -219,32 +219,6 @@ tsk_ls_hmm_free(tsk_ls_hmm_t *self)
 }
 
 static int
-tsk_ls_hmm_setup_fitch_sets(tsk_ls_hmm_t *self)
-{
-    int ret = 0;
-
-    /* We expect that most of the time there will be one word per fitch set,
-     * but there will be times when we need more than one word. This approach
-     * lets us expand the memory if we need to, but when the number of
-     * values goes back below 64 we revert to using one word per set. We
-     * could in principle release back the memory as well, but it doesn't seem
-     * worth the bother. */
-    self->num_fitch_words = (self->num_values / 64) + 1;
-    if (self->num_values >= self->max_values) {
-        self->max_values = self->num_fitch_words * 64;
-        tsk_safe_free(self->fitch_sets);
-        self->fitch_sets = calloc(self->num_nodes * self->num_fitch_words,
-                sizeof(*self->fitch_sets));
-        if (self->fitch_sets == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
-        }
-    }
-out:
-    return ret;
-}
-
-static int
 tsk_ls_hmm_reset(tsk_ls_hmm_t *self)
 {
     int ret = 0;
@@ -524,6 +498,13 @@ tsk_ls_hmm_discretise_values(tsk_ls_hmm_t *self)
     return ret;
 }
 
+/*
+ * TODO We also have this function in tree.s where it's used in the Fitch
+ * calculations (which are slightly different). It would be good to bring
+ * these together, or at least avoid having the same function in two
+ * files. Keeping it as it is for now so that it can be inlined, since
+ * it's perf-sensitive. */
+
 static inline tsk_id_t
 get_smallest_set_bit(uint64_t v)
 {
@@ -557,10 +538,9 @@ get_smallest_element(const uint64_t *restrict A, size_t u, size_t num_words)
 }
 
 
-/* TODO enforce this limit */
-#define MAX_WORDS 256
+#define MAX_FITCH_WORDS 256
 /* static variables are zero-initialised by default. */
-static const uint64_t zero_block[MAX_WORDS];
+static const uint64_t zero_block[MAX_FITCH_WORDS];
 
 static inline bool
 all_zero(const uint64_t *restrict A, size_t u, size_t num_words)
@@ -578,7 +558,6 @@ element_in(const uint64_t *restrict A, size_t u, const tsk_id_t state, size_t nu
     size_t index = ((size_t) u) * num_words + (size_t) (state / 64);
     return (A[index] & (1ULL << (state % 64))) != 0;
 }
-
 static inline void
 set_fitch(uint64_t *restrict A, const tsk_id_t u, const size_t num_words, tsk_id_t state)
 {
@@ -663,9 +642,9 @@ compute_fitch_general(
         const size_t num_words)
 {
     tsk_id_t v;
-    uint64_t a_union[MAX_WORDS];
-    uint64_t a_inter[MAX_WORDS];
-    uint64_t child[MAX_WORDS];
+    uint64_t a_union[MAX_FITCH_WORDS];
+    uint64_t a_inter[MAX_FITCH_WORDS];
+    uint64_t child[MAX_FITCH_WORDS];
     uint64_t *src;
     size_t base;
     bool child_all_zero, inter_all_zero;
@@ -673,7 +652,7 @@ compute_fitch_general(
     const uint64_t state_word = 1ULL << (parent_state % 64);
     int j;
 
-    assert(num_words <= MAX_WORDS);
+    assert(num_words <= MAX_FITCH_WORDS);
 
     memset(a_union, 0, num_words * sizeof(*a_union));
     memset(a_inter, 0xff, num_words * sizeof(*a_inter));
@@ -689,7 +668,6 @@ compute_fitch_general(
         if (child_all_zero) {
             child[state_index] = state_word;
         }
-        /* printf("\tFITCH child %d = %d: %d\n", v, (int) child, (int) A[v]); */
         for (j = 0; j < (int) num_words; j++) {
             a_union[j] |= child[j];
             a_inter[j] &= child[j];
@@ -725,6 +703,36 @@ compute_fitch(
     } else {
         compute_fitch_general(A, left_child, right_sib, u, parent_state, num_words);
     }
+}
+
+static int
+tsk_ls_hmm_setup_fitch_sets(tsk_ls_hmm_t *self)
+{
+    int ret = 0;
+
+    /* We expect that most of the time there will be one word per fitch set,
+     * but there will be times when we need more than one word. This approach
+     * lets us expand the memory if we need to, but when the number of
+     * values goes back below 64 we revert to using one word per set. We
+     * could in principle release back the memory as well, but it doesn't seem
+     * worth the bother. */
+    self->num_fitch_words = (self->num_values / 64) + 1;
+    if (self->num_fitch_words > MAX_FITCH_WORDS) {
+        ret = TSK_ERR_TOO_MANY_VALUES;
+        goto out;
+    }
+    if (self->num_values >= self->max_values) {
+        self->max_values = self->num_fitch_words * 64;
+        tsk_safe_free(self->fitch_sets);
+        self->fitch_sets = calloc(self->num_nodes * self->num_fitch_words,
+                sizeof(*self->fitch_sets));
+        if (self->fitch_sets == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    }
+out:
+    return ret;
 }
 
 static int
@@ -1423,6 +1431,10 @@ void
 tsk_viterbi_matrix_print_state(tsk_viterbi_matrix_t *self, FILE *out)
 {
     tsk_id_t l, j;
+
+    fprintf(out, "viterbi_matrix\n");
+    fprintf(out, "num_recomb_records = %d\n", (int) self->num_recomb_records);
+    fprintf(out, "max_recomb_records = %d\n", (int) self->max_recomb_records);
 
     j = 1;
     for (l = 0; l < (tsk_id_t) self->matrix.num_sites; l++) {
