@@ -53,6 +53,63 @@ class TestJukesCantor(unittest.TestCase):
         self.verify(ts)
 
 
+class TestCaterpillarTree(unittest.TestCase):
+    """
+    Tests for the caterpillar tree method.
+    """
+    def verify(self, ts, n):
+        self.assertEqual(ts.num_trees, 1)
+        self.assertEqual(ts.num_nodes, ts.num_samples * 2 - 1)
+        tree = ts.first()
+        for j in range(1, n):
+            self.assertEqual(tree.parent(j), n + j - 1)
+        # This will catch inconsistent mutations.
+        self.assertIsNotNone(ts.genotype_matrix())
+
+    def test_n_2(self):
+        ts = tsutil.caterpillar_tree(2)
+        self.verify(ts, 2)
+
+    def test_n_3(self):
+        ts = tsutil.caterpillar_tree(3)
+        self.verify(ts, 3)
+
+    def test_n_50(self):
+        ts = tsutil.caterpillar_tree(50)
+        self.verify(ts, 50)
+
+    def test_n_5_sites(self):
+        ts = tsutil.caterpillar_tree(5, num_sites=4)
+        self.verify(ts, 5)
+        self.assertEqual(ts.num_sites, 4)
+        self.assertEqual(ts.num_mutations, 4)
+        self.assertEqual(list(ts.tables.sites.position), [0.2, 0.4, 0.6, 0.8])
+        ts = tsutil.caterpillar_tree(5, num_sites=1, num_mutations=1)
+        self.assertEqual(ts.num_sites, 1)
+        self.assertEqual(ts.num_mutations, 1)
+        site = ts.site(0)
+        self.assertEqual(site.mutations[0].node, 7)
+
+    def test_n_5_mutations(self):
+        ts = tsutil.caterpillar_tree(5, num_sites=1, num_mutations=3)
+        self.verify(ts, 5)
+        self.assertEqual(ts.num_sites, 1)
+        self.assertEqual(ts.num_mutations, 3)
+        node = ts.tables.mutations.node
+        self.assertEqual(list(node), [7, 6, 5])
+
+    def test_n_many_mutations(self):
+        for n in range(10, 15):
+            for num_mutations in range(0, n - 1):
+                ts = tsutil.caterpillar_tree(n, num_sites=1, num_mutations=num_mutations)
+                self.verify(ts, n)
+                self.assertEqual(ts.num_sites, 1)
+                self.assertEqual(ts.num_mutations, num_mutations)
+            for num_mutations in range(n - 1, n + 2):
+                with self.assertRaises(ValueError):
+                    tsutil.caterpillar_tree(n, num_sites=1, num_mutations=num_mutations)
+
+
 class TestInsertIndividuals(unittest.TestCase):
     """
     Test that we insert individuals correctly.

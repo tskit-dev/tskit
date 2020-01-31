@@ -42,6 +42,8 @@ void tsk_treeseq_from_text(tsk_treeseq_t *ts,
         const char *nodes, const char *edges, const char *migrations,
         const char *sites, const char *mutations,
         const char *individuals, const char *provenance);
+tsk_treeseq_t * caterpillar_tree(tsk_size_t num_samples, tsk_size_t num_sites,
+        tsk_size_t num_mutations);
 
 void parse_nodes(const char *text, tsk_node_table_t *node_table);
 void parse_edges(const char *text, tsk_edge_table_t *edge_table);
