@@ -280,7 +280,59 @@ test_double_round(void)
             tsk_round(test_cases[j].source, test_cases[j].num_digits),
             test_cases[j].result);
     }
+}
 
+static void
+test_blkalloc(void)
+{
+    tsk_blkalloc_t alloc;
+    int ret;
+    size_t j, block_size;
+    void *mem;
+
+    ret = tsk_blkalloc_init(&alloc, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    tsk_blkalloc_free(&alloc);
+
+    for (block_size = 1; block_size < 10; block_size++) {
+        ret = tsk_blkalloc_init(&alloc, block_size);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        for (j = 0; j < 10; j++) {
+            mem = tsk_blkalloc_get(&alloc, block_size);
+            CU_ASSERT_TRUE(mem != NULL);
+            CU_ASSERT_EQUAL(alloc.num_chunks, j + 1);
+            memset(mem, 0, block_size);
+        }
+
+        mem = tsk_blkalloc_get(&alloc, block_size + 1);
+        CU_ASSERT_EQUAL(mem,  NULL);
+        mem = tsk_blkalloc_get(&alloc, block_size + 2);
+        CU_ASSERT_EQUAL(mem,  NULL);
+
+        tsk_blkalloc_print_state(&alloc, _devnull);
+        tsk_blkalloc_free(&alloc);
+    }
+
+    /* Allocate awkward sized chunk */
+    ret = tsk_blkalloc_init(&alloc, 100);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    mem = tsk_blkalloc_get(&alloc, 90);
+    CU_ASSERT_FATAL(mem != NULL);
+    memset(mem, 0, 90);
+    mem = tsk_blkalloc_get(&alloc, 10);
+    CU_ASSERT_FATAL(mem != NULL);
+    memset(mem, 0, 10);
+    CU_ASSERT_EQUAL(alloc.num_chunks, 1);
+    mem = tsk_blkalloc_get(&alloc, 90);
+    CU_ASSERT_FATAL(mem != NULL);
+    memset(mem, 0, 90);
+    CU_ASSERT_EQUAL(alloc.num_chunks, 2);
+    mem = tsk_blkalloc_get(&alloc, 11);
+    CU_ASSERT_FATAL(mem != NULL);
+    memset(mem, 0, 11);
+    CU_ASSERT_EQUAL(alloc.num_chunks, 3);
+
+    tsk_blkalloc_free(&alloc);
 }
 
 int
@@ -291,6 +343,7 @@ main(int argc, char **argv)
         {"test_strerror_kastore", test_strerror_kastore},
         {"test_generate_uuid", test_generate_uuid},
         {"test_double_round", test_double_round},
+        {"test_blkalloc", test_blkalloc},
         {NULL, NULL},
     };
 

@@ -376,11 +376,6 @@ test_single_tree_viterbi_matrix(void)
     CU_ASSERT_EQUAL_FATAL(path[1], 1);
     CU_ASSERT_EQUAL_FATAL(path[2], 1);
 
-    /* Make sure we hit the realloc case for recombination records */
-    for (j = 0; j < 10000; j++) {
-        ret = tsk_viterbi_matrix_add_recombination_required(&viterbi, 0, 6, false);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-    }
 
     ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -398,6 +393,15 @@ test_single_tree_viterbi_matrix(void)
 
     tsk_viterbi_matrix_free(&viterbi);
 
+    ret = tsk_viterbi_matrix_init(&viterbi, &ts, 0, 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Make sure we hit the realloc case for recombination records */
+    for (j = 0; j < 10000; j++) {
+        ret = tsk_viterbi_matrix_add_recombination_required(&viterbi, 0, 6, false);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+    }
+
+    tsk_viterbi_matrix_free(&viterbi);
     tsk_ls_hmm_free(&ls_hmm);
     tsk_treeseq_free(&ts);
 }

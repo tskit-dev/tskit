@@ -467,8 +467,11 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
 {
     int ret = 0;
 
-    assert(chunk_size > 0);
     memset(self, 0, sizeof(tsk_blkalloc_t));
+    if (chunk_size < 1) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
     self->chunk_size = chunk_size;
     self->top = 0;
     self->current_chunk = 0;
@@ -497,7 +500,9 @@ tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size)
     void *ret = NULL;
     void *p;
 
-    assert(size < self->chunk_size);
+    if (size > self->chunk_size) {
+        goto out;
+    }
     if ((self->top + size) > self->chunk_size) {
         if (self->current_chunk == (self->num_chunks - 1)) {
             p = realloc(self->mem_chunks, (self->num_chunks + 1) * sizeof(void *));
