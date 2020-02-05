@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg baseProfile="full" height="200" version="1.1" width="200" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs/>
+  <g id="tree_0">
+    <g fill="none" id="edges" stroke="black">
+      <path d="M 55.0 65.0 V 30.0 H 88.75" id="edge_0_2"/>
+      <path d="M 122.5 100.0 V 30.0 H 88.75" id="edge_0_3"/>
+      <path d="M 100.0 170.0 V 100.0 H 122.5" id="edge_0_0"/>
+      <path d="M 145.0 135.0 V 100.0 H 122.5" id="edge_0_1"/>
+    </g>
+    <g id="symbols">
+      <g class="nodes">
+        <circle cx="88.75" cy="30.0" id="node_0_4" r="3"/>
+        <circle cx="55.0" cy="65.0" id="node_0_2" r="3"/>
+        <circle cx="122.5" cy="100.0" id="node_0_3" r="3"/>
+        <circle cx="100.0" cy="170.0" id="node_0_0" r="3"/>
+        <circle cx="145.0" cy="135.0" id="node_0_1" r="3"/>
+      </g>
+      <g class="mutations" fill="red"/>
+    </g>
+    <g font-size="14" id="labels">
+      <g class="nodes">
+        <g text-anchor="start">
+          <text x="127.5" y="95.0">3</text>
+        </g>
+        <g text-anchor="middle">
+          <text x="88.75" y="25.0">4</text>
+          <text x="55.0" y="85.0">2</text>
+          <text x="100.0" y="190.0">0</text>
+          <text x="145.0" y="155.0">1</text>
+        </g>
+        <g text-anchor="end"/>
+      </g>
+      <g class="mutations" font-style="italic">
+        <g text-anchor="start"/>
+        <g text-anchor="end"/>
+      </g>
+    </g>
+  </g>
+</svg>

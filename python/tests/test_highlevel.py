@@ -45,6 +45,7 @@ import _tskit
 import tests as tests
 import tests.tsutil as tsutil
 import tests.simplify as simplify
+import networkx as nx
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -602,7 +603,6 @@ class TestTreeSequence(HighLevelTestCase):
                 children[edge.parent].add(edge.child)
             while tree.interval[1] <= left:
                 tree = next(trees)
-            # print(left, right, tree.interval)
             self.assertTrue(left >= tree.interval[0])
             self.assertTrue(right <= tree.interval[1])
             for u in tree.nodes():
@@ -1659,6 +1659,139 @@ class TestTree(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             for tree in ts.trees():
                 self.verify_newick(tree)
+
+    def test_as_dict_of_dicts(self):
+        for ts in get_example_tree_sequences():
+            tree = next(ts.trees())
+            adj_dod = tree.as_dict_of_dicts()
+            g = nx.DiGraph(adj_dod)
+
+            self.verify_nx_graph_topology(tree, g)
+            self.verify_nx_algorithm_equivalence(tree, g)
+            self.verify_nx_for_tutorial_algorithms(tree, g)
+        self.verify_nx_nearest_neighbor_search()
+
+    def verify_nx_graph_topology(self, tree, g):
+        self.assertSetEqual(set(tree.nodes()), set(g.nodes))
+
+        self.assertSetEqual(
+            set(tree.roots),
+            {n for n in g.nodes if g.in_degree(n) == 0}
+        )
+
+        self.assertSetEqual(
+            set(tree.leaves()),
+            {n for n in g.nodes if g.out_degree(n) == 0}
+        )
+
+        # test if tree has no in-degrees > 1
+        self.assertTrue(nx.is_branching(g))
+
+    def verify_nx_algorithm_equivalence(self, tree, g):
+        for root in tree.roots:
+            self.assertTrue(nx.is_directed_acyclic_graph(g))
+
+            # test descendants
+            self.assertSetEqual(
+                set(u for u in tree.nodes() if tree.is_descendant(u, root)),
+                set(nx.descendants(g, root)) | {root}
+            )
+
+            # test MRCA
+            if tree.num_nodes < 20:
+                for u, v in itertools.combinations(tree.nodes(), 2):
+                    mrca = nx.lowest_common_ancestor(g, u, v)
+                    if mrca is None:
+                        mrca = -1
+                    self.assertEqual(tree.mrca(u, v), mrca)
+
+            # test node traversal modes
+            self.assertEqual(
+                list(tree.nodes(root=root, order="breadthfirst")),
+                [root] + [v for u, v in nx.bfs_edges(g, root)]
+            )
+            self.assertEqual(
+                list(tree.nodes(root=root, order="preorder")),
+                list(nx.dfs_preorder_nodes(g, root))
+            )
+
+    def verify_nx_for_tutorial_algorithms(self, tree, g):
+        # traversing upwards
+        for u in tree.leaves():
+            path = []
+            v = u
+            while v != tskit.NULL:
+                path.append(v)
+                v = tree.parent(v)
+
+            self.assertSetEqual(set(path), {u} | nx.ancestors(g, u))
+            self.assertEqual(
+                path,
+                [u] +
+                [n1 for n1, n2, _ in nx.edge_dfs(g, u, orientation="reverse")]
+            )
+
+        # traversals with information
+        def preorder_dist(tree, root):
+            stack = [(root, 0)]
+            while len(stack) > 0:
+                u, distance = stack.pop()
+                yield u, distance
+                for v in tree.children(u):
+                    stack.append((v, distance + 1))
+
+        for root in tree.roots:
+            self.assertDictEqual(
+                {k: v for k, v in preorder_dist(tree, root)},
+                nx.shortest_path_length(g, source=root)
+            )
+
+        for root in tree.roots:
+            # new traversal: measuring time between root and MRCA
+            for u, v in itertools.combinations(nx.descendants(g, root), 2):
+                mrca = tree.mrca(u, v)
+                tmrca = tree.time(mrca)
+                self.assertAlmostEqual(
+                    tree.time(root) - tmrca,
+                    nx.shortest_path_length(
+                        g,
+                        source=root,
+                        target=mrca,
+                        weight='branch_length'
+                    )
+                )
+
+    def verify_nx_nearest_neighbor_search(self):
+        samples = [
+            msprime.Sample(0, 0),
+            msprime.Sample(0, 1),
+            msprime.Sample(0, 20),
+        ]
+        ts = msprime.simulate(
+            Ne=1e6,
+            samples=samples,
+            demographic_events=[
+                msprime.PopulationParametersChange(
+                    time=10, growth_rate=2, population_id=0
+                ),
+            ],
+            random_seed=42,
+        )
+
+        tree = ts.first()
+        g = nx.Graph(tree.as_dict_of_dicts())
+
+        dist_dod = collections.defaultdict(dict)
+        for source, target in itertools.combinations(tree.samples(), 2):
+            dist_dod[source][target] = nx.shortest_path_length(
+                g, source=source, target=target, weight='branch_length'
+            )
+            dist_dod[target][source] = dist_dod[source][target]
+
+        nearest_neighbor_of = [
+            min(dist_dod[u], key=dist_dod[u].get) for u in range(3)
+        ]
+        self.assertEqual([2, 2, 1], [nearest_neighbor_of[u] for u in range(3)])
 
     def test_traversals(self):
         for ts in get_example_tree_sequences():

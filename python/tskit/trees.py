@@ -1600,6 +1600,33 @@ class Tree(object):
             return self.__build_newick(root, precision, node_labels) + ";"
         return s
 
+    def as_dict_of_dicts(self):
+        """
+        Convert tree to dict of dicts for conversion to a
+        `networkx graph <https://networkx.github.io/documentation/stable/
+        reference/classes/digraph.html>`_.
+
+        For example::
+
+            >>> import networkx as nx
+            >>> nx.DiGraph(tree.as_dict_of_dicts())
+            >>> # undirected graphs work as well
+            >>> nx.Graph(tree.as_dict_of_dicts())
+
+        :return: Dictionary of dictionaries of dictionaries where the first key
+            is the source, the second key is the target of an edge, and the
+            third key is an edge annotation. At this point the only annotation
+            is "branch_length", the length of the branch (in generations).
+        """
+        dod = {}
+        for parent in self.nodes():
+            dod[parent] = {}
+            for child in self.children(parent):
+                dod[parent][child] = {
+                    'branch_length': self.branch_length(child)
+                }
+        return dod
+
     @property
     def parent_dict(self):
         return self.get_parent_dict()
