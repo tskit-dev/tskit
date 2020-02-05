@@ -111,6 +111,136 @@ Running this on the example above gives us::
 
    [(7, 0), (6, 1), (4, 2), (3, 2), (5, 1), (2, 2), (1, 2), (0, 2)]
 
+
+++++++++++++++++++++++++
+Traversals with networkx
+++++++++++++++++++++++++
+
+Traversals and other network analysis can also be performed using the sizeable
+`networkx <https://networkx.github.io/documentation/stable/index.html>`_
+library. This can be achieved by calling :meth:`Tree.as_dict_of_dicts` to
+convert a :class:`Tree` instance to a format that can be imported by networkx to
+create a graph::
+
+    import networkx as nx
+
+    g = nx.DiGraph(tree.as_dict_of_dicts())
+    print(sorted(g.edges))
+
+::
+
+    [(5, 0), (5, 1), (5, 2), (6, 3), (6, 4), (7, 5), (7, 6)]
+
+++++++++++++++++++
+Traversing upwards
+++++++++++++++++++
+
+We can revisit the above examples and traverse upwards with
+networkx using a depth-first search algorithm::
+
+    import networkx as nx
+
+    g = nx.DiGraph(tree.as_dict_of_dicts())
+    for u in tree.samples():
+        path = [u] + [parent for parent, child, _ in
+                      nx.edge_dfs(g, source=u, orientation="reverse")]
+        print(u, "->", path)
+
+giving::
+
+   0 -> [0, 5, 7]
+   1 -> [1, 5, 7]
+   2 -> [2, 5, 7]
+   3 -> [3, 6, 7]
+   4 -> [4, 6, 7]
+
++++++++++++++++++++++++++++++++++
+Calculating distances to the root
++++++++++++++++++++++++++++++++++
+
+Similarly, we can yield the nodes of a tree along with their distance to the
+root in pre-order in networkx as well::
+
+    import networkx as nx
+
+    g = nx.DiGraph(tree.as_dict_of_dicts())
+    for root in tree.roots:
+        print(nx.shortest_path_length(g, source=root).items())
+
+Running this on the example above gives us the same result as before::
+
+   [(7, 0), (6, 1), (4, 2), (3, 2), (5, 1), (2, 2), (1, 2), (0, 2)]
+
++++++++++++++++++++++++++++++++++++++++
+Finding nearest neighbors
++++++++++++++++++++++++++++++++++++++++
+
+If some samples in a tree are not at time 0, then finding the nearest neighbor
+of a sample is a bit more involved. Instead of writing our own traversal code
+we can again draw on a networkx algorithm.
+Let us start with an example tree with three samples that were sampled at
+different time points:
+
+.. image:: _static/different_time_samples.svg
+   :width: 200px
+   :alt: An example tree with samples taken at different times
+
+The generation times for these nodes are:
+
+.. code-block:: python
+
+    for u in tree.nodes():
+        print(u, tree.time(u))
+
+giving::
+
+    4 20.005398778263334
+    2 20.0
+    3 17.833492457579652
+    0 0.0
+    1 1.0
+
+Note that samples 0 and 1 are about 35 generations apart from each other even though
+they were sampled at almost the same time. This is why samples 0 and 1 are
+closer to sample 2 than to each other.
+
+For this nearest neighbor search we will be traversing up and down the tree,
+so it is easier to treat the tree as an undirected graph::
+
+    g = nx.Graph(tree.as_dict_of_dicts())
+
+When converting the tree to a networkx graph the edges are annotated with their
+branch length::
+
+    print(g.edges(data=True))
+
+giving::
+
+    [(4, 2, {'branch_length': 0.005398778263334236}),
+     (4, 3, {'branch_length': 2.171906320683682}),
+     (3, 0, {'branch_length': 17.833492457579652}),
+     (3, 1, {'branch_length': 16.833492457579652})]
+
+We can now use the "branch_length" field as a weight for a weighted shortest path
+search::
+
+    # a dictionary of dictionaries to represent our distance matrix
+    dist_dod = collections.defaultdict(dict)
+    for source, target in itertools.combinations(tree.samples(), 2):
+        dist_dod[source][target] = nx.shortest_path_length(
+            g, source=source, target=target, weight="branch_length"
+        )
+        dist_dod[target][source] = dist_dod[source][target]
+
+    # extract the nearest neighbor of nodes 0, 1, and 2
+    nearest_neighbor_of = [min(dist_dod[u], key=dist_dod[u].get) for u in range(3)]
+
+    print(dict(zip(range(3), nearest_neighbor_of)))
+
+gives::
+
+    {0: 2, 1: 2, 2: 1}
+
 .. _sec_tutorial_moving_along_a_tree_sequence:
 
 ****************************

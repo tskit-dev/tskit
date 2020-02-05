@@ -6,3 +6,4 @@ svgwrite
 msprime
 kastore
 biopython
+networkx

@@ -331,6 +331,29 @@ def tree_traversal():
 
     print(list(preorder_dist(tree)))
 
+def finding_nearest_neighbors():
+    samples = [
+        msprime.Sample(0, 0),
+        msprime.Sample(0, 1),
+        msprime.Sample(0, 20),
+    ]
+    ts = msprime.simulate(
+        Ne=1e6,
+        samples=samples,
+        demographic_events=[
+            msprime.PopulationParametersChange(
+                time=10, growth_rate=2, population_id=0
+            ),
+        ],
+        random_seed=42,
+    )
+
+    tree = ts.first()
+    tree.draw_svg("_static/different_time_samples.svg",
+        tree_height_scale="rank")
+
+
+
 # moving_along_tree_sequence()
 # parsimony()
 # allele_frequency_spectra()
@@ -338,4 +361,5 @@ def tree_traversal():
 # stats()
 # tree_structure()
 tree_traversal()
+finding_nearest_neighbors()
 
