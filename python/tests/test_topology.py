@@ -4618,48 +4618,10 @@ class TestSimpleTreeAlgorithm(unittest.TestCase):
         self.assertRaises(StopIteration, next, new_trees)
 
 
-class TestSampleLists(unittest.TestCase):
+class ExampleTopologyMixin(object):
     """
-    Tests for the sample lists algorithm.
+    Some example topologies for tests cases.
     """
-    def verify(self, ts):
-        tree1 = tsutil.LinkedTree(ts)
-        s = str(tree1)
-        self.assertIsNotNone(s)
-        trees = ts.trees(sample_lists=True)
-        for left, right in tree1.sample_lists():
-            tree2 = next(trees)
-            assert (left, right) == tree2.interval
-            for u in tree2.nodes():
-                self.assertEqual(tree1.left_sample[u], tree2.left_sample(u))
-                self.assertEqual(tree1.right_sample[u], tree2.right_sample(u))
-            for j in range(ts.num_samples):
-                self.assertEqual(tree1.next_sample[j], tree2.next_sample(j))
-        assert right == ts.sequence_length
-
-        tree1 = tsutil.LinkedTree(ts)
-        trees = ts.trees(sample_lists=False)
-        sample_index_map = ts.samples()
-        for left, right in tree1.sample_lists():
-            tree2 = next(trees)
-            for u in range(ts.num_nodes):
-                samples2 = list(tree2.samples(u))
-                samples1 = []
-                index = tree1.left_sample[u]
-                if index != tskit.NULL:
-                    self.assertEqual(
-                        sample_index_map[tree1.left_sample[u]], samples2[0])
-                    self.assertEqual(
-                        sample_index_map[tree1.right_sample[u]], samples2[-1])
-                    stop = tree1.right_sample[u]
-                    while True:
-                        assert index != -1
-                        samples1.append(sample_index_map[index])
-                        if index == stop:
-                            break
-                        index = tree1.next_sample[index]
-                self.assertEqual(samples1, samples2)
-        assert right == ts.sequence_length
 
     def test_single_coalescent_tree(self):
         ts = msprime.simulate(10, random_seed=1, length=10)
@@ -4721,6 +4683,104 @@ class TestSampleLists(unittest.TestCase):
         self.assertGreater(ts.num_trees, 3)
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
         self.verify(ts)
+
+    def test_multiroot_tree(self):
+        ts = msprime.simulate(15, random_seed=10)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        self.verify(ts)
+
+
+class TestSampleLists(unittest.TestCase, ExampleTopologyMixin):
+    """
+    Tests for the sample lists algorithm.
+    """
+    def verify(self, ts):
+        tree1 = tsutil.SampleListTree(ts)
+        s = str(tree1)
+        self.assertIsNotNone(s)
+        trees = ts.trees(sample_lists=True)
+        for left, right in tree1.sample_lists():
+            tree2 = next(trees)
+            assert (left, right) == tree2.interval
+            for u in tree2.nodes():
+                self.assertEqual(tree1.left_sample[u], tree2.left_sample(u))
+                self.assertEqual(tree1.right_sample[u], tree2.right_sample(u))
+            for j in range(ts.num_samples):
+                self.assertEqual(tree1.next_sample[j], tree2.next_sample(j))
+        assert right == ts.sequence_length
+
+        tree1 = tsutil.SampleListTree(ts)
+        trees = ts.trees(sample_lists=False)
+        sample_index_map = ts.samples()
+        for left, right in tree1.sample_lists():
+            tree2 = next(trees)
+            for u in range(ts.num_nodes):
+                samples2 = list(tree2.samples(u))
+                samples1 = []
+                index = tree1.left_sample[u]
+                if index != tskit.NULL:
+                    self.assertEqual(
+                        sample_index_map[tree1.left_sample[u]], samples2[0])
+                    self.assertEqual(
+                        sample_index_map[tree1.right_sample[u]], samples2[-1])
+                    stop = tree1.right_sample[u]
+                    while True:
+                        assert index != -1
+                        samples1.append(sample_index_map[index])
+                        if index == stop:
+                            break
+                        index = tree1.next_sample[index]
+                self.assertEqual(samples1, samples2)
+        assert right == ts.sequence_length
+
+
+class TestOneSampleRoot(unittest.TestCase, ExampleTopologyMixin):
+    """
+    Tests for the standard root threshold of subtending at least
+    one sample.
+    """
+    def verify(self, ts):
+        tree1 = tsutil.RootThresholdTree(ts, root_threshold=1)
+        tree2 = tskit.Tree(ts)
+        tree2.first()
+        for interval in tree1.iterate():
+            self.assertEqual(interval, tree2.interval)
+            self.assertEqual(sorted(tree1.roots()), sorted(tree2.roots))
+            # Definition here is the set unique path ends from samples
+            roots = set()
+            for u in ts.samples():
+                while u != tskit.NULL:
+                    path_end = u
+                    u = tree2.parent(u)
+                roots.add(path_end)
+            self.assertEqual(set(tree1.roots()), roots)
+            tree2.next()
+        self.assertEqual(tree2.index, -1)
+
+
+class TestKSamplesRoot(unittest.TestCase, ExampleTopologyMixin):
+    """
+    Tests for the root criteria of subtending at least k samples.
+    """
+    def verify(self, ts):
+        for k in range(1, 5):
+            tree1 = tsutil.RootThresholdTree(ts, root_threshold=k)
+            tree2 = tskit.Tree(ts)
+            tree2.first()
+            for interval in tree1.iterate():
+                self.assertEqual(interval, tree2.interval)
+                # Definition here is the set unique path ends from samples
+                # that subtend at least k samples
+                roots = set()
+                for u in ts.samples():
+                    while u != tskit.NULL:
+                        path_end = u
+                        u = tree2.parent(u)
+                    if tree2.num_samples(path_end) >= k:
+                        roots.add(path_end)
+                self.assertEqual(set(tree1.roots()), roots)
+                tree2.next()
+            self.assertEqual(tree2.index, -1)
 
 
 class TestSquashEdges(unittest.TestCase):

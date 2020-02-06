@@ -535,7 +535,7 @@ def algorithm_T(ts):
         left = right
 
 
-class LinkedTree(object):
+class SampleListTree(object):
     """
     Straightforward implementation of the quintuply linked tree for developing
     and testing the sample lists feature.
@@ -680,6 +680,195 @@ class LinkedTree(object):
                 self.insert_edge(edge)
                 self.update_sample_list(edge.parent)
                 j += 1
+            right = sequence_length
+            if j < M:
+                right = min(right, edges[in_order[j]].left)
+            if k < M:
+                right = min(right, edges[out_order[k]].right)
+            yield left, right
+            left = right
+
+
+class RootThresholdTree(object):
+    """
+    Straightforward implementation of the quintuply linked tree for developing
+    and testing the root_threshold feature.
+
+    NOTE: The interface is pretty awkward; it's not intended for anything other
+    than testing.
+    """
+    def __init__(self, tree_sequence, root_threshold=1):
+        self.tree_sequence = tree_sequence
+        self.root_threshold = root_threshold
+        num_nodes = tree_sequence.num_nodes
+        # Quintuply linked tree.
+        self.parent = [-1 for _ in range(num_nodes)]
+        self.left_sib = [-1 for _ in range(num_nodes)]
+        self.right_sib = [-1 for _ in range(num_nodes)]
+        self.left_child = [-1 for _ in range(num_nodes)]
+        self.right_child = [-1 for _ in range(num_nodes)]
+        self.num_samples = [0 for _ in range(num_nodes)]
+        self.left_root = -1
+        for u in tree_sequence.samples():
+            self.num_samples[u] = 1
+            if self.root_threshold == 1:
+                self.add_root(u)
+
+    def __str__(self):
+        fmt = "{:<5}{:>8}{:>8}{:>8}{:>8}{:>8}{:>8}\n"
+        s = f"roots = {self.roots()}\n"
+        s += fmt.format(
+            "node", "parent", "lsib", "rsib", "lchild", "rchild", "nsamp")
+        for u in range(self.tree_sequence.num_nodes):
+            s += fmt.format(
+                u, self.parent[u],
+                self.left_sib[u], self.right_sib[u],
+                self.left_child[u], self.right_child[u],
+                self.num_samples[u])
+        # Strip off trailing newline
+        return s[:-1]
+
+    def is_root(self, u):
+        return self.num_samples[u] >= self.root_threshold
+
+    def roots(self):
+        roots = []
+        u = self.left_root
+        while u != -1:
+            roots.append(u)
+            u = self.right_sib[u]
+        return roots
+
+    def add_root(self, root):
+        if self.left_root != tskit.NULL:
+            lroot = self.left_sib[self.left_root]
+            if lroot != tskit.NULL:
+                self.right_sib[lroot] = root
+            self.left_sib[root] = lroot
+            self.left_sib[self.left_root] = root
+        self.right_sib[root] = self.left_root
+        self.left_root = root
+
+    def remove_root(self, root):
+        lroot = self.left_sib[root]
+        rroot = self.right_sib[root]
+        self.left_root = tskit.NULL
+        if lroot != tskit.NULL:
+            self.right_sib[lroot] = rroot
+            self.left_root = lroot
+        if rroot != tskit.NULL:
+            self.left_sib[rroot] = lroot
+            self.left_root = rroot
+        self.left_sib[root] = tskit.NULL
+        self.right_sib[root] = tskit.NULL
+
+    def remove_edge(self, edge):
+        p = edge.parent
+        c = edge.child
+        lsib = self.left_sib[c]
+        rsib = self.right_sib[c]
+        if lsib == -1:
+            self.left_child[p] = rsib
+        else:
+            self.right_sib[lsib] = rsib
+        if rsib == -1:
+            self.right_child[p] = lsib
+        else:
+            self.left_sib[rsib] = lsib
+        self.parent[c] = -1
+        self.left_sib[c] = -1
+        self.right_sib[c] = -1
+
+        u = edge.parent
+        while u != -1:
+            path_end = u
+            path_end_was_root = self.is_root(u)
+            self.num_samples[u] -= self.num_samples[c]
+            u = self.parent[u]
+        if path_end_was_root and not self.is_root(path_end):
+            self.remove_root(path_end)
+        if self.is_root(c):
+            self.add_root(c)
+
+    def insert_edge(self, edge):
+        p = edge.parent
+        c = edge.child
+        assert self.parent[c] == -1, "contradictory edges"
+        self.parent[c] = p
+        u = self.right_child[p]
+        lsib = self.left_sib[c]
+        rsib = self.right_sib[c]
+        if u == -1:
+            self.left_child[p] = c
+            self.left_sib[c] = -1
+            self.right_sib[c] = -1
+        else:
+            self.right_sib[u] = c
+            self.left_sib[c] = u
+            self.right_sib[c] = -1
+        self.right_child[p] = c
+
+        u = edge.parent
+        while u != -1:
+            path_end = u
+            path_end_was_root = self.is_root(u)
+            self.num_samples[u] += self.num_samples[c]
+            u = self.parent[u]
+
+        if self.is_root(c):
+            if path_end_was_root:
+                # Remove c from root list.
+                # Note: we don't use the remove_root function here because
+                # it assumes that the node is at the end of a path
+                self.left_root = tskit.NULL
+                if lsib != tskit.NULL:
+                    self.right_sib[lsib] = rsib
+                    self.left_root = lsib
+                if rsib != tskit.NULL:
+                    self.left_sib[rsib] = lsib
+                    self.left_root = rsib
+            else:
+                # Replace c with path_end in the root list
+                if lsib != tskit.NULL:
+                    self.right_sib[lsib] = path_end
+                if rsib != tskit.NULL:
+                    self.left_sib[rsib] = path_end
+                self.left_sib[path_end] = lsib
+                self.right_sib[path_end] = rsib
+                self.left_root = path_end
+        else:
+            if self.is_root(path_end) and not path_end_was_root:
+                self.add_root(path_end)
+
+    def iterate(self):
+        """
+        Iterate over the the trees in this tree sequence, yielding the (left, right)
+        interval tuples. The tree state is maintained internally.
+        """
+        ts = self.tree_sequence
+        sequence_length = ts.sequence_length
+        edges = list(ts.edges())
+        M = len(edges)
+        time = [ts.node(edge.parent).time for edge in edges]
+        in_order = sorted(range(M), key=lambda j: (
+            edges[j].left, time[j], edges[j].parent, edges[j].child))
+        out_order = sorted(range(M), key=lambda j: (
+            edges[j].right, -time[j], -edges[j].parent, -edges[j].child))
+        j = 0
+        k = 0
+        left = 0
+
+        while j < M or left < sequence_length:
+            while k < M and edges[out_order[k]].right == left:
+                edge = edges[out_order[k]]
+                self.remove_edge(edge)
+                k += 1
+            while j < M and edges[in_order[j]].left == left:
+                edge = edges[in_order[j]]
+                self.insert_edge(edge)
+                j += 1
+            while self.left_sib[self.left_root] != tskit.NULL:
+                self.left_root = self.left_sib[self.left_root]
             right = sequence_length
             if j < M:
                 right = min(right, edges[in_order[j]].left)

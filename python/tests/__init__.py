@@ -274,9 +274,7 @@ class PythonTreeSequence(object):
             st.left_root = samples[0]
 
         u = st.left_root
-        roots = []
         while u != -1:
-            roots.append(u)
             v = st.right_sib[u]
             if v != -1:
                 assert st.left_sib[v] == u
