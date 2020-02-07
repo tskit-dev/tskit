@@ -1648,9 +1648,11 @@ class Tree(object):
         into the alleles list in the same manner as described in the
         :meth:`TreeSequence.variants` method. Thus, if sample ``j`` carries the
         allele at index ``k``, then we have ``genotypes[j] = k``.
-        Missing data can be specified for a sample using the value
-        ``tskit.MISSING_DATA`` (-1). At least one non-missing observation must be
-        provided. A maximum of 63 alleles are supported.
+        Missing observations can be specified for a sample using the value
+        ``tskit.MISSING_DATA`` (-1), in which case the state at this sample does not
+        influence the ancestral state or the position of mutations returned. At least
+        one non-missing observation must be provided. A maximum of 63 alleles are
+        supported.
 
         The current implementation uses the Fitch parsimony algorithm to determine
         the minimum number of state transitions required to explain the data. In this
@@ -1671,10 +1673,21 @@ class Tree(object):
         concept of mutation parents). All other attributes of the :class:`Mutation`
         object are undefined and should not be used.
 
+        .. note::
+            Sample states observed as missing in the input ``genotypes`` need
+            not correspond to samples whose nodes are actually "missing" (i.e.
+            :ref:`isolated<sec_data_model_missing_data>`) in the tree. In this
+            case, mapping the mutations returned by this method onto the tree
+            will result in these missing observations being imputed to the
+            most parsimonious state.
+
         See the :ref:`sec_tutorial_parsimony` section in the tutorial for examples
         of how to use this method.
 
         :param array_like genotypes: The input observations for the samples in this tree.
+        :param tuple(str) alleles: The alleles for the specified ``genotypes``. Each
+            positive value in the ``genotypes`` array is treated as an index into this
+            list of alleles.
         :return: The inferred ancestral state and list of mutations on this tree
             that encode the specified observations.
         :rtype: (str, list(tskit.Mutation))
