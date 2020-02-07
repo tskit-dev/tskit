@@ -36,6 +36,13 @@ extern "C" {
 
 #include <tskit/tables.h>
 
+/* TODO we need to get rid of this option somehow because the root 
+ * computation is now based on computing sample counts. However,
+ * we also want to give the option of stripping away this so that 
+ * we don't compute anything other than the quintuply linked tree.
+ * Perhaps TSK_NO_SAMPLE_COUNTS, and document that this gets rid 
+ * of root tracking also?
+ */
 #define TSK_SAMPLE_COUNTS  (1 << 0)
 #define TSK_SAMPLE_LISTS   (1 << 1)
 
@@ -148,7 +155,17 @@ typedef struct {
     /* Left and right physical coordinates of the tree */
     double left;
     double right;
-    bool *above_sample;
+
+    /* FIXME The root tracking code changed after 0.99.2 to use a definition
+     * based on a number of samples threshold. This means that we are 
+     * computing the number of samples twice in most cases, which is dumb.
+     * However, it's not obvious how we should update the API to minimise
+     * code breakage, so this is a temporary workaround to give the 
+     * useful root tracking functionality.
+     */
+    tsk_id_t *root_num_samples;
+    tsk_size_t root_threshold;
+
     tsk_id_t index;
     /* These are involved in the optional sample tracking; num_samples counts
      * all samples below a give node, and num_tracked_samples counts those
@@ -351,6 +368,8 @@ int tsk_tree_clear(tsk_tree_t *self);
 
 void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /** @} */
+
+int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);
 
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);
