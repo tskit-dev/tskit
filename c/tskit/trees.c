@@ -3196,6 +3196,12 @@ out:
     return ret;
 }
 
+tsk_size_t
+tsk_tree_get_root_threshold(tsk_tree_t *self)
+{
+    return self->root_threshold;
+}
+
 int
 tsk_tree_free(tsk_tree_t *self)
 {
@@ -3348,6 +3354,7 @@ tsk_tree_copy(tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     dest->index = self->index;
     dest->sites = self->sites;
     dest->sites_length = self->sites_length;
+    dest->root_threshold = self->root_threshold;
 
     memcpy(dest->parent, self->parent, N * sizeof(tsk_id_t));
     memcpy(dest->left_child, self->left_child, N * sizeof(tsk_id_t));

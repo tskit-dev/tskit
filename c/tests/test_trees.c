@@ -1228,6 +1228,7 @@ test_simplest_multi_root_tree(void)
     CU_ASSERT_EQUAL(tsk_tree_set_root_threshold(&t, 0), TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_tree_set_root_threshold(&t, 2);
     CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_tree_get_root_threshold(&t), 2);
 
     ret = tsk_tree_next(&t);
     CU_ASSERT_EQUAL(ret, 1);

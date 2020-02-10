@@ -8534,6 +8534,37 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_get_root_threshold(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    ret = Py_BuildValue("I",
+        (unsigned int) tsk_tree_get_root_threshold(self->tree));
+    return ret;
+}
+
+static PyObject *
+Tree_set_root_threshold(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    unsigned int threshold = 0;
+
+    if (!PyArg_ParseTuple(args, "I", &threshold)) {
+        goto out;
+    }
+
+    err = tsk_tree_set_root_threshold(self->tree, threshold);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
 static PyMemberDef Tree_members[] = {
     {NULL}  /* Sentinel */
 };
@@ -8617,6 +8648,12 @@ static PyMethodDef Tree_methods[] = {
     {"get_kc_distance", (PyCFunction) Tree_get_kc_distance,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the KC distance between this tree and another." },
+    {"set_root_threshold", (PyCFunction) Tree_set_root_threshold,
+            METH_VARARGS,
+            "Sets the root threshold to the specified value." },
+    {"get_root_threshold", (PyCFunction) Tree_get_root_threshold,
+            METH_NOARGS,
+            "Returns the root threshold for this tree." },
 
     {NULL}  /* Sentinel */
 };

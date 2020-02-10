@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1403,6 +1403,33 @@ class TestTree(LowLevelTestCase):
                         mutation_id += 1
                     j += 1
             self.assertEqual(all_tree_sites, all_sites)
+
+    def test_root_threshold_errors(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        for bad_type in ["", "x", {}]:
+            with self.assertRaises(TypeError):
+                tree.set_root_threshold(bad_type)
+
+        with self.assertRaises(_tskit.LibraryError):
+            tree.set_root_threshold(0)
+        tree.set_root_threshold(2)
+        # Setting when not in the null state raises an error
+        tree.next()
+        with self.assertRaises(_tskit.LibraryError):
+            tree.set_root_threshold(2)
+
+    def test_root_threshold(self):
+        for ts in self.get_example_tree_sequences():
+            tree = _tskit.Tree(ts)
+            for root_threshold in [1, 2, ts.get_num_samples() * 2]:
+                tree.set_root_threshold(root_threshold)
+                self.assertEqual(tree.get_root_threshold(), root_threshold)
+                while tree.next():
+                    self.assertEqual(tree.get_root_threshold(), root_threshold)
+                    with self.assertRaises(_tskit.LibraryError):
+                        tree.set_root_threshold(2)
+                self.assertEqual(tree.get_root_threshold(), root_threshold)
 
     def test_constructor(self):
         self.assertRaises(TypeError, _tskit.Tree)

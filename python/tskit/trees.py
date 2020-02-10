@@ -483,10 +483,17 @@ class Tree(object):
     :param bool sample_lists: If True, provide more efficient access
         to the samples beneath a give node using the
         :meth:`Tree.samples` method.
+    :param int root_threshold: The minimum number of samples that a node
+        must be ancestral to for it to be in the list of roots. By default
+        this is 1, so that isolated samples (representing missing data)
+        are roots. To efficiently restrict the roots of the tree to
+        those subtending meaningful topology, set this to 2. This value
+        is only relevant when trees have multiple roots.
     """
     def __init__(
             self, tree_sequence,
-            tracked_samples=None, sample_counts=True, sample_lists=False):
+            tracked_samples=None, sample_counts=True, sample_lists=False,
+            root_threshold=1):
         options = 0
         if sample_counts:
             options |= _tskit.SAMPLE_COUNTS
@@ -501,6 +508,7 @@ class Tree(object):
 
         self._tree_sequence = tree_sequence
         self._ll_tree = _tskit.Tree(tree_sequence.ll_tree_sequence, **kwargs)
+        self._ll_tree.set_root_threshold(root_threshold)
 
     def copy(self):
         """
@@ -524,6 +532,17 @@ class Tree(object):
         :rtype: :class:`TreeSequence`
         """
         return self._tree_sequence
+
+    @property
+    def root_threshold(self):
+        """
+        Returns the minimum number of samples that a node must be an ancestor
+        of to be considered a potential root.
+
+        :return: The root threshold.
+        :rtype: :class:`TreeSequence`
+        """
+        return self._ll_tree.get_root_threshold()
 
     def __eq__(self, other):
         ret = False

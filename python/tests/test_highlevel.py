@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -39,13 +39,13 @@ import pathlib
 
 import numpy as np
 import msprime
+import networkx as nx
 
 import tskit
 import _tskit
 import tests as tests
 import tests.tsutil as tsutil
 import tests.simplify as simplify
-import networkx as nx
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -426,7 +426,7 @@ class HighLevelTestCase(unittest.TestCase):
         self.verify_tree_structure(st)
 
     def verify_trees(self, ts):
-        pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
+        pts = tests.PythonTreeSequence(ts)
         iter1 = ts.trees()
         iter2 = pts.trees()
         length = 0
@@ -440,7 +440,9 @@ class HighLevelTestCase(unittest.TestCase):
                 while st1.get_parent(root) != tskit.NULL:
                     root = st1.get_parent(root)
                 roots.add(root)
+            self.assertEqual(st1.left_root, st2.left_root)
             self.assertEqual(sorted(list(roots)), sorted(st1.roots))
+            self.assertEqual(st1.roots, st2.roots)
             if len(roots) > 1:
                 with self.assertRaises(ValueError):
                     st1.root
@@ -580,7 +582,7 @@ class TestTreeSequence(HighLevelTestCase):
             self.verify_pairwise_diversity(ts)
 
     def verify_edge_diffs(self, ts):
-        pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
+        pts = tests.PythonTreeSequence(ts)
         d1 = list(ts.edge_diffs())
         d2 = list(pts.edge_diffs())
         self.assertEqual(d1, d2)
@@ -2139,6 +2141,22 @@ class TestTree(HighLevelTestCase):
             for j in range(ts.num_nodes):
                 self.assertEqual(
                     tree.num_tracked_samples(j), copy.num_tracked_samples(j))
+
+    def test_copy_multiple_roots(self):
+        ts = msprime.simulate(20, recombination_rate=2, length=3, random_seed=42)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for root_threshold in [1, 2, 100]:
+            tree = tskit.Tree(ts, root_threshold=root_threshold)
+            copy = tree.copy()
+            self.assertEqual(copy.roots, tree.roots)
+            self.assertEqual(copy.root_threshold, root_threshold)
+            while tree.next():
+                copy = tree.copy()
+                self.assertEqual(copy.roots, tree.roots)
+                self.assertEqual(copy.root_threshold, root_threshold)
+            copy = tree.copy()
+            self.assertEqual(copy.roots, tree.roots)
+            self.assertEqual(copy.root_threshold, root_threshold)
 
     def test_map_mutations(self):
         ts = msprime.simulate(5, random_seed=42)

@@ -709,7 +709,7 @@ class RootThresholdTree(object):
         self.right_child = [-1 for _ in range(num_nodes)]
         self.num_samples = [0 for _ in range(num_nodes)]
         self.left_root = -1
-        for u in tree_sequence.samples():
+        for u in tree_sequence.samples()[::-1]:
             self.num_samples[u] = 1
             if self.root_threshold == 1:
                 self.add_root(u)

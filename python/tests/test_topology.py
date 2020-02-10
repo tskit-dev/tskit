@@ -1371,7 +1371,7 @@ class TestTsinferExamples(TopologyTestCase):
         28      0.00000000      200000.00000000 0       4
         """)
         ts = tskit.load_text(nodes, edges, sequence_length=200000, strict=False)
-        pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
+        pts = tests.PythonTreeSequence(ts)
         num_trees = 0
         for t in pts.trees():
             num_trees += 1
@@ -4745,7 +4745,7 @@ class TestOneSampleRoot(unittest.TestCase, ExampleTopologyMixin):
         tree2.first()
         for interval in tree1.iterate():
             self.assertEqual(interval, tree2.interval)
-            self.assertEqual(sorted(tree1.roots()), sorted(tree2.roots))
+            self.assertEqual(tree1.roots(), tree2.roots)
             # Definition here is the set unique path ends from samples
             roots = set()
             for u in ts.samples():
@@ -4765,7 +4765,7 @@ class TestKSamplesRoot(unittest.TestCase, ExampleTopologyMixin):
     def verify(self, ts):
         for k in range(1, 5):
             tree1 = tsutil.RootThresholdTree(ts, root_threshold=k)
-            tree2 = tskit.Tree(ts)
+            tree2 = tskit.Tree(ts, root_threshold=k)
             tree2.first()
             for interval in tree1.iterate():
                 self.assertEqual(interval, tree2.interval)
@@ -4779,6 +4779,7 @@ class TestKSamplesRoot(unittest.TestCase, ExampleTopologyMixin):
                     if tree2.num_samples(path_end) >= k:
                         roots.add(path_end)
                 self.assertEqual(set(tree1.roots()), roots)
+                self.assertEqual(tree1.roots(), tree2.roots)
                 tree2.next()
             self.assertEqual(tree2.index, -1)
 

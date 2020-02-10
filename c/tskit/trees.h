@@ -370,6 +370,7 @@ void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /** @} */
 
 int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);
+tsk_size_t tsk_tree_get_root_threshold(tsk_tree_t *self);
 
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);
