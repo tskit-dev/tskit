@@ -78,13 +78,11 @@ tsk_ld_calc_init(tsk_ld_calc_t *self, tsk_treeseq_t *tree_sequence)
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_tree_init(self->outer_tree, self->tree_sequence,
-            TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+    ret = tsk_tree_init(self->outer_tree, self->tree_sequence, TSK_SAMPLE_LISTS);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_tree_init(self->inner_tree, self->tree_sequence,
-            TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_init(self->inner_tree, self->tree_sequence, 0);
     if (ret != 0) {
         goto out;
     }

@@ -816,11 +816,13 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
             self.assertEqual(list(t.samples(0)), [0])
+            self.assertEqual(t.left_root, tskit.NULL)
 
         for t in ts.trees(sample_counts=True):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 0)
             self.assertEqual(list(t.samples(0)), [0])
+            self.assertNotEqual(t.left_root, tskit.NULL)
 
         for t in ts.trees(sample_counts=True, tracked_samples=[0]):
             self.assertEqual(t.get_num_samples(0), 1)
@@ -836,6 +838,7 @@ class TestTreeSequence(HighLevelTestCase):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
             self.assertEqual(list(t.samples(0)), [0])
+            self.assertEqual(t.left_root, tskit.NULL)
 
         self.assertRaises(
             ValueError, ts.trees, sample_counts=False, tracked_samples=[0])

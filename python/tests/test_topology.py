@@ -4784,6 +4784,22 @@ class TestKSamplesRoot(unittest.TestCase, ExampleTopologyMixin):
             self.assertEqual(tree2.index, -1)
 
 
+class TestNoCountSamplesRoots(unittest.TestCase, ExampleTopologyMixin):
+    """
+    If count_samples is turned off, we should always get zero roots.
+    """
+    def verify(self, ts):
+        for tree in ts.trees(sample_counts=False):
+            self.assertEqual(tree.num_roots, 0)
+            self.assertEqual(tree.roots, [])
+            self.assertEqual(tree.left_root, tskit.NULL)
+            self.assertEqual(tree.root, tskit.NULL)
+        for tree in ts.trees(sample_counts=True):
+            self.assertGreater(tree.num_roots, 0)
+            self.assertNotEqual(tree.roots, [])
+            self.assertNotEqual(tree.left_root, tskit.NULL)
+
+
 class TestSquashEdges(unittest.TestCase):
     """
     Tests of the squash_edges function.

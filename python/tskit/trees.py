@@ -495,10 +495,10 @@ class Tree(object):
             tracked_samples=None, sample_counts=True, sample_lists=False,
             root_threshold=1):
         options = 0
-        if sample_counts:
-            options |= _tskit.SAMPLE_COUNTS
-        elif tracked_samples is not None:
-            raise ValueError("Cannot set tracked_samples without sample_counts")
+        if not sample_counts:
+            options |= _tskit.NO_SAMPLE_COUNTS
+            if tracked_samples is not None:
+                raise ValueError("Cannot set tracked_samples without sample_counts")
         if sample_lists:
             options |= _tskit.SAMPLE_LISTS
         kwargs = {"options": options}
@@ -1455,7 +1455,7 @@ class Tree(object):
         roots = [u]
         if u is None:
             roots = self.roots
-        if not (self._ll_tree.get_options() & _tskit.SAMPLE_COUNTS):
+        if (self._ll_tree.get_options() & _tskit.NO_SAMPLE_COUNTS) != 0:
             raise RuntimeError(
                 "The get_num_tracked_samples method is only supported "
                 "when sample_counts=True.")
@@ -2906,6 +2906,13 @@ class TreeSequence(object):
         parameters are passed to the :class:`Tree` constructor, and control
         the options that are set in the returned tree instance.
 
+        :warning: Since version 0.3.0, if ``sample_counts`` is set to False the
+            roots of the returned trees are **not** tracked. Therefore, the list
+            returned by :meth:`Tree.roots` will always be empty and
+            :data:`Tree.root` will return :data:`tskit.NULL` (-1). It is
+            particularly important to note that the :meth:`Tree.nodes` method
+            will not return any nodes.
+
         :warning: Do not store the results of this iterator in a list!
            For performance reasons, the same underlying object is used
            for every tree returned which will most likely lead to unexpected
@@ -2914,8 +2921,8 @@ class TreeSequence(object):
 
         :param list tracked_samples: The list of samples to be tracked and
             counted using the :meth:`Tree.num_tracked_samples` method.
-        :param bool sample_counts: If True, support constant time sample counts
-            via the :meth:`Tree.num_samples` and
+        :param bool sample_counts: If True, support root tracking and
+            constant time sample counts via the :meth:`Tree.num_samples` and
             :meth:`Tree.num_tracked_samples` methods.
         :param bool sample_lists: If True, provide more efficient access
             to the samples beneath a give node using the
