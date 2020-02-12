@@ -36,8 +36,14 @@ extern "C" {
 
 #include <tskit/tables.h>
 
-#define TSK_SAMPLE_COUNTS  (1 << 0)
-#define TSK_SAMPLE_LISTS   (1 << 1)
+/* The TSK_SAMPLE_COUNTS was removed in version 0.99.3, where 
+ * the default is now to always count samples except when 
+ * TSK_NO_SAMPLE_COUNTS is specified. This macro can be undefined
+ * at some point in the future and the option reused for something
+ * else. */
+#define TSK_SAMPLE_COUNTS           (1 << 0)
+#define TSK_SAMPLE_LISTS            (1 << 1)
+#define TSK_NO_SAMPLE_COUNTS        (1 << 2)
 
 #define TSK_STAT_SITE               (1 << 0)
 #define TSK_STAT_BRANCH             (1 << 1)
@@ -143,18 +149,23 @@ typedef struct {
 
     tsk_size_t num_nodes;
     tsk_flags_t options;
+    tsk_size_t root_threshold;
     tsk_id_t *samples;
     /* TODO before documenting this should be change to interval. */
     /* Left and right physical coordinates of the tree */
     double left;
     double right;
-    bool *above_sample;
     tsk_id_t index;
     /* These are involved in the optional sample tracking; num_samples counts
      * all samples below a give node, and num_tracked_samples counts those
-     * from a specific subset. */
+     * from a specific subset. By default sample counts are tracked and roots
+     * maintained. If TSK_NO_SAMPLE_COUNTS is specified, then neither sample
+     * counts or roots are available. */
     tsk_id_t *num_samples;
     tsk_id_t *num_tracked_samples;
+    /* TODO the only place this feature seems to be used is in the ld_calculator.
+     * when this is being replaced we should come up with a better way of doing
+     * whatever this is being used for. */
     /* All nodes that are marked during a particular transition are marked
      * with a given value. */
     uint8_t *marked;
@@ -351,6 +362,9 @@ int tsk_tree_clear(tsk_tree_t *self);
 
 void tsk_tree_print_state(tsk_tree_t *self, FILE *out);
 /** @} */
+
+int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);
+tsk_size_t tsk_tree_get_root_threshold(tsk_tree_t *self);
 
 bool tsk_tree_has_sample_lists(tsk_tree_t *self);
 bool tsk_tree_has_sample_counts(tsk_tree_t *self);

@@ -7715,7 +7715,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
     num_nodes = tsk_treeseq_get_num_nodes(tree_sequence->tree_sequence);
     num_tracked_samples = 0;
     if (py_tracked_samples != NULL) {
-        if (!(options & TSK_SAMPLE_COUNTS)) {
+        if ((options & TSK_NO_SAMPLE_COUNTS)) {
             PyErr_SetString(PyExc_ValueError,
                 "Cannot specified tracked_samples without count_samples flag");
             goto out;
@@ -7749,7 +7749,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
         handle_library_error(err);
         goto out;
     }
-    if (!!(options & TSK_SAMPLE_COUNTS)) {
+    if (!(options & TSK_NO_SAMPLE_COUNTS)) {
         err = tsk_tree_set_tracked_samples(self->tree, num_tracked_samples,
                 tracked_samples);
         if (err != 0) {
@@ -8534,6 +8534,37 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_get_root_threshold(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    ret = Py_BuildValue("I",
+        (unsigned int) tsk_tree_get_root_threshold(self->tree));
+    return ret;
+}
+
+static PyObject *
+Tree_set_root_threshold(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    unsigned int threshold = 0;
+
+    if (!PyArg_ParseTuple(args, "I", &threshold)) {
+        goto out;
+    }
+
+    err = tsk_tree_set_root_threshold(self->tree, threshold);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
 static PyMemberDef Tree_members[] = {
     {NULL}  /* Sentinel */
 };
@@ -8617,6 +8648,12 @@ static PyMethodDef Tree_methods[] = {
     {"get_kc_distance", (PyCFunction) Tree_get_kc_distance,
             METH_VARARGS|METH_KEYWORDS,
             "Returns the KC distance between this tree and another." },
+    {"set_root_threshold", (PyCFunction) Tree_set_root_threshold,
+            METH_VARARGS,
+            "Sets the root threshold to the specified value." },
+    {"get_root_threshold", (PyCFunction) Tree_get_root_threshold,
+            METH_NOARGS,
+            "Returns the root threshold for this tree." },
 
     {NULL}  /* Sentinel */
 };
@@ -10065,7 +10102,7 @@ PyInit__tskit(void)
     /* Node flags */
     PyModule_AddIntConstant(module, "NODE_IS_SAMPLE", TSK_NODE_IS_SAMPLE);
     /* Tree flags */
-    PyModule_AddIntConstant(module, "SAMPLE_COUNTS", TSK_SAMPLE_COUNTS);
+    PyModule_AddIntConstant(module, "NO_SAMPLE_COUNTS", TSK_NO_SAMPLE_COUNTS);
     PyModule_AddIntConstant(module, "SAMPLE_LISTS", TSK_SAMPLE_LISTS);
     /* Directions */
     PyModule_AddIntConstant(module, "FORWARD", TSK_DIR_FORWARD);

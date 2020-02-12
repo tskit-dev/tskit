@@ -178,7 +178,7 @@ print_tree_sequence(tsk_treeseq_t *ts, int verbose)
         printf("========================\n");
         printf("trees\n");
         printf("========================\n");
-        ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+        ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_LISTS);
         if (ret != 0) {
             fatal_error("ERROR: %d: %s\n", ret, tsk_strerror(ret));
         }

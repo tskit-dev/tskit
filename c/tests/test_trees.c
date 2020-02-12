@@ -67,8 +67,6 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
     CU_ASSERT_FATAL(memcmp(self->right_child, other->right_child, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(memcmp(self->left_sib, other->left_sib, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
-    CU_ASSERT_FATAL(memcmp(self->above_sample, other->above_sample,
-                N * sizeof(*self->above_sample)) == 0);
 
     CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(self->num_tracked_samples == NULL,
@@ -645,8 +643,8 @@ verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *t
     n = tsk_treeseq_get_num_samples(ts);
     samples = tsk_treeseq_get_samples(ts);
 
-    /* First run without the TSK_SAMPLE_COUNTS feature */
-    ret = tsk_tree_init(&tree, ts, 0);
+    /* First run with the TSK_NO_SAMPLE_COUNTS feature */
+    ret = tsk_tree_init(&tree, ts, TSK_NO_SAMPLE_COUNTS);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_first(&tree);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -661,11 +659,13 @@ verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *t
         /* all operations depending on tracked samples should fail. */
         ret = tsk_tree_get_num_tracked_samples(&tree, 0, &num_samples);
         CU_ASSERT_EQUAL(ret, TSK_ERR_UNSUPPORTED_OPERATION);
+        /* The root should be NULL */
+        CU_ASSERT_EQUAL(tree.left_root, TSK_NULL);
     }
     tsk_tree_free(&tree);
 
     /* Now run with TSK_SAMPLE_COUNTS but with no samples tracked. */
-    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_first(&tree);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -681,11 +681,13 @@ verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *t
         ret = tsk_tree_get_num_tracked_samples(&tree, 0, &num_samples);
         CU_ASSERT_EQUAL(ret, 0);
         CU_ASSERT_EQUAL(num_samples, 0);
+        /* The root should not be NULL */
+        CU_ASSERT_NOT_EQUAL(tree.left_root, TSK_NULL);
     }
     tsk_tree_free(&tree);
 
-    /* Run with TSK_SAMPLE_LISTS, but without TSK_SAMPLE_COUNTS */
-    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_LISTS);
+    /* Run with TSK_SAMPLE_LISTS and TSK_NO_SAMPLE_COUNTS */
+    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_LISTS|TSK_NO_SAMPLE_COUNTS);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_first(&tree);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -718,8 +720,8 @@ verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *t
     }
     tsk_tree_free(&tree);
 
-    /* Now use TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS */
-    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+    /* Now use TSK_SAMPLE_LISTS */
+    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_LISTS);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_tree_set_tracked_samples(&tree, n, samples);
     CU_ASSERT_EQUAL(ret, 0);
@@ -827,7 +829,7 @@ verify_sample_sets(tsk_treeseq_t *ts)
     int ret;
     tsk_tree_t t;
 
-    ret = tsk_tree_init(&t, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+    ret = tsk_tree_init(&t, ts, TSK_SAMPLE_LISTS);
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
@@ -1176,6 +1178,64 @@ test_simplest_zero_root_tree(void)
     CU_ASSERT_EQUAL(t.left_root, TSK_NULL);
     CU_ASSERT_EQUAL(t.right_sib[2], 3);
     CU_ASSERT_EQUAL(t.right_sib[3], TSK_NULL);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_multi_root_tree(void)
+{
+    int ret;
+    const char *nodes =
+        "1  0   0\n"
+        "1  0   0\n"
+        "1  0   0\n"
+        "0  1   0\n";
+    const char *edges =
+        "0  1   3   1,2\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&ts), 1.0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 4);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    tsk_tree_print_state(&t, _devnull);
+    /* Make sure the initial roots are set correctly */
+    CU_ASSERT_EQUAL(t.left_root, 0);
+    CU_ASSERT_EQUAL(t.left_sib[0], TSK_NULL);
+    CU_ASSERT_EQUAL(t.right_sib[0], 1);
+    CU_ASSERT_EQUAL(t.left_sib[1], 0);
+    CU_ASSERT_EQUAL(t.right_sib[1], 2);
+    CU_ASSERT_EQUAL(t.left_sib[2], 1);
+    CU_ASSERT_EQUAL(t.right_sib[2], TSK_NULL);
+
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL(ret, 1);
+    CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&t), 2);
+    CU_ASSERT_EQUAL(t.left_root, 0);
+    CU_ASSERT_EQUAL(t.right_sib[0], 3);
+
+    tsk_tree_print_state(&t, _devnull);
+
+    CU_ASSERT_EQUAL(tsk_tree_set_root_threshold(&t, 1), TSK_ERR_UNSUPPORTED_OPERATION);
+    ret = tsk_tree_next(&t);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_tree_set_root_threshold(&t, 0), TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_tree_set_root_threshold(&t, 2);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_tree_get_root_threshold(&t), 2);
+
+    ret = tsk_tree_next(&t);
+    CU_ASSERT_EQUAL(ret, 1);
+    CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&t), 1);
+    CU_ASSERT_EQUAL(t.left_root, 3);
 
     tsk_tree_free(&t);
     tsk_treeseq_free(&ts);
@@ -4714,7 +4774,7 @@ test_tree_errors(void)
 
     ret = tsk_tree_init(&t, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_tree_init(&t, &ts, TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -4762,9 +4822,9 @@ test_tree_errors(void)
     tsk_tree_free(&t);
     tsk_tree_free(&other_t);
 
-    ret = tsk_tree_init(&t, &other_ts, 0);
+    ret = tsk_tree_init(&t, &other_ts, TSK_NO_SAMPLE_COUNTS);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_tree_copy(&t, &other_t, TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_copy(&t, &other_t, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_UNSUPPORTED_OPERATION);
     tsk_tree_free(&other_t);
     ret = tsk_tree_copy(&t, &other_t, TSK_SAMPLE_LISTS);
@@ -4784,7 +4844,7 @@ test_tree_copy_flags(void)
     tsk_treeseq_t ts;
     tsk_tree_t t, other_t;
     tsk_flags_t options[] = {
-        0, TSK_SAMPLE_COUNTS, TSK_SAMPLE_LISTS, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS};
+        0, TSK_NO_SAMPLE_COUNTS, TSK_SAMPLE_LISTS, TSK_NO_SAMPLE_COUNTS|TSK_SAMPLE_LISTS};
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
             paper_ex_individuals, NULL);
@@ -5177,6 +5237,33 @@ test_zero_edges(void)
     tsk_treeseq_free(&tss);
 }
 
+static void
+test_sample_counts_deprecated(void)
+{
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    int ret;
+    FILE *f = fopen(_tmp_file_name, "w");
+    FILE *tmp = stderr;
+
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
+
+    stderr = f;
+    ret = tsk_tree_init(&tree, &ts, TSK_SAMPLE_COUNTS);
+    stderr = tmp;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_FATAL(ftell(f) > 0);
+
+    fclose(f);
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -5190,6 +5277,7 @@ main(int argc, char **argv)
             test_simplest_degenerate_multiple_root_records},
         {"test_simplest_multiple_root_records", test_simplest_multiple_root_records},
         {"test_simplest_zero_root_tree", test_simplest_zero_root_tree},
+        {"test_simplest_multi_root_tree", test_simplest_multi_root_tree},
         {"test_simplest_root_mutations", test_simplest_root_mutations},
         {"test_simplest_back_mutations", test_simplest_back_mutations},
         {"test_simplest_general_samples", test_simplest_general_samples},
@@ -5275,7 +5363,7 @@ main(int argc, char **argv)
         {"test_nonbinary_sample_sets", test_nonbinary_sample_sets},
         {"test_internal_sample_sample_sets", test_internal_sample_sample_sets},
 
-        /*KC_Distance tests */
+        /*KC distance tests */
         {"test_single_tree_kc", test_single_tree_kc},
         {"test_two_trees_kc", test_two_trees_kc},
         {"test_empty_tree_kc", test_empty_tree_kc},
@@ -5296,6 +5384,7 @@ main(int argc, char **argv)
         {"test_deduplicate_sites_multichar", test_deduplicate_sites_multichar},
         {"test_empty_tree_sequence", test_empty_tree_sequence},
         {"test_zero_edges", test_zero_edges},
+        {"test_sample_counts_deprecated", test_sample_counts_deprecated},
 
         {NULL, NULL},
     };

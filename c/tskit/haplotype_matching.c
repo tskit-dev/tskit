@@ -176,7 +176,7 @@ tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
             self->alleles[l] = _zero_one_alleles;
         }
     }
-    ret = tsk_tree_init(&self->tree, self->tree_sequence, TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_init(&self->tree, self->tree_sequence, 0);
     if (ret != 0) {
         goto out;
     }

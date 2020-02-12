@@ -683,7 +683,7 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
             sigma, TSK_STAT_BRANCH|TSK_STAT_POLARISED|TSK_STAT_SPAN_NORMALISE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_tree_init(&tree, ts, TSK_SAMPLE_COUNTS);
+    ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {

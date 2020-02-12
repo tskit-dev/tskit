@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -39,13 +39,13 @@ import pathlib
 
 import numpy as np
 import msprime
+import networkx as nx
 
 import tskit
 import _tskit
 import tests as tests
 import tests.tsutil as tsutil
 import tests.simplify as simplify
-import networkx as nx
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -426,7 +426,7 @@ class HighLevelTestCase(unittest.TestCase):
         self.verify_tree_structure(st)
 
     def verify_trees(self, ts):
-        pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
+        pts = tests.PythonTreeSequence(ts)
         iter1 = ts.trees()
         iter2 = pts.trees()
         length = 0
@@ -440,7 +440,9 @@ class HighLevelTestCase(unittest.TestCase):
                 while st1.get_parent(root) != tskit.NULL:
                     root = st1.get_parent(root)
                 roots.add(root)
+            self.assertEqual(st1.left_root, st2.left_root)
             self.assertEqual(sorted(list(roots)), sorted(st1.roots))
+            self.assertEqual(st1.roots, st2.roots)
             if len(roots) > 1:
                 with self.assertRaises(ValueError):
                     st1.root
@@ -580,7 +582,7 @@ class TestTreeSequence(HighLevelTestCase):
             self.verify_pairwise_diversity(ts)
 
     def verify_edge_diffs(self, ts):
-        pts = tests.PythonTreeSequence(ts.get_ll_tree_sequence())
+        pts = tests.PythonTreeSequence(ts)
         d1 = list(ts.edge_diffs())
         d2 = list(pts.edge_diffs())
         self.assertEqual(d1, d2)
@@ -744,15 +746,14 @@ class TestTreeSequence(HighLevelTestCase):
                 for u in t_new.nodes():
                     self.assertEqual(
                         t_new.num_tracked_samples(u), t_old.get_num_tracked_leaves(u))
+            trees_new = ts.trees()
+            trees_old = ts.trees()
+            for t_new, t_old in zip(trees_new, trees_old):
+                for u in t_new.nodes():
+                    self.assertEqual(t_new.num_samples(u), t_old.get_num_leaves(u))
+                    self.assertEqual(
+                        list(t_new.samples(u)), list(t_old.get_leaves(u)))
             for on in [True, False]:
-                # sample/leaf counts
-                trees_new = ts.trees(sample_counts=on)
-                trees_old = ts.trees(leaf_counts=on)
-                for t_new, t_old in zip(trees_new, trees_old):
-                    for u in t_new.nodes():
-                        self.assertEqual(t_new.num_samples(u), t_old.get_num_leaves(u))
-                        self.assertEqual(
-                            list(t_new.samples(u)), list(t_old.get_leaves(u)))
                 trees_new = ts.trees(sample_lists=on)
                 trees_old = ts.trees(leaf_lists=on)
                 for t_new, t_old in zip(trees_new, trees_old):
@@ -802,41 +803,21 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_trees_interface(self):
         ts = list(get_example_tree_sequences())[0]
-        # The defaults should make sense and count samples.
-        # get_num_tracked_samples
         for t in ts.trees():
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 0)
             self.assertEqual(list(t.samples(0)), [0])
             self.assertIs(t.tree_sequence, ts)
 
-        for t in ts.trees(sample_counts=False):
-            self.assertEqual(t.get_num_samples(0), 1)
-            self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
-            self.assertEqual(list(t.samples(0)), [0])
-
-        for t in ts.trees(sample_counts=True):
-            self.assertEqual(t.get_num_samples(0), 1)
-            self.assertEqual(t.get_num_tracked_samples(0), 0)
-            self.assertEqual(list(t.samples(0)), [0])
-
-        for t in ts.trees(sample_counts=True, tracked_samples=[0]):
+        for t in ts.trees(tracked_samples=[0]):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 1)
             self.assertEqual(list(t.samples(0)), [0])
 
-        for t in ts.trees(sample_lists=True, sample_counts=True):
+        for t in ts.trees(sample_lists=True):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 0)
             self.assertEqual(list(t.samples(0)), [0])
-
-        for t in ts.trees(sample_lists=True, sample_counts=False):
-            self.assertEqual(t.get_num_samples(0), 1)
-            self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
-            self.assertEqual(list(t.samples(0)), [0])
-
-        self.assertRaises(
-            ValueError, ts.trees, sample_counts=False, tracked_samples=[0])
 
     def test_get_pairwise_diversity(self):
         for ts in get_example_tree_sequences():
@@ -2140,6 +2121,22 @@ class TestTree(HighLevelTestCase):
                 self.assertEqual(
                     tree.num_tracked_samples(j), copy.num_tracked_samples(j))
 
+    def test_copy_multiple_roots(self):
+        ts = msprime.simulate(20, recombination_rate=2, length=3, random_seed=42)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for root_threshold in [1, 2, 100]:
+            tree = tskit.Tree(ts, root_threshold=root_threshold)
+            copy = tree.copy()
+            self.assertEqual(copy.roots, tree.roots)
+            self.assertEqual(copy.root_threshold, root_threshold)
+            while tree.next():
+                copy = tree.copy()
+                self.assertEqual(copy.roots, tree.roots)
+                self.assertEqual(copy.root_threshold, root_threshold)
+            copy = tree.copy()
+            self.assertEqual(copy.roots, tree.roots)
+            self.assertEqual(copy.root_threshold, root_threshold)
+
     def test_map_mutations(self):
         ts = msprime.simulate(5, random_seed=42)
         tree = ts.first()
@@ -2159,6 +2156,18 @@ class TestTree(HighLevelTestCase):
                 tree.map_mutations(genotypes, alleles)
         tree.map_mutations([0] * 5, alleles)
         tree.map_mutations(np.zeros(5, dtype=int), alleles)
+
+    def test_sample_count_deprecated(self):
+        ts = msprime.simulate(5, random_seed=42)
+        with warnings.catch_warnings(record=True) as w:
+            ts.trees(sample_counts=True)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[0].category, RuntimeWarning))
+
+        with warnings.catch_warnings(record=True) as w:
+            tskit.Tree(ts, sample_counts=False)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[0].category, RuntimeWarning))
 
 
 class TestNodeOrdering(HighLevelTestCase):

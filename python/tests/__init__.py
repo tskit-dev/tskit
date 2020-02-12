@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ import base64
 # TODO remove this code and refactor elsewhere.
 
 from .simplify import *  # NOQA
+from . import tsutil
 
 import tskit
 
@@ -42,11 +43,8 @@ class PythonTree(object):
         self.right_child = [tskit.NULL for _ in range(num_nodes)]
         self.left_sib = [tskit.NULL for _ in range(num_nodes)]
         self.right_sib = [tskit.NULL for _ in range(num_nodes)]
-        self.above_sample = [False for _ in range(num_nodes)]
-        self.is_sample = [False for _ in range(num_nodes)]
         self.left = 0
         self.right = 0
-        self.root = 0
         self.index = -1
         self.left_root = -1
         # We need a sites function, so this name is taken.
@@ -191,30 +189,37 @@ class PythonTree(object):
 class PythonTreeSequence(object):
     """
     A python implementation of the TreeSequence object.
+
+    TODO this class is of limited use now and should be factored out as
+    part of a drive towards more modular versions of the tests currently
+    in tests_highlevel.py.
     """
     def __init__(self, tree_sequence, breakpoints=None):
         self._tree_sequence = tree_sequence
-        self._num_samples = tree_sequence.get_num_samples()
-        self._breakpoints = breakpoints
         self._sites = []
+        # TODO this code here is expressed in terms of the low-level
+        # tree sequence for legacy reasons. It probably makes more sense
+        # to describe it in terms of the tables now if we want to have an
+        # independent implementation.
+        ll_ts = self._tree_sequence._ll_tree_sequence
 
         def make_mutation(id_):
-            site, node, derived_state, parent, metadata = tree_sequence.get_mutation(id_)
+            site, node, derived_state, parent, metadata = ll_ts.get_mutation(id_)
             return tskit.Mutation(
                 id_=id_, site=site, node=node, derived_state=derived_state,
                 parent=parent, metadata=metadata)
-        for j in range(tree_sequence.get_num_sites()):
-            pos, ancestral_state, ll_mutations, id_, metadata = tree_sequence.get_site(j)
+        for j in range(tree_sequence.num_sites):
+            pos, ancestral_state, ll_mutations, id_, metadata = ll_ts.get_site(j)
             self._sites.append(tskit.Site(
                 id_=id_, position=pos, ancestral_state=ancestral_state,
                 mutations=[make_mutation(ll_mut) for ll_mut in ll_mutations],
                 metadata=metadata))
 
     def edge_diffs(self):
-        M = self._tree_sequence.get_num_edges()
-        sequence_length = self._tree_sequence.get_sequence_length()
-        edges = [tskit.Edge(*self._tree_sequence.get_edge(j), j) for j in range(M)]
-        time = [self._tree_sequence.get_node(edge.parent)[1] for edge in edges]
+        M = self._tree_sequence.num_edges
+        sequence_length = self._tree_sequence.sequence_length
+        edges = list(self._tree_sequence.edges())
+        time = [self._tree_sequence.node(edge.parent).time for edge in edges]
         in_order = sorted(range(M), key=lambda j: (
             edges[j].left, time[j], edges[j].parent, edges[j].child))
         out_order = sorted(range(M), key=lambda j: (
@@ -242,174 +247,24 @@ class PythonTreeSequence(object):
             left = right
 
     def trees(self):
-        M = self._tree_sequence.get_num_edges()
-        sequence_length = self._tree_sequence.get_sequence_length()
-        edges = [
-            tskit.Edge(*self._tree_sequence.get_edge(j), j) for j in range(M)]
-        t = [
-            self._tree_sequence.get_node(j)[1]
-            for j in range(self._tree_sequence.get_num_nodes())]
-        in_order = sorted(
-            range(M), key=lambda j: (
-                edges[j].left, t[edges[j].parent], edges[j].parent, edges[j].child))
-        out_order = sorted(
-            range(M), key=lambda j: (
-                edges[j].right, -t[edges[j].parent], -edges[j].parent, -edges[j].child))
-        j = 0
-        k = 0
-        N = self._tree_sequence.get_num_nodes()
-        st = PythonTree(N)
-
-        samples = list(self._tree_sequence.get_samples())
-        for l in range(len(samples)):
-            if l < len(samples) - 1:
-                st.right_sib[samples[l]] = samples[l + 1]
-            if l > 0:
-                st.left_sib[samples[l]] = samples[l - 1]
-            st.above_sample[samples[l]] = True
-            st.is_sample[samples[l]] = True
-
-        st.left_root = tskit.NULL
-        if len(samples) > 0:
-            st.left_root = samples[0]
-
-        u = st.left_root
-        roots = []
-        while u != -1:
-            roots.append(u)
-            v = st.right_sib[u]
-            if v != -1:
-                assert st.left_sib[v] == u
-            u = v
-
-        st.left = 0
-        while j < M or st.left < sequence_length:
-            while k < M and edges[out_order[k]].right == st.left:
-                p = edges[out_order[k]].parent
-                c = edges[out_order[k]].child
-                k += 1
-
-                lsib = st.left_sib[c]
-                rsib = st.right_sib[c]
-                if lsib == tskit.NULL:
-                    st.left_child[p] = rsib
-                else:
-                    st.right_sib[lsib] = rsib
-                if rsib == tskit.NULL:
-                    st.right_child[p] = lsib
-                else:
-                    st.left_sib[rsib] = lsib
-                st.parent[c] = tskit.NULL
-                st.left_sib[c] = tskit.NULL
-                st.right_sib[c] = tskit.NULL
-
-                # If c is not above a sample then we have nothing to do as we
-                # cannot affect the status of any roots.
-                if st.above_sample[c]:
-                    # Compute the new above sample status for the nodes from
-                    # p up to root.
-                    v = p
-                    above_sample = False
-                    while v != tskit.NULL and not above_sample:
-                        above_sample = st.is_sample[v]
-                        u = st.left_child[v]
-                        while u != tskit.NULL:
-                            above_sample = above_sample or st.above_sample[u]
-                            u = st.right_sib[u]
-                        st.above_sample[v] = above_sample
-                        root = v
-                        v = st.parent[v]
-
-                    if not above_sample:
-                        # root is no longer above samples. Remove it from the root list.
-                        lroot = st.left_sib[root]
-                        rroot = st.right_sib[root]
-                        st.left_root = tskit.NULL
-                        if lroot != tskit.NULL:
-                            st.right_sib[lroot] = rroot
-                            st.left_root = lroot
-                        if rroot != tskit.NULL:
-                            st.left_sib[rroot] = lroot
-                            st.left_root = rroot
-                        st.left_sib[root] = tskit.NULL
-                        st.right_sib[root] = tskit.NULL
-
-                    # Add c to the root list.
-                    # print("Insert ", c, "into root list")
-                    if st.left_root != tskit.NULL:
-                        lroot = st.left_sib[st.left_root]
-                        if lroot != tskit.NULL:
-                            st.right_sib[lroot] = c
-                        st.left_sib[c] = lroot
-                        st.left_sib[st.left_root] = c
-                    st.right_sib[c] = st.left_root
-                    st.left_root = c
-
-            while j < M and edges[in_order[j]].left == st.left:
-                p = edges[in_order[j]].parent
-                c = edges[in_order[j]].child
-                j += 1
-
-                # print("insert ", c, "->", p)
-                st.parent[c] = p
-                u = st.right_child[p]
-                lsib = st.left_sib[c]
-                rsib = st.right_sib[c]
-                if u == tskit.NULL:
-                    st.left_child[p] = c
-                    st.left_sib[c] = tskit.NULL
-                    st.right_sib[c] = tskit.NULL
-                else:
-                    st.right_sib[u] = c
-                    st.left_sib[c] = u
-                    st.right_sib[c] = tskit.NULL
-                st.right_child[p] = c
-
-                if st.above_sample[c]:
-                    v = p
-                    above_sample = False
-                    while v != tskit.NULL and not above_sample:
-                        above_sample = st.above_sample[v]
-                        st.above_sample[v] = st.above_sample[v] or st.above_sample[c]
-                        root = v
-                        v = st.parent[v]
-                    # print("root = ", root, st.above_sample[root])
-
-                    if not above_sample:
-                        # Replace c with root in root list.
-                        # print("replacing", root, "with ", c ," in root list")
-                        if lsib != tskit.NULL:
-                            st.right_sib[lsib] = root
-                        if rsib != tskit.NULL:
-                            st.left_sib[rsib] = root
-                        st.left_sib[root] = lsib
-                        st.right_sib[root] = rsib
-                        st.left_root = root
-                    else:
-                        # Remove c from root list.
-                        # print("remove ", c ," from root list")
-                        st.left_root = tskit.NULL
-                        if lsib != tskit.NULL:
-                            st.right_sib[lsib] = rsib
-                            st.left_root = lsib
-                        if rsib != tskit.NULL:
-                            st.left_sib[rsib] = lsib
-                            st.left_root = rsib
-
-            st.right = sequence_length
-            if j < M:
-                st.right = min(st.right, edges[in_order[j]].left)
-            if k < M:
-                st.right = min(st.right, edges[out_order[k]].right)
-            assert st.left_root != tskit.NULL
-            while st.left_sib[st.left_root] != tskit.NULL:
-                st.left_root = st.left_sib[st.left_root]
-            st.index += 1
+        rtt = tsutil.RootThresholdTree(self._tree_sequence)
+        pt = PythonTree(self._tree_sequence.get_num_nodes())
+        pt.index = 0
+        for left, right in rtt.iterate():
+            pt.parent[:] = rtt.parent
+            pt.left_child[:] = rtt.left_child
+            pt.right_child[:] = rtt.right_child
+            pt.left_sib[:] = rtt.left_sib
+            pt.right_sib[:] = rtt.right_sib
+            pt.left_root = rtt.left_root
+            pt.left = left
+            pt.right = right
             # Add in all the sites
-            st.site_list = [
-                site for site in self._sites if st.left <= site.position < st.right]
-            yield st
-            st.left = st.right
+            pt.site_list = [
+                site for site in self._sites if left <= site.position < right]
+            yield pt
+            pt.index += 1
+        pt.index = -1
 
 
 class MRCACalculator(object):
