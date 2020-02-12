@@ -5237,6 +5237,33 @@ test_zero_edges(void)
     tsk_treeseq_free(&tss);
 }
 
+static void
+test_sample_counts_deprecated(void)
+{
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    int ret;
+    FILE *f = fopen(_tmp_file_name, "w");
+    FILE *tmp = stderr;
+
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
+            NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
+
+    stderr = f;
+    ret = tsk_tree_init(&tree, &ts, TSK_SAMPLE_COUNTS);
+    stderr = tmp;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_FATAL(ftell(f) > 0);
+
+    fclose(f);
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -5357,6 +5384,7 @@ main(int argc, char **argv)
         {"test_deduplicate_sites_multichar", test_deduplicate_sites_multichar},
         {"test_empty_tree_sequence", test_empty_tree_sequence},
         {"test_zero_edges", test_zero_edges},
+        {"test_sample_counts_deprecated", test_sample_counts_deprecated},
 
         {NULL, NULL},
     };

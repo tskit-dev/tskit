@@ -931,7 +931,7 @@ class TopologyTestCase(unittest.TestCase):
         `(tree number, parent, number of samples)`.
         """
         k = 0
-        tss = ts.trees(sample_counts=True)
+        tss = ts.trees()
         t = next(tss)
         for j, node, nl in x:
             while k < j:
@@ -941,7 +941,7 @@ class TopologyTestCase(unittest.TestCase):
 
     def check_num_tracked_samples(self, ts, tracked_samples, x):
         k = 0
-        tss = ts.trees(sample_counts=True, tracked_samples=tracked_samples)
+        tss = ts.trees(tracked_samples=tracked_samples)
         t = next(tss)
         for j, node, nl in x:
             while k < j:
@@ -4782,22 +4782,6 @@ class TestKSamplesRoot(unittest.TestCase, ExampleTopologyMixin):
                 self.assertEqual(tree1.roots(), tree2.roots)
                 tree2.next()
             self.assertEqual(tree2.index, -1)
-
-
-class TestNoCountSamplesRoots(unittest.TestCase, ExampleTopologyMixin):
-    """
-    If count_samples is turned off, we should always get zero roots.
-    """
-    def verify(self, ts):
-        for tree in ts.trees(sample_counts=False):
-            self.assertEqual(tree.num_roots, 0)
-            self.assertEqual(tree.roots, [])
-            self.assertEqual(tree.left_root, tskit.NULL)
-            self.assertEqual(tree.root, tskit.NULL)
-        for tree in ts.trees(sample_counts=True):
-            self.assertGreater(tree.num_roots, 0)
-            self.assertNotEqual(tree.roots, [])
-            self.assertNotEqual(tree.left_root, tskit.NULL)
 
 
 class TestSquashEdges(unittest.TestCase):

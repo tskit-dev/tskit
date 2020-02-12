@@ -36,17 +36,12 @@ extern "C" {
 
 #include <tskit/tables.h>
 
-/* TODO we need to get rid of this option somehow because the root 
- * computation is now based on computing sample counts. However,
- * we also want to give the option of stripping away this so that 
- * we don't compute anything other than the quintuply linked tree.
- * Perhaps TSK_NO_SAMPLE_COUNTS, and document that this gets rid 
- * of root tracking also?
- */
-/* TODO put this back in before merging, and mark it for removal at 
- * some point. There's no harm in specifying it, since we do this by
- * default now */
-/* #define TSK_SAMPLE_COUNTS           (1 << 0) */
+/* The TSK_SAMPLE_COUNTS was removed in version 0.99.3, where 
+ * the default is now to always count samples except when 
+ * TSK_NO_SAMPLE_COUNTS is specified. This macro can be undefined
+ * at some point in the future and the option reused for something
+ * else. */
+#define TSK_SAMPLE_COUNTS           (1 << 0)
 #define TSK_SAMPLE_LISTS            (1 << 1)
 #define TSK_NO_SAMPLE_COUNTS        (1 << 2)
 

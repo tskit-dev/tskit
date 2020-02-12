@@ -746,15 +746,14 @@ class TestTreeSequence(HighLevelTestCase):
                 for u in t_new.nodes():
                     self.assertEqual(
                         t_new.num_tracked_samples(u), t_old.get_num_tracked_leaves(u))
+            trees_new = ts.trees()
+            trees_old = ts.trees()
+            for t_new, t_old in zip(trees_new, trees_old):
+                for u in t_new.nodes():
+                    self.assertEqual(t_new.num_samples(u), t_old.get_num_leaves(u))
+                    self.assertEqual(
+                        list(t_new.samples(u)), list(t_old.get_leaves(u)))
             for on in [True, False]:
-                # sample/leaf counts
-                trees_new = ts.trees(sample_counts=on)
-                trees_old = ts.trees(leaf_counts=on)
-                for t_new, t_old in zip(trees_new, trees_old):
-                    for u in t_new.nodes():
-                        self.assertEqual(t_new.num_samples(u), t_old.get_num_leaves(u))
-                        self.assertEqual(
-                            list(t_new.samples(u)), list(t_old.get_leaves(u)))
                 trees_new = ts.trees(sample_lists=on)
                 trees_old = ts.trees(leaf_lists=on)
                 for t_new, t_old in zip(trees_new, trees_old):
@@ -804,44 +803,21 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_trees_interface(self):
         ts = list(get_example_tree_sequences())[0]
-        # The defaults should make sense and count samples.
-        # get_num_tracked_samples
         for t in ts.trees():
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 0)
             self.assertEqual(list(t.samples(0)), [0])
             self.assertIs(t.tree_sequence, ts)
 
-        for t in ts.trees(sample_counts=False):
-            self.assertEqual(t.get_num_samples(0), 1)
-            self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
-            self.assertEqual(list(t.samples(0)), [0])
-            self.assertEqual(t.left_root, tskit.NULL)
-
-        for t in ts.trees(sample_counts=True):
-            self.assertEqual(t.get_num_samples(0), 1)
-            self.assertEqual(t.get_num_tracked_samples(0), 0)
-            self.assertEqual(list(t.samples(0)), [0])
-            self.assertNotEqual(t.left_root, tskit.NULL)
-
-        for t in ts.trees(sample_counts=True, tracked_samples=[0]):
+        for t in ts.trees(tracked_samples=[0]):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 1)
             self.assertEqual(list(t.samples(0)), [0])
 
-        for t in ts.trees(sample_lists=True, sample_counts=True):
+        for t in ts.trees(sample_lists=True):
             self.assertEqual(t.get_num_samples(0), 1)
             self.assertEqual(t.get_num_tracked_samples(0), 0)
             self.assertEqual(list(t.samples(0)), [0])
-
-        for t in ts.trees(sample_lists=True, sample_counts=False):
-            self.assertEqual(t.get_num_samples(0), 1)
-            self.assertRaises(RuntimeError, t.get_num_tracked_samples, 0)
-            self.assertEqual(list(t.samples(0)), [0])
-            self.assertEqual(t.left_root, tskit.NULL)
-
-        self.assertRaises(
-            ValueError, ts.trees, sample_counts=False, tracked_samples=[0])
 
     def test_get_pairwise_diversity(self):
         for ts in get_example_tree_sequences():
@@ -2180,6 +2156,18 @@ class TestTree(HighLevelTestCase):
                 tree.map_mutations(genotypes, alleles)
         tree.map_mutations([0] * 5, alleles)
         tree.map_mutations(np.zeros(5, dtype=int), alleles)
+
+    def test_sample_count_deprecated(self):
+        ts = msprime.simulate(5, random_seed=42)
+        with warnings.catch_warnings(record=True) as w:
+            ts.trees(sample_counts=True)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[0].category, RuntimeWarning))
+
+        with warnings.catch_warnings(record=True) as w:
+            tskit.Tree(ts, sample_counts=False)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[0].category, RuntimeWarning))
 
 
 class TestNodeOrdering(HighLevelTestCase):

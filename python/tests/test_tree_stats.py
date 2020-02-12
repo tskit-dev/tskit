@@ -2752,7 +2752,7 @@ def naive_branch_allele_frequency_spectrum(
         for set_index, sample_set in enumerate(sample_sets):
             S = np.zeros(out_dim)
             trees = [
-                next(ts.trees(tracked_samples=sample_set, sample_counts=True))
+                next(ts.trees(tracked_samples=sample_set))
                 for sample_set in sample_sets]
             t = trees[0]
             while True:

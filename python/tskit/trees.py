@@ -445,18 +445,13 @@ class Tree(object):
     on how efficiently access trees sequentially or obtain a list
     of individual trees in a tree sequence.
 
-    The ``sample_counts`` and ``sample_lists`` parameters control the
-    features that are enabled for this tree. If ``sample_counts``
-    is True, then it is possible to count the number of samples underneath
-    a particular node in constant time using the :meth:`num_samples`
-    method. If ``sample_lists`` is True a more efficient algorithm is
+    The ``sample_lists`` parameter controls the features that are enabled
+    for this tree. If ``sample_lists`` is True a more efficient algorithm is
     used in the :meth:`Tree.samples` method.
 
     The ``tracked_samples`` parameter can be used to efficiently count the
     number of samples in a given set that exist in a particular subtree
-    using the :meth:`Tree.num_tracked_samples` method. It is an
-    error to use the ``tracked_samples`` parameter when the ``sample_counts``
-    flag is False.
+    using the :meth:`Tree.num_tracked_samples` method.
 
     The :class:`Tree` class is a state-machine which has a state
     corresponding to each of the trees in the parent tree sequence. We
@@ -477,9 +472,7 @@ class Tree(object):
     :param TreeSequence tree_sequence: The parent tree sequence.
     :param list tracked_samples: The list of samples to be tracked and
         counted using the :meth:`Tree.num_tracked_samples` method.
-    :param bool sample_counts: If True, support constant time sample counts
-        via the :meth:`Tree.num_samples` and
-        :meth:`Tree.num_tracked_samples` methods.
+    :param bool sample_counts: Deprecated since 0.2.4.
     :param bool sample_lists: If True, provide more efficient access
         to the samples beneath a give node using the
         :meth:`Tree.samples` method.
@@ -492,13 +485,13 @@ class Tree(object):
     """
     def __init__(
             self, tree_sequence,
-            tracked_samples=None, sample_counts=True, sample_lists=False,
+            tracked_samples=None, sample_counts=None, sample_lists=False,
             root_threshold=1):
         options = 0
-        if not sample_counts:
-            options |= _tskit.NO_SAMPLE_COUNTS
-            if tracked_samples is not None:
-                raise ValueError("Cannot set tracked_samples without sample_counts")
+        if sample_counts is not None:
+            warnings.warn(
+                "The sample_counts option is not supported since 0.2.4 "
+                "and is ignored", RuntimeWarning)
         if sample_lists:
             options |= _tskit.SAMPLE_LISTS
         kwargs = {"options": options}
@@ -1413,9 +1406,7 @@ class Tree(object):
         node (including the node itself). If u is not specified return
         the total number of samples in the tree.
 
-        If the :meth:`TreeSequence.trees` method is called with
-        ``sample_counts=True`` this method is a constant time operation. If not,
-        a slower traversal based algorithm is used to count the samples.
+        This is a constant time operation.
 
         :param int u: The node of interest.
         :return: The number of samples in the subtree rooted at u.
@@ -1449,16 +1440,10 @@ class Tree(object):
         :return: The number of samples within the set of tracked samples in
             the subtree rooted at u.
         :rtype: int
-        :raises RuntimeError: if the :meth:`TreeSequence.trees`
-            method is not called with ``sample_counts=True``.
         """
         roots = [u]
         if u is None:
             roots = self.roots
-        if (self._ll_tree.get_options() & _tskit.NO_SAMPLE_COUNTS) != 0:
-            raise RuntimeError(
-                "The get_num_tracked_samples method is only supported "
-                "when sample_counts=True.")
         return sum(self._ll_tree.get_num_tracked_samples(root) for root in roots)
 
     def _preorder_traversal(self, u):
@@ -2894,7 +2879,7 @@ class TreeSequence(object):
         return tree
 
     def trees(
-            self, tracked_samples=None, sample_counts=True, sample_lists=False,
+            self, tracked_samples=None, sample_counts=None, sample_lists=False,
             tracked_leaves=None, leaf_counts=None, leaf_lists=None):
         """
         Returns an iterator over the trees in this tree sequence. Each value
@@ -2902,16 +2887,9 @@ class TreeSequence(object):
         successful termination of the iterator, the tree will be in the
         "cleared" null state.
 
-        The ``sample_counts``, ``sample_lists`` and ``tracked_samples``
-        parameters are passed to the :class:`Tree` constructor, and control
+        The ``sample_lists`` and ``tracked_samples`` parameters are passed
+        to the :class:`Tree` constructor, and control
         the options that are set in the returned tree instance.
-
-        :warning: Since version 0.3.0, if ``sample_counts`` is set to False the
-            roots of the returned trees are **not** tracked. Therefore, the list
-            returned by :meth:`Tree.roots` will always be empty and
-            :data:`Tree.root` will return :data:`tskit.NULL` (-1). It is
-            particularly important to note that the :meth:`Tree.nodes` method
-            will not return any nodes.
 
         :warning: Do not store the results of this iterator in a list!
            For performance reasons, the same underlying object is used
@@ -2921,9 +2899,7 @@ class TreeSequence(object):
 
         :param list tracked_samples: The list of samples to be tracked and
             counted using the :meth:`Tree.num_tracked_samples` method.
-        :param bool sample_counts: If True, support root tracking and
-            constant time sample counts via the :meth:`Tree.num_samples` and
-            :meth:`Tree.num_tracked_samples` methods.
+        :param bool sample_counts: Deprecated since 0.2.4.
         :param bool sample_lists: If True, provide more efficient access
             to the samples beneath a give node using the
             :meth:`Tree.samples` method.
