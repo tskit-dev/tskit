@@ -19,10 +19,25 @@ In development.
 - Change the ``tsk_vargen_init`` method to take an extra parameter ``alleles``.
   To keep the current behaviour, set this parameter to NULL.
 
+
 **New features**
 
 - Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`
   and :pr:`143`.
+
+- Add a ``set_root_threshold`` option to tsk_tree_t which allows us to set the
+  number of samples a node must be an ancestor of to be considered a root
+  (:pr:`462`).
+
+- Change the semantics of tsk_tree_t so that sample counts are always
+  computed, and add a new ``TSK_NO_SAMPLE_COUNTS`` option to turn this
+  off (:pr:`462`).
+
+
+**Deprecated**
+
+- The ``TSK_SAMPLE_COUNTS`` options is now ignored and  will print out a warning
+  if used (:pr:`462`).
 
 ---------------------
 [0.99.2] - 2019-03-27

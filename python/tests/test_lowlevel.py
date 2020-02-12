@@ -1863,4 +1863,4 @@ class TestModuleFunctions(unittest.TestCase):
 
     def test_tskit_version(self):
         version = _tskit.get_tskit_version()
-        self.assertEqual(version, (0, 99, 2))
+        self.assertEqual(version, (0, 99, 3))

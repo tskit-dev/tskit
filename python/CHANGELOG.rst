@@ -19,7 +19,17 @@ In development
 - User specified allele mapping for genotypes in ``variants`` and
   ``genotype_matrix`` (:user:`jeromekelleher`, :pr:`430`).
 
+- New ``root_threshold`` option for the Tree class, which allows
+  us to efficiently iterate over 'real' roots when we have
+  missing data (:user:`jeromekelleher`, :pr:`462`).
+
 **Bugfixes**
+
+**Deprecated**
+
+- The ``sample_counts`` feature has been deprecated and is now
+  ignored. Sample counts are now always computed.
+
 
 --------------------
 [0.2.3] - 2019-11-22
