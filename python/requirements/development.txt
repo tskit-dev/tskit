@@ -1,6 +1,7 @@
 codecov
 coverage
 flake8
+black
 h5py
 newick
 nose

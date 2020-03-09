@@ -47,7 +47,7 @@ def get_provenance(
     """
     document = {
         "schema_version": schema_version,
-        "software": {"name": software_name, "version": software_version,},
+        "software": {"name": software_name, "version": software_version},
         "environment": {} if environment is None else environment,
         "parameters": {} if parameters is None else parameters,
     }
@@ -105,7 +105,7 @@ class TestSchema(unittest.TestCase):
     def test_minimal(self):
         minimal = {
             "schema_version": "1",
-            "software": {"name": "x", "version": "y",},
+            "software": {"name": "x", "version": "y"},
             "environment": {},
             "parameters": {},
         }
@@ -115,7 +115,7 @@ class TestSchema(unittest.TestCase):
         extra = {
             "you": "can",
             "schema_version": "1",
-            "software": {"put": "anything", "name": "x", "version": "y",},
+            "software": {"put": "anything", "name": "x", "version": "y"},
             "environment": {"extra": ["you", "want"]},
             "parameters": {"so": ["long", "its", "JSON", 0]},
         }
