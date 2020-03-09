@@ -1899,7 +1899,7 @@ class TestTree(LowLevelTestCase):
 
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
-        t1 = _tskit.Tree(ts1)
+        t1 = _tskit.Tree(ts1, options=_tskit.SAMPLE_LISTS)
         t1.first()
         self.assertRaises(TypeError, t1.get_kc_distance)
         self.assertRaises(TypeError, t1.get_kc_distance, t1)
@@ -1908,7 +1908,7 @@ class TestTree(LowLevelTestCase):
         for bad_value in ["tree", [], None]:
             self.assertRaises(TypeError, t1.get_kc_distance, t1, lambda_=bad_value)
 
-        t2 = _tskit.Tree(ts1)
+        t2 = _tskit.Tree(ts1, options=_tskit.SAMPLE_LISTS)
         # If we don't seek to a specific tree, it has multiple roots (i.e., it's
         # in the null state). This fails because we don't accept multiple roots.
         with self.assertRaises(_tskit.LibraryError):
@@ -1916,10 +1916,15 @@ class TestTree(LowLevelTestCase):
 
         # Different numbers of samples fail.
         ts2 = self.get_example_tree_sequence(11)
+        t2 = _tskit.Tree(ts2, options=_tskit.SAMPLE_LISTS)
+        t2.first()
+        self.verify_kc_library_error(t1, t2)
+
+        # Error when tree not initialized with sample lists
+        ts2 = self.get_example_tree_sequence(10)
         t2 = _tskit.Tree(ts2)
         t2.first()
-        with self.assertRaises(_tskit.LibraryError):
-            t1.get_kc_distance(t2, 0)
+        self.verify_kc_library_error(t1, t2)
 
         # Internal samples cause errors.
         tables = _tskit.TableCollection(1.0)
@@ -1928,17 +1933,20 @@ class TestTree(LowLevelTestCase):
         tables.edges.add_row(0, 1, 1, 0)
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
-        t1 = _tskit.Tree(ts)
+        t1 = _tskit.Tree(ts, options=_tskit.SAMPLE_LISTS)
         t1.first()
+        self.verify_kc_library_error(t1, t1)
+
+    def verify_kc_library_error(self, t1, t2):
         with self.assertRaises(_tskit.LibraryError):
-            t1.get_kc_distance(t1, 0)
+            t1.get_kc_distance(t2, 0)
 
     def test_kc_distance(self):
         ts1 = self.get_example_tree_sequence(10, random_seed=123456)
-        t1 = _tskit.Tree(ts1)
+        t1 = _tskit.Tree(ts1, options=_tskit.SAMPLE_LISTS)
         t1.first()
         ts2 = self.get_example_tree_sequence(10, random_seed=1234)
-        t2 = _tskit.Tree(ts2)
+        t2 = _tskit.Tree(ts2, options=_tskit.SAMPLE_LISTS)
         t2.first()
         for lambda_ in [-1, 0, 1, 1000, -1e300]:
             x1 = t1.get_kc_distance(t2, lambda_)

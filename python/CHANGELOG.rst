@@ -6,6 +6,10 @@ In development
 
 **New features**
 
+- Improve Kendall-Colijn tree distance algorithm to operate in O(n^2) time
+  instead of O(n^2 * log(n)) where n is the number of samples
+  (:user:`daniel-goldstein`, :pr:`490`)
+
 - Add a metadata column to the migrations table. Works similarly to existing
   metadata columns on other tables(:user:`benjeffery`, :pr:`505`).
 
