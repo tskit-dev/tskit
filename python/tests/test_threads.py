@@ -39,8 +39,8 @@ IS_WINDOWS = platform.system() == "Windows"
 def run_threads(worker, num_threads):
     results = [None for _ in range(num_threads)]
     threads = [
-        threading.Thread(target=worker, args=(j, results))
-        for j in range(num_threads)]
+        threading.Thread(target=worker, args=(j, results)) for j in range(num_threads)
+    ]
     for t in threads:
         t.start()
     for t in threads:
@@ -53,10 +53,13 @@ class TestLdCalculatorReplicates(unittest.TestCase):
     Tests the LdCalculator object to ensure we get correct results
     when using threads.
     """
+
     num_test_sites = 25
 
     def get_tree_sequence(self):
-        ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10, random_seed=8)
+        ts = msprime.simulate(
+            20, mutation_rate=10, recombination_rate=10, random_seed=8
+        )
         return tsutil.subsample_sites(ts, self.num_test_sites)
 
     def test_get_r2_multiple_instances(self):
@@ -109,12 +112,11 @@ class TestLdCalculatorReplicates(unittest.TestCase):
 
         def worker(thread_index, results):
             ld_calc = tskit.LdCalculator(ts)
-            results[thread_index] = np.array(
-                ld_calc.get_r2_array(thread_index))
+            results[thread_index] = np.array(ld_calc.get_r2_array(thread_index))
 
         results = run_threads(worker, m)
         for j in range(m):
-            self.assertTrue(np.allclose(results[j], A[j, j + 1:]))
+            self.assertTrue(np.allclose(results[j], A[j, j + 1 :]))
 
     def test_get_r2_array_single_instance(self):
         # This is the degenerate case where we have a single LdCalculator
@@ -144,10 +146,12 @@ class TestTables(unittest.TestCase):
     Tests to ensure that attempts to access tables in threads correctly
     raise an exception.
     """
+
     def get_tables(self):
         # TODO include migrations here.
         ts = msprime.simulate(
-            100, mutation_rate=10, recombination_rate=10, random_seed=8)
+            100, mutation_rate=10, recombination_rate=10, random_seed=8
+        )
         return ts.tables
 
     def run_multiple_writers(self, writer, num_writers=32):

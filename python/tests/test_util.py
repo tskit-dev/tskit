@@ -36,6 +36,7 @@ class TestNumpyArrayCasting(unittest.TestCase):
     """
     Tests that the safe_np_int_cast() function works.
     """
+
     dtypes_to_test = [np.int32, np.uint32, np.int8, np.uint8]
 
     def test_basic_arrays(self):
@@ -80,33 +81,44 @@ class TestNumpyArrayCasting(unittest.TestCase):
     def test_bad_types(self):
         # Shouldn't be able to convert a float (possibility of rounding error)
         for dtype in self.dtypes_to_test:
-            for bad_type in [[0.1], ['str'], {}, [{}], np.array([0, 1], dtype=np.float)]:
+            for bad_type in [
+                [0.1],
+                ["str"],
+                {},
+                [{}],
+                np.array([0, 1], dtype=np.float),
+            ]:
                 self.assertRaises(TypeError, util.safe_np_int_cast, bad_type, dtype)
 
     def test_overflow(self):
         for dtype in self.dtypes_to_test:
             for bad_node in [np.iinfo(dtype).min - 1, np.iinfo(dtype).max + 1]:
                 self.assertRaises(  # Test plain array
-                    OverflowError, util.safe_np_int_cast, [0, bad_node], dtype)
+                    OverflowError, util.safe_np_int_cast, [0, bad_node], dtype
+                )
                 self.assertRaises(  # Test numpy array
-                    OverflowError, util.safe_np_int_cast, np.array([0, bad_node]), dtype)
+                    OverflowError, util.safe_np_int_cast, np.array([0, bad_node]), dtype
+                )
             for good_node in [np.iinfo(dtype).min, np.iinfo(dtype).max]:
                 target = np.array([good_node], dtype=dtype)
                 self.assertEqual(  # Test plain array
                     pickle.dumps(target),
-                    pickle.dumps(util.safe_np_int_cast([good_node], dtype)))
+                    pickle.dumps(util.safe_np_int_cast([good_node], dtype)),
+                )
                 self.assertEqual(  # Test numpy array
                     pickle.dumps(target),
-                    pickle.dumps(util.safe_np_int_cast(np.array([good_node]), dtype)))
+                    pickle.dumps(util.safe_np_int_cast(np.array([good_node]), dtype)),
+                )
 
     def test_nonrectangular_input(self):
         bad_inputs = [
-                [0, 1, [2]],
-                [[0, 1, 2], []],
-                [(0, 1, 2), [2, 3]],
-                [(0, 1, 2), tuple()],
-                [(0, 1, 2), (2, )],
-                [(0, 1, 2), [2, 3]]]
+            [0, 1, [2]],
+            [[0, 1, 2], []],
+            [(0, 1, 2), [2, 3]],
+            [(0, 1, 2), tuple()],
+            [(0, 1, 2), (2,)],
+            [(0, 1, 2), [2, 3]],
+        ]
         for dtype in self.dtypes_to_test:
             for bad_input in bad_inputs:
                 with self.assertRaises(TypeError):
@@ -117,6 +129,7 @@ class TestIntervalOps(unittest.TestCase):
     """
     Test cases for the interval operations used in masks and slicing operations.
     """
+
     def test_bad_intervals(self):
         for bad_type in [{}, Exception]:
             with self.assertRaises(TypeError):
@@ -156,14 +169,10 @@ class TestIntervalOps(unittest.TestCase):
             ([[0, 5], [6, L]], [[5, 6]]),
             ([[0, 5]], [[5, L]]),
             ([[5, L]], [[0, 5]]),
-            (
-                [[0, 1], [2, 3], [3, 4], [5, 6]],
-                [[1, 2], [4, 5], [6, L]]
-            ),
+            ([[0, 1], [2, 3], [3, 4], [5, 6]], [[1, 2], [4, 5], [6, L]]),
         ]
         for source, dest in cases:
-            self.assertTrue(np.array_equal(
-                util.negate_intervals(source, 0, L), dest))
+            self.assertTrue(np.array_equal(util.negate_intervals(source, 0, L), dest))
 
 
 class TestStringPacking(unittest.TestCase):
@@ -198,7 +207,7 @@ class TestStringPacking(unittest.TestCase):
             self.verify_packing(strings)
 
     def test_unicode(self):
-        self.verify_packing(['abcdé', '€'])
+        self.verify_packing(["abcdé", "€"])
 
 
 class TestBytePacking(unittest.TestCase):

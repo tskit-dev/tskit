@@ -73,6 +73,7 @@ class TestCli(unittest.TestCase):
     """
     Superclass of tests for the CLI needing temp files.
     """
+
     def setUp(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="tsk_cli_testcase_")
         os.close(fd)
@@ -106,8 +107,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "individuals"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--precision", "5"])
+        args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.precision, 5)
 
@@ -131,8 +131,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--precision", "5"])
+        args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.precision, 5)
 
@@ -156,8 +155,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "edges"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--precision", "5"])
+        args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.precision, 5)
 
@@ -181,8 +179,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "sites"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--precision", "5"])
+        args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.precision, 5)
 
@@ -248,8 +245,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "-w", "100"])
+        args = parser.parse_args([cmd, tree_sequence, "-w", "100"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.wrap, 100)
 
@@ -258,8 +254,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--wrap", "50"])
+        args = parser.parse_args([cmd, tree_sequence, "--wrap", "50"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.wrap, 50)
 
@@ -275,8 +270,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "-P", "2"])
+        args = parser.parse_args([cmd, tree_sequence, "-P", "2"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.ploidy, 2)
 
@@ -284,8 +278,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--ploidy", "5"])
+        args = parser.parse_args([cmd, tree_sequence, "--ploidy", "5"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.ploidy, 5)
 
@@ -335,8 +328,7 @@ class TestTskitArgumentParser(unittest.TestCase):
         parser = cli.get_tskit_parser()
         cmd = "trees"
         tree_sequence = "test.trees"
-        args = parser.parse_args([
-            cmd, tree_sequence, "--precision", "5", "--draw"])
+        args = parser.parse_args([cmd, tree_sequence, "--precision", "5", "--draw"])
         self.assertEqual(args.tree_sequence, tree_sequence)
         self.assertEqual(args.precision, 5)
         self.assertEqual(args.draw, True)
@@ -346,17 +338,25 @@ class TestTskitConversionOutput(unittest.TestCase):
     """
     Tests the output of msp to ensure it's correct.
     """
+
     @classmethod
     def setUpClass(cls):
         ts = msprime.simulate(
-            length=1, recombination_rate=2, mutation_rate=2, random_seed=1,
+            length=1,
+            recombination_rate=2,
+            mutation_rate=2,
+            random_seed=1,
             migration_matrix=[[0, 1], [1, 0]],
             population_configurations=[
-                msprime.PopulationConfiguration(5) for _ in range(2)],
-            record_migrations=True)
+                msprime.PopulationConfiguration(5) for _ in range(2)
+            ],
+            record_migrations=True,
+        )
         assert ts.num_migrations > 0
         cls._tree_sequence = tsutil.insert_random_ploidy_individuals(ts)
-        fd, cls._tree_sequence_file = tempfile.mkstemp(prefix="tsk_cli", suffix=".trees")
+        fd, cls._tree_sequence_file = tempfile.mkstemp(
+            prefix="tsk_cli", suffix=".trees"
+        )
         os.close(fd)
         cls._tree_sequence.dump(cls._tree_sequence_file)
 
@@ -374,8 +374,9 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_individuals(self):
         cmd = "individuals"
         precision = 8
-        stdout, stderr = capture_output(cli.tskit_main, [
-            cmd, self._tree_sequence_file, "-p", str(precision)])
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
+        )
         self.assertEqual(len(stderr), 0)
         output_individuals = stdout.splitlines()
         self.verify_individuals(output_individuals, precision)
@@ -390,8 +391,9 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_nodes(self):
         cmd = "nodes"
         precision = 8
-        stdout, stderr = capture_output(cli.tskit_main, [
-            cmd, self._tree_sequence_file, "-p", str(precision)])
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
+        )
         self.assertEqual(len(stderr), 0)
         output_nodes = stdout.splitlines()
         self.verify_nodes(output_nodes, precision)
@@ -406,8 +408,9 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_edges(self):
         cmd = "edges"
         precision = 8
-        stdout, stderr = capture_output(cli.tskit_main, [
-            cmd, self._tree_sequence_file, "-p", str(precision)])
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
+        )
         self.assertEqual(len(stderr), 0)
         output_edges = stdout.splitlines()
         self.verify_edges(output_edges, precision)
@@ -422,8 +425,9 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_sites(self):
         cmd = "sites"
         precision = 8
-        stdout, stderr = capture_output(cli.tskit_main, [
-            cmd, self._tree_sequence_file, "-p", str(precision)])
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
+        )
         self.assertEqual(len(stderr), 0)
         output_sites = stdout.splitlines()
         self.verify_sites(output_sites, precision)
@@ -438,8 +442,9 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_mutations(self):
         cmd = "mutations"
         precision = 8
-        stdout, stderr = capture_output(cli.tskit_main, [
-            cmd, self._tree_sequence_file, "-p", str(precision)])
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
+        )
         self.assertEqual(len(stderr), 0)
         output_mutations = stdout.splitlines()
         self.verify_mutations(output_mutations, precision)
@@ -461,7 +466,8 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_provenances_human(self):
         cmd = "provenances"
         stdout, stderr = capture_output(
-            cli.tskit_main, [cmd, "-H", self._tree_sequence_file])
+            cli.tskit_main, [cmd, "-H", self._tree_sequence_file]
+        )
         self.assertEqual(len(stderr), 0)
         output_provenances = stdout.splitlines()
         # TODO Check the actual output here.
@@ -531,7 +537,8 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_trees_draw(self):
         cmd = "trees"
         stdout, stderr = capture_output(
-            cli.tskit_main, [cmd, "-d", self._tree_sequence_file])
+            cli.tskit_main, [cmd, "-d", self._tree_sequence_file]
+        )
         self.assertEqual(len(stderr), 0)
         ts = tskit.load(self._tree_sequence_file)
         self.assertGreater(len(stdout.splitlines()), 3 * ts.num_trees)
@@ -541,6 +548,7 @@ class TestBadFile(unittest.TestCase):
     """
     Tests that we deal with IO errors appropriately.
     """
+
     def verify(self, command):
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
@@ -577,6 +585,7 @@ class TestUpgrade(TestCli):
     Tests the results of the upgrade operation to ensure they are
     correct.
     """
+
     def setUp(self):
         fd, self.legacy_file_name = tempfile.mkstemp(prefix="msp_cli", suffix=".trees")
         os.close(fd)
@@ -592,8 +601,9 @@ class TestUpgrade(TestCli):
         for version in [2, 3]:
             tskit.dump_legacy(ts1, self.legacy_file_name, version=version)
             stdout, stderr = capture_output(
-                cli.tskit_main, [
-                    "upgrade", self.legacy_file_name, self.current_file_name])
+                cli.tskit_main,
+                ["upgrade", self.legacy_file_name, self.current_file_name],
+            )
             ts2 = tskit.load(self.current_file_name)
             self.assertEqual(stdout, "")
             self.assertEqual(stderr, "")
@@ -608,11 +618,12 @@ class TestUpgrade(TestCli):
         for version in [2, 3]:
             tskit.dump_legacy(ts, self.legacy_file_name, version=version)
             root = h5py.File(self.legacy_file_name, "r+")
-            root['mutations/position'][:] = 0
+            root["mutations/position"][:] = 0
             root.close()
             stdout, stderr = capture_output(
                 cli.tskit_main,
-                ["upgrade", "-d", self.legacy_file_name, self.current_file_name])
+                ["upgrade", "-d", self.legacy_file_name, self.current_file_name],
+            )
             self.assertEqual(stdout, "")
             tsp = tskit.load(self.current_file_name)
             self.assertEqual(tsp.sample_size, ts.sample_size)
@@ -623,11 +634,12 @@ class TestUpgrade(TestCli):
         for version in [2, 3]:
             tskit.dump_legacy(ts, self.legacy_file_name, version=version)
             root = h5py.File(self.legacy_file_name, "r+")
-            root['mutations/position'][:] = 0
+            root["mutations/position"][:] = 0
             root.close()
             with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
                 with self.assertRaises(TestException):
                     capture_output(
                         cli.tskit_main,
-                        ["upgrade",  self.legacy_file_name, self.current_file_name])
+                        ["upgrade", self.legacy_file_name, self.current_file_name],
+                    )
                 self.assertEqual(mocked_exit.call_count, 1)

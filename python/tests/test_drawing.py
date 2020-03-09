@@ -39,16 +39,22 @@ class TestTreeDraw(unittest.TestCase):
     """
     Tests for the tree drawing functionality.
     """
+
     def get_binary_tree(self):
         ts = msprime.simulate(10, random_seed=1, mutation_rate=1)
         return next(ts.trees())
 
     def get_nonbinary_tree(self):
         demographic_events = [
-            msprime.SimpleBottleneck(time=0.1, population=0, proportion=0.5)]
+            msprime.SimpleBottleneck(time=0.1, population=0, proportion=0.5)
+        ]
         ts = msprime.simulate(
-            10, recombination_rate=5, mutation_rate=10,
-            demographic_events=demographic_events, random_seed=1)
+            10,
+            recombination_rate=5,
+            mutation_rate=10,
+            demographic_events=demographic_events,
+            random_seed=1,
+        )
         for t in ts.trees():
             for u in t.nodes():
                 if len(t.children(u)) > 2:
@@ -84,8 +90,11 @@ class TestTreeDraw(unittest.TestCase):
         edges = tables.edges
         n = len(edges) - len(edges) // 4
         edges.set_columns(
-            left=edges.left[:n], right=edges.right[:n],
-            parent=edges.parent[:n], child=edges.child[:n])
+            left=edges.left[:n],
+            right=edges.right[:n],
+            parent=edges.parent[:n],
+            child=edges.child[:n],
+        )
         ts = tables.tree_sequence()
         for t in ts.trees():
             if t.num_roots > 1:
@@ -104,9 +113,7 @@ class TestTreeDraw(unittest.TestCase):
             tables.mutations.add_row(site_id, node=node, derived_state="1")
         ts = tables.tree_sequence()
         tree = ts.first()
-        assert any(
-            tree.parent(mut.node) == tskit.NULL
-            for mut in tree.mutations())
+        assert any(tree.parent(mut.node) == tskit.NULL for mut in tree.mutations())
         return tree
 
     def get_unary_node_tree(self):
@@ -116,8 +123,11 @@ class TestTreeDraw(unittest.TestCase):
         # Take out all the edges except 1
         n = 1
         edges.set_columns(
-            left=edges.left[:n], right=edges.right[:n],
-            parent=edges.parent[:n], child=edges.child[:n])
+            left=edges.left[:n],
+            right=edges.right[:n],
+            parent=edges.parent[:n],
+            child=edges.child[:n],
+        )
         ts = tables.tree_sequence()
         for t in ts.trees():
             for u in t.nodes():
@@ -135,6 +145,7 @@ class TestFormats(TestTreeDraw):
     """
     Tests that formats are recognised correctly.
     """
+
     def test_svg_variants(self):
         t = self.get_binary_tree()
         for svg in ["svg", "SVG", "sVg"]:
@@ -157,16 +168,20 @@ class TestFormats(TestTreeDraw):
         for fmt in ["ascii", "ASCII", "AScii"]:
             output = t.draw(format=fmt)
             self.assertRaises(
-                xml.etree.ElementTree.ParseError, xml.etree.ElementTree.fromstring,
-                output)
+                xml.etree.ElementTree.ParseError,
+                xml.etree.ElementTree.fromstring,
+                output,
+            )
 
     def test_unicode_variants(self):
         t = self.get_binary_tree()
         for fmt in ["unicode", "UNICODE", "uniCODE"]:
             output = t.draw(format=fmt)
             self.assertRaises(
-                xml.etree.ElementTree.ParseError, xml.etree.ElementTree.fromstring,
-                output)
+                xml.etree.ElementTree.ParseError,
+                xml.etree.ElementTree.fromstring,
+                output,
+            )
 
     def test_bad_formats(self):
         t = self.get_binary_tree()
@@ -178,6 +193,7 @@ class TestDrawText(TestTreeDraw):
     """
     Tests the ASCII tree drawing method.
     """
+
     drawing_format = "ascii"
     example_label = "XXX"
 
@@ -224,7 +240,8 @@ class TestDrawText(TestTreeDraw):
         self.verify_basic_text(text)
 
     def test_even_num_children_tree(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           1
@@ -233,8 +250,10 @@ class TestDrawText(TestTreeDraw):
         4   1           4
         5   1           5
         6   1           7
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       6       0
         0       1       6       1
@@ -242,14 +261,16 @@ class TestDrawText(TestTreeDraw):
         0       1       6       3
         0       1       6       4
         0       1       6       5
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         text = t.draw(format=self.drawing_format)
         self.verify_basic_text(text)
 
     def test_odd_num_children_tree(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           1
@@ -257,15 +278,18 @@ class TestDrawText(TestTreeDraw):
         3   1           1
         4   1           4
         5   1           5
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       5       0
         0       1       5       1
         0       1       5       2
         0       1       5       3
         0       1       5       4
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         text = t.draw(format=self.drawing_format)
@@ -300,23 +324,30 @@ class TestDrawText(TestTreeDraw):
         self.assertRaises(ValueError, t.draw, format=self.drawing_format, width=300)
         self.assertRaises(ValueError, t.draw, format=self.drawing_format, height=300)
         self.assertRaises(
-            ValueError, t.draw, format=self.drawing_format, mutation_labels={})
+            ValueError, t.draw, format=self.drawing_format, mutation_labels={}
+        )
         self.assertRaises(
-            ValueError, t.draw, format=self.drawing_format, mutation_colours={})
+            ValueError, t.draw, format=self.drawing_format, mutation_colours={}
+        )
         self.assertRaises(
-            ValueError, t.draw, format=self.drawing_format, edge_colours={})
+            ValueError, t.draw, format=self.drawing_format, edge_colours={}
+        )
         self.assertRaises(
-            ValueError, t.draw, format=self.drawing_format, node_colours={})
+            ValueError, t.draw, format=self.drawing_format, node_colours={}
+        )
         self.assertRaises(
-            ValueError, t.draw, format=self.drawing_format, max_tree_height=1234)
+            ValueError, t.draw, format=self.drawing_format, max_tree_height=1234
+        )
         self.assertRaises(
-            ValueError, t.draw, format=self.drawing_format, tree_height_scale="time")
+            ValueError, t.draw, format=self.drawing_format, tree_height_scale="time"
+        )
 
 
 class TestDrawUnicode(TestDrawText):
     """
     Tests the Unicode tree drawing method
     """
+
     drawing_format = "unicode"
     example_label = "\u20ac" * 10  # euro symbol
 
@@ -325,6 +356,7 @@ class TestDrawTextErrors(unittest.TestCase):
     """
     Tests for errors occuring in tree drawing code.
     """
+
     def test_bad_orientation(self):
         t = msprime.simulate(5, mutation_rate=0.1, random_seed=2).first()
         for bad_orientation in ["", "leftright", "sdf"]:
@@ -336,6 +368,7 @@ class TestDrawTextExamples(unittest.TestCase):
     """
     Verify that we get the correct rendering for some examples.
     """
+
     def verify_text_rendering(self, drawn, drawn_tree, debug=False):
         if debug:
             print("Drawn:")
@@ -350,17 +383,21 @@ class TestDrawTextExamples(unittest.TestCase):
             self.assertEqual(l1.rstrip(), l2.rstrip())
 
     def test_simple_tree(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           0
         2   1           2
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       2       0
         0       1       2       1
-        """)
+        """
+        )
         tree = (
             # fmt: off
             " 2 \n"
@@ -405,17 +442,21 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
 
     def test_simple_tree_long_label(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           0
         2   1           2
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       2       0
         0       1       2       1
-        """)
+        """
+        )
         tree = (
             # fmt: off
             "ABCDEF\n"
@@ -436,11 +477,13 @@ class TestDrawTextExamples(unittest.TestCase):
             # fmt: on
         )
         drawn = t.draw_text(
-            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right")
+            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right"
+        )
         self.verify_text_rendering(drawn, tree)
 
         drawn = t.draw_text(
-            node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right")
+            node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right"
+        )
         tree = (
             # fmt: off
             "ABCDEF┓ \n"
@@ -458,11 +501,13 @@ class TestDrawTextExamples(unittest.TestCase):
             # fmt: on
         )
         drawn = t.draw_text(
-            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left")
+            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left"
+        )
         self.verify_text_rendering(drawn, tree)
 
     def test_four_leaves(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id      is_sample   population      individual      time    metadata
         0       1       0       -1      0.00000000000000
         1       1       0       -1      0.00000000000000
@@ -471,8 +516,10 @@ class TestDrawTextExamples(unittest.TestCase):
         4       0       0       -1      0.26676079696421
         5       0       0       -1      1.48826948286480
         6       0       0       -1      2.91835007758007
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left            right           parent  child
         0.00000000      1.00000000      4       0
         0.00000000      1.00000000      4       3
@@ -480,7 +527,8 @@ class TestDrawTextExamples(unittest.TestCase):
         0.00000000      1.00000000      5       4
         0.00000000      1.00000000      6       1
         0.00000000      1.00000000      6       5
-        """)
+        """
+        )
         tree = (
             "  6     \n"
             "┏━┻━┓   \n"
@@ -488,7 +536,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "┃ ┏━┻┓  \n"
             "┃ ┃  4  \n"
             "┃ ┃ ┏┻┓ \n"
-            "1 2 0 3 \n")
+            "1 2 0 3 \n"
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = ts.first()
         drawn = t.draw(format="unicode")
@@ -503,7 +552,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "┃ ┗━┳┛ \n"
             "┃   5  \n"
             "┗━┳━┛  \n"
-            "  6    \n")
+            "  6    \n"
+        )
         self.verify_text_rendering(drawn, tree)
 
         tree = (
@@ -513,7 +563,8 @@ class TestDrawTextExamples(unittest.TestCase):
             " ┃ ┃   \n"
             " ┗5┫ ┏0\n"
             "   ┗4┫  \n"
-            "     ┗3\n")
+            "     ┗3\n"
+        )
         self.verify_text_rendering(t.draw_text(orientation="left"), tree)
 
         tree = (
@@ -524,7 +575,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "0.27┊ ┃ ┃  4  ┊\n"
             "    ┊ ┃ ┃ ┏┻┓ ┊\n"
             "0.00┊ 1 2 0 3 ┊\n"
-            "  0.00      1.00\n")
+            "  0.00      1.00\n"
+        )
         self.verify_text_rendering(ts.draw_text(), tree)
 
         tree = (
@@ -534,7 +586,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "| +-++ \n"
             "| |  4 \n"
             "| | +++\n"
-            "1 2 0 3\n")
+            "1 2 0 3\n"
+        )
         drawn = t.draw(format="ascii")
         self.verify_text_rendering(drawn, tree)
 
@@ -545,7 +598,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "┃ ┏━┻┓  \n"
             "┃ ┃  4  \n"
             "┃ ┃ ┏┻┓ \n"
-            "1 2 0 3 \n")
+            "1 2 0 3 \n"
+        )
         labels = {u: str(u) for u in t.nodes()}
         labels[5] = "xxxxxxxxxx"
         drawn = t.draw_text(node_labels=labels)
@@ -558,7 +612,8 @@ class TestDrawTextExamples(unittest.TestCase):
             " ┃          ┃   \n"
             " ┗xxxxxxxxxx┫ ┏0\n"
             "            ┗4┫ \n"
-            "              ┗3\n")
+            "              ┗3\n"
+        )
         drawn = t.draw_text(node_labels=labels, orientation="left")
         self.verify_text_rendering(drawn, tree)
 
@@ -570,24 +625,29 @@ class TestDrawTextExamples(unittest.TestCase):
             "0.27┊ ┃ ┃  4      ┊\n"
             "    ┊ ┃ ┃ ┏┻┓     ┊\n"
             "0.00┊ 1 2 0 3     ┊\n"
-            "  0.00          1.00\n")
+            "  0.00          1.00\n"
+        )
         drawn = ts.draw_text(node_labels=labels)
         self.verify_text_rendering(drawn, tree)
 
     def test_trident_tree(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           0
         2   1           0
         3   1           2
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       3       0
         0       1       3       1
         0       1       3       2
-        """)
+        """
+        )
         tree = (
             # fmt: off
             "  3  \n"
@@ -626,21 +686,25 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
 
     def test_pitchfork_tree(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           0
         2   1           0
         3   1           0
         4   1           2
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       4       0
         0       1       4       1
         0       1       4       2
         0       1       4       3
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         tree = (
@@ -707,17 +771,21 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
 
     def test_stick_tree(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           1
         2   1           2
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       1       0
         0       1       2       1
-        """)
+        """
+        )
         tree = (
             # fmt: off
             "2\n"
@@ -755,19 +823,21 @@ class TestDrawTextExamples(unittest.TestCase):
 
     def test_draw_forky_tree(self):
         tree = (
-           "      14            \n"
-           "  ┏━━━━┻━━━━┓       \n"
-           "  ┃        13       \n"
-           "  ┃   ┏━┳━┳━╋━┳━━┓  \n"
-           "  ┃   ┃ ┃ ┃ ┃ ┃ 12  \n"
-           "  ┃   ┃ ┃ ┃ ┃ ┃ ┏┻┓ \n"
-           " 11   ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
-           "┏━┻┓  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
-           "┃ 10  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
-           "┃ ┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
-           "8 0 3 2 4 5 6 9 1 7 \n")
+            "      14            \n"
+            "  ┏━━━━┻━━━━┓       \n"
+            "  ┃        13       \n"
+            "  ┃   ┏━┳━┳━╋━┳━━┓  \n"
+            "  ┃   ┃ ┃ ┃ ┃ ┃ 12  \n"
+            "  ┃   ┃ ┃ ┃ ┃ ┃ ┏┻┓ \n"
+            " 11   ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+            "┏━┻┓  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+            "┃ 10  ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+            "┃ ┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃ \n"
+            "8 0 3 2 4 5 6 9 1 7 \n"
+        )
 
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
             id      is_sample   population      individual      time    metadata
             0       1       0       -1      0.00000000000000
             1       1       0       -1      0.00000000000000
@@ -784,8 +854,10 @@ class TestDrawTextExamples(unittest.TestCase):
             12      0       0       -1      0.19950200178411
             13      0       0       -1      0.20000000000000
             14      0       0       -1      5.68339203134457
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
             left            right           parent  child
             0.00000000      1.00000000      10      0
             0.00000000      1.00000000      10      3
@@ -801,7 +873,8 @@ class TestDrawTextExamples(unittest.TestCase):
             0.00000000      1.00000000      13      12
             0.00000000      1.00000000      14      11
             0.00000000      1.00000000      14      13
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
@@ -809,33 +882,36 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
         tree = (
-           "        14              \n"
-           "  ┏━━━━━━┻━━━━━━┓       \n"
-           "  ┃            13       \n"
-           "  ┃        ┏━┳━┳┻┳━┳━━┓ \n"
-           "  ┃        ┃ ┃ ┃ ┃ ┃ 12 \n"
-           "  ┃        ┃ ┃ ┃ ┃ ┃ ┏┻┓\n"
-           "x11xxxxxxx ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
-           "┏━┻┓       ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
-           "┃ 10       ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
-           "┃ ┏┻┓      ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
-           "8 0 3      2 4 5 6 9 1 7\n")
+            "        14              \n"
+            "  ┏━━━━━━┻━━━━━━┓       \n"
+            "  ┃            13       \n"
+            "  ┃        ┏━┳━┳┻┳━┳━━┓ \n"
+            "  ┃        ┃ ┃ ┃ ┃ ┃ 12 \n"
+            "  ┃        ┃ ┃ ┃ ┃ ┃ ┏┻┓\n"
+            "x11xxxxxxx ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┏━┻┓       ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┃ 10       ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┃ ┏┻┓      ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "8 0 3      2 4 5 6 9 1 7\n"
+        )
         labels = {u: str(u) for u in t.nodes()}
         labels[11] = "x11xxxxxxx"
         self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
 
     def test_draw_multiroot_forky_tree(self):
         tree = (
-           "     13              \n"
-           "┏━┳━┳━╋━┳━━┓         \n"
-           "┃ ┃ ┃ ┃ ┃ 12         \n"
-           "┃ ┃ ┃ ┃ ┃ ┏┻┓        \n"
-           "┃ ┃ ┃ ┃ ┃ ┃ ┃  11    \n"
-           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┏┻━┓  \n"
-           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ 10  \n"
-           "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ ┏┻┓ \n"
-           "2 4 5 6 9 1 7  8 0 3 \n")
-        nodes = io.StringIO("""\
+            "     13              \n"
+            "┏━┳━┳━╋━┳━━┓         \n"
+            "┃ ┃ ┃ ┃ ┃ 12         \n"
+            "┃ ┃ ┃ ┃ ┃ ┏┻┓        \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃  11    \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┏┻━┓  \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ 10  \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ ┏┻┓ \n"
+            "2 4 5 6 9 1 7  8 0 3 \n"
+        )
+        nodes = io.StringIO(
+            """\
             id      is_sample   population      individual      time    metadata
             0       1       0       -1      0.00000000000000
             1       1       0       -1      0.00000000000000
@@ -852,8 +928,10 @@ class TestDrawTextExamples(unittest.TestCase):
             12      0       0       -1      0.19950200178411
             13      0       0       -1      0.20000000000000
             14      0       0       -1      5.68339203134457
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
             left            right           parent  child
             0.00000000      1.00000000      10      0
             0.00000000      1.00000000      10      3
@@ -867,7 +945,8 @@ class TestDrawTextExamples(unittest.TestCase):
             0.00000000      1.00000000      13      6
             0.00000000      1.00000000      13      9
             0.00000000      1.00000000      13      12
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
@@ -875,7 +954,8 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
     def test_simple_tree_sequence(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
             id      is_sample   population      individual      time    metadata
             0       1       0       -1      0.00000000000000
             1       1       0       -1      0.00000000000000
@@ -887,8 +967,10 @@ class TestDrawTextExamples(unittest.TestCase):
             7       0       0       -1      2.31067154311640
             8       0       0       -1      3.57331354884652
             9       0       0       -1      9.08308317451295
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
             id      left            right           parent  child
             0       0.00000000      1.00000000      4       0
             1       0.00000000      1.00000000      4       1
@@ -904,7 +986,8 @@ class TestDrawTextExamples(unittest.TestCase):
             11      0.91029435      1.00000000      8       5
             12      0.00000000      0.05975243      9       4
             13      0.00000000      0.05975243      9       5
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
 
         ts_drawing = (
@@ -921,7 +1004,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "0.02┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
             "    ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
             "0.00┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
-            "  0.00      0.06      0.79      0.91      0.91      1.00\n")
+            "  0.00      0.06      0.79      0.91      0.91      1.00\n"
+        )
         self.verify_text_rendering(ts.draw_text(), ts_drawing)
 
         ts_drawing = (
@@ -938,7 +1022,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "0.02|  4  | | |  4  | | |  4  | | |  4  | | |  4  | | |\n"
             "    | +++ | | | +++ | | | +++ | | | +++ | | | +++ | | |\n"
             "0.00| 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 |\n"
-            "  0.00      0.06      0.79      0.91      0.91      1.00\n")
+            "  0.00      0.06      0.79      0.91      0.91      1.00\n"
+        )
         self.verify_text_rendering(ts.draw_text(use_ascii=True), ts_drawing)
 
         ts_drawing = (
@@ -955,7 +1040,8 @@ class TestDrawTextExamples(unittest.TestCase):
             "┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
             "┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
             "┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
-            "0.00    0.06      0.79      0.91      0.91      1.00\n")
+            "0.00    0.06      0.79      0.91      0.91      1.00\n"
+        )
         self.verify_text_rendering(ts.draw_text(time_label_format=""), ts_drawing)
 
         ts_drawing = (
@@ -972,12 +1058,15 @@ class TestDrawTextExamples(unittest.TestCase):
             "┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
             "┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
             "┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
-            "┊         ┊         ┊         ┊         ┊         ┊\n")
+            "┊         ┊         ┊         ┊         ┊         ┊\n"
+        )
         self.verify_text_rendering(
-            ts.draw_text(time_label_format="", position_label_format=""), ts_drawing)
+            ts.draw_text(time_label_format="", position_label_format=""), ts_drawing
+        )
 
     def test_max_tree_height(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
             id      is_sample   population      individual      time    metadata
             0       1       0       -1      0.00000000000000
             1       1       0       -1      0.00000000000000
@@ -989,8 +1078,10 @@ class TestDrawTextExamples(unittest.TestCase):
             7       0       0       -1      2.31067154311640
             8       0       0       -1      3.57331354884652
             9       0       0       -1      9.08308317451295
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
             id      left            right           parent  child
             0       0.00000000      1.00000000      4       0
             1       0.00000000      1.00000000      4       1
@@ -1006,33 +1097,36 @@ class TestDrawTextExamples(unittest.TestCase):
             11      0.91029435      1.00000000      8       5
             12      0.00000000      0.05975243      9       4
             13      0.00000000      0.05975243      9       5
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         tree = (
-           "   9   \n"
-           " ┏━┻━┓ \n"
-           " ┃   ┃ \n"
-           " ┃   ┃ \n"
-           " ┃   ┃ \n"
-           " ┃   ┃ \n"
-           " ┃   ┃ \n"
-           " ┃   ┃ \n"
-           " ┃   5 \n"
-           " ┃  ┏┻┓\n"
-           " 4  ┃ ┃\n"
-           "┏┻┓ ┃ ┃\n"
-           "0 1 2 3\n")
+            "   9   \n"
+            " ┏━┻━┓ \n"
+            " ┃   ┃ \n"
+            " ┃   ┃ \n"
+            " ┃   ┃ \n"
+            " ┃   ┃ \n"
+            " ┃   ┃ \n"
+            " ┃   ┃ \n"
+            " ┃   5 \n"
+            " ┃  ┏┻┓\n"
+            " 4  ┃ ┃\n"
+            "┏┻┓ ┃ ┃\n"
+            "0 1 2 3\n"
+        )
         t = ts.first()
         self.verify_text_rendering(t.draw_text(max_tree_height="ts"), tree)
 
         tree = (
-           "   9   \n"
-           " ┏━┻━┓ \n"
-           " ┃   5 \n"
-           " ┃  ┏┻┓\n"
-           " 4  ┃ ┃\n"
-           "┏┻┓ ┃ ┃\n"
-           "0 1 2 3\n")
+            "   9   \n"
+            " ┏━┻━┓ \n"
+            " ┃   5 \n"
+            " ┃  ┏┻┓\n"
+            " 4  ┃ ┃\n"
+            "┏┻┓ ┃ ┃\n"
+            "0 1 2 3\n"
+        )
         t = ts.first()
         self.verify_text_rendering(t.draw_text(max_tree_height="tree"), tree)
         for bad_max_tree_height in [1, "sdfr", ""]:
@@ -1044,6 +1138,7 @@ class TestDrawSvg(TestTreeDraw):
     """
     Tests the SVG tree drawing.
     """
+
     def verify_basic_svg(self, svg, width=200, height=200):
         root = xml.etree.ElementTree.fromstring(svg)
         self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
@@ -1174,7 +1269,7 @@ class TestDrawSvg(TestTreeDraw):
         svg = t.draw(format="svg", node_colours=colours)
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
-        svg = t.draw_svg(node_attrs={0: {'fill': colour}})
+        svg = t.draw_svg(node_attrs={0: {"fill": colour}})
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
 
@@ -1186,7 +1281,7 @@ class TestDrawSvg(TestTreeDraw):
         for colour in colours.values():
             self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
 
-        svg = t.draw_svg(node_attrs={u: {'fill': colours[u]} for u in t.nodes()})
+        svg = t.draw_svg(node_attrs={u: {"fill": colours[u]} for u in t.nodes()})
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
         for colour in colours.values():
@@ -1219,13 +1314,13 @@ class TestDrawSvg(TestTreeDraw):
 
     def test_bad_tree_height_scale(self):
         t = self.get_binary_tree()
-        for bad_scale in ["te", "asdf", "", [], b'23']:
+        for bad_scale in ["te", "asdf", "", [], b"23"]:
             with self.assertRaises(ValueError):
                 t.draw_svg(tree_height_scale=bad_scale)
 
     def test_bad_max_tree_height(self):
         t = self.get_binary_tree()
-        for bad_height in ["te", "asdf", "", [], b'23']:
+        for bad_height in ["te", "asdf", "", [], b"23"]:
             with self.assertRaises(ValueError):
                 t.draw_svg(max_tree_height=bad_height)
 
@@ -1310,7 +1405,8 @@ class TestDrawSvg(TestTreeDraw):
         t = self.get_binary_tree()
         colours = {
             mut.id: "rgb({}, {}, {})".format(mut.id, mut.id, mut.id)
-            for mut in t.mutations()}
+            for mut in t.mutations()
+        }
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
@@ -1325,7 +1421,8 @@ class TestDrawSvg(TestTreeDraw):
         self.assertEqual(svg.count('opacity="0"'), 1)
 
     def test_max_tree_height(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time
         0   1           0
         1   1           0
@@ -1333,8 +1430,10 @@ class TestDrawSvg(TestTreeDraw):
         3   0           1
         4   0           2
         5   0           3
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
         0       1       5       2
         0       1       5       3
@@ -1342,7 +1441,8 @@ class TestDrawSvg(TestTreeDraw):
         1       2       4       3
         0       2       3       0
         0       2       3       1
-        """)
+        """
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
 
         svg1 = ts.at_index(0).draw()
@@ -1350,10 +1450,10 @@ class TestDrawSvg(TestTreeDraw):
         # if not scaled to ts, node 3 is at a different height in both trees, because the
         # root is at a different height. We expect a label looking something like
         # <text x="10.0" y="XXXX">3</text> where XXXX is different
-        str_pos = svg1.find('>3<')
-        snippet1 = svg1[svg1.rfind("<", 0, str_pos):str_pos]
-        str_pos = svg2.find('>3<')
-        snippet2 = svg2[svg2.rfind("<", 0, str_pos):str_pos]
+        str_pos = svg1.find(">3<")
+        snippet1 = svg1[svg1.rfind("<", 0, str_pos) : str_pos]
+        str_pos = svg2.find(">3<")
+        snippet2 = svg2[svg2.rfind("<", 0, str_pos) : str_pos]
         self.assertNotEqual(snippet1, snippet2)
 
         svg1 = ts.at_index(0).draw(max_tree_height="ts")
@@ -1362,10 +1462,10 @@ class TestDrawSvg(TestTreeDraw):
         # should be the same
         self.verify_basic_svg(svg1)
         self.verify_basic_svg(svg2)
-        str_pos = svg1.find('>3<')
-        snippet1 = svg1[svg1.rfind("<", 0, str_pos):str_pos]
-        str_pos = svg2.find('>3<')
-        snippet2 = svg2[svg2.rfind("<", 0, str_pos):str_pos]
+        str_pos = svg1.find(">3<")
+        snippet1 = svg1[svg1.rfind("<", 0, str_pos) : str_pos]
+        str_pos = svg2.find(">3<")
+        snippet2 = svg2[svg2.rfind("<", 0, str_pos) : str_pos]
         self.assertEqual(snippet1, snippet2)
 
     def test_draw_simple_ts(self):

@@ -43,6 +43,7 @@ import tests.test_wright_fisher as wf
 _pysam_imported = False
 try:
     import pysam
+
     _pysam_imported = True
 except ImportError:
     pass
@@ -108,8 +109,19 @@ def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
     print("##contig=<ID={},length={}>".format(contig_id, contig_length), file=output)
     print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output)
     print(
-        "#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO",
-        "FORMAT", sep="\t", end="", file=output)
+        "#CHROM",
+        "POS",
+        "ID",
+        "REF",
+        "ALT",
+        "QUAL",
+        "FILTER",
+        "INFO",
+        "FORMAT",
+        sep="\t",
+        end="",
+        file=output,
+    )
     for sample_name in sample_names:
         print("\t", sample_name, sep="", end="", file=output)
     print(file=output)
@@ -117,12 +129,23 @@ def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
         pos = positions[variant.index]
         assert variant.num_alleles == 2
         print(
-            contig_id, pos, ".", variant.alleles[0], variant.alleles[1],
-            ".", "PASS", ".", "GT", sep="\t", end="", file=output)
+            contig_id,
+            pos,
+            ".",
+            variant.alleles[0],
+            variant.alleles[1],
+            ".",
+            "PASS",
+            ".",
+            "GT",
+            sep="\t",
+            end="",
+            file=output,
+        )
         for j in range(n):
             genotype = "|".join(
-                str(g) for g in
-                variant.genotypes[j * ploidy: j * ploidy + ploidy])
+                str(g) for g in variant.genotypes[j * ploidy : j * ploidy + ploidy]
+            )
             print("\t", genotype, end="", sep="", file=output)
         print(file=output)
 
@@ -132,6 +155,7 @@ class TestLegacyOutput(unittest.TestCase):
     Tests if the VCF file produced by the low level code is the
     same as one we generate here.
     """
+
     def verify(self, ts, ploidy=1, contig_id="1"):
         self.assertGreater(ts.num_sites, 0)
         f = io.StringIO()
@@ -142,8 +166,12 @@ class TestLegacyOutput(unittest.TestCase):
         individual_names = ["msp_{}".format(j) for j in range(num_individuals)]
         f = io.StringIO()
         ts.write_vcf(
-            f, ploidy=ploidy, contig_id=contig_id, position_transform="legacy",
-            individual_names=individual_names)
+            f,
+            ploidy=ploidy,
+            contig_id=contig_id,
+            position_transform="legacy",
+            individual_names=individual_names,
+        )
         vcf2 = f.getvalue()
         self.assertEqual(vcf1, vcf2)
 
@@ -168,6 +196,7 @@ class ExamplesMixin(object):
     """
     Mixin defining tests on various example tree sequences.
     """
+
     def test_simple_infinite_sites_random_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
         ts = tsutil.insert_random_ploidy_individuals(ts)
@@ -216,15 +245,21 @@ class ExamplesMixin(object):
     def test_many_trees_sequence_length_infinite_sites(self):
         for L in [0.5, 1.5, 3.3333]:
             ts = msprime.simulate(
-                6, length=L, recombination_rate=2, mutation_rate=1, random_seed=1)
+                6, length=L, recombination_rate=2, mutation_rate=1, random_seed=1
+            )
             self.assertGreater(ts.num_sites, 0)
             ts = tsutil.insert_individuals(ts, ploidy=2)
             self.verify(ts)
 
     def test_wright_fisher_unsimplified(self):
         tables = wf.wf_sim(
-            4, 5, seed=1, deep_history=True, initial_generation_samples=False,
-            num_loci=10)
+            4,
+            5,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=10,
+        )
         tables.sort()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
         self.assertGreater(ts.num_sites, 0)
@@ -233,8 +268,8 @@ class ExamplesMixin(object):
 
     def test_wright_fisher_initial_generation(self):
         tables = wf.wf_sim(
-            6, 5, seed=3, deep_history=True, initial_generation_samples=True,
-            num_loci=2)
+            6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
+        )
         tables.sort()
         tables.simplify()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
@@ -244,8 +279,13 @@ class ExamplesMixin(object):
 
     def test_wright_fisher_unsimplified_multiple_roots(self):
         tables = wf.wf_sim(
-            8, 15, seed=1, deep_history=False, initial_generation_samples=False,
-            num_loci=20)
+            8,
+            15,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=20,
+        )
         tables.sort()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.006, random_seed=2)
         self.assertGreater(ts.num_sites, 0)
@@ -254,8 +294,13 @@ class ExamplesMixin(object):
 
     def test_wright_fisher_simplified(self):
         tables = wf.wf_sim(
-            9, 10, seed=1, deep_history=True, initial_generation_samples=False,
-            num_loci=5)
+            9,
+            10,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=5,
+        )
         tables.sort()
         ts = tables.tree_sequence().simplify()
         ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
@@ -268,11 +313,11 @@ class TestParseHeaderPyvcf(unittest.TestCase, ExamplesMixin):
     """
     Test that pyvcf can parse the headers correctly.
     """
+
     def verify(self, ts):
         contig_id = "pyvcf"
         for indivs, num_indivs in example_individuals(ts):
-            with ts_to_pyvcf(ts, contig_id=contig_id,
-                             individuals=indivs) as reader:
+            with ts_to_pyvcf(ts, contig_id=contig_id, individuals=indivs) as reader:
                 self.assertEqual(len(reader.contigs), 1)
                 contig = reader.contigs[contig_id]
                 self.assertEqual(contig.id, contig_id)
@@ -293,11 +338,11 @@ class TestParseHeaderPysam(unittest.TestCase, ExamplesMixin):
     """
     Test that pysam can parse the headers correctly.
     """
+
     def verify(self, ts):
         contig_id = "pysam"
         for indivs, num_indivs in example_individuals(ts):
-            with ts_to_pysam(ts, contig_id=contig_id,
-                             individuals=indivs) as bcf_file:
+            with ts_to_pysam(ts, contig_id=contig_id, individuals=indivs) as bcf_file:
                 self.assertEqual(bcf_file.format, "VCF")
                 self.assertEqual(bcf_file.version, (4, 2))
                 header = bcf_file.header
@@ -324,6 +369,7 @@ class TestRecordsEqual(unittest.TestCase, ExamplesMixin):
     """
     Tests where we parse the input using PyVCF and Pysam
     """
+
     def verify_records(self, pyvcf_records, pysam_records):
         self.assertEqual(len(pyvcf_records), len(pysam_records))
         for pyvcf_record, pysam_record in zip(pyvcf_records, pysam_records):
@@ -345,8 +391,9 @@ class TestRecordsEqual(unittest.TestCase, ExamplesMixin):
 
     def verify(self, ts):
         for indivs, num_indivs in example_individuals(ts):
-            with ts_to_pysam(ts, individuals=indivs) as bcf_file, \
-                    ts_to_pyvcf(ts, individuals=indivs) as vcf_reader:
+            with ts_to_pysam(ts, individuals=indivs) as bcf_file, ts_to_pyvcf(
+                ts, individuals=indivs
+            ) as vcf_reader:
                 pyvcf_records = list(vcf_reader)
                 pysam_records = list(bcf_file)
                 self.verify_records(pyvcf_records, pysam_records)
@@ -356,6 +403,7 @@ class TestContigLengths(unittest.TestCase):
     """
     Tests that we create sensible contig lengths under a variety of conditions.
     """
+
     def get_contig_length(self, ts):
         with ts_to_pyvcf(ts) as reader:
             contig = reader.contigs["1"]
@@ -387,6 +435,7 @@ class TestInterface(unittest.TestCase):
     """
     Tests for the interface.
     """
+
     def test_bad_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
         for bad_ploidy in [-1, 0, 20]:
@@ -424,6 +473,7 @@ class TestRoundTripIndividuals(unittest.TestCase, ExamplesMixin):
     """
     Tests that we can round-trip genotype data through VCF using pyvcf.
     """
+
     def verify(self, ts):
         for indivs, num_indivs in example_individuals(ts):
             with ts_to_pyvcf(ts, individuals=indivs) as vcf_reader:
@@ -433,20 +483,23 @@ class TestRoundTripIndividuals(unittest.TestCase, ExamplesMixin):
                 for ind in map(ts.individual, indivs):
                     samples.extend(ind.nodes)
                 for variant, vcf_row in itertools.zip_longest(
-                        ts.variants(samples=samples), vcf_reader):
+                    ts.variants(samples=samples), vcf_reader
+                ):
                     self.assertEqual(vcf_row.POS, np.round(variant.site.position))
                     self.assertEqual(variant.alleles[0], vcf_row.REF)
                     self.assertEqual(list(variant.alleles[1:]), vcf_row.ALT)
                     j = 0
                     for individual, sample in itertools.zip_longest(
-                            map(ts.individual, indivs), vcf_row.samples):
+                        map(ts.individual, indivs), vcf_row.samples
+                    ):
                         calls = sample.data.GT.split("|")
                         allele_calls = sample.gt_bases.split("|")
                         self.assertEqual(len(calls), len(individual.nodes))
                         for allele_call, call in zip(allele_calls, calls):
                             self.assertEqual(int(call), variant.genotypes[j])
                             self.assertEqual(
-                                allele_call, variant.alleles[variant.genotypes[j]])
+                                allele_call, variant.alleles[variant.genotypes[j]]
+                            )
                             j += 1
 
 
@@ -454,6 +507,7 @@ class TestLimitations(unittest.TestCase):
     """
     Verify the correct error behaviour in cases we don't support.
     """
+
     def test_many_alleles(self):
         ts = msprime.simulate(20, random_seed=45)
         tables = ts.dump_tables()
@@ -482,6 +536,7 @@ class TestPositionTransformRoundTrip(unittest.TestCase, ExamplesMixin):
     """
     Tests that the position transform method is working correctly.
     """
+
     def verify(self, ts):
         for transform in [np.round, np.ceil, lambda x: list(map(int, x))]:
             with ts_to_pyvcf(ts, position_transform=transform) as vcf_reader:
@@ -493,6 +548,7 @@ class TestPositionTransformErrors(unittest.TestCase):
     """
     Tests what happens when we provide bad position transforms
     """
+
     def get_example_ts(self):
         ts = msprime.simulate(11, mutation_rate=1, random_seed=11)
         self.assertGreater(ts.num_sites, 1)
@@ -515,6 +571,7 @@ class TestIndividualNames(unittest.TestCase):
     """
     Tests for the individual names argument.
     """
+
     def test_bad_length_individuals(self):
         ts = msprime.simulate(6, mutation_rate=2, random_seed=1)
         self.assertGreater(ts.num_sites, 0)
@@ -525,14 +582,16 @@ class TestIndividualNames(unittest.TestCase):
             ts.write_vcf(io.StringIO(), individual_names=["x" for _ in range(4)])
         with self.assertRaises(ValueError):
             ts.write_vcf(
-                    io.StringIO(),
-                    individuals=list(range(ts.num_individuals)),
-                    individual_names=["x" for _ in range(ts.num_individuals - 1)])
+                io.StringIO(),
+                individuals=list(range(ts.num_individuals)),
+                individual_names=["x" for _ in range(ts.num_individuals - 1)],
+            )
         with self.assertRaises(ValueError):
             ts.write_vcf(
-                    io.StringIO(),
-                    individuals=list(range(ts.num_individuals - 1)),
-                    individual_names=["x" for _ in range(ts.num_individuals)])
+                io.StringIO(),
+                individuals=list(range(ts.num_individuals - 1)),
+                individual_names=["x" for _ in range(ts.num_individuals)],
+            )
 
     def test_bad_length_ploidy(self):
         ts = msprime.simulate(6, mutation_rate=2, random_seed=1)
@@ -541,7 +600,8 @@ class TestIndividualNames(unittest.TestCase):
             ts.write_vcf(io.StringIO(), ploidy=2, individual_names=[])
         with self.assertRaises(ValueError):
             ts.write_vcf(
-                io.StringIO(), ploidy=2, individual_names=["x" for _ in range(4)])
+                io.StringIO(), ploidy=2, individual_names=["x" for _ in range(4)]
+            )
 
     def test_bad_type(self):
         ts = msprime.simulate(2, mutation_rate=2, random_seed=1)

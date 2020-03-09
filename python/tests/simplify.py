@@ -73,6 +73,7 @@ class Segment(object):
 
     The node it records is the *output* node ID.
     """
+
     def __init__(self, left=None, right=None, node=None, next=None):
         self.left = left
         self.right = right
@@ -81,7 +82,8 @@ class Segment(object):
 
     def __str__(self):
         s = "({}-{}->{}:next={})".format(
-            self.left, self.right, self.node, repr(self.next))
+            self.left, self.right, self.node, repr(self.next)
+        )
         return s
 
     def __repr__(self):
@@ -96,9 +98,17 @@ class Simplifier(object):
     Simplifies a tree sequence to its minimal representation given a subset
     of the leaves.
     """
+
     def __init__(
-            self, ts, sample, reduce_to_site_topology=False, filter_sites=True,
-            filter_populations=True, filter_individuals=True, keep_unary=False):
+        self,
+        ts,
+        sample,
+        reduce_to_site_topology=False,
+        filter_sites=True,
+        filter_populations=True,
+        filter_individuals=True,
+        keep_unary=False,
+    ):
         self.ts = ts
         self.n = len(sample)
         self.reduce_to_site_topology = reduce_to_site_topology
@@ -143,8 +153,12 @@ class Simplifier(object):
         if is_sample:
             flags |= tskit.NODE_IS_SAMPLE
         output_id = self.tables.nodes.add_row(
-            flags=flags, time=node.time, population=node.population,
-            metadata=node.metadata, individual=node.individual)
+            flags=flags,
+            time=node.time,
+            population=node.population,
+            metadata=node.metadata,
+            individual=node.individual,
+        )
         self.node_id_map[input_id] = output_id
         return output_id
 
@@ -166,7 +180,9 @@ class Simplifier(object):
         num_edges = 0
         for child in sorted(self.edge_buffer.keys()):
             for edge in self.edge_buffer[child]:
-                self.tables.edges.add_row(edge.left, edge.right, edge.parent, edge.child)
+                self.tables.edges.add_row(
+                    edge.left, edge.right, edge.parent, edge.child
+                )
                 num_edges += 1
         self.edge_buffer.clear()
         return num_edges
@@ -298,7 +314,9 @@ class Simplifier(object):
             x = self.A_head[edge.child]
             while x is not None:
                 if x.right > edge.left and edge.right > x.left:
-                    y = Segment(max(x.left, edge.left), min(x.right, edge.right), x.node)
+                    y = Segment(
+                        max(x.left, edge.left), min(x.right, edge.right), x.node
+                    )
                     S.append(y)
                 x = x.next
         self.merge_labeled_ancestors(S, parent)
@@ -337,10 +355,13 @@ class Simplifier(object):
                             node=self.mutation_node_map[mut.id],
                             parent=mapped_parent,
                             derived_state=mut.derived_state,
-                            metadata=mut.metadata)
+                            metadata=mut.metadata,
+                        )
                 self.tables.sites.add_row(
-                    position=site.position, ancestral_state=site.ancestral_state,
-                    metadata=site.metadata)
+                    position=site.position,
+                    ancestral_state=site.ancestral_state,
+                    metadata=site.metadata,
+                )
 
     def map_mutation_nodes(self):
         for input_node in range(len(self.mutation_map)):
@@ -392,7 +413,8 @@ class Simplifier(object):
             if count > 0:
                 row = input_individuals[input_id]
                 output_id = self.tables.individuals.add_row(
-                    flags=row.flags, location=row.location, metadata=row.metadata)
+                    flags=row.flags, location=row.location, metadata=row.metadata
+                )
                 individual_id_map[input_id] = output_id
 
         # Remap the population ID references for nodes.
@@ -403,7 +425,8 @@ class Simplifier(object):
             metadata=nodes.metadata,
             metadata_offset=nodes.metadata_offset,
             individual=individual_id_map[nodes.individual],
-            population=population_id_map[nodes.population])
+            population=population_id_map[nodes.population],
+        )
 
         # We don't support migrations for now. We'll need to remap these as well.
         assert self.ts.num_migrations == 0
@@ -492,7 +515,9 @@ class AncestorMap(object):
             x = self.A_head[edge.child]
             while x is not None:
                 if x.right > edge.left and edge.right > x.left:
-                    y = Segment(max(x.left, edge.left), min(x.right, edge.right), x.node)
+                    y = Segment(
+                        max(x.left, edge.left), min(x.right, edge.right), x.node
+                    )
                     S.append(y)
                 x = x.next
         self.merge_labeled_ancestors(S, parent)
@@ -619,15 +644,15 @@ class AncestorMap(object):
 if __name__ == "__main__":
     # Simple CLI for running simplifier/ancestor mapping above.
     class_to_implement = sys.argv[1]
-    assert class_to_implement == 'Simplifier' or class_to_implement == 'AncestorMap'
+    assert class_to_implement == "Simplifier" or class_to_implement == "AncestorMap"
     ts = tskit.load(sys.argv[2])
 
-    if class_to_implement == 'Simplifier':
+    if class_to_implement == "Simplifier":
 
         samples = list(map(int, sys.argv[3:]))
 
         # When keep_unary = True
-        print('When keep_unary = True:')
+        print("When keep_unary = True:")
         s = Simplifier(ts, samples, keep_unary=True)
         # s.print_state()
         tss, _ = s.simplify()
@@ -638,7 +663,7 @@ if __name__ == "__main__":
         print(tables.mutations)
 
         # When keep_unary = False
-        print('\nWhen keep_unary = False:')
+        print("\nWhen keep_unary = False:")
         s = Simplifier(ts, samples, keep_unary=False)
         # s.print_state()
         tss, _ = s.simplify()
@@ -648,7 +673,7 @@ if __name__ == "__main__":
         print(tables.sites)
         print(tables.mutations)
 
-    elif class_to_implement == 'AncestorMap':
+    elif class_to_implement == "AncestorMap":
 
         samples = sys.argv[3]
         samples = samples.split(",")

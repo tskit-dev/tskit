@@ -75,9 +75,12 @@ class CommonTestsMixin(object):
     Abstract base class for common table tests. Because of the design of unittest,
     we have to make this a mixin.
     """
+
     def test_max_rows_increment(self):
-        for bad_value in [-1, -2**10]:
-            self.assertRaises(ValueError, self.table_class, max_rows_increment=bad_value)
+        for bad_value in [-1, -(2 ** 10)]:
+            self.assertRaises(
+                ValueError, self.table_class, max_rows_increment=bad_value
+            )
         for v in [1, 100, 256]:
             table = self.table_class(max_rows_increment=v)
             self.assertEqual(table.max_rows_increment, v)
@@ -115,7 +118,7 @@ class CommonTestsMixin(object):
     def test_input_parameters_errors(self):
         self.assertGreater(len(self.input_parameters), 0)
         for param, _ in self.input_parameters:
-            for bad_value in [-1, -2**10]:
+            for bad_value in [-1, -(2 ** 10)]:
                 self.assertRaises(ValueError, self.table_class, **{param: bad_value})
             for bad_type in [None, ValueError, "ser"]:
                 self.assertRaises(TypeError, self.table_class, **{param: bad_type})
@@ -260,13 +263,16 @@ class CommonTestsMixin(object):
             for list_col, offset_col in self.ragged_list_columns:
                 list_data = input_data[list_col.name]
                 self.assertTrue(
-                    np.array_equal(getattr(table, list_col.name), list_data))
+                    np.array_equal(getattr(table, list_col.name), list_data)
+                )
                 list_data += 1
                 self.assertFalse(
-                    np.array_equal(getattr(table, list_col.name), list_data))
+                    np.array_equal(getattr(table, list_col.name), list_data)
+                )
                 setattr(table, list_col.name, list_data)
                 self.assertTrue(
-                    np.array_equal(getattr(table, list_col.name), list_data))
+                    np.array_equal(getattr(table, list_col.name), list_data)
+                )
                 list_value = getattr(table[0], list_col.name)
                 self.assertEqual(len(list_value), 1)
 
@@ -414,17 +420,20 @@ class CommonTestsMixin(object):
             for list_col, offset_col in self.ragged_list_columns:
                 offset = getattr(table, offset_col.name)
                 self.assertEqual(offset.shape, (num_rows + 1,))
-                self.assertTrue(np.array_equal(
-                    input_data[offset_col.name][:num_rows + 1], offset))
+                self.assertTrue(
+                    np.array_equal(input_data[offset_col.name][: num_rows + 1], offset)
+                )
                 list_data = getattr(table, list_col.name)
-                self.assertTrue(np.array_equal(
-                    list_data, input_data[list_col.name][:offset[-1]]))
+                self.assertTrue(
+                    np.array_equal(list_data, input_data[list_col.name][: offset[-1]])
+                )
                 used.add(offset_col.name)
                 used.add(list_col.name)
             for name, data in input_data.items():
                 if name not in used:
-                    self.assertTrue(np.array_equal(
-                        data[:num_rows], getattr(table, name)))
+                    self.assertTrue(
+                        np.array_equal(data[:num_rows], getattr(table, name))
+                    )
 
     def test_truncate_errors(self):
         num_rows = 10
@@ -437,7 +446,7 @@ class CommonTestsMixin(object):
         table.set_columns(**input_data)
         for bad_type in [None, 0.001, {}]:
             self.assertRaises(TypeError, table.truncate, bad_type)
-        for bad_num_rows in [-1, num_rows + 1, 10**6]:
+        for bad_num_rows in [-1, num_rows + 1, 10 ** 6]:
             self.assertRaises(ValueError, table.truncate, bad_num_rows)
 
     def test_append_columns_data(self):
@@ -457,8 +466,9 @@ class CommonTestsMixin(object):
                     if colname in offset_cols:
                         input_array = np.zeros(j * num_rows + 1, dtype=np.uint32)
                         for k in range(j):
-                            input_array[k * num_rows: (k + 1) * num_rows + 1] = (
-                                k * values[-1]) + values
+                            input_array[k * num_rows : (k + 1) * num_rows + 1] = (
+                                k * values[-1]
+                            ) + values
                         self.assertEqual(input_array.shape, output_array.shape)
                     else:
                         input_array = np.hstack([values for _ in range(j)])
@@ -572,7 +582,8 @@ class CommonTestsMixin(object):
                 input_data_copy = dict(input_data)
                 input_data_copy[list_col.name] = value
                 input_data_copy[offset_col.name] = np.arange(
-                    num_rows + 1, dtype=np.uint32)
+                    num_rows + 1, dtype=np.uint32
+                )
                 input_data_copy[offset_col.name][-1] = num_rows + 1
                 t2.set_columns(**input_data_copy)
                 self.assertNotEqual(t1, t2)
@@ -600,7 +611,7 @@ class CommonTestsMixin(object):
                 self.assertRaises(ValueError, t.set_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
                 t.set_columns(**input_data)
-                input_data[offset_col.name][num_rows // 2] = 2**31
+                input_data[offset_col.name][num_rows // 2] = 2 ** 31
                 self.assertRaises(_tskit.LibraryError, t.set_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
 
@@ -612,7 +623,7 @@ class CommonTestsMixin(object):
                 self.assertRaises(ValueError, t.append_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
                 t.append_columns(**input_data)
-                input_data[offset_col.name][num_rows // 2] = 2**31
+                input_data[offset_col.name][num_rows // 2] = 2 ** 31
                 self.assertRaises(_tskit.LibraryError, t.append_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
 
@@ -621,6 +632,7 @@ class MetadataTestsMixin(object):
     """
     Tests for column that have metadata columns.
     """
+
     def test_random_metadata(self):
         for num_rows in [0, 10, 100]:
             input_data = {col.name: col.get_input(num_rows) for col in self.columns}
@@ -635,7 +647,8 @@ class MetadataTestsMixin(object):
             input_data["metadata_offset"] = metadata_offset
             table.set_columns(**input_data)
             unpacked_metadatas = tskit.unpack_bytes(
-                table.metadata, table.metadata_offset)
+                table.metadata, table.metadata_offset
+            )
             self.assertEqual(metadatas, unpacked_metadatas)
 
     def test_optional_metadata(self):
@@ -651,14 +664,16 @@ class MetadataTestsMixin(object):
             table.set_columns(**input_data)
             self.assertEqual(len(list(table.metadata)), 0)
             self.assertEqual(
-                list(table.metadata_offset), [0 for _ in range(num_rows + 1)])
+                list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
+            )
             # Supplying None is the same not providing the column.
             input_data["metadata"] = None
             input_data["metadata_offset"] = None
             table.set_columns(**input_data)
             self.assertEqual(len(list(table.metadata)), 0)
             self.assertEqual(
-                list(table.metadata_offset), [0 for _ in range(num_rows + 1)])
+                list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
+            )
 
     def test_packset_metadata(self):
         for num_rows in [0, 10, 100]:
@@ -680,8 +695,9 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
 
     columns = [UInt32Column("flags")]
     ragged_list_columns = [
-        (DoubleColumn("location"),  UInt32Column("location_offset")),
-        (CharColumn("metadata"),  UInt32Column("metadata_offset"))]
+        (DoubleColumn("location"), UInt32Column("location_offset")),
+        (CharColumn("metadata"), UInt32Column("metadata_offset")),
+    ]
     string_colnames = []
     binary_colnames = ["metadata"]
     input_parameters = [("max_rows_increment", 1024)]
@@ -739,8 +755,9 @@ class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
         UInt32Column("flags"),
         DoubleColumn("time"),
         Int32Column("individual"),
-        Int32Column("population")]
-    ragged_list_columns = [(CharColumn("metadata"),  UInt32Column("metadata_offset"))]
+        Int32Column("population"),
+    ]
+    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     string_colnames = []
     binary_colnames = ["metadata"]
     input_parameters = [("max_rows_increment", 1024)]
@@ -783,8 +800,11 @@ class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
             time = list(range(num_rows))
             table = tskit.NodeTable()
             table.set_columns(
-                metadata=metadata, metadata_offset=metadata_offset,
-                flags=flags, time=time)
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+                flags=flags,
+                time=time,
+            )
             self.assertEqual(list(table.population), [-1 for _ in range(num_rows)])
             self.assertEqual(list(table.flags), flags)
             self.assertEqual(list(table.time), time)
@@ -815,7 +835,8 @@ class TestEdgeTable(unittest.TestCase, CommonTestsMixin):
         DoubleColumn("left"),
         DoubleColumn("right"),
         Int32Column("parent"),
-        Int32Column("child")]
+        Int32Column("child"),
+    ]
     equal_len_columns = [["left", "right", "parent", "child"]]
     string_colnames = []
     binary_colnames = []
@@ -850,7 +871,8 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
     columns = [DoubleColumn("position")]
     ragged_list_columns = [
         (CharColumn("ancestral_state"), UInt32Column("ancestral_state_offset")),
-        (CharColumn("metadata"), UInt32Column("metadata_offset"))]
+        (CharColumn("metadata"), UInt32Column("metadata_offset")),
+    ]
     equal_len_columns = [["position"]]
     string_colnames = ["ancestral_state"]
     binary_colnames = ["metadata"]
@@ -895,21 +917,21 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
             table.set_columns(**input_data)
             ancestral_states = [tsutil.random_strings(10) for _ in range(num_rows)]
             ancestral_state, ancestral_state_offset = tskit.pack_strings(
-                    ancestral_states)
+                ancestral_states
+            )
             table.packset_ancestral_state(ancestral_states)
             self.assertTrue(np.array_equal(table.ancestral_state, ancestral_state))
-            self.assertTrue(np.array_equal(
-                table.ancestral_state_offset, ancestral_state_offset))
+            self.assertTrue(
+                np.array_equal(table.ancestral_state_offset, ancestral_state_offset)
+            )
 
 
 class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
-    columns = [
-        Int32Column("site"),
-        Int32Column("node"),
-        Int32Column("parent")]
+    columns = [Int32Column("site"), Int32Column("node"), Int32Column("parent")]
     ragged_list_columns = [
         (CharColumn("derived_state"), UInt32Column("derived_state_offset")),
-        (CharColumn("metadata"), UInt32Column("metadata_offset"))]
+        (CharColumn("metadata"), UInt32Column("metadata_offset")),
+    ]
     equal_len_columns = [["site", "node"]]
     string_colnames = ["derived_state"]
     binary_colnames = ["metadata"]
@@ -957,8 +979,9 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
             derived_state, derived_state_offset = tskit.pack_strings(derived_states)
             table.packset_derived_state(derived_states)
             self.assertTrue(np.array_equal(table.derived_state, derived_state))
-            self.assertTrue(np.array_equal(
-                table.derived_state_offset, derived_state_offset))
+            self.assertTrue(
+                np.array_equal(table.derived_state_offset, derived_state_offset)
+            )
 
 
 class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
@@ -968,7 +991,8 @@ class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
         Int32Column("node"),
         Int32Column("source"),
         Int32Column("dest"),
-        DoubleColumn("time")]
+        DoubleColumn("time"),
+    ]
     ragged_list_columns = []
     string_colnames = []
     binary_colnames = []
@@ -1005,7 +1029,8 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
     columns = []
     ragged_list_columns = [
         (CharColumn("timestamp"), UInt32Column("timestamp_offset")),
-        (CharColumn("record"), UInt32Column("record_offset"))]
+        (CharColumn("record"), UInt32Column("record_offset")),
+    ]
     equal_len_columns = [[]]
     string_colnames = ["record", "timestamp"]
     binary_colnames = []
@@ -1052,8 +1077,7 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
 
 class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
     columns = []
-    ragged_list_columns = [
-        (CharColumn("metadata"), UInt32Column("metadata_offset"))]
+    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     equal_len_columns = [[]]
     string_colnames = []
     binary_colnames = ["metadata"]
@@ -1083,6 +1107,7 @@ class TestSortTables(unittest.TestCase):
     """
     Tests for the TableCollection.sort() method.
     """
+
     random_seed = 12345
 
     def verify_randomise_tables(self, ts):
@@ -1109,13 +1134,18 @@ class TestSortTables(unittest.TestCase):
         randomised_mutations = []
         for s in randomised_sites:
             site_id_map[s.id] = tables.sites.add_row(
-                s.position, ancestral_state=s.ancestral_state, metadata=s.metadata)
+                s.position, ancestral_state=s.ancestral_state, metadata=s.metadata
+            )
             randomised_mutations.extend(s.mutations)
         random.shuffle(randomised_mutations)
         for m in randomised_mutations:
             tables.mutations.add_row(
-                site=site_id_map[m.site], node=m.node, derived_state=m.derived_state,
-                parent=m.parent, metadata=m.metadata)
+                site=site_id_map[m.site],
+                node=m.node,
+                derived_state=m.derived_state,
+                parent=m.parent,
+                metadata=m.metadata,
+            )
         if ts.num_sites > 1:
             # Verify that import fails for randomised sites
             self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
@@ -1136,7 +1166,7 @@ class TestSortTables(unittest.TestCase):
         edges = tables.edges.copy()
         starts = [0]
         if len(edges) > 2:
-            starts = [0, 1, len(edges) // 2,  len(edges) - 2]
+            starts = [0, 1, len(edges) // 2, len(edges) - 2]
         random.seed(self.random_seed)
         for start in starts:
             # Unsort the edges starting from index start
@@ -1201,7 +1231,8 @@ class TestSortTables(unittest.TestCase):
 
     def test_many_trees_mutations(self):
         ts = msprime.simulate(
-            10, recombination_rate=2, mutation_rate=2, random_seed=self.random_seed)
+            10, recombination_rate=2, mutation_rate=2, random_seed=self.random_seed
+        )
         self.assertGreater(ts.num_trees, 2)
         self.assertGreater(ts.num_sites, 2)
         self.verify_randomise_tables(ts)
@@ -1222,9 +1253,14 @@ class TestSortTables(unittest.TestCase):
 
     def get_nonbinary_example(self, mutation_rate):
         ts = msprime.simulate(
-            sample_size=20, recombination_rate=10, random_seed=self.random_seed,
-            mutation_rate=mutation_rate, demographic_events=[
-                msprime.SimpleBottleneck(time=0.5, population=0, proportion=1)])
+            sample_size=20,
+            recombination_rate=10,
+            random_seed=self.random_seed,
+            mutation_rate=mutation_rate,
+            demographic_events=[
+                msprime.SimpleBottleneck(time=0.5, population=0, proportion=1)
+            ],
+        )
         # Make sure this really has some non-binary nodes
         found = False
         for e in ts.edgesets():
@@ -1294,29 +1330,42 @@ class TestSortMutations(unittest.TestCase):
     """
 
     def test_sort_mutations_stability(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id      is_sample   time
         0       1           0
         1       1           0
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
-        """)
-        sites = io.StringIO("""\
+        """
+        )
+        sites = io.StringIO(
+            """\
         position    ancestral_state
         0.1     0
         0.2     0
-        """)
-        mutations = io.StringIO("""\
+        """
+        )
+        mutations = io.StringIO(
+            """\
         site    node    derived_state   parent
         1       0       1               -1
         1       1       1               -1
         0       1       1               -1
         0       0       1               -1
-        """)
+        """
+        )
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
-            sequence_length=1, strict=False)
+            nodes=nodes,
+            edges=edges,
+            sites=sites,
+            mutations=mutations,
+            sequence_length=1,
+            strict=False,
+        )
         # Load text automatically calls tables.sort(), so we can test the
         # output directly.
         sites = ts.tables.sites
@@ -1327,19 +1376,26 @@ class TestSortMutations(unittest.TestCase):
         self.assertEqual(list(mutations.node), [1, 0, 0, 1])
 
     def test_sort_mutations_remap_parent_id(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id      is_sample   time
         0       1           0
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
-        """)
-        sites = io.StringIO("""\
+        """
+        )
+        sites = io.StringIO(
+            """\
         position    ancestral_state
         0.1     0
         0.2     0
-        """)
-        mutations = io.StringIO("""\
+        """
+        )
+        mutations = io.StringIO(
+            """\
         site    node    derived_state   parent
         1       0       1               -1
         1       0       0               0
@@ -1347,10 +1403,16 @@ class TestSortMutations(unittest.TestCase):
         0       0       1               -1
         0       0       0               3
         0       0       1               4
-        """)
+        """
+        )
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
-            sequence_length=1, strict=False)
+            nodes=nodes,
+            edges=edges,
+            sites=sites,
+            mutations=mutations,
+            sequence_length=1,
+            strict=False,
+        )
         # Load text automatically calls sort tables, so we can test the
         # output directly.
         sites = ts.tables.sites
@@ -1362,39 +1424,55 @@ class TestSortMutations(unittest.TestCase):
         self.assertEqual(list(mutations.parent), [-1, 0, 1, -1, 3, 4])
 
     def test_sort_mutations_bad_parent_id(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id      is_sample   time
         0       1           0
-        """)
-        edges = io.StringIO("""\
+        """
+        )
+        edges = io.StringIO(
+            """\
         left    right   parent  child
-        """)
-        sites = io.StringIO("""\
+        """
+        )
+        sites = io.StringIO(
+            """\
         position    ancestral_state
         0.1     0
-        """)
-        mutations = io.StringIO("""\
+        """
+        )
+        mutations = io.StringIO(
+            """\
         site    node    derived_state   parent
         1       0       1               -2
-        """)
+        """
+        )
         self.assertRaises(
-            _tskit.LibraryError, tskit.load_text,
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations,
-            sequence_length=1, strict=False)
+            _tskit.LibraryError,
+            tskit.load_text,
+            nodes=nodes,
+            edges=edges,
+            sites=sites,
+            mutations=mutations,
+            sequence_length=1,
+            strict=False,
+        )
 
 
 class TestTablesToTreeSequence(unittest.TestCase):
     """
     Tests for the .tree_sequence() method of a TableCollection.
     """
+
     random_seed = 42
 
     def test_round_trip(self):
-        a = msprime.simulate(5,  mutation_rate=1, random_seed=self.random_seed)
+        a = msprime.simulate(5, mutation_rate=1, random_seed=self.random_seed)
         tables = a.dump_tables()
         b = tables.tree_sequence()
         self.assertTrue(
-            all(a == b for a, b in zip(a.tables, b.tables) if a[0] != 'provenances'))
+            all(a == b for a, b in zip(a.tables, b.tables) if a[0] != "provenances")
+        )
 
 
 class TestNanDoubleValues(unittest.TestCase):
@@ -1403,38 +1481,38 @@ class TestNanDoubleValues(unittest.TestCase):
     """
 
     def test_edge_coords(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
 
         tables = ts.dump_tables()
-        bad_coords = tables.edges.left + float('inf')
+        bad_coords = tables.edges.left + float("inf")
         tables.edges.left = bad_coords
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
         tables = ts.dump_tables()
-        bad_coords = tables.edges.right + float('nan')
+        bad_coords = tables.edges.right + float("nan")
         tables.edges.right = bad_coords
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_migrations(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
 
         tables = ts.dump_tables()
         tables.populations.add_row()
-        tables.migrations.add_row(float('inf'), 1, time=0, node=0, source=0, dest=1)
+        tables.migrations.add_row(float("inf"), 1, time=0, node=0, source=0, dest=1)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
         tables = ts.dump_tables()
         tables.populations.add_row()
-        tables.migrations.add_row(0, float('nan'), time=0, node=0, source=0, dest=1)
+        tables.migrations.add_row(0, float("nan"), time=0, node=0, source=0, dest=1)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
         tables = ts.dump_tables()
         tables.populations.add_row()
-        tables.migrations.add_row(0, 1, time=float('nan'), node=0, source=0, dest=1)
+        tables.migrations.add_row(0, 1, time=float("nan"), node=0, source=0, dest=1)
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_site_positions(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
         tables = ts.dump_tables()
         bad_pos = tables.sites.position.copy()
         bad_pos[-1] = np.inf
@@ -1442,7 +1520,7 @@ class TestNanDoubleValues(unittest.TestCase):
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_node_times(self):
-        ts = msprime.simulate(5,  mutation_rate=1, random_seed=42)
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
         tables = ts.dump_tables()
         bad_times = tables.nodes.time.copy()
         bad_times[-1] = np.inf
@@ -1450,7 +1528,7 @@ class TestNanDoubleValues(unittest.TestCase):
         self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
 
     def test_individual(self):
-        ts = msprime.simulate(12,  mutation_rate=1, random_seed=42)
+        ts = msprime.simulate(12, mutation_rate=1, random_seed=42)
         ts = tsutil.insert_random_ploidy_individuals(ts, seed=42)
         self.assertGreater(ts.num_individuals, 1)
         tables = ts.dump_tables()
@@ -1464,10 +1542,11 @@ class TestSimplifyTables(unittest.TestCase):
     """
     Tests for the simplify_tables function.
     """
+
     random_seed = 42
 
     def test_deprecated_zero_mutation_sites(self):
-        ts = msprime.simulate(10,  mutation_rate=1, random_seed=self.random_seed)
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=self.random_seed)
         tables = ts.dump_tables()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -1476,7 +1555,7 @@ class TestSimplifyTables(unittest.TestCase):
             assert issubclass(w[-1].category, DeprecationWarning)
 
     def test_zero_mutation_sites(self):
-        ts = msprime.simulate(10,  mutation_rate=1, random_seed=self.random_seed)
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=self.random_seed)
         for filter_sites in [True, False]:
             t1 = ts.dump_tables()
             t1.simplify([0, 1], filter_zero_mutation_sites=filter_sites)
@@ -1491,7 +1570,8 @@ class TestSimplifyTables(unittest.TestCase):
     def test_full_samples(self):
         for n in [2, 10, 100, 1000]:
             ts = msprime.simulate(
-                n, recombination_rate=1, mutation_rate=1, random_seed=self.random_seed)
+                n, recombination_rate=1, mutation_rate=1, random_seed=self.random_seed
+            )
             tables = ts.dump_tables()
             nodes_before = tables.nodes.copy()
             edges_before = tables.edges.copy()
@@ -1509,9 +1589,10 @@ class TestSimplifyTables(unittest.TestCase):
         n = 10
         ts = msprime.simulate(n, random_seed=self.random_seed)
         tables = ts.dump_tables()
-        for bad_node in [-1, n, n + 1, ts.num_nodes - 1, ts.num_nodes, 2**31 - 1]:
+        for bad_node in [-1, n, n + 1, ts.num_nodes - 1, ts.num_nodes, 2 ** 31 - 1]:
             self.assertRaises(
-                _tskit.LibraryError, tables.simplify, samples=[0, bad_node])
+                _tskit.LibraryError, tables.simplify, samples=[0, bad_node]
+            )
 
     def test_bad_edge_ordering(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
@@ -1519,20 +1600,24 @@ class TestSimplifyTables(unittest.TestCase):
         edges = tables.edges
         # Reversing the edges violates the ordering constraints.
         edges.set_columns(
-            left=edges.left[::-1], right=edges.right[::-1],
-            parent=edges.parent[::-1], child=edges.child[::-1])
+            left=edges.left[::-1],
+            right=edges.right[::-1],
+            parent=edges.parent[::-1],
+            child=edges.child[::-1],
+        )
         self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
 
     def test_bad_edges(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
-        for bad_node in [-1, ts.num_nodes, ts.num_nodes + 1, 2**31 - 1]:
+        for bad_node in [-1, ts.num_nodes, ts.num_nodes + 1, 2 ** 31 - 1]:
             # Bad parent node
             tables = ts.dump_tables()
             edges = tables.edges
             parent = edges.parent
             parent[0] = bad_node
             edges.set_columns(
-                left=edges.left, right=edges.right, parent=parent, child=edges.child)
+                left=edges.left, right=edges.right, parent=parent, child=edges.child
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
             # Bad child node
             tables = ts.dump_tables()
@@ -1540,7 +1625,8 @@ class TestSimplifyTables(unittest.TestCase):
             child = edges.child
             child[0] = bad_node
             edges.set_columns(
-                left=edges.left, right=edges.right, parent=edges.parent, child=child)
+                left=edges.left, right=edges.right, parent=edges.parent, child=child
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
             # child == parent
             tables = ts.dump_tables()
@@ -1548,7 +1634,8 @@ class TestSimplifyTables(unittest.TestCase):
             child = edges.child
             child[0] = edges.parent[0]
             edges.set_columns(
-                left=edges.left, right=edges.right, parent=edges.parent, child=child)
+                left=edges.left, right=edges.right, parent=edges.parent, child=child
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
             # left == right
             tables = ts.dump_tables()
@@ -1556,7 +1643,8 @@ class TestSimplifyTables(unittest.TestCase):
             left = edges.left
             left[0] = edges.right[0]
             edges.set_columns(
-                left=left, right=edges.right, parent=edges.parent, child=edges.child)
+                left=left, right=edges.right, parent=edges.parent, child=edges.child
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
             # left > right
             tables = ts.dump_tables()
@@ -1564,33 +1652,40 @@ class TestSimplifyTables(unittest.TestCase):
             left = edges.left
             left[0] = edges.right[0] + 1
             edges.set_columns(
-                left=left, right=edges.right, parent=edges.parent, child=edges.child)
+                left=left, right=edges.right, parent=edges.parent, child=edges.child
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
 
     def test_bad_mutation_nodes(self):
         ts = msprime.simulate(10, random_seed=self.random_seed, mutation_rate=1)
         self.assertGreater(ts.num_mutations, 0)
-        for bad_node in [-1, ts.num_nodes, 2**31 - 1]:
+        for bad_node in [-1, ts.num_nodes, 2 ** 31 - 1]:
             tables = ts.dump_tables()
             mutations = tables.mutations
             node = mutations.node
             node[0] = bad_node
             mutations.set_columns(
-                site=mutations.site, node=node, derived_state=mutations.derived_state,
-                derived_state_offset=mutations.derived_state_offset)
+                site=mutations.site,
+                node=node,
+                derived_state=mutations.derived_state,
+                derived_state_offset=mutations.derived_state_offset,
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
 
     def test_bad_mutation_sites(self):
         ts = msprime.simulate(10, random_seed=self.random_seed, mutation_rate=1)
         self.assertGreater(ts.num_mutations, 0)
-        for bad_site in [-1, ts.num_sites, 2**31 - 1]:
+        for bad_site in [-1, ts.num_sites, 2 ** 31 - 1]:
             tables = ts.dump_tables()
             mutations = tables.mutations
             site = mutations.site
             site[0] = bad_site
             mutations.set_columns(
-                site=site, node=mutations.node, derived_state=mutations.derived_state,
-                derived_state_offset=mutations.derived_state_offset)
+                site=site,
+                node=mutations.node,
+                derived_state=mutations.derived_state,
+                derived_state_offset=mutations.derived_state_offset,
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
 
     def test_bad_site_positions(self):
@@ -1604,8 +1699,10 @@ class TestSimplifyTables(unittest.TestCase):
             position = sites.position
             position[0] = bad_position
             sites.set_columns(
-                position=position, ancestral_state=sites.ancestral_state,
-                ancestral_state_offset=sites.ancestral_state_offset)
+                position=position,
+                ancestral_state=sites.ancestral_state,
+                ancestral_state_offset=sites.ancestral_state_offset,
+            )
             self.assertRaises(_tskit.LibraryError, tables.simplify, samples=[0, 1])
 
     def test_duplicate_positions(self):
@@ -1622,18 +1719,20 @@ class TestSimplifyTables(unittest.TestCase):
         tables = ts.dump_tables()
         for bad_values in [[[[]]], np.array([[0, 1], [2, 3]], dtype=np.int32)]:
             self.assertRaises(ValueError, tables.simplify, bad_values)
-        for bad_type in [[0.1], ['string'], {}, [{}]]:
+        for bad_type in [[0.1], ["string"], {}, [{}]]:
             self.assertRaises(TypeError, tables.simplify, bad_type)
         # We only convert to int if we don't overflow
-        for bad_node in [np.iinfo(np.int32).min-1, np.iinfo(np.int32).max+1]:
+        for bad_node in [np.iinfo(np.int32).min - 1, np.iinfo(np.int32).max + 1]:
             self.assertRaises(
-                OverflowError, tables.simplify, samples=np.array([0, bad_node]))
+                OverflowError, tables.simplify, samples=np.array([0, bad_node])
+            )
 
 
 class TestTableCollection(unittest.TestCase):
     """
     Tests for the convenience wrapper around a collection of related tables.
     """
+
     def test_table_references(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=1)
         tables = ts.tables
@@ -1682,7 +1781,8 @@ class TestTableCollection(unittest.TestCase):
             "sites": t.sites.asdict(),
             "mutations": t.mutations.asdict(),
             "migrations": t.migrations.asdict(),
-            "provenances": t.provenances.asdict()}
+            "provenances": t.provenances.asdict(),
+        }
         d2 = t.asdict()
         self.assertEqual(set(d1.keys()), set(d2.keys()))
 
@@ -1698,17 +1798,21 @@ class TestTableCollection(unittest.TestCase):
             "sites": t1.sites.asdict(),
             "mutations": t1.mutations.asdict(),
             "migrations": t1.migrations.asdict(),
-            "provenances": t1.provenances.asdict()}
+            "provenances": t1.provenances.asdict(),
+        }
         t2 = tskit.TableCollection.fromdict(d)
         self.assertEquals(t1, t2)
 
     def test_iter(self):
         def test_iter(table_collection):
             table_names = [
-                attr_name for attr_name in sorted(dir(table_collection))
-                if isinstance(getattr(table_collection, attr_name), tskit.BaseTable)]
+                attr_name
+                for attr_name in sorted(dir(table_collection))
+                if isinstance(getattr(table_collection, attr_name), tskit.BaseTable)
+            ]
             for n in table_names:
                 yield n, getattr(table_collection, n)
+
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
         for t1, t2 in itertools.zip_longest(test_iter(ts.tables), ts.tables):
             self.assertEquals(t1, t2)
@@ -1719,17 +1823,19 @@ class TestTableCollection(unittest.TestCase):
     def test_equals_sequence_length(self):
         self.assertNotEqual(
             tskit.TableCollection(sequence_length=1),
-            tskit.TableCollection(sequence_length=2))
+            tskit.TableCollection(sequence_length=2),
+        )
 
     def test_copy(self):
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]
         t1 = msprime.simulate(
-               population_configurations=pop_configs,
-               migration_matrix=migration_matrix,
-               mutation_rate=1,
-               record_migrations=True,
-               random_seed=100).dump_tables()
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            mutation_rate=1,
+            record_migrations=True,
+            random_seed=100,
+        ).dump_tables()
         t2 = t1.copy()
         self.assertIsNot(t1, t2)
         self.assertEqual(t1, t2)
@@ -1740,17 +1846,19 @@ class TestTableCollection(unittest.TestCase):
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]
         t1 = msprime.simulate(
-               population_configurations=pop_configs,
-               migration_matrix=migration_matrix,
-               mutation_rate=1,
-               record_migrations=True,
-               random_seed=1).dump_tables()
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            mutation_rate=1,
+            record_migrations=True,
+            random_seed=1,
+        ).dump_tables()
         t2 = msprime.simulate(
-               population_configurations=pop_configs,
-               migration_matrix=migration_matrix,
-               mutation_rate=1,
-               record_migrations=True,
-               random_seed=1).dump_tables()
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            mutation_rate=1,
+            record_migrations=True,
+            random_seed=1,
+        ).dump_tables()
         self.assertEqual(t1, t1)
         self.assertEqual(t1, t1.copy())
         self.assertEqual(t1.copy(), t1)
@@ -1857,7 +1965,7 @@ class TestTableCollection(unittest.TestCase):
 
     def test_set_sequence_length(self):
         tables = tskit.TableCollection(1)
-        for value in [-1, 100, 2**32, 1e-6]:
+        for value in [-1, 100, 2 ** 32, 1e-6]:
             tables.sequence_length = value
             self.assertEqual(tables.sequence_length, value)
 
@@ -1895,6 +2003,7 @@ class TestTableCollectionPickle(unittest.TestCase):
     """
     Tests that we can round-trip table collections through pickle.
     """
+
     def verify(self, tables):
         other_tables = pickle.loads(pickle.dumps(tables))
         self.assertEqual(tables, other_tables)
@@ -1907,10 +2016,12 @@ class TestTableCollectionPickle(unittest.TestCase):
         ts = msprime.simulate(
             population_configurations=[
                 msprime.PopulationConfiguration(10),
-                msprime.PopulationConfiguration(10)],
+                msprime.PopulationConfiguration(10),
+            ],
             migration_matrix=[[0, 1], [1, 0]],
             record_migrations=True,
-            random_seed=1)
+            random_seed=1,
+        )
         self.verify(ts.dump_tables())
 
     def test_simulation_sites(self):
@@ -1932,6 +2043,7 @@ class TestDeduplicateSites(unittest.TestCase):
     """
     Tests for the TableCollection.deduplicate_sites method.
     """
+
     def test_empty(self):
         tables = tskit.TableCollection(1)
         tables.deduplicate_sites()
@@ -1944,8 +2056,10 @@ class TestDeduplicateSites(unittest.TestCase):
         for j in range(len(position) - 1):
             position = np.roll(position, 1)
             tables.sites.set_columns(
-                position=position, ancestral_state=tables.sites.ancestral_state,
-                ancestral_state_offset=tables.sites.ancestral_state_offset)
+                position=position,
+                ancestral_state=tables.sites.ancestral_state,
+                ancestral_state_offset=tables.sites.ancestral_state_offset,
+            )
             self.assertRaises(_tskit.LibraryError, tables.deduplicate_sites)
 
     def test_bad_position(self):
@@ -1970,7 +2084,8 @@ class TestDeduplicateSites(unittest.TestCase):
         t1.sites.append_columns(
             position=t1.sites.position,
             ancestral_state=t1.sites.ancestral_state,
-            ancestral_state_offset=t1.sites.ancestral_state_offset)
+            ancestral_state_offset=t1.sites.ancestral_state_offset,
+        )
         self.assertEqual(len(t1.sites), 2 * len(t2.sites))
         t1.sort()
         t1.deduplicate_sites()
@@ -1994,11 +2109,13 @@ class TestDeduplicateSites(unittest.TestCase):
         tables.mutations.clear()
         for site in ts.sites():
             site_id = tables.sites.add_row(
-                position=site.position, ancestral_state="A" * site.id)
+                position=site.position, ancestral_state="A" * site.id
+            )
             tables.sites.add_row(position=site.position, ancestral_state="0")
             for mutation in site.mutations:
                 tables.mutations.add_row(
-                    site=site_id, node=mutation.node, derived_state="T" * site.id)
+                    site=site_id, node=mutation.node, derived_state="T" * site.id
+                )
         tables.deduplicate_sites()
         new_ts = tables.tree_sequence()
         self.assertEqual(new_ts.num_sites, ts.num_sites)
@@ -2013,12 +2130,16 @@ class TestDeduplicateSites(unittest.TestCase):
         tables.mutations.clear()
         for site in ts.sites():
             site_id = tables.sites.add_row(
-                position=site.position, ancestral_state="0", metadata=b"A" * site.id)
+                position=site.position, ancestral_state="0", metadata=b"A" * site.id
+            )
             tables.sites.add_row(position=site.position, ancestral_state="0")
             for mutation in site.mutations:
                 tables.mutations.add_row(
-                    site=site_id, node=mutation.node, derived_state="1",
-                    metadata=b"T" * site.id)
+                    site=site_id,
+                    node=mutation.node,
+                    derived_state="1",
+                    metadata=b"T" * site.id,
+                )
         tables.deduplicate_sites()
         new_ts = tables.tree_sequence()
         self.assertEqual(new_ts.num_sites, ts.num_sites)
@@ -2030,6 +2151,7 @@ class TestBaseTable(unittest.TestCase):
     """
     Tests of the table superclass.
     """
+
     def test_set_columns_not_implemented(self):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):

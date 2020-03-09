@@ -45,26 +45,27 @@ def safe_np_int_cast(int_array, dtype, copy=False):
     if int_array.size == 0:
         return int_array.astype(dtype, copy=copy)  # Allow empty arrays of any type
     try:
-        return int_array.astype(dtype, casting='safe', copy=copy)
+        return int_array.astype(dtype, casting="safe", copy=copy)
     except TypeError:
-        if int_array.dtype == np.dtype('O'):
+        if int_array.dtype == np.dtype("O"):
             # this occurs e.g. if we're passed a list of lists of different lengths
             raise TypeError("Cannot convert to a rectangular array.")
         bounds = np.iinfo(dtype)
         if np.any(int_array < bounds.min) or np.any(int_array > bounds.max):
             raise OverflowError("Cannot convert safely to {} type".format(dtype))
-        if int_array.dtype.kind == 'i' and np.dtype(dtype).kind == 'u':
+        if int_array.dtype.kind == "i" and np.dtype(dtype).kind == "u":
             # Allow casting from int to unsigned int, since we have checked bounds
-            casting = 'unsafe'
+            casting = "unsafe"
         else:
             # Raise a TypeError when we try to convert from, e.g., a float.
-            casting = 'same_kind'
+            casting = "same_kind"
         return int_array.astype(dtype, casting=casting, copy=copy)
 
 
 #
 # Pack/unpack lists of data into flattened numpy arrays.
 #
+
 
 def pack_bytes(data):
     """
@@ -83,7 +84,7 @@ def pack_bytes(data):
         offsets[j + 1] = offsets[j] + len(data[j])
     column = np.zeros(offsets[-1], dtype=np.int8)
     for j, value in enumerate(data):
-        column[offsets[j]: offsets[j + 1]] = bytearray(value)
+        column[offsets[j] : offsets[j + 1]] = bytearray(value)
     return column, offsets
 
 
@@ -101,7 +102,7 @@ def unpack_bytes(packed, offset):
     # This could be done a lot more efficiently...
     ret = []
     for j in range(offset.shape[0] - 1):
-        raw = packed[offset[j]: offset[j + 1]].tobytes()
+        raw = packed[offset[j] : offset[j + 1]].tobytes()
         ret.append(raw)
     return ret
 
@@ -161,7 +162,7 @@ def pack_arrays(list_of_lists):
         offset[j + 1] = offset[j] + len(list_of_lists[j])
     data = np.empty(offset[-1], dtype=np.float64)
     for j in range(n):
-        data[offset[j]: offset[j + 1]] = list_of_lists[j]
+        data[offset[j] : offset[j + 1]] = list_of_lists[j]
     return data, offset
 
 
@@ -179,13 +180,14 @@ def unpack_arrays(packed, offset):
     """
     ret = []
     for j in range(offset.shape[0] - 1):
-        ret.append(packed[offset[j]: offset[j + 1]])
+        ret.append(packed[offset[j] : offset[j + 1]])
     return ret
 
 
 #
 # Interval utilities
 #
+
 
 def intervals_to_np_array(intervals, start, end):
     """
@@ -204,8 +206,7 @@ def intervals_to_np_array(intervals, start, end):
     last_right = start
     for left, right in intervals:
         if left < start or right > end:
-            raise ValueError(
-                "Intervals must be within {} and {}".format(start, end))
+            raise ValueError("Intervals must be within {} and {}".format(start, end))
         if right <= left:
             raise ValueError("Bad interval: right <= left")
         if left < last_right:

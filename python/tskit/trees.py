@@ -49,14 +49,13 @@ from tskit import NULL
 
 
 CoalescenceRecord = collections.namedtuple(
-    "CoalescenceRecord",
-    ["left", "right", "node", "children", "time", "population"])
+    "CoalescenceRecord", ["left", "right", "node", "children", "time", "population"]
+)
 
 
 # TODO this interface is rubbish. Should have much better printing options.
 # TODO we should be use __slots__ here probably.
 class SimpleContainer(object):
-
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
@@ -92,6 +91,7 @@ class Individual(SimpleContainer):
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this individual.
     :vartype metadata: bytes
     """
+
     def __init__(self, id_=None, flags=0, location=None, nodes=None, metadata=""):
         self.id = id_
         self.flags = flags
@@ -101,11 +101,12 @@ class Individual(SimpleContainer):
 
     def __eq__(self, other):
         return (
-            self.id == other.id and
-            self.flags == other.flags and
-            self.metadata == other.metadata and
-            np.array_equal(self.nodes, other.nodes) and
-            np.array_equal(self.location, other.location))
+            self.id == other.id
+            and self.flags == other.flags
+            and self.metadata == other.metadata
+            and np.array_equal(self.nodes, other.nodes)
+            and np.array_equal(self.location, other.location)
+        )
 
 
 class Node(SimpleContainer):
@@ -132,9 +133,10 @@ class Node(SimpleContainer):
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this node.
     :vartype metadata: bytes
     """
+
     def __init__(
-            self, id_=None, flags=0, time=0, population=NULL,
-            individual=NULL, metadata=""):
+        self, id_=None, flags=0, time=0, population=NULL, individual=NULL, metadata=""
+    ):
         self.id = id_
         self.time = time
         self.population = population
@@ -175,6 +177,7 @@ class Edge(SimpleContainer):
         :attr:`TreeSequence.num_edges` - 1.
     :vartype id: int
     """
+
     def __init__(self, left, right, parent, child, id_=None):
         self.id = id_
         self.left = left
@@ -184,7 +187,8 @@ class Edge(SimpleContainer):
 
     def __repr__(self):
         return "{{left={:.3f}, right={:.3f}, parent={}, child={}, id={}}}".format(
-            self.left, self.right, self.parent, self.child, self.id)
+            self.left, self.right, self.parent, self.child, self.id
+        )
 
     @property
     def span(self):
@@ -221,6 +225,7 @@ class Site(SimpleContainer):
         underlying :class:`MutationTable`.
     :vartype mutations: list[:class:`Mutation`]
     """
+
     def __init__(self, id_, position, ancestral_state, mutations, metadata):
         self.id = id_
         self.position = position
@@ -261,9 +266,16 @@ class Mutation(SimpleContainer):
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this site.
     :vartype metadata: bytes
     """
+
     def __init__(
-            self, id_=NULL, site=NULL, node=NULL, derived_state=None, parent=NULL,
-            metadata=None):
+        self,
+        id_=NULL,
+        site=NULL,
+        node=NULL,
+        derived_state=None,
+        parent=NULL,
+        metadata=None,
+    ):
         self.id = id_
         self.site = site
         self.node = node
@@ -296,6 +308,7 @@ class Migration(SimpleContainer):
     :ivar time: The time at which this migration occured at.
     :vartype time: float
     """
+
     def __init__(self, left, right, node, source, dest, time, id_=None):
         self.id = id_
         self.left = left
@@ -319,6 +332,7 @@ class Population(SimpleContainer):
     :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this population.
     :vartype metadata: bytes
     """
+
     def __init__(self, id_, metadata=""):
         self.id = id_
         self.metadata = metadata
@@ -391,6 +405,7 @@ class Variant(SimpleContainer):
     :vartype num_alleles: int
     :vartype genotypes: numpy.ndarray
     """
+
     def __init__(self, site, alleles, genotypes):
         self.site = site
         self.alleles = alleles
@@ -403,9 +418,10 @@ class Variant(SimpleContainer):
 
     def __eq__(self, other):
         return (
-            self.site == other.site and
-            self.alleles == other.alleles and
-            np.array_equal(self.genotypes, other.genotypes))
+            self.site == other.site
+            and self.alleles == other.alleles
+            and np.array_equal(self.genotypes, other.genotypes)
+        )
 
 
 class Edgeset(SimpleContainer):
@@ -417,7 +433,8 @@ class Edgeset(SimpleContainer):
 
     def __repr__(self):
         return "{{left={:.3f}, right={:.3f}, parent={}, children={}}}".format(
-            self.left, self.right, self.parent, self.children)
+            self.left, self.right, self.parent, self.children
+        )
 
 
 class Provenance(SimpleContainer):
@@ -483,15 +500,22 @@ class Tree(object):
         those subtending meaningful topology, set this to 2. This value
         is only relevant when trees have multiple roots.
     """
+
     def __init__(
-            self, tree_sequence,
-            tracked_samples=None, sample_counts=None, sample_lists=False,
-            root_threshold=1):
+        self,
+        tree_sequence,
+        tracked_samples=None,
+        sample_counts=None,
+        sample_lists=False,
+        root_threshold=1,
+    ):
         options = 0
         if sample_counts is not None:
             warnings.warn(
                 "The sample_counts option is not supported since 0.2.4 "
-                "and is ignored", RuntimeWarning)
+                "and is ignored",
+                RuntimeWarning,
+            )
         if sample_lists:
             options |= _tskit.SAMPLE_LISTS
         kwargs = {"options": options}
@@ -1129,9 +1153,12 @@ class Tree(object):
         orientation = drawing.check_orientation(orientation)
         if orientation in (drawing.LEFT, drawing.RIGHT):
             text_tree = drawing.HorizontalTextTree(
-                self, orientation=orientation, **kwargs)
+                self, orientation=orientation, **kwargs
+            )
         else:
-            text_tree = drawing.VerticalTextTree(self, orientation=orientation, **kwargs)
+            text_tree = drawing.VerticalTextTree(
+                self, orientation=orientation, **kwargs
+            )
         return str(text_tree)
 
     def draw_svg(self, path=None, **kwargs):
@@ -1145,11 +1172,19 @@ class Tree(object):
         return output
 
     def draw(
-            self, path=None, width=None, height=None,
-            node_labels=None, node_colours=None,
-            mutation_labels=None, mutation_colours=None,
-            format=None, edge_colours=None, tree_height_scale=None,
-            max_tree_height=None):
+        self,
+        path=None,
+        width=None,
+        height=None,
+        node_labels=None,
+        node_colours=None,
+        mutation_labels=None,
+        mutation_colours=None,
+        format=None,
+        edge_colours=None,
+        tree_height_scale=None,
+        max_tree_height=None,
+    ):
         """
         Returns a drawing of this tree.
 
@@ -1239,11 +1274,18 @@ class Tree(object):
         :rtype: str
         """
         output = drawing.draw_tree(
-            self, format=format, width=width, height=height,
-            node_labels=node_labels, node_colours=node_colours,
-            mutation_labels=mutation_labels, mutation_colours=mutation_colours,
-            edge_colours=edge_colours, tree_height_scale=tree_height_scale,
-            max_tree_height=max_tree_height)
+            self,
+            format=format,
+            width=width,
+            height=height,
+            node_labels=node_labels,
+            node_colours=node_colours,
+            mutation_labels=mutation_labels,
+            mutation_colours=mutation_colours,
+            edge_colours=edge_colours,
+            tree_height_scale=tree_height_scale,
+            max_tree_height=max_tree_height,
+        )
         if path is not None:
             with open(path, "w") as f:
                 f.write(output)
@@ -1507,7 +1549,9 @@ class Tree(object):
         yield from sorted(self.nodes(u, order="levelorder"), key=self.time)
 
     def _timedesc_traversal(self, u):
-        yield from sorted(self.nodes(u, order="levelorder"), key=self.time, reverse=True)
+        yield from sorted(
+            self.nodes(u, order="levelorder"), key=self.time, reverse=True
+        )
 
     def nodes(self, root=None, order="preorder"):
         """
@@ -1534,7 +1578,7 @@ class Tree(object):
             "levelorder": self._levelorder_traversal,
             "breadthfirst": self._levelorder_traversal,
             "timeasc": self._timeasc_traversal,
-            "timedesc": self._timedesc_traversal
+            "timedesc": self._timedesc_traversal,
         }
         try:
             iterator = methods[order]
@@ -1595,7 +1639,8 @@ class Tree(object):
                 raise ValueError(
                     "Cannot get newick for multiroot trees. Try "
                     "[t.newick(root) for root in t.roots] to get a list of "
-                    "newick trees, one for each root.")
+                    "newick trees, one for each root."
+                )
             root = self.root
         if node_labels is None:
             s = self._ll_tree.get_newick(precision=precision, root=root)
@@ -1626,9 +1671,7 @@ class Tree(object):
         for parent in self.nodes():
             dod[parent] = {}
             for child in self.children(parent):
-                dod[parent][child] = {
-                    'branch_length': self.branch_length(child)
-                }
+                dod[parent][child] = {"branch_length": self.branch_length(child)}
         return dod
 
     @property
@@ -1637,8 +1680,8 @@ class Tree(object):
 
     def get_parent_dict(self):
         pi = {
-            u: self.parent(u) for u in range(self.num_nodes)
-            if self.parent(u) != NULL}
+            u: self.parent(u) for u in range(self.num_nodes) if self.parent(u) != NULL
+        }
         return pi
 
     def __str__(self):
@@ -1704,7 +1747,8 @@ class Tree(object):
         ancestral_state = alleles[ancestral_state]
         mutations = [
             Mutation(node=node, derived_state=alleles[derived_state], parent=parent)
-            for node, parent, derived_state in transitions]
+            for node, parent, derived_state in transitions
+        ]
         return ancestral_state, mutations
 
     def kc_distance(self, other, lambda_=0.0):
@@ -1747,7 +1791,8 @@ def load(path):
 
 
 def parse_individuals(
-        source, strict=True, encoding='utf8', base64_metadata=True, table=None):
+    source, strict=True, encoding="utf8", base64_metadata=True, table=None
+):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of an individual table and returns the corresponding
@@ -1796,18 +1841,16 @@ def parse_individuals(
                 location_string = tokens[location_index]
                 if len(location_string) > 0:
                     location = tuple(map(float, location_string.split(",")))
-            metadata = b''
+            metadata = b""
             if metadata_index is not None and metadata_index < len(tokens):
                 metadata = tokens[metadata_index].encode(encoding)
                 if base64_metadata:
                     metadata = base64.b64decode(metadata)
-            table.add_row(
-                flags=flags, location=location, metadata=metadata)
+            table.add_row(flags=flags, location=location, metadata=metadata)
     return table
 
 
-def parse_nodes(
-        source, strict=True, encoding='utf8', base64_metadata=True, table=None):
+def parse_nodes(source, strict=True, encoding="utf8", base64_metadata=True, table=None):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of a node table and returns the corresponding :class:`NodeTable`
@@ -1866,14 +1909,18 @@ def parse_nodes(
             individual = NULL
             if individual_index is not None:
                 individual = int(tokens[individual_index])
-            metadata = b''
+            metadata = b""
             if metadata_index is not None and metadata_index < len(tokens):
                 metadata = tokens[metadata_index].encode(encoding)
                 if base64_metadata:
                     metadata = base64.b64decode(metadata)
             table.add_row(
-                flags=flags, time=time, population=population,
-                individual=individual, metadata=metadata)
+                flags=flags,
+                time=time,
+                population=population,
+                individual=individual,
+                metadata=metadata,
+            )
     return table
 
 
@@ -1916,8 +1963,7 @@ def parse_edges(source, strict=True, table=None):
     return table
 
 
-def parse_sites(
-        source, strict=True, encoding='utf8', base64_metadata=True, table=None):
+def parse_sites(source, strict=True, encoding="utf8", base64_metadata=True, table=None):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of a site table and returns the corresponding :class:`SiteTable`
@@ -1956,18 +2002,20 @@ def parse_sites(
         if len(tokens) >= 2:
             position = float(tokens[position_index])
             ancestral_state = tokens[ancestral_state_index]
-            metadata = b''
+            metadata = b""
             if metadata_index is not None and metadata_index < len(tokens):
                 metadata = tokens[metadata_index].encode(encoding)
                 if base64_metadata:
                     metadata = base64.b64decode(metadata)
             table.add_row(
-                position=position, ancestral_state=ancestral_state, metadata=metadata)
+                position=position, ancestral_state=ancestral_state, metadata=metadata
+            )
     return table
 
 
 def parse_mutations(
-        source, strict=True, encoding='utf8', base64_metadata=True, table=None):
+    source, strict=True, encoding="utf8", base64_metadata=True, table=None
+):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of a mutation table and returns the corresponding :class:`MutationTable`
@@ -2016,19 +2064,24 @@ def parse_mutations(
             derived_state = tokens[derived_state_index]
             if parent_index is not None:
                 parent = int(tokens[parent_index])
-            metadata = b''
+            metadata = b""
             if metadata_index is not None and metadata_index < len(tokens):
                 metadata = tokens[metadata_index].encode(encoding)
                 if base64_metadata:
                     metadata = base64.b64decode(metadata)
             table.add_row(
-                site=site, node=node, derived_state=derived_state, parent=parent,
-                metadata=metadata)
+                site=site,
+                node=node,
+                derived_state=derived_state,
+                parent=parent,
+                metadata=metadata,
+            )
     return table
 
 
 def parse_populations(
-        source, strict=True, encoding='utf8', base64_metadata=True, table=None):
+    source, strict=True, encoding="utf8", base64_metadata=True, table=None
+):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of a population table and returns the corresponding
@@ -2068,9 +2121,18 @@ def parse_populations(
     return table
 
 
-def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
-              populations=None, sequence_length=0, strict=True,
-              encoding='utf8', base64_metadata=True):
+def load_text(
+    nodes,
+    edges,
+    sites=None,
+    mutations=None,
+    individuals=None,
+    populations=None,
+    sequence_length=0,
+    strict=True,
+    encoding="utf8",
+    base64_metadata=True,
+):
     """
     Parses the tree sequence data from the specified file-like objects, and
     returns the resulting :class:`TreeSequence` object. The format
@@ -2144,11 +2206,18 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
         sequence_length = edge_table.right.max()
     tc = tables.TableCollection(sequence_length)
     tc.edges.set_columns(
-        left=edge_table.left, right=edge_table.right, parent=edge_table.parent,
-        child=edge_table.child)
+        left=edge_table.left,
+        right=edge_table.right,
+        parent=edge_table.parent,
+        child=edge_table.child,
+    )
     parse_nodes(
-        nodes, strict=strict, encoding=encoding, base64_metadata=base64_metadata,
-        table=tc.nodes)
+        nodes,
+        strict=strict,
+        encoding=encoding,
+        base64_metadata=base64_metadata,
+        table=tc.nodes,
+    )
     # We need to add populations any referenced in the node table.
     if len(tc.nodes) > 0:
         max_population = tc.nodes.population.max()
@@ -2157,20 +2226,36 @@ def load_text(nodes, edges, sites=None, mutations=None, individuals=None,
                 tc.populations.add_row()
     if sites is not None:
         parse_sites(
-            sites, strict=strict, encoding=encoding, base64_metadata=base64_metadata,
-            table=tc.sites)
+            sites,
+            strict=strict,
+            encoding=encoding,
+            base64_metadata=base64_metadata,
+            table=tc.sites,
+        )
     if mutations is not None:
         parse_mutations(
-            mutations, strict=strict, encoding=encoding,
-            base64_metadata=base64_metadata, table=tc.mutations)
+            mutations,
+            strict=strict,
+            encoding=encoding,
+            base64_metadata=base64_metadata,
+            table=tc.mutations,
+        )
     if individuals is not None:
         parse_individuals(
-            individuals, strict=strict, encoding=encoding,
-            base64_metadata=base64_metadata, table=tc.individuals)
+            individuals,
+            strict=strict,
+            encoding=encoding,
+            base64_metadata=base64_metadata,
+            table=tc.individuals,
+        )
     if populations is not None:
         parse_populations(
-            populations, strict=strict, encoding=encoding,
-            base64_metadata=base64_metadata, table=tc.populations)
+            populations,
+            strict=strict,
+            encoding=encoding,
+            base64_metadata=base64_metadata,
+            table=tc.populations,
+        )
     tc.sort()
     return tc.tree_sequence()
 
@@ -2179,6 +2264,7 @@ class TreeIterator(object):
     """
     Simple class providing forward and backward iteration over a tree sequence.
     """
+
     def __init__(self, tree):
         self.tree = tree
         self.more_trees = True
@@ -2210,6 +2296,7 @@ class SimpleContainerSequence(object):
     function allowing access by index (e.g. ts.edge(i), ts.node(i)) to be treated as a
     python sequence, allowing forward and reverse iteration.
     """
+
     def __init__(self, getter, length):
         self.getter = getter
         self.length = length
@@ -2290,7 +2377,8 @@ class TreeSequence(object):
         if zlib_compression:
             warnings.warn(
                 "The zlib_compression option is no longer supported and is ignored",
-                RuntimeWarning)
+                RuntimeWarning,
+            )
         # Convert the path to str to allow us use Pathlib inputs
         self._ll_tree_sequence.dump(str(path))
 
@@ -2325,9 +2413,18 @@ class TreeSequence(object):
         return t
 
     def dump_text(
-            self, nodes=None, edges=None, sites=None, mutations=None, individuals=None,
-            populations=None, provenances=None, precision=6, encoding='utf8',
-            base64_metadata=True):
+        self,
+        nodes=None,
+        edges=None,
+        sites=None,
+        mutations=None,
+        individuals=None,
+        populations=None,
+        provenances=None,
+        precision=6,
+        encoding="utf8",
+        base64_metadata=True,
+    ):
         """
         Writes a text representation of the tables underlying the tree sequence
         to the specified connections.
@@ -2355,8 +2452,15 @@ class TreeSequence(object):
 
         if nodes is not None:
             print(
-                "id", "is_sample", "time", "population", "individual", "metadata",
-                sep="\t", file=nodes)
+                "id",
+                "is_sample",
+                "time",
+                "population",
+                "individual",
+                "metadata",
+                sep="\t",
+                file=nodes,
+            )
             for node in self.nodes():
                 metadata = node.metadata
                 if base64_metadata:
@@ -2367,12 +2471,16 @@ class TreeSequence(object):
                     "{time:.{precision}f}\t"
                     "{population:d}\t"
                     "{individual:d}\t"
-                    "{metadata}").format(
-                        precision=precision, id=node.id,
-                        is_sample=node.is_sample(), time=node.time,
-                        population=node.population,
-                        individual=node.individual,
-                        metadata=metadata)
+                    "{metadata}"
+                ).format(
+                    precision=precision,
+                    id=node.id,
+                    is_sample=node.is_sample(),
+                    time=node.time,
+                    population=node.population,
+                    individual=node.individual,
+                    metadata=metadata,
+                )
                 print(row, file=nodes)
 
         if edges is not None:
@@ -2382,9 +2490,14 @@ class TreeSequence(object):
                     "{left:.{precision}f}\t"
                     "{right:.{precision}f}\t"
                     "{parent:d}\t"
-                    "{child:d}").format(
-                        precision=precision, left=edge.left, right=edge.right,
-                        parent=edge.parent, child=edge.child)
+                    "{child:d}"
+                ).format(
+                    precision=precision,
+                    left=edge.left,
+                    right=edge.right,
+                    parent=edge.parent,
+                    child=edge.child,
+                )
                 print(row, file=edges)
 
         if sites is not None:
@@ -2394,18 +2507,25 @@ class TreeSequence(object):
                 if base64_metadata:
                     metadata = base64.b64encode(metadata).decode(encoding)
                 row = (
-                    "{position:.{precision}f}\t"
-                    "{ancestral_state}\t"
-                    "{metadata}").format(
-                        precision=precision, position=site.position,
-                        ancestral_state=site.ancestral_state,
-                        metadata=metadata)
+                    "{position:.{precision}f}\t" "{ancestral_state}\t" "{metadata}"
+                ).format(
+                    precision=precision,
+                    position=site.position,
+                    ancestral_state=site.ancestral_state,
+                    metadata=metadata,
+                )
                 print(row, file=sites)
 
         if mutations is not None:
             print(
-                "site", "node", "derived_state", "parent", "metadata",
-                sep="\t", file=mutations)
+                "site",
+                "node",
+                "derived_state",
+                "parent",
+                "metadata",
+                sep="\t",
+                file=mutations,
+            )
             for site in self.sites():
                 for mutation in site.mutations:
                     metadata = mutation.metadata
@@ -2416,54 +2536,50 @@ class TreeSequence(object):
                         "{node}\t"
                         "{derived_state}\t"
                         "{parent}\t"
-                        "{metadata}").format(
-                            site=mutation.site, node=mutation.node,
-                            derived_state=mutation.derived_state,
-                            parent=mutation.parent,
-                            metadata=metadata)
+                        "{metadata}"
+                    ).format(
+                        site=mutation.site,
+                        node=mutation.node,
+                        derived_state=mutation.derived_state,
+                        parent=mutation.parent,
+                        metadata=metadata,
+                    )
                     print(row, file=mutations)
 
         if individuals is not None:
-            print(
-                "id", "flags", "location", "metadata",
-                sep="\t", file=individuals)
+            print("id", "flags", "location", "metadata", sep="\t", file=individuals)
             for individual in self.individuals():
                 metadata = individual.metadata
                 if base64_metadata:
                     metadata = base64.b64encode(metadata).decode(encoding)
                 location = ",".join(map(str, individual.location))
-                row = (
-                    "{id}\t"
-                    "{flags}\t"
-                    "{location}\t"
-                    "{metadata}").format(
-                        id=individual.id, flags=individual.flags,
-                        location=location, metadata=metadata)
+                row = ("{id}\t" "{flags}\t" "{location}\t" "{metadata}").format(
+                    id=individual.id,
+                    flags=individual.flags,
+                    location=location,
+                    metadata=metadata,
+                )
                 print(row, file=individuals)
 
         if populations is not None:
-            print(
-                "id", "metadata",
-                sep="\t", file=populations)
+            print("id", "metadata", sep="\t", file=populations)
             for population in self.populations():
                 metadata = population.metadata
                 if base64_metadata:
                     metadata = base64.b64encode(metadata).decode(encoding)
-                row = (
-                    "{id}\t"
-                    "{metadata}").format(id=population.id, metadata=metadata)
+                row = ("{id}\t" "{metadata}").format(
+                    id=population.id, metadata=metadata
+                )
                 print(row, file=populations)
 
         if provenances is not None:
             print("id", "timestamp", "record", sep="\t", file=provenances)
             for provenance in self.provenances():
-                row = (
-                    "{id}\t"
-                    "{timestamp}\t"
-                    "{record}\t").format(
-                        id=provenance.id,
-                        timestamp=provenance.timestamp,
-                        record=provenance.record)
+                row = ("{id}\t" "{timestamp}\t" "{record}\t").format(
+                    id=provenance.id,
+                    timestamp=provenance.timestamp,
+                    record=provenance.record,
+                )
                 print(row, file=provenances)
 
     # num_samples was originally called sample_size, and so we must keep sample_size
@@ -2717,7 +2833,10 @@ class TreeSequence(object):
                 children[edge.parent].add(edge.child)
             # Update the active edgesets
             for edge in itertools.chain(edges_out, edges_in):
-                if len(children[edge.parent]) > 0 and edge.parent not in active_edgesets:
+                if (
+                    len(children[edge.parent]) > 0
+                    and edge.parent not in active_edgesets
+                ):
                     active_edgesets[edge.parent] = Edgeset(left, right, edge.parent, [])
 
         for parent in active_edgesets.keys():
@@ -2879,8 +2998,14 @@ class TreeSequence(object):
         return tree
 
     def trees(
-            self, tracked_samples=None, sample_counts=None, sample_lists=False,
-            tracked_leaves=None, leaf_counts=None, leaf_lists=None):
+        self,
+        tracked_samples=None,
+        sample_counts=None,
+        sample_lists=False,
+        tracked_leaves=None,
+        leaf_counts=None,
+        leaf_lists=None,
+    ):
         """
         Returns an iterator over the trees in this tree sequence. Each value
         returned in this iterator is an instance of :class:`Tree`. Upon
@@ -2917,8 +3042,11 @@ class TreeSequence(object):
         if leaf_lists is not None:
             sample_lists = leaf_lists
         tree = Tree(
-            self, tracked_samples=tracked_samples, sample_counts=sample_counts,
-            sample_lists=sample_lists)
+            self,
+            tracked_samples=tracked_samples,
+            sample_counts=sample_counts,
+            sample_lists=sample_lists,
+        )
         return TreeIterator(tree)
 
     def haplotypes(self, impute_missing_data=False, missing_data_character="-"):
@@ -2975,35 +3103,41 @@ class TreeSequence(object):
             if the ``missing_data_character`` exists in one of the alleles
         """
         H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
-        missing_int8 = ord(missing_data_character.encode('ascii'))
+        missing_int8 = ord(missing_data_character.encode("ascii"))
         for var in self.variants(impute_missing_data=impute_missing_data):
             alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
             for i, allele in enumerate(var.alleles):
                 if allele is not None:
                     if len(allele) != 1:
                         raise TypeError(
-                            "Multi-letter allele or deletion detected at site {}"
-                            .format(var.site.id))
+                            "Multi-letter allele or deletion detected at site {}".format(
+                                var.site.id
+                            )
+                        )
                     try:
-                        ascii_allele = allele.encode('ascii')
+                        ascii_allele = allele.encode("ascii")
                     except UnicodeEncodeError:
                         raise TypeError(
-                            "Non-ascii character in allele at site {}"
-                            .format(var.site.id))
+                            "Non-ascii character in allele at site {}".format(
+                                var.site.id
+                            )
+                        )
                     allele_int8 = ord(ascii_allele)
                     if allele_int8 == missing_int8:
                         raise ValueError(
                             "The missing data character '{}' clashes with an "
-                            "existing allele at site {}"
-                            .format(missing_data_character, var.site.id))
+                            "existing allele at site {}".format(
+                                missing_data_character, var.site.id
+                            )
+                        )
                     alleles[i] = allele_int8
             H[:, var.site.id] = alleles[var.genotypes]
         for h in H:
-            yield h.tostring().decode('ascii')
+            yield h.tostring().decode("ascii")
 
     def variants(
-            self, as_bytes=False, samples=None, impute_missing_data=False,
-            alleles=None):
+        self, as_bytes=False, samples=None, impute_missing_data=False, alleles=None
+    ):
         """
         Returns an iterator over the variants in this tree sequence. See the
         :class:`Variant` class for details on the fields of each returned
@@ -3070,14 +3204,18 @@ class TreeSequence(object):
         # See comments for the Variant type for discussion on why the
         # present form was chosen.
         iterator = _tskit.VariantGenerator(
-            self._ll_tree_sequence, samples=samples,
-            impute_missing_data=impute_missing_data, alleles=alleles)
+            self._ll_tree_sequence,
+            samples=samples,
+            impute_missing_data=impute_missing_data,
+            alleles=alleles,
+        )
         for site_id, genotypes, alleles in iterator:
             site = self.site(site_id)
             if as_bytes:
                 if any(len(allele) > 1 for allele in alleles):
                     raise ValueError(
-                        "as_bytes only supported for single-letter alleles")
+                        "as_bytes only supported for single-letter alleles"
+                    )
                 bytes_genotypes = np.empty(self.num_samples, dtype=np.uint8)
                 lookup = np.array([ord(a[0]) for a in alleles], dtype=np.uint8)
                 bytes_genotypes[:] = lookup[genotypes]
@@ -3117,7 +3255,8 @@ class TreeSequence(object):
         :rtype: numpy.ndarray (dtype=np.int8)
         """
         return self._ll_tree_sequence.get_genotype_matrix(
-            impute_missing_data=impute_missing_data, alleles=alleles)
+            impute_missing_data=impute_missing_data, alleles=alleles
+        )
 
     def individual(self, id_):
         """
@@ -3128,7 +3267,8 @@ class TreeSequence(object):
         """
         flags, location, metadata, nodes = self._ll_tree_sequence.get_individual(id_)
         return Individual(
-            id_=id_, flags=flags, location=location, metadata=metadata, nodes=nodes)
+            id_=id_, flags=flags, location=location, metadata=metadata, nodes=nodes
+        )
 
     def node(self, id_):
         """
@@ -3137,11 +3277,21 @@ class TreeSequence(object):
 
         :rtype: :class:`Node`
         """
-        (flags, time, population, individual,
-         metadata) = self._ll_tree_sequence.get_node(id_)
+        (
+            flags,
+            time,
+            population,
+            individual,
+            metadata,
+        ) = self._ll_tree_sequence.get_node(id_)
         return Node(
-            id_=id_, flags=flags, time=time, population=population,
-            individual=individual, metadata=metadata)
+            id_=id_,
+            flags=flags,
+            time=time,
+            population=population,
+            individual=individual,
+            metadata=metadata,
+        )
 
     def edge(self, id_):
         """
@@ -3160,10 +3310,18 @@ class TreeSequence(object):
 
         :rtype: :class:`.Migration`
         """
-        left, right, node, source, dest, time = self._ll_tree_sequence.get_migration(id_)
+        left, right, node, source, dest, time = self._ll_tree_sequence.get_migration(
+            id_
+        )
         return Migration(
-            id_=id_, left=left, right=right, node=node, source=source, dest=dest,
-            time=time)
+            id_=id_,
+            left=left,
+            right=right,
+            node=node,
+            source=source,
+            dest=dest,
+            time=time,
+        )
 
     def mutation(self, id_):
         """
@@ -3172,11 +3330,21 @@ class TreeSequence(object):
 
         :rtype: :class:`Mutation`
         """
-        (site, node, derived_state, parent,
-         metadata) = self._ll_tree_sequence.get_mutation(id_)
+        (
+            site,
+            node,
+            derived_state,
+            parent,
+            metadata,
+        ) = self._ll_tree_sequence.get_mutation(id_)
         return Mutation(
-            id_=id_, site=site, node=node, derived_state=derived_state, parent=parent,
-            metadata=metadata)
+            id_=id_,
+            site=site,
+            node=node,
+            derived_state=derived_state,
+            parent=parent,
+            metadata=metadata,
+        )
 
     def site(self, id_):
         """
@@ -3189,8 +3357,12 @@ class TreeSequence(object):
         pos, ancestral_state, ll_mutations, _, metadata = ll_site
         mutations = [self.mutation(mut_id) for mut_id in ll_mutations]
         return Site(
-            id_=id_, position=pos, ancestral_state=ancestral_state,
-            mutations=mutations, metadata=metadata)
+            id_=id_,
+            position=pos,
+            ancestral_state=ancestral_state,
+            mutations=mutations,
+            metadata=metadata,
+        )
 
     def population(self, id_):
         """
@@ -3199,7 +3371,7 @@ class TreeSequence(object):
 
         :rtype: :class:`Population`
         """
-        metadata, = self._ll_tree_sequence.get_population(id_)
+        (metadata,) = self._ll_tree_sequence.get_population(id_)
         return Population(id_=id_, metadata=metadata)
 
     def provenance(self, id_):
@@ -3224,7 +3396,8 @@ class TreeSequence(object):
         """
         if population is not None and population_id is not None:
             raise ValueError(
-                "population_id and population are aliases. Cannot specify both")
+                "population_id and population are aliases. Cannot specify both"
+            )
         if population_id is not None:
             population = population_id
         samples = self._ll_tree_sequence.get_samples()
@@ -3282,13 +3455,16 @@ class TreeSequence(object):
             sequence_ids = ["tsk_{}".format(j) for j in self.samples()]
         if len(sequence_ids) != self.num_samples:
             raise ValueError(
-                "sequence_ids must have length equal to the number of samples.")
+                "sequence_ids must have length equal to the number of samples."
+            )
 
         wrap_width = int(wrap_width)
         if wrap_width < 0:
-            raise ValueError("wrap_width must be a non-negative integer. "
-                             "You may specify `wrap_width=0` "
-                             "if you do not want any wrapping.")
+            raise ValueError(
+                "wrap_width must be a non-negative integer. "
+                "You may specify `wrap_width=0` "
+                "if you do not want any wrapping."
+            )
 
         for j, hap in enumerate(self.haplotypes()):
             print(">", sequence_ids[j], sep="", file=output)
@@ -3299,8 +3475,14 @@ class TreeSequence(object):
                     print(hap_wrap, file=output)
 
     def write_vcf(
-            self, output, ploidy=None, contig_id="1", individuals=None,
-            individual_names=None, position_transform=None):
+        self,
+        output,
+        ploidy=None,
+        contig_id="1",
+        individuals=None,
+        individual_names=None,
+        position_transform=None,
+    ):
         """
         Writes a VCF formatted file to the specified file-like object.
         If there is individual information present in the tree sequence
@@ -3414,19 +3596,27 @@ class TreeSequence(object):
             by incrementing is used.
         """
         writer = vcf.VcfWriter(
-            self, ploidy=ploidy, contig_id=contig_id,
+            self,
+            ploidy=ploidy,
+            contig_id=contig_id,
             individuals=individuals,
             individual_names=individual_names,
-            position_transform=position_transform)
+            position_transform=position_transform,
+        )
         writer.write(output)
 
     def simplify(
-            self, samples=None,
-            filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
-            map_nodes=False,
-            reduce_to_site_topology=False,
-            filter_populations=True, filter_individuals=True, filter_sites=True,
-            record_provenance=True, keep_unary=False):
+        self,
+        samples=None,
+        filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
+        map_nodes=False,
+        reduce_to_site_topology=False,
+        filter_populations=True,
+        filter_individuals=True,
+        filter_sites=True,
+        record_provenance=True,
+        keep_unary=False,
+    ):
         """
         Returns a simplified tree sequence that retains only the history of
         the nodes given in the list ``samples``. If ``map_nodes`` is true,
@@ -3505,17 +3695,16 @@ class TreeSequence(object):
             filter_populations=filter_populations,
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
-            keep_unary=keep_unary)
+            keep_unary=keep_unary,
+        )
         if record_provenance:
             # TODO move this into tables.simplify. See issue #374
             # TODO also make sure we convert all the arguments so that they are
             # definitely JSON encodable.
-            parameters = {
-                "command": "simplify",
-                "TODO": "add simplify parameters"
-            }
-            tables.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            parameters = {"command": "simplify", "TODO": "add simplify parameters"}
+            tables.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
         new_ts = tables.tree_sequence()
         assert new_ts.sequence_length == self.sequence_length
         if map_nodes:
@@ -3660,8 +3849,17 @@ class TreeSequence(object):
     #
     ############################################
 
-    def general_stat(self, W, f, output_dim, windows=None, polarised=False, mode=None,
-                     span_normalise=True, strict=True):
+    def general_stat(
+        self,
+        W,
+        f,
+        output_dim,
+        windows=None,
+        polarised=False,
+        mode=None,
+        span_normalise=True,
+        strict=True,
+    ):
         """
         Compute a windowed statistic from weights and a summary function.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
@@ -3721,20 +3919,36 @@ class TreeSequence(object):
         if strict:
             total_weights = np.sum(W, axis=0)
             for x in [total_weights, total_weights * 0.0]:
-                with np.errstate(invalid='ignore', divide='ignore'):
+                with np.errstate(invalid="ignore", divide="ignore"):
                     fx = np.array(f(x))
                 fx[np.isnan(fx)] = 0.0
-                if not np.allclose(fx, np.zeros((output_dim, ))):
-                    raise ValueError("Summary function does not return zero for both "
-                                     "zero weight and total weight.")
+                if not np.allclose(fx, np.zeros((output_dim,))):
+                    raise ValueError(
+                        "Summary function does not return zero for both "
+                        "zero weight and total weight."
+                    )
         return self.__run_windowed_stat(
-            windows, self.ll_tree_sequence.general_stat,
-            W, f, output_dim, polarised=polarised,
-            span_normalise=span_normalise, mode=mode)
+            windows,
+            self.ll_tree_sequence.general_stat,
+            W,
+            f,
+            output_dim,
+            polarised=polarised,
+            span_normalise=span_normalise,
+            mode=mode,
+        )
 
     def sample_count_stat(
-            self, sample_sets, f, output_dim, windows=None, polarised=False, mode=None,
-            span_normalise=True, strict=True):
+        self,
+        sample_sets,
+        f,
+        output_dim,
+        windows=None,
+        polarised=False,
+        mode=None,
+        span_normalise=True,
+        strict=True,
+    ):
         """
         Compute a windowed statistic from sample counts and a summary function.
         This is a wrapper around :meth:`.general_stat` for the common case in
@@ -3806,7 +4020,8 @@ class TreeSequence(object):
         for U in sample_sets:
             if len(U) != len(set(U)):
                 raise ValueError(
-                    "Elements of sample_sets must be lists without repeated elements.")
+                    "Elements of sample_sets must be lists without repeated elements."
+                )
             if len(U) == 0:
                 raise ValueError("Elements of sample_sets cannot be empty.")
             for u in U:
@@ -3814,9 +4029,16 @@ class TreeSequence(object):
                     raise ValueError("Not all elements of sample_sets are samples.")
 
         W = np.array([[float(u in A) for A in sample_sets] for u in self.samples()])
-        return self.general_stat(W, f, output_dim, windows=windows, polarised=polarised,
-                                 mode=mode, span_normalise=span_normalise,
-                                 strict=strict)
+        return self.general_stat(
+            W,
+            f,
+            output_dim,
+            windows=windows,
+            polarised=polarised,
+            mode=mode,
+            span_normalise=span_normalise,
+            strict=strict,
+        )
 
     def parse_windows(self, windows):
         # Note: need to make sure windows is a string or we try to compare the
@@ -3828,14 +4050,19 @@ class TreeSequence(object):
                 windows = self.breakpoints(as_array=True)
             elif windows == "sites":
                 # breakpoints are at 0.0 and at the sites and at the end
-                windows = np.concatenate([
-                                [] if self.num_sites > 0 else [0.0],
-                                self.tables.sites.position,
-                                [self.sequence_length]])
+                windows = np.concatenate(
+                    [
+                        [] if self.num_sites > 0 else [0.0],
+                        self.tables.sites.position,
+                        [self.sequence_length],
+                    ]
+                )
                 windows[0] = 0.0
             else:
-                raise ValueError("Unrecognized window specification {}:".format(windows),
-                                 "the only allowed strings are 'sites' or 'trees'")
+                raise ValueError(
+                    "Unrecognized window specification {}:".format(windows),
+                    "the only allowed strings are 'sites' or 'trees'",
+                )
         return np.array(windows)
 
     def __run_windowed_stat(self, windows, method, *args, **kwargs):
@@ -3847,8 +4074,14 @@ class TreeSequence(object):
         return stat
 
     def __one_way_sample_set_stat(
-            self, ll_method, sample_sets, windows=None, mode=None, span_normalise=True,
-            polarised=False):
+        self,
+        ll_method,
+        sample_sets,
+        windows=None,
+        mode=None,
+        span_normalise=True,
+        polarised=False,
+    ):
         if sample_sets is None:
             sample_sets = self.samples()
 
@@ -3867,23 +4100,38 @@ class TreeSequence(object):
                 drop_dimension = True
 
         sample_set_sizes = np.array(
-            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
+        )
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
 
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         stat = self.__run_windowed_stat(
-            windows, ll_method, sample_set_sizes, flattened,
-            mode=mode, span_normalise=span_normalise, polarised=polarised)
+            windows,
+            ll_method,
+            sample_set_sizes,
+            flattened,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
+        )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
         return stat
 
     def __k_way_sample_set_stat(
-            self, ll_method, k, sample_sets, indexes=None, windows=None,
-            mode=None, span_normalise=True):
+        self,
+        ll_method,
+        k,
+        sample_sets,
+        indexes=None,
+        windows=None,
+        mode=None,
+        span_normalise=True,
+    ):
         sample_set_sizes = np.array(
-            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32)
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
+        )
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
@@ -3891,7 +4139,8 @@ class TreeSequence(object):
             if len(sample_sets) != k:
                 raise ValueError(
                     "Must specify indexes if there are not exactly {} sample "
-                    "sets.".format(k))
+                    "sets.".format(k)
+                )
             indexes = np.arange(k, dtype=np.int32)
         drop_dimension = False
         indexes = util.safe_np_int_cast(indexes, np.int32)
@@ -3901,10 +4150,17 @@ class TreeSequence(object):
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
             raise ValueError(
                 "Indexes must be convertable to a 2D numpy array with {} "
-                "columns".format(k))
+                "columns".format(k)
+            )
         stat = self.__run_windowed_stat(
-            windows, ll_method, sample_set_sizes, flattened, indexes,
-            mode=mode, span_normalise=span_normalise)
+            windows,
+            ll_method,
+            sample_set_sizes,
+            flattened,
+            indexes,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
         return stat
@@ -3913,8 +4169,9 @@ class TreeSequence(object):
     # Statistics definitions
     ############################################
 
-    def diversity(self, sample_sets=None, windows=None, mode="site",
-                  span_normalise=True):
+    def diversity(
+        self, sample_sets=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
         sets of nodes from ``sample_sets``.
@@ -3957,11 +4214,16 @@ class TreeSequence(object):
         :return: A numpy array.
         """
         return self.__one_way_sample_set_stat(
-            self._ll_tree_sequence.diversity, sample_sets, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.diversity,
+            sample_sets,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def divergence(self, sample_sets, indexes=None, windows=None, mode="site",
-                   span_normalise=True):
+    def divergence(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes from ``sample_sets``.
@@ -4009,8 +4271,14 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
-            self._ll_tree_sequence.divergence, 2, sample_sets, indexes=indexes,
-            windows=windows, mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.divergence,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
     # JK: commenting this out for now to get the other methods well tested.
     # Issue: https://github.com/tskit-dev/tskit/issues/201
@@ -4100,10 +4368,16 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if W.shape[0] != self.num_samples:
-            raise ValueError("First trait dimension must be equal to number of samples.")
+            raise ValueError(
+                "First trait dimension must be equal to number of samples."
+            )
         return self.__run_windowed_stat(
-            windows, self._ll_tree_sequence.trait_covariance, W, mode=mode,
-            span_normalise=span_normalise)
+            windows,
+            self._ll_tree_sequence.trait_covariance,
+            W,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
     def trait_correlation(self, W, windows=None, mode="site", span_normalise=True):
         """
@@ -4159,17 +4433,25 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if W.shape[0] != self.num_samples:
-            raise ValueError("First trait dimension must be equal to number of samples.")
+            raise ValueError(
+                "First trait dimension must be equal to number of samples."
+            )
         sds = np.std(W, axis=0)
         if np.any(sds == 0):
-            raise ValueError("Weight columns must have positive variance",
-                             "to compute correlation.")
+            raise ValueError(
+                "Weight columns must have positive variance", "to compute correlation."
+            )
         return self.__run_windowed_stat(
-            windows, self._ll_tree_sequence.trait_correlation, W, mode=mode,
-            span_normalise=span_normalise)
+            windows,
+            self._ll_tree_sequence.trait_correlation,
+            W,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def trait_regression(self, W, Z=None, windows=None, mode="site",
-                         span_normalise=True):
+    def trait_regression(
+        self, W, Z=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         For each trait w (i.e., each column of W), performs the least-squares
         linear regression :math:`w ~ g + Z`,
@@ -4225,7 +4507,9 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if W.shape[0] != self.num_samples:
-            raise ValueError("First trait dimension must be equal to number of samples.")
+            raise ValueError(
+                "First trait dimension must be equal to number of samples."
+            )
         if Z is None:
             Z = np.ones((self.num_samples, 1))
         else:
@@ -4240,11 +4524,17 @@ class TreeSequence(object):
         K = np.linalg.cholesky(np.matmul(Z.T, Z)).T
         Z = np.matmul(Z, np.linalg.inv(K))
         return self.__run_windowed_stat(
-            windows, self._ll_tree_sequence.trait_regression,
-            W, Z, mode=mode, span_normalise=span_normalise)
+            windows,
+            self._ll_tree_sequence.trait_regression,
+            W,
+            Z,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def segregating_sites(self, sample_sets=None, windows=None, mode="site",
-                          span_normalise=True):
+    def segregating_sites(
+        self, sample_sets=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes the density of segregating sites for each of the sets of nodes
         from ``sample_sets``, and related quantities.
@@ -4284,12 +4574,21 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__one_way_sample_set_stat(
-            self._ll_tree_sequence.segregating_sites, sample_sets, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.segregating_sites,
+            sample_sets,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
     def allele_frequency_spectrum(
-            self, sample_sets=None, windows=None, mode="site", span_normalise=True,
-            polarised=False):
+        self,
+        sample_sets=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
+        polarised=False,
+    ):
         """
         Computes the allele frequency spectrum (AFS) in windows across the genome for
         with respect to the specified ``sample_sets``.
@@ -4371,8 +4670,12 @@ class TreeSequence(object):
             sample_sets = [self.samples()]
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.allele_frequency_spectrum,
-            sample_sets, windows=windows, mode=mode, span_normalise=span_normalise,
-            polarised=polarised)
+            sample_sets,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
+        )
 
     def Tajimas_D(self, sample_sets=None, windows=None, mode="site"):
         """
@@ -4417,19 +4720,25 @@ class TreeSequence(object):
             n = sample_set_sizes
             T = self.ll_tree_sequence.diversity(n, flattened, **kwargs)
             S = self.ll_tree_sequence.segregating_sites(n, flattened, **kwargs)
-            h = np.array([np.sum(1/np.arange(1, nn)) for nn in n])
-            g = np.array([np.sum(1/np.arange(1, nn)**2) for nn in n])
-            with np.errstate(invalid='ignore', divide='ignore'):
-                a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
-                b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
-                D = (T - S/h) / np.sqrt(a * S + (b / (h**2 + g)) * S * (S - 1))
+            h = np.array([np.sum(1 / np.arange(1, nn)) for nn in n])
+            g = np.array([np.sum(1 / np.arange(1, nn) ** 2) for nn in n])
+            with np.errstate(invalid="ignore", divide="ignore"):
+                a = (n + 1) / (3 * (n - 1) * h) - 1 / h ** 2
+                b = (
+                    2 * (n ** 2 + n + 3) / (9 * n * (n - 1))
+                    - (n + 2) / (h * n)
+                    + g / h ** 2
+                )
+                D = (T - S / h) / np.sqrt(a * S + (b / (h ** 2 + g)) * S * (S - 1))
             return D
 
         return self.__one_way_sample_set_stat(
-            tjd_func, sample_sets, windows=windows, mode=mode, span_normalise=False)
+            tjd_func, sample_sets, windows=windows, mode=mode, span_normalise=False
+        )
 
-    def Fst(self, sample_sets, indexes=None, windows=None, mode="site",
-            span_normalise=True):
+    def Fst(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes "windowed" Fst between pairs of sets of nodes from ``sample_sets``.
         Operates on ``k = 2`` sample sets at a time; please see the
@@ -4474,9 +4783,11 @@ class TreeSequence(object):
 
         def fst_func(sample_set_sizes, flattened, indexes, **kwargs):
             diversities = self._ll_tree_sequence.diversity(
-                sample_set_sizes, flattened, **kwargs)
+                sample_set_sizes, flattened, **kwargs
+            )
             divergences = self._ll_tree_sequence.divergence(
-                sample_set_sizes, flattened, indexes, **kwargs)
+                sample_set_sizes, flattened, indexes, **kwargs
+            )
 
             orig_shape = divergences.shape
             # "node" statistics produce a 3D array
@@ -4488,20 +4799,30 @@ class TreeSequence(object):
             fst.shape = divergences.shape
             for i, (u, v) in enumerate(indexes):
                 denom = (
-                    diversities[:, :, u] + diversities[:, :, v]
-                    + 2 * divergences[:, :, i])
-                with np.errstate(divide='ignore', invalid='ignore'):
-                    fst[:, :, i] -= 2 * (
-                        diversities[:, :, u] + diversities[:, :, v]) / denom
+                    diversities[:, :, u]
+                    + diversities[:, :, v]
+                    + 2 * divergences[:, :, i]
+                )
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    fst[:, :, i] -= (
+                        2 * (diversities[:, :, u] + diversities[:, :, v]) / denom
+                    )
             fst.shape = orig_shape
             return fst
 
         return self.__k_way_sample_set_stat(
-            fst_func, 2, sample_sets, indexes=indexes,
-            windows=windows, mode=mode, span_normalise=span_normalise)
+            fst_func,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def Y3(self, sample_sets, indexes=None, windows=None, mode="site",
-           span_normalise=True):
+    def Y3(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes the 'Y' statistic between triples of sets of nodes from ``sample_sets``.
         Operates on ``k = 3`` sample sets at a time; please see the
@@ -4541,11 +4862,18 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
-            self._ll_tree_sequence.Y3, 3, sample_sets, indexes=indexes, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.Y3,
+            3,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def Y2(self, sample_sets, indexes=None, windows=None, mode="site",
-           span_normalise=True):
+    def Y2(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes the 'Y2' statistic between pairs of sets of nodes from ``sample_sets``.
         Operates on ``k = 2`` sample sets at a time; please see the
@@ -4576,8 +4904,14 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
-            self._ll_tree_sequence.Y2, 2, sample_sets, indexes=indexes, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.Y2,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
     def Y1(self, sample_sets, windows=None, mode="site", span_normalise=True):
         """
@@ -4608,11 +4942,16 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__one_way_sample_set_stat(
-            self._ll_tree_sequence.Y1, sample_sets, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.Y1,
+            sample_sets,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def f4(self, sample_sets, indexes=None, windows=None, mode="site",
-           span_normalise=True):
+    def f4(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes Patterson's f4 statistic between four groups of nodes from
         ``sample_sets``.
@@ -4658,11 +4997,18 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
-            self._ll_tree_sequence.f4, 4, sample_sets, indexes=indexes, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.f4,
+            4,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def f3(self, sample_sets, indexes=None, windows=None, mode="site",
-           span_normalise=True):
+    def f3(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes Patterson's f3 statistic between three groups of nodes from
         ``sample_sets``.
@@ -4694,11 +5040,18 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
-            self._ll_tree_sequence.f3, 3, sample_sets, indexes=indexes, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.f3,
+            3,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
-    def f2(self, sample_sets, indexes=None, windows=None, mode="site",
-           span_normalise=True):
+    def f2(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
         """
         Computes Patterson's f3 statistic between two groups of nodes from
         ``sample_sets``.
@@ -4731,8 +5084,14 @@ class TreeSequence(object):
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         return self.__k_way_sample_set_stat(
-            self._ll_tree_sequence.f2, 2, sample_sets, indexes=indexes, windows=windows,
-            mode=mode, span_normalise=span_normalise)
+            self._ll_tree_sequence.f2,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
 
     def mean_descendants(self, sample_sets):
         """
@@ -4804,11 +5163,13 @@ class TreeSequence(object):
         # TODO add windows=None option: https://github.com/tskit-dev/tskit/issues/193
         if num_threads <= 0:
             return self._ll_tree_sequence.genealogical_nearest_neighbours(
-                focal, sample_sets)
+                focal, sample_sets
+            )
         else:
             worker = functools.partial(
                 self._ll_tree_sequence.genealogical_nearest_neighbours,
-                reference_sets=sample_sets)
+                reference_sets=sample_sets,
+            )
             focal = util.safe_np_int_cast(focal, np.int32)
             splits = np.array_split(focal, num_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
@@ -4847,8 +5208,11 @@ class TreeSequence(object):
         """
         if samples is None:
             samples = self.samples()
-        return float(self.diversity(
-            [samples], windows=[0, self.sequence_length], span_normalise=False)[0])
+        return float(
+            self.diversity(
+                [samples], windows=[0, self.sequence_length], span_normalise=False
+            )[0]
+        )
 
     def get_time(self, u):
         # Deprecated. Use ts.node(u).time
@@ -4870,7 +5234,8 @@ class TreeSequence(object):
         pop = [node.population for node in self.nodes()]
         for e in self.edgesets():
             yield CoalescenceRecord(
-                e.left, e.right, e.parent, e.children, t[e.parent], pop[e.parent])
+                e.left, e.right, e.parent, e.children, t[e.parent], pop[e.parent]
+            )
 
     # Unsupported old methods.
 
@@ -4881,14 +5246,17 @@ class TreeSequence(object):
             "than coalescence records. If not, please use len(list(ts.edgesets())) "
             "which should return the number of coalescence records, as previously "
             "defined. Please open an issue on GitHub if this is "
-            "important for your workflow.")
+            "important for your workflow."
+        )
 
     def diffs(self):
         raise NotImplementedError(
             "This method is no longer supported. Please use the "
-            "TreeSequence.edge_diffs() method instead")
+            "TreeSequence.edge_diffs() method instead"
+        )
 
     def newick_trees(self, precision=3, breakpoints=None, Ne=1):
         raise NotImplementedError(
             "This method is no longer supported. Please use the Tree.newick"
-            " method instead")
+            " method instead"
+        )

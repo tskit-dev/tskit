@@ -62,13 +62,9 @@ def get_environment(extra_libs=None, include_tskit=True):
         "python": {
             "implementation": platform.python_implementation(),
             "version": platform.python_version(),
-        }
+        },
     }
-    libs = {
-        "kastore": {
-            "version": ".".join(map(str, _tskit.get_kastore_version()))
-        }
-    }
+    libs = {"kastore": {"version": ".".join(map(str, _tskit.get_kastore_version()))}}
     if include_tskit:
         libs["tskit"] = {"version": __version__}
     if extra_libs is not None:
@@ -84,12 +80,9 @@ def get_provenance_dict(parameters=None):
     """
     document = {
         "schema_version": "1.0.0",
-        "software": {
-            "name": "tskit",
-            "version": __version__
-        },
+        "software": {"name": "tskit", "version": __version__},
         "parameters": parameters,
-        "environment": get_environment(include_tskit=False)
+        "environment": get_environment(include_tskit=False),
     }
     return document
 
