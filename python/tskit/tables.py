@@ -32,6 +32,7 @@ import warnings
 import numpy as np
 
 import _tskit
+
 # This circular import is ugly but it seems hard to avoid it since table collection
 # and tree sequence depend on each other. Unless they're in the same module they
 # need to import each other. In Py3 at least we can import the modules but we
@@ -42,43 +43,41 @@ import tskit.provenance as provenance
 
 
 IndividualTableRow = collections.namedtuple(
-    "IndividualTableRow",
-    ["flags", "location", "metadata"])
+    "IndividualTableRow", ["flags", "location", "metadata"]
+)
 
 
 NodeTableRow = collections.namedtuple(
-    "NodeTableRow",
-    ["flags", "time", "population", "individual", "metadata"])
+    "NodeTableRow", ["flags", "time", "population", "individual", "metadata"]
+)
 
 
 EdgeTableRow = collections.namedtuple(
-    "EdgeTableRow",
-    ["left", "right", "parent", "child"])
+    "EdgeTableRow", ["left", "right", "parent", "child"]
+)
 
 
 MigrationTableRow = collections.namedtuple(
-    "MigrationTableRow",
-    ["left", "right", "node", "source", "dest", "time"])
+    "MigrationTableRow", ["left", "right", "node", "source", "dest", "time"]
+)
 
 
 SiteTableRow = collections.namedtuple(
-    "SiteTableRow",
-    ["position", "ancestral_state", "metadata"])
+    "SiteTableRow", ["position", "ancestral_state", "metadata"]
+)
 
 
 MutationTableRow = collections.namedtuple(
-    "MutationTableRow",
-    ["site", "node", "derived_state", "parent", "metadata"])
+    "MutationTableRow", ["site", "node", "derived_state", "parent", "metadata"]
+)
 
 
-PopulationTableRow = collections.namedtuple(
-    "PopulationTableRow",
-    ["metadata"])
+PopulationTableRow = collections.namedtuple("PopulationTableRow", ["metadata"])
 
 
 ProvenanceTableRow = collections.namedtuple(
-    "ProvenanceTableRow",
-    ["timestamp", "record"])
+    "ProvenanceTableRow", ["timestamp", "record"]
+)
 
 
 def keep_with_offset(keep, data, offset):
@@ -87,16 +86,22 @@ def keep_with_offset(keep, data, offset):
     """
     # We need the astype here for 32 bit machines
     lens = np.diff(offset).astype(np.int32)
-    return (data[np.repeat(keep, lens)],
-            np.concatenate([
+    return (
+        data[np.repeat(keep, lens)],
+        np.concatenate(
+            [
                 np.array([0], dtype=offset.dtype),
-                np.cumsum(lens[keep], dtype=offset.dtype)]))
+                np.cumsum(lens[keep], dtype=offset.dtype),
+            ]
+        ),
+    )
 
 
 class BaseTable(object):
     """
     Superclass of high-level tables. Not intended for direct instantiation.
     """
+
     # The list of columns in the table. Must be set by subclasses.
     column_names = []
 
@@ -137,8 +142,9 @@ class BaseTable(object):
         if name in self.column_names:
             return getattr(self.ll_table, name)
         else:
-            raise AttributeError("{} object has no attribute {}".format(
-                self.__class__.__name__, name))
+            raise AttributeError(
+                "{} object has no attribute {}".format(self.__class__.__name__, name)
+            )
 
     def __setattr__(self, name, value):
         if name in self.column_names:
@@ -210,6 +216,7 @@ class MetadataMixin(object):
     """
     Mixin class for tables that have a metadata column.
     """
+
     def packset_metadata(self, metadatas):
         """
         Packs the specified list of metadata values and updates the ``metadata``
@@ -256,7 +263,12 @@ class IndividualTable(BaseTable, MetadataMixin):
     """
 
     column_names = [
-        "flags", "location", "location_offset", "metadata", "metadata_offset"]
+        "flags",
+        "location",
+        "location_offset",
+        "metadata",
+        "metadata_offset",
+    ]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -269,7 +281,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tflags\tlocation\tmetadata\n"
         for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode('utf8')
+            md = base64.b64encode(metadata[j]).decode("utf8")
             location_str = ",".join(map(str, location))
             ret += "{}\t{}\t{}\t{}\n".format(j, flags[j], location_str, md)
         return ret[:-1]
@@ -291,8 +303,13 @@ class IndividualTable(BaseTable, MetadataMixin):
         return self.ll_table.add_row(flags=flags, location=location, metadata=metadata)
 
     def set_columns(
-            self, flags=None, location=None, location_offset=None,
-            metadata=None, metadata_offset=None):
+        self,
+        flags=None,
+        location=None,
+        location_offset=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Sets the values for each column in this :class:`IndividualTable` using the
         values in the specified arrays. Overwrites any data currently stored in
@@ -322,13 +339,24 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags)
-        self.ll_table.set_columns(dict(
-            flags=flags, location=location, location_offset=location_offset,
-            metadata=metadata, metadata_offset=metadata_offset))
+        self.ll_table.set_columns(
+            dict(
+                flags=flags,
+                location=location,
+                location_offset=location_offset,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def append_columns(
-            self, flags=None, location=None, location_offset=None, metadata=None,
-            metadata_offset=None):
+        self,
+        flags=None,
+        location=None,
+        location_offset=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Appends the specified arrays to the end of the columns in this
         :class:`IndividualTable`. This allows many new rows to be added at once.
@@ -357,9 +385,15 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags)
-        self.ll_table.append_columns(dict(
-            flags=flags, location=location, location_offset=location_offset,
-            metadata=metadata, metadata_offset=metadata_offset))
+        self.ll_table.append_columns(
+            dict(
+                flags=flags,
+                location=location,
+                location_offset=location_offset,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def packset_location(self, locations):
         """
@@ -406,8 +440,15 @@ class NodeTable(BaseTable, MetadataMixin):
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
+
     column_names = [
-        "time", "flags", "population", "individual", "metadata", "metadata_offset"]
+        "time",
+        "flags",
+        "population",
+        "individual",
+        "metadata",
+        "metadata_offset",
+    ]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -422,9 +463,10 @@ class NodeTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tflags\tpopulation\tindividual\ttime\tmetadata\n"
         for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode('utf8')
+            md = base64.b64encode(metadata[j]).decode("utf8")
             ret += "{}\t{}\t{}\t{}\t{:.14f}\t{}\n".format(
-                j, flags[j], population[j], individual[j], time[j], md)
+                j, flags[j], population[j], individual[j], time[j], md
+            )
         return ret[:-1]
 
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
@@ -446,8 +488,14 @@ class NodeTable(BaseTable, MetadataMixin):
         return self.ll_table.add_row(flags, time, population, individual, metadata)
 
     def set_columns(
-            self, flags=None, time=None, population=None, individual=None, metadata=None,
-            metadata_offset=None):
+        self,
+        flags=None,
+        time=None,
+        population=None,
+        individual=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Sets the values for each column in this :class:`NodeTable` using the values in
         the specified arrays. Overwrites any data currently stored in the table.
@@ -476,13 +524,26 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags, time=time)
-        self.ll_table.set_columns(dict(
-            flags=flags, time=time, population=population, individual=individual,
-            metadata=metadata, metadata_offset=metadata_offset))
+        self.ll_table.set_columns(
+            dict(
+                flags=flags,
+                time=time,
+                population=population,
+                individual=individual,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def append_columns(
-            self, flags=None, time=None, population=None, individual=None, metadata=None,
-            metadata_offset=None):
+        self,
+        flags=None,
+        time=None,
+        population=None,
+        individual=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Appends the specified arrays to the end of the columns in this
         :class:`NodeTable`. This allows many new rows to be added at once.
@@ -511,9 +572,16 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags, time=time)
-        self.ll_table.append_columns(dict(
-            flags=flags, time=time, population=population, individual=individual,
-            metadata=metadata, metadata_offset=metadata_offset))
+        self.ll_table.append_columns(
+            dict(
+                flags=flags,
+                time=time,
+                population=population,
+                individual=individual,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
 
 class EdgeTable(BaseTable):
@@ -555,7 +623,8 @@ class EdgeTable(BaseTable):
         ret = "id\tleft\t\tright\t\tparent\tchild\n"
         for j in range(self.num_rows):
             ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\n".format(
-                j, left[j], right[j], parent[j], child[j])
+                j, left[j], right[j], parent[j], child[j]
+            )
         return ret[:-1]
 
     def add_row(self, left, right, parent, child):
@@ -590,8 +659,9 @@ class EdgeTable(BaseTable):
         :type child: numpy.ndarray, dtype=np.int32
         """
         self._check_required_args(left=left, right=right, parent=parent, child=child)
-        self.ll_table.set_columns(dict(
-            left=left, right=right, parent=parent, child=child))
+        self.ll_table.set_columns(
+            dict(left=left, right=right, parent=parent, child=child)
+        )
 
     def append_columns(self, left, right, parent, child):
         """
@@ -611,8 +681,9 @@ class EdgeTable(BaseTable):
         :param child: The child node IDs.
         :type child: numpy.ndarray, dtype=np.int32
         """
-        self.ll_table.append_columns(dict(
-            left=left, right=right, parent=parent, child=child))
+        self.ll_table.append_columns(
+            dict(left=left, right=right, parent=parent, child=child)
+        )
 
     def squash(self):
         """
@@ -677,7 +748,8 @@ class MigrationTable(BaseTable):
         ret = "id\tleft\tright\tnode\tsource\tdest\ttime\n"
         for j in range(self.num_rows):
             ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\n".format(
-                j, left[j], right[j], node[j], source[j], dest[j], time[j])
+                j, left[j], right[j], node[j], source[j], dest[j], time[j]
+            )
         return ret[:-1]
 
     def add_row(self, left, right, node, source, dest, time):
@@ -697,7 +769,8 @@ class MigrationTable(BaseTable):
         return self.ll_table.add_row(left, right, node, source, dest, time)
 
     def set_columns(
-            self, left=None, right=None, node=None, source=None, dest=None, time=None):
+        self, left=None, right=None, node=None, source=None, dest=None, time=None
+    ):
         """
         Sets the values for each column in this :class:`MigrationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
@@ -719,9 +792,11 @@ class MigrationTable(BaseTable):
         :type time: numpy.ndarray, dtype=np.int64
         """
         self._check_required_args(
-            left=left, right=right, node=node, source=source, dest=dest, time=time)
-        self.ll_table.set_columns(dict(
-            left=left, right=right, node=node, source=source, dest=dest, time=time))
+            left=left, right=right, node=node, source=source, dest=dest, time=time
+        )
+        self.ll_table.set_columns(
+            dict(left=left, right=right, node=node, source=source, dest=dest, time=time)
+        )
 
     def append_columns(self, left, right, node, source, dest, time):
         """
@@ -745,8 +820,9 @@ class MigrationTable(BaseTable):
         :param time: The time of each migration.
         :type time: numpy.ndarray, dtype=np.int64
         """
-        self.ll_table.append_columns(dict(
-            left=left, right=right, node=node, source=source, dest=dest, time=time))
+        self.ll_table.append_columns(
+            dict(left=left, right=right, node=node, source=source, dest=dest, time=time)
+        )
 
 
 class SiteTable(BaseTable, MetadataMixin):
@@ -781,8 +857,12 @@ class SiteTable(BaseTable, MetadataMixin):
     """
 
     column_names = [
-        "position", "ancestral_state", "ancestral_state_offset",
-        "metadata", "metadata_offset"]
+        "position",
+        "ancestral_state",
+        "ancestral_state_offset",
+        "metadata",
+        "metadata_offset",
+    ]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -792,13 +872,13 @@ class SiteTable(BaseTable, MetadataMixin):
     def __str__(self):
         position = self.position
         ancestral_state = util.unpack_strings(
-            self.ancestral_state, self.ancestral_state_offset)
+            self.ancestral_state, self.ancestral_state_offset
+        )
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tposition\tancestral_state\tmetadata\n"
         for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode('utf8')
-            ret += "{}\t{:.8f}\t{}\t{}\n".format(
-                j, position[j], ancestral_state[j], md)
+            md = base64.b64encode(metadata[j]).decode("utf8")
+            ret += "{}\t{:.8f}\t{}\t{}\n".format(j, position[j], ancestral_state[j], md)
         return ret[:-1]
 
     def add_row(self, position, ancestral_state, metadata=None):
@@ -816,8 +896,13 @@ class SiteTable(BaseTable, MetadataMixin):
         return self.ll_table.add_row(position, ancestral_state, metadata)
 
     def set_columns(
-            self, position=None, ancestral_state=None, ancestral_state_offset=None,
-            metadata=None, metadata_offset=None):
+        self,
+        position=None,
+        ancestral_state=None,
+        ancestral_state_offset=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Sets the values for each column in this :class:`SiteTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
@@ -848,16 +933,28 @@ class SiteTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(
-            position=position, ancestral_state=ancestral_state,
-            ancestral_state_offset=ancestral_state_offset)
-        self.ll_table.set_columns(dict(
-            position=position, ancestral_state=ancestral_state,
+            position=position,
+            ancestral_state=ancestral_state,
             ancestral_state_offset=ancestral_state_offset,
-            metadata=metadata, metadata_offset=metadata_offset))
+        )
+        self.ll_table.set_columns(
+            dict(
+                position=position,
+                ancestral_state=ancestral_state,
+                ancestral_state_offset=ancestral_state_offset,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def append_columns(
-            self, position, ancestral_state, ancestral_state_offset,
-            metadata=None, metadata_offset=None):
+        self,
+        position,
+        ancestral_state,
+        ancestral_state_offset,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Appends the specified arrays to the end of the columns of this
         :class:`SiteTable`. This allows many new rows to be added at once.
@@ -888,10 +985,15 @@ class SiteTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        self.ll_table.append_columns(dict(
-            position=position, ancestral_state=ancestral_state,
-            ancestral_state_offset=ancestral_state_offset,
-            metadata=metadata, metadata_offset=metadata_offset))
+        self.ll_table.append_columns(
+            dict(
+                position=position,
+                ancestral_state=ancestral_state,
+                ancestral_state_offset=ancestral_state_offset,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def packset_ancestral_state(self, ancestral_states):
         """
@@ -945,8 +1047,14 @@ class MutationTable(BaseTable, MetadataMixin):
     """
 
     column_names = [
-        "site", "node", "derived_state", "derived_state_offset", "parent",
-        "metadata", "metadata_offset"]
+        "site",
+        "node",
+        "derived_state",
+        "derived_state_offset",
+        "parent",
+        "metadata",
+        "metadata_offset",
+    ]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -958,13 +1066,15 @@ class MutationTable(BaseTable, MetadataMixin):
         node = self.node
         parent = self.parent
         derived_state = util.unpack_strings(
-            self.derived_state, self.derived_state_offset)
+            self.derived_state, self.derived_state_offset
+        )
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tsite\tnode\tderived_state\tparent\tmetadata\n"
         for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode('utf8')
+            md = base64.b64encode(metadata[j]).decode("utf8")
             ret += "{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                j, site[j], node[j], derived_state[j], parent[j], md)
+                j, site[j], node[j], derived_state[j], parent[j], md
+            )
         return ret[:-1]
 
     def add_row(self, site, node, derived_state, parent=-1, metadata=None):
@@ -982,12 +1092,18 @@ class MutationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added mutation.
         :rtype: int
         """
-        return self.ll_table.add_row(
-                site, node, derived_state, parent, metadata)
+        return self.ll_table.add_row(site, node, derived_state, parent, metadata)
 
     def set_columns(
-            self, site=None, node=None, derived_state=None, derived_state_offset=None,
-            parent=None, metadata=None, metadata_offset=None):
+        self,
+        site=None,
+        node=None,
+        derived_state=None,
+        derived_state_offset=None,
+        parent=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Sets the values for each column in this :class:`MutationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
@@ -1023,16 +1139,33 @@ class MutationTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(
-            site=site, node=node, derived_state=derived_state,
-            derived_state_offset=derived_state_offset)
-        self.ll_table.set_columns(dict(
-            site=site, node=node, parent=parent,
-            derived_state=derived_state, derived_state_offset=derived_state_offset,
-            metadata=metadata, metadata_offset=metadata_offset))
+            site=site,
+            node=node,
+            derived_state=derived_state,
+            derived_state_offset=derived_state_offset,
+        )
+        self.ll_table.set_columns(
+            dict(
+                site=site,
+                node=node,
+                parent=parent,
+                derived_state=derived_state,
+                derived_state_offset=derived_state_offset,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def append_columns(
-            self, site, node, derived_state, derived_state_offset,
-            parent=None, metadata=None, metadata_offset=None):
+        self,
+        site,
+        node,
+        derived_state,
+        derived_state_offset,
+        parent=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Appends the specified arrays to the end of the columns of this
         :class:`MutationTable`. This allows many new rows to be added at once.
@@ -1068,10 +1201,17 @@ class MutationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        self.ll_table.append_columns(dict(
-            site=site, node=node, parent=parent,
-            derived_state=derived_state, derived_state_offset=derived_state_offset,
-            metadata=metadata, metadata_offset=metadata_offset))
+        self.ll_table.append_columns(
+            dict(
+                site=site,
+                node=node,
+                parent=parent,
+                derived_state=derived_state,
+                derived_state_offset=derived_state_offset,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
+        )
 
     def packset_derived_state(self, derived_states):
         """
@@ -1135,7 +1275,7 @@ class PopulationTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         ret = "id\tmetadata\n"
         for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode('utf8')
+            md = base64.b64encode(metadata[j]).decode("utf8")
             ret += "{}\t{}\n".format(j, md)
         return ret[:-1]
 
@@ -1158,7 +1298,8 @@ class PopulationTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self.ll_table.set_columns(
-            dict(metadata=metadata, metadata_offset=metadata_offset))
+            dict(metadata=metadata, metadata_offset=metadata_offset)
+        )
 
     def append_columns(self, metadata=None, metadata_offset=None):
         """
@@ -1178,7 +1319,8 @@ class PopulationTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self.ll_table.append_columns(
-            dict(metadata=metadata, metadata_offset=metadata_offset))
+            dict(metadata=metadata, metadata_offset=metadata_offset)
+        )
 
 
 class ProvenanceTable(BaseTable):
@@ -1232,8 +1374,8 @@ class ProvenanceTable(BaseTable):
         return self.ll_table.add_row(record=record, timestamp=timestamp)
 
     def set_columns(
-            self, timestamp=None, timestamp_offset=None,
-            record=None, record_offset=None):
+        self, timestamp=None, timestamp_offset=None, record=None, record_offset=None
+    ):
         """
         Sets the values for each column in this :class:`ProvenanceTable` using the
         values in the specified arrays. Overwrites any data currently stored in the
@@ -1258,13 +1400,18 @@ class ProvenanceTable(BaseTable):
         :param record_offset: The offsets into the ``record`` array.
         :type record_offset: numpy.ndarray, dtype=np.uint32.
         """
-        self.ll_table.set_columns(dict(
-            timestamp=timestamp, timestamp_offset=timestamp_offset,
-            record=record, record_offset=record_offset))
+        self.ll_table.set_columns(
+            dict(
+                timestamp=timestamp,
+                timestamp_offset=timestamp_offset,
+                record=record,
+                record_offset=record_offset,
+            )
+        )
 
     def append_columns(
-            self, timestamp=None, timestamp_offset=None,
-            record=None, record_offset=None):
+        self, timestamp=None, timestamp_offset=None, record=None, record_offset=None
+    ):
         """
         Appends the specified arrays to the end of the columns of this
         :class:`ProvenanceTable`. This allows many new rows to be added at once.
@@ -1288,9 +1435,14 @@ class ProvenanceTable(BaseTable):
         :param record_offset: The offsets into the ``record`` array.
         :type record_offset: numpy.ndarray, dtype=np.uint32.
         """
-        self.ll_table.append_columns(dict(
-            timestamp=timestamp, timestamp_offset=timestamp_offset,
-            record=record, record_offset=record_offset))
+        self.ll_table.append_columns(
+            dict(
+                timestamp=timestamp,
+                timestamp_offset=timestamp_offset,
+                record=record,
+                record_offset=record_offset,
+            )
+        )
 
     def __str__(self):
         timestamp = util.unpack_strings(self.timestamp, self.timestamp_offset)
@@ -1367,6 +1519,7 @@ class TableCollection(object):
         from, or None if not derived from a file.
     :vartype file_uuid: str
     """
+
     def __init__(self, sequence_length=0):
         self.ll_tables = _tskit.TableCollection(sequence_length)
 
@@ -1446,14 +1599,14 @@ class TableCollection(object):
         Iterate over all the tables in this TableCollection, ordered by table name
         (i.e. deterministically), returning a tuple of (table_name, table_object)
         """
-        yield 'edges', self.edges
-        yield 'individuals', self.individuals
-        yield 'migrations', self.migrations
-        yield 'mutations', self.mutations
-        yield 'nodes', self.nodes
-        yield 'populations', self.populations
-        yield 'provenances', self.provenances
-        yield 'sites', self.sites
+        yield "edges", self.edges
+        yield "individuals", self.individuals
+        yield "migrations", self.migrations
+        yield "mutations", self.mutations
+        yield "nodes", self.nodes
+        yield "populations", self.populations
+        yield "provenances", self.provenances
+        yield "sites", self.sites
 
     def __str__(self):
         s = self.__banner("Individuals")
@@ -1536,11 +1689,15 @@ class TableCollection(object):
         return tskit.TreeSequence.load_tables(self)
 
     def simplify(
-            self, samples=None,
-            filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
-            reduce_to_site_topology=False,
-            filter_populations=True, filter_individuals=True, filter_sites=True,
-            keep_unary=False):
+        self,
+        samples=None,
+        filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
+        reduce_to_site_topology=False,
+        filter_populations=True,
+        filter_individuals=True,
+        filter_sites=True,
+        keep_unary=False,
+    ):
         """
         Simplifies the tables in place to retain only the information necessary
         to reconstruct the tree sequence describing the given ``samples``.
@@ -1594,20 +1751,24 @@ class TableCollection(object):
             # Deprecated in 0.6.1.
             warnings.warn(
                 "filter_zero_mutation_sites is deprecated; use filter_sites instead",
-                DeprecationWarning)
+                DeprecationWarning,
+            )
             filter_sites = filter_zero_mutation_sites
         if samples is None:
             flags = self.nodes.flags
-            samples = np.where(
-                np.bitwise_and(flags, _tskit.NODE_IS_SAMPLE) != 0)[0].astype(np.int32)
+            samples = np.where(np.bitwise_and(flags, _tskit.NODE_IS_SAMPLE) != 0)[
+                0
+            ].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
         return self.ll_tables.simplify(
-            samples, filter_sites=filter_sites,
+            samples,
+            filter_sites=filter_sites,
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
             reduce_to_site_topology=reduce_to_site_topology,
-            keep_unary=keep_unary)
+            keep_unary=keep_unary,
+        )
 
     def link_ancestors(self, samples, ancestors):
         """
@@ -1761,23 +1922,28 @@ class TableCollection(object):
             raise ValueError("Site ID out of bounds")
         keep_sites[site_ids] = 0
         new_as, new_as_offset = keep_with_offset(
-            keep_sites, self.sites.ancestral_state,
-            self.sites.ancestral_state_offset)
+            keep_sites, self.sites.ancestral_state, self.sites.ancestral_state_offset
+        )
         new_md, new_md_offset = keep_with_offset(
-            keep_sites, self.sites.metadata, self.sites.metadata_offset)
+            keep_sites, self.sites.metadata, self.sites.metadata_offset
+        )
         self.sites.set_columns(
             position=self.sites.position[keep_sites],
             ancestral_state=new_as,
             ancestral_state_offset=new_as_offset,
             metadata=new_md,
-            metadata_offset=new_md_offset)
+            metadata_offset=new_md_offset,
+        )
         # We also need to adjust the mutations table, as it references into sites
         keep_mutations = keep_sites[self.mutations.site]
         new_ds, new_ds_offset = keep_with_offset(
-            keep_mutations, self.mutations.derived_state,
-            self.mutations.derived_state_offset)
+            keep_mutations,
+            self.mutations.derived_state,
+            self.mutations.derived_state_offset,
+        )
         new_md, new_md_offset = keep_with_offset(
-            keep_mutations, self.mutations.metadata, self.mutations.metadata_offset)
+            keep_mutations, self.mutations.metadata, self.mutations.metadata_offset
+        )
         # Site numbers will have changed
         site_map = np.cumsum(keep_sites, dtype=self.mutations.site.dtype) - 1
         # Mutation numbers will change, so the parent references need altering
@@ -1792,15 +1958,14 @@ class TableCollection(object):
             derived_state_offset=new_ds_offset,
             parent=mutation_map[self.mutations.parent[keep_mutations]],
             metadata=new_md,
-            metadata_offset=new_md_offset)
+            metadata_offset=new_md_offset,
+        )
         if record_provenance:
             # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
-            parameters = {
-                "command": "delete_sites",
-                "TODO": "add parameters"
-            }
-            self.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            parameters = {"command": "delete_sites", "TODO": "add parameters"}
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
 
     def delete_intervals(self, intervals, simplify=True, record_provenance=True):
         """
@@ -1820,14 +1985,14 @@ class TableCollection(object):
         """
         self.keep_intervals(
             util.negate_intervals(intervals, 0, self.sequence_length),
-            simplify=simplify, record_provenance=False)
+            simplify=simplify,
+            record_provenance=False,
+        )
         if record_provenance:
-            parameters = {
-                "command": "delete_intervals",
-                "TODO": "add parameters"
-            }
-            self.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            parameters = {"command": "delete_intervals", "TODO": "add parameters"}
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
 
     def keep_intervals(self, intervals, simplify=True, record_provenance=True):
         """
@@ -1854,35 +2019,38 @@ class TableCollection(object):
         keep_sites = np.repeat(False, self.sites.num_rows)
         for s, e in intervals:
             curr_keep_sites = np.logical_and(
-                self.sites.position >= s, self.sites.position < e)
+                self.sites.position >= s, self.sites.position < e
+            )
             keep_sites = np.logical_or(keep_sites, curr_keep_sites)
-            keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
+            keep_edges = np.logical_not(
+                np.logical_or(edges.right <= s, edges.left >= e)
+            )
             self.edges.append_columns(
                 left=np.fmax(s, edges.left[keep_edges]),
                 right=np.fmin(e, edges.right[keep_edges]),
                 parent=edges.parent[keep_edges],
-                child=edges.child[keep_edges])
+                child=edges.child[keep_edges],
+            )
         self.delete_sites(
-            np.where(np.logical_not(keep_sites))[0], record_provenance=False)
+            np.where(np.logical_not(keep_sites))[0], record_provenance=False
+        )
         self.sort()
         if simplify:
             self.simplify()
         if record_provenance:
-            parameters = {
-                "command": "keep_intervals",
-                "TODO": "add parameters"
-            }
-            self.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            parameters = {"command": "keep_intervals", "TODO": "add parameters"}
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
 
     def _check_trim_conditions(self):
         if self.migrations.num_rows > 0:
-            raise ValueError(
-                "You cannot trim a tree sequence containing migrations")
+            raise ValueError("You cannot trim a tree sequence containing migrations")
         if self.edges.num_rows == 0:
             raise ValueError(
                 "Trimming a tree sequence with no edges would reduce the sequence length"
-                " to zero, which is not allowed")
+                " to zero, which is not allowed"
+            )
 
     def ltrim(self, record_provenance=True):
         """
@@ -1897,24 +2065,30 @@ class TableCollection(object):
         self._check_trim_conditions()
         leftmost = np.min(self.edges.left)
         self.delete_sites(
-            np.where(self.sites.position < leftmost), record_provenance=False)
+            np.where(self.sites.position < leftmost), record_provenance=False
+        )
         self.edges.set_columns(
-            left=self.edges.left - leftmost, right=self.edges.right - leftmost,
-            parent=self.edges.parent, child=self.edges.child)
+            left=self.edges.left - leftmost,
+            right=self.edges.right - leftmost,
+            parent=self.edges.parent,
+            child=self.edges.child,
+        )
         self.sites.set_columns(
             position=self.sites.position - leftmost,
             ancestral_state=self.sites.ancestral_state,
             ancestral_state_offset=self.sites.ancestral_state_offset,
             metadata=self.sites.metadata,
-            metadata_offset=self.sites.metadata_offset)
+            metadata_offset=self.sites.metadata_offset,
+        )
         self.sequence_length = self.sequence_length - leftmost
         if record_provenance:
             # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
             parameters = {
                 "command": "ltrim",
             }
-            self.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
 
     def rtrim(self, record_provenance=True):
         """
@@ -1928,15 +2102,17 @@ class TableCollection(object):
         self._check_trim_conditions()
         rightmost = np.max(self.edges.right)
         self.delete_sites(
-            np.where(self.sites.position >= rightmost), record_provenance=False)
+            np.where(self.sites.position >= rightmost), record_provenance=False
+        )
         self.sequence_length = rightmost
         if record_provenance:
             # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
             parameters = {
                 "command": "rtrim",
             }
-            self.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
 
     def trim(self, record_provenance=True):
         """
@@ -1954,8 +2130,9 @@ class TableCollection(object):
             parameters = {
                 "command": "trim",
             }
-            self.provenances.add_row(record=json.dumps(
-                provenance.get_provenance_dict(parameters)))
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
 
     def has_index(self):
         """

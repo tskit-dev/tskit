@@ -43,6 +43,7 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
     Tests that we can encode metadata under various formats and this will
     successfully round-trip through the HDF5 format.
     """
+
     def setUp(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="msp_hdf5meta_test_")
         os.close(fd)
@@ -56,11 +57,16 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
         nodes = tables.nodes
         # For each node, we create some Python metadata that can be JSON encoded.
         metadata = [
-            {"one": j, "two": 2 * j, "three": list(range(j))} for j in range(len(nodes))]
+            {"one": j, "two": 2 * j, "three": list(range(j))} for j in range(len(nodes))
+        ]
         encoded, offset = tskit.pack_strings(map(json.dumps, metadata))
         nodes.set_columns(
-            flags=nodes.flags, time=nodes.time, population=nodes.population,
-            metadata_offset=offset, metadata=encoded)
+            flags=nodes.flags,
+            time=nodes.time,
+            population=nodes.population,
+            metadata_offset=offset,
+            metadata=encoded,
+        )
         self.assertTrue(np.array_equal(nodes.metadata_offset, offset))
         self.assertTrue(np.array_equal(nodes.metadata, encoded))
         ts1 = tables.tree_sequence()
@@ -77,12 +83,16 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
         # For each node, we create some Python metadata that can be pickled
         metadata = [
             {"one": j, "two": 2 * j, "three": list(range(j))}
-            for j in range(ts.num_nodes)]
+            for j in range(ts.num_nodes)
+        ]
         encoded, offset = tskit.pack_bytes(list(map(pickle.dumps, metadata)))
         tables.nodes.set_columns(
-            flags=tables.nodes.flags, time=tables.nodes.time,
+            flags=tables.nodes.flags,
+            time=tables.nodes.time,
             population=tables.nodes.population,
-            metadata_offset=offset, metadata=encoded)
+            metadata_offset=offset,
+            metadata=encoded,
+        )
         self.assertTrue(np.array_equal(tables.nodes.metadata_offset, offset))
         self.assertTrue(np.array_equal(tables.nodes.metadata, encoded))
         ts1 = tables.tree_sequence()
@@ -98,6 +108,7 @@ class ExampleMetadata(object):
     """
     Simple class that we can pickle/unpickle in metadata.
     """
+
     def __init__(self, one=None, two=None):
         self.one = one
         self.two = two
@@ -157,6 +168,7 @@ class TestJsonSchemaDecoding(unittest.TestCase):
     """
     Tests in which use json-schema to decode the metadata.
     """
+
     schema = """{
         "title": "Example Metadata",
         "type": "object",
@@ -189,75 +201,87 @@ class TestLoadTextMetadata(unittest.TestCase):
     """
 
     def test_individuals(self):
-        individuals = io.StringIO("""\
+        individuals = io.StringIO(
+            """\
         id  flags location     metadata
         0   1     0.0,1.0,0.0  abc
         1   1     1.0,2.0      XYZ+
         2   0     2.0,3.0,0.0  !@#$%^&*()
-        """)
+        """
+        )
         i = tskit.parse_individuals(
-            individuals, strict=False, encoding='utf8', base64_metadata=False)
-        expected = [(1, [0.0, 1.0, 0.0], 'abc'),
-                    (1, [1.0, 2.0], 'XYZ+'),
-                    (0, [2.0, 3.0, 0.0], '!@#$%^&*()')]
+            individuals, strict=False, encoding="utf8", base64_metadata=False
+        )
+        expected = [
+            (1, [0.0, 1.0, 0.0], "abc"),
+            (1, [1.0, 2.0], "XYZ+"),
+            (0, [2.0, 3.0, 0.0], "!@#$%^&*()"),
+        ]
         for a, b in zip(expected, i):
             self.assertEqual(a[0], b.flags)
             self.assertEqual(len(a[1]), len(b.location))
             for x, y in zip(a[1], b.location):
                 self.assertEqual(x, y)
-            self.assertEqual(a[2].encode('utf8'),
-                             b.metadata)
+            self.assertEqual(a[2].encode("utf8"), b.metadata)
 
     def test_nodes(self):
-        nodes = io.StringIO("""\
+        nodes = io.StringIO(
+            """\
         id  is_sample   time    metadata
         0   1           0   abc
         1   1           0   XYZ+
         2   0           1   !@#$%^&*()
-        """)
+        """
+        )
         n = tskit.parse_nodes(
-            nodes, strict=False, encoding='utf8', base64_metadata=False)
-        expected = ['abc', 'XYZ+', '!@#$%^&*()']
+            nodes, strict=False, encoding="utf8", base64_metadata=False
+        )
+        expected = ["abc", "XYZ+", "!@#$%^&*()"]
         for a, b in zip(expected, n):
-            self.assertEqual(a.encode('utf8'),
-                             b.metadata)
+            self.assertEqual(a.encode("utf8"), b.metadata)
 
     def test_sites(self):
-        sites = io.StringIO("""\
+        sites = io.StringIO(
+            """\
         position    ancestral_state metadata
         0.1 A   abc
         0.5 C   XYZ+
         0.8 G   !@#$%^&*()
-        """)
+        """
+        )
         s = tskit.parse_sites(
-            sites, strict=False, encoding='utf8', base64_metadata=False)
-        expected = ['abc', 'XYZ+', '!@#$%^&*()']
+            sites, strict=False, encoding="utf8", base64_metadata=False
+        )
+        expected = ["abc", "XYZ+", "!@#$%^&*()"]
         for a, b in zip(expected, s):
-            self.assertEqual(a.encode('utf8'),
-                             b.metadata)
+            self.assertEqual(a.encode("utf8"), b.metadata)
 
     def test_mutations(self):
-        mutations = io.StringIO("""\
+        mutations = io.StringIO(
+            """\
         site    node    derived_state   metadata
         0   2   C   mno
         0   3   G   )(*&^%$#@!
-        """)
+        """
+        )
         m = tskit.parse_mutations(
-            mutations, strict=False, encoding='utf8', base64_metadata=False)
-        expected = ['mno', ')(*&^%$#@!']
+            mutations, strict=False, encoding="utf8", base64_metadata=False
+        )
+        expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, m):
-            self.assertEqual(a.encode('utf8'),
-                             b.metadata)
+            self.assertEqual(a.encode("utf8"), b.metadata)
 
     def test_populations(self):
-        populations = io.StringIO("""\
+        populations = io.StringIO(
+            """\
         id    metadata
         0     mno
         1     )(*&^%$#@!
-        """)
+        """
+        )
         p = tskit.parse_populations(
-            populations, strict=False, encoding='utf8', base64_metadata=False)
-        expected = ['mno', ')(*&^%$#@!']
+            populations, strict=False, encoding="utf8", base64_metadata=False
+        )
+        expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, p):
-            self.assertEqual(a.encode('utf8'),
-                             b.metadata)
+            self.assertEqual(a.encode("utf8"), b.metadata)

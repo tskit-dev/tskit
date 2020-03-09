@@ -66,14 +66,15 @@ def _get_upgrade_provenance(root):
     # TODO add more parameters here like filename, etc.
     parameters = {
         "command": "upgrade",
-        "source_version": list(map(int, root.attrs["format_version"]))
+        "source_version": list(map(int, root.attrs["format_version"])),
     }
     s = json.dumps(provenance.get_provenance_dict(parameters))
     return s.encode()
 
 
 def _convert_hdf5_mutations(
-        mutations_group, sites, mutations, remove_duplicate_positions):
+    mutations_group, sites, mutations, remove_duplicate_positions
+):
     """
     Loads the v2/v3 into the specified tables.
     """
@@ -92,12 +93,14 @@ def _convert_hdf5_mutations(
     sites.set_columns(
         position=position,
         ancestral_state=ord("0") * np.ones(num_mutations, dtype=np.int8),
-        ancestral_state_offset=np.arange(num_mutations + 1, dtype=np.uint32))
+        ancestral_state_offset=np.arange(num_mutations + 1, dtype=np.uint32),
+    )
     mutations.set_columns(
         node=node,
         site=np.arange(num_mutations, dtype=np.int32),
         derived_state=ord("1") * np.ones(num_mutations, dtype=np.int8),
-        derived_state_offset=np.arange(num_mutations + 1, dtype=np.uint32))
+        derived_state_offset=np.arange(num_mutations + 1, dtype=np.uint32),
+    )
 
 
 def _set_populations(tables):
@@ -117,7 +120,8 @@ def _load_legacy_hdf5_v2(root, remove_duplicate_positions):
     provenances = tskit.ProvenanceTable()
     provenances.add_row(
         timestamp=old_timestamp,
-        record=_get_v2_provenance("generate_trees", trees_group.attrs))
+        record=_get_v2_provenance("generate_trees", trees_group.attrs),
+    )
     num_rows = trees_group["node"].shape[0]
     index = np.arange(num_rows, dtype=int)
     parent = np.zeros(2 * num_rows, dtype=np.int32)
@@ -156,10 +160,12 @@ def _load_legacy_hdf5_v2(root, remove_duplicate_positions):
     if "mutations" in root:
         mutations_group = root["mutations"]
         _convert_hdf5_mutations(
-            mutations_group, tables.sites, tables.mutations, remove_duplicate_positions)
+            mutations_group, tables.sites, tables.mutations, remove_duplicate_positions
+        )
         provenances.add_row(
             timestamp=old_timestamp,
-            record=_get_v2_provenance("generate_mutations", mutations_group.attrs))
+            record=_get_v2_provenance("generate_mutations", mutations_group.attrs),
+        )
     tables.provenances.add_row(_get_upgrade_provenance(root))
     tables.sort()
     return tables.tree_sequence()
@@ -197,16 +203,19 @@ def _load_legacy_hdf5_v3(root, remove_duplicate_positions):
             k += 1
     tables = tskit.TableCollection(np.max(right))
     tables.nodes.set_columns(
-        flags=flags,
-        time=nodes_group["time"],
-        population=nodes_group["population"])
+        flags=flags, time=nodes_group["time"], population=nodes_group["population"]
+    )
     _set_populations(tables)
     tables.edges.set_columns(
-        left=left, right=right, parent=parent, child=records_group["children"])
+        left=left, right=right, parent=parent, child=records_group["children"]
+    )
     if "mutations" in root:
         _convert_hdf5_mutations(
-            root["mutations"], tables.sites, tables.mutations,
-            remove_duplicate_positions)
+            root["mutations"],
+            tables.sites,
+            tables.mutations,
+            remove_duplicate_positions,
+        )
     old_timestamp = datetime.datetime.min.isoformat()
     if "provenance" in root:
         for record in root["provenance"]:
@@ -231,9 +240,9 @@ def load_legacy(filename, remove_duplicate_positions=False):
         10: _load_legacy_hdf5_v10,
     }
     root = h5py.File(filename, "r")
-    if 'format_version' not in root.attrs:
+    if "format_version" not in root.attrs:
         raise ValueError("HDF5 file not in msprime format")
-    format_version = root.attrs['format_version']
+    format_version = root.attrs["format_version"]
     if format_version[0] not in loaders:
         raise ValueError("Version {} not supported for loading".format(format_version))
     try:
@@ -253,16 +262,19 @@ def raise_hdf5_format_error(filename, original_exception):
             version = tuple(root.attrs["format_version"])
             raise exceptions.VersionTooOldError(
                 "File format {} is too old. Please use the ``tskit upgrade`` command "
-                "to upgrade this file to the latest version".format(version))
+                "to upgrade this file to the latest version".format(version)
+            )
     except (IOError, OSError, KeyError):
         # We want to keep a useful error message here as well as the chaining history.
-        raise exceptions.FileFormatError(str(original_exception)) from original_exception
+        raise exceptions.FileFormatError(
+            str(original_exception)
+        ) from original_exception
 
 
 def _dump_legacy_hdf5_v2(tree_sequence, root):
     root.attrs["format_version"] = (2, 999)
     root.attrs["sample_size"] = tree_sequence.get_sample_size()
-    root.attrs["sequence_length"] = tree_sequence.get_sequence_length(),
+    root.attrs["sequence_length"] = (tree_sequence.get_sequence_length(),)
     left = []
     right = []
     node = []
@@ -282,13 +294,12 @@ def _dump_legacy_hdf5_v2(tree_sequence, root):
     trees = root.create_group("trees")
     trees.attrs["environment"] = json.dumps({"msprime_version": 0})
     trees.attrs["parameters"] = "{}"
-    trees.create_dataset("left", (length, ), data=left, dtype=float)
-    trees.create_dataset("right", (length, ), data=right, dtype=float)
-    trees.create_dataset("time", (length, ), data=time, dtype=float)
-    trees.create_dataset("node", (length, ), data=node, dtype="u4")
-    trees.create_dataset("population", (length, ), data=population, dtype="u1")
-    trees.create_dataset(
-        "children", (length, 2), data=children, dtype="u4")
+    trees.create_dataset("left", (length,), data=left, dtype=float)
+    trees.create_dataset("right", (length,), data=right, dtype=float)
+    trees.create_dataset("time", (length,), data=time, dtype=float)
+    trees.create_dataset("node", (length,), data=node, dtype="u4")
+    trees.create_dataset("population", (length,), data=population, dtype="u1")
+    trees.create_dataset("children", (length, 2), data=children, dtype="u4")
     samples = root.create_group("samples")
     population = []
     time = []
@@ -296,8 +307,8 @@ def _dump_legacy_hdf5_v2(tree_sequence, root):
     for u in range(length):
         time.append(tree_sequence.get_time(u))
         population.append(tree_sequence.get_population(u))
-    samples.create_dataset("time", (length, ), data=time, dtype=float)
-    samples.create_dataset("population", (length, ), data=population, dtype="u1")
+    samples.create_dataset("time", (length,), data=time, dtype=float)
+    samples.create_dataset("population", (length,), data=population, dtype="u1")
     if tree_sequence.get_num_mutations() > 0:
         node = []
         position = []
@@ -312,20 +323,21 @@ def _dump_legacy_hdf5_v2(tree_sequence, root):
         mutations = root.create_group("mutations")
         mutations.attrs["environment"] = json.dumps({"msprime_version": 0})
         mutations.attrs["parameters"] = "{}"
-        mutations.create_dataset("position", (length, ), data=position, dtype=float)
-        mutations.create_dataset("node", (length, ), data=node, dtype="u4")
+        mutations.create_dataset("position", (length,), data=position, dtype=float)
+        mutations.create_dataset("node", (length,), data=node, dtype="u4")
 
 
 def _dump_legacy_hdf5_v3(tree_sequence, root):
     root.attrs["format_version"] = (3, 999)
-    root.attrs["sample_size"] = 0,
-    root.attrs["sequence_length"] = 0,
+    root.attrs["sample_size"] = (0,)
+    root.attrs["sequence_length"] = (0,)
     trees = root.create_group("trees")
     # Get the breakpoints from the records.
     left = [cr.left for cr in tree_sequence.records()]
     breakpoints = np.unique(left + [tree_sequence.sequence_length])
     trees.create_dataset(
-        "breakpoints", (len(breakpoints), ), data=breakpoints, dtype=float)
+        "breakpoints", (len(breakpoints),), data=breakpoints, dtype=float
+    )
 
     left = []
     right = []
@@ -342,21 +354,25 @@ def _dump_legacy_hdf5_v3(tree_sequence, root):
         time.append(cr.time)
     records_group = trees.create_group("records")
     length = len(num_children)
-    records_group.create_dataset("left", (length, ), data=left, dtype="u4")
-    records_group.create_dataset("right", (length, ), data=right, dtype="u4")
-    records_group.create_dataset("node", (length, ), data=node, dtype="u4")
+    records_group.create_dataset("left", (length,), data=left, dtype="u4")
+    records_group.create_dataset("right", (length,), data=right, dtype="u4")
+    records_group.create_dataset("node", (length,), data=node, dtype="u4")
     records_group.create_dataset(
-        "num_children", (length, ), data=num_children, dtype="u4")
+        "num_children", (length,), data=num_children, dtype="u4"
+    )
     records_group.create_dataset(
-        "children", (len(children), ), data=children, dtype="u4")
+        "children", (len(children),), data=children, dtype="u4"
+    )
 
     indexes_group = trees.create_group("indexes")
     left_index = sorted(range(length), key=lambda j: (left[j], time[j]))
     right_index = sorted(range(length), key=lambda j: (right[j], -time[j]))
     indexes_group.create_dataset(
-        "insertion_order", (length, ), data=left_index, dtype="u4")
+        "insertion_order", (length,), data=left_index, dtype="u4"
+    )
     indexes_group.create_dataset(
-        "removal_order", (length, ), data=right_index, dtype="u4")
+        "removal_order", (length,), data=right_index, dtype="u4"
+    )
 
     nodes_group = trees.create_group("nodes")
     population = np.zeros(tree_sequence.num_nodes, dtype="u4")
@@ -369,8 +385,8 @@ def _dump_legacy_hdf5_v3(tree_sequence, root):
         population[cr.node] = cr.population
         time[cr.node] = cr.time
     length = tree_sequence.num_nodes
-    nodes_group.create_dataset("time", (length, ), data=time, dtype=float)
-    nodes_group.create_dataset("population", (length, ), data=population, dtype="u4")
+    nodes_group.create_dataset("time", (length,), data=time, dtype=float)
+    nodes_group.create_dataset("population", (length,), data=population, dtype="u4")
 
     node = []
     position = []
@@ -384,8 +400,8 @@ def _dump_legacy_hdf5_v3(tree_sequence, root):
     length = len(position)
     if length > 0:
         mutations = root.create_group("mutations")
-        mutations.create_dataset("position", (length, ), data=position, dtype=float)
-        mutations.create_dataset("node", (length, ), data=node, dtype="u4")
+        mutations.create_dataset("position", (length,), data=position, dtype=float)
+        mutations.create_dataset("node", (length,), data=node, dtype="u4")
 
 
 def _add_dataset(group, name, data):
@@ -396,8 +412,8 @@ def _add_dataset(group, name, data):
 
 def _dump_legacy_hdf5_v10(tree_sequence, root):
     root.attrs["format_version"] = (10, 999)
-    root.attrs["sample_size"] = 0,
-    root.attrs["sequence_length"] = tree_sequence.sequence_length,
+    root.attrs["sample_size"] = (0,)
+    root.attrs["sequence_length"] = (tree_sequence.sequence_length,)
     tables = tree_sequence.dump_tables()
 
     nodes = root.create_group("nodes")
@@ -423,10 +439,8 @@ def _dump_legacy_hdf5_v10(tree_sequence, root):
         length = len(tables.edges)
         left_index = sorted(range(length), key=lambda j: (left[j], time[j]))
         right_index = sorted(range(length), key=lambda j: (right[j], -time[j]))
-        indexes_group.create_dataset(
-            "insertion_order", data=left_index, dtype="u4")
-        indexes_group.create_dataset(
-            "removal_order", data=right_index, dtype="u4")
+        indexes_group.create_dataset("insertion_order", data=left_index, dtype="u4")
+        indexes_group.create_dataset("removal_order", data=right_index, dtype="u4")
 
     migrations = root.create_group("migrations")
     if len(tables.migrations) > 0:
@@ -450,7 +464,8 @@ def _dump_legacy_hdf5_v10(tree_sequence, root):
     _add_dataset(mutations, "parent", tables.mutations.parent)
     _add_dataset(mutations, "derived_state", tables.mutations.derived_state)
     _add_dataset(
-        mutations, "derived_state_offset", tables.mutations.derived_state_offset)
+        mutations, "derived_state_offset", tables.mutations.derived_state_offset
+    )
     _add_dataset(mutations, "metadata", tables.mutations.metadata)
     _add_dataset(mutations, "metadata_offset", tables.mutations.metadata_offset)
 
@@ -478,7 +493,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
             population=nodes_group["population"],
             time=nodes_group["time"],
             metadata=metadata,
-            metadata_offset=metadata_offset)
+            metadata_offset=metadata_offset,
+        )
 
     edges_group = root["edges"]
     if "left" in edges_group:
@@ -486,7 +502,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
             left=edges_group["left"],
             right=edges_group["right"],
             parent=edges_group["parent"],
-            child=edges_group["child"])
+            child=edges_group["child"],
+        )
 
     migrations_group = root["migrations"]
     if "left" in migrations_group:
@@ -496,7 +513,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
             node=migrations_group["node"],
             source=migrations_group["source"],
             dest=migrations_group["dest"],
-            time=migrations_group["time"])
+            time=migrations_group["time"],
+        )
 
     sites_group = root["sites"]
     if "position" in sites_group:
@@ -510,7 +528,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
             ancestral_state=sites_group["ancestral_state"],
             ancestral_state_offset=sites_group["ancestral_state_offset"],
             metadata=metadata,
-            metadata_offset=metadata_offset)
+            metadata_offset=metadata_offset,
+        )
 
     mutations_group = root["mutations"]
     if "site" in mutations_group:
@@ -526,7 +545,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
             derived_state=mutations_group["derived_state"],
             derived_state_offset=mutations_group["derived_state_offset"],
             metadata=metadata,
-            metadata_offset=metadata_offset)
+            metadata_offset=metadata_offset,
+        )
 
     provenances_group = root["provenances"]
     if "timestamp" in provenances_group:
@@ -538,7 +558,8 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
             timestamp=timestamp,
             timestamp_offset=timestamp_offset,
             record=record,
-            record_offset=record_offset)
+            record_offset=record_offset,
+        )
     tables.provenances.add_row(_get_upgrade_provenance(root))
     _set_populations(tables)
     return tables.tree_sequence()

@@ -35,6 +35,7 @@ class TestNewick(unittest.TestCase):
     Tests that the newick output has the properties that we need using
     external Newick parser.
     """
+
     random_seed = 155
 
     def verify_newick_topology(self, tree, root=None, node_labels=None):
@@ -59,9 +60,13 @@ class TestNewick(unittest.TestCase):
 
     def get_nonbinary_example(self):
         ts = msprime.simulate(
-            sample_size=20, recombination_rate=10, random_seed=self.random_seed,
+            sample_size=20,
+            recombination_rate=10,
+            random_seed=self.random_seed,
             demographic_events=[
-                msprime.SimpleBottleneck(time=0.5, population=0, proportion=1)])
+                msprime.SimpleBottleneck(time=0.5, population=0, proportion=1)
+            ],
+        )
         # Make sure this really has some non-binary nodes
         found = False
         for e in ts.edgesets():
@@ -73,7 +78,8 @@ class TestNewick(unittest.TestCase):
 
     def get_binary_example(self):
         ts = msprime.simulate(
-            sample_size=25, recombination_rate=5, random_seed=self.random_seed)
+            sample_size=25, recombination_rate=5, random_seed=self.random_seed
+        )
         return ts
 
     def get_multiroot_example(self):
@@ -82,8 +88,11 @@ class TestNewick(unittest.TestCase):
         edges = tables.edges
         n = len(edges) // 2
         edges.set_columns(
-            left=edges.left[:n], right=edges.right[:n],
-            parent=edges.parent[:n], child=edges.child[:n])
+            left=edges.left[:n],
+            right=edges.right[:n],
+            parent=edges.parent[:n],
+            child=edges.child[:n],
+        )
         return tables.tree_sequence()
 
     def test_nonbinary_tree(self):
@@ -126,8 +135,7 @@ class TestNewick(unittest.TestCase):
         ns = tree.newick(node_labels=labels)
         root = newick.loads(ns)[0]
         self.assertEqual(root.name, labels[tree.root])
-        self.assertEqual(
-            sorted([n.name for n in root.walk()]), sorted(labels.values()))
+        self.assertEqual(sorted([n.name for n in root.walk()]), sorted(labels.values()))
 
     def test_single_node_label(self):
         tree = msprime.simulate(5, random_seed=2).first()
@@ -137,4 +145,5 @@ class TestNewick(unittest.TestCase):
         self.assertEqual(root.name, labels[tree.root])
         self.assertEqual(
             [n.name for n in root.walk()],
-            [labels[tree.root]] + [None for _ in range(len(list(tree.nodes())) - 1)])
+            [labels[tree.root]] + [None for _ in range(len(list(tree.nodes())) - 1)],
+        )

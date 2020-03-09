@@ -45,7 +45,8 @@ def check_orientation(orientation):
         orientations = [LEFT, RIGHT, TOP, BOTTOM]
         if orientation not in orientations:
             raise ValueError(
-                "Unknown orientiation: choose from {}".format(orientations))
+                "Unknown orientiation: choose from {}".format(orientations)
+            )
     return orientation
 
 
@@ -57,7 +58,8 @@ def check_max_tree_height(max_tree_height, allow_numeric=True):
         raise ValueError("max_tree_height must be 'tree' or 'ts'")
     if max_tree_height not in ["tree", "ts"] and (allow_numeric and not is_numeric):
         raise ValueError(
-            "max_tree_height must be a numeric value or one of 'tree' or 'ts'")
+            "max_tree_height must be a numeric value or one of 'tree' or 'ts'"
+        )
     return max_tree_height
 
 
@@ -75,15 +77,27 @@ def check_format(format):
     fmt = format.lower()
     supported_formats = ["svg", "ascii", "unicode"]
     if fmt not in supported_formats:
-        raise ValueError("Unknown format '{}'. Supported formats are {}".format(
-            format, supported_formats))
+        raise ValueError(
+            "Unknown format '{}'. Supported formats are {}".format(
+                format, supported_formats
+            )
+        )
     return fmt
 
 
 def draw_tree(
-        tree, width=None, height=None, node_labels=None, node_colours=None,
-        mutation_labels=None, mutation_colours=None, format=None, edge_colours=None,
-        tree_height_scale=None, max_tree_height=None):
+    tree,
+    width=None,
+    height=None,
+    node_labels=None,
+    node_colours=None,
+    mutation_labels=None,
+    mutation_colours=None,
+    format=None,
+    edge_colours=None,
+    tree_height_scale=None,
+    max_tree_height=None,
+):
 
     # See tree.draw() for documentation on these arguments.
     fmt = check_format(format)
@@ -106,20 +120,23 @@ def draw_tree(
 
         # Old semantics were to not draw the node if colour is None.
         # Setting opacity to zero has the same effect.
-        node_attrs = remap(node_colours, "fill", {'opacity': 0})
-        edge_attrs = remap(edge_colours, "stroke", {'opacity': 0})
-        mutation_attrs = remap(mutation_colours, "fill", {'opacity': 0})
+        node_attrs = remap(node_colours, "fill", {"opacity": 0})
+        edge_attrs = remap(edge_colours, "stroke", {"opacity": 0})
+        mutation_attrs = remap(mutation_colours, "fill", {"opacity": 0})
 
         node_label_attrs = None
         tree = SvgTree(
-            tree, (width, height),
+            tree,
+            (width, height),
             node_labels=node_labels,
             mutation_labels=mutation_labels,
             tree_height_scale=tree_height_scale,
             max_tree_height=max_tree_height,
-            node_attrs=node_attrs, edge_attrs=edge_attrs,
+            node_attrs=node_attrs,
+            edge_attrs=edge_attrs,
             node_label_attrs=node_label_attrs,
-            mutation_attrs=mutation_attrs)
+            mutation_attrs=mutation_attrs,
+        )
         return tree.drawing.tostring()
 
     else:
@@ -140,8 +157,12 @@ def draw_tree(
 
         use_ascii = fmt == "ascii"
         text_tree = VerticalTextTree(
-            tree, node_labels=node_labels, max_tree_height=max_tree_height,
-            use_ascii=use_ascii, orientation=TOP)
+            tree,
+            node_labels=node_labels,
+            max_tree_height=max_tree_height,
+            use_ascii=use_ascii,
+            orientation=TOP,
+        )
         return str(text_tree)
 
 
@@ -149,10 +170,19 @@ class SvgTreeSequence(object):
     """
     Draw a TreeSequence in SVG.
     """
+
     def __init__(
-            self, ts, size=None, tree_height_scale=None, max_tree_height=None,
-            node_labels=None, mutation_labels=None,
-            node_attrs=None, edge_attrs=None, node_label_attrs=None):
+        self,
+        ts,
+        size=None,
+        tree_height_scale=None,
+        max_tree_height=None,
+        node_labels=None,
+        mutation_labels=None,
+        node_attrs=None,
+        edge_attrs=None,
+        node_label_attrs=None,
+    ):
         self.ts = ts
         if size is None:
             size = (200 * ts.num_trees, 200)
@@ -170,14 +200,18 @@ class SvgTreeSequence(object):
         tree_width = treebox_width / ts.num_trees
         svg_trees = [
             SvgTree(
-                tree, (tree_width, treebox_height),
+                tree,
+                (tree_width, treebox_height),
                 max_tree_height="ts",
                 node_labels=node_labels,
                 mutation_labels=mutation_labels,
                 tree_height_scale=tree_height_scale,
-                node_attrs=node_attrs, edge_attrs=edge_attrs,
-                node_label_attrs=node_label_attrs)
-            for tree in ts.trees()]
+                node_attrs=node_attrs,
+                edge_attrs=edge_attrs,
+                node_label_attrs=node_label_attrs,
+            )
+            for tree in ts.trees()
+        ]
 
         ticks = []
         y = self.treebox_y_offset
@@ -213,9 +247,15 @@ class SvgTreeSequence(object):
         for x, genome_coord in ticks:
             delta = 5
             dwg.add(dwg.line((x, y - delta), (x, y + delta), stroke="black"))
-            dwg.add(dwg.text(
-                "{:.2f}".format(genome_coord), (x, y + 20),
-                font_size=14, text_anchor="middle", font_weight="bold"))
+            dwg.add(
+                dwg.text(
+                    "{:.2f}".format(genome_coord),
+                    (x, y + 20),
+                    font_size=14,
+                    text_anchor="middle",
+                    font_weight="bold",
+                )
+            )
 
 
 class SvgTree(object):
@@ -228,11 +268,21 @@ class SvgTree(object):
     be referred to and modified.
 
     """
+
     def __init__(
-            self, tree, size=None, node_labels=None, mutation_labels=None,
-            tree_height_scale=None, max_tree_height=None,
-            node_attrs=None, edge_attrs=None, node_label_attrs=None,
-            mutation_attrs=None, mutation_label_attrs=None):
+        self,
+        tree,
+        size=None,
+        node_labels=None,
+        mutation_labels=None,
+        tree_height_scale=None,
+        max_tree_height=None,
+        node_attrs=None,
+        edge_attrs=None,
+        node_label_attrs=None,
+        mutation_attrs=None,
+        mutation_label_attrs=None,
+    ):
         self.tree = tree
         if size is None:
             size = (200, 200)
@@ -243,7 +293,8 @@ class SvgTree(object):
         self.treebox_width = size[0] - 2 * self.treebox_x_offset
         self.assign_y_coordinates(tree_height_scale, max_tree_height)
         self.node_x_coord_map = self.assign_x_coordinates(
-            tree, self.treebox_x_offset, self.treebox_width)
+            tree, self.treebox_x_offset, self.treebox_width
+        )
 
         self.edge_attrs = {}
         self.node_attrs = {}
@@ -271,7 +322,9 @@ class SvgTree(object):
                 m = mutation.id
                 # We need to offset the rectangle so that it's centred
                 self.mutation_attrs[m] = {
-                    "size": (6, 6), "transform": "translate(-3, -3)"}
+                    "size": (6, 6),
+                    "transform": "translate(-3, -3)",
+                }
                 if mutation_attrs is not None and m in mutation_attrs:
                     self.mutation_attrs[m].update(mutation_attrs[m])
                 label = ""
@@ -288,15 +341,16 @@ class SvgTree(object):
     def setup_drawing(self):
         self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
         dwg = self.drawing
-        self.root_group = dwg.add(dwg.g(id='tree_{}'.format(self.tree.index)))
-        self.edges = self.root_group.add(dwg.g(id='edges',  stroke="black", fill="none"))
-        self.symbols = self.root_group.add(dwg.g(id='symbols'))
-        self.nodes = self.symbols.add(dwg.g(class_='nodes'))
-        self.mutations = self.symbols.add(dwg.g(class_='mutations', fill="red"))
-        self.labels = self.root_group.add(dwg.g(id='labels', font_size=14))
-        self.node_labels = self.labels.add(dwg.g(class_='nodes'))
+        self.root_group = dwg.add(dwg.g(id="tree_{}".format(self.tree.index)))
+        self.edges = self.root_group.add(dwg.g(id="edges", stroke="black", fill="none"))
+        self.symbols = self.root_group.add(dwg.g(id="symbols"))
+        self.nodes = self.symbols.add(dwg.g(class_="nodes"))
+        self.mutations = self.symbols.add(dwg.g(class_="mutations", fill="red"))
+        self.labels = self.root_group.add(dwg.g(id="labels", font_size=14))
+        self.node_labels = self.labels.add(dwg.g(class_="nodes"))
         self.mutation_labels = self.labels.add(
-            dwg.g(class_='mutations', font_style="italic"))
+            dwg.g(class_="mutations", font_style="italic")
+        )
         self.left_labels = self.node_labels.add(dwg.g(text_anchor="start"))
         self.mid_labels = self.node_labels.add(dwg.g(text_anchor="middle"))
         self.right_labels = self.node_labels.add(dwg.g(text_anchor="end"))
@@ -306,7 +360,8 @@ class SvgTree(object):
     def assign_y_coordinates(self, tree_height_scale, max_tree_height):
         tree_height_scale = check_tree_height_scale(tree_height_scale)
         max_tree_height = check_max_tree_height(
-            max_tree_height, tree_height_scale != "rank")
+            max_tree_height, tree_height_scale != "rank"
+        )
         ts = self.tree.tree_sequence
         node_time = ts.tables.nodes.time
 
@@ -347,7 +402,8 @@ class SvgTree(object):
         y_padding = self.treebox_y_offset + 2 * label_padding
         mutations_over_root = any(
             any(tree.parent(mut.node) == NULL for mut in tree.mutations())
-            for tree in ts.trees())
+            for tree in ts.trees()
+        )
         root_branch_length = 0
         height = self.image_size[1]
         if mutations_over_root:
@@ -355,15 +411,15 @@ class SvgTree(object):
             # 'root branch'
             root_branch_length = height / 10  # FIXME just draw branch??
         # y scaling
-        padding_numerator = (height - root_branch_length - 2 * y_padding)
+        padding_numerator = height - root_branch_length - 2 * y_padding
         if tree_height_scale == "log_time":
             # again shift time by 1 in log(max_tree_height), so consistent
             y_scale = padding_numerator / (np.log(max_tree_height + 1))
         else:
             y_scale = padding_numerator / max_tree_height
         self.node_y_coord_map = [
-                height - y_scale * node_height[u] - y_padding
-                for u in range(ts.num_nodes)]
+            height - y_scale * node_height[u] - y_padding for u in range(ts.num_nodes)
+        ]
 
     def assign_x_coordinates(self, tree, x_start, width):
         num_leaves = len(list(tree.leaves()))
@@ -416,15 +472,18 @@ class SvgTree(object):
             # TODO add ID to node label text.
             # TODO get rid of these manual positioning tweaks and add them
             # as offsets the user can access via a transform or something.
-            labels.add(dwg.text(
-                insert=(pu[0] + dx, pu[1] + dy), **self.node_label_attrs[u]))
+            labels.add(
+                dwg.text(insert=(pu[0] + dx, pu[1] + dy), **self.node_label_attrs[u])
+            )
             v = tree.parent(u)
             if v != NULL:
                 edge_id = "edge_{}_{}".format(tree.index, u)
                 pv = node_x_coord_map[v], node_y_coord_map[v]
                 path = dwg.path(
-                    [("M", pu), ("V", pv[1]), ("H", pv[0])], id=edge_id,
-                    **self.edge_attrs[u])
+                    [("M", pu), ("V", pv[1]), ("H", pv[0])],
+                    id=edge_id,
+                    **self.edge_attrs[u]
+                )
                 self.edges.add(path)
             else:
                 # FIXME this is pretty crappy for spacing mutations over a root.
@@ -436,9 +495,9 @@ class SvgTree(object):
             y = pv[1] - delta
             # TODO add mutation IDs
             for mutation in reversed(node_mutations[u]):
-                self.mutations.add(dwg.rect(
-                    insert=(x, y),
-                    **self.mutation_attrs[mutation.id]))
+                self.mutations.add(
+                    dwg.rect(insert=(x, y), **self.mutation_attrs[mutation.id])
+                )
                 dx = 5
                 if tree.left_sib(mutation.node) == NULL:
                     dx *= -1
@@ -448,9 +507,12 @@ class SvgTree(object):
                 # TODO get rid of these manual positioning tweaks and add them
                 # as offsets the user can access via a transform or something.
                 dy = 4
-                labels.add(dwg.text(
-                    insert=(x + dx, y + dy),
-                    **self.mutation_label_attrs[mutation.id]))
+                labels.add(
+                    dwg.text(
+                        insert=(x + dx, y + dy),
+                        **self.mutation_label_attrs[mutation.id]
+                    )
+                )
                 y -= delta
 
 
@@ -458,26 +520,35 @@ class TextTreeSequence(object):
     """
     Draw a tree sequence as horizontal line of trees.
     """
+
     def __init__(
-            self, ts, node_labels=None, use_ascii=False, time_label_format=None,
-            position_label_format=None):
+        self,
+        ts,
+        node_labels=None,
+        use_ascii=False,
+        time_label_format=None,
+        position_label_format=None,
+    ):
         self.ts = ts
 
-        time_label_format = (
-            "{:.2f}" if time_label_format is None else time_label_format)
+        time_label_format = "{:.2f}" if time_label_format is None else time_label_format
         position_label_format = (
-            "{:.2f}" if position_label_format is None else position_label_format)
+            "{:.2f}" if position_label_format is None else position_label_format
+        )
 
         time = ts.tables.nodes.time
         time_scale_labels = [
-            time_label_format.format(time[u]) for u in range(ts.num_nodes)]
+            time_label_format.format(time[u]) for u in range(ts.num_nodes)
+        ]
         position_scale_labels = [
-            position_label_format.format(x) for x in ts.breakpoints()]
+            position_label_format.format(x) for x in ts.breakpoints()
+        ]
         trees = [
             VerticalTextTree(
-                tree, max_tree_height="ts", node_labels=node_labels,
-                use_ascii=use_ascii)
-            for tree in self.ts.trees()]
+                tree, max_tree_height="ts", node_labels=node_labels, use_ascii=use_ascii
+            )
+            for tree in self.ts.trees()
+        ]
 
         self.height = 1 + max(tree.height for tree in trees)
         self.width = sum(tree.width + 2 for tree in trees) - 1
@@ -492,7 +563,7 @@ class TextTreeSequence(object):
         time_position = trees[0].time_position
         for u, label in enumerate(map(to_np_unicode, time_scale_labels)):
             y = time_position[u]
-            self.canvas[y, 0: label.shape[0]] = label
+            self.canvas[y, 0 : label.shape[0]] = label
         self.canvas[:, max_time_scale_label_len] = vertical_sep
         x = 2 + max_time_scale_label_len
 
@@ -500,9 +571,9 @@ class TextTreeSequence(object):
             pos_label = to_np_unicode(position_scale_labels[j])
             k = len(pos_label)
             label_x = max(x - k // 2 - 2, 0)
-            self.canvas[-1, label_x: label_x + k] = pos_label
+            self.canvas[-1, label_x : label_x + k] = pos_label
             h, w = tree.canvas.shape
-            self.canvas[-h - 1: -1, x: x + w - 1] = tree.canvas[:, :-1]
+            self.canvas[-h - 1 : -1, x : x + w - 1] = tree.canvas[:, :-1]
             x += w
             self.canvas[:, x] = vertical_sep
             x += 2
@@ -510,7 +581,7 @@ class TextTreeSequence(object):
         pos_label = to_np_unicode(position_scale_labels[-1])
         k = len(pos_label)
         label_x = max(x - k // 2 - 2, 0)
-        self.canvas[-1, label_x: label_x + k] = pos_label
+        self.canvas[-1, label_x : label_x + k] = pos_label
         self.canvas[:, -1] = "\n"
 
     def __str__(self):
@@ -595,19 +666,26 @@ class TextTree(object):
     Draws a reprentation of a tree using unicode drawing characters written
     to a 2D array.
     """
+
     def __init__(
-            self, tree, node_labels=None, max_tree_height=None, use_ascii=False,
-            orientation=None):
+        self,
+        tree,
+        node_labels=None,
+        max_tree_height=None,
+        use_ascii=False,
+        orientation=None,
+    ):
         self.tree = tree
         self.max_tree_height = check_max_tree_height(
-            max_tree_height, allow_numeric=False)
+            max_tree_height, allow_numeric=False
+        )
         self.use_ascii = use_ascii
         self.orientation = check_orientation(orientation)
-        self.horizontal_line_char = '━'
-        self.vertical_line_char = '┃'
+        self.horizontal_line_char = "━"
+        self.vertical_line_char = "┃"
         if use_ascii:
-            self.horizontal_line_char = '-'
-            self.vertical_line_char = '|'
+            self.horizontal_line_char = "-"
+            self.vertical_line_char = "|"
         # These are set below by the placement algorithms.
         self.width = None
         self.height = None
@@ -649,6 +727,7 @@ class VerticalTextTree(TextTree):
     Text tree rendering where root nodes are at the top and time goes downwards
     into the present.
     """
+
     @property
     def default_node_label(self):
         return self.vertical_line_char
@@ -659,7 +738,8 @@ class VerticalTextTree(TextTree):
         # account here. Presumably we need to get the maximum number of mutations
         # per branch.
         self.time_position, total_depth = node_time_depth(
-                tree, max_tree_height=self.max_tree_height)
+            tree, max_tree_height=self.max_tree_height
+        )
         self.height = total_depth - 1
 
     def _assign_traversal_positions(self):
@@ -719,22 +799,22 @@ class VerticalTextTree(TextTree):
             label_len = label.shape[0]
             label_x = self.label_x[u]
             assert label_x >= 0
-            self.canvas[yu, label_x: label_x + label_len] = label
+            self.canvas[yu, label_x : label_x + label_len] = label
             children = self.tree.children(u)
             if len(children) > 0:
                 if len(children) == 1:
                     yv = self.time_position[children[0]]
-                    self.canvas[yv: yu, xu] = self.vertical_line_char
+                    self.canvas[yv:yu, xu] = self.vertical_line_char
                 else:
                     left = min(self.traversal_position[v] for v in children)
                     right = max(self.traversal_position[v] for v in children)
                     y = yu - 1
-                    self.canvas[y, left + 1: right] = self.horizontal_line_char
+                    self.canvas[y, left + 1 : right] = self.horizontal_line_char
                     self.canvas[y, xu] = mid_parent
                     for v in children:
                         xv = self.traversal_position[v]
                         yv = self.time_position[v]
-                        self.canvas[yv: yu, xv] = self.vertical_line_char
+                        self.canvas[yv:yu, xv] = self.vertical_line_char
                         mid_char = mid_parent_child if xv == xu else mid_child
                         self.canvas[y, xv] = mid_char
                     self.canvas[y, left] = left_child
@@ -745,7 +825,8 @@ class VerticalTextTree(TextTree):
             # Reverse the time positions so that we can use them in the tree
             # sequence drawing as well.
             flipped_time_position = {
-                u: self.height - y - 1 for u, y in self.time_position.items()}
+                u: self.height - y - 1 for u, y in self.time_position.items()
+            }
             self.time_position = flipped_time_position
 
 
@@ -764,7 +845,8 @@ class HorizontalTextTree(TextTree):
         # account here. Presumably we need to get the maximum number of mutations
         # per branch.
         self.time_position, total_depth = node_time_depth(
-            self.tree, {u: 1 + len(self.node_labels[u]) for u in self.tree.nodes()})
+            self.tree, {u: 1 + len(self.node_labels[u]) for u in self.tree.nodes()}
+        )
         self.width = total_depth
 
     def _assign_traversal_positions(self):
@@ -815,22 +897,22 @@ class HorizontalTextTree(TextTree):
                 # We flip the array at the end so need to reverse the label.
                 label = label[::-1]
             label_len = label.shape[0]
-            self.canvas[yu, xu: xu + label_len] = label
+            self.canvas[yu, xu : xu + label_len] = label
             children = self.tree.children(u)
             if len(children) > 0:
                 if len(children) == 1:
                     xv = self.time_position[children[0]]
-                    self.canvas[yu, xv: xu] = self.horizontal_line_char
+                    self.canvas[yu, xv:xu] = self.horizontal_line_char
                 else:
                     bot = min(self.traversal_position[v] for v in children)
                     top = max(self.traversal_position[v] for v in children)
                     x = xu - 1
-                    self.canvas[bot + 1: top, x] = self.vertical_line_char
+                    self.canvas[bot + 1 : top, x] = self.vertical_line_char
                     self.canvas[yu, x] = mid_parent
                     for v in children:
                         yv = self.traversal_position[v]
                         xv = self.time_position[v]
-                        self.canvas[yv, xv: x] = self.horizontal_line_char
+                        self.canvas[yv, xv:x] = self.horizontal_line_char
                         mid_char = mid_parent_child if yv == yu else mid_child
                         self.canvas[yv, x] = mid_char
                     self.canvas[bot, x] = top_across

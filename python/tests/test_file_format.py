@@ -54,8 +54,8 @@ def single_locus_with_mutation_example():
 
 def multi_locus_with_mutation_example():
     return msprime.simulate(
-        10, recombination_rate=1, length=10, mutation_rate=10,
-        random_seed=2)
+        10, recombination_rate=1, length=10, mutation_rate=10, random_seed=2
+    )
 
 
 def recurrent_mutation_example():
@@ -93,7 +93,9 @@ def migration_example():
     ts = msprime.simulate(
         population_configurations=population_configurations,
         demographic_events=demographic_events,
-        random_seed=1, record_migrations=True)
+        random_seed=1,
+        record_migrations=True,
+    )
     return ts
 
 
@@ -104,7 +106,9 @@ def bottleneck_example():
         recombination_rate=0.1,
         length=10,
         demographic_events=[
-            msprime.SimpleBottleneck(time=0.01, population=0, proportion=0.75)])
+            msprime.SimpleBottleneck(time=0.01, population=0, proportion=0.75)
+        ],
+    )
 
 
 def historical_sample_example():
@@ -112,7 +116,8 @@ def historical_sample_example():
         recombination_rate=0.1,
         length=10,
         random_seed=1,
-        samples=[(0, j) for j in range(10)])
+        samples=[(0, j) for j in range(10)],
+    )
 
 
 def no_provenance_example():
@@ -132,13 +137,17 @@ def provenance_timestamp_only_example():
 
 def node_metadata_example():
     ts = msprime.simulate(
-        sample_size=100, recombination_rate=0.1, length=10, random_seed=1)
+        sample_size=100, recombination_rate=0.1, length=10, random_seed=1
+    )
     tables = ts.dump_tables()
     metadatas = ["n_{}".format(u) for u in range(ts.num_nodes)]
     packed, offset = tskit.pack_strings(metadatas)
     tables.nodes.set_columns(
-        metadata=packed, metadata_offset=offset,
-        flags=tables.nodes.flags, time=tables.nodes.time)
+        metadata=packed,
+        metadata_offset=offset,
+        flags=tables.nodes.flags,
+        time=tables.nodes.time,
+    )
     return tables.tree_sequence()
 
 
@@ -155,8 +164,7 @@ def mutation_metadata_example():
     tables = ts.dump_tables()
     tables.sites.add_row(0, ancestral_state="a")
     for j in range(10):
-        tables.mutations.add_row(
-            site=0, node=j, derived_state="t", metadata=b"1234")
+        tables.mutations.add_row(site=0, node=j, derived_state="t", metadata=b"1234")
     return tables.tree_sequence()
 
 
@@ -164,6 +172,7 @@ class TestFileFormat(unittest.TestCase):
     """
     Superclass of file format tests.
     """
+
     def setUp(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="msp_file_test_")
         os.close(fd)
@@ -176,6 +185,7 @@ class TestLoadLegacyExamples(TestFileFormat):
     """
     Tests using the saved legacy file examples to ensure we can load them.
     """
+
     def verify_tree_sequence(self, ts):
         # Just some quick checks to make sure the tree sequence makes sense.
         self.assertGreater(ts.sample_size, 0)
@@ -193,8 +203,10 @@ class TestLoadLegacyExamples(TestFileFormat):
 
     def test_format_too_old_raised_for_hdf5(self):
         files = [
-            "msprime-0.3.0_v2.0.hdf5", "msprime-0.4.0_v3.1.hdf5",
-            "msprime-0.5.0_v10.0.hdf5"]
+            "msprime-0.3.0_v2.0.hdf5",
+            "msprime-0.4.0_v3.1.hdf5",
+            "msprime-0.5.0_v10.0.hdf5",
+        ]
         for filename in files:
             path = os.path.join(test_data_dir, "hdf5-formats", filename)
             self.assertRaises(exceptions.VersionTooOldError, tskit.load, path)
@@ -220,6 +232,7 @@ class TestRoundTrip(TestFileFormat):
     Tests if we can round trip convert a tree sequence in memory
     through a V2 file format and a V3 format.
     """
+
     def verify_tree_sequences_equal(self, ts, tsp, simplify=True):
         self.assertEqual(ts.sequence_length, tsp.sequence_length)
         t1 = ts.tables
@@ -297,14 +310,16 @@ class TestRoundTrip(TestFileFormat):
         ts = recurrent_mutation_example()
         for version in [2, 3]:
             self.assertRaises(
-                ValueError, tskit.dump_legacy, ts, self.temp_file, version)
+                ValueError, tskit.dump_legacy, ts, self.temp_file, version
+            )
         self.verify_round_trip(ts, 10)
 
     def test_general_mutation_example(self):
         ts = general_mutation_example()
         for version in [2, 3]:
             self.assertRaises(
-                ValueError, tskit.dump_legacy, ts, self.temp_file, version)
+                ValueError, tskit.dump_legacy, ts, self.temp_file, version
+            )
         self.verify_round_trip(ts, 10)
 
     def test_node_metadata_example(self):
@@ -332,7 +347,7 @@ class TestRoundTrip(TestFileFormat):
         ts = multi_locus_with_mutation_example()
         tskit.dump_legacy(ts, self.temp_file, version=2)
         root = h5py.File(self.temp_file, "r+")
-        del root['samples']
+        del root["samples"]
         root.close()
         tsp = tskit.load_legacy(self.temp_file)
         self.verify_tree_sequences_equal(ts, tsp)
@@ -342,12 +357,12 @@ class TestRoundTrip(TestFileFormat):
         for version in [2, 3]:
             tskit.dump_legacy(ts, self.temp_file, version=version)
             root = h5py.File(self.temp_file, "r+")
-            root['mutations/position'][:] = 0
+            root["mutations/position"][:] = 0
             root.close()
             self.assertRaises(
-                tskit.DuplicatePositionsError, tskit.load_legacy, self.temp_file)
-            tsp = tskit.load_legacy(
-                self.temp_file, remove_duplicate_positions=True)
+                tskit.DuplicatePositionsError, tskit.load_legacy, self.temp_file
+            )
+            tsp = tskit.load_legacy(self.temp_file, remove_duplicate_positions=True)
             self.assertEqual(tsp.num_sites, 1)
             sites = list(tsp.sites())
             self.assertEqual(sites[0].position, 0)
@@ -357,14 +372,14 @@ class TestRoundTrip(TestFileFormat):
         for version in [2, 3]:
             tskit.dump_legacy(ts, self.temp_file, version=version)
             root = h5py.File(self.temp_file, "r+")
-            position = np.array(root['mutations/position'])
+            position = np.array(root["mutations/position"])
             position[0] = position[1]
-            root['mutations/position'][:] = position
+            root["mutations/position"][:] = position
             root.close()
             self.assertRaises(
-                tskit.DuplicatePositionsError, tskit.load_legacy, self.temp_file)
-            tsp = tskit.load_legacy(
-                self.temp_file, remove_duplicate_positions=True)
+                tskit.DuplicatePositionsError, tskit.load_legacy, self.temp_file
+            )
+            tsp = tskit.load_legacy(self.temp_file, remove_duplicate_positions=True)
             self.assertEqual(tsp.num_sites, position.shape[0] - 1)
             position_after = list(s.position for s in tsp.sites())
             self.assertEqual(list(position[1:]), position_after)
@@ -374,14 +389,14 @@ class TestErrors(TestFileFormat):
     """
     Test various API errors.
     """
+
     def test_v2_non_binary_records(self):
         demographic_events = [
             msprime.SimpleBottleneck(time=0.01, population=0, proportion=1)
         ]
         ts = msprime.simulate(
-            sample_size=10,
-            demographic_events=demographic_events,
-            random_seed=1)
+            sample_size=10, demographic_events=demographic_events, random_seed=1
+        )
         self.assertRaises(ValueError, tskit.dump_legacy, ts, self.temp_file, 2)
 
     def test_unsupported_version(self):
@@ -400,7 +415,7 @@ class TestErrors(TestFileFormat):
 
     def test_unknown_legacy_version(self):
         root = h5py.File(self.temp_file, "w")
-        root.attrs['format_version'] = (1024, 0)  # Arbitrary unknown version
+        root.attrs["format_version"] = (1024, 0)  # Arbitrary unknown version
         root.close()
         self.assertRaises(ValueError, tskit.load_legacy, self.temp_file)
 
@@ -409,53 +424,54 @@ class TestDumpFormat(TestFileFormat):
     """
     Tests on the on-disk file format.
     """
+
     def verify_keys(self, ts):
         keys = [
-           "edges/child",
-           "edges/left",
-           "edges/parent",
-           "edges/right",
-           "format/name",
-           "format/version",
-           "indexes/edge_insertion_order",
-           "indexes/edge_removal_order",
-           "individuals/flags",
-           "individuals/location",
-           "individuals/location_offset",
-           "individuals/metadata",
-           "individuals/metadata_offset",
-           "migrations/dest",
-           "migrations/left",
-           "migrations/node",
-           "migrations/right",
-           "migrations/source",
-           "migrations/time",
-           "mutations/derived_state",
-           "mutations/derived_state_offset",
-           "mutations/metadata",
-           "mutations/metadata_offset",
-           "mutations/node",
-           "mutations/parent",
-           "mutations/site",
-           "nodes/flags",
-           "nodes/individual",
-           "nodes/metadata",
-           "nodes/metadata_offset",
-           "nodes/population",
-           "nodes/time",
-           "populations/metadata",
-           "populations/metadata_offset",
-           "provenances/record",
-           "provenances/record_offset",
-           "provenances/timestamp",
-           "provenances/timestamp_offset",
-           "sequence_length",
-           "sites/ancestral_state",
-           "sites/ancestral_state_offset",
-           "sites/metadata",
-           "sites/metadata_offset",
-           "sites/position",
-           "uuid",
+            "edges/child",
+            "edges/left",
+            "edges/parent",
+            "edges/right",
+            "format/name",
+            "format/version",
+            "indexes/edge_insertion_order",
+            "indexes/edge_removal_order",
+            "individuals/flags",
+            "individuals/location",
+            "individuals/location_offset",
+            "individuals/metadata",
+            "individuals/metadata_offset",
+            "migrations/dest",
+            "migrations/left",
+            "migrations/node",
+            "migrations/right",
+            "migrations/source",
+            "migrations/time",
+            "mutations/derived_state",
+            "mutations/derived_state_offset",
+            "mutations/metadata",
+            "mutations/metadata_offset",
+            "mutations/node",
+            "mutations/parent",
+            "mutations/site",
+            "nodes/flags",
+            "nodes/individual",
+            "nodes/metadata",
+            "nodes/metadata_offset",
+            "nodes/population",
+            "nodes/time",
+            "populations/metadata",
+            "populations/metadata_offset",
+            "provenances/record",
+            "provenances/record_offset",
+            "provenances/timestamp",
+            "provenances/timestamp_offset",
+            "sequence_length",
+            "sites/ancestral_state",
+            "sites/ancestral_state_offset",
+            "sites/metadata",
+            "sites/metadata_offset",
+            "sites/position",
+            "uuid",
         ]
         ts.dump(self.temp_file)
         store = kastore.load(self.temp_file)
@@ -476,40 +492,54 @@ class TestDumpFormat(TestFileFormat):
 
         store = kastore.load(self.temp_file)
         # Check the basic root attributes
-        format_name = store['format/name']
-        self.assertTrue(np.array_equal(
-            np.array(bytearray(b"tskit.trees"), dtype=np.int8), format_name))
-        format_version = store['format/version']
+        format_name = store["format/name"]
+        self.assertTrue(
+            np.array_equal(
+                np.array(bytearray(b"tskit.trees"), dtype=np.int8), format_name
+            )
+        )
+        format_version = store["format/version"]
         self.assertEqual(format_version[0], CURRENT_FILE_MAJOR)
         self.assertEqual(format_version[1], 0)
-        self.assertEqual(ts.sequence_length, store['sequence_length'][0])
+        self.assertEqual(ts.sequence_length, store["sequence_length"][0])
         # Load another copy from file so we can check the uuid.
         other_ts = tskit.load(self.temp_file)
         self.verify_uuid(other_ts, store["uuid"].tobytes().decode())
 
         tables = ts.tables
 
-        self.assertTrue(np.array_equal(
-            tables.individuals.flags, store["individuals/flags"]))
-        self.assertTrue(np.array_equal(
-            tables.individuals.location, store["individuals/location"]))
-        self.assertTrue(np.array_equal(
-            tables.individuals.location_offset, store["individuals/location_offset"]))
-        self.assertTrue(np.array_equal(
-            tables.individuals.metadata, store["individuals/metadata"]))
-        self.assertTrue(np.array_equal(
-            tables.individuals.metadata_offset, store["individuals/metadata_offset"]))
+        self.assertTrue(
+            np.array_equal(tables.individuals.flags, store["individuals/flags"])
+        )
+        self.assertTrue(
+            np.array_equal(tables.individuals.location, store["individuals/location"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.individuals.location_offset, store["individuals/location_offset"]
+            )
+        )
+        self.assertTrue(
+            np.array_equal(tables.individuals.metadata, store["individuals/metadata"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.individuals.metadata_offset, store["individuals/metadata_offset"]
+            )
+        )
 
         self.assertTrue(np.array_equal(tables.nodes.flags, store["nodes/flags"]))
         self.assertTrue(np.array_equal(tables.nodes.time, store["nodes/time"]))
-        self.assertTrue(np.array_equal(
-            tables.nodes.population, store["nodes/population"]))
-        self.assertTrue(np.array_equal(
-            tables.nodes.individual, store["nodes/individual"]))
-        self.assertTrue(np.array_equal(
-            tables.nodes.metadata, store["nodes/metadata"]))
-        self.assertTrue(np.array_equal(
-            tables.nodes.metadata_offset, store["nodes/metadata_offset"]))
+        self.assertTrue(
+            np.array_equal(tables.nodes.population, store["nodes/population"])
+        )
+        self.assertTrue(
+            np.array_equal(tables.nodes.individual, store["nodes/individual"])
+        )
+        self.assertTrue(np.array_equal(tables.nodes.metadata, store["nodes/metadata"]))
+        self.assertTrue(
+            np.array_equal(tables.nodes.metadata_offset, store["nodes/metadata_offset"])
+        )
 
         self.assertTrue(np.array_equal(tables.edges.left, store["edges/left"]))
         self.assertTrue(np.array_equal(tables.edges.right, store["edges/right"]))
@@ -523,65 +553,109 @@ class TestDumpFormat(TestFileFormat):
         time = tables.nodes.time
         in_order = sorted(
             range(ts.num_edges),
-            key=lambda j: (left[j], time[parent[j]], parent[j], child[j]))
+            key=lambda j: (left[j], time[parent[j]], parent[j], child[j]),
+        )
         out_order = sorted(
             range(ts.num_edges),
-            key=lambda j: (right[j], -time[parent[j]], -parent[j], -child[j]))
-        self.assertTrue(np.array_equal(
-            np.array(in_order, dtype=np.int32), store["indexes/edge_insertion_order"]))
-        self.assertTrue(np.array_equal(
-            np.array(out_order, dtype=np.int32), store["indexes/edge_removal_order"]))
+            key=lambda j: (right[j], -time[parent[j]], -parent[j], -child[j]),
+        )
+        self.assertTrue(
+            np.array_equal(
+                np.array(in_order, dtype=np.int32),
+                store["indexes/edge_insertion_order"],
+            )
+        )
+        self.assertTrue(
+            np.array_equal(
+                np.array(out_order, dtype=np.int32), store["indexes/edge_removal_order"]
+            )
+        )
 
         self.assertTrue(
-            np.array_equal(tables.migrations.left, store["migrations/left"]))
+            np.array_equal(tables.migrations.left, store["migrations/left"])
+        )
         self.assertTrue(
-            np.array_equal(tables.migrations.right, store["migrations/right"]))
+            np.array_equal(tables.migrations.right, store["migrations/right"])
+        )
         self.assertTrue(
-            np.array_equal(tables.migrations.node, store["migrations/node"]))
+            np.array_equal(tables.migrations.node, store["migrations/node"])
+        )
         self.assertTrue(
-            np.array_equal(tables.migrations.source, store["migrations/source"]))
+            np.array_equal(tables.migrations.source, store["migrations/source"])
+        )
         self.assertTrue(
-            np.array_equal(tables.migrations.dest, store["migrations/dest"]))
+            np.array_equal(tables.migrations.dest, store["migrations/dest"])
+        )
         self.assertTrue(
-            np.array_equal(tables.migrations.time, store["migrations/time"]))
+            np.array_equal(tables.migrations.time, store["migrations/time"])
+        )
 
         self.assertTrue(np.array_equal(tables.sites.position, store["sites/position"]))
-        self.assertTrue(np.array_equal(
-            tables.sites.ancestral_state, store["sites/ancestral_state"]))
-        self.assertTrue(np.array_equal(
-            tables.sites.ancestral_state_offset, store["sites/ancestral_state_offset"]))
-        self.assertTrue(np.array_equal(
-            tables.sites.metadata, store["sites/metadata"]))
-        self.assertTrue(np.array_equal(
-            tables.sites.metadata_offset, store["sites/metadata_offset"]))
+        self.assertTrue(
+            np.array_equal(tables.sites.ancestral_state, store["sites/ancestral_state"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.sites.ancestral_state_offset,
+                store["sites/ancestral_state_offset"],
+            )
+        )
+        self.assertTrue(np.array_equal(tables.sites.metadata, store["sites/metadata"]))
+        self.assertTrue(
+            np.array_equal(tables.sites.metadata_offset, store["sites/metadata_offset"])
+        )
 
         self.assertTrue(np.array_equal(tables.mutations.site, store["mutations/site"]))
         self.assertTrue(np.array_equal(tables.mutations.node, store["mutations/node"]))
-        self.assertTrue(np.array_equal(
-            tables.mutations.parent, store["mutations/parent"]))
-        self.assertTrue(np.array_equal(
-            tables.mutations.derived_state, store["mutations/derived_state"]))
-        self.assertTrue(np.array_equal(
-            tables.mutations.derived_state_offset,
-            store["mutations/derived_state_offset"]))
-        self.assertTrue(np.array_equal(
-            tables.mutations.metadata, store["mutations/metadata"]))
-        self.assertTrue(np.array_equal(
-            tables.mutations.metadata_offset, store["mutations/metadata_offset"]))
+        self.assertTrue(
+            np.array_equal(tables.mutations.parent, store["mutations/parent"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.mutations.derived_state, store["mutations/derived_state"]
+            )
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.mutations.derived_state_offset,
+                store["mutations/derived_state_offset"],
+            )
+        )
+        self.assertTrue(
+            np.array_equal(tables.mutations.metadata, store["mutations/metadata"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.mutations.metadata_offset, store["mutations/metadata_offset"]
+            )
+        )
 
-        self.assertTrue(np.array_equal(
-            tables.populations.metadata, store["populations/metadata"]))
-        self.assertTrue(np.array_equal(
-            tables.populations.metadata_offset, store["populations/metadata_offset"]))
+        self.assertTrue(
+            np.array_equal(tables.populations.metadata, store["populations/metadata"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.populations.metadata_offset, store["populations/metadata_offset"]
+            )
+        )
 
-        self.assertTrue(np.array_equal(
-            tables.provenances.record, store["provenances/record"]))
-        self.assertTrue(np.array_equal(
-            tables.provenances.record_offset, store["provenances/record_offset"]))
-        self.assertTrue(np.array_equal(
-            tables.provenances.timestamp, store["provenances/timestamp"]))
-        self.assertTrue(np.array_equal(
-            tables.provenances.timestamp_offset, store["provenances/timestamp_offset"]))
+        self.assertTrue(
+            np.array_equal(tables.provenances.record, store["provenances/record"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.provenances.record_offset, store["provenances/record_offset"]
+            )
+        )
+        self.assertTrue(
+            np.array_equal(tables.provenances.timestamp, store["provenances/timestamp"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.provenances.timestamp_offset,
+                store["provenances/timestamp_offset"],
+            )
+        )
 
         store.close()
 
@@ -623,6 +697,7 @@ class TestUuid(TestFileFormat):
     """
     Basic tests for the UUID generation.
     """
+
     def test_different_files_same_ts(self):
         ts = msprime.simulate(10)
         uuids = []
@@ -637,6 +712,7 @@ class TestFileFormatErrors(TestFileFormat):
     """
     Tests for errors in the HDF5 format.
     """
+
     current_major_version = 12
 
     def verify_fields(self, ts):
@@ -683,7 +759,7 @@ class TestFileFormatErrors(TestFileFormat):
 
     def test_format_name_error(self):
         ts = msprime.simulate(10)
-        for bad_name in ["tskit.tree", "tskit.treesAndOther", "", "x"*100]:
+        for bad_name in ["tskit.tree", "tskit.treesAndOther", "", "x" * 100]:
             ts.dump(self.temp_file)
             with kastore.load(self.temp_file) as store:
                 data = dict(store)

@@ -110,7 +110,8 @@ def ls_viterbi_naive(h, alleles, G, rho, mu):
         if L[j] == 0:
             assert mu[l] == 0
             raise ValueError(
-                "Trying to match non-existent allele with zero mutation rate")
+                "Trying to match non-existent allele with zero mutation rate"
+            )
         L /= L[j]
 
     P = np.zeros(m, dtype=int)
@@ -152,7 +153,8 @@ def ls_viterbi_vectorised(h, alleles, G, rho, mu):
         if V[max_index[site]] == 0:
             assert mu[site] == 0
             raise ValueError(
-                "Trying to match non-existent allele with zero mutation rate")
+                "Trying to match non-existent allele with zero mutation rate"
+            )
         V /= V[max_index[site]]
 
     # Traceback
@@ -300,8 +302,12 @@ def ls_forward_tree(h, alleles, ts, rho, mu, precision=30, use_lib=True):
     if use_lib:
         acgt_alleles = tuple(alleles) == tskit.ALLELES_ACGT
         ls_hmm = _tskit.LsHmm(
-            ts.ll_tree_sequence, recombination_rate=rho, mutation_rate=mu,
-            precision=precision, acgt_alleles=acgt_alleles)
+            ts.ll_tree_sequence,
+            recombination_rate=rho,
+            mutation_rate=mu,
+            precision=precision,
+            acgt_alleles=acgt_alleles,
+        )
         cm = _tskit.CompressedMatrix(ts.ll_tree_sequence)
         ls_hmm.forward_matrix(h, cm)
         return cm
@@ -317,8 +323,12 @@ def ls_viterbi_tree(h, alleles, ts, rho, mu, precision=30, use_lib=True):
     if use_lib:
         acgt_alleles = tuple(alleles) == tskit.ALLELES_ACGT
         ls_hmm = _tskit.LsHmm(
-            ts.ll_tree_sequence, recombination_rate=rho, mutation_rate=mu,
-            precision=precision, acgt_alleles=acgt_alleles)
+            ts.ll_tree_sequence,
+            recombination_rate=rho,
+            mutation_rate=mu,
+            precision=precision,
+            acgt_alleles=acgt_alleles,
+        )
         vm = _tskit.ViterbiMatrix(ts.ll_tree_sequence)
         ls_hmm.viterbi_matrix(h, vm)
         return vm
@@ -331,6 +341,7 @@ class ValueTransition(object):
     """
     Simple struct holding value transition values.
     """
+
     def __init__(self, tree_node=-1, value=-1, value_index=-1):
         self.tree_node = tree_node
         self.value = value
@@ -350,6 +361,7 @@ class LsHmmAlgorithm(object):
     """
     Abstract superclass of Li and Stephens HMM algorithm.
     """
+
     def __init__(self, ts, rho, mu, alleles, precision=10):
         self.ts = ts
         self.mu = mu
@@ -411,7 +423,9 @@ class LsHmmAlgorithm(object):
                 A[u] = union
 
         A = np.zeros((tree.tree_sequence.num_nodes, len(values)), dtype=int)
-        t_node_time = [-1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T]
+        t_node_time = [
+            -1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T
+        ]
         order = np.argsort(t_node_time)
         for j in order:
             st = T[j]
@@ -456,14 +470,16 @@ class LsHmmAlgorithm(object):
                         new_child_state = np.where(A[v] == 1)[0][0]
                         child_t_parent = len(T)
                         T_parent.append(t_parent)
-                        T.append(ValueTransition(
-                            tree_node=v, value=values[new_child_state]))
+                        T.append(
+                            ValueTransition(tree_node=v, value=values[new_child_state])
+                        )
                     stack.append((v, old_child_state, new_child_state, child_t_parent))
                 else:
                     if old_child_state != new_state:
                         T_parent.append(t_parent)
-                        T.append(ValueTransition(
-                            tree_node=v, value=values[old_child_state]))
+                        T.append(
+                            ValueTransition(tree_node=v, value=values[old_child_state])
+                        )
 
         for st in T_old:
             if st.tree_node != -1:
@@ -492,8 +508,9 @@ class LsHmmAlgorithm(object):
                     u = parent[u]
                     assert u != -1
                 T_index[edge.child] = len(T)
-                T.append(ValueTransition(
-                    tree_node=edge.child, value=T[T_index[u]].value))
+                T.append(
+                    ValueTransition(tree_node=edge.child, value=T[T_index[u]].value)
+                )
             parent[edge.child] = -1
 
         for edge in edges_in:
@@ -503,8 +520,11 @@ class LsHmmAlgorithm(object):
                 # Grafting onto a new root.
                 if T_index[edge.parent] == -1:
                     T_index[edge.parent] = len(T)
-                    T.append(ValueTransition(
-                        tree_node=edge.parent, value=T[T_index[edge.child]].value))
+                    T.append(
+                        ValueTransition(
+                            tree_node=edge.parent, value=T[T_index[edge.child]].value
+                        )
+                    )
             else:
                 # Grafting into an existing subtree.
                 while T_index[u] == -1:
@@ -546,8 +566,9 @@ class LsHmmAlgorithm(object):
                 while T_index[u] == tskit.NULL:
                     u = tree.parent(u)
                 T_index[mutation.node] = len(T)
-                T.append(ValueTransition(
-                    tree_node=mutation.node, value=T[T_index[u]].value))
+                T.append(
+                    ValueTransition(tree_node=mutation.node, value=T[T_index[u]].value)
+                )
 
         for st in T:
             u = st.tree_node
@@ -559,7 +580,8 @@ class LsHmmAlgorithm(object):
                     v = tree.parent(v)
                     assert v != -1
                 x = self.compute_next_probability(
-                    site.id, st.value, haplotype_state == allelic_state[v], u)
+                    site.id, st.value, haplotype_state == allelic_state[v], u
+                )
                 st.value = round(x, self.precision)
 
         # Unset the states
@@ -596,6 +618,7 @@ class CompressedMatrix(object):
     from a particular node will inherit that value (unless any other
     values are on the path).
     """
+
     def __init__(self, ts):
         self.ts = ts
         self.num_sites = ts.num_sites
@@ -643,6 +666,7 @@ class ForwardAlgorithm(LsHmmAlgorithm):
     """
     Runs the Li and Stephens forward algorithm.
     """
+
     def __init__(self, ts, rho, mu, alleles, precision=10):
         super().__init__(ts, rho, mu, alleles, precision)
         self.output = ForwardMatrix(ts)
@@ -671,6 +695,7 @@ class ViterbiMatrix(CompressedMatrix):
     """
     Class representing the compressed Viterbi matrix.
     """
+
     def __init__(self, ts):
         super().__init__(ts)
         self.recombination_required = [(-1, 0, False)]
@@ -748,6 +773,7 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
     """
     Runs the Li and Stephens Viterbi algorithm.
     """
+
     def __init__(self, ts, rho, mu, alleles, precision=10):
         super().__init__(ts, rho, mu, alleles, precision)
         self.output = ViterbiMatrix(ts)
@@ -760,12 +786,15 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
         if max_st.value == 0:
             assert self.mu[l] == 0
             raise ValueError(
-                "Trying to match non-existent allele with zero mutation rate")
+                "Trying to match non-existent allele with zero mutation rate"
+            )
 
         max_value = max_st.value
         for st in self.T:
             st.value /= max_value
-        self.output.store_site(l, max_value, [(st.tree_node, st.value) for st in self.T])
+        self.output.store_site(
+            l, max_value, [(st.tree_node, st.value) for st in self.T]
+        )
 
     def compute_next_probability(self, site_id, p_last, is_match, node):
         rho = self.rho[site_id]
@@ -797,6 +826,7 @@ class LiStephensBase(object):
     """
     Superclass of Li and Stephens tests.
     """
+
     def assertCompressedMatricesEqual(self, cm1, cm2):
         """
         Checks that the specified compressed matrices contain the same data.
@@ -864,12 +894,14 @@ class LiStephensBase(object):
         rhos = [
             np.zeros(ts.num_sites) + 0.999,
             np.zeros(ts.num_sites) + 1e-6,
-            rng.uniform(0, 1, ts.num_sites)]
+            rng.uniform(0, 1, ts.num_sites),
+        ]
         # mu can't be more than 1 / 3 if we have 4 alleles
         mus = [
             np.zeros(ts.num_sites) + 0.33,
             np.zeros(ts.num_sites) + 1e-6,
-            rng.uniform(0, 0.33, ts.num_sites)]
+            rng.uniform(0, 0.33, ts.num_sites),
+        ]
         for h, rho, mu in itertools.product(haplotypes, rhos, mus):
             rho[0] = 0
             yield h, rho, mu
@@ -941,6 +973,7 @@ class TestNumpyMatrixMethod(ForwardAlgorithmBase, unittest.TestCase):
     Tests that we compute the same values from the numpy matrix method as
     the naive algorithm.
     """
+
     def verify(self, ts, alleles=tskit.ALLELES_01):
         G = ts.genotype_matrix(alleles=alleles)
         for h, rho, mu in self.example_parameters(ts, alleles):
@@ -988,7 +1021,6 @@ class TestExactMatchViterbi(ViterbiAlgorithmBase, unittest.TestCase):
 
 
 class TestGeneralViterbi(ViterbiAlgorithmBase, unittest.TestCase):
-
     def verify(self, ts, alleles=tskit.ALLELES_01):
         np.set_printoptions(linewidth=20000)
         np.set_printoptions(threshold=20000000)
@@ -1041,6 +1073,7 @@ class TestForwardMatrixScaling(ForwardAlgorithmBase, unittest.TestCase):
     Tests that we get the correct values from scaling version of the matrix
     algorithm works correctly.
     """
+
     def verify(self, ts, alleles=tskit.ALLELES_01):
         G = ts.genotype_matrix(alleles=alleles)
         computed_log_proba = False
@@ -1066,6 +1099,7 @@ class TestForwardTree(ForwardAlgorithmBase, unittest.TestCase):
     Tests that the tree algorithm computes the same forward matrix as the
     simple method.
     """
+
     def verify(self, ts, alleles=tskit.ALLELES_01):
         G = ts.genotype_matrix(alleles=alleles)
         for h, rho, mu in self.example_parameters(ts, alleles):
@@ -1083,6 +1117,7 @@ class TestAllPaths(unittest.TestCase):
     Tests that we compute the correct forward probablities if we sum over all
     possible paths through the genotype matrix.
     """
+
     def verify(self, G, h):
         m, n = G.shape
         rho = np.zeros(m) + 0.1
@@ -1098,21 +1133,31 @@ class TestAllPaths(unittest.TestCase):
         self.assertAlmostEqual(proba, forward_proba)
 
     def test_n3_m4(self):
-        G = np.array([
-            [1, 0, 0],
-            [0, 0, 1],
-            [1, 0, 1],
-            [0, 1, 1]])
+        G = np.array(
+            [
+                # fmt: off
+                [1, 0, 0],
+                [0, 0, 1],
+                [1, 0, 1],
+                [0, 1, 1],
+                # fmt: on
+            ]
+        )
         self.verify(G, [0, 0, 0, 0])
         self.verify(G, [1, 1, 1, 1])
         self.verify(G, [1, 1, 0, 0])
 
     def test_n4_m5(self):
-        G = np.array([
-            [1, 0, 0, 0],
-            [0, 0, 1, 1],
-            [1, 0, 1, 1],
-            [0, 1, 1, 0]])
+        G = np.array(
+            [
+                # fmt: off
+                [1, 0, 0, 0],
+                [0, 0, 1, 1],
+                [1, 0, 1, 1],
+                [0, 1, 1, 0],
+                # fmt: on
+            ]
+        )
         self.verify(G, [0, 0, 0, 0, 0])
         self.verify(G, [1, 1, 1, 1, 1])
         self.verify(G, [1, 1, 0, 0, 0])
@@ -1129,6 +1174,7 @@ class TestBasicViterbi(unittest.TestCase):
     """
     Very simple tests of the Viterbi algorithm.
     """
+
     def verify_exact_match(self, G, h, path):
         m, n = G.shape
         rho = np.zeros(m) + 1e-9
@@ -1141,13 +1187,18 @@ class TestBasicViterbi(unittest.TestCase):
         self.assertEqual(list(path2), path)
 
     def test_n2_m6_exact(self):
-        G = np.array([
-            [1, 0],
-            [1, 0],
-            [1, 0],
-            [0, 1],
-            [0, 1],
-            [0, 1]])
+        G = np.array(
+            [
+                # fmt: off
+                [1, 0],
+                [1, 0],
+                [1, 0],
+                [0, 1],
+                [0, 1],
+                [0, 1],
+                # fmt: on
+            ]
+        )
         self.verify_exact_match(G, [1, 1, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1])
         self.verify_exact_match(G, [0, 0, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0])
         self.verify_exact_match(G, [0, 0, 0, 1, 1, 1], [1, 1, 1, 1, 1, 1])
@@ -1155,26 +1206,36 @@ class TestBasicViterbi(unittest.TestCase):
         self.verify_exact_match(G, [0, 0, 0, 0, 1, 0], [1, 1, 1, 0, 1, 0])
 
     def test_n3_m6_exact(self):
-        G = np.array([
-            [1, 0, 1],
-            [1, 0, 0],
-            [1, 0, 1],
-            [0, 1, 0],
-            [0, 1, 1],
-            [0, 1, 0]])
+        G = np.array(
+            [
+                # fmt: off
+                [1, 0, 1],
+                [1, 0, 0],
+                [1, 0, 1],
+                [0, 1, 0],
+                [0, 1, 1],
+                [0, 1, 0],
+                # fmt: on
+            ]
+        )
         self.verify_exact_match(G, [1, 1, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1])
         self.verify_exact_match(G, [0, 0, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0])
         self.verify_exact_match(G, [0, 0, 0, 1, 1, 1], [1, 1, 1, 1, 1, 1])
         self.verify_exact_match(G, [1, 0, 1, 0, 1, 0], [2, 2, 2, 2, 2, 2])
 
     def test_n3_m6(self):
-        G = np.array([
-            [1, 0, 1],
-            [1, 0, 0],
-            [1, 0, 1],
-            [0, 1, 0],
-            [0, 1, 1],
-            [0, 1, 0]])
+        G = np.array(
+            [
+                # fmt: off
+                [1, 0, 1],
+                [1, 0, 0],
+                [1, 0, 1],
+                [0, 1, 0],
+                [0, 1, 1],
+                [0, 1, 0],
+                # fmt: on
+            ]
+        )
 
         m, n = G.shape
         rho = np.zeros(m) + 1e-2

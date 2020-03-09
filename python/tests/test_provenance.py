@@ -36,17 +36,18 @@ import tskit.provenance as provenance
 
 
 def get_provenance(
-        software_name="x", software_version="y", schema_version="1", environment=None,
-        parameters=None):
+    software_name="x",
+    software_version="y",
+    schema_version="1",
+    environment=None,
+    parameters=None,
+):
     """
     Utility function to return a provenance document for testing.
     """
     document = {
         "schema_version": schema_version,
-        "software": {
-            "name": software_name,
-            "version": software_version,
-        },
+        "software": {"name": software_name, "version": software_version},
         "environment": {} if environment is None else environment,
         "parameters": {} if parameters is None else parameters,
     }
@@ -57,6 +58,7 @@ class TestSchema(unittest.TestCase):
     """
     Tests for schema validation.
     """
+
     def test_empty(self):
         with self.assertRaises(tskit.ProvenanceValidationError):
             tskit.validate_provenance({})
@@ -103,12 +105,9 @@ class TestSchema(unittest.TestCase):
     def test_minimal(self):
         minimal = {
             "schema_version": "1",
-            "software": {
-                "name": "x",
-                "version": "y",
-            },
+            "software": {"name": "x", "version": "y"},
             "environment": {},
-            "parameters": {}
+            "parameters": {},
         }
         tskit.validate_provenance(minimal)
 
@@ -116,13 +115,9 @@ class TestSchema(unittest.TestCase):
         extra = {
             "you": "can",
             "schema_version": "1",
-            "software": {
-                "put": "anything",
-                "name": "x",
-                "version": "y",
-            },
+            "software": {"put": "anything", "name": "x", "version": "y"},
             "environment": {"extra": ["you", "want"]},
-            "parameters": {"so": ["long", "its", "JSON", 0]}
+            "parameters": {"so": ["long", "its", "JSON", 0]},
         }
         tskit.validate_provenance(extra)
 
@@ -131,6 +126,7 @@ class TestOutputProvenance(unittest.TestCase):
     """
     Check that the schemas we produce in tskit are valid.
     """
+
     def test_simplify(self):
         ts = msprime.simulate(5, random_seed=1)
         ts = ts.simplify()
@@ -138,16 +134,18 @@ class TestOutputProvenance(unittest.TestCase):
         tskit.validate_provenance(prov)
         self.assertEqual(prov["parameters"]["command"], "simplify")
         self.assertEqual(
-            prov["environment"], provenance.get_environment(include_tskit=False))
+            prov["environment"], provenance.get_environment(include_tskit=False)
+        )
         self.assertEqual(
-            prov["software"],
-            {"name": "tskit", "version": tskit.__version__})
+            prov["software"], {"name": "tskit", "version": tskit.__version__}
+        )
 
 
 class TestEnvironment(unittest.TestCase):
     """
     Tests for the environment provenance.
     """
+
     def test_os(self):
         env = provenance.get_environment()
         os = {
@@ -155,7 +153,7 @@ class TestEnvironment(unittest.TestCase):
             "node": platform.node(),
             "release": platform.release(),
             "version": platform.version(),
-            "machine": platform.machine()
+            "machine": platform.machine(),
         }
         self.assertEqual(env["os"], os)
 
@@ -170,10 +168,10 @@ class TestEnvironment(unittest.TestCase):
     def test_libraries(self):
         kastore_lib = {"version": ".".join(map(str, _tskit.get_kastore_version()))}
         env = provenance.get_environment()
-        self.assertEqual({
-                "kastore": kastore_lib,
-                "tskit": {"version": tskit.__version__}},
-            env["libraries"])
+        self.assertEqual(
+            {"kastore": kastore_lib, "tskit": {"version": tskit.__version__}},
+            env["libraries"],
+        )
 
         env = provenance.get_environment(include_tskit=False)
         self.assertEqual({"kastore": kastore_lib}, env["libraries"])
@@ -189,6 +187,7 @@ class TestGetSchema(unittest.TestCase):
     """
     Ensure we return the correct JSON schema.
     """
+
     def test_file_equal(self):
         s1 = provenance.get_schema()
         base = os.path.join(os.path.dirname(__file__), "..", "tskit")
@@ -215,6 +214,7 @@ class TestTreeSeqEditMethods(unittest.TestCase):
     """
     Ensure that tree sequence 'edit' methods correctly record themselves
     """
+
     def test_keep_delete_different(self):
         ts = msprime.simulate(5, random_seed=1)
         ts_keep = ts.keep_intervals([[0.25, 0.5]])

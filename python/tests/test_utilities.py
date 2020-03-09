@@ -33,6 +33,7 @@ class TestJukesCantor(unittest.TestCase):
     """
     Check that the we get useable tree sequences.
     """
+
     def verify(self, ts):
         tables = ts.dump_tables()
         tables.compute_mutation_parents()
@@ -57,6 +58,7 @@ class TestCaterpillarTree(unittest.TestCase):
     """
     Tests for the caterpillar tree method.
     """
+
     def verify(self, ts, n):
         self.assertEqual(ts.num_trees, 1)
         self.assertEqual(ts.num_nodes, ts.num_samples * 2 - 1)
@@ -101,7 +103,9 @@ class TestCaterpillarTree(unittest.TestCase):
     def test_n_many_mutations(self):
         for n in range(10, 15):
             for num_mutations in range(0, n - 1):
-                ts = tsutil.caterpillar_tree(n, num_sites=1, num_mutations=num_mutations)
+                ts = tsutil.caterpillar_tree(
+                    n, num_sites=1, num_mutations=num_mutations
+                )
                 self.verify(ts, n)
                 self.assertEqual(ts.num_sites, 1)
                 self.assertEqual(ts.num_mutations, num_mutations)
@@ -114,6 +118,7 @@ class TestInsertIndividuals(unittest.TestCase):
     """
     Test that we insert individuals correctly.
     """
+
     def test_ploidy_1(self):
         ts = msprime.simulate(10, random_seed=1)
         self.assertEqual(ts.num_individuals, 0)

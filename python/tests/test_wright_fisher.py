@@ -45,9 +45,17 @@ class WrightFisherSimulator(object):
     mutations/Morgan/generation. If num_loci not None, a discrete recombination
     model is used where breakpoints are chosen uniformly from 1 to num_loci - 1.
     """
+
     def __init__(
-            self, N, survival=0.0, seed=None, deep_history=True, debug=False,
-            initial_generation_samples=False, num_loci=None):
+        self,
+        N,
+        survival=0.0,
+        seed=None,
+        deep_history=True,
+        debug=False,
+        initial_generation_samples=False,
+        num_loci=None,
+    ):
         self.N = N
         self.num_loci = num_loci
         self.survival = survival
@@ -72,17 +80,19 @@ class WrightFisherSimulator(object):
         if self.deep_history:
             # initial population
             init_ts = msprime.simulate(
-                self.N, recombination_rate=1.0, length=L, random_seed=self.seed)
+                self.N, recombination_rate=1.0, length=L, random_seed=self.seed
+            )
             init_tables = init_ts.dump_tables()
             flags = init_tables.nodes.flags
             if not self.initial_generation_samples:
                 flags = np.zeros_like(init_tables.nodes.flags)
-            tables.nodes.set_columns(
-                time=init_tables.nodes.time + ngens,
-                flags=flags)
+            tables.nodes.set_columns(time=init_tables.nodes.time + ngens, flags=flags)
             tables.edges.set_columns(
-                left=init_tables.edges.left, right=init_tables.edges.right,
-                parent=init_tables.edges.parent, child=init_tables.edges.child)
+                left=init_tables.edges.left,
+                right=init_tables.edges.right,
+                parent=init_tables.edges.parent,
+                child=init_tables.edges.child,
+            )
         else:
             flags = 0
             if self.initial_generation_samples:
@@ -99,7 +109,8 @@ class WrightFisherSimulator(object):
             dead = [self.rng.random() > self.survival for k in pop]
             # sample these first so that all parents are from the previous gen
             new_parents = [
-                (self.rng.choice(pop), self.rng.choice(pop)) for k in range(sum(dead))]
+                (self.rng.choice(pop), self.rng.choice(pop)) for k in range(sum(dead))
+            ]
             k = 0
             if self.debug:
                 print("Replacing", sum(dead), "individuals.")
@@ -116,10 +127,12 @@ class WrightFisherSimulator(object):
                     pop[j] = offspring
                     if bp > 0.0:
                         tables.edges.add_row(
-                            left=0.0, right=bp, parent=lparent, child=offspring)
+                            left=0.0, right=bp, parent=lparent, child=offspring
+                        )
                     if bp < L:
                         tables.edges.add_row(
-                            left=bp, right=L, parent=rparent, child=offspring)
+                            left=bp, right=L, parent=rparent, child=offspring
+                        )
 
         if self.debug:
             print("Done! Final pop:")
@@ -127,18 +140,30 @@ class WrightFisherSimulator(object):
         flags = tables.nodes.flags
         flags[pop] = tskit.NODE_IS_SAMPLE
         tables.nodes.set_columns(
-            flags=flags,
-            time=tables.nodes.time,
-            population=tables.nodes.population)
+            flags=flags, time=tables.nodes.time, population=tables.nodes.population
+        )
         return tables
 
 
 def wf_sim(
-        N, ngens, survival=0.0, deep_history=True, debug=False, seed=None,
-        initial_generation_samples=False, num_loci=None):
+    N,
+    ngens,
+    survival=0.0,
+    deep_history=True,
+    debug=False,
+    seed=None,
+    initial_generation_samples=False,
+    num_loci=None,
+):
     sim = WrightFisherSimulator(
-        N, survival=survival, deep_history=deep_history, debug=debug, seed=seed,
-        initial_generation_samples=initial_generation_samples, num_loci=num_loci)
+        N,
+        survival=survival,
+        deep_history=deep_history,
+        debug=debug,
+        seed=seed,
+        initial_generation_samples=initial_generation_samples,
+        num_loci=num_loci,
+    )
     return sim.run(ngens)
 
 
@@ -146,6 +171,7 @@ class TestSimulation(unittest.TestCase):
     """
     Tests that the simulations produce the output we expect.
     """
+
     random_seed = 5678
 
     def test_non_overlapping_generations(self):
@@ -232,8 +258,9 @@ class TestSimulation(unittest.TestCase):
         tables = ts.tables
         self.assertGreater(tables.sites.num_rows, 0)
         self.assertGreater(tables.mutations.num_rows, 0)
-        samples = np.where(
-            tables.nodes.flags == tskit.NODE_IS_SAMPLE)[0].astype(np.int32)
+        samples = np.where(tables.nodes.flags == tskit.NODE_IS_SAMPLE)[0].astype(
+            np.int32
+        )
         tables.sort()
         tables.simplify(samples)
         self.assertGreater(tables.nodes.num_rows, 0)
@@ -285,6 +312,7 @@ class TestSimplify(unittest.TestCase):
     """
     Tests for simplify on cases generated by the Wright-Fisher simulator.
     """
+
     def assertArrayEqual(self, x, y):
         nt.assert_equal(x, y)
 
@@ -383,7 +411,8 @@ class TestSimplify(unittest.TestCase):
         Check that haplotypes are unchanged by simplify.
         """
         sub_ts, node_map = ts.simplify(
-            samples, map_nodes=True, filter_zero_mutation_sites=False)
+            samples, map_nodes=True, filter_zero_mutation_sites=False
+        )
         # Sites tables should be equal
         self.assertEqual(ts.tables.sites, sub_ts.tables.sites)
         sub_haplotypes = dict(zip(sub_ts.samples(), sub_ts.haplotypes()))
@@ -409,7 +438,8 @@ class TestSimplify(unittest.TestCase):
 
             for nsamples in [2, 5, 10]:
                 sub_samples = random.sample(
-                    list(ts.samples()), min(nsamples, ts.sample_size))
+                    list(ts.samples()), min(nsamples, ts.sample_size)
+                )
                 s = tests.Simplifier(ts, sub_samples)
                 py_small_ts, py_small_map = s.simplify()
                 small_ts, small_map = ts.simplify(samples=sub_samples, map_nodes=True)
@@ -423,7 +453,8 @@ class TestSimplify(unittest.TestCase):
             for nsamples in [2, 5, 10]:
                 tables = ts.dump_tables()
                 sub_samples = random.sample(
-                    list(ts.samples()), min(nsamples, ts.num_samples))
+                    list(ts.samples()), min(nsamples, ts.num_samples)
+                )
                 node_map = tables.simplify(samples=sub_samples)
                 small_ts = tables.tree_sequence()
                 other_tables = small_ts.dump_tables()

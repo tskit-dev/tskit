@@ -72,6 +72,7 @@ class LowLevelTestCase(unittest.TestCase):
     """
     Superclass of tests for the low-level interface.
     """
+
     def verify_tree_dict(self, n, pi):
         """
         Verifies that the specified tree in dict format is a
@@ -105,10 +106,15 @@ class LowLevelTestCase(unittest.TestCase):
                 self.assertGreaterEqual(num_children[j], 2)
 
     def get_example_tree_sequence(
-            self, sample_size=10, length=1, mutation_rate=1, random_seed=1):
+        self, sample_size=10, length=1, mutation_rate=1, random_seed=1
+    ):
         ts = msprime.simulate(
-            sample_size, recombination_rate=0.1, mutation_rate=mutation_rate,
-            random_seed=random_seed, length=length)
+            sample_size,
+            recombination_rate=0.1,
+            mutation_rate=mutation_rate,
+            random_seed=random_seed,
+            length=length,
+        )
         return ts.ll_tree_sequence
 
     def get_example_tree_sequences(self):
@@ -125,7 +131,8 @@ class LowLevelTestCase(unittest.TestCase):
             migration_matrix=migration_matrix,
             mutation_rate=1,
             record_migrations=True,
-            random_seed=1)
+            random_seed=1,
+        )
         return ts.ll_tree_sequence
 
     def verify_iterator(self, iterator):
@@ -149,8 +156,15 @@ class TestTableCollection(LowLevelTestCase):
         tc = ts.tables.ll_tables
         # Get references to all the tables
         tables = [
-            tc.individuals, tc.nodes, tc.edges, tc.migrations, tc.sites, tc.mutations,
-            tc.populations, tc.provenances]
+            tc.individuals,
+            tc.nodes,
+            tc.edges,
+            tc.migrations,
+            tc.sites,
+            tc.mutations,
+            tc.populations,
+            tc.provenances,
+        ]
         del tc
         for _ in range(10):
             for table in tables:
@@ -167,7 +181,7 @@ class TestTableCollection(LowLevelTestCase):
     def test_set_sequence_length(self):
         tables = _tskit.TableCollection(1)
         self.assertEqual(tables.sequence_length, 1)
-        for value in [-1, 1e6, 1e-22, 1000, 2**32, -10000]:
+        for value in [-1, 1e6, 1e-22, 1000, 2 ** 32, -10000]:
             tables.sequence_length = value
             self.assertEqual(tables.sequence_length, value)
 
@@ -212,6 +226,7 @@ class TestTreeSequence(LowLevelTestCase):
     """
     Tests for the low-level interface for the TreeSequence.
     """
+
     def setUp(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="msp_ll_ts_")
         os.close(fd)
@@ -320,7 +335,7 @@ class TestTreeSequence(LowLevelTestCase):
             num_edges = ts.get_num_edges()
             # We don't accept Python negative indexes here.
             self.assertRaises(IndexError, ts.get_edge, -1)
-            for j in [0, 10, 10**6]:
+            for j in [0, 10, 10 ** 6]:
                 self.assertRaises(IndexError, ts.get_edge, num_edges + j)
             for x in [None, "", {}, []]:
                 self.assertRaises(TypeError, ts.get_edge, x)
@@ -330,7 +345,7 @@ class TestTreeSequence(LowLevelTestCase):
             num_nodes = ts.get_num_nodes()
             # We don't accept Python negative indexes here.
             self.assertRaises(IndexError, ts.get_node, -1)
-            for j in [0, 10, 10**6]:
+            for j in [0, 10, 10 ** 6]:
                 self.assertRaises(IndexError, ts.get_node, num_nodes + j)
             for x in [None, "", {}, []]:
                 self.assertRaises(TypeError, ts.get_node, x)
@@ -342,11 +357,10 @@ class TestTreeSequence(LowLevelTestCase):
             G = ts.get_genotype_matrix()
             self.assertEqual(G.shape, (num_sites, num_samples))
             self.assertRaises(
-                TypeError, ts.get_genotype_matrix, impute_missing_data=None)
-            self.assertRaises(
-                TypeError, ts.get_genotype_matrix, alleles="XYZ")
-            self.assertRaises(
-                ValueError, ts.get_genotype_matrix, alleles=tuple())
+                TypeError, ts.get_genotype_matrix, impute_missing_data=None
+            )
+            self.assertRaises(TypeError, ts.get_genotype_matrix, alleles="XYZ")
+            self.assertRaises(ValueError, ts.get_genotype_matrix, alleles=tuple())
             G = ts.get_genotype_matrix(impute_missing_data=True)
             self.assertEqual(G.shape, (num_sites, num_samples))
 
@@ -357,39 +371,56 @@ class TestTreeSequence(LowLevelTestCase):
         num_records = ts.get_num_migrations()
         # We don't accept Python negative indexes here.
         self.assertRaises(IndexError, ts.get_migration, -1)
-        for j in [0, 10, 10**6]:
+        for j in [0, 10, 10 ** 6]:
             self.assertRaises(IndexError, ts.get_migration, num_records + j)
 
     def test_get_samples(self):
         for ts in self.get_example_tree_sequences():
             # get_samples takes no arguments.
             self.assertRaises(TypeError, ts.get_samples, 0)
-            self.assertTrue(np.array_equal(
-                np.arange(ts.get_num_samples(), dtype=np.int32), ts.get_samples()))
+            self.assertTrue(
+                np.array_equal(
+                    np.arange(ts.get_num_samples(), dtype=np.int32), ts.get_samples()
+                )
+            )
 
     def test_genealogical_nearest_neighbours(self):
         for ts in self.get_example_tree_sequences():
             self.assertRaises(TypeError, ts.genealogical_nearest_neighbours)
+            self.assertRaises(TypeError, ts.genealogical_nearest_neighbours, focal=None)
             self.assertRaises(
-                TypeError, ts.genealogical_nearest_neighbours, focal=None)
+                TypeError,
+                ts.genealogical_nearest_neighbours,
+                focal=ts.get_samples(),
+                reference_sets={},
+            )
             self.assertRaises(
-                TypeError, ts.genealogical_nearest_neighbours, focal=ts.get_samples(),
-                reference_sets={})
-            self.assertRaises(
-                ValueError, ts.genealogical_nearest_neighbours, focal=ts.get_samples(),
-                reference_sets=[])
+                ValueError,
+                ts.genealogical_nearest_neighbours,
+                focal=ts.get_samples(),
+                reference_sets=[],
+            )
 
             bad_array_values = ["", {}, "x", [[[0], [1, 2]]]]
             for bad_array_value in bad_array_values:
                 self.assertRaises(
-                    ValueError, ts.genealogical_nearest_neighbours,
-                    focal=bad_array_value, reference_sets=[[0], [1]])
+                    ValueError,
+                    ts.genealogical_nearest_neighbours,
+                    focal=bad_array_value,
+                    reference_sets=[[0], [1]],
+                )
                 self.assertRaises(
-                    ValueError, ts.genealogical_nearest_neighbours,
-                    focal=ts.get_samples(), reference_sets=[[0], bad_array_value])
+                    ValueError,
+                    ts.genealogical_nearest_neighbours,
+                    focal=ts.get_samples(),
+                    reference_sets=[[0], bad_array_value],
+                )
                 self.assertRaises(
-                    ValueError, ts.genealogical_nearest_neighbours,
-                    focal=ts.get_samples(), reference_sets=[bad_array_value])
+                    ValueError,
+                    ts.genealogical_nearest_neighbours,
+                    focal=ts.get_samples(),
+                    reference_sets=[bad_array_value],
+                )
             focal = ts.get_samples()
             A = ts.genealogical_nearest_neighbours(focal, [focal[2:], focal[:2]])
             self.assertEqual(A.shape, (len(focal), 2))
@@ -403,10 +434,13 @@ class TestTreeSequence(LowLevelTestCase):
             bad_array_values = ["", {}, "x", [[[0], [1, 2]]]]
             for bad_array_value in bad_array_values:
                 self.assertRaises(
-                    ValueError, ts.mean_descendants,
-                    reference_sets=[[0], bad_array_value])
+                    ValueError,
+                    ts.mean_descendants,
+                    reference_sets=[[0], bad_array_value],
+                )
                 self.assertRaises(
-                    ValueError, ts.mean_descendants, reference_sets=[bad_array_value])
+                    ValueError, ts.mean_descendants, reference_sets=[bad_array_value]
+                )
             focal = ts.get_samples()
             A = ts.mean_descendants([focal[2:], focal[:2]])
             self.assertEqual(A.shape, (ts.get_num_nodes(), 2))
@@ -439,8 +473,14 @@ class StatsInterfaceMixin(object):
                 f(windows=bad_windows, **params)
         L = ts.get_sequence_length()
         bad_windows = [
-            [L, 0], [0.1, L], [-1, L], [0, L + 0.1], [0, 0.1, 0.1, L],
-            [0, -1, L], [0, 0.1, 0.05, 0.2, L]]
+            [L, 0],
+            [0.1, L],
+            [-1, L],
+            [0, L + 0.1],
+            [0, 0.1, 0.1, L],
+            [0, -1, L],
+            [0, 0.1, 0.05, 0.2, L],
+        ]
         for bad_window in bad_windows:
             with self.assertRaises(_tskit.LibraryError):
                 f(windows=bad_window, **params)
@@ -456,12 +496,12 @@ class StatsInterfaceMixin(object):
 
 
 class WeightMixin(StatsInterfaceMixin):
-
     def get_example(self):
         ts, method = self.get_method()
         params = {
             "weights": np.ones((ts.get_num_samples(), 2)),
-            "windows": [0, ts.get_sequence_length()]}
+            "windows": [0, ts.get_sequence_length()],
+        }
         return ts, method, params
 
     def test_bad_weights(self):
@@ -472,13 +512,13 @@ class WeightMixin(StatsInterfaceMixin):
         with self.assertRaises(_tskit.LibraryError):
             f(weights=np.ones((n, 0)), **params)
 
-        for bad_weight_shape in [(n-1, 1), (n+1, 1), (0, 3)]:
+        for bad_weight_shape in [(n - 1, 1), (n + 1, 1), (0, 3)]:
             with self.assertRaises(ValueError):
                 f(weights=np.ones(bad_weight_shape), **params)
 
     def test_output_dims(self):
         ts, method, params = self.get_example()
-        weights = params['weights']
+        weights = params["weights"]
         nw = weights.shape[1]
         windows = [0, ts.get_sequence_length()]
 
@@ -500,22 +540,23 @@ class WeightMixin(StatsInterfaceMixin):
 
 
 class WeightCovariateMixin(StatsInterfaceMixin):
-
     def get_example(self):
         ts, method = self.get_method()
         params = {
             "weights": np.ones((ts.get_num_samples(), 2)),
-            "covariates": np.array([np.arange(ts.get_num_samples()),
-                                    np.arange(ts.get_num_samples())**2]).T,
-            "windows": [0, ts.get_sequence_length()]}
+            "covariates": np.array(
+                [np.arange(ts.get_num_samples()), np.arange(ts.get_num_samples()) ** 2]
+            ).T,
+            "windows": [0, ts.get_sequence_length()],
+        }
         return ts, method, params
 
     def test_output_dims(self):
         ts, method, params = self.get_example()
-        weights = params['weights']
+        weights = params["weights"]
         nw = weights.shape[1]
         windows = [0, ts.get_sequence_length()]
-        for covariates in (params['covariates'], params['covariates'][:, :0]):
+        for covariates in (params["covariates"], params["covariates"][:, :0]):
             for mode in ["site", "branch"]:
                 out = method(weights[:, [0]], covariates, windows, mode=mode)
                 self.assertEqual(out.shape, (1, 1))
@@ -534,7 +575,6 @@ class WeightCovariateMixin(StatsInterfaceMixin):
 
 
 class SampleSetMixin(StatsInterfaceMixin):
-
     def test_bad_sample_sets(self):
         ts, f, params = self.get_example()
         del params["sample_set_sizes"]
@@ -569,21 +609,26 @@ class OneWaySampleStatsMixin(SampleSetMixin):
         params = {
             "sample_set_sizes": [ts.get_num_samples()],
             "sample_sets": ts.get_samples(),
-            "windows": [0, ts.get_sequence_length()]}
+            "windows": [0, ts.get_sequence_length()],
+        }
         return ts, method, params
 
     def test_basic_example(self):
         ts, method = self.get_method()
         result = method(
-            [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()])
+            [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()]
+        )
         self.assertEqual(result.shape, (1, 1))
         result = method(
-            [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()],
-            mode="node")
+            [ts.get_num_samples()],
+            ts.get_samples(),
+            [0, ts.get_sequence_length()],
+            mode="node",
+        )
         self.assertEqual(result.shape, (1, ts.get_num_nodes(), 1))
         result = method(
-            [ts.get_num_samples()], ts.get_samples(), ts.get_breakpoints(),
-            mode="node")
+            [ts.get_num_samples()], ts.get_samples(), ts.get_breakpoints(), mode="node"
+        )
         self.assertEqual(result.shape, (ts.get_num_trees(), ts.get_num_nodes(), 1))
 
     def test_output_dims(self):
@@ -626,6 +671,7 @@ class TestDiversity(LowLevelTestCase, OneWaySampleStatsMixin):
     """
     Tests for the diversity method.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.diversity
@@ -635,6 +681,7 @@ class TestTraitCovariance(LowLevelTestCase, WeightMixin):
     """
     Tests for trait covariance.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.trait_covariance
@@ -644,6 +691,7 @@ class TestTraitCorrelation(LowLevelTestCase, WeightMixin):
     """
     Tests for trait correlation.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.trait_correlation
@@ -653,6 +701,7 @@ class TestTraitRegression(LowLevelTestCase, WeightCovariateMixin):
     """
     Tests for trait correlation.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.trait_regression
@@ -662,6 +711,7 @@ class TestSegregatingSites(LowLevelTestCase, OneWaySampleStatsMixin):
     """
     Tests for the diversity method.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.segregating_sites
@@ -671,6 +721,7 @@ class TestY1(LowLevelTestCase, OneWaySampleStatsMixin):
     """
     Tests for the diversity method.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.Y1
@@ -680,6 +731,7 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
     """
     Tests for the diversity method.
     """
+
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.allele_frequency_spectrum
@@ -688,10 +740,12 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
         ts = self.get_example_tree_sequence()
         n = ts.get_num_samples()
         result = ts.allele_frequency_spectrum(
-            [n], ts.get_samples(), [0, ts.get_sequence_length()])
+            [n], ts.get_samples(), [0, ts.get_sequence_length()]
+        )
         self.assertEqual(result.shape, (1, n + 1))
         result = ts.allele_frequency_spectrum(
-            [n], ts.get_samples(), [0, ts.get_sequence_length()], polarised=True)
+            [n], ts.get_samples(), [0, ts.get_sequence_length()], polarised=True
+        )
         self.assertEqual(result.shape, (1, n + 1))
 
     def test_output_dims(self):
@@ -706,18 +760,27 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
                 windows = [0, L]
                 for windows in [[0, L], [0, L / 2, L], np.linspace(0, L, num=10)]:
                     jafs = ts.allele_frequency_spectrum(
-                        s, samples, windows, mode=mode, polarised=True)
-                    self.assertEqual(jafs.shape, tuple([len(windows) - 1] + list(s + 1)))
+                        s, samples, windows, mode=mode, polarised=True
+                    )
+                    self.assertEqual(
+                        jafs.shape, tuple([len(windows) - 1] + list(s + 1))
+                    )
                     jafs = ts.allele_frequency_spectrum(
-                        s, samples, windows, mode=mode, polarised=False)
-                    self.assertEqual(jafs.shape, tuple([len(windows) - 1] + list(s + 1)))
+                        s, samples, windows, mode=mode, polarised=False
+                    )
+                    self.assertEqual(
+                        jafs.shape, tuple([len(windows) - 1] + list(s + 1))
+                    )
 
     def test_node_mode_not_supported(self):
         ts = self.get_example_tree_sequence()
         with self.assertRaises(_tskit.LibraryError):
             ts.allele_frequency_spectrum(
-                [ts.get_num_samples()], ts.get_samples(), [0, ts.get_sequence_length()],
-                mode="node")
+                [ts.get_num_samples()],
+                ts.get_samples(),
+                [0, ts.get_sequence_length()],
+                mode="node",
+            )
 
 
 class TwoWaySampleStatsMixin(SampleSetMixin):
@@ -731,7 +794,8 @@ class TwoWaySampleStatsMixin(SampleSetMixin):
             "sample_set_sizes": [2, ts.get_num_samples() - 2],
             "sample_sets": ts.get_samples(),
             "indexes": [[0, 1]],
-            "windows": [0, ts.get_sequence_length()]}
+            "windows": [0, ts.get_sequence_length()],
+        }
         return ts, method, params
 
     def test_basic_example(self):
@@ -740,7 +804,8 @@ class TwoWaySampleStatsMixin(SampleSetMixin):
             [2, ts.get_num_samples() - 2],
             ts.get_samples(),
             [[0, 1]],
-            windows=[0, ts.get_sequence_length()])
+            windows=[0, ts.get_sequence_length()],
+        )
         self.assertEqual(div.shape, (1, 1))
 
     def test_output_dims(self):
@@ -751,11 +816,11 @@ class TwoWaySampleStatsMixin(SampleSetMixin):
         for mode in ["site", "branch"]:
             div = method([2, 2, n - 4], samples, [[0, 1]], windows, mode=mode)
             self.assertEqual(div.shape, (1, 1))
-            div = method(
-                [2, 2, n - 4], samples, [[0, 1], [1, 2]], windows, mode=mode)
+            div = method([2, 2, n - 4], samples, [[0, 1], [1, 2]], windows, mode=mode)
             self.assertEqual(div.shape, (1, 2))
             div = method(
-                [2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows, mode=mode)
+                [2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows, mode=mode
+            )
             self.assertEqual(div.shape, (1, 3))
 
         N = ts.get_num_nodes()
@@ -765,7 +830,8 @@ class TwoWaySampleStatsMixin(SampleSetMixin):
         div = method([2, 2, n - 4], samples, [[0, 1], [1, 2]], windows, mode=mode)
         self.assertEqual(div.shape, (1, N, 2))
         div = method(
-            [2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows, mode=mode)
+            [2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows, mode=mode
+        )
         self.assertEqual(div.shape, (1, N, 3))
 
     def test_set_index_errors(self):
@@ -796,7 +862,8 @@ class ThreeWaySampleStatsMixin(SampleSetMixin):
             "sample_set_sizes": [1, 1, ts.get_num_samples() - 2],
             "sample_sets": ts.get_samples(),
             "indexes": [[0, 1, 2]],
-            "windows": [0, ts.get_sequence_length()]}
+            "windows": [0, ts.get_sequence_length()],
+        }
         return ts, method, params
 
     def test_basic_example(self):
@@ -805,7 +872,8 @@ class ThreeWaySampleStatsMixin(SampleSetMixin):
             [1, 1, ts.get_num_samples() - 2],
             ts.get_samples(),
             [[0, 1, 2]],
-            windows=[0, ts.get_sequence_length()])
+            windows=[0, ts.get_sequence_length()],
+        )
         self.assertEqual(div.shape, (1, 1))
 
     def test_output_dims(self):
@@ -817,11 +885,16 @@ class ThreeWaySampleStatsMixin(SampleSetMixin):
             div = method([2, 2, n - 4], samples, [[0, 1, 2]], windows, mode=mode)
             self.assertEqual(div.shape, (1, 1))
             div = method(
-                [1, 1, 2, n - 4], samples, [[0, 1, 2], [1, 2, 3]], windows, mode=mode)
+                [1, 1, 2, n - 4], samples, [[0, 1, 2], [1, 2, 3]], windows, mode=mode
+            )
             self.assertEqual(div.shape, (1, 2))
             div = method(
-                [1, 1, 2, n - 4], samples, [[0, 1, 2], [1, 2, 3], [0, 1, 2]],
-                windows, mode=mode)
+                [1, 1, 2, n - 4],
+                samples,
+                [[0, 1, 2], [1, 2, 3], [0, 1, 2]],
+                windows,
+                mode=mode,
+            )
             self.assertEqual(div.shape, (1, 3))
 
         N = ts.get_num_nodes()
@@ -829,11 +902,16 @@ class ThreeWaySampleStatsMixin(SampleSetMixin):
         div = method([2, 2, n - 4], samples, [[0, 1, 2]], windows, mode=mode)
         self.assertEqual(div.shape, (1, N, 1))
         div = method(
-            [1, 1, 2, n - 4], samples, [[0, 1, 2], [1, 2, 3]], windows, mode=mode)
+            [1, 1, 2, n - 4], samples, [[0, 1, 2], [1, 2, 3]], windows, mode=mode
+        )
         self.assertEqual(div.shape, (1, N, 2))
         div = method(
-            [1, 1, 2, n - 4], samples, [[0, 1, 2], [1, 2, 3], [0, 1, 2]],
-            windows, mode=mode)
+            [1, 1, 2, n - 4],
+            samples,
+            [[0, 1, 2], [1, 2, 3], [0, 1, 2]],
+            windows,
+            mode=mode,
+        )
         self.assertEqual(div.shape, (1, N, 3))
 
     def test_set_index_errors(self):
@@ -864,7 +942,8 @@ class FourWaySampleStatsMixin(SampleSetMixin):
             "sample_set_sizes": [1, 1, 1, ts.get_num_samples() - 3],
             "sample_sets": ts.get_samples(),
             "indexes": [[0, 1, 2, 3]],
-            "windows": [0, ts.get_sequence_length()]}
+            "windows": [0, ts.get_sequence_length()],
+        }
         return ts, method, params
 
     def test_basic_example(self):
@@ -873,7 +952,8 @@ class FourWaySampleStatsMixin(SampleSetMixin):
             [1, 1, 1, ts.get_num_samples() - 3],
             ts.get_samples(),
             [[0, 1, 2, 3]],
-            windows=[0, ts.get_sequence_length()])
+            windows=[0, ts.get_sequence_length()],
+        )
         self.assertEqual(div.shape, (1, 1))
 
     def test_output_dims(self):
@@ -885,12 +965,20 @@ class FourWaySampleStatsMixin(SampleSetMixin):
             div = method([2, 1, 1, n - 4], samples, [[0, 1, 2, 3]], windows, mode=mode)
             self.assertEqual(div.shape, (1, 1))
             div = method(
-                [1, 1, 1, 1, n - 4], samples, [[0, 1, 2, 3], [1, 2, 3, 4]],
-                windows, mode=mode)
+                [1, 1, 1, 1, n - 4],
+                samples,
+                [[0, 1, 2, 3], [1, 2, 3, 4]],
+                windows,
+                mode=mode,
+            )
             self.assertEqual(div.shape, (1, 2))
             div = method(
-                [1, 1, 1, 1, n - 4], samples, [[0, 1, 2, 3], [1, 2, 3, 4], [0, 1, 2, 4]],
-                windows, mode=mode)
+                [1, 1, 1, 1, n - 4],
+                samples,
+                [[0, 1, 2, 3], [1, 2, 3, 4], [0, 1, 2, 4]],
+                windows,
+                mode=mode,
+            )
             self.assertEqual(div.shape, (1, 3))
 
         N = ts.get_num_nodes()
@@ -898,12 +986,20 @@ class FourWaySampleStatsMixin(SampleSetMixin):
         div = method([2, 1, 1, n - 4], samples, [[0, 1, 2, 3]], windows, mode=mode)
         self.assertEqual(div.shape, (1, N, 1))
         div = method(
-            [1, 1, 1, 1, n - 4], samples, [[0, 1, 2, 3], [1, 2, 3, 4]], windows,
-            mode=mode)
+            [1, 1, 1, 1, n - 4],
+            samples,
+            [[0, 1, 2, 3], [1, 2, 3, 4]],
+            windows,
+            mode=mode,
+        )
         self.assertEqual(div.shape, (1, N, 2))
         div = method(
-            [1, 1, 1, 1, n - 4], samples, [[0, 1, 2, 3], [1, 2, 3, 4], [0, 1, 2, 4]],
-            windows, mode=mode)
+            [1, 1, 1, 1, n - 4],
+            samples,
+            [[0, 1, 2, 3], [1, 2, 3, 4], [0, 1, 2, 4]],
+            windows,
+            mode=mode,
+        )
         self.assertEqual(div.shape, (1, N, 3))
 
     def test_set_index_errors(self):
@@ -963,6 +1059,7 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
     """
     Tests for the general stats interface.
     """
+
     def get_example(self):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
@@ -970,7 +1067,7 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
             "weights": W,
             "summary_func": lambda x: np.cumsum(x),
             "output_dim": 1,
-            "windows": ts.get_breakpoints()
+            "windows": ts.get_breakpoints(),
         }
         return ts, ts.general_stat, params
 
@@ -978,17 +1075,20 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         ts = self.get_example_tree_sequence()
         W = np.zeros((ts.get_num_samples(), 1))
         sigma = ts.general_stat(
-            W, lambda x: np.cumsum(x), 1, ts.get_breakpoints(), mode="branch")
+            W, lambda x: np.cumsum(x), 1, ts.get_breakpoints(), mode="branch"
+        )
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
 
     def test_non_numpy_return(self):
         ts = self.get_example_tree_sequence()
         W = np.ones((ts.get_num_samples(), 3))
         sigma = ts.general_stat(
-            W, lambda x: [sum(x)], 1, ts.get_breakpoints(), mode="branch")
+            W, lambda x: [sum(x)], 1, ts.get_breakpoints(), mode="branch"
+        )
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
         sigma = ts.general_stat(
-            W, lambda x: [2, 2], 2, ts.get_breakpoints(), mode="branch")
+            W, lambda x: [2, 2], 2, ts.get_breakpoints(), mode="branch"
+        )
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 2))
 
     def test_complicated_numpy_function(self):
@@ -998,6 +1098,7 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         def f(x):
             y = np.sum(x * x), np.prod(x + np.arange(x.shape[0]))
             return y
+
         sigma = ts.general_stat(W, f, 2, ts.get_breakpoints(), mode="branch")
         self.assertEqual(sigma.shape, (ts.get_num_trees(), 2))
 
@@ -1006,10 +1107,12 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for k in range(1, 20):
             W = np.zeros((ts.get_num_samples(), k))
             sigma = ts.general_stat(
-                W, lambda x: np.cumsum(x), k, ts.get_breakpoints(), mode="branch")
+                W, lambda x: np.cumsum(x), k, ts.get_breakpoints(), mode="branch"
+            )
             self.assertEqual(sigma.shape, (ts.get_num_trees(), k))
             sigma = ts.general_stat(
-                W, lambda x: [np.sum(x)], 1, ts.get_breakpoints(), mode="branch")
+                W, lambda x: [np.sum(x)], 1, ts.get_breakpoints(), mode="branch"
+            )
             self.assertEqual(sigma.shape, (ts.get_num_trees(), 1))
 
     def test_W_errors(self):
@@ -1039,8 +1142,10 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
 
         # Exceptions within f are correctly raised.
         for exception in [ValueError, TypeError]:
+
             def f(x):
                 raise exception("test")
+
             with self.assertRaises(exception):
                 ts.general_stat(W, f, 1, ts.get_breakpoints())
 
@@ -1061,6 +1166,7 @@ class TestTreeDiffIterator(LowLevelTestCase):
     """
     Tests for the low-level tree diff iterator.
     """
+
     def test_uninitialised_tree_sequence(self):
         ts = _tskit.TreeSequence()
         self.assertRaises(ValueError, _tskit.TreeDiffIterator, ts)
@@ -1085,6 +1191,7 @@ class TestVariantGenerator(LowLevelTestCase):
     """
     Tests for the VariantGenerator class.
     """
+
     def test_uninitialised_tree_sequence(self):
         ts = _tskit.TreeSequence()
         self.assertRaises(ValueError, _tskit.VariantGenerator, ts)
@@ -1095,11 +1202,12 @@ class TestVariantGenerator(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         self.assertRaises(ValueError, _tskit.VariantGenerator, ts, samples={})
         self.assertRaises(
-            TypeError, _tskit.VariantGenerator, ts, impute_missing_data=None)
+            TypeError, _tskit.VariantGenerator, ts, impute_missing_data=None
+        )
         self.assertRaises(
-            _tskit.LibraryError, _tskit.VariantGenerator, ts, samples=[-1, 2])
-        self.assertRaises(
-            TypeError, _tskit.VariantGenerator, ts, alleles=1234)
+            _tskit.LibraryError, _tskit.VariantGenerator, ts, samples=[-1, 2]
+        )
+        self.assertRaises(TypeError, _tskit.VariantGenerator, ts, alleles=1234)
 
     def test_alleles(self):
         ts = self.get_example_tree_sequence()
@@ -1138,6 +1246,7 @@ class TestLdCalculator(LowLevelTestCase):
     """
     Tests for the LdCalculator class.
     """
+
     def test_uninitialised_tree_sequence(self):
         ts = _tskit.TreeSequence()
         self.assertRaises(ValueError, _tskit.LdCalculator, ts)
@@ -1177,7 +1286,7 @@ class TestLdCalculator(LowLevelTestCase):
             calc.get_r2_array(buff, 0, direction=1000)
         # TODO this API is poor, we should explicitly catch these negative
         # size errors.
-        for bad_max_mutations in [-2, -3, -2**32]:
+        for bad_max_mutations in [-2, -3, -(2 ** 32)]:
             with self.assertRaises(BufferError):
                 calc.get_r2_array(buff, 0, max_mutations=bad_max_mutations)
         for bad_start_pos in [-1, n, n + 1]:
@@ -1189,6 +1298,7 @@ class TestLsHmm(LowLevelTestCase):
     """
     Tests for the LsHmm class.
     """
+
     def test_uninitialised_tree_sequence(self):
         ts = _tskit.TreeSequence()
         self.assertRaises(ValueError, _tskit.LsHmm, ts, None, None)
@@ -1256,8 +1366,9 @@ class TestLsHmm(LowLevelTestCase):
             fm = _tskit.CompressedMatrix(ts)
             self.assertEqual(fm.num_sites, m)
             self.assertTrue(np.array_equal(np.zeros(m), fm.normalisation_factor))
-            self.assertTrue(np.array_equal(
-                np.zeros(m, dtype=np.uint32), fm.num_transitions))
+            self.assertTrue(
+                np.array_equal(np.zeros(m, dtype=np.uint32), fm.num_transitions)
+            )
             F = fm.decode()
             self.assertTrue(np.all(F >= 0))
             for j in range(m):
@@ -1330,8 +1441,11 @@ class TestTree(LowLevelTestCase):
         st = _tskit.Tree(ts)
         self.assertEqual(st.get_options(), 0)
         all_options = [
-            0, _tskit.NO_SAMPLE_COUNTS, _tskit.SAMPLE_LISTS,
-            _tskit.NO_SAMPLE_COUNTS | _tskit.SAMPLE_LISTS]
+            0,
+            _tskit.NO_SAMPLE_COUNTS,
+            _tskit.SAMPLE_LISTS,
+            _tskit.NO_SAMPLE_COUNTS | _tskit.SAMPLE_LISTS,
+        ]
         for options in all_options:
             tree = _tskit.Tree(ts, options=options)
             copy = tree.copy()
@@ -1341,7 +1455,9 @@ class TestTree(LowLevelTestCase):
                 if options & _tskit.NO_SAMPLE_COUNTS:
                     # We should still be able to count the samples, just inefficiently.
                     self.assertEqual(st.get_num_samples(0), 1)
-                    self.assertRaises(_tskit.LibraryError, st.get_num_tracked_samples, 0)
+                    self.assertRaises(
+                        _tskit.LibraryError, st.get_num_tracked_samples, 0
+                    )
                 else:
                     self.assertEqual(st.get_num_tracked_samples(0), 0)
                 if options & _tskit.SAMPLE_LISTS:
@@ -1393,8 +1509,9 @@ class TestTree(LowLevelTestCase):
                     self.assertEqual(index, j)
                     self.assertEqual(metadata, b"")
                     for mut_id in mutations:
-                        site, node, derived_state, parent, metadata = \
-                            ts.get_mutation(mut_id)
+                        site, node, derived_state, parent, metadata = ts.get_mutation(
+                            mut_id
+                        )
                         self.assertEqual(site, index)
                         self.assertEqual(mutation_id, mut_id)
                         self.assertNotEqual(st.get_parent(node), _tskit.NULL)
@@ -1433,15 +1550,12 @@ class TestTree(LowLevelTestCase):
     def test_constructor(self):
         self.assertRaises(TypeError, _tskit.Tree)
         for bad_type in ["", {}, [], None, 0]:
-            self.assertRaises(
-                TypeError, _tskit.Tree, bad_type)
+            self.assertRaises(TypeError, _tskit.Tree, bad_type)
         ts = self.get_example_tree_sequence()
         for bad_type in ["", {}, True, 1, None]:
-            self.assertRaises(
-                TypeError, _tskit.Tree, ts, tracked_samples=bad_type)
+            self.assertRaises(TypeError, _tskit.Tree, ts, tracked_samples=bad_type)
         for bad_type in ["", {}, None, []]:
-            self.assertRaises(
-                TypeError, _tskit.Tree, ts, options=bad_type)
+            self.assertRaises(TypeError, _tskit.Tree, ts, options=bad_type)
         for ts in self.get_example_tree_sequences():
             st = _tskit.Tree(ts)
             self.assertEqual(st.get_num_nodes(), ts.get_num_nodes())
@@ -1459,21 +1573,33 @@ class TestTree(LowLevelTestCase):
         options = 0
         for bad_type in ["", {}, [], None]:
             self.assertRaises(
-                TypeError, _tskit.Tree, ts, options=options,
-                tracked_samples=[bad_type])
+                TypeError, _tskit.Tree, ts, options=options, tracked_samples=[bad_type]
+            )
             self.assertRaises(
-                TypeError, _tskit.Tree, ts, options=options,
-                tracked_samples=[1, bad_type])
-        for bad_sample in [10**6, -1e6]:
+                TypeError,
+                _tskit.Tree,
+                ts,
+                options=options,
+                tracked_samples=[1, bad_type],
+            )
+        for bad_sample in [10 ** 6, -1e6]:
             self.assertRaises(
-                ValueError, _tskit.Tree, ts, options=options,
-                tracked_samples=[bad_sample])
+                ValueError,
+                _tskit.Tree,
+                ts,
+                options=options,
+                tracked_samples=[bad_sample],
+            )
             self.assertRaises(
-                ValueError, _tskit.Tree, ts, options=options,
-                tracked_samples=[1, bad_sample])
+                ValueError,
+                _tskit.Tree,
+                ts,
+                options=options,
+                tracked_samples=[1, bad_sample],
+            )
             self.assertRaises(
-                ValueError, _tskit.Tree, ts,
-                tracked_samples=[1, bad_sample, 1])
+                ValueError, _tskit.Tree, ts, tracked_samples=[1, bad_sample, 1]
+            )
 
     def test_while_loop_semantics(self):
         for ts in self.get_example_tree_sequences():
@@ -1526,7 +1652,8 @@ class TestTree(LowLevelTestCase):
                         non_binary = True
             samples = [j for j in range(ts.get_num_samples())]
             powerset = itertools.chain.from_iterable(
-                itertools.combinations(samples, r) for r in range(len(samples) + 1))
+                itertools.combinations(samples, r) for r in range(len(samples) + 1)
+            )
             max_sets = 100
             for _, subset in zip(range(max_sets), map(list, powerset)):
                 # Ordering shouldn't make any difference.
@@ -1535,16 +1662,19 @@ class TestTree(LowLevelTestCase):
                 while st.next():
                     nu = get_tracked_sample_counts(st, subset)
                     nu_prime = [
-                        st.get_num_tracked_samples(j) for j in
-                        range(st.get_num_nodes())]
+                        st.get_num_tracked_samples(j) for j in range(st.get_num_nodes())
+                    ]
                     self.assertEqual(nu, nu_prime)
             # Passing duplicated values should raise an error
             sample = 1
             for j in range(2, 20):
                 tracked_samples = [sample for _ in range(j)]
                 self.assertRaises(
-                    _tskit.LibraryError, _tskit.Tree, ts,
-                    tracked_samples=tracked_samples)
+                    _tskit.LibraryError,
+                    _tskit.Tree,
+                    ts,
+                    tracked_samples=tracked_samples,
+                )
         self.assertTrue(non_binary)
 
     def test_bounds_checking(self):
@@ -1567,7 +1697,7 @@ class TestTree(LowLevelTestCase):
         for ts in self.get_example_tree_sequences():
             num_nodes = ts.get_num_nodes()
             st = _tskit.Tree(ts)
-            for v in [num_nodes, 10**6, _tskit.NULL]:
+            for v in [num_nodes, 10 ** 6, _tskit.NULL]:
                 self.assertRaises(ValueError, st.get_mrca, v, v)
                 self.assertRaises(ValueError, st.get_mrca, v, 1)
                 self.assertRaises(ValueError, st.get_mrca, 1, v)
@@ -1576,7 +1706,6 @@ class TestTree(LowLevelTestCase):
                 self.assertEqual(st.get_mrca(u, v), _tskit.NULL)
 
     def test_newick_precision(self):
-
         def get_times(tree):
             """
             Returns the time strings from the specified newick tree.
@@ -1601,7 +1730,8 @@ class TestTree(LowLevelTestCase):
             self.assertRaises(ValueError, st.get_newick, root=0, precision=100)
             for precision in range(17):
                 tree = st.get_newick(
-                    root=st.get_left_root(), precision=precision).decode()
+                    root=st.get_left_root(), precision=precision
+                ).decode()
                 times = get_times(tree)
                 self.assertGreater(len(times), ts.get_num_samples())
                 for t in times:
@@ -1674,16 +1804,29 @@ class TestTree(LowLevelTestCase):
                 derived_state.append("1")
                 derived_state_offset.append(derived_state_offset[-1] + 1)
                 node.append(n)
-            tables.sites.set_columns(dict(
-                position=position, ancestral_state=ancestral_state,
-                ancestral_state_offset=ancestral_state_offset,
-                metadata=None, metadata_offset=None))
-            tables.mutations.set_columns(dict(
-                site=site, node=node, derived_state=derived_state,
-                derived_state_offset=derived_state_offset,
-                parent=None, metadata=None, metadata_offset=None))
+            tables.sites.set_columns(
+                dict(
+                    position=position,
+                    ancestral_state=ancestral_state,
+                    ancestral_state_offset=ancestral_state_offset,
+                    metadata=None,
+                    metadata_offset=None,
+                )
+            )
+            tables.mutations.set_columns(
+                dict(
+                    site=site,
+                    node=node,
+                    derived_state=derived_state,
+                    derived_state_offset=derived_state_offset,
+                    parent=None,
+                    metadata=None,
+                    metadata_offset=None,
+                )
+            )
             ts2 = _tskit.TreeSequence()
             ts2.load_tables(tables)
+
         self.assertRaises(_tskit.LibraryError, f, [(0.1, -1)])
         length = ts.get_sequence_length()
         u = ts.get_num_nodes()
@@ -1705,8 +1848,10 @@ class TestTree(LowLevelTestCase):
 
                 # All non-tree nodes should have 0
                 for j in range(t.get_num_nodes()):
-                    if t.get_parent(j) == _tskit.NULL \
-                            and t.get_left_child(j) == _tskit.NULL:
+                    if (
+                        t.get_parent(j) == _tskit.NULL
+                        and t.get_left_child(j) == _tskit.NULL
+                    ):
                         self.assertEqual(t.get_left_sample(j), _tskit.NULL)
                         self.assertEqual(t.get_right_sample(j), _tskit.NULL)
                 # The roots should have all samples.
@@ -1755,8 +1900,7 @@ class TestTree(LowLevelTestCase):
         for bad_tree in [None, "tree", 0]:
             self.assertRaises(TypeError, t1.get_kc_distance, bad_tree, lambda_=0)
         for bad_value in ["tree", [], None]:
-            self.assertRaises(
-                TypeError, t1.get_kc_distance, t1, lambda_=bad_value)
+            self.assertRaises(TypeError, t1.get_kc_distance, t1, lambda_=bad_value)
 
         t2 = _tskit.Tree(ts1)
         # If we don't seek to a specific tree, it has multiple roots (i.e., it's
@@ -1840,12 +1984,14 @@ class TestTree(LowLevelTestCase):
         self.assertRaises(TypeError, tree.map_mutations)
         for bad_size in [0, 1, n - 1, n + 1]:
             self.assertRaises(
-                ValueError, tree.map_mutations, np.zeros(bad_size, dtype=np.int8))
+                ValueError, tree.map_mutations, np.zeros(bad_size, dtype=np.int8)
+            )
         for bad_type in [None, {}, set()]:
             self.assertRaises(TypeError, tree.map_mutations, [bad_type] * n)
         for bad_type in [np.uint8, np.uint64, np.float32]:
             self.assertRaises(
-                TypeError, tree.map_mutations, np.zeros(bad_size, dtype=bad_type))
+                TypeError, tree.map_mutations, np.zeros(bad_size, dtype=bad_type)
+            )
         genotypes = np.zeros(n, dtype=np.int8)
         tree.map_mutations(genotypes)
         for bad_value in [64, 65, 127, -2]:
@@ -1857,6 +2003,7 @@ class TestModuleFunctions(unittest.TestCase):
     """
     Tests for the module level functions.
     """
+
     def test_kastore_version(self):
         version = _tskit.get_kastore_version()
         self.assertEqual(version, (1, 0, 0))

@@ -53,7 +53,8 @@ class LdCalculator(object):
     def __init__(self, tree_sequence):
         self._tree_sequence = tree_sequence
         self._ll_ld_calculator = _tskit.LdCalculator(
-            tree_sequence.get_ll_tree_sequence())
+            tree_sequence.get_ll_tree_sequence()
+        )
         # To protect low-level C code, only one method may execute on the
         # low-level objects at one time.
         self._instance_lock = threading.Lock()
@@ -127,12 +128,16 @@ class LdCalculator(object):
             max_mutations = -1
         if max_distance is None:
             max_distance = sys.float_info.max
-        item_size = struct.calcsize('d')
+        item_size = struct.calcsize("d")
         buffer = bytearray(self._tree_sequence.get_num_mutations() * item_size)
         with self._instance_lock:
             num_values = self._ll_ld_calculator.get_r2_array(
-                buffer, a, direction=direction,
-                max_mutations=max_mutations, max_distance=max_distance)
+                buffer,
+                a,
+                direction=direction,
+                max_mutations=max_mutations,
+                max_distance=max_distance,
+            )
         return np.frombuffer(buffer, "d", num_values)
 
     def get_r2_matrix(self):
@@ -153,6 +158,6 @@ class LdCalculator(object):
         A = np.ones((m, m), dtype=float)
         for j in range(m - 1):
             a = self.get_r2_array(j)
-            A[j, j + 1:] = a
-            A[j + 1:, j] = a
+            A[j, j + 1 :] = a
+            A[j + 1 :, j] = a
         return A

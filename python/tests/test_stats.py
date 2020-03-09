@@ -83,7 +83,7 @@ class TestLdCalculator(unittest.TestCase):
         # when we use get_r2 directly.
         for j in range(m):
             a = ldc.get_r2_array(j, direction=tskit.FORWARD)
-            b = A[j, j + 1:]
+            b = A[j, j + 1 :]
             self.assertEqual(a.shape[0], m - j - 1)
             self.assertEqual(b.shape[0], m - j - 1)
             self.assertTrue(np.allclose(a, b))
@@ -110,11 +110,11 @@ class TestLdCalculator(unittest.TestCase):
             x = mutations[j + k].position - mutations[j].position
             a = ldc.get_r2_array(j, max_distance=x)
             self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j + 1: j + 1 + k], a))
+            self.assertTrue(np.allclose(A[j, j + 1 : j + 1 + k], a))
             x = mutations[j].position - mutations[j - k].position
             a = ldc.get_r2_array(j, max_distance=x, direction=tskit.REVERSE)
             self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j - k: j], a[::-1]))
+            self.assertTrue(np.allclose(A[j, j - k : j], a[::-1]))
         L = ts.get_sequence_length()
         m = len(mutations)
         a = ldc.get_r2_array(0, max_distance=L)
@@ -135,10 +135,10 @@ class TestLdCalculator(unittest.TestCase):
         for k in range(j):
             a = ldc.get_r2_array(j, max_mutations=k)
             self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j + 1: j + 1 + k], a))
+            self.assertTrue(np.allclose(A[j, j + 1 : j + 1 + k], a))
             a = ldc.get_r2_array(j, max_mutations=k, direction=tskit.REVERSE)
             self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j - k: j], a[::-1]))
+            self.assertTrue(np.allclose(A[j, j - k : j], a[::-1]))
 
     def test_single_tree_simulated_mutations(self):
         ts = msprime.simulate(20, mutation_rate=10, random_seed=15)
@@ -167,8 +167,8 @@ class TestLdCalculator(unittest.TestCase):
 
     def test_tree_sequence_regular_mutations(self):
         ts = msprime.simulate(
-            self.num_test_sites, recombination_rate=1,
-            length=self.num_test_sites)
+            self.num_test_sites, recombination_rate=1, length=self.num_test_sites
+        )
         self.assertGreater(ts.get_num_trees(), 10)
         t = ts.dump_tables()
         t.sites.reset()
@@ -202,7 +202,7 @@ def set_partitions(collection):
         first = collection[0]
         for smaller in set_partitions(collection[1:]):
             for n, subset in enumerate(smaller):
-                yield smaller[:n] + [[first] + subset] + smaller[n + 1:]
+                yield smaller[:n] + [[first] + subset] + smaller[n + 1 :]
             yield [[first]] + smaller
 
 
@@ -234,6 +234,7 @@ class TestMeanDescendants(unittest.TestCase):
     """
     Tests the TreeSequence.mean_descendants method.
     """
+
     def verify(self, ts, reference_sets):
         C1 = naive_mean_descendants(ts, reference_sets)
         C2 = tsutil.mean_descendants(ts, reference_sets)
@@ -247,10 +248,12 @@ class TestMeanDescendants(unittest.TestCase):
         ts = msprime.simulate(
             population_configurations=[
                 msprime.PopulationConfiguration(8),
-                msprime.PopulationConfiguration(8)],
+                msprime.PopulationConfiguration(8),
+            ],
             migration_matrix=[[0, 1], [1, 0]],
             recombination_rate=3,
-            random_seed=5)
+            random_seed=5,
+        )
         self.assertGreater(ts.num_trees, 1)
         self.verify(ts, [ts.samples(0), ts.samples(1)])
 
@@ -289,8 +292,13 @@ class TestMeanDescendants(unittest.TestCase):
 
     def test_wright_fisher_unsimplified_all_sample_sets(self):
         tables = wf.wf_sim(
-            4, 5, seed=1, deep_history=False, initial_generation_samples=False,
-            num_loci=10)
+            4,
+            5,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=10,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         for S in set_partitions(list(ts.samples())):
@@ -298,8 +306,13 @@ class TestMeanDescendants(unittest.TestCase):
 
     def test_wright_fisher_unsimplified(self):
         tables = wf.wf_sim(
-            20, 15, seed=1, deep_history=False, initial_generation_samples=False,
-            num_loci=20)
+            20,
+            15,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=20,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         samples = ts.samples()
@@ -307,8 +320,13 @@ class TestMeanDescendants(unittest.TestCase):
 
     def test_wright_fisher_simplified(self):
         tables = wf.wf_sim(
-            30, 10, seed=1, deep_history=False, initial_generation_samples=False,
-            num_loci=5)
+            30,
+            10,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=5,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         samples = ts.samples()
@@ -320,8 +338,8 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
     # This is a limitation of the current API.
     tables = ts.dump_tables()
     tables.nodes.set_columns(
-        flags=np.ones_like(tables.nodes.flags),
-        time=tables.nodes.time)
+        flags=np.ones_like(tables.nodes.flags), time=tables.nodes.time
+    )
     ts = tables.tree_sequence()
 
     A = np.zeros((len(focal), len(reference_sets)))
@@ -331,7 +349,8 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
         for u in ref_set:
             reference_set_map[u] = k
     tree_iters = [
-        ts.trees(tracked_samples=reference_nodes) for reference_nodes in reference_sets]
+        ts.trees(tracked_samples=reference_nodes) for reference_nodes in reference_sets
+    ]
     for _ in range(ts.num_trees):
         trees = list(map(next, tree_iters))
         length = trees[0].interval[1] - trees[0].interval[0]
@@ -366,6 +385,7 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
     """
     Tests the TreeSequence.genealogical_nearest_neighbours method.
     """
+
     #
     #          8
     #         / \
@@ -416,7 +436,9 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
     def test_simple_example_all_samples(self):
         ts = tskit.load_text(
             nodes=io.StringIO(self.small_tree_ex_nodes),
-            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
+            edges=io.StringIO(self.small_tree_ex_edges),
+            strict=False,
+        )
         A = self.verify(ts, [[0, 1], [2, 3, 4]], [0])
         self.assertEqual(list(A[0]), [1, 0])
         A = self.verify(ts, [[0, 1], [2, 3, 4]], [4])
@@ -431,7 +453,9 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
     def test_simple_example_missing_samples(self):
         ts = tskit.load_text(
             nodes=io.StringIO(self.small_tree_ex_nodes),
-            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
+            edges=io.StringIO(self.small_tree_ex_edges),
+            strict=False,
+        )
         A = self.verify(ts, [[0, 1], [2, 4]], [3])
         self.assertEqual(list(A[0]), [0, 1])
         A = self.verify(ts, [[0, 1], [2, 4]], [2])
@@ -440,7 +464,9 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
     def test_simple_example_internal_focal_node(self):
         ts = tskit.load_text(
             nodes=io.StringIO(self.small_tree_ex_nodes),
-            edges=io.StringIO(self.small_tree_ex_edges), strict=False)
+            edges=io.StringIO(self.small_tree_ex_edges),
+            strict=False,
+        )
         focal = [7]  # An internal node
         reference_sets = [[4, 0, 1], [2, 3]]
         GNN = naive_genealogical_nearest_neighbours(ts, focal, reference_sets)
@@ -461,10 +487,12 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         ts = msprime.simulate(
             population_configurations=[
                 msprime.PopulationConfiguration(18),
-                msprime.PopulationConfiguration(18)],
+                msprime.PopulationConfiguration(18),
+            ],
             migration_matrix=[[0, 1], [1, 0]],
             recombination_rate=8,
-            random_seed=5)
+            random_seed=5,
+        )
         self.assertGreater(ts.num_trees, 1)
         self.verify(ts, [ts.samples(0), ts.samples(1)])
 
@@ -512,8 +540,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_unsimplified_all_sample_sets(self):
         tables = wf.wf_sim(
-            4, 5, seed=1, deep_history=True, initial_generation_samples=False,
-            num_loci=10)
+            4,
+            5,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=10,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         for S in set_partitions(list(ts.samples())):
@@ -521,8 +554,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_unsimplified(self):
         tables = wf.wf_sim(
-            20, 15, seed=1, deep_history=True, initial_generation_samples=False,
-            num_loci=20)
+            20,
+            15,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=20,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         samples = ts.samples()
@@ -530,8 +568,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_initial_generation(self):
         tables = wf.wf_sim(
-            20, 15, seed=1, deep_history=True, initial_generation_samples=True,
-            num_loci=20)
+            20,
+            15,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=True,
+            num_loci=20,
+        )
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -542,8 +585,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_initial_generation_no_deep_history(self):
         tables = wf.wf_sim(
-            20, 15, seed=2, deep_history=False, initial_generation_samples=True,
-            num_loci=20)
+            20,
+            15,
+            seed=2,
+            deep_history=False,
+            initial_generation_samples=True,
+            num_loci=20,
+        )
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -554,8 +602,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_unsimplified_multiple_roots(self):
         tables = wf.wf_sim(
-            20, 15, seed=1, deep_history=False, initial_generation_samples=False,
-            num_loci=20)
+            20,
+            15,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=20,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         samples = ts.samples()
@@ -563,8 +616,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_simplified(self):
         tables = wf.wf_sim(
-            31, 10, seed=1, deep_history=True, initial_generation_samples=False,
-            num_loci=5)
+            31,
+            10,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=5,
+        )
         tables.sort()
         ts = tables.tree_sequence().simplify()
         samples = ts.samples()
@@ -572,8 +630,13 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_wright_fisher_simplified_multiple_roots(self):
         tables = wf.wf_sim(
-            31, 10, seed=1, deep_history=False, initial_generation_samples=False,
-            num_loci=5)
+            31,
+            10,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=5,
+        )
         tables.sort()
         ts = tables.tree_sequence()
         samples = ts.samples()
@@ -594,8 +657,8 @@ def exact_genealogical_nearest_neighbours(ts, focal, reference_sets):
     # This is a limitation of the current API.
     tables = ts.dump_tables()
     tables.nodes.set_columns(
-        flags=np.ones_like(tables.nodes.flags),
-        time=tables.nodes.time)
+        flags=np.ones_like(tables.nodes.flags), time=tables.nodes.time
+    )
     ts = tables.tree_sequence()
 
     A = np.zeros((len(reference_sets), ts.num_trees))
@@ -605,7 +668,8 @@ def exact_genealogical_nearest_neighbours(ts, focal, reference_sets):
         for u in ref_set:
             reference_set_map[u] = k
     tree_iters = [
-        ts.trees(tracked_samples=reference_nodes) for reference_nodes in reference_sets]
+        ts.trees(tracked_samples=reference_nodes) for reference_nodes in reference_sets
+    ]
     u = focal
     focal_node_set = reference_set_map[u]
     # delta(u) = 1 if u exists in any of the reference sets; 0 otherwise

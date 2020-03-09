@@ -36,6 +36,7 @@ class PythonTree(object):
     is tightly coupled with the PythonTreeSequence object below which updates
     the internal structures during iteration.
     """
+
     def __init__(self, num_nodes):
         self.num_nodes = num_nodes
         self.parent = [tskit.NULL for _ in range(num_nodes)]
@@ -147,8 +148,10 @@ class PythonTree(object):
 
     def get_parent_dict(self):
         d = {
-            u: self.parent[u] for u in range(self.num_nodes)
-            if self.parent[u] != tskit.NULL}
+            u: self.parent[u]
+            for u in range(self.num_nodes)
+            if self.parent[u] != tskit.NULL
+        }
         return d
 
     def sites(self):
@@ -156,11 +159,12 @@ class PythonTree(object):
 
     def __eq__(self, other):
         return (
-            self.get_parent_dict() == other.get_parent_dict() and
-            self.get_interval() == other.get_interval() and
-            self.roots == other.roots and
-            self.get_index() == other.get_index() and
-            list(self.sites()) == list(other.sites()))
+            self.get_parent_dict() == other.get_parent_dict()
+            and self.get_interval() == other.get_interval()
+            and self.roots == other.roots
+            and self.get_index() == other.get_index()
+            and list(self.sites()) == list(other.sites())
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -194,6 +198,7 @@ class PythonTreeSequence(object):
     part of a drive towards more modular versions of the tests currently
     in tests_highlevel.py.
     """
+
     def __init__(self, tree_sequence, breakpoints=None):
         self._tree_sequence = tree_sequence
         self._sites = []
@@ -206,24 +211,39 @@ class PythonTreeSequence(object):
         def make_mutation(id_):
             site, node, derived_state, parent, metadata = ll_ts.get_mutation(id_)
             return tskit.Mutation(
-                id_=id_, site=site, node=node, derived_state=derived_state,
-                parent=parent, metadata=metadata)
+                id_=id_,
+                site=site,
+                node=node,
+                derived_state=derived_state,
+                parent=parent,
+                metadata=metadata,
+            )
+
         for j in range(tree_sequence.num_sites):
             pos, ancestral_state, ll_mutations, id_, metadata = ll_ts.get_site(j)
-            self._sites.append(tskit.Site(
-                id_=id_, position=pos, ancestral_state=ancestral_state,
-                mutations=[make_mutation(ll_mut) for ll_mut in ll_mutations],
-                metadata=metadata))
+            self._sites.append(
+                tskit.Site(
+                    id_=id_,
+                    position=pos,
+                    ancestral_state=ancestral_state,
+                    mutations=[make_mutation(ll_mut) for ll_mut in ll_mutations],
+                    metadata=metadata,
+                )
+            )
 
     def edge_diffs(self):
         M = self._tree_sequence.num_edges
         sequence_length = self._tree_sequence.sequence_length
         edges = list(self._tree_sequence.edges())
         time = [self._tree_sequence.node(edge.parent).time for edge in edges]
-        in_order = sorted(range(M), key=lambda j: (
-            edges[j].left, time[j], edges[j].parent, edges[j].child))
-        out_order = sorted(range(M), key=lambda j: (
-            edges[j].right, -time[j], -edges[j].parent, -edges[j].child))
+        in_order = sorted(
+            range(M),
+            key=lambda j: (edges[j].left, time[j], edges[j].parent, edges[j].child),
+        )
+        out_order = sorted(
+            range(M),
+            key=lambda j: (edges[j].right, -time[j], -edges[j].parent, -edges[j].child),
+        )
         j = 0
         k = 0
         left = 0.0
@@ -261,7 +281,8 @@ class PythonTreeSequence(object):
             pt.right = right
             # Add in all the sites
             pt.site_list = [
-                site for site in self._sites if left <= site.position < right]
+                site for site in self._sites if left <= site.position < right
+            ]
             yield pt
             pt.index += 1
         pt.index = -1
@@ -280,6 +301,7 @@ class MRCACalculator(object):
     :param oriented_forest: the input oriented forest
     :type oriented_forest: list of integers
     """
+
     LAMBDA = 0
 
     def __init__(self, oriented_forest):
@@ -344,10 +366,7 @@ class MRCACalculator(object):
         while p != self.LAMBDA:
             notDone = True
             while notDone:
-                a = (
-                    self.__alpha[parent[p]] |
-                    (self.__beta[p] & -self.__beta[p])
-                )
+                a = self.__alpha[parent[p]] | (self.__beta[p] & -self.__beta[p])
                 self.__alpha[p] = a
                 if child[p] != self.LAMBDA:
                     p = child[p]
@@ -404,4 +423,4 @@ def base64_encode(metadata):
     Returns the specified metadata bytes object encoded as an ASCII-safe
     string.
     """
-    return base64.b64encode(metadata).decode('utf8')
+    return base64.b64encode(metadata).decode("utf8")

@@ -37,8 +37,9 @@ from tests import tsutil
 
 # setting up some basic haplotype data for tests
 def create_data(length):
-    ts = msprime.simulate(sample_size=10, length=length, mutation_rate=1e-2,
-                          random_seed=123)
+    ts = msprime.simulate(
+        sample_size=10, length=length, mutation_rate=1e-2, random_seed=123
+    )
     ts = tsutil.jukes_cantor(ts, length, 1.0, seed=123)
     assert ts.num_sites == length
     return ts
@@ -49,6 +50,7 @@ class TestLineLength(unittest.TestCase):
     Tests if the fasta file produced has the correct line lengths for
     default, custom, and no-wrapping options.
     """
+
     def verify_line_length(self, length, wrap_width=60):
         # set up data
         length = length
@@ -66,9 +68,9 @@ class TestLineLength(unittest.TestCase):
             # full length, ok as called write already
             wrap_width = length
         elif length % wrap_width == 0:
-            lines_expect = length//wrap_width
+            lines_expect = length // wrap_width
         else:
-            lines_expect = length//wrap_width + 1
+            lines_expect = length // wrap_width + 1
             extra_line_length = length % wrap_width
             no_hanging_line = False
 
@@ -78,7 +80,7 @@ class TestLineLength(unittest.TestCase):
             # testing correct characters per sequence line
             if line[0] != ">":
                 seq_line_counter += 1
-                line_chars = len(line.strip('\n'))
+                line_chars = len(line.strip("\n"))
                 # test full default width lines
                 if seq_line_counter < lines_expect:
                     self.assertEqual(wrap_width, line_chars)
@@ -126,6 +128,7 @@ class TestSequenceIds(unittest.TestCase):
     Tests that sequence IDs are output correctly, whether default or custom
     and that the length of IDs supplied must equal number of sequences
     """
+
     def verify_ids(self, ts, seq_ids_in=None):
         seq_ids_read = []
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -159,10 +162,10 @@ class TestSequenceIds(unittest.TestCase):
     def test_bad_length_ids(self):
         ts = create_data(100)
         with self.assertRaises(ValueError):
-            seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples-1)]
+            seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples - 1)]
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
         with self.assertRaises(ValueError):
-            seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples+1)]
+            seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples + 1)]
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
         with self.assertRaises(ValueError):
             seq_ids_in = []
@@ -174,6 +177,7 @@ class TestRoundTrip(unittest.TestCase):
     Tests that output from our code is read in by available software packages
     Here test for compatability with biopython processing - Bio.SeqIO
     """
+
     def verify(self, ts, wrap_width=60):
         biopython_fasta_read = []
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -83,9 +83,10 @@ def run_upgrade(args):
     except tskit.DuplicatePositionsError:
         exit(
             "Error: Duplicate mutation positions in the source file detected.\n\n"
-            "This is not supported in the current file format. Running \"upgrade -d\" "
+            'This is not supported in the current file format. Running "upgrade -d" '
             "will remove these duplicate positions. However, this will result in loss "
-            "of data from the original file!")
+            "of data from the original file!"
+        )
 
 
 def run_individuals(args):
@@ -123,8 +124,11 @@ def run_provenances(args):
     if args.human:
         for provenance in tree_sequence.provenances():
             d = json.loads(provenance.record)
-            print("id={}, timestamp={}, record={}".format(
-                provenance.id, provenance.timestamp, json.dumps(d, indent=4)))
+            print(
+                "id={}, timestamp={}, record={}".format(
+                    provenance.id, provenance.timestamp, json.dumps(d, indent=4)
+                )
+            )
     else:
         tree_sequence.dump_text(provenances=sys.stdout)
 
@@ -140,52 +144,60 @@ def run_vcf(args):
 
 
 def add_tree_sequence_argument(parser):
-    parser.add_argument(
-        "tree_sequence", help="The tskit tree sequence file")
+    parser.add_argument("tree_sequence", help="The tskit tree sequence file")
 
 
 def add_precision_argument(parser):
     parser.add_argument(
-        "--precision", "-p", type=int, default=6,
-        help="The number of decimal places to print in records")
+        "--precision",
+        "-p",
+        type=int,
+        default=6,
+        help="The number of decimal places to print in records",
+    )
 
 
 def get_tskit_parser():
     top_parser = argparse.ArgumentParser(
-        prog="python3 -m tskit",
-        description="Command line interface for tskit.")
+        prog="python3 -m tskit", description="Command line interface for tskit."
+    )
     top_parser.add_argument(
-        "-V", "--version", action='version',
-        version='%(prog)s {}'.format(tskit.__version__))
+        "-V",
+        "--version",
+        action="version",
+        version="%(prog)s {}".format(tskit.__version__),
+    )
     subparsers = top_parser.add_subparsers(dest="subcommand")
     subparsers.required = True
 
     parser = subparsers.add_parser(
-        "info",
-        help="Print summary information about a tree sequence.")
+        "info", help="Print summary information about a tree sequence."
+    )
     add_tree_sequence_argument(parser)
     parser.set_defaults(runner=run_info)
 
-    parser = subparsers.add_parser(
-        "trees",
-        help="Print information about trees.")
+    parser = subparsers.add_parser("trees", help="Print information about trees.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.add_argument(
-        "--draw", "-d", action="store_true", default=False,
-        help="Draw the trees")
+        "--draw", "-d", action="store_true", default=False, help="Draw the trees"
+    )
     parser.set_defaults(runner=run_trees)
 
     parser = subparsers.add_parser(
-        "upgrade",
-        help="Upgrade legacy tree sequence files.")
+        "upgrade", help="Upgrade legacy tree sequence files."
+    )
     parser.add_argument(
-        "source", help="The source tskit tree sequence file in legacy format")
+        "source", help="The source tskit tree sequence file in legacy format"
+    )
+    parser.add_argument("destination", help="The filename of the upgraded copy.")
     parser.add_argument(
-        "destination", help="The filename of the upgraded copy.")
-    parser.add_argument(
-        "--remove-duplicate-positions", "-d", action="store_true", default=False,
-        help="Remove any duplicated mutation positions in the source file. ")
+        "--remove-duplicate-positions",
+        "-d",
+        action="store_true",
+        default=False,
+        help="Remove any duplicated mutation positions in the source file. ",
+    )
     parser.set_defaults(runner=run_upgrade)
     # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
     # parser = subparsers.add_parser(
@@ -197,67 +209,69 @@ def get_tskit_parser():
     #     help=("line-wrapping width for printed sequences"))
     # parser.set_defaults(runner=run_fasta)
     parser = subparsers.add_parser(
-        "vcf",
-        help="Convert the tree sequence genotypes to VCF format.")
+        "vcf", help="Convert the tree sequence genotypes to VCF format."
+    )
     add_tree_sequence_argument(parser)
     parser.add_argument(
-        "--ploidy", "-P", type=int, default=None,
+        "--ploidy",
+        "-P",
+        type=int,
+        default=None,
         help=(
             "If the tree sequence does not contain information about "
             "individuals, create them by combining adjacent samples nodes "
             "into individuals of the specified ploidy. It is an error "
             "to provide this argument if the tree sequence does contain "
-            "individuals"))
+            "individuals"
+        ),
+    )
     parser.set_defaults(runner=run_vcf)
 
     parser = subparsers.add_parser(
-        "individuals",
-        help="Output individuals in tabular format.")
+        "individuals", help="Output individuals in tabular format."
+    )
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_individuals)
 
-    parser = subparsers.add_parser(
-        "nodes",
-        help="Output nodes in tabular format.")
+    parser = subparsers.add_parser("nodes", help="Output nodes in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_nodes)
 
-    parser = subparsers.add_parser(
-        "edges",
-        help="Output edges in tabular format.")
+    parser = subparsers.add_parser("edges", help="Output edges in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_edges)
 
-    parser = subparsers.add_parser(
-        "sites",
-        help="Output sites in tabular format.")
+    parser = subparsers.add_parser("sites", help="Output sites in tabular format.")
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_sites)
 
     parser = subparsers.add_parser(
-        "mutations",
-        help="Output mutations in tabular format.")
+        "mutations", help="Output mutations in tabular format."
+    )
     add_tree_sequence_argument(parser)
     add_precision_argument(parser)
     parser.set_defaults(runner=run_mutations)
 
     parser = subparsers.add_parser(
-        "populations",
-        help="Output population information in tabular format.")
+        "populations", help="Output population information in tabular format."
+    )
     add_tree_sequence_argument(parser)
     parser.set_defaults(runner=run_populations)
 
     parser = subparsers.add_parser(
-        "provenances",
-        help="Output provenance information in tabular format.")
+        "provenances", help="Output provenance information in tabular format."
+    )
     add_tree_sequence_argument(parser)
     parser.add_argument(
-        "-H", "--human", action="store_true",
-        help="Print out the provenances in a human readable format")
+        "-H",
+        "--human",
+        action="store_true",
+        help="Print out the provenances in a human readable format",
+    )
     parser.set_defaults(runner=run_provenances)
 
     return top_parser

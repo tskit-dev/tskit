@@ -12,13 +12,13 @@ jobs:
       - run:
           name: Checkout submodules
           command: |
-            git submodule update --init --recursive 
+            git submodule update --init --recursive
       - run:
           name: Install dependencies and set path
           command: |
             sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen libgsl-dev
             # Install meson to the system packages so we can run it as root
-            sudo pip install meson 
+            sudo pip install meson
             pip install --user -r python/requirements/development.txt
             pip install twine --user
             # Remove tskit installed by msprime
@@ -38,10 +38,11 @@ jobs:
           name: Lint Python
           command: |
             cd python
-            flake8 --max-line-length 89 tskit setup.py tests
+            flake8 *.py tskit/ tests/
+            black --check *.py tskit/ tests/
 
       - run:
-          name: Run Python tests 
+          name: Run Python tests
           command: |
             PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
               --cover-branches --cover-erase --cover-xml \
@@ -50,7 +51,7 @@ jobs:
       - run:
           name: Upload Python coverage
           command: |
-            codecov -X gcov -F python_tests 
+            codecov -X gcov -F python_tests
             # Clean up reports so we don't upload them twice.
             rm -f coverage.xml
 
@@ -58,7 +59,7 @@ jobs:
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
             cd ..
-            codecov -X gcov -F python_c_tests 
+            codecov -X gcov -F python_c_tests
             # Clean up reports so we don't upload them twice.
             rm -f python/*.gcov
 
@@ -71,12 +72,12 @@ jobs:
             python setup.py check
             python -m twine check dist/*.tar.gz
             python -m venv venv
-            source venv/bin/activate 
+            source venv/bin/activate
             pip install --upgrade setuptools pip wheel
             python setup.py build_ext
             python setup.py egg_info
             python setup.py bdist_wheel
-            pip install dist/*.tar.gz 
+            pip install dist/*.tar.gz
             tskit --help
 
       - run:
@@ -88,8 +89,8 @@ jobs:
       - run:
           name: Compile C with clang
           command: |
-            CC=clang CXX=clang++ meson build-clang c 
-            ninja -C build-clang 
+            CC=clang CXX=clang++ meson build-clang c
+            ninja -C build-clang
 
       - run:
           name: Run C tests
