@@ -1099,20 +1099,26 @@ class TestAllPaths(unittest.TestCase):
 
     def test_n3_m4(self):
         G = np.array([
-            [1, 0, 0],
-            [0, 0, 1],
-            [1, 0, 1],
-            [0, 1, 1]])
+                # fmt: off
+                [1, 0, 0],
+                [0, 0, 1],
+                [1, 0, 1],
+                [0, 1, 1],
+                # fmt: on
+        ])
         self.verify(G, [0, 0, 0, 0])
         self.verify(G, [1, 1, 1, 1])
         self.verify(G, [1, 1, 0, 0])
 
     def test_n4_m5(self):
         G = np.array([
-            [1, 0, 0, 0],
-            [0, 0, 1, 1],
-            [1, 0, 1, 1],
-            [0, 1, 1, 0]])
+                # fmt: off
+                [1, 0, 0, 0],
+                [0, 0, 1, 1],
+                [1, 0, 1, 1],
+                [0, 1, 1, 0],
+                # fmt: on
+            ])
         self.verify(G, [0, 0, 0, 0, 0])
         self.verify(G, [1, 1, 1, 1, 1])
         self.verify(G, [1, 1, 0, 0, 0])
@@ -1142,12 +1148,15 @@ class TestBasicViterbi(unittest.TestCase):
 
     def test_n2_m6_exact(self):
         G = np.array([
-            [1, 0],
-            [1, 0],
-            [1, 0],
-            [0, 1],
-            [0, 1],
-            [0, 1]])
+                # fmt: off
+                [1, 0],
+                [1, 0],
+                [1, 0],
+                [0, 1],
+                [0, 1],
+                [0, 1],
+                # fmt: on
+        ])
         self.verify_exact_match(G, [1, 1, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1])
         self.verify_exact_match(G, [0, 0, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0])
         self.verify_exact_match(G, [0, 0, 0, 1, 1, 1], [1, 1, 1, 1, 1, 1])
@@ -1156,12 +1165,15 @@ class TestBasicViterbi(unittest.TestCase):
 
     def test_n3_m6_exact(self):
         G = np.array([
-            [1, 0, 1],
-            [1, 0, 0],
-            [1, 0, 1],
-            [0, 1, 0],
-            [0, 1, 1],
-            [0, 1, 0]])
+                # fmt: off
+                [1, 0, 1],
+                [1, 0, 0],
+                [1, 0, 1],
+                [0, 1, 0],
+                [0, 1, 1],
+                [0, 1, 0],
+                # fmt: on
+        ])
         self.verify_exact_match(G, [1, 1, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1])
         self.verify_exact_match(G, [0, 0, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0])
         self.verify_exact_match(G, [0, 0, 0, 1, 1, 1], [1, 1, 1, 1, 1, 1])
@@ -1169,12 +1181,15 @@ class TestBasicViterbi(unittest.TestCase):
 
     def test_n3_m6(self):
         G = np.array([
-            [1, 0, 1],
-            [1, 0, 0],
-            [1, 0, 1],
-            [0, 1, 0],
-            [0, 1, 1],
-            [0, 1, 0]])
+                # fmt: off
+                [1, 0, 1],
+                [1, 0, 0],
+                [1, 0, 1],
+                [0, 1, 0],
+                [0, 1, 1],
+                [0, 1, 0],
+                # fmt: on
+            ])
 
         m, n = G.shape
         rho = np.zeros(m) + 1e-2

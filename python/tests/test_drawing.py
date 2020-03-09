@@ -362,9 +362,12 @@ class TestDrawTextExamples(unittest.TestCase):
         0       1       2       1
         """)
         tree = (
+            # fmt: off
             " 2 \n"
             "┏┻┓\n"
-            "0 1")
+            "0 1"
+            # fmt: on
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
@@ -373,22 +376,31 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            # fmt: off
             " 2 \n"
             "+++\n"
-            "0 1\n")
+            "0 1\n"
+            # fmt: on
+        )
         drawn = t.draw_text(use_ascii=True)
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            # fmt: off
             " ┏0\n"
             "2┫  \n"
-            " ┗1\n")
+            " ┗1\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="left")
         self.verify_text_rendering(drawn, tree)
         tree = (
+            # fmt: off
             " +0\n"
             "2+  \n"
-            " +1\n")
+            " +1\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="left", use_ascii=True)
         self.verify_text_rendering(drawn, tree)
 
@@ -405,18 +417,24 @@ class TestDrawTextExamples(unittest.TestCase):
         0       1       2       1
         """)
         tree = (
+            # fmt: off
             "ABCDEF\n"
             "┏┻┓   \n"
-            "0 1   \n")
+            "0 1   \n"
+            # fmt: on
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw_text(node_labels={0: "0", 1: "1", 2: "ABCDEF"})
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            # fmt: off
             "0┓      \n"
             " ┣ABCDEF\n"
-            "1┛      \n")
+            "1┛      \n"
+            # fmt: on
+        )
         drawn = t.draw_text(
             node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right")
         self.verify_text_rendering(drawn, tree)
@@ -424,15 +442,21 @@ class TestDrawTextExamples(unittest.TestCase):
         drawn = t.draw_text(
             node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right")
         tree = (
+            # fmt: off
             "ABCDEF┓ \n"
             "      ┣2\n"
-            "1━━━━━┛ \n")
+            "1━━━━━┛ \n"
+            # fmt: on
+        )
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            # fmt: off
             "      ┏0\n"
             "ABCDEF┫ \n"
-            "      ┗1\n")
+            "      ┗1\n"
+            # fmt: on
+        )
         drawn = t.draw_text(
             node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left")
         self.verify_text_rendering(drawn, tree)
@@ -565,9 +589,12 @@ class TestDrawTextExamples(unittest.TestCase):
         0       1       3       2
         """)
         tree = (
+            # fmt: off
             "  3  \n"
             "┏━╋━┓\n"
-            "0 1 2\n")
+            "0 1 2\n"
+            # fmt: on
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
@@ -575,20 +602,26 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
         tree = (
+            # fmt: off
             " ┏0\n"
             " ┃\n"
             "3╋1\n"
             " ┃\n"
-            " ┗2\n")
+            " ┗2\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="left")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            # fmt: off
             "0┓\n"
             " ┃\n"
             "1╋3\n"
             " ┃\n"
-            "2┛\n")
+            "2┛\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="right")
         self.verify_text_rendering(drawn, tree)
 
@@ -611,50 +644,65 @@ class TestDrawTextExamples(unittest.TestCase):
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         tree = (
+            # fmt: off
             "   4   \n"
             "┏━┳┻┳━┓\n"
-            "0 1 2 3\n")
+            "0 1 2 3\n"
+            # fmt: on
+        )
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
         # No labels
         tree = (
+            # fmt: off
             "   ┃   \n"
             "┏━┳┻┳━┓\n"
-            "┃ ┃ ┃ ┃\n")
+            "┃ ┃ ┃ ┃\n"
+            # fmt: on
+        )
         drawn = t.draw(format="unicode", node_labels={})
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels={}), tree)
         # Some labels
         tree = (
+            # fmt: off
             "   ┃   \n"
             "┏━┳┻┳━┓\n"
-            "0 ┃ ┃ 3\n")
+            "0 ┃ ┃ 3\n"
+            # fmt: on
+        )
         labels = {0: "0", 3: "3"}
         drawn = t.draw(format="unicode", node_labels=labels)
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
 
         tree = (
+            # fmt: off
             " ┏0\n"
             " ┃\n"
             " ┣1\n"
             "4┫\n"
             " ┣2\n"
             " ┃\n"
-            " ┗3\n")
+            " ┗3\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="left")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
+            # fmt: off
             "0┓\n"
             " ┃\n"
             "1┫\n"
             " ┣4\n"
             "2┫\n"
             " ┃\n"
-            "3┛\n")
+            "3┛\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="right")
         self.verify_text_rendering(drawn, tree)
 
@@ -671,11 +719,14 @@ class TestDrawTextExamples(unittest.TestCase):
         0       1       2       1
         """)
         tree = (
+            # fmt: off
             "2\n"
             "┃\n"
             "1\n"
             "┃\n"
-            "0\n")
+            "0\n"
+            # fmt: on
+        )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode")
@@ -683,11 +734,14 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
         tree = (
+            # fmt: off
             "0\n"
             "┃\n"
             "1\n"
             "┃\n"
-            "2\n")
+            "2\n"
+            # fmt: on
+        )
         drawn = t.draw_text(orientation="bottom")
         self.verify_text_rendering(drawn, tree)
 
