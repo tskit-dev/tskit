@@ -5,27 +5,24 @@
 # This file does only contain a selection of the most common options. For a
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
-
 # -- Path setup --------------------------------------------------------------
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import subprocess
 import os
+import subprocess
 import sys
+from unittest.mock import MagicMock
 
 from docutils import nodes
-from sphinx.util.docfields import TypedField
 from sphinx import addnodes
+from sphinx.util.docfields import TypedField
 
 # It's easier not to try to build the low-level module for the
 # documentation build on readthedocs, so we mock the module. Follows
 # the recommended pattern at
 # http://docs.readthedocs.org/en/latest/faq.html
-
-from unittest.mock import MagicMock
 
 
 class Mock(MagicMock):

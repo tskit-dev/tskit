@@ -1,7 +1,9 @@
-import os.path
 import codecs
+import os.path
 import platform
-from setuptools import setup, Extension
+
+from setuptools import Extension
+from setuptools import setup
 from setuptools.command.build_ext import build_ext
 
 

@@ -24,29 +24,29 @@
 Test cases for the high level interface to tskit.
 """
 import collections
-import itertools
 import io
+import itertools
 import json
 import math
 import os
+import pathlib
+import pickle
 import random
 import shutil
 import tempfile
 import unittest
-import warnings
 import uuid as _uuid
-import pathlib
-import pickle
+import warnings
 
-import numpy as np
 import msprime
 import networkx as nx
+import numpy as np
 
-import tskit
 import _tskit
 import tests as tests
-import tests.tsutil as tsutil
 import tests.simplify as simplify
+import tests.tsutil as tsutil
+import tskit
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):

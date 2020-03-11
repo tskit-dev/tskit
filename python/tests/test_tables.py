@@ -25,19 +25,18 @@ Test cases for the low-level tables used to transfer information
 between simulations and the tree sequence.
 """
 import io
+import itertools
 import pickle
 import random
 import unittest
 import warnings
-import itertools
 
+import msprime
 import numpy as np
 
-import tskit
 import _tskit
-import msprime
-
 import tests.tsutil as tsutil
+import tskit
 
 
 class Column(object):

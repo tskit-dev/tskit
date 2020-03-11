@@ -22,7 +22,6 @@
 """
 Module responsible for various utility functions used in other modules.
 """
-
 import numpy as np
 
 

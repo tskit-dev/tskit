@@ -23,15 +23,15 @@
 """
 Test cases for threading enabled aspects of the API.
 """
+import platform
 import threading
 import unittest
-import platform
 
-import numpy as np
 import msprime
+import numpy as np
 
-import tskit
 import tests.tsutil as tsutil
+import tskit
 
 IS_WINDOWS = platform.system() == "Windows"
 

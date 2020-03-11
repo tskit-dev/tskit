@@ -23,11 +23,11 @@
 """
 Test cases for fasta output in tskit.
 """
+import io
+import itertools
 import os
 import tempfile
 import unittest
-import itertools
-import io
 
 import msprime
 from Bio import SeqIO

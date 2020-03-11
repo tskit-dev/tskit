@@ -23,10 +23,10 @@
 """
 Tests for the provenance information attached to tree sequences.
 """
-import unittest
 import json
-import platform
 import os
+import platform
+import unittest
 
 import msprime
 

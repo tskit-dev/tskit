@@ -23,23 +23,22 @@
 """
 Test cases for generalized statistic computation.
 """
-import io
-import unittest
-import random
 import collections
-import itertools
-import functools
 import contextlib
+import functools
+import io
+import itertools
+import random
+import unittest
 
+import msprime
 import numpy as np
 import numpy.testing as nt
 
-import msprime
-
+import tests.test_wright_fisher as wf
+import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
-import tests.tsutil as tsutil
-import tests.test_wright_fisher as wf
 
 np.random.seed(5)
 

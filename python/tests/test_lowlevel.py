@@ -31,8 +31,8 @@ import random
 import tempfile
 import unittest
 
-import numpy as np
 import msprime
+import numpy as np
 
 import _tskit
 

@@ -23,20 +23,20 @@
 """
 Test cases for tskit's file format.
 """
+import json
 import os
 import tempfile
 import unittest
 import uuid as _uuid
-import json
 
 import h5py
 import kastore
-import numpy as np
 import msprime
+import numpy as np
 
+import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
-import tests.tsutil as tsutil
 
 
 CURRENT_FILE_MAJOR = 12

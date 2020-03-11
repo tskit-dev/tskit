@@ -22,18 +22,16 @@
 """
 Tests for the tree parsimony methods.
 """
-import unittest
-import itertools
 import io
+import itertools
+import unittest
 
-import numpy as np
-import msprime
-import Bio
-import Bio.Phylo
 import Bio.Phylo.TreeConstruction
+import msprime
+import numpy as np
 
-import tskit
 import tests.tsutil as tsutil
+import tskit
 
 
 INF = np.inf

@@ -24,26 +24,25 @@
 """
 Module responsible for managing trees and tree sequences.
 """
+import base64
 import collections
+import concurrent.futures
+import functools
 import itertools
 import json
-import base64
-import warnings
-import functools
-import concurrent.futures
 import textwrap
+import warnings
 
 import numpy as np
 
 import _tskit
 import tskit.drawing as drawing
 import tskit.exceptions as exceptions
+import tskit.formats as formats
 import tskit.provenance as provenance
 import tskit.tables as tables
-import tskit.formats as formats
 import tskit.util as util
 import tskit.vcf as vcf
-
 from tskit import NODE_IS_SAMPLE
 from tskit import NULL
 

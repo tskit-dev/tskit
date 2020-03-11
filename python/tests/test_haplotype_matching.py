@@ -22,17 +22,15 @@
 """
 Python implementation of the Li and Stephens algorithms.
 """
-import unittest
 import itertools
+import unittest
 
-import numpy as np
 import msprime
+import numpy as np
 
+import _tskit  # TMP
 import tskit
 from tests import tsutil
-
-# TMP
-import _tskit
 
 
 def in_sorted(values, j):

@@ -32,8 +32,8 @@ import h5py
 import numpy as np
 
 import tskit
-import tskit.provenance as provenance
 import tskit.exceptions as exceptions
+import tskit.provenance as provenance
 
 
 def _get_v2_provenance(command, attrs):
