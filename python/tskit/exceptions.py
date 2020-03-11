@@ -23,9 +23,9 @@
 """
 Exceptions defined in tskit.
 """
-from _tskit import TskitException
-from _tskit import LibraryError
 from _tskit import FileFormatError
+from _tskit import LibraryError
+from _tskit import TskitException
 from _tskit import VersionTooNewError
 from _tskit import VersionTooOldError
 

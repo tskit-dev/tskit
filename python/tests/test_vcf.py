@@ -23,21 +23,21 @@
 """
 Test cases for VCF output in tskit.
 """
+import contextlib
+import io
+import itertools
 import math
 import os
 import tempfile
 import unittest
-import io
-import itertools
-import contextlib
 
 import msprime
-import vcf
 import numpy as np
+import vcf
 
+import tests.test_wright_fisher as wf
 import tskit
 from tests import tsutil
-import tests.test_wright_fisher as wf
 
 # Pysam is not available on windows, so we don't make it mandatory here.
 _pysam_imported = False

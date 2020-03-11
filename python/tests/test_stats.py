@@ -23,16 +23,16 @@
 """
 Test cases for stats calculations in tskit.
 """
-import unittest
 import io
+import unittest
 
-import numpy as np
 import msprime
+import numpy as np
 
-import tskit
 import _tskit
-import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
+import tests.tsutil as tsutil
+import tskit
 
 
 def get_r2_matrix(ts):

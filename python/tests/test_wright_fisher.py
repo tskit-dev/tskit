@@ -27,13 +27,13 @@ import itertools
 import random
 import unittest
 
+import msprime
 import numpy as np
 import numpy.testing as nt
-import msprime
 
-import tskit
 import tests as tests
 import tests.tsutil as tsutil
+import tskit
 
 
 class WrightFisherSimulator(object):

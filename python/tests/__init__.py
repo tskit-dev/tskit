@@ -19,15 +19,13 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 import base64
 
-# TODO remove this code and refactor elsewhere.
-
-from .simplify import *  # NOQA
-from . import tsutil
-
 import tskit
+from . import tsutil
+from .simplify import *  # NOQA
+
+# TODO remove this code and refactor elsewhere.
 
 
 class PythonTree(object):

@@ -26,7 +26,6 @@ Tests for the newick output feature.
 import unittest
 
 import msprime
-
 import newick
 
 

@@ -24,22 +24,22 @@
 Test cases for the supported topological variations and operations.
 """
 import io
-import unittest
 import itertools
-import random
 import json
-import sys
 import math
+import random
+import sys
+import unittest
 
-import numpy as np
 import msprime
+import numpy as np
 
-import tskit
 import _tskit
-import tskit.provenance as provenance
 import tests as tests
-import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
+import tests.tsutil as tsutil
+import tskit
+import tskit.provenance as provenance
 
 
 def ts_equal(ts_1, ts_2, compare_provenances=True):

@@ -29,8 +29,8 @@ import string
 
 import numpy as np
 
-import tskit.provenance as provenance
 import tskit
+import tskit.provenance as provenance
 
 
 def random_bytes(max_length):
