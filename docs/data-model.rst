@@ -1419,24 +1419,24 @@ releases. The table below gives these versions.
    For versions 11 and onwards, use kastore to get the version:
         kastore dump format/version tmp.trees
 
-=======    =================
-Version    Commit Short Hash
-=======    =================
-11.0       5646cd3
-10.0       e4396a7
-9.0        e504abd
-8.0        299ddc9
-7.0        ca9c0c5
-6.0        6310725
-5.0        62659fb
-4.0        a586646
-3.2        8f44bed
-3.1        d69c059
-3.0        7befdcf
-2.1        a26a227
-2.0        7c507f3
-1.1        c143dd9
-1.0        04722d8
-0.3        f42215e
-0.1        34ac742
-=======    =================
+==============    =================
+Version number    Commit Short Hash
+==============    =================
+11.0              5646cd3
+10.0              e4396a7
+9.0               e504abd
+8.0               299ddc9
+7.0               ca9c0c5
+6.0               6310725
+5.0               62659fb
+4.0               a586646
+3.2               8f44bed
+3.1               d69c059
+3.0               7befdcf
+2.1               a26a227
+2.0               7c507f3
+1.1               c143dd9
+1.0               04722d8
+0.3               f42215e
+0.1               34ac742
+==============    =================
