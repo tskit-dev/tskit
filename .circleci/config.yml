@@ -37,9 +37,7 @@ jobs:
       - run:
           name: Lint Python
           command: |
-            cd python
-            flake8 *.py tskit/ tests/
-            black --check *.py tskit/ tests/
+            pre-commit run --all-files
 
       - run:
           name: Run Python tests
