@@ -2334,6 +2334,13 @@ class TreeSequence(object):
     def __init__(self, ll_tree_sequence):
         self._ll_tree_sequence = ll_tree_sequence
 
+    # Implement the pickle protocol for TreeSequence
+    def __getstate__(self):
+        return self.dump_tables()
+
+    def __setstate__(self, tc):
+        self._ll_tree_sequence = tc.tree_sequence().ll_tree_sequence
+
     @property
     def ll_tree_sequence(self):
         return self.get_ll_tree_sequence()

@@ -36,6 +36,7 @@ import unittest
 import warnings
 import uuid as _uuid
 import pathlib
+import pickle
 
 import numpy as np
 import msprime
@@ -1332,6 +1333,40 @@ class TestTreeSequence(HighLevelTestCase):
                     for i, n in enumerate(reversed(sequence)):
                         self.assertEqual(i, length - 1 - n.id)
                     self.assertEqual(n.id, 0)
+
+
+class TestPickle(HighLevelTestCase):
+    """
+    Test pickling of a TreeSequence.
+    """
+
+    def verify_round_trip(self, ts):
+        pkl = pickle.dumps(ts)
+        tsp = pickle.loads(pkl)
+        self.assertEqual(ts.tables, tsp.tables)
+
+    def test_simple(self):
+        self.verify_round_trip(msprime.simulate(10, random_seed=2))
+
+    def test_recombination(self):
+        self.verify_round_trip(
+            msprime.simulate(10, recombination_rate=1, random_seed=2)
+        )
+
+    def test_mutations(self):
+        self.verify_round_trip(msprime.simulate(10, mutation_rate=1, random_seed=2))
+
+    def test_migrations(self):
+        ts = msprime.simulate(
+            population_configurations=[
+                msprime.PopulationConfiguration(10),
+                msprime.PopulationConfiguration(10),
+            ],
+            migration_matrix=[[0, 1], [1, 0]],
+            record_migrations=True,
+            random_seed=2,
+        )
+        self.verify_round_trip(ts)
 
 
 class TestFileUuid(HighLevelTestCase):
