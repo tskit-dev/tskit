@@ -26,8 +26,8 @@ Module responsible for visualisations.
 import collections
 import numbers
 
-import svgwrite
 import numpy as np
+import svgwrite
 
 from _tskit import NULL
 

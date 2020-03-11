@@ -32,14 +32,14 @@ import warnings
 import numpy as np
 
 import _tskit
+import tskit
+import tskit.provenance as provenance
+import tskit.util as util
 
 # This circular import is ugly but it seems hard to avoid it since table collection
 # and tree sequence depend on each other. Unless they're in the same module they
 # need to import each other. In Py3 at least we can import the modules but we
 # can't do this in Py3.
-import tskit
-import tskit.util as util
-import tskit.provenance as provenance
 
 
 IndividualTableRow = collections.namedtuple(

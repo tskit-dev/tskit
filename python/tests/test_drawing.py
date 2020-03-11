@@ -31,8 +31,9 @@ import unittest
 import xml.etree
 
 import msprime
-import tskit
+
 import tests.tsutil as tsutil
+import tskit
 
 
 class TestTreeDraw(unittest.TestCase):

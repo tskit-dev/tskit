@@ -1,13 +1,14 @@
 """
 Examples for the tutorial.
 """
-import os
 import io
+import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../python"))
 
 import numpy as np  # noqa: E402
+
 import msprime  # noqa: E402
 import tskit  # noqa: E402
 

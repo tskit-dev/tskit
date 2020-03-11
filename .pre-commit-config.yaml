@@ -7,6 +7,17 @@ repos:
       - id: mixed-line-ending
       - id: check-symlinks
       - id: check-case-conflict
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v2.1.0
+    hooks:
+      - id: reorder-python-imports
+        args: [--application-directories=python,
+               --unclassifiable-application-module=_tskit]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.1.0
+    hooks:
+      - id: pyupgrade
+        args: [--py3-plus, --py36-plus]
   - repo: https://github.com/psf/black
     rev: 19.10b0
     hooks:

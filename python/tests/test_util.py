@@ -22,14 +22,14 @@
 """
 Tests for functions in util.py
 """
-import unittest
-import pickle
 import itertools
+import pickle
+import unittest
 
 import numpy as np
 
-import tskit.util as util
 import tests.tsutil as tsutil
+import tskit.util as util
 
 
 class TestNumpyArrayCasting(unittest.TestCase):

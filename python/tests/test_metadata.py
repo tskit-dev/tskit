@@ -27,13 +27,13 @@ Tests for metadata handling.
 import io
 import json
 import os
+import pickle
 import tempfile
 import unittest
-import pickle
 
+import msprime
 import numpy as np
 import python_jsonschema_objects as pjs
-import msprime
 
 import tskit
 

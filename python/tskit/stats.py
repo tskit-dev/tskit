@@ -22,9 +22,9 @@
 """
 Module responsible for computing various statistics on tree sequences.
 """
-import threading
 import struct
 import sys
+import threading
 
 import numpy as np
 

@@ -22,18 +22,17 @@
 """
 Test cases for generating genotypes/haplotypes.
 """
-import unittest
 import itertools
 import random
+import unittest
 
-import numpy as np
 import msprime
+import numpy as np
 
-import tskit
-
-from tskit import exceptions
-import tests.tsutil as tsutil
 import tests.test_wright_fisher as wf
+import tests.tsutil as tsutil
+import tskit
+from tskit import exceptions
 
 
 def naive_get_ancestral_haplotypes(ts):

@@ -30,8 +30,8 @@ import tempfile
 import unittest
 from unittest import mock
 
-import msprime
 import h5py
+import msprime
 
 import tskit
 import tskit.cli as cli

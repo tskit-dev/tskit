@@ -3,25 +3,25 @@ Code to stress the low-level API as much as possible to expose
 any memory leaks or error handling issues.
 """
 import argparse
-import unittest
+import logging
+import os
 import random
 import resource
-import os
 import sys
 import time
-import logging
+import unittest
 
+import tests.test_dict_encoding as test_dict_encoding
+import tests.test_file_format as test_file_format
+import tests.test_haplotype_matching as test_haplotype_matching
 import tests.test_highlevel as test_highlevel
 import tests.test_lowlevel as test_lowlevel
-import tests.test_vcf as test_vcf
-import tests.test_threads as test_threads
 import tests.test_stats as test_stats
-import tests.test_tree_stats as test_tree_stats
 import tests.test_tables as test_tables
+import tests.test_threads as test_threads
 import tests.test_topology as test_topology
-import tests.test_file_format as test_file_format
-import tests.test_dict_encoding as test_dict_encoding
-import tests.test_haplotype_matching as test_haplotype_matching
+import tests.test_tree_stats as test_tree_stats
+import tests.test_vcf as test_vcf
 
 
 def main():
