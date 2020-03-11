@@ -4,11 +4,13 @@ Examples for the tutorial.
 import os
 import io
 import sys
-sys.path.insert(0, os.path.abspath('../python'))
 
-import numpy as np
-import msprime
-import tskit
+sys.path.insert(0, os.path.abspath("../python"))
+
+import numpy as np  # noqa: E402
+import msprime  # noqa: E402
+import tskit  # noqa: E402
+
 
 def moving_along_tree_sequence():
     ts = msprime.simulate(5, recombination_rate=1, random_seed=42)
@@ -16,35 +18,55 @@ def moving_along_tree_sequence():
     print("Tree sequence has {} trees".format(ts.num_trees))
     print()
     for tree in ts.trees():
-        print("Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
-            tree.index, *tree.interval, tree.time(tree.root)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
+                tree.index, *tree.interval, tree.time(tree.root)
+            )
+        )
 
     print()
     for tree in reversed(ts.trees()):
-        print("Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
-
-            tree.index, *tree.interval, tree.time(tree.root)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
+                tree.index, *tree.interval, tree.time(tree.root)
+            )
+        )
 
     print()
     for tree in list(ts.trees()):
-        print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-            tree.index, *tree.interval, id(tree)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+                tree.index, *tree.interval, id(tree)
+            )
+        )
 
     print()
     for tree in ts.aslist():
-        print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-            tree.index, *tree.interval, id(tree)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+                tree.index, *tree.interval, id(tree)
+            )
+        )
 
     print()
     tree = ts.at(0.5)
-    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-        tree.index, *tree.interval, id(tree)))
+    print(
+        "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)
+        )
+    )
     tree = ts.at_index(0)
-    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-        tree.index, *tree.interval, id(tree)))
+    print(
+        "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)
+        )
+    )
     tree = ts.at_index(-1)
-    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-        tree.index, *tree.interval, id(tree)))
+    print(
+        "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)
+        )
+    )
 
     print()
     tree = tskit.Tree(ts)
@@ -87,10 +109,10 @@ def parsimony():
         print(f"Mutation: node = {mut.node} derived_state = {mut.derived_state}")
     tree.draw("_static/parsimony1.svg", node_colours=node_colours)
 
-
     ts = msprime.simulate(6, random_seed=23)
     ts = msprime.mutate(
-        ts, rate=3, model=msprime.InfiniteSites(msprime.NUCLEOTIDES), random_seed=2)
+        ts, rate=3, model=msprime.InfiniteSites(msprime.NUCLEOTIDES), random_seed=2
+    )
 
     tree = ts.first()
     tables = ts.dump_tables()
@@ -106,8 +128,11 @@ def parsimony():
             if parent != tskit.NULL:
                 parent += parent_offset
             tables.mutations.add_row(
-                var.index, node=mutation.node, parent=parent,
-                derived_state=mutation.derived_state)
+                var.index,
+                node=mutation.node,
+                parent=parent,
+                derived_state=mutation.derived_state,
+            )
 
     assert tables.sites == ts.tables.sites
     assert tables.mutations == ts.tables.mutations
@@ -147,12 +172,11 @@ def allele_frequency_spectra():
     print(afs)
 
     afs = ts.allele_frequency_spectrum(
-        windows=[0, 0.5, 1], span_normalise=False, polarised=True)
+        windows=[0, 0.5, 1], span_normalise=False, polarised=True
+    )
     print(afs)
 
-    node_colours = {
-        0: "blue", 2: "blue", 3: "blue",
-        1: "green", 4: "green", 5: "green"}
+    node_colours = {0: "blue", 2: "blue", 3: "blue", 1: "green", 4: "green", 5: "green"}
     tree.draw("_static/afs2.svg", node_colours=node_colours)
 
     afs = ts.allele_frequency_spectrum([[0, 2, 3], [1, 4, 5]], polarised=True)
@@ -165,6 +189,7 @@ def allele_frequency_spectra():
     print(afs)
     print("sum afs          = ", np.sum(afs))
     print("total branch len = ", tree.total_branch_length)
+
 
 def missing_data():
 
@@ -179,8 +204,13 @@ def missing_data():
 
 def stats():
     ts = msprime.simulate(
-        10**4, Ne=10**4, recombination_rate=1e-8, mutation_rate=1e-8, length=10**7,
-        random_seed=42)
+        10 ** 4,
+        Ne=10 ** 4,
+        recombination_rate=1e-8,
+        mutation_rate=1e-8,
+        length=10 ** 7,
+        random_seed=42,
+    )
     print("num_trees = ", ts.num_trees, ", num_sites = ", ts.num_sites, sep="")
 
     x = ts.diversity()
@@ -224,11 +254,18 @@ def stats():
     x = ts.divergence([A, B, C], indexes=[(0, 1), (0, 2)], windows=windows)
     print(x)
 
-def tree_structure():
 
+def tree_structure():
     def write_table(tree):
         fmt = "{:<12}"
-        heading = ["node", "parent", "left_child",  "right_child", "left_sib", "right_sib"]
+        heading = [
+            "node",
+            "parent",
+            "left_child",
+            "right_child",
+            "left_sib",
+            "right_sib",
+        ]
         line = "".join(fmt.format(s) for s in heading)
         col_def = " ".join(["=" * 11] * 6)
         print(col_def)
@@ -237,8 +274,16 @@ def tree_structure():
 
         for u in range(ts.num_nodes):
             line = "".join(
-                fmt.format(v) for v in [u, tree.parent(u), tree.left_child(u), tree.right_child(u),
-                    tree.left_sib(u), tree.right_sib(u)])
+                fmt.format(v)
+                for v in [
+                    u,
+                    tree.parent(u),
+                    tree.left_child(u),
+                    tree.right_child(u),
+                    tree.left_sib(u),
+                    tree.right_sib(u),
+                ]
+            )
             print(line)
         print(col_def)
 
@@ -260,7 +305,8 @@ def tree_structure():
     0       1       7       5,6
     """
     ts = tskit.load_text(
-        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False)
+        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False
+    )
     tree = ts.first()
 
     write_table(tree)
@@ -274,7 +320,8 @@ def tree_structure():
     0       1       7       5
     """
     ts = tskit.load_text(
-        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False)
+        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False
+    )
     tree = ts.first()
 
     write_table(tree)
@@ -302,12 +349,12 @@ def tree_traversal():
     """
     # NB same tree as used above, and we're using the same diagram.
     ts = tskit.load_text(
-        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False)
+        nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False
+    )
     tree = ts.first()
 
     for order in ["preorder", "inorder", "postorder"]:
         print(f"{order}:\t", list(tree.nodes(order=order)))
-
 
     total_branch_length = sum(tree.branch_length(u) for u in tree.nodes())
     print(total_branch_length, tree.total_branch_length)
@@ -331,6 +378,7 @@ def tree_traversal():
 
     print(list(preorder_dist(tree)))
 
+
 def finding_nearest_neighbors():
     samples = [
         msprime.Sample(0, 0),
@@ -341,17 +389,13 @@ def finding_nearest_neighbors():
         Ne=1e6,
         samples=samples,
         demographic_events=[
-            msprime.PopulationParametersChange(
-                time=10, growth_rate=2, population_id=0
-            ),
+            msprime.PopulationParametersChange(time=10, growth_rate=2, population_id=0),
         ],
         random_seed=42,
     )
 
     tree = ts.first()
-    tree.draw_svg("_static/different_time_samples.svg",
-        tree_height_scale="rank")
-
+    tree.draw_svg("_static/different_time_samples.svg", tree_height_scale="rank")
 
 
 # moving_along_tree_sequence()
@@ -362,4 +406,3 @@ def finding_nearest_neighbors():
 # tree_structure()
 tree_traversal()
 finding_nearest_neighbors()
-

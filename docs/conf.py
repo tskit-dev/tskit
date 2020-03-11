@@ -16,6 +16,10 @@ import subprocess
 import os
 import sys
 
+from docutils import nodes
+from sphinx.util.docfields import TypedField
+from sphinx import addnodes
+
 # It's easier not to try to build the low-level module for the
 # documentation build on readthedocs, so we mock the module. Follows
 # the recommended pattern at
@@ -29,29 +33,31 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
+
 MOCK_MODULES = ["_tskit"]
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
-sys.path.insert(0, os.path.abspath('../python'))
+sys.path.insert(0, os.path.abspath("../python"))
 
-read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 if read_the_docs_build:
-    subprocess.call('cd doxygen; doxygen', shell=True)
+    subprocess.call("cd doxygen; doxygen", shell=True)
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'tskit'
-copyright = '2018-2019, Tskit developers'
-author = 'Tskit developers'
+project = "tskit"
+copyright = "2018-2019, Tskit developers"
+author = "Tskit developers"
 
 
-with open(os.path.abspath('../python/tskit/_version.py')) as f:
+tskit_version = None
+with open(os.path.abspath("../python/tskit/_version.py")) as f:
     exec(f.read())
 # tskit_version is defined in the specified file.
 release = tskit_version
-version = '.'.join(release.split('.')[:2])
+version = ".".join(release.split(".")[:2])
 
 ###################################################################
 #
@@ -60,49 +66,49 @@ version = '.'.join(release.split('.')[:2])
 # https://stackoverflow.com/questions/31784830/sphinx-ivar-tag-goes-looking-for-cross-references
 #
 
-from docutils import nodes
-from sphinx.util.docfields import TypedField
-from sphinx import addnodes
 
 def patched_make_field(self, types, domain, items, env):
-    # type: (List, unicode, Tuple) -> nodes.field
+    # type: (list, str, tuple) -> nodes.field
     def handle_item(fieldarg, content):
         par = nodes.paragraph()
-        par += addnodes.literal_strong('', fieldarg)  # Patch: this line added
-        #par.extend(self.make_xrefs(self.rolename, domain, fieldarg,
+        par += addnodes.literal_strong("", fieldarg)  # Patch: this line added
+        # par.extend(self.make_xrefs(self.rolename, domain, fieldarg,
         #                           addnodes.literal_strong))
         if fieldarg in types:
-            par += nodes.Text(' (')
+            par += nodes.Text(" (")
             # NOTE: using .pop() here to prevent a single type node to be
             # inserted twice into the doctree, which leads to
             # inconsistencies later when references are resolved
             fieldtype = types.pop(fieldarg)
             if len(fieldtype) == 1 and isinstance(fieldtype[0], nodes.Text):
-                typename = ''.join(n.astext() for n in fieldtype)
-                par.extend(self.make_xrefs(self.typerolename, domain, typename,
-                                           addnodes.literal_emphasis))
+                typename = "".join(n.astext() for n in fieldtype)
+                par.extend(
+                    self.make_xrefs(
+                        self.typerolename, domain, typename, addnodes.literal_emphasis
+                    )
+                )
             else:
                 par += fieldtype
-            par += nodes.Text(')')
-        par += nodes.Text(' -- ')
+            par += nodes.Text(")")
+        par += nodes.Text(" -- ")
         par += content
         return par
 
-    fieldname = nodes.field_name('', self.label)
+    fieldname = nodes.field_name("", self.label)
     if len(items) == 1 and self.can_collapse:
         fieldarg, content = items[0]
         bodynode = handle_item(fieldarg, content)
     else:
         bodynode = self.list_type()
         for fieldarg, content in items:
-            bodynode += nodes.list_item('', handle_item(fieldarg, content))
-    fieldbody = nodes.field_body('', bodynode)
-    return nodes.field('', fieldname, fieldbody)
+            bodynode += nodes.list_item("", handle_item(fieldarg, content))
+    fieldbody = nodes.field_body("", bodynode)
+    return nodes.field("", fieldname, fieldbody)
+
 
 TypedField.make_field = patched_make_field
 
 ###################################################################
-
 
 
 # -- General configuration ---------------------------------------------------
@@ -115,28 +121,28 @@ TypedField.make_field = patched_make_field
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'breathe',
-    'sphinxarg.ext',
-    'sphinx_issues',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "breathe",
+    "sphinxarg.ext",
+    "sphinx_issues",
 ]
 
 # Github repo
 issues_github_path = "tskit-dev/tskit"
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # The language for content autogenerated by Sphinx. Refer to documentation
 # for a list of supported languages.
@@ -148,7 +154,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
@@ -159,7 +165,7 @@ pygments_style = None
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -170,7 +176,7 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -182,12 +188,12 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
-html_logo = '_static/tskit_logo_pale.svg'
+html_logo = "_static/tskit_logo_pale.svg"
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'tskitdoc'
+htmlhelp_basename = "tskitdoc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -196,15 +202,12 @@ latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -214,8 +217,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'tskit.tex', 'tskit Documentation',
-     'Tskit developers', 'manual'),
+    (master_doc, "tskit.tex", "tskit Documentation", "Tskit developers", "manual"),
 ]
 
 
@@ -223,10 +225,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'tskit', 'tskit Documentation',
-     [author], 1)
-]
+man_pages = [(master_doc, "tskit", "tskit Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------------
@@ -235,9 +234,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'tskit', 'tskit Documentation',
-     author, 'tskit', 'One line description of project.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        "tskit",
+        "tskit Documentation",
+        author,
+        "tskit",
+        "One line description of project.",
+        "Miscellaneous",
+    ),
 ]
 
 
@@ -256,7 +261,7 @@ epub_title = project
 # epub_uid = ''
 
 # A list of files that should not be packed into the epub file.
-epub_exclude_files = ['search.html']
+epub_exclude_files = ["search.html"]
 
 
 # -- Extension configuration -------------------------------------------------
@@ -265,8 +270,8 @@ epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'https://docs.python.org/': None,
-    'http://docs.scipy.org/doc/numpy/': None,
+    "https://docs.python.org/": None,
+    "http://docs.scipy.org/doc/numpy/": None,
 }
 
 # -- Options for todo extension ----------------------------------------------
@@ -275,7 +280,7 @@ intersphinx_mapping = {
 todo_include_todos = True
 
 # Breath extension lets us include doxygen C documentation.
-breathe_projects = {"tskit": "doxygen/xml" }
+breathe_projects = {"tskit": "doxygen/xml"}
 breathe_default_project = "tskit"
 breathe_domain_by_extension = {"h": "c"}
 breathe_show_define_initializer = True

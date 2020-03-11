@@ -33,11 +33,19 @@ Quickstart
 - Build the low level module by running ``make`` in the ``python`` directory.
 - Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
   all pass.
-
-- Make your changes in a local branch, and open a pull request on GitHub when you
-  are ready. Please make sure that (a) the tests pass before you open the PR; and
-  (b) your code passes PEP8 checks (see :ref:`sec_development_code_style` below
-  for a git commit hook to ensure this happens automatically) before opening the PR.
+- Install the pre-commit checks: ``pre-commit install``
+- Make your changes in a local branch. On each commit a "pre-commit hook" will run
+  checks for code style and common problems (see :ref:`sec_development_code_style`).
+  Sometimes these will report "files were modified by this hook" ``git add``
+  and ``git commit --amend`` will update the commit with the automatically modified
+  version.
+  The modifications made are for consistency, code readability and designed to
+  minimise merge conflicts. They are guaranteed not to modify the functionality of the
+  code. To run the checks without committing use ``pre-commit run``. To bypass
+  the checks (to save or get feedback on work-in-progress) use ``git commit
+  --no-verify``
+- When ready open a pull request on GitHub. Please make sure that the tests pass before
+  you open the PR.
 
 ****************************
 Continuous integration tests
@@ -64,15 +72,10 @@ combinations of tests on different platforms:
 Code style
 **********
 
-Submitted code should conform to `PEP8 <https://www.python.org/dev/peps/pep-0008/>`_.
-An easy way to ensure this is the case is to add a ``pre-commit`` file to the
-``.git/hooks/`` directory in your local installation. We recommending adding something
-like the following line to your ``pre-commit`` file:
-
-``exec flake8 python/setup.py python/tskit python/tests --max-line-length=89``
-
-(the flake8 python package should have been installed as part of the Python development
-requirements above)
+Submitted python code should conform to `PEP8 <https://www.python
+.org/dev/peps/pep-0008/>`_. `Black <https://github.com/psf/black>`_ and
+`flake8 <https://flake8.pycqa.org/en/latest/>`_ are used as part of the pre-commit
+checks for python code style and formatting.
 
 .. _sec_development_installing:
 
