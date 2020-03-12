@@ -743,7 +743,7 @@ def local_gnn(ts, focal, reference_sets):
                 p = parent[p]
             if p != tskit.NULL:
                 scale = 1 / (total - delta)
-                for k, reference_set in enumerate(reference_sets):
+                for k, _reference_set in enumerate(reference_sets):
                     n = sample_count[p, k] - int(focal_reference_set == k)
                     A[j, t, k] = n * scale
     return (A, lefts, rights)

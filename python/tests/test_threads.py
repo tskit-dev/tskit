@@ -231,7 +231,7 @@ class TestTables(unittest.TestCase):
         table = getattr(tables, table_name)
 
         def reader(thread_index, results):
-            for j in range(100):
+            for _ in range(100):
                 x = getattr(table, col_name)
                 assert x.shape[0] == len(table)
 
@@ -246,7 +246,7 @@ class TestTables(unittest.TestCase):
         table = getattr(tables, table_name)
 
         def reader(thread_index, results):
-            for j in range(100):
+            for _ in range(100):
                 x = getattr(table, col_name)
                 assert x.shape[0] == len(table)
 

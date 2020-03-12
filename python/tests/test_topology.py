@@ -1411,7 +1411,7 @@ class TestTsinferExamples(TopologyTestCase):
         ts = tskit.load_text(nodes, edges, sequence_length=200000, strict=False)
         pts = tests.PythonTreeSequence(ts)
         num_trees = 0
-        for t in pts.trees():
+        for _ in pts.trees():
             num_trees += 1
         self.assertEqual(num_trees, ts.num_trees)
         n = 0
@@ -1819,7 +1819,7 @@ class TestGeneralSamples(TopologyTestCase):
 
         self.assertEqual(original_tables, simplified_tables)
         self.assertEqual(ts.sequence_length, simplified.sequence_length)
-        for tree in simplified.trees():
+        for _ in simplified.trees():
             pass
 
         for u, v in enumerate(node_map):
@@ -4165,9 +4165,8 @@ class TestSimplify(unittest.TestCase):
         trees = [{0: 2}, {0: 2, 1: 2}, {1: 2}]
         for t in ts.trees():
             self.assertEqual(t.parent_dict, trees[t.index])
-        for keep in [True, False]:
-            tss, node_map = self.do_simplify(ts)
-            self.assertEqual(list(node_map), [0, 1, 2])
+        tss, node_map = self.do_simplify(ts)
+        self.assertEqual(list(node_map), [0, 1, 2])
 
     def test_isolated_samples(self):
         nodes = io.StringIO(
@@ -4820,7 +4819,7 @@ class TestMapToAncestors(unittest.TestCase):
         current_descendants = [tss.child[0]]
         current_left = tss.left[0]
         current_right = tss.right[0]
-        for ind, row in enumerate(tss):
+        for _, row in enumerate(tss):
             if (
                 row.parent != current_ancestor
                 or row.left != current_left
@@ -5178,7 +5177,7 @@ class TestSampleLists(unittest.TestCase, ExampleTopologyMixin):
         tree1 = tsutil.SampleListTree(ts)
         trees = ts.trees(sample_lists=False)
         sample_index_map = ts.samples()
-        for left, right in tree1.sample_lists():
+        for _, _ in tree1.sample_lists():
             tree2 = next(trees)
             for u in range(ts.num_nodes):
                 samples2 = list(tree2.samples(u))
