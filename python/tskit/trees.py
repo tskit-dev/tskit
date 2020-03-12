@@ -3541,6 +3541,7 @@ class TreeSequence:
         .. code-block:: python
 
             import gzip
+
             with gzip.open("output.vcf.gz", "wt") as f:
                 ts.write_vcf(f)
 
@@ -3558,7 +3559,8 @@ class TreeSequence:
             write_pipe = os.fdopen(write_fd, "w")
             with open("output.bcf", "w") as bcf_file:
                 proc = subprocess.Popen(
-                    ["bcftools", "view", "-O", "b"], stdin=read_fd, stdout=bcf_file)
+                    ["bcftools", "view", "-O", "b"], stdin=read_fd, stdout=bcf_file
+                )
                 ts.write_vcf(write_pipe)
                 write_pipe.close()
                 os.close(read_fd)
@@ -3986,8 +3988,7 @@ class TreeSequence:
 
         .. code-block:: python
 
-            ts.sample_count_stat([A, B], f, windows="site",
-                                 polarised=False, mode="site")
+            ts.sample_count_stat([A, B], f, windows="site", polarised=False, mode="site")
 
         would compute, for each site, the product of the derived allele
         frequencies in the two sample sets, in a (num sites, 1) array.  If
@@ -4698,12 +4699,12 @@ class TreeSequence:
 
         .. code-block:: python
 
-            D = (T - S/h) / sqrt(a*S + (b/c)*S*(S-1))
-            h = 1 + 1/2 + ... + 1/(n-1)
-            g = 1 + 1/2^2 + ... + 1/(n-1)^2
-            a = (n+1)/(3*(n-1)*h) - 1/h^2
-            b = 2*(n^2 + n + 3)/(9*n*(n-1)) - (n+2)/(h*n) + g/h^2
-            c = h^2 + g
+            D = (T - S / h) / sqrt(a * S + (b / c) * S * (S - 1))
+            h = 1 + 1 / 2 + ... + 1 / (n - 1)
+            g = 1 + 1 / 2 ^ 2 + ... + 1 / (n - 1) ^ 2
+            a = (n + 1) / (3 * (n - 1) * h) - 1 / h ^ 2
+            b = 2 * (n ^ 2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h ^ 2
+            c = h ^ 2 + g
 
         What is computed for diversity and divergence depends on ``mode``;
         see those functions for more details.
