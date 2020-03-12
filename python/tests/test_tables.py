@@ -236,7 +236,7 @@ class CommonTestsMixin(object):
             table.num_rows = 10
         with self.assertRaises(AttributeError):
             table.max_rows = 10
-        for param, default in self.input_parameters:
+        for param, _default in self.input_parameters:
             with self.assertRaises(AttributeError):
                 setattr(table, param, 2)
         self.assertEqual(table.num_rows, 0)
@@ -601,7 +601,7 @@ class CommonTestsMixin(object):
             t = self.table_class()
             t.set_columns(**input_data)
 
-            for list_col, offset_col in self.ragged_list_columns:
+            for _list_col, offset_col in self.ragged_list_columns:
                 input_data[offset_col.name][0] = -1
                 self.assertRaises(_tskit.LibraryError, t.set_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
@@ -2052,7 +2052,7 @@ class TestDeduplicateSites(unittest.TestCase):
         tables = msprime.simulate(10, mutation_rate=1, random_seed=1).dump_tables()
         self.assertGreater(len(tables.sites), 0)
         position = tables.sites.position
-        for j in range(len(position) - 1):
+        for _ in range(len(position) - 1):
             position = np.roll(position, 1)
             tables.sites.set_columns(
                 position=position,

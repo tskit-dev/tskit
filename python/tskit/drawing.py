@@ -217,7 +217,7 @@ class SvgTreeSequence(object):
         y = self.treebox_y_offset
         defs = self.drawing.defs
 
-        for tree, svg_tree in zip(ts.trees(), svg_trees):
+        for _tree, svg_tree in zip(ts.trees(), svg_trees):
             defs.add(svg_tree.root_group)
 
         for tree in ts.trees():

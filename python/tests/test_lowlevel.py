@@ -142,7 +142,7 @@ class LowLevelTestCase(unittest.TestCase):
         """
         list_ = list(iterator)
         self.assertGreater(len(list_), 0)
-        for j in range(10):
+        for _ in range(10):
             self.assertRaises(StopIteration, next, iterator)
 
 
@@ -1504,7 +1504,13 @@ class TestTree(LowLevelTestCase):
                 tree_sites = st.get_sites()
                 self.assertEqual(st.get_num_sites(), len(tree_sites))
                 all_tree_sites.extend(tree_sites)
-                for position, ancestral_state, mutations, index, metadata in tree_sites:
+                for (
+                    position,
+                    _ancestral_state,
+                    mutations,
+                    index,
+                    metadata,
+                ) in tree_sites:
                     self.assertTrue(st.get_left() <= position < st.get_right())
                     self.assertEqual(index, j)
                     self.assertEqual(metadata, b"")
@@ -1833,7 +1839,7 @@ class TestTree(LowLevelTestCase):
         for bad_node in [u, u + 1, 2 * u]:
             self.assertRaises(_tskit.LibraryError, f, [(0.1, bad_node)])
         for bad_pos in [-1, length, length + 1]:
-            self.assertRaises(_tskit.LibraryError, f, [(length, 0)])
+            self.assertRaises(_tskit.LibraryError, f, [(bad_pos, 0)])
 
     def test_sample_list(self):
         options = _tskit.SAMPLE_LISTS

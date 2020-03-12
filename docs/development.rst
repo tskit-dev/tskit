@@ -45,7 +45,7 @@ Quickstart
   the checks (to save or get feedback on work-in-progress) use ``git commit
   --no-verify``
 - When ready open a pull request on GitHub. Please make sure that the tests pass before
-  you open the PR.
+  you open the PR, unless you want to ask the community for help with a failing test.
 
 ****************************
 Continuous integration tests
