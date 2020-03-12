@@ -1543,8 +1543,8 @@ class TestUnaryNodes(TopologyTestCase):
         mutations = "site    node    derived_state\n"
         for j in range(5):
             position = j * 1 / 5
-            sites += "{} 0\n".format(position)
-            mutations += "{} {} 1\n".format(j, j)
+            sites += f"{position} 0\n"
+            mutations += f"{j} {j} 1\n"
         ts = tskit.load_text(
             nodes=nodes,
             edges=edges,
@@ -5077,7 +5077,7 @@ class TestSimpleTreeAlgorithm(unittest.TestCase):
         self.assertRaises(StopIteration, next, new_trees)
 
 
-class ExampleTopologyMixin(object):
+class ExampleTopologyMixin:
     """
     Some example topologies for tests cases.
     """
@@ -5458,7 +5458,7 @@ class TestSquashEdges(unittest.TestCase):
 
             new_range = [left]
             for r in np.arange(r_left, r_right):
-                new_range.append((r))
+                new_range.append(r)
             new_range.append(right)
             assert len(new_range) > 1
 

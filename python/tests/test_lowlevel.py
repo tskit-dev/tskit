@@ -446,7 +446,7 @@ class TestTreeSequence(LowLevelTestCase):
             self.assertEqual(A.shape, (ts.get_num_nodes(), 2))
 
 
-class StatsInterfaceMixin(object):
+class StatsInterfaceMixin:
     """
     Tests for the interface on specific stats.
     """

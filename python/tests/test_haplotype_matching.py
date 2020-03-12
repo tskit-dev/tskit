@@ -335,7 +335,7 @@ def ls_viterbi_tree(h, alleles, ts, rho, mu, precision=30, use_lib=True):
         return va.run(h)
 
 
-class ValueTransition(object):
+class ValueTransition:
     """
     Simple struct holding value transition values.
     """
@@ -355,7 +355,7 @@ class ValueTransition(object):
         return repr(self)
 
 
-class LsHmmAlgorithm(object):
+class LsHmmAlgorithm:
     """
     Abstract superclass of Li and Stephens HMM algorithm.
     """
@@ -608,7 +608,7 @@ class LsHmmAlgorithm(object):
         raise NotImplementedError()
 
 
-class CompressedMatrix(object):
+class CompressedMatrix:
     """
     Class representing a num_samples x num_sites matrix compressed by a
     tree sequence. Each site is represented by a set of (node, value)
@@ -820,7 +820,7 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
 ################################################################
 
 
-class LiStephensBase(object):
+class LiStephensBase:
     """
     Superclass of Li and Stephens tests.
     """

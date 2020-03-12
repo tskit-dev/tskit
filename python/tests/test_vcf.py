@@ -91,7 +91,7 @@ def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
     if tree_sequence.get_sample_size() % ploidy != 0:
         raise ValueError("Sample size must a multiple of ploidy")
     n = tree_sequence.get_sample_size() // ploidy
-    sample_names = ["msp_{}".format(j) for j in range(n)]
+    sample_names = [f"msp_{j}" for j in range(n)]
     last_pos = 0
     positions = []
     for variant in tree_sequence.variants():
@@ -104,9 +104,9 @@ def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
     if len(positions) > 0:
         contig_length = max(positions[-1], contig_length)
     print("##fileformat=VCFv4.2", file=output)
-    print("##source=tskit {}".format(tskit.__version__), file=output)
+    print(f"##source=tskit {tskit.__version__}", file=output)
     print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
-    print("##contig=<ID={},length={}>".format(contig_id, contig_length), file=output)
+    print(f"##contig=<ID={contig_id},length={contig_length}>", file=output)
     print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output)
     print(
         "#CHROM",
@@ -163,7 +163,7 @@ class TestLegacyOutput(unittest.TestCase):
         vcf1 = f.getvalue()
 
         num_individuals = ts.num_samples // ploidy
-        individual_names = ["msp_{}".format(j) for j in range(num_individuals)]
+        individual_names = [f"msp_{j}" for j in range(num_individuals)]
         f = io.StringIO()
         ts.write_vcf(
             f,
@@ -192,7 +192,7 @@ class TestLegacyOutput(unittest.TestCase):
         self.verify(ts, ploidy=2, contig_id="X" * 10)
 
 
-class ExamplesMixin(object):
+class ExamplesMixin:
     """
     Mixin defining tests on various example tree sequences.
     """

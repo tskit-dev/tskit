@@ -44,7 +44,7 @@ def legacy_position_transform(positions):
     return transformed
 
 
-class VcfWriter(object):
+class VcfWriter:
     """
     Writes a VCF representation of the genotypes tree sequence to a
     file-like object.
@@ -69,7 +69,7 @@ class VcfWriter(object):
         self.__make_sample_mapping(ploidy)
 
         if individual_names is None:
-            individual_names = ["tsk_{}".format(j) for j in range(self.num_individuals)]
+            individual_names = [f"tsk_{j}" for j in range(self.num_individuals)]
         self.individual_names = individual_names
         if len(self.individual_names) != self.num_individuals:
             raise ValueError(
@@ -131,11 +131,10 @@ class VcfWriter(object):
 
     def __write_header(self, output):
         print("##fileformat=VCFv4.2", file=output)
-        print("##source=tskit {}".format(provenance.__version__), file=output)
+        print(f"##source=tskit {provenance.__version__}", file=output)
         print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
         print(
-            "##contig=<ID={},length={}>".format(self.contig_id, self.contig_length),
-            file=output,
+            f"##contig=<ID={self.contig_id},length={self.contig_length}>", file=output,
         )
         print(
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output

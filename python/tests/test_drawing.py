@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # MIT License
 #
 # Copyright (c) 2018-2019 Tskit Developers
@@ -1269,24 +1268,24 @@ class TestDrawSvg(TestTreeDraw):
         colours = {0: colour}
         svg = t.draw(format="svg", node_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+        self.assertEqual(svg.count(f'fill="{colour}"'), 1)
         svg = t.draw_svg(node_attrs={0: {"fill": colour}})
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+        self.assertEqual(svg.count(f'fill="{colour}"'), 1)
 
     def test_all_nodes_colour(self):
         t = self.get_binary_tree()
-        colours = {u: "rgb({}, {}, {})".format(u, u, u) for u in t.nodes()}
+        colours = {u: f"rgb({u}, {u}, {u})" for u in t.nodes()}
         svg = t.draw(format="svg", node_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+            self.assertEqual(svg.count(f'fill="{colour}"'), 1)
 
         svg = t.draw_svg(node_attrs={u: {"fill": colours[u]} for u in t.nodes()})
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+        self.assertEqual(svg.count(f'fill="{colour}"'), 1)
         for colour in colours.values():
-            self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+            self.assertEqual(svg.count(f'fill="{colour}"'), 1)
 
     def test_unplotted_node(self):
         t = self.get_binary_tree()
@@ -1301,17 +1300,17 @@ class TestDrawSvg(TestTreeDraw):
         colours = {0: colour}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertGreater(svg.count('stroke="{}"'.format(colour)), 0)
+        self.assertGreater(svg.count(f'stroke="{colour}"'), 0)
         svg = t.draw_svg(edge_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
+        self.assertEqual(svg.count(f'stroke="{colour}"'), 1)
 
     def test_one_mutation_label_colour(self):
         t = self.get_binary_tree()
         colour = "rgb(0, 1, 2)"
         svg = t.draw_svg(mutation_label_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('stroke="{}"'.format(colour)), 1)
+        self.assertEqual(svg.count(f'stroke="{colour}"'), 1)
 
     def test_bad_tree_height_scale(self):
         t = self.get_binary_tree()
@@ -1363,7 +1362,7 @@ class TestDrawSvg(TestTreeDraw):
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertGreater(svg.count('stroke="{}"'.format(colour)), 0)
+            self.assertGreater(svg.count(f'stroke="{colour}"'), 0)
 
     def test_unplotted_edge(self):
         t = self.get_binary_tree()
@@ -1400,18 +1399,17 @@ class TestDrawSvg(TestTreeDraw):
         colours = {0: colour}
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+        self.assertEqual(svg.count(f'fill="{colour}"'), 1)
 
     def test_all_mutations_colour(self):
         t = self.get_binary_tree()
         colours = {
-            mut.id: "rgb({}, {}, {})".format(mut.id, mut.id, mut.id)
-            for mut in t.mutations()
+            mut.id: f"rgb({mut.id}, {mut.id}, {mut.id})" for mut in t.mutations()
         }
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertEqual(svg.count('fill="{}"'.format(colour)), 1)
+            self.assertEqual(svg.count(f'fill="{colour}"'), 1)
 
     def test_unplotted_mutation(self):
         t = self.get_binary_tree()

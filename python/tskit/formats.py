@@ -244,7 +244,7 @@ def load_legacy(filename, remove_duplicate_positions=False):
         raise ValueError("HDF5 file not in msprime format")
     format_version = root.attrs["format_version"]
     if format_version[0] not in loaders:
-        raise ValueError("Version {} not supported for loading".format(format_version))
+        raise ValueError(f"Version {format_version} not supported for loading")
     try:
         ts = loaders[format_version[0]](root, remove_duplicate_positions)
     finally:
@@ -576,7 +576,7 @@ def dump_legacy(tree_sequence, filename, version=3):
         10: _dump_legacy_hdf5_v10,
     }
     if version not in dumpers:
-        raise ValueError("Version {} file format is supported".format(version))
+        raise ValueError(f"Version {version} file format is supported")
     root = h5py.File(filename, "w")
     try:
         dumpers[version](tree_sequence, root)

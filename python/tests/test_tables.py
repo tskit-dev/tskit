@@ -39,7 +39,7 @@ import tests.tsutil as tsutil
 import tskit
 
 
-class Column(object):
+class Column:
     def __init__(self, name):
         self.name = name
 
@@ -69,7 +69,7 @@ class DoubleColumn(Column):
         return 4 + np.arange(n, dtype=np.float64)
 
 
-class CommonTestsMixin(object):
+class CommonTestsMixin:
     """
     Abstract base class for common table tests. Because of the design of unittest,
     we have to make this a mixin.
@@ -627,7 +627,7 @@ class CommonTestsMixin(object):
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
 
 
-class MetadataTestsMixin(object):
+class MetadataTestsMixin:
     """
     Tests for column that have metadata columns.
     """

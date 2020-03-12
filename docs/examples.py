@@ -16,7 +16,7 @@ import tskit  # noqa: E402
 def moving_along_tree_sequence():
     ts = msprime.simulate(5, recombination_rate=1, random_seed=42)
 
-    print("Tree sequence has {} trees".format(ts.num_trees))
+    print(f"Tree sequence has {ts.num_trees} trees")
     print()
     for tree in ts.trees():
         print(
@@ -84,11 +84,11 @@ def moving_along_tree_sequence():
 
     print()
     tree = tskit.Tree(ts)
-    print("Tree {}: parent_dict = {}".format(tree.index, tree.parent_dict))
+    print(f"Tree {tree.index}: parent_dict = {tree.parent_dict}")
     tree.first()
-    print("Tree {}: parent_dict = {}".format(tree.index, tree.parent_dict))
+    print(f"Tree {tree.index}: parent_dict = {tree.parent_dict}")
     tree.prev()
-    print("Tree {}: parent_dict = {}".format(tree.index, tree.parent_dict))
+    print(f"Tree {tree.index}: parent_dict = {tree.parent_dict}")
 
     tree = tskit.Tree(ts)
     while tree.next():
@@ -215,7 +215,7 @@ def stats():
     print("num_trees = ", ts.num_trees, ", num_sites = ", ts.num_sites, sep="")
 
     x = ts.diversity()
-    print("Average diversity per unit sequence length = {:.3G}".format(x))
+    print(f"Average diversity per unit sequence length = {x:.3G}")
 
     windows = np.linspace(0, ts.sequence_length, num=5)
     x = ts.diversity(windows=windows)

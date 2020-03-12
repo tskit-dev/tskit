@@ -65,7 +65,7 @@ def overlapping_segments(segments):
             yield left, right, X
 
 
-class Segment(object):
+class Segment:
     """
     A class representing a single segment. Each segment has a left and right,
     denoting the loci over which it spans, a node and a next, giving the next
@@ -93,7 +93,7 @@ class Segment(object):
         return (self.left, self.right, self.node) < (other.left, other.right, self.node)
 
 
-class Simplifier(object):
+class Simplifier:
     """
     Simplifies a tree sequence to its minimal representation given a subset
     of the leaves.
@@ -224,7 +224,7 @@ class Simplifier(object):
             print("\t", j, "->", end="")
             x = self.A_head[j]
             while x is not None:
-                print("({}-{}->{})".format(x.left, x.right, x.node), end="")
+                print(f"({x.left}-{x.right}->{x.node})", end="")
                 x = x.next
             print()
         print("Mutation map:")
@@ -472,7 +472,7 @@ class Simplifier(object):
                     x = x.next
 
 
-class AncestorMap(object):
+class AncestorMap:
     """
     Simplifies a tree sequence to show relationships between
     samples and a designated set of ancestors.
@@ -633,7 +633,7 @@ class AncestorMap(object):
             print("\t", j, "->", end="")
             x = self.A_head[j]
             while x is not None:
-                print("({}-{}->{})".format(x.left, x.right, x.node), end="")
+                print(f"({x.left}-{x.right}->{x.node})", end="")
                 x = x.next
             print()
         print("Output:")
