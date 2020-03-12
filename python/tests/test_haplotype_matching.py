@@ -719,7 +719,7 @@ class ViterbiMatrix(CompressedMatrix):
                     u = v
                     break
             else:
-                assert False, "could not find path"
+                raise AssertionError("could not find path")
         return u
 
     def traceback(self):
@@ -861,7 +861,7 @@ class LiStephensBase(object):
         rng = np.random.RandomState(seed)
         H = ts.genotype_matrix(alleles=alleles).T
         haplotypes = [H[0], H[-1]]
-        for j in range(num_random):
+        for _ in range(num_random):
             # Choose a random path through H
             p = rng.randint(0, ts.num_samples, ts.num_sites)
             h = H[p, np.arange(ts.num_sites)]

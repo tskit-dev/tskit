@@ -365,7 +365,7 @@ def site_general_stat(
             assert windows[window_index] <= pos < windows[window_index + 1]
             site_result = result[window_index]
 
-            for allele, value in allele_state.items():
+            for _allele, value in allele_state.items():
                 site_result += summary_func(value)
             site_index += 1
     if span_normalise:
@@ -2893,33 +2893,32 @@ def naive_branch_allele_frequency_spectrum(
     for j in range(num_windows):
         begin = windows[j]
         end = windows[j + 1]
-        for set_index, sample_set in enumerate(sample_sets):
-            S = np.zeros(out_dim)
-            trees = [
-                next(ts.trees(tracked_samples=sample_set)) for sample_set in sample_sets
-            ]
-            t = trees[0]
-            while True:
-                tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
-                if tr_len > 0:
-                    for node in t.nodes():
-                        if 0 < t.num_samples(node) < ts.num_samples:
-                            x = [tree.num_tracked_samples(node) for tree in trees]
-                            # Note x must be a tuple for indexing to work
-                            if polarised:
-                                S[tuple(x)] += t.branch_length(node) * tr_len
-                            else:
-                                x = fold(x, out_dim)
-                                S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
+        S = np.zeros(out_dim)
+        trees = [
+            next(ts.trees(tracked_samples=sample_set)) for sample_set in sample_sets
+        ]
+        t = trees[0]
+        while True:
+            tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
+            if tr_len > 0:
+                for node in t.nodes():
+                    if 0 < t.num_samples(node) < ts.num_samples:
+                        x = [tree.num_tracked_samples(node) for tree in trees]
+                        # Note x must be a tuple for indexing to work
+                        if polarised:
+                            S[tuple(x)] += t.branch_length(node) * tr_len
+                        else:
+                            x = fold(x, out_dim)
+                            S[tuple(x)] += 0.5 * t.branch_length(node) * tr_len
 
-                # Advance the trees
-                more = [tree.next() for tree in trees]
-                assert len(set(more)) == 1
-                if not more[0]:
-                    break
-            if span_normalise:
-                S /= end - begin
-            out[j, :] = S
+            # Advance the trees
+            more = [tree.next() for tree in trees]
+            assert len(set(more)) == 1
+            if not more[0]:
+                break
+        if span_normalise:
+            S /= end - begin
+        out[j, :] = S
     return out
 
 
@@ -3108,7 +3107,7 @@ def site_allele_frequency_spectrum(
                 del allele_count[ancestral_state]
 
             increment = 1 if polarised else 0.5
-            for allele, c in allele_count.items():
+            for _allele, c in allele_count.items():
                 x = tuple(c[:-1])
                 if not polarised:
                     x = fold(x, out_dim)
@@ -3390,14 +3389,17 @@ class TestSampleSets(StatsTestCase):
 
         # Determine output_dim of the function
         for mode in ("site", "branch", "node"):
-            sigma1 = ts.sample_count_stat(sample_sets, f, 3, windows=windows)
+            sigma1 = ts.sample_count_stat(sample_sets, f, 3, windows=windows, mode=mode)
             sigma2 = ts.sample_count_stat(
-                sample_sets, f, 3, windows=windows, span_normalise=True
+                sample_sets, f, 3, windows=windows, mode=mode, span_normalise=True
             )
             sigma3 = ts.sample_count_stat(
-                sample_sets, f, 3, windows=windows, span_normalise=False
+                sample_sets, f, 3, windows=windows, mode=mode, span_normalise=False
             )
             denom = np.diff(windows)[:, np.newaxis]
+            if mode == "node":
+                denom = np.repeat(denom, sigma1.shape[1], axis=1)[:, :, np.newaxis]
+
             self.assertEqual(sigma1.shape, sigma2.shape)
             self.assertEqual(sigma1.shape, sigma3.shape)
             self.assertArrayAlmostEqual(sigma1, sigma2)

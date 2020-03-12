@@ -60,7 +60,7 @@ version = ".".join(release.split(".")[:2])
 #
 # Monkey-patching sphinx to workaround really annoying bug in ivar
 # handling. See
-# https://stackoverflow.com/questions/31784830/sphinx-ivar-tag-goes-looking-for-cross-references
+# https://stackoverflow.com/questions/31784830
 #
 
 

@@ -390,7 +390,7 @@ class TestRecordsEqual(unittest.TestCase, ExamplesMixin):
                 self.assertEqual(list(pysam_sample.alleles), pyvcf_alleles)
 
     def verify(self, ts):
-        for indivs, num_indivs in example_individuals(ts):
+        for indivs, _num_indivs in example_individuals(ts):
             with ts_to_pysam(ts, individuals=indivs) as bcf_file, ts_to_pyvcf(
                 ts, individuals=indivs
             ) as vcf_reader:
@@ -475,7 +475,7 @@ class TestRoundTripIndividuals(unittest.TestCase, ExamplesMixin):
     """
 
     def verify(self, ts):
-        for indivs, num_indivs in example_individuals(ts):
+        for indivs, _num_indivs in example_individuals(ts):
             with ts_to_pyvcf(ts, individuals=indivs) as vcf_reader:
                 samples = []
                 if indivs is None:

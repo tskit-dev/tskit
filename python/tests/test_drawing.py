@@ -60,7 +60,7 @@ class TestTreeDraw(unittest.TestCase):
             for u in t.nodes():
                 if len(t.children(u)) > 2:
                     return t
-        assert False
+        raise AssertionError()
 
     def get_zero_edge_tree(self):
         tables = tskit.TableCollection(sequence_length=2)
@@ -100,7 +100,7 @@ class TestTreeDraw(unittest.TestCase):
         for t in ts.trees():
             if t.num_roots > 1:
                 return t
-        assert False
+        raise AssertionError()
 
     def get_mutations_over_roots_tree(self):
         ts = msprime.simulate(15, random_seed=1)
@@ -134,7 +134,7 @@ class TestTreeDraw(unittest.TestCase):
             for u in t.nodes():
                 if len(t.children(u)) == 1:
                     return t
-        assert False
+        raise AssertionError()
 
     def get_empty_tree(self):
         tables = tskit.TableCollection(sequence_length=1)
