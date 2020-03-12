@@ -23,6 +23,8 @@ In development
   us to efficiently iterate over 'real' roots when we have
   missing data (:user:`jeromekelleher`, :pr:`462`).
 
+- Add pickle support for `TreeSequence` (:user:`terhorst`, :pr:`473`).
+
 **Bugfixes**
 
 **Deprecated**
