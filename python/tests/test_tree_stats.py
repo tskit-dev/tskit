@@ -550,7 +550,7 @@ class StatsTestCase(unittest.TestCase):
         return lambda x: np.array([sum(x) * (sum(x) < 2 * ts.num_samples)] * k)
 
 
-class TopologyExamplesMixin(object):
+class TopologyExamplesMixin:
     """
     Defines a set of test cases on different example tree sequence topologies.
     Derived classes need to define a 'verify' function which will perform the
@@ -680,7 +680,7 @@ class TopologyExamplesMixin(object):
         self.verify(ts)
 
 
-class MutatedTopologyExamplesMixin(object):
+class MutatedTopologyExamplesMixin:
     """
     Defines a set of test cases on different example tree sequence topologies.
     Derived classes need to define a 'verify' function which will perform the
@@ -919,7 +919,7 @@ def example_windows(ts):
     yield np.linspace(0, L, num=10)
 
 
-class WeightStatsMixin(object):
+class WeightStatsMixin:
     """
     Implements the verify method and dispatches it to verify_weighted_stat
     for a representative set of sample sets and windows.
@@ -984,7 +984,7 @@ class WeightStatsMixin(object):
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
-class SampleSetStatsMixin(object):
+class SampleSetStatsMixin:
     """
     Implements the verify method and dispatches it to verify_sample_sets
     for a representative set of sample sets and windows.
@@ -1127,7 +1127,7 @@ def site_diversity(ts, sample_sets, windows=None, span_normalise=True):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     site_in_window = True
                     for x in X:
-                        for y in set(X) - set([x]):
+                        for y in set(X) - {x}:
                             x_index = np.where(samples == x)[0][0]
                             y_index = np.where(samples == y)[0][0]
                             if haps[x_index][k] != haps[y_index][k]:
@@ -1160,7 +1160,7 @@ def branch_diversity(ts, sample_sets, windows=None, span_normalise=True):
                     has_trees = True
                 SS = 0
                 for x in X:
-                    for y in set(X) - set([x]):
+                    for y in set(X) - {x}:
                         SS += path_length(tr, x, y)
                 S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
             if has_trees:
@@ -1831,7 +1831,7 @@ class TestFst(StatsTestCase, TwoWaySampleSetStatsMixin):
         self.assertArrayAlmostEqual(sigma1, sigma2)
 
 
-class FstInterfaceMixin(object):
+class FstInterfaceMixin:
     def test_interface(self):
         ts = msprime.simulate(10, mutation_rate=0.0)
         sample_sets = [[0, 1, 2], [6, 7], [4]]
@@ -2962,7 +2962,7 @@ def branch_allele_frequency_spectrum(
     # The last column counts across all samples
     count[ts.samples(), -1] = 1
     # contains the location of the last time we updated the output for a node.
-    last_update = np.zeros((ts.num_nodes))
+    last_update = np.zeros(ts.num_nodes)
     window_index = 0
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
     branch_length = np.zeros(ts.num_nodes)
@@ -4042,7 +4042,7 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
-class TraitCovarianceMixin(object):
+class TraitCovarianceMixin:
     def test_interface(self):
         ts = self.get_example_ts()
         self.verify_interface(ts, ts.trait_covariance)
@@ -4265,7 +4265,7 @@ class TestTraitCorrelation(TestTraitCovariance):
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
-class TraitCorrelationMixin(object):
+class TraitCorrelationMixin:
     def test_interface(self):
         ts = self.get_example_ts()
         self.verify_interface(ts, ts.trait_correlation)
@@ -4539,7 +4539,7 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
-class TraitRegressionMixin(object):
+class TraitRegressionMixin:
     def test_interface(self):
         ts = self.get_example_ts()
         W = np.array([np.arange(ts.num_samples)]).T

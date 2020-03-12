@@ -51,7 +51,7 @@ def safe_np_int_cast(int_array, dtype, copy=False):
             raise TypeError("Cannot convert to a rectangular array.")
         bounds = np.iinfo(dtype)
         if np.any(int_array < bounds.min) or np.any(int_array > bounds.max):
-            raise OverflowError("Cannot convert safely to {} type".format(dtype))
+            raise OverflowError(f"Cannot convert safely to {dtype} type")
         if int_array.dtype.kind == "i" and np.dtype(dtype).kind == "u":
             # Allow casting from int to unsigned int, since we have checked bounds
             casting = "unsafe"
@@ -205,7 +205,7 @@ def intervals_to_np_array(intervals, start, end):
     last_right = start
     for left, right in intervals:
         if left < start or right > end:
-            raise ValueError("Intervals must be within {} and {}".format(start, end))
+            raise ValueError(f"Intervals must be within {start} and {end}")
         if right <= left:
             raise ValueError("Bad interval: right <= left")
         if left < last_right:

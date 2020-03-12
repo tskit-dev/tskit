@@ -140,7 +140,7 @@ def node_metadata_example():
         sample_size=100, recombination_rate=0.1, length=10, random_seed=1
     )
     tables = ts.dump_tables()
-    metadatas = ["n_{}".format(u) for u in range(ts.num_nodes)]
+    metadatas = [f"n_{u}" for u in range(ts.num_nodes)]
     packed, offset = tskit.pack_strings(metadatas)
     tables.nodes.set_columns(
         metadata=packed,

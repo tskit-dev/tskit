@@ -47,7 +47,7 @@ def load_tree_sequence(path):
     try:
         return tskit.load(path)
     except tskit.FileFormatError as e:
-        exit("Load error: {}".format(e))
+        exit(f"Load error: {e}")
 
 
 def run_info(args):
@@ -68,8 +68,8 @@ def run_info(args):
 def run_trees(args):
     ts = load_tree_sequence(args.tree_sequence)
     for tree in ts.trees():
-        print("tree {}:".format(tree.index))
-        print("  num_sites: {}".format(tree.num_sites))
+        print(f"tree {tree.index}:")
+        print(f"  num_sites: {tree.num_sites}")
         left, right = tree.interval
         print("  interval:  ({0:.{2}f}, {1:.{2}f})".format(left, right, args.precision))
         if args.draw:
@@ -162,10 +162,7 @@ def get_tskit_parser():
         prog="python3 -m tskit", description="Command line interface for tskit."
     )
     top_parser.add_argument(
-        "-V",
-        "--version",
-        action="version",
-        version="%(prog)s {}".format(tskit.__version__),
+        "-V", "--version", action="version", version=f"%(prog)s {tskit.__version__}",
     )
     subparsers = top_parser.add_subparsers(dest="subcommand")
     subparsers.required = True

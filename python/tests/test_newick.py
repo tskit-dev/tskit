@@ -119,7 +119,7 @@ class TestNewick(unittest.TestCase):
 
     def test_binary_leaf_labels(self):
         tree = self.get_binary_example().first()
-        labels = {u: "x_{}".format(u) for u in tree.leaves()}
+        labels = {u: f"x_{u}" for u in tree.leaves()}
         self.verify_newick_topology(tree, node_labels=labels)
 
     def test_nonbinary_leaf_labels(self):
@@ -130,7 +130,7 @@ class TestNewick(unittest.TestCase):
 
     def test_all_node_labels(self):
         tree = msprime.simulate(5, random_seed=2).first()
-        labels = {u: "x_{}".format(u) for u in tree.nodes()}
+        labels = {u: f"x_{u}" for u in tree.nodes()}
         ns = tree.newick(node_labels=labels)
         root = newick.loads(ns)[0]
         self.assertEqual(root.name, labels[tree.root])

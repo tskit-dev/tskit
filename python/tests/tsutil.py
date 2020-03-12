@@ -50,7 +50,7 @@ def random_strings(max_length):
 
 
 def add_provenance(provenance_table, method_name):
-    d = provenance.get_provenance_dict({"command": "tsutil.{}".format(method_name)})
+    d = provenance.get_provenance_dict({"command": f"tsutil.{method_name}"})
     provenance_table.add_row(json.dumps(d))
 
 
@@ -578,7 +578,7 @@ def algorithm_T(ts):
         left = right
 
 
-class SampleListTree(object):
+class SampleListTree:
     """
     Straightforward implementation of the quintuply linked tree for developing
     and testing the sample lists feature.
@@ -751,7 +751,7 @@ class SampleListTree(object):
             left = right
 
 
-class RootThresholdTree(object):
+class RootThresholdTree:
     """
     Straightforward implementation of the quintuply linked tree for developing
     and testing the root_threshold feature.

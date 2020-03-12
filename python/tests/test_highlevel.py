@@ -185,13 +185,10 @@ def get_decapitated_examples():
 
 def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=True):
     if gaps:
-        for ts in get_decapitated_examples():
-            yield ts
-        for ts in get_gap_examples():
-            yield ts
+        yield from get_decapitated_examples()
+        yield from get_gap_examples()
     if internal_samples:
-        for ts in get_internal_samples_examples():
-            yield ts
+        yield from get_internal_samples_examples()
     seed = 1
     for n in [2, 3, 10, 100]:
         for m in [1, 2, 32]:
@@ -1071,12 +1068,12 @@ class TestTreeSequence(HighLevelTestCase):
         prefix = os.path.join(os.path.dirname(__file__), "data", "simplify-bugs")
         j = 1
         while True:
-            nodes_file = os.path.join(prefix, "{:02d}-nodes.txt".format(j))
+            nodes_file = os.path.join(prefix, f"{j:02d}-nodes.txt")
             if not os.path.exists(nodes_file):
                 break
-            edges_file = os.path.join(prefix, "{:02d}-edges.txt".format(j))
-            sites_file = os.path.join(prefix, "{:02d}-sites.txt".format(j))
-            mutations_file = os.path.join(prefix, "{:02d}-mutations.txt".format(j))
+            edges_file = os.path.join(prefix, f"{j:02d}-edges.txt")
+            sites_file = os.path.join(prefix, f"{j:02d}-sites.txt")
+            mutations_file = os.path.join(prefix, f"{j:02d}-mutations.txt")
             with open(nodes_file) as nodes, open(edges_file) as edges, open(
                 sites_file
             ) as sites, open(mutations_file) as mutations:
@@ -1792,7 +1789,7 @@ class TestTree(HighLevelTestCase):
 
             # test descendants
             self.assertSetEqual(
-                set(u for u in tree.nodes() if tree.is_descendant(u, root)),
+                {u for u in tree.nodes() if tree.is_descendant(u, root)},
                 set(nx.descendants(g, root)) | {root},
             )
 
@@ -2420,7 +2417,7 @@ class TestNodeOrdering(HighLevelTestCase):
             self.verify_random_permutation(ts)
 
 
-class SimpleContainersMixin(object):
+class SimpleContainersMixin:
     """
     Tests for the SimpleContainer classes.
     """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # MIT License
 #
 # Copyright (c) 2018-2019 Tskit Developers
@@ -104,7 +103,7 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
         self.assertEqual(ts1.tables.nodes, ts2.tables.nodes)
 
 
-class ExampleMetadata(object):
+class ExampleMetadata:
     """
     Simple class that we can pickle/unpickle in metadata.
     """

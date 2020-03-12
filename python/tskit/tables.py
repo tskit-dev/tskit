@@ -92,7 +92,7 @@ def keep_with_offset(keep, data, offset):
     )
 
 
-class BaseTable(object):
+class BaseTable:
     """
     Superclass of high-level tables. Not intended for direct instantiation.
     """
@@ -107,7 +107,7 @@ class BaseTable(object):
     def _check_required_args(self, **kwargs):
         for k, v in kwargs.items():
             if v is None:
-                raise TypeError("{} is required".format(k))
+                raise TypeError(f"{k} is required")
 
     @property
     def num_rows(self):
@@ -138,7 +138,7 @@ class BaseTable(object):
             return getattr(self.ll_table, name)
         else:
             raise AttributeError(
-                "{} object has no attribute {}".format(self.__class__.__name__, name)
+                f"{self.__class__.__name__} object has no attribute {name}"
             )
 
     def __setattr__(self, name, value):
@@ -207,7 +207,7 @@ class BaseTable(object):
         raise NotImplementedError()
 
 
-class MetadataMixin(object):
+class MetadataMixin:
     """
     Mixin class for tables that have a metadata column.
     """
@@ -1271,7 +1271,7 @@ class PopulationTable(BaseTable, MetadataMixin):
         ret = "id\tmetadata\n"
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += "{}\t{}\n".format(j, md)
+            ret += f"{j}\t{md}\n"
         return ret[:-1]
 
     def set_columns(self, metadata=None, metadata_offset=None):
@@ -1478,7 +1478,7 @@ class ProvenanceTable(BaseTable):
         self.set_columns(**d)
 
 
-class TableCollection(object):
+class TableCollection:
     """
     A collection of mutable tables defining a tree sequence. See the
     :ref:`sec_data_model` section for definition on the various tables
@@ -1584,7 +1584,7 @@ class TableCollection(object):
     def __banner(self, title):
         width = 60
         line = "#" * width
-        title_line = "#   {}".format(title)
+        title_line = f"#   {title}"
         title_line += " " * (width - len(title_line) - 1)
         title_line += "#"
         return line + "\n" + title_line + "\n" + line + "\n"
