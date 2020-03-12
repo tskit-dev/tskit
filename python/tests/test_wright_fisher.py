@@ -36,7 +36,7 @@ import tests.tsutil as tsutil
 import tskit
 
 
-class WrightFisherSimulator(object):
+class WrightFisherSimulator:
     """
     SIMPLE simulation of a bisexual, haploid Wright-Fisher population of size N
     for ngens generations, in which each individual survives with probability

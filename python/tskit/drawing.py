@@ -44,9 +44,7 @@ def check_orientation(orientation):
         orientation = orientation.lower()
         orientations = [LEFT, RIGHT, TOP, BOTTOM]
         if orientation not in orientations:
-            raise ValueError(
-                "Unknown orientiation: choose from {}".format(orientations)
-            )
+            raise ValueError(f"Unknown orientiation: choose from {orientations}")
     return orientation
 
 
@@ -166,7 +164,7 @@ def draw_tree(
         return str(text_tree)
 
 
-class SvgTreeSequence(object):
+class SvgTreeSequence:
     """
     Draw a TreeSequence in SVG.
     """
@@ -221,7 +219,7 @@ class SvgTreeSequence(object):
             defs.add(svg_tree.root_group)
 
         for tree in ts.trees():
-            tree_id = "#tree_{}".format(tree.index)
+            tree_id = f"#tree_{tree.index}"
             use = self.drawing.use(tree_id, (x, y))
             self.drawing.add(use)
             ticks.append((x, tree.interval[0]))
@@ -249,7 +247,7 @@ class SvgTreeSequence(object):
             dwg.add(dwg.line((x, y - delta), (x, y + delta), stroke="black"))
             dwg.add(
                 dwg.text(
-                    "{:.2f}".format(genome_coord),
+                    f"{genome_coord:.2f}",
                     (x, y + 20),
                     font_size=14,
                     text_anchor="middle",
@@ -258,7 +256,7 @@ class SvgTreeSequence(object):
             )
 
 
-class SvgTree(object):
+class SvgTree:
     """
     An SVG representation of a single tree.
 
@@ -341,7 +339,7 @@ class SvgTree(object):
     def setup_drawing(self):
         self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
         dwg = self.drawing
-        self.root_group = dwg.add(dwg.g(id="tree_{}".format(self.tree.index)))
+        self.root_group = dwg.add(dwg.g(id=f"tree_{self.tree.index}"))
         self.edges = self.root_group.add(dwg.g(id="edges", stroke="black", fill="none"))
         self.symbols = self.root_group.add(dwg.g(id="symbols"))
         self.nodes = self.symbols.add(dwg.g(class_="nodes"))
@@ -455,7 +453,7 @@ class SvgTree(object):
 
         for u in tree.nodes():
             pu = node_x_coord_map[u], node_y_coord_map[u]
-            node_id = "node_{}_{}".format(tree.index, u)
+            node_id = f"node_{tree.index}_{u}"
             self.nodes.add(dwg.circle(id=node_id, center=pu, **self.node_attrs[u]))
             dx = 0
             dy = -5
@@ -477,12 +475,12 @@ class SvgTree(object):
             )
             v = tree.parent(u)
             if v != NULL:
-                edge_id = "edge_{}_{}".format(tree.index, u)
+                edge_id = f"edge_{tree.index}_{u}"
                 pv = node_x_coord_map[v], node_y_coord_map[v]
                 path = dwg.path(
                     [("M", pu), ("V", pv[1]), ("H", pv[0])],
                     id=edge_id,
-                    **self.edge_attrs[u]
+                    **self.edge_attrs[u],
                 )
                 self.edges.add(path)
             else:
@@ -510,13 +508,13 @@ class SvgTree(object):
                 labels.add(
                     dwg.text(
                         insert=(x + dx, y + dy),
-                        **self.mutation_label_attrs[mutation.id]
+                        **self.mutation_label_attrs[mutation.id],
                     )
                 )
                 y -= delta
 
 
-class TextTreeSequence(object):
+class TextTreeSequence:
     """
     Draw a tree sequence as horizontal line of trees.
     """
@@ -661,7 +659,7 @@ def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
     return depth, current_depth
 
 
-class TextTree(object):
+class TextTree:
     """
     Draws a reprentation of a tree using unicode drawing characters written
     to a 2D array.
@@ -759,7 +757,7 @@ class VerticalTextTree(TextTree):
                     else:
                         a = min(coords)
                         b = max(coords)
-                        child_mid = int(round((a + (b - a) / 2)))
+                        child_mid = int(round(a + (b - a) / 2))
                         self.traversal_position[u] = child_mid
                     self.label_x[u] = self.traversal_position[u] - label_size // 2
                     sib_x = -1
@@ -863,7 +861,7 @@ class HorizontalTextTree(TextTree):
                     else:
                         a = min(coords)
                         b = max(coords)
-                        child_mid = int(round((a + (b - a) / 2)))
+                        child_mid = int(round(a + (b - a) / 2))
                         self.traversal_position[u] = child_mid
             y += 1
         self.height = y - 2

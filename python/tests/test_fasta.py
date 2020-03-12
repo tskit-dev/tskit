@@ -135,14 +135,14 @@ class TestSequenceIds(unittest.TestCase):
             fasta_path = os.path.join(temp_dir, "testing_def_fasta.txt")
             with open(fasta_path, "w") as f:
                 ts.write_fasta(f, sequence_ids=seq_ids_in)
-            with open(fasta_path, "r") as handle:
+            with open(fasta_path) as handle:
                 for record in SeqIO.parse(handle, "fasta"):
                     seq_ids_read.append(record.id)
 
         # test default seq ids
         if seq_ids_in in [None]:
             for i, val in enumerate(seq_ids_read):
-                self.assertEqual("tsk_{}".format(i), val)
+                self.assertEqual(f"tsk_{i}", val)
         # test custom seq ids
         else:
             for i, j in itertools.zip_longest(seq_ids_in, seq_ids_read):
@@ -156,16 +156,16 @@ class TestSequenceIds(unittest.TestCase):
     def test_custom_ids(self):
         # test that custom sequence ids, immediately following '>', are as expected
         ts = create_data(100)
-        seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples)]
+        seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples)]
         self.verify_ids(ts, seq_ids_in)
 
     def test_bad_length_ids(self):
         ts = create_data(100)
         with self.assertRaises(ValueError):
-            seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples - 1)]
+            seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples - 1)]
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
         with self.assertRaises(ValueError):
-            seq_ids_in = ["x_{}".format(_) for _ in range(ts.num_samples + 1)]
+            seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples + 1)]
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
         with self.assertRaises(ValueError):
             seq_ids_in = []
@@ -184,7 +184,7 @@ class TestRoundTrip(unittest.TestCase):
             fasta_path = os.path.join(temp_dir, "testing_def_fasta.txt")
             with open(fasta_path, "w") as f:
                 ts.write_fasta(f, wrap_width=wrap_width)
-            with open(fasta_path, "r") as handle:
+            with open(fasta_path) as handle:
                 for record in SeqIO.parse(handle, "fasta"):
                     biopython_fasta_read.append(record.seq)
 

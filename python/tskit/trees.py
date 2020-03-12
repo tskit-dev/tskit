@@ -54,7 +54,7 @@ CoalescenceRecord = collections.namedtuple(
 
 # TODO this interface is rubbish. Should have much better printing options.
 # TODO we should be use __slots__ here probably.
-class SimpleContainer(object):
+class SimpleContainer:
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
@@ -454,7 +454,7 @@ def add_deprecated_mutation_attrs(site, mutation):
     return mutation
 
 
-class Tree(object):
+class Tree:
     """
     A single tree in a :class:`TreeSequence`. Please see the
     :ref:`sec_tutorial_moving_along_a_tree_sequence` section for information
@@ -1410,8 +1410,7 @@ class Tree(object):
         if u is None:
             roots = self.roots
         for root in roots:
-            for v in self._sample_generator(root):
-                yield v
+            yield from self._sample_generator(root)
 
     def num_children(self, u):
         """
@@ -1524,12 +1523,10 @@ class Tree(object):
         children = self.get_children(u)
         mid = len(children) // 2
         for c in children[:mid]:
-            for v in self._inorder_traversal(c):
-                yield v
+            yield from self._inorder_traversal(c)
         yield u
         for c in children[mid:]:
-            for v in self._inorder_traversal(c):
-                yield v
+            yield from self._inorder_traversal(c)
 
     def _levelorder_traversal(self, u):
         queue = collections.deque([u])
@@ -1582,13 +1579,12 @@ class Tree(object):
         try:
             iterator = methods[order]
         except KeyError:
-            raise ValueError("Traversal ordering '{}' not supported".format(order))
+            raise ValueError(f"Traversal ordering '{order}' not supported")
         roots = [root]
         if root is None:
             roots = self.roots
         for u in roots:
-            for v in iterator(u):
-                yield v
+            yield from iterator(u)
 
     # TODO make this a bit less embarrassing by using an iterative method.
     def __build_newick(self, node, precision, node_labels):
@@ -1598,14 +1594,14 @@ class Tree(object):
         """
         label = node_labels.get(node, "")
         if self.is_leaf(node):
-            s = "{}".format(label)
+            s = f"{label}"
         else:
             s = "("
             for child in self.children(node):
                 branch_length = self.branch_length(child)
                 subtree = self.__build_newick(child, precision, node_labels)
                 s += subtree + ":{0:.{1}f},".format(branch_length, precision)
-            s = s[:-1] + "){}".format(label)
+            s = s[:-1] + f"){label}"
         return s
 
     def newick(self, precision=14, root=None, node_labels=None):
@@ -2259,7 +2255,7 @@ def load_text(
     return tc.tree_sequence()
 
 
-class TreeIterator(object):
+class TreeIterator:
     """
     Simple class providing forward and backward iteration over a tree sequence.
     """
@@ -2289,7 +2285,7 @@ class TreeIterator(object):
         return self.tree.tree_sequence.num_trees
 
 
-class SimpleContainerSequence(object):
+class SimpleContainerSequence:
     """
     Simple wrapper to allow arrays of SimpleContainers (e.g. edges, nodes) that have a
     function allowing access by index (e.g. ts.edge(i), ts.node(i)) to be treated as a
@@ -2311,7 +2307,7 @@ class SimpleContainerSequence(object):
         return self.getter(index)
 
 
-class TreeSequence(object):
+class TreeSequence:
     """
     A single tree sequence, as defined by the :ref:`data model <sec_data_model>`.
     A TreeSequence instance can be created from a set of
@@ -3458,7 +3454,7 @@ class TreeSequence(object):
         """
         # if not specified, IDs default to sample index
         if sequence_ids is None:
-            sequence_ids = ["tsk_{}".format(j) for j in self.samples()]
+            sequence_ids = [f"tsk_{j}" for j in self.samples()]
         if len(sequence_ids) != self.num_samples:
             raise ValueError(
                 "sequence_ids must have length equal to the number of samples."
@@ -4066,7 +4062,7 @@ class TreeSequence(object):
                 windows[0] = 0.0
             else:
                 raise ValueError(
-                    "Unrecognized window specification {}:".format(windows),
+                    f"Unrecognized window specification {windows}:",
                     "the only allowed strings are 'sites' or 'trees'",
                 )
         return np.array(windows)
