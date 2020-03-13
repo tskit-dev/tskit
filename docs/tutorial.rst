@@ -260,8 +260,11 @@ use the :meth:`TreeSequence.trees` method:
     print("Tree sequence has {} trees".format(ts.num_trees))
     print()
     for tree in ts.trees():
-        print("Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
-            tree.index, *tree.interval, tree.time(tree.root)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
+                tree.index, *tree.interval, tree.time(tree.root)
+            )
+        )
 
 Running the code, we get::
 
@@ -289,8 +292,11 @@ We can also efficiently iterate over the trees backwards, using Python's
 .. code-block:: python
 
     for tree in reversed(ts.trees()):
-        print("Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
-            tree.index, *tree.interval, tree.time(tree.root)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}); TMRCA = {:.4f}".format(
+                tree.index, *tree.interval, tree.time(tree.root)
+            )
+        )
 
 giving::
 
@@ -314,8 +320,11 @@ list, we will get unexpected results:
 .. code-block:: python
 
     for tree in list(ts.trees()):
-        print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-            tree.index, *tree.interval, id(tree)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+                tree.index, *tree.interval, id(tree)
+            )
+        )
 
 ::
 
@@ -338,8 +347,11 @@ If we do wish to obtain a list of the trees, we can do so by using the
 .. code-block:: python
 
     for tree in ts.aslist():
-        print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-            tree.index, *tree.interval, id(tree)))
+        print(
+            "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+                tree.index, *tree.interval, id(tree)
+            )
+        )
 
 ::
 
@@ -369,14 +381,23 @@ tree at a given index along the sequence:
 .. code-block:: python
 
     tree = ts.at(0.5)
-    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-        tree.index, *tree.interval, id(tree)))
+    print(
+        "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)
+        )
+    )
     tree = ts.at_index(0)
-    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-        tree.index, *tree.interval, id(tree)))
+    print(
+        "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)
+        )
+    )
     tree = ts.at_index(-1)
-    print("Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
-        tree.index, *tree.interval, id(tree)))
+    print(
+        "Tree {} covers [{:.2f}, {:.2f}): id={:x}".format(
+            tree.index, *tree.interval, id(tree)
+        )
+    )
 
 ::
 
@@ -416,10 +437,11 @@ to remove all singleton sites from a given tree sequence.
                 mut = site.mutations[0]
                 if tree.num_samples(mut.node) > 1:
                     site_id = tables.sites.add_row(
-                        position=site.position,
-                        ancestral_state=site.ancestral_state)
+                        position=site.position, ancestral_state=site.ancestral_state
+                    )
                     tables.mutations.add_row(
-                        site=site_id, node=mut.node, derived_state=mut.derived_state)
+                        site=site_id, node=mut.node, derived_state=mut.derived_state
+                    )
         return tables.tree_sequence()
 
 
@@ -732,22 +754,22 @@ used here.)
     import tskit
     import matplotlib.pyplot as pyplot
 
+
     def ld_matrix_example():
-        ts = msprime.simulate(100, recombination_rate=10, mutation_rate=20,
-                random_seed=1)
+        ts = msprime.simulate(100, recombination_rate=10, mutation_rate=20, random_seed=1)
         ld_calc = tskit.LdCalculator(ts)
         A = ld_calc.r2_matrix()
         # Now plot this matrix.
-        x = A.shape[0] / pyplot.rcParams['figure.dpi']
-        x = max(x, pyplot.rcParams['figure.figsize'][0])
+        x = A.shape[0] / pyplot.rcParams["figure.dpi"]
+        x = max(x, pyplot.rcParams["figure.figsize"][0])
         fig, ax = pyplot.subplots(figsize=(x, x))
         fig.tight_layout(pad=0)
         im = ax.imshow(A, interpolation="none", vmin=0, vmax=1, cmap="Blues")
         ax.set_xticks([])
         ax.set_yticks([])
-        for s in 'top', 'bottom', 'left', 'right':
+        for s in "top", "bottom", "left", "right":
             ax.spines[s].set_visible(False)
-        pyplot.gcf().colorbar(im, shrink=.5, pad=0)
+        pyplot.gcf().colorbar(im, shrink=0.5, pad=0)
         pyplot.savefig("ld.svg")
 
 
@@ -800,9 +822,10 @@ progress bar on this computation.
     import msprime
     import tskit
 
+
     def find_ld_sites(
-            tree_sequence, focal_mutations, max_distance=1e6, r2_threshold=0.5,
-            num_threads=8):
+        tree_sequence, focal_mutations, max_distance=1e6, r2_threshold=0.5, num_threads=8
+    ):
         results = {}
         progress_bar = tqdm.tqdm(total=len(focal_mutations))
         num_threads = min(num_threads, len(focal_mutations))
@@ -811,22 +834,22 @@ progress bar on this computation.
             ld_calc = tskit.LdCalculator(tree_sequence)
             chunk_size = int(math.ceil(len(focal_mutations) / num_threads))
             start = thread_index * chunk_size
-            for focal_mutation in focal_mutations[start: start + chunk_size]:
+            for focal_mutation in focal_mutations[start : start + chunk_size]:
                 a = ld_calc.r2_array(
-                    focal_mutation, max_distance=max_distance,
-                    direction=tskit.REVERSE)
+                    focal_mutation, max_distance=max_distance, direction=tskit.REVERSE
+                )
                 rev_indexes = focal_mutation - np.nonzero(a >= r2_threshold)[0] - 1
                 a = ld_calc.r2_array(
-                    focal_mutation, max_distance=max_distance,
-                    direction=tskit.FORWARD)
+                    focal_mutation, max_distance=max_distance, direction=tskit.FORWARD
+                )
                 fwd_indexes = focal_mutation + np.nonzero(a >= r2_threshold)[0] + 1
                 indexes = np.concatenate((rev_indexes[::-1], fwd_indexes))
                 results[focal_mutation] = indexes
                 progress_bar.update()
 
         threads = [
-            threading.Thread(target=thread_worker, args=(j,))
-            for j in range(num_threads)]
+            threading.Thread(target=thread_worker, args=(j,)) for j in range(num_threads)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -834,10 +857,15 @@ progress bar on this computation.
         progress_bar.close()
         return results
 
+
     def threads_example():
         ts = msprime.simulate(
-            sample_size=1000, Ne=1e4, length=1e7, recombination_rate=2e-8,
-            mutation_rate=2e-8)
+            sample_size=1000,
+            Ne=1e4,
+            length=1e7,
+            recombination_rate=2e-8,
+            mutation_rate=2e-8,
+        )
         counts = np.zeros(ts.num_sites)
         for tree in ts.trees():
             for site in tree.sites():
@@ -846,9 +874,7 @@ progress bar on this computation.
                 counts[site.id] = tree.num_samples(mutation.node)
         doubletons = np.nonzero(counts == 2)[0]
         results = find_ld_sites(ts, doubletons, num_threads=8)
-        print(
-            "Found LD sites for", len(results), "doubleton sites out of",
-            ts.num_sites)
+        print("Found LD sites for", len(results), "doubleton sites out of", ts.num_sites)
 
 In this example, we first simulate 1000 samples of 10 megabases and find all
 doubleton mutations in the resulting tree sequence. We then call the
