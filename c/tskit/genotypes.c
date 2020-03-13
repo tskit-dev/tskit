@@ -31,7 +31,6 @@
 
 #include <tskit/genotypes.h>
 
-
 /* ======================================================== *
  * Variant generator
  * ======================================================== */
@@ -48,8 +47,7 @@ tsk_vargen_print_state(tsk_vargen_t *self, FILE *out)
     fprintf(out, "num_alleles = %d\n", self->variant.num_alleles);
     for (j = 0; j < self->variant.num_alleles; j++) {
         fprintf(out, "\tlen = %d, '%.*s'\n", self->variant.allele_lengths[j],
-                self->variant.allele_lengths[j], self->variant.alleles[j]);
-
+            self->variant.allele_lengths[j], self->variant.alleles[j]);
     }
 }
 
@@ -102,9 +100,8 @@ out:
 }
 
 int
-tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_id_t *samples, size_t num_samples, const char **alleles,
-        tsk_flags_t options)
+tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence, tsk_id_t *samples,
+    size_t num_samples, const char **alleles, tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
     tsk_flags_t tree_options;
@@ -135,7 +132,8 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
             goto out;
         }
         memcpy(self->samples, samples, num_samples * sizeof(*self->samples));
-        memset(self->sample_index_map, 0xff, num_nodes * sizeof(*self->sample_index_map));
+        memset(
+            self->sample_index_map, 0xff, num_nodes * sizeof(*self->sample_index_map));
         /* Create the reverse mapping */
         for (j = 0; j < num_samples; j++) {
             u = samples[j];
@@ -160,12 +158,12 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     self->tree_sequence = tree_sequence;
     self->options = options;
     if (self->options & TSK_16_BIT_GENOTYPES) {
-        self->variant.genotypes.i16 = malloc(
-            num_samples_alloc * sizeof(*self->variant.genotypes.i16));
+        self->variant.genotypes.i16
+            = malloc(num_samples_alloc * sizeof(*self->variant.genotypes.i16));
         max_alleles_limit = INT16_MAX;
     } else {
-        self->variant.genotypes.i8 = malloc(
-            num_samples_alloc * sizeof(*self->variant.genotypes.i8));
+        self->variant.genotypes.i8
+            = malloc(num_samples_alloc * sizeof(*self->variant.genotypes.i8));
         max_alleles_limit = INT8_MAX;
     }
 
@@ -175,7 +173,8 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     } else {
         self->user_alleles = true;
         /* Count the input alleles. The end is designated by the NULL sentinel. */
-        for (max_alleles = 0; alleles[max_alleles] != NULL; max_alleles++);
+        for (max_alleles = 0; alleles[max_alleles] != NULL; max_alleles++)
+            ;
         if (max_alleles > max_alleles_limit) {
             ret = TSK_ERR_TOO_MANY_ALLELES;
             goto out;
@@ -187,11 +186,11 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
     }
     self->variant.max_alleles = max_alleles;
     self->variant.alleles = calloc(max_alleles, sizeof(*self->variant.alleles));
-    self->variant.allele_lengths = malloc(max_alleles
-            * sizeof(*self->variant.allele_lengths));
+    self->variant.allele_lengths
+        = malloc(max_alleles * sizeof(*self->variant.allele_lengths));
     /* Because genotypes is a union we can check the pointer */
     if (self->variant.genotypes.i8 == NULL || self->variant.alleles == NULL
-            || self->variant.allele_lengths == NULL) {
+        || self->variant.allele_lengths == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
@@ -277,7 +276,8 @@ out:
  * same reason.
  */
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_i8_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
+tsk_vargen_update_genotypes_i8_sample_list(
+    tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
 {
     int8_t *restrict genotypes = self->variant.genotypes.i8;
     const tsk_id_t *restrict list_left = self->tree.left_sample;
@@ -308,7 +308,8 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_i16_sample_list(tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
+tsk_vargen_update_genotypes_i16_sample_list(
+    tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
 {
     int16_t *restrict genotypes = self->variant.genotypes.i16;
     const tsk_id_t *restrict list_left = self->tree.left_sample;
@@ -347,12 +348,13 @@ out:
 typedef int (*visit_func_t)(tsk_vargen_t *, tsk_id_t, tsk_id_t);
 
 static int TSK_WARN_UNUSED
-tsk_vargen_traverse(tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived, visit_func_t visit)
+tsk_vargen_traverse(
+    tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived, visit_func_t visit)
 {
     int ret = 0;
-    tsk_id_t * restrict stack = self->tree.stack1;
-    const tsk_id_t * restrict left_child = self->tree.left_child;
-    const tsk_id_t * restrict right_sib = self->tree.right_sib;
+    tsk_id_t *restrict stack = self->tree.stack1;
+    const tsk_id_t *restrict left_child = self->tree.left_child;
+    const tsk_id_t *restrict right_sib = self->tree.right_sib;
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;
     tsk_id_t u, v, sample_index;
     int stack_top;
@@ -413,13 +415,15 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_i8_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
+tsk_vargen_update_genotypes_i8_traversal(
+    tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
 {
     return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_i8);
 }
 
 static int TSK_WARN_UNUSED
-tsk_vargen_update_genotypes_i16_traversal(tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
+tsk_vargen_update_genotypes_i16_traversal(
+    tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived)
 {
     return tsk_vargen_traverse(self, node, derived, tsk_vargen_visit_i16);
 }
@@ -428,8 +432,8 @@ static bool
 tsk_vargen_mark_missing_i16(tsk_vargen_t *self)
 {
     int ret = false;
-    const tsk_id_t * restrict left_child = self->tree.left_child;
-    const tsk_id_t * restrict right_sib = self->tree.right_sib;
+    const tsk_id_t *restrict left_child = self->tree.left_child;
+    const tsk_id_t *restrict right_sib = self->tree.right_sib;
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;
     int16_t *restrict genotypes = self->variant.genotypes.i16;
     tsk_id_t root, sample_index;
@@ -448,8 +452,8 @@ static bool
 tsk_vargen_mark_missing_i8(tsk_vargen_t *self)
 {
     int ret = false;
-    const tsk_id_t * restrict left_child = self->tree.left_child;
-    const tsk_id_t * restrict right_sib = self->tree.right_sib;
+    const tsk_id_t *restrict left_child = self->tree.left_child;
+    const tsk_id_t *restrict right_sib = self->tree.right_sib;
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;
     int8_t *restrict genotypes = self->variant.genotypes.i8;
     tsk_id_t root, sample_index;
@@ -473,7 +477,7 @@ tsk_vargen_get_allele_index(tsk_vargen_t *self, const char *allele, tsk_size_t l
 
     for (j = 0; j < var->num_alleles; j++) {
         if (length == var->allele_lengths[j]
-                && memcmp(allele, var->alleles[j], length) == 0) {
+            && memcmp(allele, var->alleles[j], length) == 0) {
             ret = (tsk_id_t) j;
             break;
         }
@@ -516,8 +520,8 @@ tsk_vargen_update_site(tsk_vargen_t *self)
         }
     }
     if (self->user_alleles) {
-        allele_index = tsk_vargen_get_allele_index(self, site->ancestral_state,
-                site->ancestral_state_length);
+        allele_index = tsk_vargen_get_allele_index(
+            self, site->ancestral_state, site->ancestral_state_length);
         if (allele_index == -1) {
             ret = TSK_ERR_ALLELE_NOT_FOUND;
             goto out;
@@ -551,8 +555,8 @@ tsk_vargen_update_site(tsk_vargen_t *self)
     for (j = 0; j < site->mutations_length; j++) {
         mutation = site->mutations[j];
         /* Compute the allele index for this derived state value. */
-        allele_index = tsk_vargen_get_allele_index(self,
-                mutation.derived_state, mutation.derived_state_length);
+        allele_index = tsk_vargen_get_allele_index(
+            self, mutation.derived_state, mutation.derived_state_length);
         if (allele_index == -1) {
             if (self->user_alleles) {
                 ret = TSK_ERR_ALLELE_NOT_FOUND;

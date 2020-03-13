@@ -32,8 +32,8 @@ extern "C" {
 
 #include <tskit/trees.h>
 
-#define TSK_16_BIT_GENOTYPES        (1 << 0)
-#define TSK_IMPUTE_MISSING_DATA     (1 << 1)
+#define TSK_16_BIT_GENOTYPES (1 << 0)
+#define TSK_IMPUTE_MISSING_DATA (1 << 1)
 
 typedef struct {
     tsk_site_t *site;
@@ -64,9 +64,8 @@ typedef struct {
     tsk_variant_t variant;
 } tsk_vargen_t;
 
-int tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence,
-        tsk_id_t *samples, size_t num_samples, const char **alleles,
-        tsk_flags_t options);
+int tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence, tsk_id_t *samples,
+    size_t num_samples, const char **alleles, tsk_flags_t options);
 int tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant);
 int tsk_vargen_free(tsk_vargen_t *self);
 void tsk_vargen_print_state(tsk_vargen_t *self, FILE *out);

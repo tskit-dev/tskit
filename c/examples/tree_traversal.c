@@ -4,12 +4,13 @@
 
 #include <tskit.h>
 
-#define check_tsk_error(val) if (val < 0) {\
-    errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));\
-}
+#define check_tsk_error(val)                                                            \
+    if (val < 0) {                                                                      \
+        errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));                 \
+    }
 
-static
-void _traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
+static void
+_traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
 {
     tsk_id_t v;
     int j;
@@ -23,8 +24,8 @@ void _traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
     }
 }
 
-static
-void traverse_recursive(tsk_tree_t *tree)
+static void
+traverse_recursive(tsk_tree_t *tree)
 {
     tsk_id_t root;
 
@@ -33,13 +34,13 @@ void traverse_recursive(tsk_tree_t *tree)
     }
 }
 
-static
-void traverse_stack(tsk_tree_t *tree)
+static void
+traverse_stack(tsk_tree_t *tree)
 {
     int stack_top;
     tsk_id_t u, v, root;
-    tsk_id_t *stack = malloc(
-        tsk_treeseq_get_num_nodes(tree->tree_sequence) * sizeof(*stack));
+    tsk_id_t *stack
+        = malloc(tsk_treeseq_get_num_nodes(tree->tree_sequence) * sizeof(*stack));
 
     if (stack == NULL) {
         errx(EXIT_FAILURE, "Out of memory");

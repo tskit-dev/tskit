@@ -16,7 +16,8 @@ jobs:
       - run:
           name: Install dependencies and set path
           command: |
-            sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen libgsl-dev
+            sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen \
+            libgsl-dev
             # Install meson to the system packages so we can run it as root
             sudo pip install meson
             pip install --user -r python/requirements/development.txt
@@ -35,9 +36,9 @@ jobs:
             cd python && make allchecks
 
       - run:
-          name: Lint Python
+          name: Lint Python (pre-commit)
           command: |
-            pre-commit run --all-files
+            pre-commit run --all-files --show-diff-on-failure
 
       - run:
           name: Run Python tests
