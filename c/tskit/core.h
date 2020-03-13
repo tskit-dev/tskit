@@ -37,13 +37,13 @@ extern "C" {
 #include <stdbool.h>
 
 #ifdef __GNUC__
-	#define TSK_WARN_UNUSED __attribute__ ((warn_unused_result))
-	#define TSK_UNUSED(x) TSK_UNUSED_ ## x __attribute__((__unused__))
+#define TSK_WARN_UNUSED __attribute__((warn_unused_result))
+#define TSK_UNUSED(x) TSK_UNUSED_##x __attribute__((__unused__))
 #else
-	#define TSK_WARN_UNUSED
-	#define TSK_UNUSED(x) TSK_UNUSED_ ## x
-    /* Don't bother with restrict for MSVC */
-    #define restrict
+#define TSK_WARN_UNUSED
+#define TSK_UNUSED(x) TSK_UNUSED_##x
+/* Don't bother with restrict for MSVC */
+#define restrict
 #endif
 
 /* This sets up TSK_DBL_DECIMAL_DIG, which can then be used as a
@@ -61,6 +61,7 @@ extern "C" {
 #define TSK_DBL_DECIMAL_DIG (DBL_DIG + 3)
 #endif
 
+// clang-format off
 /**
 @defgroup API_VERSION_GROUP API version macros.
 @{
@@ -235,7 +236,7 @@ of tskit.
 #define TSK_ERR_MATCH_IMPOSSIBLE                                   -1301
 #define TSK_ERR_BAD_COMPRESSED_MATRIX_NODE                         -1302
 #define TSK_ERR_TOO_MANY_VALUES                                    -1303
-
+// clang-format on
 
 /* This bit is 0 for any errors originating from kastore */
 #define TSK_KAS_ERR_BIT 14
@@ -252,13 +253,13 @@ not be freed by client code.
 @param err A tskit error code.
 @return A description of the error.
 */
-const char * tsk_strerror(int err);
+const char *tsk_strerror(int err);
 
 void __tsk_safe_free(void **ptr);
 #define tsk_safe_free(pointer) __tsk_safe_free((void **) &(pointer))
 
-#define TSK_MAX(a,b) ((a) > (b) ? (a) : (b))
-#define TSK_MIN(a,b) ((a) < (b) ? (a) : (b))
+#define TSK_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define TSK_MIN(a, b) ((a) < (b) ? (a) : (b))
 
 /* This is a simple allocator that is optimised to efficiently allocate a
  * large number of small objects without large numbers of calls to malloc.
@@ -270,19 +271,19 @@ void __tsk_safe_free(void **ptr);
  */
 
 typedef struct {
-    size_t chunk_size;        /* number of bytes per chunk */
-    size_t top;               /* the offset of the next available byte in the current chunk */
-    size_t current_chunk;     /* the index of the chunk currently being used */
-    size_t total_size;        /* the total number of bytes allocated + overhead. */
-    size_t total_allocated;   /* the total number of bytes allocated. */
-    size_t num_chunks;        /* the number of memory chunks. */
-    char **mem_chunks;        /* the memory chunks */
+    size_t chunk_size; /* number of bytes per chunk */
+    size_t top;        /* the offset of the next available byte in the current chunk */
+    size_t current_chunk;   /* the index of the chunk currently being used */
+    size_t total_size;      /* the total number of bytes allocated + overhead. */
+    size_t total_allocated; /* the total number of bytes allocated. */
+    size_t num_chunks;      /* the number of memory chunks. */
+    char **mem_chunks;      /* the memory chunks */
 } tsk_blkalloc_t;
 
 extern void tsk_blkalloc_print_state(tsk_blkalloc_t *self, FILE *out);
 extern int tsk_blkalloc_reset(tsk_blkalloc_t *self);
 extern int tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size);
-extern void * tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size);
+extern void *tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size);
 extern void tsk_blkalloc_free(tsk_blkalloc_t *self);
 
 size_t tsk_search_sorted(const double *array, size_t size, double value);
@@ -296,4 +297,3 @@ int tsk_generate_uuid(char *dest, int flags);
 #endif
 
 #endif
-

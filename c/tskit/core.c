@@ -47,7 +47,8 @@ get_random_bytes(uint8_t *buf)
     int ret = TSK_ERR_GENERATE_UUID;
     HCRYPTPROV hCryptProv = NULL;
 
-    if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+    if (!CryptAcquireContext(
+            &hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
         goto out;
     }
     if (!CryptGenRandom(hCryptProv, (DWORD) UUID_NUM_BYTES, buf)) {
@@ -100,18 +101,17 @@ tsk_generate_uuid(char *dest, int TSK_UNUSED(flags))
 {
     int ret = 0;
     uint8_t buf[UUID_NUM_BYTES];
-    const char *pattern =
-        "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x";
+    const char *pattern
+        = "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x";
 
     ret = get_random_bytes(buf);
     if (ret != 0) {
         goto out;
     }
-    if (snprintf(dest, TSK_UUID_SIZE + 1, pattern,
-            buf[0], buf[1], buf[2], buf[3],
-            buf[4], buf[5], buf[6], buf[7],
-            buf[8], buf[9], buf[10], buf[11],
-            buf[12], buf[13], buf[14], buf[15]) < 0) {
+    if (snprintf(dest, TSK_UUID_SIZE + 1, pattern, buf[0], buf[1], buf[2], buf[3],
+            buf[4], buf[5], buf[6], buf[7], buf[8], buf[9], buf[10], buf[11], buf[12],
+            buf[13], buf[14], buf[15])
+        < 0) {
         ret = TSK_ERR_GENERATE_UUID;
         goto out;
     }
@@ -161,11 +161,11 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_FILE_VERSION_TOO_OLD:
             ret = "tskit file version too old. Please upgrade using the "
-                "'tskit upgrade' command";
+                  "'tskit upgrade' command";
             break;
         case TSK_ERR_FILE_VERSION_TOO_NEW:
             ret = "tskit file version is too new for this instance. "
-                "Please upgrade tskit to the latest version";
+                  "Please upgrade tskit to the latest version";
             break;
 
         /* Out of bounds errors */
@@ -215,18 +215,18 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME:
             ret = "Edges must be listed in (time[parent], child, left) order;"
-                " time[parent] order violated";
+                  " time[parent] order violated";
             break;
         case TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS:
             ret = "All edges for a given parent must be contiguous";
             break;
         case TSK_ERR_EDGES_NOT_SORTED_CHILD:
             ret = "Edges must be listed in (time[parent], child, left) order;"
-                " child order violated";
+                  " child order violated";
             break;
         case TSK_ERR_EDGES_NOT_SORTED_LEFT:
             ret = "Edges must be listed in (time[parent], child, left) order;"
-                " left order violated";
+                  " left order violated";
             break;
         case TSK_ERR_BAD_NODE_TIME_ORDERING:
             ret = "time[parent] must be greater than time[child]";
@@ -245,7 +245,7 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN:
             ret = "Bad edges: contradictory children for a given parent over "
-                "an interval";
+                  "an interval";
             break;
 
         /* Site errors */
@@ -312,7 +312,8 @@ tsk_strerror_internal(int err)
             ret = "Migrations not currently supported by sort";
             break;
         case TSK_ERR_SORT_OFFSET_NOT_SUPPORTED:
-            ret = "Specifying position for mutation, sites or migrations is not supported";
+            ret = "Specifying position for mutation, sites or migrations is not "
+                  "supported";
             break;
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
             ret = "Only binary mutations are supported for this operation";
@@ -367,7 +368,7 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
             ret = "Cannot generate genotypes for non-samples unless missing data "
-                    "imputation is enabled";
+                  "imputation is enabled";
             break;
         case TSK_ERR_ALLELE_NOT_FOUND:
             ret = "An allele was not found in the user-specified allele map";
@@ -429,7 +430,8 @@ tsk_strerror(int err)
 }
 
 void
-__tsk_safe_free(void **ptr) {
+__tsk_safe_free(void **ptr)
+{
     if (ptr != NULL) {
         if (*ptr != NULL) {
             free(*ptr);
@@ -437,7 +439,6 @@ __tsk_safe_free(void **ptr) {
         }
     }
 }
-
 
 /* Block allocator. Simple allocator when we lots of chunks of memory
  * and don't need to free them individually.
@@ -497,7 +498,7 @@ out:
     return ret;
 }
 
-void * TSK_WARN_UNUSED
+void *TSK_WARN_UNUSED
 tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size)
 {
     void *ret = NULL;
@@ -568,8 +569,8 @@ tsk_search_sorted(const double *restrict array, size_t size, double value)
             upper = mid;
         }
     }
-    offset = (int64_t) (array[lower] < value);
-    return (size_t) (lower + offset);
+    offset = (int64_t)(array[lower] < value);
+    return (size_t)(lower + offset);
 }
 
 /* Rounds the specified double to the closest multiple of 10**-num_digits. If

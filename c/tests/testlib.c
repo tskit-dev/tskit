@@ -30,7 +30,7 @@
 #include "testlib.h"
 
 /* Simple single tree example. */
-const char *single_tree_ex_nodes =/*          6          */
+const char *single_tree_ex_nodes = /*          6          */
     "1  0   -1   -1\n"             /*         / \         */
     "1  0   -1   -1\n"             /*        /   \        */
     "1  0   -1   -1\n"             /*       /     \       */
@@ -38,122 +38,106 @@ const char *single_tree_ex_nodes =/*          6          */
     "0  1   -1   -1\n"             /*     4       / \     */
     "0  2   -1   -1\n"             /*    / \     /   \    */
     "0  3   -1   -1\n";            /*   0   1   2     3   */
-const char *single_tree_ex_edges =
-    "0  1   4   0,1\n"
-    "0  1   5   2,3\n"
-    "0  1   6   4,5\n";
-const char *single_tree_ex_sites =
-    "0.125  0\n"
-    "0.25   0\n"
-    "0.5    0\n";
-const char *single_tree_ex_mutations =
-    "0    2     1   -1\n"
-    "1    4     1   -1\n"
-    "1    0     0   1\n"  /* Back mutation over 0 */
-    "2    0     1   -1\n"  /* recurrent mutations over samples */
-    "2    1     1   -1\n"
-    "2    2     1   -1\n"
-    "2    3     1   -1\n";
+const char *single_tree_ex_edges = "0  1   4   0,1\n"
+                                   "0  1   5   2,3\n"
+                                   "0  1   6   4,5\n";
+const char *single_tree_ex_sites = "0.125  0\n"
+                                   "0.25   0\n"
+                                   "0.5    0\n";
+const char *single_tree_ex_mutations
+    = "0    2     1   -1\n"
+      "1    4     1   -1\n"
+      "1    0     0   1\n"  /* Back mutation over 0 */
+      "2    0     1   -1\n" /* recurrent mutations over samples */
+      "2    1     1   -1\n"
+      "2    2     1   -1\n"
+      "2    3     1   -1\n";
 
 /* Example from the PLOS paper */
-const char *paper_ex_nodes =
-    "1  0       -1   0\n"
-    "1  0       -1   0\n"
-    "1  0       -1   1\n"
-    "1  0       -1   1\n"
-    "0  0.071   -1   -1\n"
-    "0  0.090   -1   -1\n"
-    "0  0.170   -1   -1\n"
-    "0  0.202   -1   -1\n"
-    "0  0.253   -1   -1\n";
-const char *paper_ex_edges =
-    "2 10 4 2\n"
-    "2 10 4 3\n"
-    "0 10 5 1\n"
-    "0 2  5 3\n"
-    "2 10 5 4\n"
-    "0 7  6 0,5\n"
-    "7 10 7 0,5\n"
-    "0 2  8 2,6\n";
+const char *paper_ex_nodes = "1  0       -1   0\n"
+                             "1  0       -1   0\n"
+                             "1  0       -1   1\n"
+                             "1  0       -1   1\n"
+                             "0  0.071   -1   -1\n"
+                             "0  0.090   -1   -1\n"
+                             "0  0.170   -1   -1\n"
+                             "0  0.202   -1   -1\n"
+                             "0  0.253   -1   -1\n";
+const char *paper_ex_edges = "2 10 4 2\n"
+                             "2 10 4 3\n"
+                             "0 10 5 1\n"
+                             "0 2  5 3\n"
+                             "2 10 5 4\n"
+                             "0 7  6 0,5\n"
+                             "7 10 7 0,5\n"
+                             "0 2  8 2,6\n";
 /* We make one mutation for each tree */
-const char *paper_ex_sites =
-    "1      0\n"
-    "4.5    0\n"
-    "8.5    0\n";
-const char *paper_ex_mutations =
-    "0      2   1\n"
-    "1      0   1\n"
-    "2      5   1\n";
+const char *paper_ex_sites = "1      0\n"
+                             "4.5    0\n"
+                             "8.5    0\n";
+const char *paper_ex_mutations = "0      2   1\n"
+                                 "1      0   1\n"
+                                 "2      5   1\n";
 /* Two (diploid) indivduals */
-const char *paper_ex_individuals =
-    "0      0.2,1.5\n"
-    "0      0.0,0.0\n";
+const char *paper_ex_individuals = "0      0.2,1.5\n"
+                                   "0      0.0,0.0\n";
 
 /* An example of a nonbinary tree sequence */
-const char *nonbinary_ex_nodes =
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "0  0.01    0   -1\n"
-    "0  0.068   0   -1\n"
-    "0  0.130   0   -1\n"
-    "0  0.279   0   -1\n"
-    "0  0.405   0   -1\n";
-const char *nonbinary_ex_edges =
-    "0	100	8	0,1,2,3\n"
-    "0	100	9	6,8\n"
-    "0  100 10  4\n"
-    "0  17  10  5\n"
-    "0  100 10  7\n"
-    "17	100	11	5,9\n"
-    "0	17	12	9\n"
-    "0  100 12  10\n"
-    "17	100	12	11";
-const char *nonbinary_ex_sites =
-        "1  0\n"
-        "18 0\n";
-const char *nonbinary_ex_mutations =
-    "0    2   1\n"
-    "1    11  1";
+const char *nonbinary_ex_nodes = "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "0  0.01    0   -1\n"
+                                 "0  0.068   0   -1\n"
+                                 "0  0.130   0   -1\n"
+                                 "0  0.279   0   -1\n"
+                                 "0  0.405   0   -1\n";
+const char *nonbinary_ex_edges = "0	100	8	0,1,2,3\n"
+                                 "0	100	9	6,8\n"
+                                 "0  100 10  4\n"
+                                 "0  17  10  5\n"
+                                 "0  100 10  7\n"
+                                 "17	100	11	5,9\n"
+                                 "0	17	12	9\n"
+                                 "0  100 12  10\n"
+                                 "17	100	12	11";
+const char *nonbinary_ex_sites = "1  0\n"
+                                 "18 0\n";
+const char *nonbinary_ex_mutations = "0    2   1\n"
+                                     "1    11  1";
 
 /* An example of a tree sequence with unary nodes. */
-const char *unary_ex_nodes =
-    "1  0       0  -1\n"
-    "1  0       0  -1\n"
-    "1  0       0  -1\n"
-    "1  0       0  -1\n"
-    "0  0.071   0  -1\n"
-    "0  0.090   0  -1\n"
-    "0  0.170   0  -1\n"
-    "0  0.202   0  -1\n"
-    "0  0.253   0  -1\n";
-const char *unary_ex_edges =
-    "2 10 4 2,3\n"
-    "0 10 5 1\n"
-    "0 2  5 3\n"
-    "2 10 5 4\n"
-    "0 7  6 0,5\n"
-    "7 10 7 0\n"
-    "0 2  7 2\n"
-    "7 10 7 5\n"
-    "0 7  8 6\n"
-    "0 2  8 7\n";
+const char *unary_ex_nodes = "1  0       0  -1\n"
+                             "1  0       0  -1\n"
+                             "1  0       0  -1\n"
+                             "1  0       0  -1\n"
+                             "0  0.071   0  -1\n"
+                             "0  0.090   0  -1\n"
+                             "0  0.170   0  -1\n"
+                             "0  0.202   0  -1\n"
+                             "0  0.253   0  -1\n";
+const char *unary_ex_edges = "2 10 4 2,3\n"
+                             "0 10 5 1\n"
+                             "0 2  5 3\n"
+                             "2 10 5 4\n"
+                             "0 7  6 0,5\n"
+                             "7 10 7 0\n"
+                             "0 2  7 2\n"
+                             "7 10 7 5\n"
+                             "0 7  8 6\n"
+                             "0 2  8 7\n";
 
 /* We make one mutation for each tree, over unary nodes if this exist */
-const char *unary_ex_sites =
-    "1.0    0\n"
-    "4.5    0\n"
-    "8.5    0\n";
-const char *unary_ex_mutations =
-    "0    2   1\n"
-    "1    6   1\n"
-    "2    5   1\n";
-
+const char *unary_ex_sites = "1.0    0\n"
+                             "4.5    0\n"
+                             "8.5    0\n";
+const char *unary_ex_mutations = "0    2   1\n"
+                                 "1    6   1\n"
+                                 "2    5   1\n";
 
 /* An example of a tree sequence with internally sampled nodes. */
 
@@ -196,35 +180,30 @@ const char *unary_ex_mutations =
 0
 */
 
-const char *internal_sample_ex_nodes =
-    "1  0.0   0   -1\n"
-    "1  0.1   0   -1\n"
-    "1  0.1   0   -1\n"
-    "1  0.2   0   -1\n"
-    "0  0.4   0   -1\n"
-    "1  0.5   0   -1\n"
-    "0  0.7   0   -1\n"
-    "0  1.0   0   -1\n"
-    "0  1.2   0   -1\n";
-const char *internal_sample_ex_edges =
-    "2 8  4 0\n"
-    "0 10 4 2\n"
-    "0 2  4 3\n"
-    "8 10 4 3\n"
-    "0 10 5 1,4\n"
-    "8 10 6 0,5\n"
-    "0 2  7 0,5\n"
-    "2 8  8 3,5\n";
+const char *internal_sample_ex_nodes = "1  0.0   0   -1\n"
+                                       "1  0.1   0   -1\n"
+                                       "1  0.1   0   -1\n"
+                                       "1  0.2   0   -1\n"
+                                       "0  0.4   0   -1\n"
+                                       "1  0.5   0   -1\n"
+                                       "0  0.7   0   -1\n"
+                                       "0  1.0   0   -1\n"
+                                       "0  1.2   0   -1\n";
+const char *internal_sample_ex_edges = "2 8  4 0\n"
+                                       "0 10 4 2\n"
+                                       "0 2  4 3\n"
+                                       "8 10 4 3\n"
+                                       "0 10 5 1,4\n"
+                                       "8 10 6 0,5\n"
+                                       "0 2  7 0,5\n"
+                                       "2 8  8 3,5\n";
 /* We make one mutation for each tree, some above the internal node */
-const char *internal_sample_ex_sites =
-    "1.0    0\n"
-    "4.5    0\n"
-    "8.5    0\n";
-const char *internal_sample_ex_mutations =
-    "0    2   1\n"
-    "1    5   1\n"
-    "2    5   1\n";
-
+const char *internal_sample_ex_sites = "1.0    0\n"
+                                       "4.5    0\n"
+                                       "8.5    0\n";
+const char *internal_sample_ex_mutations = "0    2   1\n"
+                                           "1    5   1\n"
+                                           "2    5   1\n";
 
 /* Simple utilities to parse text so we can write declaritive
  * tests. This is not intended as a robust general input mechanism.
@@ -278,8 +257,8 @@ parse_nodes(const char *text, tsk_node_table_t *node_table)
         } else {
             name = p;
         }
-        ret = tsk_node_table_add_row(node_table, flags, time, population,
-                individual, name, strlen(name));
+        ret = tsk_node_table_add_row(
+            node_table, flags, time, population, individual, name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -378,8 +357,8 @@ parse_sites(const char *text, tsk_site_table_t *site_table)
         p = strtok(NULL, whitespace);
         CU_ASSERT_FATAL(p != NULL);
         strncpy(ancestral_state, p, MAX_LINE);
-        ret = tsk_site_table_add_row(site_table, position, ancestral_state,
-                strlen(ancestral_state), NULL, 0);
+        ret = tsk_site_table_add_row(
+            site_table, position, ancestral_state, strlen(ancestral_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -425,7 +404,7 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
             parent = atoi(p);
         }
         ret = tsk_mutation_table_add_row(mutation_table, site, node, parent,
-                derived_state, strlen(derived_state), NULL, 0);
+            derived_state, strlen(derived_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -489,17 +468,16 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
         } else {
             name = p;
         }
-        ret = tsk_individual_table_add_row(individual_table, flags, location, location_len,
-                name, strlen(name));
+        ret = tsk_individual_table_add_row(
+            individual_table, flags, location, location_len, name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
 
 void
-tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
-        const char *nodes, const char *edges,
-        const char *migrations, const char *sites, const char *mutations,
-        const char *individuals, const char *provenance)
+tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nodes,
+    const char *edges, const char *migrations, const char *sites, const char *mutations,
+    const char *individuals, const char *provenance)
 {
     int ret;
     tsk_table_collection_t tables;
@@ -540,11 +518,10 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
 
     ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
-     // printf("ret = %s\n", tsk_strerror(ret));
+    // printf("ret = %s\n", tsk_strerror(ret));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_table_collection_free(&tables);
 }
-
 
 /* Returns a tree sequence consisting of a single tree with n samples.
  */
@@ -556,7 +533,7 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     tsk_table_collection_t tables;
     tsk_id_t j, k, last_node, u;
     int state;
-    const char *states[] = {"0", "1"};
+    const char *states[] = { "0", "1" };
 
     CU_ASSERT_FATAL(ts != NULL);
     ret = tsk_table_collection_init(&tables, 1.0);
@@ -566,14 +543,14 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
 
     tables.sequence_length = 1.0;
     for (j = 0; j < (tsk_id_t) n; j++) {
-        ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0,
-                TSK_NULL, TSK_NULL, NULL, 0);
+        ret = tsk_node_table_add_row(
+            &tables.nodes, TSK_NODE_IS_SAMPLE, 0, TSK_NULL, TSK_NULL, NULL, 0);
         CU_ASSERT_EQUAL_FATAL(ret, j);
     }
     last_node = 0;
     for (j = 0; j < n - 1; j++) {
-        ret = tsk_node_table_add_row(&tables.nodes, 0, j + 1,
-                TSK_NULL, TSK_NULL, NULL, 0);
+        ret = tsk_node_table_add_row(
+            &tables.nodes, 0, j + 1, TSK_NULL, TSK_NULL, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         u = ret;
         ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, last_node);
@@ -583,14 +560,15 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
         last_node = u;
     }
     for (j = 0; j < num_sites; j++) {
-        ret = tsk_site_table_add_row(&tables.sites, (j + 1) / (double) n, "0", 1, NULL, 0);
+        ret = tsk_site_table_add_row(
+            &tables.sites, (j + 1) / (double) n, "0", 1, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         u = 2 * n - 3;
         state = 0;
         for (k = 0; k < num_mutations; k++) {
             state = (state + 1) % 2;
-            ret = tsk_mutation_table_add_row(&tables.mutations, j, u, TSK_NULL,
-                    states[state], 1, NULL, 0);
+            ret = tsk_mutation_table_add_row(
+                &tables.mutations, j, u, TSK_NULL, states[state], 1, NULL, 0);
             CU_ASSERT_FATAL(ret >= 0);
             u--;
         }

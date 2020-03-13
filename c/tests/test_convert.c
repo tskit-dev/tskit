@@ -37,8 +37,8 @@ test_single_tree_newick(void)
     size_t buffer_size = 1024;
     char newick[buffer_size];
 
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
-            NULL, NULL, NULL, NULL, NULL);
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL);
 
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
@@ -73,9 +73,8 @@ test_single_tree_newick_errors(void)
     size_t buffer_size = 1024;
     char newick[buffer_size];
 
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges,
-            NULL, NULL, NULL, NULL, NULL);
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL);
 
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
@@ -108,9 +107,9 @@ int
 main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
-        {"test_single_tree_newick", test_single_tree_newick},
-        {"test_single_tree_newick_errors", test_single_tree_newick_errors},
-        {NULL, NULL},
+        { "test_single_tree_newick", test_single_tree_newick },
+        { "test_single_tree_newick_errors", test_single_tree_newick_errors },
+        { NULL, NULL },
     };
     return test_main(tests, argc, argv);
 }

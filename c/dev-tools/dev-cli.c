@@ -59,7 +59,7 @@ print_variants(tsk_treeseq_t *ts)
     int ret = 0;
     tsk_vargen_t vg;
     uint32_t j, k;
-    tsk_variant_t* var;
+    tsk_variant_t *var;
 
     printf("variants (%d) \n", (int) tsk_treeseq_get_num_sites(ts));
     ret = tsk_vargen_init(&vg, ts, NULL, 0, NULL, 0);
@@ -109,8 +109,8 @@ print_ld_matrix(tsk_treeseq_t *ts)
     }
     tsk_ld_calc_print_state(&ld_calc, stdout);
     for (j = 0; j < num_sites; j++) {
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, j, TSK_DIR_FORWARD, num_sites,
-                DBL_MAX, r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, j, TSK_DIR_FORWARD, num_sites, DBL_MAX, r2, &num_r2_values);
         if (ret != 0) {
             fatal_library_error(ret, "tsk_ld_calc_get_r2_array");
         }
@@ -124,7 +124,11 @@ print_ld_matrix(tsk_treeseq_t *ts)
                 fatal_library_error(ret, "get_site");
             }
             printf("%d\t%f\t%d\t%f\t%.3f\n",
-                (int) sA.id, sA.position, (int) sB.id, sB.position, r2[k]);
+                (int) sA.id,
+                sA.position,
+                (int) sB.id,
+                sB.position,
+                r2[k]);
         }
     }
     free(r2);
@@ -153,10 +157,10 @@ print_newick_trees(tsk_treeseq_t *ts)
         fatal_error("ERROR: %d: %s\n", ret, tsk_strerror(ret));
     }
     for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
-        ret = tsk_convert_newick(&tree, tree.left_root, precision,
-                0, newick_buffer_size, newick);
+        ret = tsk_convert_newick(
+            &tree, tree.left_root, precision, 0, newick_buffer_size, newick);
         if (ret != 0) {
-            fatal_library_error(ret ,"newick");
+            fatal_library_error(ret, "newick");
         }
         printf("%d:\t%s\n", (int) tree.index, newick);
     }
@@ -184,8 +188,10 @@ print_tree_sequence(tsk_treeseq_t *ts, int verbose)
         }
         for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
             printf("-------------------------\n");
-            printf("New tree: %d: %f (%d)\n", (int) tree.index,
-                    tree.right - tree.left, (int) tree.num_nodes);
+            printf("New tree: %d: %f (%d)\n",
+                (int) tree.index,
+                tree.right - tree.left,
+                (int) tree.num_nodes);
             printf("-------------------------\n");
             tsk_tree_print_state(&tree, stdout);
         }
@@ -237,8 +243,11 @@ run_newick(const char *filename, int TSK_UNUSED(verbose))
 }
 
 static void
-run_simplify(const char *input_filename, const char *output_filename, size_t num_samples,
-        bool filter_sites, int verbose)
+run_simplify(const char *input_filename,
+    const char *output_filename,
+    size_t num_samples,
+    bool filter_sites,
+    int verbose)
 {
     tsk_treeseq_t ts, subset;
     tsk_id_t *samples;
@@ -277,20 +286,22 @@ run_simplify(const char *input_filename, const char *output_filename, size_t num
 }
 
 int
-main(int argc, char** argv)
+main(int argc, char **argv)
 {
     /* SYNTAX 1: simplify [-vi] [-s] <input-file> <output-file> */
     struct arg_rex *cmd1 = arg_rex1(NULL, NULL, "simplify", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose1 = arg_lit0("v", "verbose", NULL);
-    struct arg_int *num_samples1 = arg_int0("s", "sample-size", "<sample-size>",
-            "Number of samples to keep in the simplified tree sequence.");
-    struct arg_lit *filter_sites1 = arg_lit0("i",
-            "filter-invariant-sites", "<filter-invariant-sites>");
+    struct arg_int *num_samples1 = arg_int0("s",
+        "sample-size",
+        "<sample-size>",
+        "Number of samples to keep in the simplified tree sequence.");
+    struct arg_lit *filter_sites1
+        = arg_lit0("i", "filter-invariant-sites", "<filter-invariant-sites>");
     struct arg_file *infiles1 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_file *outfiles1 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end1 = arg_end(20);
-    void* argtable1[] = {cmd1, verbose1, filter_sites1, num_samples1,
-        infiles1, outfiles1, end1};
+    void *argtable1[]
+        = { cmd1, verbose1, filter_sites1, num_samples1, infiles1, outfiles1, end1 };
     int nerrors1;
 
     /* SYNTAX 2: ld [-v] <input-file> */
@@ -298,7 +309,7 @@ main(int argc, char** argv)
     struct arg_lit *verbose2 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles2 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end2 = arg_end(20);
-    void* argtable2[] = {cmd2, verbose2, infiles2, end2};
+    void *argtable2[] = { cmd2, verbose2, infiles2, end2 };
     int nerrors2;
 
     /* SYNTAX 3: variants [-v] <input-file> */
@@ -306,7 +317,7 @@ main(int argc, char** argv)
     struct arg_lit *verbose3 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles3 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end3 = arg_end(20);
-    void* argtable3[] = {cmd3, verbose3, infiles3, end3};
+    void *argtable3[] = { cmd3, verbose3, infiles3, end3 };
     int nerrors3;
 
     /* SYNTAX 4: print  [-v] <input-file> */
@@ -314,7 +325,7 @@ main(int argc, char** argv)
     struct arg_lit *verbose4 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles4 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end4 = arg_end(20);
-    void* argtable4[] = {cmd4, verbose4, infiles4, end4};
+    void *argtable4[] = { cmd4, verbose4, infiles4, end4 };
     int nerrors4;
 
     /* SYNTAX 5: newick [-v] <input-file> */
@@ -322,7 +333,7 @@ main(int argc, char** argv)
     struct arg_lit *verbose5 = arg_lit0("v", "verbose", NULL);
     struct arg_file *infiles5 = arg_file1(NULL, NULL, NULL, NULL);
     struct arg_end *end5 = arg_end(20);
-    void* argtable5[] = {cmd5, verbose5, infiles5, end5};
+    void *argtable5[] = { cmd5, verbose5, infiles5, end5 };
     int nerrors5;
 
     int exitcode = EXIT_SUCCESS;
@@ -338,9 +349,11 @@ main(int argc, char** argv)
     nerrors5 = arg_parse(argc, argv, argtable5);
 
     if (nerrors1 == 0) {
-        run_simplify(infiles1->filename[0], outfiles1->filename[0],
-                (size_t) num_samples1->ival[0], (bool) filter_sites1->count,
-                verbose1->count);
+        run_simplify(infiles1->filename[0],
+            outfiles1->filename[0],
+            (size_t) num_samples1->ival[0],
+            (bool) filter_sites1->count,
+            verbose1->count);
     } else if (nerrors2 == 0) {
         run_ld(infiles2->filename[0], verbose2->count);
     } else if (nerrors3 == 0) {
@@ -372,13 +385,19 @@ main(int argc, char** argv)
             printf("usage: %s ", progname);
             arg_print_syntax(stdout, argtable5, "\n");
         } else {
-            /* no correct cmd literals were given, so we cant presume which syntax was intended */
-            printf("%s: missing command.\n",progname);
-            printf("usage 1: %s ", progname);  arg_print_syntax(stdout, argtable1, "\n");
-            printf("usage 2: %s ", progname);  arg_print_syntax(stdout, argtable2, "\n");
-            printf("usage 3: %s ", progname);  arg_print_syntax(stdout, argtable3, "\n");
-            printf("usage 4: %s ", progname);  arg_print_syntax(stdout, argtable4, "\n");
-            printf("usage 5: %s ", progname);  arg_print_syntax(stdout, argtable5, "\n");
+            /* no correct cmd literals were given, so we cant presume which syntax was
+             * intended */
+            printf("%s: missing command.\n", progname);
+            printf("usage 1: %s ", progname);
+            arg_print_syntax(stdout, argtable1, "\n");
+            printf("usage 2: %s ", progname);
+            arg_print_syntax(stdout, argtable2, "\n");
+            printf("usage 3: %s ", progname);
+            arg_print_syntax(stdout, argtable3, "\n");
+            printf("usage 4: %s ", progname);
+            arg_print_syntax(stdout, argtable4, "\n");
+            printf("usage 5: %s ", progname);
+            arg_print_syntax(stdout, argtable5, "\n");
         }
     }
 

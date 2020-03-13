@@ -33,7 +33,7 @@ extern "C" {
 
 /* Seems like we might use this somewhere else as well, so putting it into the middle
  * of the flags space */
-#define TSK_ALLELES_ACGT        (1 << 16)
+#define TSK_ALLELES_ACGT (1 << 16)
 
 typedef struct {
     tsk_id_t tree_node;
@@ -125,45 +125,43 @@ typedef struct _tsk_ls_hmm_t {
     int8_t *allelic_state;
     /* Algorithms set these values before they are run */
     int (*next_probability)(
-            struct _tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *);
+        struct _tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *);
     int (*finalise_site)(struct _tsk_ls_hmm_t *, tsk_id_t);
     void *output;
 } tsk_ls_hmm_t;
 
 int tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
-        double *recombination_rate, double *mutation_rate,
-        tsk_flags_t options);
+    double *recombination_rate, double *mutation_rate, tsk_flags_t options);
 int tsk_ls_hmm_set_precision(tsk_ls_hmm_t *self, unsigned int precision);
 int tsk_ls_hmm_free(tsk_ls_hmm_t *self);
 void tsk_ls_hmm_print_state(tsk_ls_hmm_t *self, FILE *out);
 int tsk_ls_hmm_forward(tsk_ls_hmm_t *self, int8_t *haplotype,
-        tsk_compressed_matrix_t *output, tsk_flags_t options);
+    tsk_compressed_matrix_t *output, tsk_flags_t options);
 int tsk_ls_hmm_viterbi(tsk_ls_hmm_t *self, int8_t *haplotype,
-        tsk_viterbi_matrix_t *output, tsk_flags_t options);
+    tsk_viterbi_matrix_t *output, tsk_flags_t options);
 int tsk_ls_hmm_run(tsk_ls_hmm_t *self, int8_t *haplotype,
     int (*next_probability)(tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *),
-    int (*finalise_site)(struct _tsk_ls_hmm_t *, tsk_id_t),
-    void *output);
+    int (*finalise_site)(struct _tsk_ls_hmm_t *, tsk_id_t), void *output);
 
 int tsk_compressed_matrix_init(tsk_compressed_matrix_t *self,
-        tsk_treeseq_t *tree_sequence, size_t block_size, tsk_flags_t options);
+    tsk_treeseq_t *tree_sequence, size_t block_size, tsk_flags_t options);
 int tsk_compressed_matrix_free(tsk_compressed_matrix_t *self);
 int tsk_compressed_matrix_clear(tsk_compressed_matrix_t *self);
 void tsk_compressed_matrix_print_state(tsk_compressed_matrix_t *self, FILE *out);
 int tsk_compressed_matrix_store_site(tsk_compressed_matrix_t *self, tsk_id_t site,
-        double normalisation_factor, tsk_size_t num_transitions,
-        const tsk_value_transition_t *transitions);
+    double normalisation_factor, tsk_size_t num_transitions,
+    const tsk_value_transition_t *transitions);
 int tsk_compressed_matrix_decode(tsk_compressed_matrix_t *self, double *values);
 
-int tsk_viterbi_matrix_init(tsk_viterbi_matrix_t *self,
-        tsk_treeseq_t *tree_sequence, size_t block_size, tsk_flags_t options);
+int tsk_viterbi_matrix_init(tsk_viterbi_matrix_t *self, tsk_treeseq_t *tree_sequence,
+    size_t block_size, tsk_flags_t options);
 int tsk_viterbi_matrix_free(tsk_viterbi_matrix_t *self);
 int tsk_viterbi_matrix_clear(tsk_viterbi_matrix_t *self);
 void tsk_viterbi_matrix_print_state(tsk_viterbi_matrix_t *self, FILE *out);
-int tsk_viterbi_matrix_add_recombination_required(tsk_viterbi_matrix_t *self,
-        tsk_id_t site, tsk_id_t node, bool required);
-int tsk_viterbi_matrix_traceback(tsk_viterbi_matrix_t *self,
-        tsk_id_t *path, tsk_flags_t options);
+int tsk_viterbi_matrix_add_recombination_required(
+    tsk_viterbi_matrix_t *self, tsk_id_t site, tsk_id_t node, bool required);
+int tsk_viterbi_matrix_traceback(
+    tsk_viterbi_matrix_t *self, tsk_id_t *path, tsk_flags_t options);
 
 #ifdef __cplusplus
 }

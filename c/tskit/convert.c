@@ -50,8 +50,8 @@ typedef struct {
 } tsk_newick_converter_t;
 
 static int
-tsk_newick_converter_run(tsk_newick_converter_t *self, tsk_id_t root,
-        size_t buffer_size, char *buffer)
+tsk_newick_converter_run(
+    tsk_newick_converter_t *self, tsk_id_t root, size_t buffer_size, char *buffer)
 {
     int ret = TSK_ERR_GENERIC;
     tsk_tree_t *tree = self->tree;
@@ -113,7 +113,7 @@ tsk_newick_converter_run(tsk_newick_converter_t *self, tsk_id_t root,
             if (u != root_parent) {
                 branch_length = (time[u] - time[v]);
                 r = snprintf(buffer + s, buffer_size - s, ":%.*f", (int) self->precision,
-                        branch_length);
+                    branch_length);
                 if (r < 0) {
                     ret = TSK_ERR_IO;
                     goto out;
@@ -145,7 +145,7 @@ out:
 
 static int
 tsk_newick_converter_init(tsk_newick_converter_t *self, tsk_tree_t *tree,
-        size_t precision, tsk_flags_t options)
+    size_t precision, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -164,7 +164,7 @@ tsk_newick_converter_free(tsk_newick_converter_t *TSK_UNUSED(self))
 
 int
 tsk_convert_newick(tsk_tree_t *tree, tsk_id_t root, size_t precision,
-        tsk_flags_t options, size_t buffer_size, char *buffer)
+    tsk_flags_t options, size_t buffer_size, char *buffer)
 {
     int ret = 0;
     tsk_newick_converter_t nc;

@@ -21,8 +21,8 @@
 
 /* Global variables used for test in state in the test suite */
 
-char * _tmp_file_name;
-FILE * _devnull;
+char *_tmp_file_name;
+FILE *_devnull;
 
 #define SIMPLE_BOTTLENECK 0
 #define INSTANTANEOUS_BOTTLENECK 1
@@ -36,7 +36,6 @@ typedef struct {
 
 /* Example tree sequences used in some of the tests. */
 
-
 /* Simple single tree example. */
 const char *single_tree_ex_nodes = /*          6          */
     "1  0   -1   -1\n"             /*         / \         */
@@ -46,122 +45,107 @@ const char *single_tree_ex_nodes = /*          6          */
     "0  1   -1   -1\n"             /*     4       / \     */
     "0  2   -1   -1\n"             /*    / \     /   \    */
     "0  3   -1   -1\n";            /*   0   1   2     3   */
-const char *single_tree_ex_edges =
-    "0  1   4   0,1\n"
-    "0  1   5   2,3\n"
-    "0  1   6   4,5\n";
-const char *single_tree_ex_sites =
-    "0.1  0\n"
-    "0.2  0\n"
-    "0.3  0\n";
-const char *single_tree_ex_mutations =
-    "0    2     1   -1\n"
-    "1    4     1   -1\n"
-    "1    0     0   1\n"  /* Back mutation over 0 */
-    "2    0     1   -1\n"  /* recurrent mutations over samples */
-    "2    1     1   -1\n"
-    "2    2     1   -1\n"
-    "2    3     1   -1\n";
+const char *single_tree_ex_edges = "0  1   4   0,1\n"
+                                   "0  1   5   2,3\n"
+                                   "0  1   6   4,5\n";
+const char *single_tree_ex_sites = "0.1  0\n"
+                                   "0.2  0\n"
+                                   "0.3  0\n";
+const char *single_tree_ex_mutations
+    = "0    2     1   -1\n"
+      "1    4     1   -1\n"
+      "1    0     0   1\n"  /* Back mutation over 0 */
+      "2    0     1   -1\n" /* recurrent mutations over samples */
+      "2    1     1   -1\n"
+      "2    2     1   -1\n"
+      "2    3     1   -1\n";
 
 /* Example from the PLOS paper */
-const char *paper_ex_nodes =
-    "1  0       -1   0\n"
-    "1  0       -1   0\n"
-    "1  0       -1   1\n"
-    "1  0       -1   1\n"
-    "0  0.071   -1   -1\n"
-    "0  0.090   -1   -1\n"
-    "0  0.170   -1   -1\n"
-    "0  0.202   -1   -1\n"
-    "0  0.253   -1   -1\n";
-const char *paper_ex_edges =
-    "2 10 4 2\n"
-    "2 10 4 3\n"
-    "0 10 5 1\n"
-    "0 2  5 3\n"
-    "2 10 5 4\n"
-    "0 7  6 0,5\n"
-    "7 10 7 0,5\n"
-    "0 2  8 2,6\n";
+const char *paper_ex_nodes = "1  0       -1   0\n"
+                             "1  0       -1   0\n"
+                             "1  0       -1   1\n"
+                             "1  0       -1   1\n"
+                             "0  0.071   -1   -1\n"
+                             "0  0.090   -1   -1\n"
+                             "0  0.170   -1   -1\n"
+                             "0  0.202   -1   -1\n"
+                             "0  0.253   -1   -1\n";
+const char *paper_ex_edges = "2 10 4 2\n"
+                             "2 10 4 3\n"
+                             "0 10 5 1\n"
+                             "0 2  5 3\n"
+                             "2 10 5 4\n"
+                             "0 7  6 0,5\n"
+                             "7 10 7 0,5\n"
+                             "0 2  8 2,6\n";
 /* We make one mutation for each tree */
-const char *paper_ex_sites =
-    "1      0\n"
-    "4.5    0\n"
-    "8.5    0\n";
-const char *paper_ex_mutations =
-    "0      2   1\n"
-    "1      0   1\n"
-    "2      5   1\n";
+const char *paper_ex_sites = "1      0\n"
+                             "4.5    0\n"
+                             "8.5    0\n";
+const char *paper_ex_mutations = "0      2   1\n"
+                                 "1      0   1\n"
+                                 "2      5   1\n";
 /* Two (diploid) indivduals */
-const char *paper_ex_individuals =
-    "0      0.2,1.5\n"
-    "0      0.0,0.0\n";
+const char *paper_ex_individuals = "0      0.2,1.5\n"
+                                   "0      0.0,0.0\n";
 
 /* An example of a nonbinary tree sequence */
-const char *nonbinary_ex_nodes =
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "1  0       0   -1\n"
-    "0  0.01    0   -1\n"
-    "0  0.068   0   -1\n"
-    "0  0.130   0   -1\n"
-    "0  0.279   0   -1\n"
-    "0  0.405   0   -1\n";
-const char *nonbinary_ex_edges =
-    "0	100	8	0,1,2,3\n"
-    "0	100	9	6,8\n"
-    "0  100 10  4\n"
-    "0  17  10  5\n"
-    "0  100 10  7\n"
-    "17	100	11	5,9\n"
-    "0	17	12	9\n"
-    "0  100 12  10\n"
-    "17	100	12	11";
-const char *nonbinary_ex_sites =
-        "1  0\n"
-        "18 0\n";
-const char *nonbinary_ex_mutations =
-    "0    2   1\n"
-    "1    11  1";
+const char *nonbinary_ex_nodes = "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "1  0       0   -1\n"
+                                 "0  0.01    0   -1\n"
+                                 "0  0.068   0   -1\n"
+                                 "0  0.130   0   -1\n"
+                                 "0  0.279   0   -1\n"
+                                 "0  0.405   0   -1\n";
+const char *nonbinary_ex_edges = "0	100	8	0,1,2,3\n"
+                                 "0	100	9	6,8\n"
+                                 "0  100 10  4\n"
+                                 "0  17  10  5\n"
+                                 "0  100 10  7\n"
+                                 "17	100	11	5,9\n"
+                                 "0	17	12	9\n"
+                                 "0  100 12  10\n"
+                                 "17	100	12	11";
+const char *nonbinary_ex_sites = "1  0\n"
+                                 "18 0\n";
+const char *nonbinary_ex_mutations = "0    2   1\n"
+                                     "1    11  1";
 
 /* An example of a tree sequence with unary nodes. */
 
-const char *unary_ex_nodes =
-    "1  0       0  -1\n"
-    "1  0       0  -1\n"
-    "1  0       0  -1\n"
-    "1  0       0  -1\n"
-    "0  0.071   0  -1\n"
-    "0  0.090   0  -1\n"
-    "0  0.170   0  -1\n"
-    "0  0.202   0  -1\n"
-    "0  0.253   0  -1\n";
-const char *unary_ex_edges =
-    "2 10 4 2,3\n"
-    "0 10 5 1\n"
-    "0 2  5 3\n"
-    "2 10 5 4\n"
-    "0 7  6 0,5\n"
-    "7 10 7 0\n"
-    "0 2  7 2\n"
-    "7 10 7 5\n"
-    "0 7  8 6\n"
-    "0 2  8 7\n";
+const char *unary_ex_nodes = "1  0       0  -1\n"
+                             "1  0       0  -1\n"
+                             "1  0       0  -1\n"
+                             "1  0       0  -1\n"
+                             "0  0.071   0  -1\n"
+                             "0  0.090   0  -1\n"
+                             "0  0.170   0  -1\n"
+                             "0  0.202   0  -1\n"
+                             "0  0.253   0  -1\n";
+const char *unary_ex_edges = "2 10 4 2,3\n"
+                             "0 10 5 1\n"
+                             "0 2  5 3\n"
+                             "2 10 5 4\n"
+                             "0 7  6 0,5\n"
+                             "7 10 7 0\n"
+                             "0 2  7 2\n"
+                             "7 10 7 5\n"
+                             "0 7  8 6\n"
+                             "0 2  8 7\n";
 
 /* We make one mutation for each tree, over unary nodes if this exist */
-const char *unary_ex_sites =
-    "1.0    0\n"
-    "4.5    0\n"
-    "8.5    0\n";
-const char *unary_ex_mutations =
-    "0    2   1\n"
-    "1    6   1\n"
-    "2    5   1\n";
+const char *unary_ex_sites = "1.0    0\n"
+                             "4.5    0\n"
+                             "8.5    0\n";
+const char *unary_ex_mutations = "0    2   1\n"
+                                 "1    6   1\n"
+                                 "2    5   1\n";
 
 /* An example of a tree sequence with internally sampled nodes. */
 
@@ -204,35 +188,30 @@ const char *unary_ex_mutations =
 0
 */
 
-const char *internal_sample_ex_nodes =
-    "1  0.0   0   -1\n"
-    "1  0.1   0   -1\n"
-    "1  0.1   0   -1\n"
-    "1  0.2   0   -1\n"
-    "0  0.4   0   -1\n"
-    "1  0.5   0   -1\n"
-    "0  0.7   0   -1\n"
-    "0  1.0   0   -1\n"
-    "0  1.2   0   -1\n";
-const char *internal_sample_ex_edges =
-    "2 8  4 0\n"
-    "0 10 4 2\n"
-    "0 2  4 3\n"
-    "8 10 4 3\n"
-    "0 10 5 1,4\n"
-    "8 10 6 0,5\n"
-    "0 2  7 0,5\n"
-    "2 8  8 3,5\n";
+const char *internal_sample_ex_nodes = "1  0.0   0   -1\n"
+                                       "1  0.1   0   -1\n"
+                                       "1  0.1   0   -1\n"
+                                       "1  0.2   0   -1\n"
+                                       "0  0.4   0   -1\n"
+                                       "1  0.5   0   -1\n"
+                                       "0  0.7   0   -1\n"
+                                       "0  1.0   0   -1\n"
+                                       "0  1.2   0   -1\n";
+const char *internal_sample_ex_edges = "2 8  4 0\n"
+                                       "0 10 4 2\n"
+                                       "0 2  4 3\n"
+                                       "8 10 4 3\n"
+                                       "0 10 5 1,4\n"
+                                       "8 10 6 0,5\n"
+                                       "0 2  7 0,5\n"
+                                       "2 8  8 3,5\n";
 /* We make one mutation for each tree, some above the internal node */
-const char *internal_sample_ex_sites =
-    "1.0    0\n"
-    "4.5    0\n"
-    "8.5    0\n";
-const char *internal_sample_ex_mutations =
-    "0    2   1\n"
-    "1    5   1\n"
-    "2    5   1\n";
-
+const char *internal_sample_ex_sites = "1.0    0\n"
+                                       "4.5    0\n"
+                                       "8.5    0\n";
+const char *internal_sample_ex_mutations = "0    2   1\n"
+                                           "1    5   1\n"
+                                           "2    5   1\n";
 
 /* Simple utilities to parse text so we can write declaritive
  * tests. This is not intended as a robust general input mechanism.
@@ -286,8 +265,8 @@ parse_nodes(const char *text, tsk_node_tbl_t *node_table)
         } else {
             name = p;
         }
-        ret = tsk_node_tbl_add_row(node_table, flags, time, population,
-                individual, name, strlen(name));
+        ret = tsk_node_tbl_add_row(
+            node_table, flags, time, population, individual, name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -386,8 +365,8 @@ parse_sites(const char *text, tsk_site_tbl_t *site_table)
         p = strtok(NULL, whitespace);
         CU_ASSERT_FATAL(p != NULL);
         strncpy(ancestral_state, p, MAX_LINE);
-        ret = tsk_site_tbl_add_row(site_table, position, ancestral_state,
-                strlen(ancestral_state), NULL, 0);
+        ret = tsk_site_tbl_add_row(
+            site_table, position, ancestral_state, strlen(ancestral_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -434,8 +413,8 @@ parse_mutations(const char *text, tsk_mutation_tbl_t *mutation_table)
         if (p != NULL) {
             parent = atoi(p);
         }
-        ret = tsk_mutation_tbl_add_row(mutation_table, site, node, parent,
-                derived_state, strlen(derived_state), NULL, 0);
+        ret = tsk_mutation_tbl_add_row(mutation_table, site, node, parent, derived_state,
+            strlen(derived_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -499,17 +478,16 @@ parse_individuals(const char *text, tsk_individual_tbl_t *individual_table)
         } else {
             name = p;
         }
-        ret = tsk_individual_tbl_add_row(individual_table, flags, location, location_len,
-                name, strlen(name));
+        ret = tsk_individual_tbl_add_row(
+            individual_table, flags, location, location_len, name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
 
 static void
-tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length,
-        const char *nodes, const char *edges,
-        const char *migrations, const char *sites, const char *mutations,
-        const char *individuals, const char *provenance)
+tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nodes,
+    const char *edges, const char *migrations, const char *sites, const char *mutations,
+    const char *individuals, const char *provenance)
 {
     int ret;
     tsk_tbl_collection_t tables;
@@ -639,7 +617,7 @@ unsort_sites(tsk_site_tbl_t *sites, tsk_mutation_tbl_t *mutations)
         /* Now write the ancestral state for the site 1 here */
         k = 0;
         for (j = sites->ancestral_state_offset[1]; j < sites->ancestral_state_offset[2];
-                j++) {
+             j++) {
             sites->ancestral_state[k] = sites->ancestral_state[j];
             k++;
         }
@@ -689,8 +667,8 @@ add_individuals(tsk_treeseq_t *ts)
     k = 0;
     for (j = 0; j < num_samples; j++) {
         if ((k % ploidy) == 0) {
-            tsk_individual_tbl_add_row(tables.individuals, (uint32_t) k,
-                    NULL, 0, metadata, metadata_length);
+            tsk_individual_tbl_add_row(
+                tables.individuals, (uint32_t) k, NULL, 0, metadata, metadata_length);
             CU_ASSERT_TRUE(ret >= 0)
         }
         tables.nodes->individual[samples[j]] = k / ploidy;
@@ -941,8 +919,8 @@ verify_vargen(tsk_treeseq_t *ts)
     size_t num_sites = tsk_treeseq_get_num_sites(ts);
     tsk_variant_t *var;
     size_t j, k, f, s;
-    int flags[] = {0, TSK_16_BIT_GENOTYPES};
-    tsk_id_t *samples[] = {NULL, NULL};
+    int flags[] = { 0, TSK_16_BIT_GENOTYPES };
+    tsk_id_t *samples[] = { NULL, NULL };
 
     ret = tsk_treeseq_get_samples(ts, samples);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -960,16 +938,17 @@ verify_vargen(tsk_treeseq_t *ts)
                 } else {
                     CU_ASSERT_TRUE(var->num_alleles > 1);
                 }
-                CU_ASSERT_EQUAL(var->allele_lengths[0], var->site->ancestral_state_length);
-                CU_ASSERT_NSTRING_EQUAL_FATAL(var->alleles[0], var->site->ancestral_state,
-                        var->allele_lengths[0]);
+                CU_ASSERT_EQUAL(
+                    var->allele_lengths[0], var->site->ancestral_state_length);
+                CU_ASSERT_NSTRING_EQUAL_FATAL(
+                    var->alleles[0], var->site->ancestral_state, var->allele_lengths[0]);
                 for (k = 0; k < var->num_alleles; k++) {
                     CU_ASSERT_TRUE(var->allele_lengths[k] >= 0);
                 }
                 for (k = 0; k < num_samples; k++) {
                     if (flags[f] == TSK_16_BIT_GENOTYPES) {
                         CU_ASSERT(var->genotypes.u16[k] <= var->num_alleles);
-                    } else  {
+                    } else {
                         CU_ASSERT(var->genotypes.u8[k] <= var->num_alleles);
                     }
                 }
@@ -1039,8 +1018,8 @@ verify_genealogical_nearest_neighbours(tsk_treeseq_t *ts)
     sample_sets[1] = samples + sample_set_size[0];
     sample_set_size[1] = num_samples - sample_set_size[0];
 
-    ret = tsk_treeseq_genealogical_nearest_neighbours(ts,
-        samples, num_samples, sample_sets, sample_set_size, 2, 0, A);
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        ts, samples, num_samples, sample_sets, sample_set_size, 2, 0, A);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     free(A);
@@ -1086,7 +1065,6 @@ verify_mean_descendants(tsk_treeseq_t *ts)
     free(C);
 }
 
-
 static void
 verify_compute_mutation_parents(tsk_treeseq_t *ts)
 {
@@ -1129,8 +1107,7 @@ verify_individual_nodes(tsk_treeseq_t *ts)
         CU_ASSERT_FATAL(individual.nodes_length >= 0);
         for (j = 0; j < individual.nodes_length; j++) {
             CU_ASSERT_FATAL(individual.nodes[j] < num_nodes);
-            CU_ASSERT_EQUAL_FATAL(k,
-                    ts->tables->nodes->individual[individual.nodes[j]]);
+            CU_ASSERT_EQUAL_FATAL(k, ts->tables->nodes->individual[individual.nodes[j]]);
         }
     }
 }
@@ -1138,8 +1115,8 @@ verify_individual_nodes(tsk_treeseq_t *ts)
 /* When we keep all sites in simplify, the genotypes for the subset of the
  * samples should be the same as the original */
 static void
-verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
-        tsk_id_t *samples, uint32_t num_samples, tsk_id_t *node_map)
+verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset, tsk_id_t *samples,
+    uint32_t num_samples, tsk_id_t *node_map)
 {
     int ret;
     size_t m = tsk_treeseq_get_num_sites(ts);
@@ -1179,24 +1156,23 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
             /*         "original_index = %d a1=%.*s a2=%.*s\n", */
             /*         (int) k, samples[k], sample_index_map[samples[k]], */
             /*         variant->allele_lengths[a1], variant->alleles[a1], */
-            /*         subset_variant->allele_lengths[a2], subset_variant->alleles[a2]); */
+            /*         subset_variant->allele_lengths[a2], subset_variant->alleles[a2]);
+             */
             CU_ASSERT_FATAL(a1 < variant->num_alleles);
             CU_ASSERT_FATAL(a2 < subset_variant->num_alleles);
-            CU_ASSERT_EQUAL_FATAL(variant->allele_lengths[a1],
-                    subset_variant->allele_lengths[a2]);
-            CU_ASSERT_NSTRING_EQUAL_FATAL(
-                variant->alleles[a1], subset_variant->alleles[a2],
-                variant->allele_lengths[a1]);
+            CU_ASSERT_EQUAL_FATAL(
+                variant->allele_lengths[a1], subset_variant->allele_lengths[a2]);
+            CU_ASSERT_NSTRING_EQUAL_FATAL(variant->alleles[a1],
+                subset_variant->alleles[a2], variant->allele_lengths[a1]);
         }
     }
     tsk_vargen_free(&vargen);
     tsk_vargen_free(&subset_vargen);
 }
 
-
 static void
-verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
-        tsk_id_t *samples, uint32_t num_samples, tsk_id_t *node_map)
+verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset, tsk_id_t *samples,
+    uint32_t num_samples, tsk_id_t *node_map)
 {
     int ret;
     tsk_node_t n1, n2;
@@ -1208,11 +1184,9 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     size_t total_sites;
 
     CU_ASSERT_EQUAL(
-        tsk_treeseq_get_sequence_length(ts),
-        tsk_treeseq_get_sequence_length(subset));
+        tsk_treeseq_get_sequence_length(ts), tsk_treeseq_get_sequence_length(subset));
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(subset), num_samples);
-    CU_ASSERT(
-        tsk_treeseq_get_num_nodes(ts) >= tsk_treeseq_get_num_nodes(subset));
+    CU_ASSERT(tsk_treeseq_get_num_nodes(ts) >= tsk_treeseq_get_num_nodes(subset));
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(subset), num_samples);
 
     /* Check the sample properties */
@@ -1266,8 +1240,8 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
                 for (k = j + 1; k < num_samples; k++) {
                     ret = tsk_tree_get_mrca(&full_tree, samples[j], samples[k], &mrca1);
                     CU_ASSERT_EQUAL_FATAL(ret, 0);
-                    ret = tsk_tree_get_mrca(&subset_tree,
-                            node_map[samples[j]], node_map[samples[k]], &mrca2);
+                    ret = tsk_tree_get_mrca(&subset_tree, node_map[samples[j]],
+                        node_map[samples[k]], &mrca2);
                     CU_ASSERT_EQUAL_FATAL(ret, 0);
                     if (mrca1 == TSK_NULL) {
                         CU_ASSERT_EQUAL_FATAL(mrca2, TSK_NULL);
@@ -1290,8 +1264,8 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
             CU_ASSERT(subset_tree.left <= tree_sites[j].position);
             CU_ASSERT(tree_sites[j].position < subset_tree.right);
             for (k = 0; k < tree_sites[j].mutations_length; k++) {
-                ret = tsk_tree_get_parent(&subset_tree,
-                        tree_sites[j].mutations[k].node, &u);
+                ret = tsk_tree_get_parent(
+                    &subset_tree, tree_sites[j].mutations[k].node, &u);
                 CU_ASSERT_EQUAL(ret, 0);
             }
             total_sites++;
@@ -1314,7 +1288,7 @@ verify_simplify(tsk_treeseq_t *ts)
 {
     int ret;
     uint32_t n = tsk_treeseq_get_num_samples(ts);
-    uint32_t num_samples[] = {0, 1, 2, 3, n / 2, n - 1, n};
+    uint32_t num_samples[] = { 0, 1, 2, 3, n / 2, n - 1, n };
     size_t j;
     tsk_id_t *sample;
     tsk_id_t *node_map = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
@@ -1333,16 +1307,15 @@ verify_simplify(tsk_treeseq_t *ts)
 
     for (j = 0; j < sizeof(num_samples) / sizeof(uint32_t); j++) {
         if (num_samples[j] <= n) {
-            ret = tsk_treeseq_simplify(ts, sample, num_samples[j], flags, &subset,
-                    node_map);
+            ret = tsk_treeseq_simplify(
+                ts, sample, num_samples[j], flags, &subset, node_map);
             /* printf("ret = %s\n", tsk_strerror(ret)); */
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             verify_simplify_properties(ts, &subset, sample, num_samples[j], node_map);
             tsk_treeseq_free(&subset);
 
             /* Keep all sites */
-            ret = tsk_treeseq_simplify(ts, sample, num_samples[j], 0, &subset,
-                    node_map);
+            ret = tsk_treeseq_simplify(ts, sample, num_samples[j], 0, &subset, node_map);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             verify_simplify_properties(ts, &subset, sample, num_samples[j], node_map);
             verify_simplify_genotypes(ts, &subset, sample, num_samples[j], node_map);
@@ -1386,12 +1359,12 @@ verify_reduce_topology(tsk_treeseq_t *ts)
         ret = tsk_treeseq_get_edge(&reduced, j, &edge);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         if (edge.left != 0) {
-            CU_ASSERT_EQUAL_FATAL(edge.left,
-                X[tsk_search_sorted(X, num_sites, edge.left)]);
+            CU_ASSERT_EQUAL_FATAL(
+                edge.left, X[tsk_search_sorted(X, num_sites, edge.left)]);
         }
         if (edge.right != tsk_treeseq_get_sequence_length(&reduced)) {
-            CU_ASSERT_EQUAL_FATAL(edge.right,
-                X[tsk_search_sorted(X, num_sites, edge.right)]);
+            CU_ASSERT_EQUAL_FATAL(
+                edge.right, X[tsk_search_sorted(X, num_sites, edge.right)]);
         }
     }
     tsk_treeseq_free(&reduced);
@@ -1401,11 +1374,10 @@ verify_reduce_topology(tsk_treeseq_t *ts)
  * callers responsilibility to free all memory.
  */
 static tsk_treeseq_t *
-get_example_tree_sequence(uint32_t num_samples,
-        uint32_t num_historical_samples, uint32_t num_loci,
-        double sequence_length, double recombination_rate,
-        double mutation_rate, uint32_t num_bottlenecks,
-        bottleneck_desc_t *bottlenecks, int alphabet)
+get_example_tree_sequence(uint32_t num_samples, uint32_t num_historical_samples,
+    uint32_t num_loci, double sequence_length, double recombination_rate,
+    double mutation_rate, uint32_t num_bottlenecks, bottleneck_desc_t *bottlenecks,
+    int alphabet)
 {
     return NULL;
 }
@@ -1468,7 +1440,7 @@ verify_vcf_converter(tsk_treeseq_t *ts, unsigned int ploidy)
     unsigned int num_variants;
 
     ret = tsk_vcf_converter_init(&vc, ts, ploidy, "chr1234");
-    CU_ASSERT_FATAL(ret ==  0);
+    CU_ASSERT_FATAL(ret == 0);
     tsk_vcf_converter_print_state(&vc, _devnull);
     ret = tsk_vcf_converter_get_header(&vc, &str);
     CU_ASSERT_EQUAL(ret, 0);
@@ -1483,19 +1455,15 @@ verify_vcf_converter(tsk_treeseq_t *ts, unsigned int ploidy)
     tsk_vcf_converter_free(&vc);
 }
 
-
-
 static void
 test_node_metadata(void)
 {
-    const char *nodes =
-        "1  0   0   -1   n1\n"
-        "1  0   0   -1   n2\n"
-        "0  1   0   -1   A_much_longer_name\n"
-        "0  1   0   -1\n"
-        "0  1   0   -1   n4";
-    const char *edges =
-        "0  1   2   0,1\n";
+    const char *nodes = "1  0   0   -1   n1\n"
+                        "1  0   0   -1   n2\n"
+                        "0  1   0   -1   A_much_longer_name\n"
+                        "0  1   0   -1\n"
+                        "0  1   0   -1   n4";
+    const char *edges = "0  1   2   0,1\n";
     tsk_treeseq_t ts;
     int ret;
     tsk_node_t node;
@@ -1587,8 +1555,8 @@ verify_ld(tsk_treeseq_t *ts)
 
     if (num_sites > 0) {
         /* Some checks in the forward direction */
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, 0, TSK_DIR_FORWARD,
-                num_sites, DBL_MAX, r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, 0, TSK_DIR_FORWARD, num_sites, DBL_MAX, r2, &num_r2_values);
         if (multi_mutations_exist(ts, 0, num_sites)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1598,7 +1566,7 @@ verify_ld(tsk_treeseq_t *ts)
         tsk_ld_calc_print_state(&ld_calc, _devnull);
 
         ret = tsk_ld_calc_get_r2_array(&ld_calc, num_sites - 2, TSK_DIR_FORWARD,
-                num_sites, DBL_MAX, r2_prime, &num_r2_values);
+            num_sites, DBL_MAX, r2_prime, &num_r2_values);
         if (multi_mutations_exist(ts, num_sites - 2, num_sites)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1607,8 +1575,8 @@ verify_ld(tsk_treeseq_t *ts)
         }
         tsk_ld_calc_print_state(&ld_calc, _devnull);
 
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, 0, TSK_DIR_FORWARD,
-                num_sites, DBL_MAX, r2_prime, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, 0, TSK_DIR_FORWARD, num_sites, DBL_MAX, r2_prime, &num_r2_values);
         if (multi_mutations_exist(ts, 0, num_sites)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1621,13 +1589,11 @@ verify_ld(tsk_treeseq_t *ts)
                 CU_ASSERT_EQUAL_FATAL(ret, 0);
                 CU_ASSERT_DOUBLE_EQUAL_FATAL(r2[j], x, eps);
             }
-
         }
 
         /* Some checks in the reverse direction */
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, num_sites - 1,
-                TSK_DIR_REVERSE, num_sites, DBL_MAX,
-                r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(&ld_calc, num_sites - 1, TSK_DIR_REVERSE,
+            num_sites, DBL_MAX, r2, &num_r2_values);
         if (multi_mutations_exist(ts, 0, num_sites)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1636,8 +1602,8 @@ verify_ld(tsk_treeseq_t *ts)
         }
         tsk_ld_calc_print_state(&ld_calc, _devnull);
 
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, 1, TSK_DIR_REVERSE,
-                num_sites, DBL_MAX, r2_prime, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, 1, TSK_DIR_REVERSE, num_sites, DBL_MAX, r2_prime, &num_r2_values);
         if (multi_mutations_exist(ts, 0, 1)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1646,9 +1612,8 @@ verify_ld(tsk_treeseq_t *ts)
         }
         tsk_ld_calc_print_state(&ld_calc, _devnull);
 
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, num_sites - 1,
-                TSK_DIR_REVERSE, num_sites, DBL_MAX,
-                r2_prime, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(&ld_calc, num_sites - 1, TSK_DIR_REVERSE,
+            num_sites, DBL_MAX, r2_prime, &num_r2_values);
         if (multi_mutations_exist(ts, 0, num_sites)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1658,16 +1623,15 @@ verify_ld(tsk_treeseq_t *ts)
 
             for (j = 0; j < num_r2_values; j++) {
                 CU_ASSERT_EQUAL_FATAL(r2[j], r2_prime[j]);
-                ret = tsk_ld_calc_get_r2(&ld_calc, num_sites - 1,
-                        num_sites - j - 2, &x);
+                ret = tsk_ld_calc_get_r2(&ld_calc, num_sites - 1, num_sites - j - 2, &x);
                 CU_ASSERT_EQUAL_FATAL(ret, 0);
                 CU_ASSERT_DOUBLE_EQUAL_FATAL(r2[j], x, eps);
             }
         }
 
         /* Check some error conditions */
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, 0, 0, num_sites, DBL_MAX,
-            r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, 0, 0, num_sites, DBL_MAX, r2, &num_r2_values);
         CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     }
 
@@ -1675,8 +1639,8 @@ verify_ld(tsk_treeseq_t *ts)
         /* Check for some basic distance calculations */
         j = num_sites / 2;
         x = sites[j + 1].position - sites[j].position;
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, j, TSK_DIR_FORWARD, num_sites,
-                x, r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, j, TSK_DIR_FORWARD, num_sites, x, r2, &num_r2_values);
         if (multi_mutations_exist(ts, j, num_sites)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1685,8 +1649,8 @@ verify_ld(tsk_treeseq_t *ts)
         }
 
         x = sites[j].position - sites[j - 1].position;
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, j, TSK_DIR_REVERSE, num_sites,
-                x, r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, j, TSK_DIR_REVERSE, num_sites, x, r2, &num_r2_values);
         if (multi_mutations_exist(ts, 0, j + 1)) {
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
         } else {
@@ -1697,8 +1661,8 @@ verify_ld(tsk_treeseq_t *ts)
 
     /* Check some error conditions */
     for (j = num_sites; j < num_sites + 2; j++) {
-        ret = tsk_ld_calc_get_r2_array(&ld_calc, j, TSK_DIR_FORWARD,
-                num_sites, DBL_MAX, r2, &num_r2_values);
+        ret = tsk_ld_calc_get_r2_array(
+            &ld_calc, j, TSK_DIR_FORWARD, num_sites, DBL_MAX, r2, &num_r2_values);
         CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
         ret = tsk_ld_calc_get_r2(&ld_calc, j, 0, r2);
         CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
@@ -1729,7 +1693,6 @@ verify_empty_tree_sequence(tsk_treeseq_t *ts, double sequence_length)
     verify_vargen(ts);
     verify_vcf_converter(ts, 1);
 }
-
 
 static void
 verify_sample_sets_for_tree(tsk_tree_t *tree)
@@ -1802,7 +1765,7 @@ verify_sample_sets(tsk_treeseq_t *ts)
     int ret;
     tsk_tree_t t;
 
-    ret = tsk_tree_init(&t, ts, TSK_SAMPLE_COUNTS|TSK_SAMPLE_LISTS);
+    ret = tsk_tree_init(&t, ts, TSK_SAMPLE_COUNTS | TSK_SAMPLE_LISTS);
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
@@ -1823,10 +1786,10 @@ verify_tree_equals(tsk_treeseq_t *ts)
     int ret;
     tsk_tree_t *trees, t;
     size_t j, k;
-    tsk_treeseq_t *other_ts = get_example_tree_sequence(
-            10, 0, 100, 100.0, 1.0, 1.0, 0, NULL, 0);
-    int flags[] = {0, TSK_SAMPLE_LISTS, TSK_SAMPLE_COUNTS,
-        TSK_SAMPLE_LISTS | TSK_SAMPLE_COUNTS};
+    tsk_treeseq_t *other_ts
+        = get_example_tree_sequence(10, 0, 100, 100.0, 1.0, 1.0, 0, NULL, 0);
+    int flags[] = { 0, TSK_SAMPLE_LISTS, TSK_SAMPLE_COUNTS,
+        TSK_SAMPLE_LISTS | TSK_SAMPLE_COUNTS };
 
     trees = get_tree_list(ts);
     ret = tsk_tree_init(&t, other_ts, 0);
@@ -1849,8 +1812,7 @@ verify_tree_equals(tsk_treeseq_t *ts)
     for (j = 0; j < sizeof(flags) / sizeof(int); j++) {
         ret = tsk_tree_init(&t, ts, flags[j]);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        for (ret = tsk_tree_first(&t); ret == 1;
-                ret = tsk_tree_next(&t)) {
+        for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
             for (k = 0; k < tsk_treeseq_get_num_trees(ts); k++) {
                 ret = tsk_tree_equal(&t, &trees[k]);
                 if (t.index == k) {
@@ -2041,8 +2003,6 @@ test_mean_descendants_from_examples(void)
     free(examples);
 }
 
-
-
 static void
 test_compute_mutation_parents_from_examples(void)
 {
@@ -2072,7 +2032,7 @@ verify_simplify_errors(tsk_treeseq_t *ts)
     memcpy(sample, s, 2 * sizeof(tsk_id_t));
 
     for (u = 0; u < (tsk_id_t) tsk_treeseq_get_num_nodes(ts); u++) {
-        if (! tsk_treeseq_is_sample(ts, u)) {
+        if (!tsk_treeseq_is_sample(ts, u)) {
             sample[1] = u;
             ret = tsk_treeseq_simplify(ts, sample, 2, 0, &subset, NULL);
             CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLES);
@@ -2186,8 +2146,7 @@ test_newick_from_examples(void)
 
 static void
 verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
-        bool check_migrations, bool check_mutations,
-        bool check_provenance)
+    bool check_migrations, bool check_mutations, bool check_provenance)
 {
     int ret, err1, err2;
     size_t j;
@@ -2205,21 +2164,12 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
     /* tsk_treeseq_print_state(ts1, stdout); */
     /* tsk_treeseq_print_state(ts2, stdout); */
 
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(ts1), tsk_treeseq_get_num_samples(ts2));
     CU_ASSERT_EQUAL(
-        tsk_treeseq_get_num_samples(ts1),
-        tsk_treeseq_get_num_samples(ts2));
-    CU_ASSERT_EQUAL(
-        tsk_treeseq_get_sequence_length(ts1),
-        tsk_treeseq_get_sequence_length(ts2));
-    CU_ASSERT_EQUAL(
-        tsk_treeseq_get_num_edges(ts1),
-        tsk_treeseq_get_num_edges(ts2));
-    CU_ASSERT_EQUAL(
-        tsk_treeseq_get_num_nodes(ts1),
-        tsk_treeseq_get_num_nodes(ts2));
-    CU_ASSERT_EQUAL(
-        tsk_treeseq_get_num_trees(ts1),
-        tsk_treeseq_get_num_trees(ts2));
+        tsk_treeseq_get_sequence_length(ts1), tsk_treeseq_get_sequence_length(ts2));
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_edges(ts1), tsk_treeseq_get_num_edges(ts2));
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(ts1), tsk_treeseq_get_num_nodes(ts2));
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(ts1), tsk_treeseq_get_num_trees(ts2));
 
     for (j = 0; j < tsk_treeseq_get_num_nodes(ts1); j++) {
         ret = tsk_treeseq_get_node(ts1, j, &n1);
@@ -2237,24 +2187,23 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
     }
     if (check_mutations) {
         CU_ASSERT_EQUAL_FATAL(
-            tsk_treeseq_get_num_sites(ts1),
-            tsk_treeseq_get_num_sites(ts2));
+            tsk_treeseq_get_num_sites(ts1), tsk_treeseq_get_num_sites(ts2));
         for (j = 0; j < tsk_treeseq_get_num_sites(ts1); j++) {
             ret = tsk_treeseq_get_site(ts1, j, &site_1);
             CU_ASSERT_EQUAL(ret, 0);
             ret = tsk_treeseq_get_site(ts2, j, &site_2);
             CU_ASSERT_EQUAL(ret, 0);
             CU_ASSERT_EQUAL(site_1.position, site_2.position);
-            CU_ASSERT_EQUAL(site_1.ancestral_state_length, site_2.ancestral_state_length);
+            CU_ASSERT_EQUAL(
+                site_1.ancestral_state_length, site_2.ancestral_state_length);
             CU_ASSERT_NSTRING_EQUAL(site_1.ancestral_state, site_2.ancestral_state,
-                    site_1.ancestral_state_length);
+                site_1.ancestral_state_length);
             CU_ASSERT_EQUAL(site_1.metadata_length, site_2.metadata_length);
-            CU_ASSERT_NSTRING_EQUAL(site_1.metadata, site_2.metadata,
-                    site_1.metadata_length);
+            CU_ASSERT_NSTRING_EQUAL(
+                site_1.metadata, site_2.metadata, site_1.metadata_length);
         }
         CU_ASSERT_EQUAL_FATAL(
-            tsk_treeseq_get_num_mutations(ts1),
-            tsk_treeseq_get_num_mutations(ts2));
+            tsk_treeseq_get_num_mutations(ts1), tsk_treeseq_get_num_mutations(ts2));
         for (j = 0; j < num_mutations; j++) {
             ret = tsk_treeseq_get_mutation(ts1, j, &mutation_1);
             CU_ASSERT_EQUAL(ret, 0);
@@ -2265,20 +2214,19 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
             CU_ASSERT_EQUAL(mutation_1.site, mutation_2.site);
             CU_ASSERT_EQUAL(mutation_1.node, mutation_2.node);
             CU_ASSERT_EQUAL_FATAL(mutation_1.parent, mutation_2.parent);
-            CU_ASSERT_EQUAL_FATAL(mutation_1.derived_state_length,
-                    mutation_2.derived_state_length);
-            CU_ASSERT_NSTRING_EQUAL(mutation_1.derived_state,
-                    mutation_2.derived_state, mutation_1.derived_state_length);
-            CU_ASSERT_EQUAL_FATAL(mutation_1.metadata_length,
-                    mutation_2.metadata_length);
-            CU_ASSERT_NSTRING_EQUAL(mutation_1.metadata,
-                    mutation_2.metadata, mutation_1.metadata_length);
+            CU_ASSERT_EQUAL_FATAL(
+                mutation_1.derived_state_length, mutation_2.derived_state_length);
+            CU_ASSERT_NSTRING_EQUAL(mutation_1.derived_state, mutation_2.derived_state,
+                mutation_1.derived_state_length);
+            CU_ASSERT_EQUAL_FATAL(
+                mutation_1.metadata_length, mutation_2.metadata_length);
+            CU_ASSERT_NSTRING_EQUAL(
+                mutation_1.metadata, mutation_2.metadata, mutation_1.metadata_length);
         }
     }
     if (check_migrations) {
         CU_ASSERT_EQUAL_FATAL(
-            tsk_treeseq_get_num_migrations(ts1),
-            tsk_treeseq_get_num_migrations(ts2));
+            tsk_treeseq_get_num_migrations(ts1), tsk_treeseq_get_num_migrations(ts2));
         for (j = 0; j < tsk_treeseq_get_num_migrations(ts1); j++) {
             ret = tsk_treeseq_get_migration(ts1, j, &m1);
             CU_ASSERT_EQUAL(ret, 0);
@@ -2289,8 +2237,7 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
     }
     if (check_provenance) {
         CU_ASSERT_EQUAL_FATAL(
-            tsk_treeseq_get_num_provenances(ts1),
-            tsk_treeseq_get_num_provenances(ts2));
+            tsk_treeseq_get_num_provenances(ts1), tsk_treeseq_get_num_provenances(ts2));
         for (j = 0; j < tsk_treeseq_get_num_provenances(ts1); j++) {
             ret = tsk_treeseq_get_provenance(ts1, j, &p1);
             CU_ASSERT_EQUAL(ret, 0);
@@ -2301,8 +2248,7 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
     }
 
     CU_ASSERT_EQUAL_FATAL(
-        tsk_treeseq_get_num_individuals(ts1),
-        tsk_treeseq_get_num_individuals(ts2));
+        tsk_treeseq_get_num_individuals(ts1), tsk_treeseq_get_num_individuals(ts2));
     for (j = 0; j < tsk_treeseq_get_num_individuals(ts1); j++) {
         ret = tsk_treeseq_get_individual(ts1, j, &i1);
         CU_ASSERT_EQUAL(ret, 0);
@@ -2312,8 +2258,7 @@ verify_tree_sequences_equal(tsk_treeseq_t *ts1, tsk_treeseq_t *ts2,
     }
 
     CU_ASSERT_EQUAL_FATAL(
-        tsk_treeseq_get_num_populations(ts1),
-        tsk_treeseq_get_num_populations(ts2));
+        tsk_treeseq_get_num_populations(ts1), tsk_treeseq_get_num_populations(ts2));
     for (j = 0; j < tsk_treeseq_get_num_populations(ts1); j++) {
         ret = tsk_treeseq_get_population(ts1, j, &pop1);
         CU_ASSERT_EQUAL(ret, 0);
@@ -2378,7 +2323,7 @@ test_save_kas(void)
     tsk_treeseq_t ts2;
     tsk_treeseq_t *ts1;
     char *file_uuid;
-    int dump_flags[] = {0};
+    int dump_flags[] = { 0 };
 
     CU_ASSERT_FATAL(examples != NULL);
 
@@ -2413,7 +2358,7 @@ test_save_kas_tables(void)
     tsk_treeseq_t **examples = get_example_tree_sequences(1);
     tsk_treeseq_t *ts1;
     tsk_tbl_collection_t t1, t2;
-    int dump_flags[] = {0};
+    int dump_flags[] = { 0 };
 
     CU_ASSERT_FATAL(examples != NULL);
 
@@ -2632,8 +2577,7 @@ test_tsk_tbl_collection_simplify_errors(void)
 {
     int ret;
     tsk_tbl_collection_t tables;
-    tsk_id_t samples[] = {0, 1};
-
+    tsk_id_t samples[] = { 0, 1 };
 
     ret = tsk_tbl_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2660,7 +2604,6 @@ test_tsk_tbl_collection_simplify_errors(void)
      * https://github.com/tskit-dev/msprime/issues/517 */
 
     tsk_tbl_collection_free(&tables);
-
 }
 void
 test_tsk_tbl_collection_position_errors(void)
@@ -2795,8 +2738,8 @@ test_tsk_tbl_collection_position(void)
         for (k = 0; k < 3; k++) {
             tsk_node_tbl_add_row(t2.nodes, 0, 1.2, 0, -1, NULL, 0);
             tsk_node_tbl_add_row(t2.nodes, 0, 1.2, k, -1, NULL, 0);
-            tsk_edge_tbl_add_row(t2.edges, 0.1, 0.5, k, k+1);
-            tsk_edge_tbl_add_row(t2.edges, 0.3, 0.8, k, k+2);
+            tsk_edge_tbl_add_row(t2.edges, 0.1, 0.5, k, k + 1);
+            tsk_edge_tbl_add_row(t2.edges, 0.3, 0.8, k, k + 2);
         }
         // bookmark at pos2
         tsk_tbl_collection_record_position(&t2, &pos2);
@@ -2805,7 +2748,7 @@ test_tsk_tbl_collection_position(void)
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         // add more rows to t3
         for (k = 0; k < 3; k++) {
-            tsk_node_tbl_add_row(t3.nodes, 0, 1.2, k+5, -1, NULL, 0);
+            tsk_node_tbl_add_row(t3.nodes, 0, 1.2, k + 5, -1, NULL, 0);
             tsk_site_tbl_add_row(t3.sites, 0.2, "A", 1, NULL, 0);
             tsk_site_tbl_add_row(t3.sites, 0.2, "C", 1, NULL, 0);
             tsk_mutation_tbl_add_row(t3.mutations, 0, k, -1, "T", 1, NULL, 0);
@@ -2885,8 +2828,7 @@ msprime_suite_cleanup(void)
 static void
 handle_cunit_error()
 {
-    fprintf(stderr, "CUnit error occured: %d: %s\n",
-            CU_get_error(), CU_get_error_msg());
+    fprintf(stderr, "CUnit error occured: %d: %s\n", CU_get_error(), CU_get_error_msg());
     exit(EXIT_FAILURE);
 }
 
@@ -2897,48 +2839,46 @@ main(int argc, char **argv)
     CU_pTest test;
     CU_pSuite suite;
     CU_TestInfo tests[] = {
-        {"test_node_metadata", test_node_metadata},
+        { "test_node_metadata", test_node_metadata },
 
-        {"test_diff_iter_from_examples", test_diff_iter_from_examples},
-        {"test_tree_iter_from_examples", test_tree_iter_from_examples},
-        {"test_tree_equals_from_examples", test_tree_equals_from_examples},
-        {"test_next_prev_from_examples", test_next_prev_from_examples},
-        {"test_sample_sets_from_examples", test_sample_sets_from_examples},
-        {"test_tsk_vargen_from_examples", test_tsk_vargen_from_examples},
-        {"test_newick_from_examples", test_newick_from_examples},
-        {"test_stats_from_examples", test_stats_from_examples},
-        {"test_compute_mutation_parents_from_examples",
-            test_compute_mutation_parents_from_examples},
-        {"test_individual_nodes_from_examples",
-            test_individual_nodes_from_examples},
-        {"test_ld_from_examples", test_ld_from_examples},
-        {"test_simplify_from_examples", test_simplify_from_examples},
-        {"test_reduce_topology_from_examples", test_reduce_topology_from_examples},
-        {"test_save_empty_kas", test_save_empty_kas},
-        {"test_save_kas", test_save_kas},
-        {"test_save_kas_tables", test_save_kas_tables},
-        {"test_dump_tables", test_dump_tables},
-        {"test_sort_tables", test_sort_tables},
-        {"test_dump_tables_kas", test_dump_tables_kas},
+        { "test_diff_iter_from_examples", test_diff_iter_from_examples },
+        { "test_tree_iter_from_examples", test_tree_iter_from_examples },
+        { "test_tree_equals_from_examples", test_tree_equals_from_examples },
+        { "test_next_prev_from_examples", test_next_prev_from_examples },
+        { "test_sample_sets_from_examples", test_sample_sets_from_examples },
+        { "test_tsk_vargen_from_examples", test_tsk_vargen_from_examples },
+        { "test_newick_from_examples", test_newick_from_examples },
+        { "test_stats_from_examples", test_stats_from_examples },
+        { "test_compute_mutation_parents_from_examples",
+            test_compute_mutation_parents_from_examples },
+        { "test_individual_nodes_from_examples", test_individual_nodes_from_examples },
+        { "test_ld_from_examples", test_ld_from_examples },
+        { "test_simplify_from_examples", test_simplify_from_examples },
+        { "test_reduce_topology_from_examples", test_reduce_topology_from_examples },
+        { "test_save_empty_kas", test_save_empty_kas },
+        { "test_save_kas", test_save_kas },
+        { "test_save_kas_tables", test_save_kas_tables },
+        { "test_dump_tables", test_dump_tables },
+        { "test_sort_tables", test_sort_tables },
+        { "test_dump_tables_kas", test_dump_tables_kas },
 
-        {"test_tsk_tbl_collection_position", test_tsk_tbl_collection_position},
-        {"test_tsk_tbl_collection_position_errors", test_tsk_tbl_collection_position_errors},
+        { "test_tsk_tbl_collection_position", test_tsk_tbl_collection_position },
+        { "test_tsk_tbl_collection_position_errors",
+            test_tsk_tbl_collection_position_errors },
 
-        {"test_genealogical_nearest_neighbours_from_examples",
-            test_genealogical_nearest_neighbours_from_examples},
-        {"test_mean_descendants_from_examples", test_mean_descendants_from_examples},
+        { "test_genealogical_nearest_neighbours_from_examples",
+            test_genealogical_nearest_neighbours_from_examples },
+        { "test_mean_descendants_from_examples", test_mean_descendants_from_examples },
         CU_TEST_INFO_NULL,
     };
 
     /* We use initialisers here as the struct definitions change between
      * versions of CUnit */
     CU_SuiteInfo suites[] = {
-        {
-            .pName = "msprime",
+        { .pName = "msprime",
             .pInitFunc = msprime_suite_init,
             .pCleanupFunc = msprime_suite_cleanup,
-            .pTests = tests
-        },
+            .pTests = tests },
         CU_SUITE_INFO_NULL,
     };
     if (CUE_SUCCESS != CU_initialize_registry()) {

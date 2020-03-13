@@ -78,8 +78,8 @@ test_table_basics()
     tsk_table_collection_free(&tables);
 }
 
-
-int main()
+int
+main()
 {
     test_kas_strerror();
     test_strerror();

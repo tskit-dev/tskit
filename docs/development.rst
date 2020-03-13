@@ -34,7 +34,8 @@ Quickstart
 - Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
   all pass.
 - Install the pre-commit checks: ``pre-commit install``
-- Make your changes in a local branch. On each commit a "pre-commit hook" will run
+- Make your changes in a local branch. On each commit a `pre-commit hook
+  <https://pre-commit.com/>`_  will run
   checks for code style and common problems (see :ref:`sec_development_code_style`).
   Sometimes these will report "files were modified by this hook" ``git add``
   and ``git commit --amend`` will update the commit with the automatically modified
@@ -44,6 +45,11 @@ Quickstart
   code. To run the checks without committing use ``pre-commit run``. To bypass
   the checks (to save or get feedback on work-in-progress) use ``git commit
   --no-verify``
+- If you have modified C code then run this to make it conform to the project style::
+
+  $ sudo apt-get install clang-format
+  $ clang-format -i c/tskit/* c/tests/*.c c/tests/*.h
+
 - When ready open a pull request on GitHub. Please make sure that the tests pass before
   you open the PR, unless you want to ask the community for help with a failing test.
 
@@ -54,16 +60,19 @@ Continuous integration tests
 Three different continuous integration providers are used, which run different
 combinations of tests on different platforms:
 
-1. `Travis CI <https://travis-ci.org/>`_ runs tests on Linux and OSX using the
+1. A `Github action <https://help.github.com/en/actions>`_ runs `pre-commit
+   <https://pre-commit.com/>`_ to run a variety of code style and quality checks.
+
+2. `Travis CI <https://travis-ci.org/>`_ runs tests on Linux and OSX using the
    `Conda <https://conda.io/docs/>`__ infrastructure for the system level
    requirements. All supported versions of Python are tested here.
 
-2. `CircleCI <https://circleci.com/>`_ Runs all Python tests using the apt-get
+3. `CircleCI <https://circleci.com/>`_ Runs all Python tests using the apt-get
    infrastructure for system requirements. Additionally, the low-level tests
    are run, coverage statistics calculated using `CodeCov <https://codecov.io/gh>`__,
    and the documentation built.
 
-3. `AppVeyor <https://www.appveyor.com/>`_ Runs Python tests on 32 and 64 bit
+4. `AppVeyor <https://www.appveyor.com/>`_ Runs Python tests on 32 and 64 bit
    Windows using conda.
 
 .. _sec_development_code_style:
@@ -75,7 +84,10 @@ Code style
 Submitted python code should conform to `PEP8 <https://www.python
 .org/dev/peps/pep-0008/>`_. `Black <https://github.com/psf/black>`_ and
 `flake8 <https://flake8.pycqa.org/en/latest/>`_ are used as part of the pre-commit
-checks for python code style and formatting.
+hook for python code style and formatting.
+
+C code is formatted using `clang-format` with a custom
+configuration: `clang-format -i c/tskit/* c/tests/*.c c/tests/*.h`
 
 .. _sec_development_installing:
 

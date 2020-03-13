@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <tskit/tables.h>
 
-#define check_tsk_error(val) if (val < 0) {\
-    fprintf(stderr, "line %d: %s", __LINE__, tsk_strerror(val));\
-    exit(EXIT_FAILURE);\
-}
+#define check_tsk_error(val)                                                            \
+    if (val < 0) {                                                                      \
+        fprintf(stderr, "line %d: %s", __LINE__, tsk_strerror(val));                    \
+        exit(EXIT_FAILURE);                                                             \
+    }
 
 int
 main(int argc, char **argv)
