@@ -32,17 +32,10 @@
  * TestHMM
  ****************************************************************/
 
-static int
-tsk_ls_hmm_finalise_site_test(tsk_ls_hmm_t *self, tsk_id_t site)
+static double
+tsk_ls_hmm_compute_normalisation_factor_site_test(tsk_ls_hmm_t *TSK_UNUSED(self))
 {
-    int ret = 0;
-    tsk_compressed_matrix_t *output = (tsk_compressed_matrix_t *) self->output;
-    tsk_value_transition_t *restrict T = self->transitions;
-    const tsk_id_t num_transitions = (tsk_id_t) self->num_transitions;
-
-    ret = tsk_compressed_matrix_store_site(
-        output, site, 1.0, (tsk_size_t) num_transitions, T);
-    return ret;
+    return 1.0;
 }
 
 static int
@@ -63,7 +56,7 @@ run_test_hmm(tsk_ls_hmm_t *hmm, int8_t *haplotype, tsk_compressed_matrix_t *outp
     srand(1);
 
     ret = tsk_ls_hmm_run(hmm, haplotype, tsk_ls_hmm_next_probability_test,
-        tsk_ls_hmm_finalise_site_test, output);
+        tsk_ls_hmm_compute_normalisation_factor_site_test, output);
     if (ret != 0) {
         goto out;
     }
