@@ -6,6 +6,7 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
       - id: check-case-conflict
+      - id: check-yaml
   - repo: https://github.com/asottile/reorder_python_imports
     rev: v2.1.0
     hooks:
