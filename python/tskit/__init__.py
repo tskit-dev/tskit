@@ -52,6 +52,7 @@ from tskit.formats import *  # NOQA
 from tskit.trees import *  # NOQA
 from tskit.tables import *  # NOQA
 from tskit.stats import *  # NOQA
+from tskit.combinatorics import *  # NOQA
 from tskit.exceptions import *  # NOQA
 from tskit.util import *  # NOQA
 from tskit.metadata import *  # NOQA
