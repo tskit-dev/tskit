@@ -126,7 +126,7 @@ typedef struct _tsk_ls_hmm_t {
     /* Algorithms set these values before they are run */
     int (*next_probability)(
         struct _tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *);
-    int (*finalise_site)(struct _tsk_ls_hmm_t *, tsk_id_t);
+    double (*compute_normalisation_factor)(struct _tsk_ls_hmm_t *);
     void *output;
 } tsk_ls_hmm_t;
 
@@ -141,7 +141,7 @@ int tsk_ls_hmm_viterbi(tsk_ls_hmm_t *self, int8_t *haplotype,
     tsk_viterbi_matrix_t *output, tsk_flags_t options);
 int tsk_ls_hmm_run(tsk_ls_hmm_t *self, int8_t *haplotype,
     int (*next_probability)(tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *),
-    int (*finalise_site)(struct _tsk_ls_hmm_t *, tsk_id_t), void *output);
+    double (*compute_normalisation_factor)(struct _tsk_ls_hmm_t *), void *output);
 
 int tsk_compressed_matrix_init(tsk_compressed_matrix_t *self,
     tsk_treeseq_t *tree_sequence, size_t block_size, tsk_flags_t options);

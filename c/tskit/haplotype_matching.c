@@ -393,7 +393,6 @@ tsk_ls_hmm_update_probabilities(
     tsk_id_t *restrict T_index = self->transition_index;
     tsk_value_transition_t *restrict T = self->transitions;
     int8_t *restrict allelic_state = self->allelic_state;
-    const unsigned int precision = (unsigned int) self->precision;
     double x;
     tsk_mutation_t mut;
     tsk_id_t j, u, v;
@@ -443,7 +442,7 @@ tsk_ls_hmm_update_probabilities(
             if (ret != 0) {
                 goto out;
             }
-            T[j].value = tsk_round(x, precision);
+            T[j].value = x;
         }
     }
 
@@ -894,10 +893,49 @@ out:
     return ret;
 }
 
+static int
+tsk_ls_hmm_process_site(tsk_ls_hmm_t *self, tsk_site_t *site, int8_t haplotype_state)
+{
+    int ret = 0;
+    double x, normalisation_factor;
+    tsk_compressed_matrix_t *output = (tsk_compressed_matrix_t *) self->output;
+    tsk_value_transition_t *restrict T = self->transitions;
+    const unsigned int precision = (unsigned int) self->precision;
+    tsk_size_t j;
+
+    ret = tsk_ls_hmm_update_probabilities(self, site, haplotype_state);
+    if (ret != 0) {
+        goto out;
+    }
+    /* See notes in the Python implementation on why we don't want to compress
+     * here, but rather should be doing it after rounding. */
+    ret = tsk_ls_hmm_compress(self);
+    if (ret != 0) {
+        goto out;
+    }
+    assert(self->num_transitions <= self->num_samples);
+    normalisation_factor = self->compute_normalisation_factor(self);
+
+    if (normalisation_factor == 0) {
+        ret = TSK_ERR_MATCH_IMPOSSIBLE;
+        goto out;
+    }
+    for (j = 0; j < self->num_transitions; j++) {
+        assert(T[j].tree_node != TSK_NULL);
+        x = T[j].value / normalisation_factor;
+        T[j].value = tsk_round(x, precision);
+    }
+
+    ret = tsk_compressed_matrix_store_site(
+        output, site->id, normalisation_factor, (tsk_size_t) self->num_transitions, T);
+out:
+    return ret;
+}
+
 int
 tsk_ls_hmm_run(tsk_ls_hmm_t *self, int8_t *haplotype,
     int (*next_probability)(tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *),
-    int (*finalise_site)(struct _tsk_ls_hmm_t *, tsk_id_t), void *output)
+    double (*compute_normalisation_factor)(struct _tsk_ls_hmm_t *), void *output)
 {
     int ret = 0;
     int t_ret;
@@ -905,7 +943,7 @@ tsk_ls_hmm_run(tsk_ls_hmm_t *self, int8_t *haplotype,
     tsk_size_t j, num_sites;
 
     self->next_probability = next_probability;
-    self->finalise_site = finalise_site;
+    self->compute_normalisation_factor = compute_normalisation_factor;
     self->output = output;
 
     ret = tsk_ls_hmm_reset(self);
@@ -925,17 +963,7 @@ tsk_ls_hmm_run(tsk_ls_hmm_t *self, int8_t *haplotype,
             goto out;
         }
         for (j = 0; j < num_sites; j++) {
-            ret = tsk_ls_hmm_update_probabilities(
-                self, &sites[j], haplotype[sites[j].id]);
-            if (ret != 0) {
-                goto out;
-            }
-            ret = tsk_ls_hmm_compress(self);
-            if (ret != 0) {
-                goto out;
-            }
-            assert(self->num_transitions <= self->num_samples);
-            ret = self->finalise_site(self, sites[j].id);
+            ret = tsk_ls_hmm_process_site(self, &sites[j], haplotype[sites[j].id]);
             if (ret != 0) {
                 goto out;
             }
@@ -955,11 +983,9 @@ out:
  * Forward Algorithm
  ****************************************************************/
 
-static int
-tsk_ls_hmm_finalise_site_forward(tsk_ls_hmm_t *self, tsk_id_t site)
+static double
+tsk_ls_hmm_compute_normalisation_factor_forward(tsk_ls_hmm_t *self)
 {
-    int ret = 0;
-    tsk_compressed_matrix_t *output = (tsk_compressed_matrix_t *) self->output;
     tsk_id_t *restrict N = self->num_transition_samples;
     tsk_value_transition_t *restrict T = self->transitions;
     const tsk_id_t *restrict T_parent = self->transition_parent;
@@ -970,6 +996,7 @@ tsk_ls_hmm_finalise_site_forward(tsk_ls_hmm_t *self, tsk_id_t site)
 
     /* Compute the number of samples directly inheriting from each transition */
     for (j = 0; j < num_transitions; j++) {
+        assert(T[j].tree_node != TSK_NULL);
         N[j] = num_samples[T[j].tree_node];
     }
     for (j = 0; j < num_transitions; j++) {
@@ -983,18 +1010,7 @@ tsk_ls_hmm_finalise_site_forward(tsk_ls_hmm_t *self, tsk_id_t site)
     for (j = 0; j < num_transitions; j++) {
         normalisation_factor += N[j] * T[j].value;
     }
-    for (j = 0; j < num_transitions; j++) {
-        T[j].value /= normalisation_factor;
-    }
-
-    if (normalisation_factor == 0) {
-        ret = TSK_ERR_MATCH_IMPOSSIBLE;
-        goto out;
-    }
-    ret = tsk_compressed_matrix_store_site(
-        output, site, normalisation_factor, (tsk_size_t) num_transitions, T);
-out:
-    return ret;
+    return normalisation_factor;
 }
 
 static int
@@ -1038,7 +1054,7 @@ tsk_ls_hmm_forward(tsk_ls_hmm_t *self, int8_t *haplotype,
         }
     }
     ret = tsk_ls_hmm_run(self, haplotype, tsk_ls_hmm_next_probability_forward,
-        tsk_ls_hmm_finalise_site_forward, output);
+        tsk_ls_hmm_compute_normalisation_factor_forward, output);
     if (ret != 0) {
         goto out;
     }
@@ -1050,13 +1066,11 @@ out:
  * Viterbi Algorithm
  ****************************************************************/
 
-static int
-tsk_ls_hmm_finalise_site_viterbi(tsk_ls_hmm_t *self, tsk_id_t site)
+static double
+tsk_ls_hmm_compute_normalisation_factor_viterbi(tsk_ls_hmm_t *self)
 {
-    int ret = 0;
     tsk_value_transition_t *restrict T = self->transitions;
     const tsk_id_t num_transitions = (tsk_id_t) self->num_transitions;
-    tsk_viterbi_matrix_t *output = (tsk_viterbi_matrix_t *) self->output;
     tsk_value_transition_t max_vt;
     tsk_id_t j;
 
@@ -1064,24 +1078,12 @@ tsk_ls_hmm_finalise_site_viterbi(tsk_ls_hmm_t *self, tsk_id_t site)
     max_vt.tree_node = 0; /* keep compiler happy */
     assert(num_transitions > 0);
     for (j = 0; j < num_transitions; j++) {
+        assert(T[j].tree_node != TSK_NULL);
         if (T[j].value > max_vt.value) {
             max_vt = T[j];
         }
     }
-    if (max_vt.value == 0) {
-        ret = TSK_ERR_MATCH_IMPOSSIBLE;
-        goto out;
-    }
-    for (j = 0; j < num_transitions; j++) {
-        T[j].value /= max_vt.value;
-    }
-    ret = tsk_compressed_matrix_store_site(
-        &output->matrix, site, max_vt.value, (tsk_size_t) num_transitions, T);
-    if (ret != 0) {
-        goto out;
-    }
-out:
-    return ret;
+    return max_vt.value;
 }
 
 static int
@@ -1134,7 +1136,7 @@ tsk_ls_hmm_viterbi(tsk_ls_hmm_t *self, int8_t *haplotype, tsk_viterbi_matrix_t *
         }
     }
     ret = tsk_ls_hmm_run(self, haplotype, tsk_ls_hmm_next_probability_viterbi,
-        tsk_ls_hmm_finalise_site_viterbi, output);
+        tsk_ls_hmm_compute_normalisation_factor_viterbi, output);
     if (ret != 0) {
         goto out;
     }

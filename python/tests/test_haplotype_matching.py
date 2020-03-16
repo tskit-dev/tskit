@@ -577,15 +577,37 @@ class LsHmmAlgorithm:
                 while allelic_state[v] == -1:
                     v = tree.parent(v)
                     assert v != -1
-                x = self.compute_next_probability(
+                st.value = self.compute_next_probability(
                     site.id, st.value, haplotype_state == allelic_state[v], u
                 )
-                st.value = round(x, self.precision)
 
         # Unset the states
         allelic_state[tree.root] = -1
         for mutation in site.mutations:
             allelic_state[mutation.node] = -1
+
+    def process_site(self, site, haplotype_state):
+        # print(site.id, "num_transitions=", len(self.T))
+        self.update_probabilities(site, haplotype_state)
+        # FIXME We don't want to call compress here.
+        # What we really want to do is just call compress after
+        # the values have been normalised and rounded. However, we can't
+        # compute the normalisation factor in the forwards algorithm without
+        # the N counts (number of samples directly below each value transition
+        # in T), and these are currently computed during compress. So to make
+        # things work for now we call compress before and put up with having
+        # a slightly less than optimally compressed output matrix. It might
+        # end up that this makes no difference and compressing the
+        # pre-rounded values is basically the same thing.
+        self.compress()
+        s = self.compute_normalisation_factor()
+        for st in self.T:
+            if st.tree_node != tskit.NULL:
+                st.value /= s
+                st.value = round(st.value, self.precision)
+        # *This* is where we want to compress (and can, for viterbi).
+        # self.compress()
+        self.output.store_site(site.id, s, [(st.tree_node, st.value) for st in self.T])
 
     def run(self, h):
         n = self.ts.num_samples
@@ -595,13 +617,10 @@ class LsHmmAlgorithm:
         while self.tree.next():
             self.update_tree()
             for site in self.tree.sites():
-                # print(site.id, "num_transitions=", len(self.T))
-                self.update_probabilities(site, h[site.id])
-                self.compress()
-                self.finalise_site(site.id)
+                self.process_site(site, h[site.id])
         return self.output
 
-    def finalise_site(self, l):
+    def compute_normalisation_factor(self):
         raise NotImplementedError()
 
     def compute_next_probability(self, site_id, p_last, is_match, node):
@@ -669,12 +688,13 @@ class ForwardAlgorithm(LsHmmAlgorithm):
         super().__init__(ts, rho, mu, alleles, precision)
         self.output = ForwardMatrix(ts)
 
-    def finalise_site(self, l):
-        # Normalise and store
-        s = sum(self.N[j] * self.T[j].value for j in range(len(self.T)))
-        for st in self.T:
-            st.value /= s
-        self.output.store_site(l, s, [(st.tree_node, st.value) for st in self.T])
+    def compute_normalisation_factor(self):
+        s = 0
+        for j, st in enumerate(self.T):
+            assert st.tree_node != tskit.NULL
+            assert self.N[j] > 0
+            s += self.N[j] * st.value
+        return s
 
     def compute_next_probability(self, site_id, p_last, is_match, node):
         rho = self.rho[site_id]
@@ -776,23 +796,17 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
         super().__init__(ts, rho, mu, alleles, precision)
         self.output = ViterbiMatrix(ts)
 
-    def finalise_site(self, l):
+    def compute_normalisation_factor(self):
         max_st = ValueTransition(value=-1)
         for st in self.T:
+            assert st.tree_node != tskit.NULL
             if st.value > max_st.value:
                 max_st = st
         if max_st.value == 0:
-            assert self.mu[l] == 0
             raise ValueError(
                 "Trying to match non-existent allele with zero mutation rate"
             )
-
-        max_value = max_st.value
-        for st in self.T:
-            st.value /= max_value
-        self.output.store_site(
-            l, max_value, [(st.tree_node, st.value) for st in self.T]
-        )
+        return max_st.value
 
     def compute_next_probability(self, site_id, p_last, is_match, node):
         rho = self.rho[site_id]
