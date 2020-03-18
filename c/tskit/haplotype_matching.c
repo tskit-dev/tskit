@@ -124,7 +124,7 @@ tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
 
     memset(self, 0, sizeof(tsk_ls_hmm_t));
     self->tree_sequence = tree_sequence;
-    self->precision = 23;
+    self->precision = 6; /* Seems like a safe value, but probably not ideal for perf */
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->num_samples = tsk_treeseq_get_num_samples(tree_sequence);
     self->num_alleles = malloc(self->num_sites * sizeof(*self->num_alleles));
@@ -393,9 +393,10 @@ tsk_ls_hmm_update_probabilities(
     tsk_id_t *restrict T_index = self->transition_index;
     tsk_value_transition_t *restrict T = self->transitions;
     int8_t *restrict allelic_state = self->allelic_state;
-    double x;
     tsk_mutation_t mut;
     tsk_id_t j, u, v;
+    double x;
+    bool match;
 
     /* Set the allelic states */
     ret = tsk_ls_hmm_get_allele_index(
@@ -437,8 +438,9 @@ tsk_ls_hmm_update_probabilities(
                 v = parent[v];
                 assert(v != -1);
             }
-            ret = self->next_probability(
-                self, site->id, T[j].value, haplotype_state == allelic_state[v], u, &x);
+            match = haplotype_state == TSK_MISSING_DATA
+                    || haplotype_state == allelic_state[v];
+            ret = self->next_probability(self, site->id, T[j].value, match, u, &x);
             if (ret != 0) {
                 goto out;
             }
