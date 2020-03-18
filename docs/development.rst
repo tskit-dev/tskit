@@ -30,9 +30,11 @@ Quickstart
   correct symlinks)
 - Install the Python development requirements using
   ``pip install -r python/requirements/development.txt``.
-- Build the low level module by running ``make`` in the ``python`` directory.
-- Run the tests to ensure everything has worked: ``python -m nose -vs``. These should
-  all pass.
+- Build the low level module by running ``make -C python``.
+- Run the tests to ensure everything has worked: ``python -m nose -vs python``. These
+  should
+  all pass. To speed things up you can use the ``--processes=8
+  --process-timeout=5000 options``, replacing 8 with the number of cores you have.
 - Install the pre-commit checks: ``pre-commit install``
 - Make your changes in a local branch. On each commit a `pre-commit hook
   <https://pre-commit.com/>`_  will run
@@ -45,10 +47,19 @@ Quickstart
   code. To run the checks without committing use ``pre-commit run``. To bypass
   the checks (to save or get feedback on work-in-progress) use ``git commit
   --no-verify``
-- If you have modified C code then run this to make it conform to the project style::
+- When modifying the C code this will conform it to the project style::
 
   $ sudo apt-get install clang-format
   $ clang-format -i c/tskit/* c/tests/*.c c/tests/*.h
+
+- The C API tests are prepared with::
+
+  $ sudo apt install meson libcunit1-dev ninja-build
+  $ meson build-gcc c
+
+  Then run with::
+
+  $ ninja -C build-gcc test
 
 - When ready open a pull request on GitHub. Please make sure that the tests pass before
   you open the PR, unless you want to ask the community for help with a failing test.
