@@ -141,6 +141,8 @@ We will use the :meth:`Tree.kc_distance` method as an example.
     `c directory <https://github.com/tskit-dev/tskit/tree/master/c/tskit>`_.
     Your function will probably go in 
     `trees.c <https://github.com/tskit-dev/tskit/blob/master/c/tskit/trees.c>`_.
+    For C debugging you can force a debug build of the `_tskit module with
+    `CFLAGS='-Wall -O0 -g' make` in the `python` directory.
 5.  Write a few tests for your function in C: again, write your tests in  
     `tskit/c/tests/test_tree.c <https://github.com/tskit-dev/tskit/blob/master/c/tests/test_trees.c>`_.
     The key here is code coverage, you don't need to worry as much about covering every
