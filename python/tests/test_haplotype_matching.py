@@ -60,7 +60,7 @@ def ls_forward_matrix_naive(h, alleles, G, rho, mu):
             # normalisation approach.
             p_t = f[j] * (1 - rho[l]) + rho[l] / n
             p_e = mu[l]
-            if G[l, j] == h[l]:
+            if G[l, j] == h[l] or h[l] == tskit.MISSING_DATA:
                 p_e = 1 - (len(alleles[l]) - 1) * mu[l]
             f[j] = p_t * p_e
         S[l] = np.sum(f)
@@ -99,7 +99,7 @@ def ls_viterbi_naive(h, alleles, G, rho, mu):
                 p_t = p_recomb
                 T[l].add(j)
             p_e = mu[l]
-            if G[l, j] == h[l]:
+            if G[l, j] == h[l] or h[l] == tskit.MISSING_DATA:
                 p_e = 1 - (len(alleles[l]) - 1) * mu[l]
             L_next[j] = p_t * p_e
         L = L_next
@@ -143,6 +143,9 @@ def ls_viterbi_vectorised(h, alleles, G, rho, mu):
         # Emission
         p_e = np.zeros(n) + mu[site]
         index = G[site] == h[site]
+        if h[site] == tskit.MISSING_DATA:
+            # Missing data is considered equal to everything
+            index[:] = True
         p_e[index] = 1 - (len(alleles[site]) - 1) * mu[site]
         V = p_t * p_e
         # Normalise
@@ -201,6 +204,9 @@ def ls_forward_matrix(h, alleles, G, rho, mu):
     for l in range(0, m):
         p_t = f * (1 - rho[l]) + rho[l] / n
         eq = G[l] == h[l]
+        if h[l] == tskit.MISSING_DATA:
+            # Missing data is equal to everything
+            eq[:] = True
         p_e[:] = mu[l]
         p_e[eq] = 1 - (len(alleles[l]) - 1) * mu[l]
         f = p_t * p_e
@@ -235,7 +241,7 @@ def ls_forward_matrix_unscaled(h, alleles, G, rho, mu):
         for j in range(n):
             p_t = f[j] * (1 - rho[l]) + s * rho[l] / n
             p_e = mu[l]
-            if G[l, j] == h[l]:
+            if G[l, j] == h[l] or h[l] == tskit.MISSING_DATA:
                 p_e = 1 - (len(alleles[l]) - 1) * mu[l]
             f[j] = p_t * p_e
         F[l] = f
@@ -257,7 +263,7 @@ def ls_path_probability(h, path, G, rho, mu):
     proba = 1 / n
     for site in range(0, m):
         pe = mu[site]
-        if h[site] == G[site, path[site]]:
+        if h[site] == G[site, path[site]] or h[site] == tskit.MISSING_DATA:
             pe = 1 - mu[site]
         pt = rho[site] / n
         if site == 0 or path[site] == path[site - 1]:
@@ -282,7 +288,7 @@ def ls_path_log_probability(h, path, alleles, G, rho, mu):
         if len(alleles[site]) > 1:
             assert mu[site] <= 1 / (len(alleles[site]) - 1)
         pe = mu[site]
-        if h[site] == G[site, path[site]]:
+        if h[site] == G[site, path[site]] or h[site] == tskit.MISSING_DATA:
             pe = 1 - (len(alleles[site]) - 1) * mu[site]
         assert 0 <= pe <= 1
         pt = rho[site] / n
@@ -577,9 +583,11 @@ class LsHmmAlgorithm:
                 while allelic_state[v] == -1:
                     v = tree.parent(v)
                     assert v != -1
-                st.value = self.compute_next_probability(
-                    site.id, st.value, haplotype_state == allelic_state[v], u
+                match = (
+                    haplotype_state == tskit.MISSING_DATA
+                    or haplotype_state == allelic_state[v]
                 )
+                st.value = self.compute_next_probability(site.id, st.value, match, u)
 
         # Unset the states
         allelic_state[tree.root] = -1
@@ -878,6 +886,16 @@ class LiStephensBase:
             p = rng.randint(0, ts.num_samples, ts.num_sites)
             h = H[p, np.arange(ts.num_sites)]
             haplotypes.append(h)
+        h = H[0].copy()
+        h[-1] = tskit.MISSING_DATA
+        haplotypes.append(h)
+        h = H[0].copy()
+        h[ts.num_sites // 2] = tskit.MISSING_DATA
+        haplotypes.append(h)
+        # All missing is OK tool
+        h = H[0].copy()
+        h[:] = tskit.MISSING_DATA
+        haplotypes.append(h)
         return haplotypes
 
     def example_parameters(self, ts, alleles, seed=1):
@@ -1034,15 +1052,11 @@ class TestExactMatchViterbi(ViterbiAlgorithmBase, unittest.TestCase):
 
 class TestGeneralViterbi(ViterbiAlgorithmBase, unittest.TestCase):
     def verify(self, ts, alleles=tskit.ALLELES_01):
-        np.set_printoptions(linewidth=20000)
-        np.set_printoptions(threshold=20000000)
+        # np.set_printoptions(linewidth=20000)
+        # np.set_printoptions(threshold=20000000)
         G = ts.genotype_matrix(alleles=alleles)
-
-        m, n = G.shape
-
-        # j = 0
+        # m, n = G.shape
         for h, rho, mu in self.example_parameters(ts, alleles):
-            # j += 1
             # print("h = ", h)
             # print("rho=", rho)
             # print("mu = ", mu)
@@ -1057,12 +1071,7 @@ class TestGeneralViterbi(ViterbiAlgorithmBase, unittest.TestCase):
             # m1 = H[p1, np.arange(m)]
             # m2 = H[p2, np.arange(m)]
             # m3 = H[p3, np.arange(m)]
-            # print(p1)
-            # print(p2)
             # count = np.unique(p1).shape[0]
-            # print("count = ", count)
-            # if True:
-            # if not (np.array_equal(p1, p2) and np.array_equal(p1, p3)):
             # print()
             # print("\tp1 = ", p1)
             # print("\tp2 = ", p2)
@@ -1078,6 +1087,29 @@ class TestGeneralViterbi(ViterbiAlgorithmBase, unittest.TestCase):
             self.assertAlmostEqual(proba1, proba2, places=6)
             self.assertAlmostEqual(proba1, proba3, places=6)
             self.assertAlmostEqual(proba1, proba4, places=6)
+
+
+class TestMissingHaplotypes(LiStephensBase, unittest.TestCase):
+    def verify(self, ts, alleles=tskit.ALLELES_01):
+        G = ts.genotype_matrix(alleles=alleles)
+        H = G.T
+
+        rho = np.zeros(ts.num_sites) + 0.1
+        rho[0] = 0
+        mu = np.zeros(ts.num_sites) + 0.001
+
+        # When everything is missing data we should have no recombinations.
+        h = H[0].copy()
+        h[:] = tskit.MISSING_DATA
+        path = ls_viterbi_vectorised(h, alleles, G, rho, mu)
+        self.assertTrue(np.all(path == 0))
+        cm = ls_viterbi_tree(h, alleles, ts, rho, mu, use_lib=True)
+        # For the tree base algorithm it's not simple which particular sample
+        # gets chosen.
+        path = cm.traceback()
+        self.assertEqual(len(set(path)), 1)
+
+        # TODO Not clear what else we can check about missing data.
 
 
 class TestForwardMatrixScaling(ForwardAlgorithmBase, unittest.TestCase):

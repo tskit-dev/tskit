@@ -136,7 +136,7 @@ test_single_tree_exact_match(void)
     CU_ASSERT_EQUAL(path[2], 1);
 
     /* Should get the same answer at lower precision */
-    for (precision = 4; precision < 24; precision++) {
+    for (precision = 1; precision < 24; precision++) {
         ret = tsk_ls_hmm_set_precision(&ls_hmm, precision);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = tsk_ls_hmm_viterbi(&ls_hmm, h, &viterbi, TSK_NO_INIT);
@@ -149,6 +149,49 @@ test_single_tree_exact_match(void)
         CU_ASSERT_EQUAL(path[1], 1);
         CU_ASSERT_EQUAL(path[2], 1);
     }
+
+    tsk_ls_hmm_free(&ls_hmm);
+    tsk_compressed_matrix_free(&forward);
+    tsk_viterbi_matrix_free(&viterbi);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_missing_haplotype_data(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    tsk_ls_hmm_t ls_hmm;
+    tsk_compressed_matrix_t forward;
+    tsk_viterbi_matrix_t viterbi;
+
+    double rho[] = { 0.0, 0.25, 0.25 };
+    double mu[] = { 0, 0, 0 };
+    int8_t h[] = { 1, TSK_MISSING_DATA, 1 };
+    tsk_id_t path[3];
+    double decoded_compressed_matrix[12];
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+
+    ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_ls_hmm_forward(&ls_hmm, h, &forward, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_compressed_matrix_print_state(&forward, _devnull);
+    tsk_ls_hmm_print_state(&ls_hmm, _devnull);
+    ret = tsk_compressed_matrix_decode(&forward, decoded_compressed_matrix);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ls_hmm_viterbi(&ls_hmm, h, &viterbi, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_viterbi_matrix_print_state(&viterbi, _devnull);
+    tsk_ls_hmm_print_state(&ls_hmm, _devnull);
+    ret = tsk_viterbi_matrix_traceback(&viterbi, path, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(path[0], 2);
+    CU_ASSERT_EQUAL(path[1], 2);
+    CU_ASSERT_EQUAL(path[2], 2);
 
     tsk_ls_hmm_free(&ls_hmm);
     tsk_compressed_matrix_free(&forward);
@@ -531,6 +574,8 @@ main(int argc, char **argv)
     CU_TestInfo tests[] = {
         { "test_single_tree_missing_alleles", test_single_tree_missing_alleles },
         { "test_single_tree_exact_match", test_single_tree_exact_match },
+        { "test_single_tree_missing_haplotype_data",
+            test_single_tree_missing_haplotype_data },
         { "test_single_tree_match_impossible", test_single_tree_match_impossible },
         { "test_single_tree_errors", test_single_tree_errors },
         { "test_single_tree_compressed_matrix", test_single_tree_compressed_matrix },
