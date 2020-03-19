@@ -583,7 +583,7 @@ class Tree:
         """
         self._ll_tree.last()
 
-    def next(self):
+    def next(self):  # noqa A002
         """
         Seeks to the next tree in the sequence. If the tree is in the initial
         null state we seek to the first tree (equivalent to calling :meth:`.first`).
@@ -1179,7 +1179,7 @@ class Tree:
         node_colours=None,
         mutation_labels=None,
         mutation_colours=None,
-        format=None,
+        format=None,  # noqa A002
         edge_colours=None,
         tree_height_scale=None,
         max_tree_height=None,

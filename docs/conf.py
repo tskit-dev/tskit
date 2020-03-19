@@ -44,7 +44,7 @@ if read_the_docs_build:
 # -- Project information -----------------------------------------------------
 
 project = "tskit"
-copyright = "2018-2019, Tskit developers"
+copyright = "2018-2019, Tskit developers"  # noqa: A001
 author = "Tskit developers"
 
 
