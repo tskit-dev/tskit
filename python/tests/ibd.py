@@ -28,6 +28,7 @@ import tskit
 import numpy as np
 import itertools
 import sys
+import argparse
 
 
 class Segment(object):
@@ -59,6 +60,27 @@ class Segment(object):
         return (self.node, self.left, self.right) < (other.node, other.left, other.right)
 
 
+class SegmentList(object):
+    """
+    A class representing a list of segments that are descended from a given ancestral node
+    via a particular child of the ancestor.
+    """
+    def __init__(self, head=None, tail=None, next=None):
+        self.head = head
+        self.tail = tail
+        self.next = next
+
+    def __str__(self):
+        s = "head={},tail={},next={}".format(
+            self.head, self.right, repr(self.next))
+        return s
+
+    def __repr__(self):
+        s = "[{}...]".format(repr(self.next.head))
+        return s
+
+
+
 class IbdFinder(object):
     """
     Finds all IBD relationships between specified samples in a tree sequence.
@@ -67,23 +89,28 @@ class IbdFinder(object):
     def __init__(
         self,
         ts,
-        samples,
-        min_length=0):
+        samples=None,
+        min_length=0,
+        max_time=None):
 
         self.ts = ts
-        self.samples = samples
+        if samples is None:
+            samples = ts.samples()
+        else:
+            self.samples = samples
         self.min_length = min_length
+        self.max_time = max_time
         self.current_parent = self.ts.tables.edges.parent[0]
-        self.A_head = [None for _ in range(ts.num_nodes)]
-        self.A_tail = [None for _ in range(ts.num_nodes)]
-        self.tables = tskit.TableCollection(sequence_length=ts.sequence_length)
+        self.current_time = 0
+        self.A = [[] for _ in range(ts.num_nodes)] # Descendant segments
+        self.tables = self.ts.tables
         # self.ibd_segments = dict.fromkeys(itertools.combinations(self.ts.samples(), 2), [])
 
 
-    def find_ibd_segments_of_length(self, min_length=0):
+    def find_ibd_segments(self, min_length=0, max_time=None):
         
         # 1
-        A = [[] for n in range(0, self.ts.num_nodes)]
+        # A = [[] for n in range(0, self.ts.num_nodes)]
         ibd_segments = dict.fromkeys(itertools.combinations(self.ts.samples(), 2), [])
         edges = self.ts.edges()  
         parent_list = self.list_of_parents() ## Needed for memory-pruning step
@@ -96,43 +123,53 @@ class IbdFinder(object):
         while e is not None:
 
             # 3a
-            S = []
+            S_head = None
+            S_tail = None
             self.current_parent = e.parent
+            self.current_time = self.tables.nodes.time[self.current_parent]
+            if self.max_time is not None and self.current_time > self.max_time:
+                # Stop looking for IBD segments once the
+                # processed nodes are older than the max time.
+                break
             
             # 3b
             while e is not None and self.current_parent == e.parent:
                 # Create the list S of immediate descendants of u.
-                S.append(Segment(e.left, e.right, e.child))
-                # if e.id < edges.num_rows - 1:
+                seg = Segment(e.left, e.right, e.child)
+                if S_head is None:
+                    S_head = seg
+                    S_tail = seg
+                else:
+                    S_tail.next = seg
+                    S_tail = S_tail.next
                 if e.id < self.ts.num_edges - 1:
                     e = next(mygen)
                     continue
                 else:
                     e = None
-                    # break
 
             # 3c
-            for seg in S:
+            while S_head is not None:
                 # Create A[u] from S.
                 # Do we still need to do the initialisation if the below is there??
-                u = seg.node
+                u = S_head.node
                 if u in self.ts.samples():
-                    A[self.current_parent].append([seg])
+                    self.A[self.current_parent].append([S_head])
                 else:
                     list_to_add = []
-                    for s in A[u]:
-                        l = (max(seg.left, s.left), min(seg.right, s.right))
+                    for s in self.A[u]:
+                        l = (max(S_head.left, s.left), min(S_head.right, s.right))
                         if l[1] - l[0] > 0:
                             list_to_add.append(Segment(l[0], l[1], s.node))
-                    A[self.current_parent].append(list_to_add)
+                    self.A[self.current_parent].append(list_to_add)
+                S_head = S_head.next
 
             # d. Squash
-            # A[self.current_parent] = self.squash(A[self.current_parent])
+            # A[self.current_parent] = self.squash(self.A[self.current_parent])
             
             # e. Process A[self.current_parent]
-            if len(A[self.current_parent]) > 1:
-                new_segs, nodes_to_remove = self.update_A_and_find_ibd_segs(
-                    A[self.current_parent], ibd_segments)
+            if len(self.A[self.current_parent]) > 1:
+                new_segs, nodes_to_remove = self.update_A_and_find_ibd_segs(ibd_segments)
                 
                 # e. Add any new IBD segments discovered.
                 for key, val in new_segs.items():
@@ -142,30 +179,30 @@ class IbdFinder(object):
                         else:
                             ibd_segments[key].append(v)
                             
-                # g. Remove elements of A[u] if they are no longer needed.
+                # g. Remove elements of self.A[u] if they are no longer needed.
                 ## (memory-pruning step)
                 for n in nodes_to_remove:
                     if self.current_parent in parent_list[n]:
                         parent_list[n].remove(self.current_parent)
                     if len(parent_list[n]) == 0:
-                        A[n] = []
+                        self.A[n] = []
                         
-            # Unlist the ancestral segments in A.
-            A[self.current_parent] = list(itertools.chain(*A[self.current_parent]))
+            # Unlist the ancestral segments in self.A.
+            self.A[self.current_parent] = list(itertools.chain(*self.A[self.current_parent]))
 
         # 4
         return ibd_segments
 
 
-    def update_A_and_find_ibd_segs(self, ancestral_segs, ibd_segments, mrca_ibd=False):
+    def update_A_and_find_ibd_segs(self, ibd_segments):
     
         new_segments = dict.fromkeys(itertools.combinations(self.ts.samples(), 2), [])
-        num_coalescing_sets = len(ancestral_segs)
+        num_coalescing_sets = len(self.A[self.current_parent])
         index_pairs = list(itertools.combinations(range(0, num_coalescing_sets), 2))
 
         for setpair in index_pairs:
-            for seg0 in ancestral_segs[setpair[0]]:
-                for seg1 in ancestral_segs[setpair[1]]:
+            for seg0 in self.A[self.current_parent][setpair[0]]:
+                for seg1 in self.A[self.current_parent][setpair[1]]:
 
                     if seg0.node == seg1.node:
                         continue
@@ -176,8 +213,8 @@ class IbdFinder(object):
                     nodes = [seg0.node, seg1.node]
                     nodes.sort()
 
-                    if mrca_ibd:
-                        pass # for now
+                    # if mrca_ibd:
+                        # pass # for now
                         # existing_segs = ibd_segments[(nodes[0], nodes[1])].copy()
                         # if right - left > self.min_length:
                         #     if len(existing_segs) == 0:
@@ -196,7 +233,8 @@ class IbdFinder(object):
                         #             elif (left < i.left and right < i.right) or (i.left < left and i.right < right):
                         #                 print('partial overlap')
                                     # Yes, but I think it's okay to leave these segments...
-                    else:
+                    # else:
+                    if right - left > self.min_length:
                         if len(new_segments[(nodes[0], nodes[1])]) == 0:
                             new_segments[(nodes[0], nodes[1])] = [Segment(left, right, self.current_parent)]
                         else:
@@ -204,7 +242,7 @@ class IbdFinder(object):
 
         # iv. specify elements of A that can be removed (for memory-pruning step)
         processed_child_nodes = []
-        for seglist in ancestral_segs:
+        for seglist in self.A[self.current_parent]:
             processed_child_nodes += [seg.node for seg in seglist]
             processed_child_nodes = list(set(processed_child_nodes))
 
@@ -279,15 +317,60 @@ class IbdFinder(object):
     
 
 if __name__ == "__main__":
-    # Simple CLI for running simplifier/ancestor mapping above.
+    # Simple CLI for running IBDFinder.
 
-    ts = tskit.load(sys.argv[1])
-    s = IbdFinder(ts, samples = ts.samples())
-    all_segs = s.find_ibd_segments_of_length()
+    parser = argparse.ArgumentParser(description="Command line interface for the IBDFinder.")
 
-    if sys.argv[2] is not None and sys.argv[3] is not None:
-        sample0 = int(sys.argv[2])
-        sample1 = int(sys.argv[3])
-        print(all_segs[(sample0, sample1)])
+    parser.add_argument('--infile',
+                        type=str,
+                        dest='infile',
+                        nargs=1,
+                        metavar="IN_FILE",
+                        help="The tree sequence to be analysed.")
+
+    parser.add_argument('--min-length',
+                        type=float,
+                        dest='min_length',
+                        nargs=1,
+                        metavar="MIN_LENGTH",
+                        help="Only segments longer than this cutoff will be returned.")
+
+    parser.add_argument('--max-time',
+                        type=float,
+                        dest='max_time',
+                        nargs=1,
+                        metavar="MAX_TIME",
+                        help="Only segments younger this time will be returned.")
+
+    parser.add_argument('--samples',
+                        type=int,
+                        dest='samples',
+                        nargs=2,
+                        metavar="SAMPLES",
+                        help="If provided, only IBD relationships between the given node pair are returned."
+                        )
+
+    args = parser.parse_args()
+
+    ts = tskit.load(args.infile[0])
+    if args.min_length is None:
+        min_length = 0
     else:
+        min_length = args.min_length[0]
+    if args.max_time is None:
+        max_time = None
+    else:
+        max_time = args.max_time[0]
+
+    s = IbdFinder(ts, samples = ts.samples(),
+        min_length=min_length, max_time=max_time)
+    all_segs = s.find_ibd_segments()
+
+
+    if args.samples is None:
         print(all_segs)
+    else:
+        samples = args.samples
+        print(all_segs[(samples[0], samples[1])])
+
+
