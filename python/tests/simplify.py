@@ -74,11 +74,11 @@ class Segment:
     The node it records is the *output* node ID.
     """
 
-    def __init__(self, left=None, right=None, node=None, next=None):
+    def __init__(self, left=None, right=None, node=None, next_segment=None):
         self.left = left
         self.right = right
         self.node = node
-        self.next = next
+        self.next = next_segment
 
     def __str__(self):
         s = "({}-{}->{}:next={})".format(

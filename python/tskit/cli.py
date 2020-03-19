@@ -39,7 +39,7 @@ def set_sigpipe_handler():
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-def exit(message):
+def sys_exit(message):
     sys.exit(message)
 
 
@@ -47,7 +47,7 @@ def load_tree_sequence(path):
     try:
         return tskit.load(path)
     except tskit.FileFormatError as e:
-        exit(f"Load error: {e}")
+        sys_exit(f"Load error: {e}")
 
 
 def run_info(args):
@@ -81,7 +81,7 @@ def run_upgrade(args):
         tree_sequence = tskit.load_legacy(args.source, args.remove_duplicate_positions)
         tree_sequence.dump(args.destination)
     except tskit.DuplicatePositionsError:
-        exit(
+        sys_exit(
             "Error: Duplicate mutation positions in the source file detected.\n\n"
             'This is not supported in the current file format. Running "upgrade -d" '
             "will remove these duplicate positions. However, this will result in loss "

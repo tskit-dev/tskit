@@ -69,9 +69,9 @@ def check_tree_height_scale(tree_height_scale):
     return tree_height_scale
 
 
-def check_format(format):
+def check_format(format):  # noqa A002
     if format is None:
-        format = "SVG"
+        format = "SVG"  # noqa A001
     fmt = format.lower()
     supported_formats = ["svg", "ascii", "unicode"]
     if fmt not in supported_formats:
@@ -91,7 +91,7 @@ def draw_tree(
     node_colours=None,
     mutation_labels=None,
     mutation_colours=None,
-    format=None,
+    format=None,  # noqa A002
     edge_colours=None,
     tree_height_scale=None,
     max_tree_height=None,
