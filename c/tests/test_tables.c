@@ -425,7 +425,7 @@ static void
 test_node_table(void)
 {
     int ret;
-    tsk_node_table_t table;
+    tsk_node_table_t table, table2;
     tsk_node_t node;
     uint32_t num_rows = 100;
     tsk_id_t j;
@@ -632,7 +632,36 @@ test_node_table(void)
     tsk_node_table_print_state(&table, _devnull);
     tsk_node_table_dump_text(&table, _devnull);
 
+    ret = tsk_node_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_node_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_node_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_node_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2));
+    tsk_node_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_node_table_equals(&table, &table2));
+
+    tsk_node_table_clear(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, 0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
     tsk_node_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    tsk_node_table_free(&table2);
+    CU_ASSERT_EQUAL(ret, 0);
     free(flags);
     free(population);
     free(time);
@@ -645,7 +674,7 @@ static void
 test_edge_table(void)
 {
     int ret;
-    tsk_edge_table_t table;
+    tsk_edge_table_t table, table2;
     tsk_size_t num_rows = 100;
     tsk_id_t j;
     tsk_edge_t edge;
@@ -827,10 +856,35 @@ test_edge_table(void)
     tsk_edge_table_print_state(&table, _devnull);
     tsk_edge_table_dump_text(&table, _devnull);
 
+    ret = tsk_edge_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_edge_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_edge_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_edge_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2));
+    tsk_edge_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_edge_table_equals(&table, &table2));
+
     tsk_edge_table_clear(&table);
     CU_ASSERT_EQUAL(table.num_rows, 0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
 
-    tsk_edge_table_free(&table);
+    ret = tsk_edge_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_edge_table_free(&table2);
+    CU_ASSERT_EQUAL(ret, 0);
     free(left);
     free(right);
     free(parent);
@@ -1023,7 +1077,7 @@ static void
 test_site_table(void)
 {
     int ret;
-    tsk_site_table_t table;
+    tsk_site_table_t table, table2;
     tsk_size_t num_rows, j;
     char *ancestral_state;
     char *metadata;
@@ -1216,6 +1270,27 @@ test_site_table(void)
         ancestral_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
 
+    ret = tsk_site_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_site_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_site_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_site_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2));
+    tsk_site_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_site_table_equals(&table, &table2));
+
     ret = tsk_site_table_clear(&table);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(table.num_rows, 0);
@@ -1223,6 +1298,10 @@ test_site_table(void)
     CU_ASSERT_EQUAL(table.metadata_length, 0);
 
     tsk_site_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    tsk_site_table_free(&table2);
+    CU_ASSERT_EQUAL(ret, 0);
+
     free(position);
     free(ancestral_state);
     free(ancestral_state_offset);
@@ -1234,7 +1313,7 @@ static void
 test_mutation_table(void)
 {
     int ret;
-    tsk_mutation_table_t table;
+    tsk_mutation_table_t table, table2;
     tsk_size_t num_rows = 100;
     tsk_size_t max_len = 20;
     tsk_size_t k, len;
@@ -1462,12 +1541,37 @@ test_mutation_table(void)
         derived_state, derived_state_offset, NULL, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
 
+    ret = tsk_mutation_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_mutation_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_mutation_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_mutation_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2));
+    tsk_mutation_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_mutation_table_equals(&table, &table2));
+
     tsk_mutation_table_clear(&table);
+    CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(table.num_rows, 0);
     CU_ASSERT_EQUAL(table.derived_state_length, 0);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
 
     tsk_mutation_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    tsk_mutation_table_free(&table2);
+    CU_ASSERT_EQUAL(ret, 0);
     free(site);
     free(node);
     free(parent);
@@ -1481,7 +1585,7 @@ static void
 test_migration_table(void)
 {
     int ret;
-    tsk_migration_table_t table;
+    tsk_migration_table_t table, table2;
     tsk_size_t num_rows = 100;
     tsk_id_t j;
     tsk_id_t *node;
@@ -1695,10 +1799,37 @@ test_migration_table(void)
     tsk_migration_table_print_state(&table, _devnull);
     tsk_migration_table_dump_text(&table, _devnull);
 
+    ret = tsk_migration_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_migration_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_migration_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_migration_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2));
+    tsk_migration_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_migration_table_equals(&table, &table2));
+
     tsk_migration_table_clear(&table);
+    CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(table.num_rows, 0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
 
     tsk_migration_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    tsk_migration_table_free(&table2);
+    CU_ASSERT_EQUAL(ret, 0);
+
     free(left);
     free(right);
     free(time);
@@ -1713,7 +1844,7 @@ static void
 test_individual_table(void)
 {
     int ret = 0;
-    tsk_individual_table_t table;
+    tsk_individual_table_t table, table2;
     /* tsk_table_collection_t tables, tables2; */
     tsk_size_t num_rows = 100;
     tsk_id_t j;
@@ -1939,7 +2070,35 @@ test_individual_table(void)
     tsk_individual_table_print_state(&table, _devnull);
     tsk_individual_table_dump_text(&table, _devnull);
 
+    ret = tsk_individual_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_individual_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_individual_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_individual_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2));
+    tsk_individual_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_individual_table_equals(&table, &table2));
+
+    tsk_individual_table_clear(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, 0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
     ret = tsk_individual_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_individual_table_free(&table2);
     CU_ASSERT_EQUAL(ret, 0);
     free(flags);
     free(location);
@@ -1952,7 +2111,7 @@ static void
 test_population_table(void)
 {
     int ret;
-    tsk_population_table_t table;
+    tsk_population_table_t table, table2;
     tsk_size_t num_rows = 100;
     tsk_size_t max_len = 20;
     tsk_size_t k, len;
@@ -2061,11 +2220,37 @@ test_population_table(void)
     ret = tsk_population_table_set_columns(&table, num_rows, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
 
+    ret = tsk_population_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema, NULL);
+    const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example);
+    const char *example2 = "A different example 🎄🌳🌴🌲🎋";
+    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_population_table_set_metadata_schema(&table, example, example_length);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
+    CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
+
+    tsk_population_table_copy(&table, &table2, 0);
+    CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
+    tsk_population_table_set_metadata_schema(&table2, example, example_length);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2));
+    tsk_population_table_set_metadata_schema(&table2, example2, example2_length);
+    CU_ASSERT_FALSE(tsk_population_table_equals(&table, &table2));
+
     tsk_population_table_clear(&table);
+    CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(table.num_rows, 0);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
 
     tsk_population_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    tsk_population_table_free(&table2);
+    CU_ASSERT_EQUAL(ret, 0);
+
     free(metadata);
     free(metadata_offset);
 }
@@ -2719,6 +2904,41 @@ test_dump_load_unsorted(void)
 }
 
 static void
+test_dump_load_metadata_schema(void)
+{
+    int ret;
+    tsk_table_collection_t t1, t2;
+
+    ret = tsk_table_collection_init(&t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    t1.sequence_length = 1.0;
+    char example[100] = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_length = (tsk_size_t) strlen(example) + 4;
+    tsk_node_table_set_metadata_schema(
+        &t1.nodes, strcat(example, "node"), example_length);
+    tsk_edge_table_set_metadata_schema(
+        &t1.edges, strcat(example, "edge"), example_length);
+    tsk_site_table_set_metadata_schema(
+        &t1.sites, strcat(example, "site"), example_length);
+    tsk_mutation_table_set_metadata_schema(
+        &t1.mutations, strcat(example, "muta"), example_length);
+    tsk_migration_table_set_metadata_schema(
+        &t1.migrations, strcat(example, "migr"), example_length);
+    tsk_individual_table_set_metadata_schema(
+        &t1.individuals, strcat(example, "indi"), example_length);
+    tsk_population_table_set_metadata_schema(
+        &t1.populations, strcat(example, "popu"), example_length);
+    ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+}
+
+static void
 test_dump_fail_no_file(void)
 {
     int ret;
@@ -2958,6 +3178,7 @@ main(int argc, char **argv)
         { "test_sort_tables_errors", test_sort_tables_errors },
         { "test_dump_load_empty", test_dump_load_empty },
         { "test_dump_load_unsorted", test_dump_load_unsorted },
+        { "test_dump_load_metadata_schema", test_dump_load_metadata_schema },
         { "test_dump_fail_no_file", test_dump_fail_no_file },
         { "test_load_reindex", test_load_reindex },
         { "test_table_overflow", test_table_overflow },

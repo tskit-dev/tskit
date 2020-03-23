@@ -299,6 +299,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The flags column. */
     tsk_flags_t *flags;
     /** @brief The location column. */
@@ -309,6 +310,8 @@ typedef struct {
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_individual_table_t;
 
 /**
@@ -328,6 +331,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The flags column. */
     tsk_flags_t *flags;
     /** @brief The time column. */
@@ -340,6 +344,8 @@ typedef struct {
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_node_table_t;
 
 /**
@@ -359,6 +365,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The left column. */
     double *left;
     /** @brief The right column. */
@@ -372,6 +379,8 @@ typedef struct {
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
     bool metadata_malloced_locally;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_edge_table_t;
 
 /**
@@ -391,6 +400,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The source column. */
     tsk_id_t *source;
     /** @brief The dest column. */
@@ -408,6 +418,8 @@ typedef struct {
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
     bool metadata_malloced_locally;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_migration_table_t;
 
 /**
@@ -430,6 +442,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The position column. */
     double *position;
     /** @brief The ancestral_state column. */
@@ -440,6 +453,8 @@ typedef struct {
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_site_table_t;
 
 /**
@@ -462,6 +477,7 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The node column. */
     tsk_id_t *node;
     /** @brief The site column. */
@@ -476,6 +492,8 @@ typedef struct {
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_mutation_table_t;
 
 /**
@@ -495,10 +513,13 @@ typedef struct {
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
     tsk_size_t max_metadata_length_increment;
+    tsk_size_t metadata_schema_length;
     /** @brief The metadata column. */
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
+    /** @brief The metadata schema */
+    char *metadata_schema;
 } tsk_population_table_t;
 
 /**
@@ -696,7 +717,8 @@ tsk_id_t tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t 
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_individual_table_free` to free the table's internal resources.
+:c:func:`tsk_individual_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -763,6 +785,21 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 */
 int tsk_individual_table_get_row(
     tsk_individual_table_t *self, tsk_id_t index, tsk_individual_t *row);
+
+/**
+@brief Set the metadata schema
+
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_set_metadata_schema(tsk_individual_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -853,7 +890,8 @@ tsk_id_t tsk_node_table_add_row(tsk_node_table_t *self, tsk_flags_t flags, doubl
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_node_table_free` to free the table's internal resources.
+:c:func:`tsk_node_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_node_table_t object.
@@ -916,6 +954,19 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_node_table_get_row(tsk_node_table_t *self, tsk_id_t index, tsk_node_t *row);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+@param self A pointer to a tsk_node_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_node_table_set_metadata_schema(tsk_node_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1003,7 +1054,8 @@ tsk_id_t tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double righ
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_edge_table_free` to free the table's internal resources.
+:c:func:`tsk_edge_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_edge_table_t object.
@@ -1066,6 +1118,19 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_edge_table_get_row(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+@param self A pointer to a tsk_edge_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_edge_table_set_metadata_schema(tsk_edge_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1159,7 +1224,8 @@ tsk_id_t tsk_migration_table_add_row(tsk_migration_table_t *self, double left,
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_migration_table_free` to free the table's internal resources.
+:c:func:`tsk_migration_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_migration_table_t object.
@@ -1224,6 +1290,19 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 */
 int tsk_migration_table_get_row(
     tsk_migration_table_t *self, tsk_id_t index, tsk_migration_t *row);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+@param self A pointer to a tsk_migration_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_migration_table_set_metadata_schema(tsk_migration_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1312,7 +1391,8 @@ tsk_id_t tsk_site_table_add_row(tsk_site_table_t *self, double position,
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_site_table_free` to free the table's internal resources.
+:c:func:`tsk_site_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_site_table_t object.
@@ -1375,6 +1455,19 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_site_table_get_row(tsk_site_table_t *self, tsk_id_t index, tsk_site_t *row);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+@param self A pointer to a tsk_site_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_site_table_set_metadata_schema(tsk_site_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1466,7 +1559,8 @@ tsk_id_t tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site,
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_mutation_table_free` to free the table's internal resources.
+:c:func:`tsk_mutation_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_mutation_table_t object.
@@ -1530,6 +1624,19 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 */
 int tsk_mutation_table_get_row(
     tsk_mutation_table_t *self, tsk_id_t index, tsk_mutation_t *row);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+@param self A pointer to a tsk_mutation_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_set_metadata_schema(tsk_mutation_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1623,7 +1730,8 @@ tsk_id_t tsk_population_table_add_row(
 
 @rst
 No memory is freed as a result of this operation; please use
-:c:func:`tsk_population_table_free` to free the table's internal resources.
+:c:func:`tsk_population_table_free` to free the table's internal resources. Note that the
+metadata schema is not cleared.
 @endrst
 
 @param self A pointer to a tsk_population_table_t object.
@@ -1688,6 +1796,19 @@ next operation that modifies the table (e.g., by adding a new row), but not afte
 */
 int tsk_population_table_get_row(
     tsk_population_table_t *self, tsk_id_t index, tsk_population_t *row);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table, replacing any existing.
+@endrst
+@param self A pointer to a tsk_population_table_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_population_table_set_metadata_schema(tsk_population_table_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Print out the state of this table to the specified stream.

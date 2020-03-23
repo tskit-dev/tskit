@@ -29,6 +29,9 @@ In development.
   but is backwards compatible.
   (:user:`benjeffery`, :pr:`505`)
 
+- The text dump of tables with metadata now includes the metadata schema as a header.
+  (:user:`benjeffery`, :pr:`493`)
+
 **New features**
 
 - Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`
@@ -41,6 +44,9 @@ In development.
 - Change the semantics of tsk_tree_t so that sample counts are always
   computed, and add a new ``TSK_NO_SAMPLE_COUNTS`` option to turn this
   off (:pr:`462`).
+
+- Tables with metadata now have an optional `metadata_schema` field that can contain
+  arbitary bytes. (:user:`benjeffery`, :pr:`493`)
 
 
 **Deprecated**
