@@ -566,6 +566,7 @@ tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
     fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
         (int) self->metadata_length, (int) self->max_metadata_length,
         (int) self->max_metadata_length_increment);
+    fprintf(out, "metadata_schema = %.*s\n", self->metadata_schema_length, self->metadata_schema);
     fprintf(out, TABLE_SEP);
     /* We duplicate the dump_text code here because we want to output
      * the offset columns. */
@@ -653,8 +654,7 @@ tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out)
     for (j = 0; j < self->num_rows; j++) {
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
         err = fprintf(out, "%d\t%d\t", (int) j, (int) self->flags[j]);
-        if (err < 0) {
-            goto out;
+        if (err < 0) {err = fprintf(out, "#metadata_schema");
         }
         for (k = self->location_offset[j]; k < self->location_offset[j + 1]; k++) {
             err = fprintf(out, "%.*g", TSK_DBL_DECIMAL_DIG, self->location[k]);
