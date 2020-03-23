@@ -482,6 +482,7 @@ class TestDumpFormat(TestFileFormat):
             "edges/left",
             "edges/metadata",
             "edges/metadata_offset",
+            "edges/metadata_schema",
             "edges/parent",
             "edges/right",
             "format/name",
@@ -493,10 +494,12 @@ class TestDumpFormat(TestFileFormat):
             "individuals/location_offset",
             "individuals/metadata",
             "individuals/metadata_offset",
+            "individuals/metadata_schema",
             "migrations/dest",
             "migrations/left",
             "migrations/metadata",
             "migrations/metadata_offset",
+            "migrations/metadata_schema",
             "migrations/node",
             "migrations/right",
             "migrations/source",
@@ -505,6 +508,7 @@ class TestDumpFormat(TestFileFormat):
             "mutations/derived_state_offset",
             "mutations/metadata",
             "mutations/metadata_offset",
+            "mutations/metadata_schema",
             "mutations/node",
             "mutations/parent",
             "mutations/site",
@@ -512,10 +516,12 @@ class TestDumpFormat(TestFileFormat):
             "nodes/individual",
             "nodes/metadata",
             "nodes/metadata_offset",
+            "nodes/metadata_schema",
             "nodes/population",
             "nodes/time",
             "populations/metadata",
             "populations/metadata_offset",
+            "populations/metadata_schema",
             "provenances/record",
             "provenances/record_offset",
             "provenances/timestamp",
@@ -525,6 +531,7 @@ class TestDumpFormat(TestFileFormat):
             "sites/ancestral_state_offset",
             "sites/metadata",
             "sites/metadata_offset",
+            "sites/metadata_schema",
             "sites/position",
             "uuid",
         ]
@@ -781,13 +788,16 @@ class TestFileFormatErrors(TestFileFormat):
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
         for key in all_data.keys():
-            data = dict(all_data)
-            del data[key]
-            kastore.dump(data, self.temp_file)
-            with self.assertRaises(
-                (exceptions.FileFormatError, exceptions.LibraryError)
-            ):
-                tskit.load(self.temp_file)
+            # We skip this key as it is optional
+            if "metadata_schema" not in key:
+                data = dict(all_data)
+                del data[key]
+                print(key)
+                kastore.dump(data, self.temp_file)
+                with self.assertRaises(
+                    (exceptions.FileFormatError, exceptions.LibraryError)
+                ):
+                    tskit.load(self.temp_file)
 
     def test_missing_fields(self):
         self.verify_fields(migration_example())
