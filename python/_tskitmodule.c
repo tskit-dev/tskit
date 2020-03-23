@@ -2454,6 +2454,45 @@ out:
     return ret;
 }
 
+static PyObject *
+IndividualTable_get_metadata_schema(IndividualTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyUnicode_FromString(self->table->metadata_schema);
+out:
+    return ret;
+}
+
+static int
+IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *closure)
+{
+    int err;
+    int ret = -1;
+    char *metadata_schema = NULL;
+
+    if (!arg || !PyUnicode_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "metadata schema should be unicode");
+        goto out;
+    }
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    //PyUnicode_AsUTF8 docs state the caller is not responsible for deallocating the buffer.
+    metadata_schema = PyUnicode_AsUTF8(arg);
+    err = tsk_individual_table_set_metadata_schema(self->table, metadata_schema);
+    if (err != 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+
 static PyGetSetDef IndividualTable_getsetters[] = {
     {"max_rows_increment",
         (getter) IndividualTable_get_max_rows_increment, NULL, "The size increment"},
@@ -2468,6 +2507,8 @@ static PyGetSetDef IndividualTable_getsetters[] = {
     {"metadata", (getter) IndividualTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) IndividualTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) IndividualTable_get_metadata_schema,
+        (setter) IndividualTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
