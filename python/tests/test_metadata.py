@@ -284,3 +284,20 @@ class TestLoadTextMetadata(unittest.TestCase):
         expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, p):
             self.assertEqual(a.encode("utf8"), b.metadata)
+
+
+class TestMetadataSchema(unittest.TestCase):
+    def test_metadata_schema(self):
+        metadata_schema = {
+            "encoding": "json",
+            "schema": {
+                "title": "Example Metadata",
+                "type": "object",
+                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+                "required": ["one", "two"],
+            },
+        }
+        data = {"one": "val one", "two": 5}
+        individuals = tskit.tables.IndividualTable(metadata_schema=metadata_schema)
+        individuals.add_row(metadata=json.dumps(data).encode())
+        self.assertDictEqual(individuals[0].metadata, data)

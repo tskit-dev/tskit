@@ -100,9 +100,10 @@ class BaseTable:
     # The list of columns in the table. Must be set by subclasses.
     column_names = []
 
-    def __init__(self, ll_table, row_class):
+    def __init__(self, ll_table, row_class, **kwargs):
         self.ll_table = ll_table
         self.row_class = row_class
+        super().__init__(**kwargs)
 
     def _check_required_args(self, **kwargs):
         for k, v in kwargs.items():
@@ -154,7 +155,13 @@ class BaseTable:
             index += len(self)
         if index < 0 or index >= len(self):
             raise IndexError("Index out of bounds")
-        return self.row_class(*self.ll_table.get_row(index))
+        row = self.ll_table.get_row(index)
+        try:
+            row = self.parse_row(row)
+        except AttributeError:
+            # This means the class returns the low-level row unchanged.
+            pass
+        return self.row_class(*row)
 
     def clear(self):
         """
@@ -244,6 +251,14 @@ class MetadataMixin:
     Mixin class for tables that have a metadata column.
     """
 
+    def __init__(self, metadata_schema=None):
+        try:
+            self.metadata_schema = metadata_schema
+        except AttributeError:
+            # REMOVEME: This is only here as I haven't implemented for all tables!
+            pass
+        self.metadata_column_index = self.row_class._fields.index("metadata")
+
     def packset_metadata(self, metadatas):
         """
         Packs the specified list of metadata values and updates the ``metadata``
@@ -257,6 +272,44 @@ class MetadataMixin:
         d["metadata"] = packed
         d["metadata_offset"] = offset
         self.set_columns(**d)
+
+    @property
+    def metadata_schema(self):
+        if len(self.ll_table.metadata_schema) > 0:
+            try:
+                return json.loads(self.ll_table.metadata_schema)
+            except json.decoder.JSONDecodeError:
+                raise ValueError(
+                    f"Metadata schema is not JSON, found{self.ll_table.metadata_schema}"
+                )
+        else:
+            return None
+
+    @metadata_schema.setter
+    def metadata_schema(self, metadata_schema):
+        if metadata_schema is not None:
+            self.ll_table.metadata_schema = json.dumps(metadata_schema)
+        else:
+            del self.metadata_schema
+
+    @metadata_schema.deleter
+    def metadata_schema(self):
+        self.ll_table.metadata_schema = ""
+
+    def parse_row(self, row):
+        if self.metadata_schema is None:
+            return row
+        schema = self.metadata_schema
+        encoding = schema["encoding"]
+        schema = schema["schema"]
+        if encoding == "json":
+            return (
+                row[: self.metadata_column_index]
+                + (json.loads(row[self.metadata_column_index]),)
+                + row[self.metadata_column_index + 1 :]
+            )
+        else:
+            raise ValueError(f"Unrecognised metadata encoding:{encoding}")
 
 
 class IndividualTable(BaseTable, MetadataMixin):
@@ -297,10 +350,10 @@ class IndividualTable(BaseTable, MetadataMixin):
         "metadata_offset",
     ]
 
-    def __init__(self, max_rows_increment=0, ll_table=None):
+    def __init__(self, max_rows_increment=0, ll_table=None, metadata_schema=None):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, IndividualTableRow)
+        super().__init__(ll_table, IndividualTableRow, metadata_schema=metadata_schema)
 
     def _text_header_and_rows(self):
         flags = self.flags
