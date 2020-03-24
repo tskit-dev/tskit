@@ -175,18 +175,24 @@ class Edge(SimpleContainer):
     :ivar id: The integer ID of this edge. Varies from 0 to
         :attr:`TreeSequence.num_edges` - 1.
     :vartype id: int
+    :ivar metadata: The :ref:`metadata <sec_metadata_definition>` for this edge.
+    :vartype metadata: bytes
     """
 
-    def __init__(self, left, right, parent, child, id_=None):
+    def __init__(self, left, right, parent, child, metadata=b"", id_=None):
         self.id = id_
         self.left = left
         self.right = right
         self.parent = parent
         self.child = child
+        self.metadata = metadata
 
     def __repr__(self):
-        return "{{left={:.3f}, right={:.3f}, parent={}, child={}, id={}}}".format(
-            self.left, self.right, self.parent, self.child, self.id
+        return (
+            "{{left={:.3f}, right={:.3f}, parent={}, child={}, id={}, "
+            "metadata={}}}".format(
+                self.left, self.right, self.parent, self.child, self.id, self.metadata
+            )
         )
 
     @property
@@ -3302,8 +3308,15 @@ class TreeSequence:
 
         :rtype: :class:`Edge`
         """
-        left, right, parent, child = self._ll_tree_sequence.get_edge(id_)
-        return Edge(id_=id_, left=left, right=right, parent=parent, child=child)
+        left, right, parent, child, metadata = self._ll_tree_sequence.get_edge(id_)
+        return Edge(
+            id_=id_,
+            left=left,
+            right=right,
+            parent=parent,
+            child=child,
+            metadata=metadata,
+        )
 
     def migration(self, id_):
         """

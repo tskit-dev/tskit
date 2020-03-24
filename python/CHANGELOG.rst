@@ -6,6 +6,9 @@ In development
 
 **New features**
 
+- Add a metadata column to the edges table. Works similarly to existing
+  metadata columns on other tables(:user:`benjeffery`, :pr:`496`).
+
 - Allow sites with missing data to be output by the `haplotypes` method, by
   default replacing with ``-``. Errors are no longer raised for missing data
   with `impute_missing_data=False`; the error types returned for bad alleles

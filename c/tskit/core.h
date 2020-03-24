@@ -96,7 +96,7 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11
 #define TSK_FILE_FORMAT_VERSION_MAJOR 12
-#define TSK_FILE_FORMAT_VERSION_MINOR 0
+#define TSK_FILE_FORMAT_VERSION_MINOR 1
 
 /**
 @defgroup GENERAL_ERROR_GROUP General errors.
@@ -144,6 +144,12 @@ of tskit.
 #define TSK_ERR_FILE_VERSION_TOO_NEW                                -102
 /** @} */
 
+/**
+A column that is a required member of a table was not found in
+the file.
+*/
+#define TSK_REQUIRED_COL_NOT_FOUND                                  -103
+
 /* Out of bounds errors */
 #define TSK_ERR_BAD_OFFSET                                          -200
 #define TSK_ERR_OUT_OF_BOUNDS                                       -201
@@ -171,6 +177,7 @@ of tskit.
 #define TSK_ERR_RIGHT_GREATER_SEQ_LENGTH                            -309
 #define TSK_ERR_LEFT_LESS_ZERO                                      -310
 #define TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN                    -311
+#define TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA                    -312
 
 /* Site errors */
 #define TSK_ERR_UNSORTED_SITES                                      -400

@@ -281,7 +281,7 @@ class TestTreeSequence(LowLevelTestCase):
         for ts in self.get_example_tree_sequences():
             max_node = 0
             for j in range(ts.get_num_edges()):
-                _, _, parent, child = ts.get_edge(j)
+                _, _, parent, child, _ = ts.get_edge(j)
                 for node in [parent, child]:
                     if node > max_node:
                         max_node = node

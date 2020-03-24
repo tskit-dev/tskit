@@ -828,7 +828,7 @@ class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=123)
 
 
-class TestEdgeTable(unittest.TestCase, CommonTestsMixin):
+class TestEdgeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
 
     columns = [
         DoubleColumn("left"),
@@ -838,25 +838,32 @@ class TestEdgeTable(unittest.TestCase, CommonTestsMixin):
     ]
     equal_len_columns = [["left", "right", "parent", "child"]]
     string_colnames = []
-    binary_colnames = []
-    ragged_list_columns = []
+    binary_colnames = ["metadata"]
+    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     input_parameters = [("max_rows_increment", 1024)]
     table_class = tskit.EdgeTable
 
     def test_simple_example(self):
         t = tskit.EdgeTable()
-        t.add_row(left=0, right=1, parent=2, child=3)
-        t.add_row(1, 2, 3, 4)
+        t.add_row(left=0, right=1, parent=2, child=3, metadata=b"123")
+        t.add_row(1, 2, 3, 4, b"\xf0")
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, 1, 2, 3))
-        self.assertEqual(t[1], (1, 2, 3, 4))
+        self.assertEqual(t[0], (0, 1, 2, 3, b"123"))
+        self.assertEqual(t[1], (1, 2, 3, 4, b"\xf0"))
         self.assertEqual(t[0].left, 0)
         self.assertEqual(t[0].right, 1)
         self.assertEqual(t[0].parent, 2)
         self.assertEqual(t[0].child, 3)
+        self.assertEqual(t[0].metadata, b"123")
         self.assertEqual(t[0], t[-2])
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
+
+    def test_add_row_defaults(self):
+        t = tskit.EdgeTable()
+        self.assertEqual(t.add_row(0, 0, 0, 0), 0)
+        self.assertEqual(len(t.metadata), 0)
+        self.assertEqual(t.metadata_offset[0], 0)
 
     def test_add_row_bad_data(self):
         t = tskit.EdgeTable()
@@ -864,6 +871,8 @@ class TestEdgeTable(unittest.TestCase, CommonTestsMixin):
             t.add_row(left="x", right=0, parent=0, child=0)
         with self.assertRaises(TypeError):
             t.add_row()
+        with self.assertRaises(TypeError):
+            t.add_row(0, 0, 0, 0, metadata=123)
 
 
 class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):

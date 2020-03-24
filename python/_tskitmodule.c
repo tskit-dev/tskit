@@ -366,10 +366,24 @@ out:
 }
 
 static PyObject *
-make_edge(tsk_edge_t *edge)
+make_edge(tsk_edge_t *edge, bool include_id)
 {
-    return Py_BuildValue("ddii",
-            edge->left, edge->right, (int) edge->parent, (int) edge->child);
+    PyObject *ret = NULL;
+    PyObject* metadata = make_metadata(edge->metadata, (Py_ssize_t) edge->metadata_length);
+    if (metadata == NULL) {
+        goto out;
+    }
+    if (include_id) {
+        ret = Py_BuildValue("ddiiOi",
+            edge->left, edge->right, (int) edge->parent, (int) edge->child, metadata, edge->id);
+    } else {
+        ret = Py_BuildValue("ddiiO",
+            edge->left, edge->right, (int) edge->parent, (int) edge->child, metadata);
+    }
+out:
+    Py_XDECREF(metadata);
+    return ret;
+
 }
 
 static PyObject *
@@ -991,6 +1005,9 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     int ret = -1;
     int err;
     size_t num_rows = 0;
+    size_t metadata_length;
+    char *metadata_data = NULL;
+    uint32_t *metadata_offset_data = NULL;
     PyObject *left_input = NULL;
     PyArrayObject *left_array = NULL;
     PyObject *right_input = NULL;
@@ -999,6 +1016,10 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     PyArrayObject *parent_array = NULL;
     PyObject *child_input = NULL;
     PyArrayObject *child_array = NULL;
+    PyObject *metadata_input = NULL;
+    PyArrayObject *metadata_array = NULL;
+    PyObject *metadata_offset_input = NULL;
+    PyArrayObject *metadata_offset_array = NULL;
 
     /* Get the input values */
     left_input = get_table_dict_value(dict, "left", true);
@@ -1017,6 +1038,15 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     if (child_input == NULL) {
         goto out;
     }
+    metadata_input = get_table_dict_value(dict, "metadata", false);
+    if (metadata_input == NULL) {
+        goto out;
+    }
+    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    if (metadata_offset_input == NULL) {
+        goto out;
+    }
+
 
     /* Create the arrays */
     left_array = table_read_column_array(left_input, NPY_FLOAT64, &num_rows, false);
@@ -1035,6 +1065,26 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     if (child_array == NULL) {
         goto out;
     }
+    if ((metadata_input == Py_None) != (metadata_offset_input == Py_None)) {
+        PyErr_SetString(PyExc_TypeError,
+                "metadata and metadata_offset must be specified together");
+        goto out;
+    }
+    if (metadata_input != Py_None) {
+        metadata_array = table_read_column_array(metadata_input, NPY_INT8,
+                &metadata_length, false);
+        if (metadata_array == NULL) {
+            goto out;
+        }
+        metadata_data = PyArray_DATA(metadata_array);
+        metadata_offset_array = table_read_offset_array(metadata_offset_input, &num_rows,
+                metadata_length, true);
+        if (metadata_offset_array == NULL) {
+            goto out;
+        }
+        metadata_offset_data = PyArray_DATA(metadata_offset_array);
+    }
+
 
     if (clear_table) {
         err = tsk_edge_table_clear(table);
@@ -1045,7 +1095,8 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     }
     err = tsk_edge_table_append_columns(table, num_rows,
             PyArray_DATA(left_array), PyArray_DATA(right_array),
-            PyArray_DATA(parent_array), PyArray_DATA(child_array));
+            PyArray_DATA(parent_array), PyArray_DATA(child_array),
+            metadata_data, metadata_offset_data);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -1056,6 +1107,8 @@ out:
     Py_XDECREF(right_array);
     Py_XDECREF(parent_array);
     Py_XDECREF(child_array);
+    Py_XDECREF(metadata_array);
+    Py_XDECREF(metadata_offset_array);
     return ret;
 }
 
@@ -1707,6 +1760,10 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         {"right", (void *) tables->edges.right, tables->edges.num_rows, NPY_FLOAT64},
         {"parent", (void *) tables->edges.parent, tables->edges.num_rows, NPY_INT32},
         {"child", (void *) tables->edges.child, tables->edges.num_rows, NPY_INT32},
+        {"metadata",
+            (void *) tables->edges.metadata, tables->edges.metadata_length, NPY_INT8},
+        {"metadata_offset",
+            (void *) tables->edges.metadata_offset, tables->edges.num_rows + 1, NPY_UINT32},
         {NULL},
     };
 
@@ -2930,16 +2987,24 @@ EdgeTable_add_row(EdgeTable *self, PyObject *args, PyObject *kwds)
     double right = 1.0;
     int parent;
     int child;
-    static char *kwlist[] = {"left", "right", "parent", "child", NULL};
+    PyObject *py_metadata = Py_None;
+    char *metadata = "";
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[] = {"left", "right", "parent", "child", "metadata", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddii", kwlist,
-                &left, &right, &parent, &child)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddii|O", kwlist,
+                &left, &right, &parent, &child, &py_metadata)) {
         goto out;
     }
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_edge_table_add_row(self->table, left, right, parent, child);
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_edge_table_add_row(self->table, left, right, parent, child, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -2988,7 +3053,7 @@ EdgeTable_get_row(EdgeTable *self, PyObject *args)
         handle_library_error(err);
         goto out;
     }
-    ret = make_edge(&edge);
+    ret = make_edge(&edge, false);
 out:
     return ret;
 }
@@ -3188,6 +3253,34 @@ out:
     return ret;
 }
 
+static PyObject *
+EdgeTable_get_metadata(EdgeTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(self->table->metadata_length,
+            self->table->metadata, NPY_INT8, sizeof(char));
+out:
+    return ret;
+}
+
+static PyObject *
+EdgeTable_get_metadata_offset(EdgeTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(self->table->num_rows + 1,
+            self->table->metadata_offset, NPY_UINT32, sizeof(uint32_t));
+out:
+    return ret;
+}
+
 static PyGetSetDef EdgeTable_getsetters[] = {
     {"max_rows_increment",
         (getter) EdgeTable_get_max_rows_increment, NULL,
@@ -3200,6 +3293,10 @@ static PyGetSetDef EdgeTable_getsetters[] = {
     {"right", (getter) EdgeTable_get_right, NULL, "The right array"},
     {"parent", (getter) EdgeTable_get_parent, NULL, "The parent array"},
     {"child", (getter) EdgeTable_get_child, NULL, "The child array"},
+    {"metadata", (getter) EdgeTable_get_metadata, NULL, "The metadata array"},
+    {"metadata_offset", (getter) EdgeTable_get_metadata_offset, NULL,
+        "The metadata offset array"},
+
     {NULL}  /* Sentinel */
 };
 
@@ -6055,7 +6152,7 @@ TreeSequence_get_edge(TreeSequence *self, PyObject *args)
         handle_library_error(err);
         goto out;
     }
-    ret = make_edge(&record);
+    ret = make_edge(&record, false);
 out:
     return ret;
 }
@@ -8799,8 +8896,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
         record = records_out;
         j = 0;
         while (record != NULL) {
-            value = Py_BuildValue("ddiii", record->edge.left, record->edge.right,
-                record->edge.parent, record->edge.child, record->edge.id);
+            value = make_edge(&record->edge, true);
             if (value == NULL) {
                 goto out;
             }
@@ -8822,8 +8918,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
         record = records_in;
         j = 0;
         while (record != NULL) {
-            value = Py_BuildValue("ddiii", record->edge.left, record->edge.right,
-                record->edge.parent, record->edge.child, record->edge.id);
+            value = make_edge(&record->edge, true);
             if (value == NULL) {
                 goto out;
             }

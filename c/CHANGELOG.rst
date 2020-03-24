@@ -19,6 +19,9 @@ In development.
 - Change the ``tsk_vargen_init`` method to take an extra parameter ``alleles``.
   To keep the current behaviour, set this parameter to NULL.
 
+- Edges can now have metadata. Hence edge methods now take two extra arguments:
+  metadata and metadata length. The file format has also changed to accommodate this.
+  (:user:`benjeffery`, :pr:`496`)
 
 **New features**
 

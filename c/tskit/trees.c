@@ -4502,6 +4502,9 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             w->edge.right = edges->right[k];
             w->edge.parent = edges->parent[k];
             w->edge.child = edges->child[k];
+            w->edge.metadata = edges->metadata + edges->metadata_offset[k];
+            w->edge.metadata_length
+                = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
             w->next = NULL;
             if (out_head == NULL) {
                 out_head = w;
@@ -4525,6 +4528,9 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             w->edge.right = edges->right[k];
             w->edge.parent = edges->parent[k];
             w->edge.child = edges->child[k];
+            w->edge.metadata = edges->metadata + edges->metadata_offset[k];
+            w->edge.metadata_length
+                = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
             w->next = NULL;
             if (in_head == NULL) {
                 in_head = w;

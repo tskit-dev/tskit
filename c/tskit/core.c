@@ -167,6 +167,10 @@ tsk_strerror_internal(int err)
             ret = "tskit file version is too new for this instance. "
                   "Please upgrade tskit to the latest version";
             break;
+        case TSK_REQUIRED_COL_NOT_FOUND:
+            ret = "A column that is a required member of a table was not "
+                  "found in the file.";
+            break;
 
         /* Out of bounds errors */
         case TSK_ERR_BAD_OFFSET:
@@ -246,6 +250,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN:
             ret = "Bad edges: contradictory children for a given parent over "
                   "an interval";
+            break;
+        case TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA:
+            ret = "Can't squash or flush edges that have non-empty metadata";
             break;
 
         /* Site errors */
