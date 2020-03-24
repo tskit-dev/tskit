@@ -627,7 +627,9 @@ tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self, tsk_id_t *focal
     double *restrict length = calloc(num_focal, sizeof(*length));
     uint32_t *restrict ref_count = calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
     int16_t *restrict reference_set_map = malloc(num_nodes * sizeof(*reference_set_map));
-    uint32_t *restrict row, *restrict child_row, total, delta;
+    uint32_t *restrict row = NULL;
+    uint32_t *restrict child_row = NULL;
+    uint32_t total, delta;
 
     /* We support a max of 8K focal sets */
     if (num_reference_sets == 0 || num_reference_sets > (INT16_MAX - 1)) {
