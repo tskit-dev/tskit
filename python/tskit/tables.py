@@ -48,7 +48,7 @@ NodeTableRow = collections.namedtuple(
 
 
 EdgeTableRow = collections.namedtuple(
-    "EdgeTableRow", ["left", "right", "parent", "child"]
+    "EdgeTableRow", ["left", "right", "parent", "child", "metadata"]
 )
 
 
@@ -290,7 +290,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         :param array-like location: A list of numeric values or one-dimensional numpy
             array describing the location of this individual. If not specified
             or None, a zero-dimensional location is stored.
-        :param bytes metadata: The binary-encoded metadata for the new node. If not
+        :param bytes metadata: The binary-encoded metadata for the new individual. If not
             specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added node.
         :rtype: int
@@ -579,7 +579,7 @@ class NodeTable(BaseTable, MetadataMixin):
         )
 
 
-class EdgeTable(BaseTable):
+class EdgeTable(BaseTable, MetadataMixin):
     """
     A table defining the edges in a tree sequence. See the
     :ref:`definitions <sec_edge_table_definition>` for details on the columns
@@ -601,9 +601,23 @@ class EdgeTable(BaseTable):
     :vartype parent: numpy.ndarray, dtype=np.int32
     :ivar child: The array of child node IDs.
     :vartype child: numpy.ndarray, dtype=np.int32
+    :ivar metadata: The flattened array of binary metadata values. See
+        :ref:`sec_tables_api_binary_columns` for more details.
+    :vartype metadata: numpy.ndarray, dtype=np.int8
+    :ivar metadata_offset: The array of offsets into the metadata column. See
+        :ref:`sec_tables_api_binary_columns` for more details.
+    :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
+
     """
 
-    column_names = ["left", "right", "parent", "child"]
+    column_names = [
+        "left",
+        "right",
+        "parent",
+        "child",
+        "metadata",
+        "metadata_offset",
+    ]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -615,14 +629,16 @@ class EdgeTable(BaseTable):
         right = self.right
         parent = self.parent
         child = self.child
-        ret = "id\tleft\t\tright\t\tparent\tchild\n"
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
+        ret = "id\tleft\t\tright\t\tparent\tchild\tmetadata\n"
         for j in range(self.num_rows):
-            ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\n".format(
-                j, left[j], right[j], parent[j], child[j]
+            md = base64.b64encode(metadata[j]).decode("utf8")
+            ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\n".format(
+                j, left[j], right[j], parent[j], child[j], md
             )
         return ret[:-1]
 
-    def add_row(self, left, right, parent, child):
+    def add_row(self, left, right, parent, child, metadata=None):
         """
         Adds a new row to this :class:`EdgeTable` and returns the ID of the
         corresponding edge.
@@ -631,18 +647,33 @@ class EdgeTable(BaseTable):
         :param float right: The right coordinate (exclusive).
         :param int parent: The ID of parent node.
         :param int child: The ID of child node.
+        :param bytes metadata: The binary-encoded metadata for the new edge. If not
+            specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added edge.
         :rtype: int
         """
-        return self.ll_table.add_row(left, right, parent, child)
+        return self.ll_table.add_row(left, right, parent, child, metadata)
 
-    def set_columns(self, left=None, right=None, parent=None, child=None):
+    def set_columns(
+        self,
+        left=None,
+        right=None,
+        parent=None,
+        child=None,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Sets the values for each column in this :class:`EdgeTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
-        All four parameters are mandatory, and must be numpy arrays of the
-        same length (which is equal to the number of edges the table will contain).
+        The ``left``, ``right``, ``parent`` and ``child`` parameters are mandatory,
+        and must be numpy arrays of the same length (which is equal to the number of
+        edges the table will contain).
+        The ``metadata`` and ``metadata_offset`` parameters must be supplied together,
+        and meet the requirements for :ref:`sec_encoding_ragged_columns`.
+        See :ref:`sec_tables_api_binary_columns` for more information.
+
 
         :param left: The left coordinates (inclusive).
         :type left: numpy.ndarray, dtype=np.float64
@@ -652,20 +683,40 @@ class EdgeTable(BaseTable):
         :type parent: numpy.ndarray, dtype=np.int32
         :param child: The child node IDs.
         :type child: numpy.ndarray, dtype=np.int32
+        :param metadata: The flattened metadata array. Must be specified along
+            with ``metadata_offset``. If not specified or None, an empty metadata
+            value is stored for each node.
+        :type metadata: numpy.ndarray, dtype=np.int8
+        :param metadata_offset: The offsets into the ``metadata`` array.
+        :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+
         """
         self._check_required_args(left=left, right=right, parent=parent, child=child)
         self.ll_table.set_columns(
-            dict(left=left, right=right, parent=parent, child=child)
+            dict(
+                left=left,
+                right=right,
+                parent=parent,
+                child=child,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
         )
 
-    def append_columns(self, left, right, parent, child):
+    def append_columns(
+        self, left, right, parent, child, metadata=None, metadata_offset=None,
+    ):
         """
         Appends the specified arrays to the end of the columns of this
         :class:`EdgeTable`. This allows many new rows to be added at once.
 
-        All four parameters are mandatory, and must be numpy arrays of the
-        same length (which is equal to the number of additional edges to
-        add to the table).
+        The ``left``, ``right``, ``parent`` and ``child`` parameters are mandatory,
+        and must be numpy arrays of the same length (which is equal to the number of
+        additional edges to add to the table). The ``metadata`` and
+        ``metadata_offset`` parameters must be supplied together, and
+        meet the requirements for :ref:`sec_encoding_ragged_columns`.
+        See :ref:`sec_tables_api_binary_columns` for more information.
+
 
         :param left: The left coordinates (inclusive).
         :type left: numpy.ndarray, dtype=np.float64
@@ -675,9 +726,22 @@ class EdgeTable(BaseTable):
         :type parent: numpy.ndarray, dtype=np.int32
         :param child: The child node IDs.
         :type child: numpy.ndarray, dtype=np.int32
+        :param metadata: The flattened metadata array. Must be specified along
+            with ``metadata_offset``. If not specified or None, an empty metadata
+            value is stored for each node.
+        :type metadata: numpy.ndarray, dtype=np.int8
+        :param metadata_offset: The offsets into the ``metadata`` array.
+        :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self.ll_table.append_columns(
-            dict(left=left, right=right, parent=parent, child=child)
+            dict(
+                left=left,
+                right=right,
+                parent=parent,
+                child=child,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
         )
 
     def squash(self):
@@ -883,7 +947,7 @@ class SiteTable(BaseTable, MetadataMixin):
 
         :param float position: The position of this site in genome coordinates.
         :param str ancestral_state: The state of this site at the root of the tree.
-        :param bytes metadata: The binary-encoded metadata for the new node. If not
+        :param bytes metadata: The binary-encoded metadata for the new site. If not
             specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added site.
         :rtype: int
@@ -1082,7 +1146,7 @@ class MutationTable(BaseTable, MetadataMixin):
         :param str derived_state: The state of the site at this mutation's node.
         :param int parent: The ID of the parent mutation. If not specified,
             defaults to :attr:`NULL`.
-        :param bytes metadata: The binary-encoded metadata for the new node. If not
+        :param bytes metadata: The binary-encoded metadata for the new mutation. If not
             specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added mutation.
         :rtype: int

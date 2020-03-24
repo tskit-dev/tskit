@@ -40,6 +40,7 @@ import tskit.exceptions as exceptions
 
 
 CURRENT_FILE_MAJOR = 12
+CURRENT_FILE_MINOR = 1
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -168,6 +169,24 @@ def mutation_metadata_example():
     return tables.tree_sequence()
 
 
+def edge_metadata_example():
+    ts = msprime.simulate(
+        sample_size=100, recombination_rate=0.1, length=10, random_seed=1
+    )
+    tables = ts.dump_tables()
+    metadatas = [f"edge_{u}" for u in range(ts.num_edges)]
+    packed, offset = tskit.pack_strings(metadatas)
+    tables.edges.set_columns(
+        metadata=packed,
+        metadata_offset=offset,
+        left=tables.edges.left,
+        right=tables.edges.right,
+        child=tables.edges.child,
+        parent=tables.edges.parent,
+    )
+    return tables.tree_sequence()
+
+
 class TestFileFormat(unittest.TestCase):
     """
     Superclass of file format tests.
@@ -259,6 +278,13 @@ class TestRoundTrip(TestFileFormat):
         for provenance in tsp.provenances():
             tskit.validate_provenance(json.loads(provenance.record))
 
+    def verify_round_trip_no_legacy(self, ts):
+        ts.dump(self.temp_file)
+        tsp = tskit.load(self.temp_file)
+        self.verify_tree_sequences_equal(ts, tsp, simplify=False)
+        for provenance in tsp.provenances():
+            tskit.validate_provenance(json.loads(provenance.record))
+
     def verify_malformed_json_v2(self, ts, group_name, attr, bad_json):
         tskit.dump_legacy(ts, self.temp_file, 2)
         # Write some bad JSON to the provenance string.
@@ -330,6 +356,10 @@ class TestRoundTrip(TestFileFormat):
 
     def test_mutation_metadata_example(self):
         self.verify_round_trip(mutation_metadata_example(), 10)
+
+    def test_edge_metadata_example(self):
+        # metadata for edges was introduced
+        self.verify_round_trip_no_legacy(edge_metadata_example())
 
     def test_multichar_mutation_example(self):
         self.verify_round_trip(multichar_mutation_example(), 10)
@@ -429,6 +459,8 @@ class TestDumpFormat(TestFileFormat):
         keys = [
             "edges/child",
             "edges/left",
+            "edges/metadata",
+            "edges/metadata_offset",
             "edges/parent",
             "edges/right",
             "format/name",
@@ -500,7 +532,7 @@ class TestDumpFormat(TestFileFormat):
         )
         format_version = store["format/version"]
         self.assertEqual(format_version[0], CURRENT_FILE_MAJOR)
-        self.assertEqual(format_version[1], 0)
+        self.assertEqual(format_version[1], CURRENT_FILE_MINOR)
         self.assertEqual(ts.sequence_length, store["sequence_length"][0])
         # Load another copy from file so we can check the uuid.
         other_ts = tskit.load(self.temp_file)
@@ -680,6 +712,9 @@ class TestDumpFormat(TestFileFormat):
     def test_node_metadata_example(self):
         self.verify_dump_format(node_metadata_example())
 
+    def test_edge_metadata_example(self):
+        self.verify_dump_format(edge_metadata_example())
+
     def test_site_metadata_example(self):
         self.verify_dump_format(site_metadata_example())
 
@@ -723,7 +758,10 @@ class TestFileFormatErrors(TestFileFormat):
             data = dict(all_data)
             del data[key]
             kastore.dump(data, self.temp_file)
-            self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+            with self.assertRaises(
+                (exceptions.FileFormatError, exceptions.LibraryError)
+            ):
+                tskit.load(self.temp_file)
 
     def test_missing_fields(self):
         self.verify_fields(migration_example())

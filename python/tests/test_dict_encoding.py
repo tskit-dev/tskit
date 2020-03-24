@@ -58,6 +58,15 @@ def get_example_tables():
             individual=node.id if node.id < ts.num_samples else -1,
             metadata=b"y" * node.id,
         )
+    tables.edges.clear()
+    for edge in ts.edges():
+        tables.edges.add_row(
+            left=edge.left,
+            right=edge.right,
+            child=edge.child,
+            parent=edge.parent,
+            metadata=b"y" * edge.id,
+        )
     tables.sites.clear()
     for site in ts.sites():
         tables.sites.add_row(

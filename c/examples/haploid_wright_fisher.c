@@ -47,10 +47,10 @@ simulate(
                 breakpoint = gsl_rng_uniform(rng);
             } while (breakpoint == 0); /* tiny proba of breakpoint being 0 */
             ret = tsk_edge_table_add_row(
-                &tables->edges, 0, breakpoint, left_parent, child);
+                &tables->edges, 0, breakpoint, left_parent, child, NULL, 0);
             check_tsk_error(ret);
             ret = tsk_edge_table_add_row(
-                &tables->edges, breakpoint, 1, right_parent, child);
+                &tables->edges, breakpoint, 1, right_parent, child, NULL, 0);
             check_tsk_error(ret);
             children[j] = child;
         }

@@ -147,6 +147,10 @@ typedef struct {
     double left;
     /** @brief Right coordinate. */
     double right;
+    /** @brief Metadata. */
+    const char *metadata;
+    /** @brief Size of the metadata in bytes. */
+    tsk_size_t metadata_length;
 } tsk_edge_t;
 
 /**
@@ -346,6 +350,10 @@ typedef struct {
     tsk_size_t num_rows;
     tsk_size_t max_rows;
     tsk_size_t max_rows_increment;
+    /** @brief The total length of the metadata column. */
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     /** @brief The left column. */
     double *left;
     /** @brief The right column. */
@@ -354,6 +362,11 @@ typedef struct {
     tsk_id_t *parent;
     /** @brief The child column. */
     tsk_id_t *child;
+    /** @brief The metadata column. */
+    char *metadata;
+    /** @brief The metadata_offset column. */
+    tsk_size_t *metadata_offset;
+    bool metadata_malloced_locally;
 } tsk_edge_table_t;
 
 /**
@@ -951,8 +964,8 @@ int tsk_edge_table_free(tsk_edge_table_t *self);
 @brief Adds a row to this edge table.
 
 @rst
-Add a new edge with the specified ``left``, ``right``, ``parent`` and ``child``
-to the table. See the :ref:`table definition <sec_edge_table_definition>`
+Add a new edge with the specified ``left``, ``right``, ``parent``, ``child`` and
+``metadata`` to the table. See the :ref:`table definition <sec_edge_table_definition>`
 for details of the columns in this table.
 @endrst
 
@@ -961,11 +974,15 @@ for details of the columns in this table.
 @param right The right coordinate for the new edge.
 @param parent The parent node for the new edge.
 @param child The child node for the new edge.
+@param metadata The metadata to be associated with the new edge. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+
 @return Return the ID of the newly added edge on success,
     or a negative value on failure.
 */
-tsk_id_t tsk_edge_table_add_row(
-    tsk_edge_table_t *self, double left, double right, tsk_id_t parent, tsk_id_t child);
+tsk_id_t tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double right,
+    tsk_id_t parent, tsk_id_t child, const char *metadata, tsk_size_t metadata_length);
 
 /**
 @brief Clears this table, setting the number of rows to zero.
@@ -1054,10 +1071,14 @@ void tsk_edge_table_print_state(tsk_edge_table_t *self, FILE *out);
 
 int tsk_edge_table_set_max_rows_increment(
     tsk_edge_table_t *self, tsk_size_t max_rows_increment);
+int tsk_edge_table_set_max_metadata_length_increment(
+    tsk_edge_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_edge_table_set_columns(tsk_edge_table_t *self, tsk_size_t num_rows, double *left,
-    double *right, tsk_id_t *parent, tsk_id_t *child);
+    double *right, tsk_id_t *parent, tsk_id_t *child, const char *metadata,
+    tsk_size_t *metadata_length);
 int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
-    double *left, double *right, tsk_id_t *parent, tsk_id_t *child);
+    double *left, double *right, tsk_id_t *parent, tsk_id_t *child, const char *metadata,
+    tsk_size_t *metadata_length);
 int tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out);
 
 int tsk_edge_table_squash(tsk_edge_table_t *self);

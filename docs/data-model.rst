@@ -299,8 +299,8 @@ Edge Table
 ----------
 
 An **edge** defines a parent-child relationship between a pair of nodes
-over a specific sequence interval. The edge table contains four columns,
-all of which are mandatory:
+over a specific sequence interval. The edge table contains five columns,
+all of which are mandatory except ``metadata``:
 
 ================    ==============      ===========
 Column              Type                Description
@@ -309,6 +309,7 @@ left                double              Left coordinate of the edge (inclusive).
 right               double              Right coordinate of the edge (exclusive).
 parent              int32               Parent node ID.
 child               int32               Child node ID.
+metadata            binary              Node :ref:`sec_metadata_definition`
 ================    ==============      ===========
 
 Each row in an edge table describes a half-open genomic interval ``[left, right)``
@@ -316,6 +317,10 @@ over which the ``child`` inherited from the given ``parent``.
 The ``left`` and ``right`` columns are defined using double precision
 floating point values. The ``parent`` and ``child``
 columns specify integer IDs in the associated :ref:`sec_node_table_definition`.
+
+The ``metadata`` column provides a location for client code to store
+information about each edge. See the :ref:`sec_metadata_definition` section for
+more details on how metadata columns should be used.
 
 See the :ref:`sec_edge_requirements` section for details on the properties
 required for a valid set of edges.
@@ -1099,7 +1104,8 @@ Edge text format
 ================
 
 The edge text format must contain the columns ``left``,
-``right``, ``parent`` and ``child``.
+``right``, ``parent`` and ``child``. Optionally, there may also be
+a ``metadata`` column.
 See the :ref:`edge table definitions <sec_edge_table_definition>`
 for details on these columns.
 

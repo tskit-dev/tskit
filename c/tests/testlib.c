@@ -317,7 +317,8 @@ parse_edges(const char *text, tsk_edge_table_t *edge_table)
         for (k = 0; k < num_children; k++) {
             CU_ASSERT_FATAL(q != NULL);
             child = atoi(q);
-            ret = tsk_edge_table_add_row(edge_table, left, right, parent, child);
+            ret = tsk_edge_table_add_row(
+                edge_table, left, right, parent, child, NULL, 0);
             CU_ASSERT_FATAL(ret >= 0);
             q = strtok(NULL, ",");
         }
@@ -553,9 +554,9 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
             &tables.nodes, 0, j + 1, TSK_NULL, TSK_NULL, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         u = ret;
-        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, last_node);
+        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, last_node, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
-        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, j + 1);
+        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, j + 1, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         last_node = u;
     }
