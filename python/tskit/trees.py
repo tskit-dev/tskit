@@ -4697,14 +4697,14 @@ class TreeSequence:
         <.TreeSequence.segregating_sites>`, respectively, both not span
         normalised), then Tajima's D is
 
-        .. code-block::
+        .. code-block:: python
 
-            D = (T - S/h) / sqrt(a*S + (b/c)*S*(S-1))
-            h = 1 + 1/2 + ... + 1/(n-1)
-            g = 1 + 1/2^2 + ... + 1/(n-1)^2
-            a = (n+1)/(3*(n-1)*h) - 1/h^2
-            b = 2*(n^2 + n + 3)/(9*n*(n-1)) - (n+2)/(h*n) + g/h^2
-            c = h^2 + g
+            D = (T - S / h) / sqrt(a * S + (b / c) * S * (S - 1))
+            h = 1 + 1 / 2 + ... + 1 / (n - 1)
+            g = 1 + 1 / 2 ** 2 + ... + 1 / (n - 1) ** 2
+            a = (n + 1) / (3 * (n - 1) * h) - 1 / h ** 2
+            b = 2 * (n ** 2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h ** 2
+            c = h ** 2 + g
 
         What is computed for diversity and divergence depends on ``mode``;
         see those functions for more details.
