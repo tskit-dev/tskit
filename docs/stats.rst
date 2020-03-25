@@ -483,11 +483,14 @@ Summary functions
 
 For convenience, here are the summary functions used for many of the statistics.
 Below, :math:`x` denotes the number of samples in a sample set below a node,
-`n` denotes the total size of a sample set,
+`n` denotes the total size of a sample set, :math:`p = x / n`,
 and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
 
 ``diversity``
    :math:`f(x) = \frac{x (n - x)}{n (n-1)}`
+
+   For an unpolarized statistic with biallelic loci, this calculates
+   :math:`2 p (1-p)`.
 
 ``segregating_sites``
    :math:`f(x) =  (x > 0) (1 - x / n)`
@@ -502,11 +505,19 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
 
    unless the two indices are the same, when the diversity function is used.
 
+   For an unpolarized statistic with biallelic loci, this calculates
+   :math:`p_1 (1-p_2) + (1 - p_1) p_2`.
+
 ``Y2``
    :math:`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
 
 ``f2``
    :math:`f(x_1, x_2) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 (n_1 - 1) n_2 (n_2 - 1)} - \frac{x_1 (n_1 - x_1) (n_2 - x_2) x_2}{n_1 (n_1 - 1) n_2 (n_2 - 1)}`
+
+   For an unpolarized statistic with biallelic loci, this calculates
+   :math:`((p_1 - p_2)^2 - (p_1 (1-p_2)^2 + (1-p_1) p_2^2)/n_1 - (p_1^2 (1-p_2) + (1-p_1)^2 p_2)/n_2`
+   :math:`+ (p_1 p_2 + (1-p_1)(1-p_2))/ n_1 n_2)(1 + \frac{1}{n_1 - 1})(1 + \frac{1}{n_2 - 1})`,
+   which is the unbiased estimator for :math:`(p_1 - p_2)^2` from a finite sample.
 
 ``Y3``
    :math:`f(x_1, x_2, x_3) = \frac{x_1 (n_2 - x_2) (n_3 - x_3)}{n_1 n_2 n_3}`
@@ -514,8 +525,15 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
 ``f3``
    :math:`f(x_1, x_2, x_3) = \frac{x_1 (x_1 - 1) (n_2 - x_2) (n_3 - x_3)}{n_1 (n_1 - 1) n_2 n_3} - \frac{x_1 (n_1 - x_1) (n_2 - x_2) x_3}{n_1 (n_1 - 1) n_2 n_3}`
 
+   For an unpolarized statistic with biallelic loci, this calculates
+   :math:`((p_1 - p_2)(p_1 - p_3) - p_1 (1-p_2)(1-p_3)/n_1 - (1-p_1) p_2 p_3/n_1)(1 + \frac{1}{n_1 - 1})`,
+   which is the unbiased estimator for :math:`(p_1 - p_2)(p_1 - p_3)` from a finite sample.
+
 ``f4``
    :math:`f(x_1, x_2, x_3, x_4) = \frac{x_1 x_3 (n_2 - x_2) (n_4 - x_4)}{n_1 n_2 n_3 n_4} - \frac{x_1 x_4 (n_2 - x_2) (n_3 - x_3)}{n_1 n_2 n_3 n_4}`
+
+   For an unpolarized statistic with biallelic loci, this calculates
+   :math:`(p_1 - p_2)(p_3 - p_4)`.
 
 ``trait_covariance``
    :math:`f(w) = \frac{w^2}{2 (n-1)^2}`,
