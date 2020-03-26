@@ -6251,25 +6251,12 @@ tsk_table_collection_dump_indexes(tsk_table_collection_t *self, kastore_t *store
     return ret;
 }
 
-/*
- * Returns true if the specified store has the specified key.
- * TODO remove when kastore_contains() is implemented:
- * https://github.com/tskit-dev/kastore/issues/76
- */
-static bool
-has_key(kastore_t *store, const char *key)
-{
-    void *dest;
-    size_t len;
-    int type;
-
-    return kastore_gets(store, key, &dest, &len, &type) == 0;
-}
-
 static int TSK_WARN_UNUSED
 tsk_table_collection_load_indexes(tsk_table_collection_t *self)
 {
     int ret = 0;
+    int has_insertion;
+    int has_removal;
     const char *insertion_order = "indexes/edge_insertion_order";
     const char *removal_order = "indexes/edge_removal_order";
     read_table_col_t read_cols[] = {
@@ -6279,8 +6266,18 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self)
             &self->edges.num_rows, 0, KAS_INT32 },
     };
 
-    if ((!has_key(self->store, insertion_order))
-        && (!has_key(self->store, removal_order))) {
+    has_insertion = kastore_containss(self->store, insertion_order);
+    if (has_insertion < 0) {
+        ret = has_insertion;
+        goto out;
+    }
+    has_removal = kastore_containss(self->store, removal_order);
+    if (has_removal < 0) {
+        ret = has_removal;
+        goto out;
+    }
+
+    if (!has_insertion && !has_removal) {
         /* If neither key is present the table is unindexed. */
         self->indexes.malloced_locally = true;
         self->indexes.edge_insertion_order = NULL;
@@ -6292,6 +6289,7 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self)
         ret = read_table_cols(
             self->store, read_cols, sizeof(read_cols) / sizeof(*read_cols));
     }
+out:
     return ret;
 }
 
