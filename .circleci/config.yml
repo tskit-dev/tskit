@@ -141,7 +141,7 @@ jobs:
           command: |
             meson build-install c --prefix=/usr
             sudo ninja -C build-install install
-            clang c/examples/api_structure.c -o api_structure -ltskit
+            clang c/examples/api_structure.c -I c/subprojects/kastore -o api_structure -ltskit
             ./api_structure
 
       - run:
