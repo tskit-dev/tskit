@@ -1768,7 +1768,7 @@ class TableCollection:
     def link_ancestors(self, samples, ancestors):
         """
         Returns an :class:`EdgeTable` instance describing a subset of the genealogical
-        relationships between the nodes in``samples`` and ``ancestors``.
+        relationships between the nodes in ``samples`` and ``ancestors``.
 
         Each row ``parent, child, left, right`` in the output table indicates that
         ``child`` has inherited the segment ``[left, right)`` from ``parent`` more
