@@ -20,8 +20,14 @@ In development.
   To keep the current behaviour, set this parameter to NULL.
 
 - Edges can now have metadata. Hence edge methods now take two extra arguments:
-  metadata and metadata length. The file format has also changed to accommodate this.
+  metadata and metadata length. The file format has also changed to accommodate this,
+  but is backwards compatible.
   (:user:`benjeffery`, :pr:`496`)
+
+- Migrations can now have metadata. Hence migration methods now take two extra arguments:
+  metadata and metadata length. The file format has also changed to accommodate this,
+  but is backwards compatible.
+  (:user:`benjeffery`, :pr:`505`)
 
 **New features**
 

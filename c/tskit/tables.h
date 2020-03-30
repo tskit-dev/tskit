@@ -228,6 +228,11 @@ typedef struct {
     double right;
     /** @brief Time. */
     double time;
+    /** @brief Metadata. */
+    const char *metadata;
+    /** @brief Size of the metadata in bytes. */
+    tsk_size_t metadata_length;
+
 } tsk_migration_t;
 
 /**
@@ -382,6 +387,10 @@ typedef struct {
     tsk_size_t num_rows;
     tsk_size_t max_rows;
     tsk_size_t max_rows_increment;
+    /** @brief The total length of the metadata column. */
+    tsk_size_t metadata_length;
+    tsk_size_t max_metadata_length;
+    tsk_size_t max_metadata_length_increment;
     /** @brief The source column. */
     tsk_id_t *source;
     /** @brief The dest column. */
@@ -394,6 +403,11 @@ typedef struct {
     double *right;
     /** @brief The time column. */
     double *time;
+    /** @brief The metadata column. */
+    char *metadata;
+    /** @brief The metadata_offset column. */
+    tsk_size_t *metadata_offset;
+    bool metadata_malloced_locally;
 } tsk_migration_table_t;
 
 /**
@@ -1117,7 +1131,7 @@ int tsk_migration_table_free(tsk_migration_table_t *self);
 
 @rst
 Add a new migration with the specified ``left``, ``right``, ``node``,
-``source``, ``dest`` and ``time`` to the table.
+``source``, ``dest``, ``time`` and ``metadata`` to the table.
 See the :ref:`table definition <sec_migration_table_definition>`
 for details of the columns in this table.
 @endrst
@@ -1129,11 +1143,16 @@ for details of the columns in this table.
 @param source The source population ID for the new migration.
 @param dest The destination population ID for the new migration.
 @param time The time for the new migration.
+@param metadata The metadata to be associated with the new migration. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+
 @return Return the ID of the newly added migration on success,
     or a negative value on failure.
 */
 tsk_id_t tsk_migration_table_add_row(tsk_migration_table_t *self, double left,
-    double right, tsk_id_t node, tsk_id_t source, tsk_id_t dest, double time);
+    double right, tsk_id_t node, tsk_id_t source, tsk_id_t dest, double time,
+    const char *metadata, tsk_size_t metadata_length);
 
 /**
 @brief Clears this table, setting the number of rows to zero.
@@ -1225,12 +1244,14 @@ void tsk_migration_table_print_state(tsk_migration_table_t *self, FILE *out);
 int tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t options);
 int tsk_migration_table_set_max_rows_increment(
     tsk_migration_table_t *self, tsk_size_t max_rows_increment);
+int tsk_migration_table_set_max_metadata_length_increment(
+    tsk_migration_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
     double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
-    double *time);
+    double *time, const char *metadata, tsk_size_t *metadata_length);
 int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
     double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
-    double *time);
+    double *time, const char *metadata, tsk_size_t *metadata_length);
 int tsk_migration_table_dump_text(tsk_migration_table_t *self, FILE *out);
 
 /**

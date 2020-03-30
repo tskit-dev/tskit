@@ -2558,7 +2558,33 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
  *************************/
 
 static int
-tsk_migration_table_expand(tsk_migration_table_t *self, size_t additional_rows)
+tsk_migration_table_metadata_init(tsk_migration_table_t *self)
+{
+    int ret = 0;
+
+    if (self->metadata == NULL) {
+        ret = expand_column(
+            (void **) &self->metadata_offset, self->max_rows + 1, sizeof(tsk_size_t));
+        if (ret != 0) {
+            goto out;
+        }
+        memset(self->metadata_offset, 0, (self->max_rows + 1) * sizeof(tsk_size_t));
+
+        ret = expand_column((void **) &self->metadata, 1, sizeof(char));
+        if (ret != 0) {
+            goto out;
+        }
+        self->max_metadata_length = 1;
+        self->metadata_malloced_locally = true;
+    }
+
+out:
+    return ret;
+}
+
+static int
+tsk_migration_table_expand_main_columns(
+    tsk_migration_table_t *self, size_t additional_rows)
 {
     int ret = 0;
     tsk_size_t increment
@@ -2594,7 +2620,37 @@ tsk_migration_table_expand(tsk_migration_table_t *self, size_t additional_rows)
         if (ret != 0) {
             goto out;
         }
+        ret = expand_column(
+            (void **) &self->metadata_offset, new_size + 1, sizeof(tsk_size_t));
+        if (ret != 0) {
+            goto out;
+        }
+
         self->max_rows = new_size;
+    }
+out:
+    return ret;
+}
+
+static int
+tsk_migration_table_expand_metadata(
+    tsk_migration_table_t *self, tsk_size_t additional_length)
+{
+    int ret = 0;
+    tsk_size_t increment
+        = TSK_MAX(additional_length, self->max_metadata_length_increment);
+    tsk_size_t new_size = self->max_metadata_length + increment;
+
+    if (check_offset_overflow(self->metadata_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
+    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
+        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
+        if (ret != 0) {
+            goto out;
+        }
+        self->max_metadata_length = new_size;
     }
 out:
     return ret;
@@ -2612,6 +2668,17 @@ tsk_migration_table_set_max_rows_increment(
 }
 
 int
+tsk_migration_table_set_max_metadata_length_increment(
+    tsk_migration_table_t *self, tsk_size_t max_metadata_length_increment)
+{
+    if (max_metadata_length_increment == 0) {
+        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    }
+    self->max_metadata_length_increment = max_metadata_length_increment;
+    return 0;
+}
+
+int
 tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
@@ -2621,11 +2688,19 @@ tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t TSK_UNUSED(opt
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
     self->max_rows_increment = 1;
-    ret = tsk_migration_table_expand(self, 1);
+    self->max_metadata_length_increment = 1;
+    ret = tsk_migration_table_expand_main_columns(self, 1);
     if (ret != 0) {
         goto out;
     }
+    ret = tsk_migration_table_expand_metadata(self, 1);
+    if (ret != 0) {
+        goto out;
+    }
+    self->metadata_offset[0] = 0;
+    self->metadata_malloced_locally = true;
     self->max_rows_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
 out:
     return ret;
 }
@@ -2633,17 +2708,23 @@ out:
 int
 tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
     double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
-    double *time)
+    double *time, const char *metadata, tsk_size_t *metadata_offset)
 {
     int ret;
+    tsk_size_t j, metadata_length;
 
-    ret = tsk_migration_table_expand(self, num_rows);
-    if (ret != 0) {
-        goto out;
-    }
     if (left == NULL || right == NULL || node == NULL || source == NULL || dest == NULL
         || time == NULL) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    if ((metadata == NULL) != (metadata_offset == NULL)) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
+    ret = tsk_migration_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
         goto out;
     }
     memcpy(self->left + self->num_rows, left, num_rows * sizeof(double));
@@ -2652,7 +2733,31 @@ tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_r
     memcpy(self->source + self->num_rows, source, num_rows * sizeof(tsk_id_t));
     memcpy(self->dest + self->num_rows, dest, num_rows * sizeof(tsk_id_t));
     memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
+    if (metadata == NULL) {
+        for (j = 0; j < num_rows; j++) {
+            self->metadata_offset[self->num_rows + j + 1] = self->metadata_length;
+        }
+    } else {
+        ret = check_offsets(num_rows, metadata_offset, 0, false);
+        if (ret != 0) {
+            goto out;
+        }
+        for (j = 0; j < num_rows; j++) {
+            self->metadata_offset[self->num_rows + j]
+                = (tsk_size_t) self->metadata_length + metadata_offset[j];
+        }
+        metadata_length = metadata_offset[num_rows];
+        ret = tsk_migration_table_expand_metadata(self, metadata_length);
+        if (ret != 0) {
+            goto out;
+        }
+        memcpy(self->metadata + self->metadata_length, metadata,
+            metadata_length * sizeof(char));
+        self->metadata_length += metadata_length;
+    }
+
     self->num_rows += num_rows;
+    self->metadata_offset[self->num_rows] = self->metadata_length;
 out:
     return ret;
 }
@@ -2670,7 +2775,8 @@ tsk_migration_table_copy(
         }
     }
     ret = tsk_migration_table_set_columns(dest, self->num_rows, self->left, self->right,
-        self->node, self->source, self->dest, self->time);
+        self->node, self->source, self->dest, self->time, self->metadata,
+        self->metadata_offset);
 out:
     return ret;
 }
@@ -2678,7 +2784,7 @@ out:
 int
 tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
     double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
-    double *time)
+    double *time, const char *metadata, tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -2686,28 +2792,40 @@ tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_migration_table_append_columns(
-        self, num_rows, left, right, node, source, dest, time);
+    ret = tsk_migration_table_append_columns(self, num_rows, left, right, node, source,
+        dest, time, metadata, metadata_offset);
 out:
     return ret;
 }
 
 tsk_id_t
 tsk_migration_table_add_row(tsk_migration_table_t *self, double left, double right,
-    tsk_id_t node, tsk_id_t source, tsk_id_t dest, double time)
+    tsk_id_t node, tsk_id_t source, tsk_id_t dest, double time, const char *metadata,
+    tsk_size_t metadata_length)
 {
     int ret = 0;
 
-    ret = tsk_migration_table_expand(self, 1);
+    ret = tsk_migration_table_expand_main_columns(self, 1);
     if (ret != 0) {
         goto out;
     }
+    ret = tsk_migration_table_expand_metadata(self, metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
+
+    assert(self->num_rows < self->max_rows);
+    assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+    memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
     self->left[self->num_rows] = left;
     self->right[self->num_rows] = right;
     self->node[self->num_rows] = node;
     self->source[self->num_rows] = source;
     self->dest[self->num_rows] = dest;
     self->time[self->num_rows] = time;
+    self->metadata_offset[self->num_rows + 1] = self->metadata_length + metadata_length;
+    self->metadata_length += metadata_length;
+
     ret = (tsk_id_t) self->num_rows;
     self->num_rows++;
 out:
@@ -2730,6 +2848,7 @@ tsk_migration_table_truncate(tsk_migration_table_t *self, tsk_size_t num_rows)
         goto out;
     }
     self->num_rows = num_rows;
+    self->metadata_length = self->metadata_offset[num_rows];
 out:
     return ret;
 }
@@ -2745,6 +2864,11 @@ tsk_migration_table_free(tsk_migration_table_t *self)
         tsk_safe_free(self->dest);
         tsk_safe_free(self->time);
     }
+    if (self->metadata_malloced_locally) {
+        tsk_safe_free(self->metadata);
+        tsk_safe_free(self->metadata_offset);
+    }
+
     return 0;
 }
 
@@ -2757,6 +2881,9 @@ tsk_migration_table_print_state(tsk_migration_table_t *self, FILE *out)
     fprintf(out, "migration_table: %p:\n", (void *) self);
     fprintf(out, "num_rows = %d\tmax= %d\tincrement = %d)\n", (int) self->num_rows,
         (int) self->max_rows, (int) self->max_rows_increment);
+    fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
+        (int) self->metadata_length, (int) self->max_metadata_length,
+        (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_migration_table_dump_text(self, out);
     assert(ret == 0);
@@ -2778,6 +2905,9 @@ tsk_migration_table_get_row(
     row->source = self->source[index];
     row->dest = self->dest[index];
     row->time = self->time[index];
+    row->metadata_length
+        = self->metadata_offset[index + 1] - self->metadata_offset[index];
+    row->metadata = self->metadata + self->metadata_offset[index];
 out:
     return ret;
 }
@@ -2787,16 +2917,19 @@ tsk_migration_table_dump_text(tsk_migration_table_t *self, FILE *out)
 {
     size_t j;
     int ret = TSK_ERR_IO;
+    tsk_size_t metadata_len;
     int err;
 
-    err = fprintf(out, "left\tright\tnode\tsource\tdest\ttime\n");
+    err = fprintf(out, "left\tright\tnode\tsource\tdest\ttime\tmetadata\n");
     if (err < 0) {
         goto out;
     }
     for (j = 0; j < self->num_rows; j++) {
-        err = fprintf(out, "%.3f\t%.3f\t%d\t%d\t%d\t%f\n", self->left[j], self->right[j],
-            (int) self->node[j], (int) self->source[j], (int) self->dest[j],
-            self->time[j]);
+        metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
+        err = fprintf(out, "%.3f\t%.3f\t%d\t%d\t%d\t%f\t%.*s\n", self->left[j],
+            self->right[j], (int) self->node[j], (int) self->source[j],
+            (int) self->dest[j], self->time[j], metadata_len,
+            self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -2810,14 +2943,21 @@ bool
 tsk_migration_table_equals(tsk_migration_table_t *self, tsk_migration_table_t *other)
 {
     bool ret = false;
-    if (self->num_rows == other->num_rows) {
+    if (self->num_rows == other->num_rows
+        && self->metadata_length == other->metadata_length) {
         ret = memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
               && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
               && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
               && memcmp(self->source, other->source, self->num_rows * sizeof(tsk_id_t))
                      == 0
               && memcmp(self->dest, other->dest, self->num_rows * sizeof(tsk_id_t)) == 0
-              && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0;
+              && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
+              && memcmp(self->metadata_offset, other->metadata_offset,
+                     (self->num_rows + 1) * sizeof(tsk_size_t))
+                     == 0
+              && memcmp(self->metadata, other->metadata,
+                     self->metadata_length * sizeof(char))
+                     == 0;
     }
     return ret;
 }
@@ -2832,6 +2972,11 @@ tsk_migration_table_dump(tsk_migration_table_t *self, kastore_t *store)
         { "migrations/source", (void *) self->source, self->num_rows, KAS_INT32 },
         { "migrations/dest", (void *) self->dest, self->num_rows, KAS_INT32 },
         { "migrations/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
+        { "migrations/metadata", (void *) self->metadata, self->metadata_length,
+            KAS_UINT8 },
+        { "migrations/metadata_offset", (void *) self->metadata_offset,
+            self->num_rows + 1, KAS_UINT32 },
+
     };
     return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
 }
@@ -2839,6 +2984,8 @@ tsk_migration_table_dump(tsk_migration_table_t *self, kastore_t *store)
 static int
 tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
 {
+    int ret = 0;
+
     read_table_col_t read_cols[] = {
         { "migrations/left", (void **) &self->left, &self->num_rows, 0, KAS_FLOAT64, 0 },
         { "migrations/right", (void **) &self->right, &self->num_rows, 0, KAS_FLOAT64,
@@ -2848,8 +2995,27 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
             0 },
         { "migrations/dest", (void **) &self->dest, &self->num_rows, 0, KAS_INT32, 0 },
         { "migrations/time", (void **) &self->time, &self->num_rows, 0, KAS_FLOAT64, 0 },
+        { "migrations/metadata", (void **) &self->metadata, &self->metadata_length, 0,
+            KAS_UINT8, TSK_COL_OPTIONAL },
+        { "migrations/metadata_offset", (void **) &self->metadata_offset,
+            &self->num_rows, 1, KAS_UINT32, TSK_COL_OPTIONAL },
+
     };
-    return read_table_cols(store, read_cols, sizeof(read_cols) / sizeof(*read_cols));
+    ret = read_table_cols(store, read_cols, sizeof(read_cols) / sizeof(*read_cols));
+    if ((self->metadata == NULL) != (self->metadata_offset == NULL)) {
+        ret = TSK_REQUIRED_COL_NOT_FOUND;
+        goto out;
+    }
+    if (self->metadata == NULL) {
+        tsk_migration_table_metadata_init(self);
+    } else {
+        // As tsk_migration_table_init may not have been run before this function we set
+        // this as it won't have been init'd
+        self->metadata_malloced_locally = false;
+    }
+
+out:
+    return ret;
 }
 
 /*************************

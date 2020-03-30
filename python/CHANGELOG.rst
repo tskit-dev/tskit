@@ -6,6 +6,9 @@ In development
 
 **New features**
 
+- Add a metadata column to the migrations table. Works similarly to existing
+  metadata columns on other tables(:user:`benjeffery`, :pr:`505`).
+
 - Add a metadata column to the edges table. Works similarly to existing
   metadata columns on other tables(:user:`benjeffery`, :pr:`496`).
 

@@ -53,7 +53,7 @@ EdgeTableRow = collections.namedtuple(
 
 
 MigrationTableRow = collections.namedtuple(
-    "MigrationTableRow", ["left", "right", "node", "source", "dest", "time"]
+    "MigrationTableRow", ["left", "right", "node", "source", "dest", "time", "metadata"]
 )
 
 
@@ -761,7 +761,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         self.ll_table.squash()
 
 
-class MigrationTable(BaseTable):
+class MigrationTable(BaseTable, MetadataMixin):
     """
     A table defining the migrations in a tree sequence. See the
     :ref:`definitions <sec_migration_table_definition>` for details on the columns
@@ -788,9 +788,24 @@ class MigrationTable(BaseTable):
     :vartype dest: numpy.ndarray, dtype=np.int32
     :ivar time: The array of time values.
     :vartype time: numpy.ndarray, dtype=np.float64
+    :ivar metadata: The flattened array of binary metadata values. See
+        :ref:`sec_tables_api_binary_columns` for more details.
+    :vartype metadata: numpy.ndarray, dtype=np.int8
+    :ivar metadata_offset: The array of offsets into the metadata column. See
+        :ref:`sec_tables_api_binary_columns` for more details.
+    :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     """
 
-    column_names = ["left", "right", "node", "source", "dest", "time"]
+    column_names = [
+        "left",
+        "right",
+        "node",
+        "source",
+        "dest",
+        "time",
+        "metadata",
+        "metadata_offset",
+    ]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -804,14 +819,16 @@ class MigrationTable(BaseTable):
         source = self.source
         dest = self.dest
         time = self.time
-        ret = "id\tleft\tright\tnode\tsource\tdest\ttime\n"
+        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
+        ret = "id\tleft\tright\tnode\tsource\tdest\ttime\tmetadata\n"
         for j in range(self.num_rows):
-            ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\n".format(
-                j, left[j], right[j], node[j], source[j], dest[j], time[j]
+            md = base64.b64encode(metadata[j]).decode("utf8")
+            ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}\n".format(
+                j, left[j], right[j], node[j], source[j], dest[j], time[j], md
             )
         return ret[:-1]
 
-    def add_row(self, left, right, node, source, dest, time):
+    def add_row(self, left, right, node, source, dest, time, metadata=None):
         """
         Adds a new row to this :class:`MigrationTable` and returns the ID of the
         corresponding migration.
@@ -822,20 +839,34 @@ class MigrationTable(BaseTable):
         :param int source: The ID of the source population.
         :param int dest: The ID of the destination population.
         :param float time: The time of the migration event.
+        :param bytes metadata: The binary-encoded metadata for the new migration. If not
+            specified or None, a zero-length byte string is stored.
         :return: The ID of the newly added migration.
         :rtype: int
         """
-        return self.ll_table.add_row(left, right, node, source, dest, time)
+        return self.ll_table.add_row(left, right, node, source, dest, time, metadata)
 
     def set_columns(
-        self, left=None, right=None, node=None, source=None, dest=None, time=None
+        self,
+        left=None,
+        right=None,
+        node=None,
+        source=None,
+        dest=None,
+        time=None,
+        metadata=None,
+        metadata_offset=None,
     ):
         """
         Sets the values for each column in this :class:`MigrationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
-        All six parameters are mandatory, and must be numpy arrays of the
-        same length (which is equal to the number of migrations the table will contain).
+        All parameters except ``metadata`` and ``metadata_offset`` and are mandatory,
+        and must be numpy arrays of the same length (which is equal to the number of
+        migrations the table will contain).
+        The ``metadata`` and ``metadata_offset`` parameters must be supplied together,
+        and meet the requirements for :ref:`sec_encoding_ragged_columns`.
+        See :ref:`sec_tables_api_binary_columns` for more information.
 
         :param left: The left coordinates (inclusive).
         :type left: numpy.ndarray, dtype=np.float64
@@ -849,22 +880,50 @@ class MigrationTable(BaseTable):
         :type dest: numpy.ndarray, dtype=np.int32
         :param time: The time of each migration.
         :type time: numpy.ndarray, dtype=np.int64
+        :param metadata: The flattened metadata array. Must be specified along
+            with ``metadata_offset``. If not specified or None, an empty metadata
+            value is stored for each migration.
+        :type metadata: numpy.ndarray, dtype=np.int8
+        :param metadata_offset: The offsets into the ``metadata`` array.
+        :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(
             left=left, right=right, node=node, source=source, dest=dest, time=time
         )
         self.ll_table.set_columns(
-            dict(left=left, right=right, node=node, source=source, dest=dest, time=time)
+            dict(
+                left=left,
+                right=right,
+                node=node,
+                source=source,
+                dest=dest,
+                time=time,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
         )
 
-    def append_columns(self, left, right, node, source, dest, time):
+    def append_columns(
+        self,
+        left,
+        right,
+        node,
+        source,
+        dest,
+        time,
+        metadata=None,
+        metadata_offset=None,
+    ):
         """
         Appends the specified arrays to the end of the columns of this
         :class:`MigrationTable`. This allows many new rows to be added at once.
 
-        All six parameters are mandatory, and must be numpy arrays of the
-        same length (which is equal to the number of additional migrations
-        to add to the table).
+        All parameters except ``metadata`` and ``metadata_offset`` and are mandatory,
+        and must be numpy arrays of the same length (which is equal to the number of
+        additional migrations to add to the table). The ``metadata`` and
+        ``metadata_offset`` parameters must be supplied together, and
+        meet the requirements for :ref:`sec_encoding_ragged_columns`.
+        See :ref:`sec_tables_api_binary_columns` for more information.
 
         :param left: The left coordinates (inclusive).
         :type left: numpy.ndarray, dtype=np.float64
@@ -878,9 +937,24 @@ class MigrationTable(BaseTable):
         :type dest: numpy.ndarray, dtype=np.int32
         :param time: The time of each migration.
         :type time: numpy.ndarray, dtype=np.int64
+        :param metadata: The flattened metadata array. Must be specified along
+            with ``metadata_offset``. If not specified or None, an empty metadata
+            value is stored for each migration.
+        :type metadata: numpy.ndarray, dtype=np.int8
+        :param metadata_offset: The offsets into the ``metadata`` array.
+        :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self.ll_table.append_columns(
-            dict(left=left, right=right, node=node, source=source, dest=dest, time=time)
+            dict(
+                left=left,
+                right=right,
+                node=node,
+                source=source,
+                dest=dest,
+                time=time,
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+            )
         )
 
 

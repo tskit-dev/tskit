@@ -2108,7 +2108,7 @@ test_simplest_bad_migrations(void)
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     /* One migration, node 0 goes from population 0 to 1. */
-    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0);
+    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* We only need basic intregity checks for migrations */
@@ -2226,7 +2226,7 @@ test_simplest_migration_simplify(void)
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     /* One migration, node 0 goes from population 0 to 1. */
-    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0);
+    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
