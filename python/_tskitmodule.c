@@ -392,9 +392,14 @@ make_migration(tsk_migration_t *r)
     int source = r->source == TSK_NULL ? -1: r->source;
     int dest = r->dest == TSK_NULL ? -1: r->dest;
     PyObject *ret = NULL;
-
-    ret = Py_BuildValue("ddiiid",
-            r->left, r->right, (int) r->node, source, dest, r->time);
+    PyObject* metadata = make_metadata(r->metadata, (Py_ssize_t) r->metadata_length);
+    if (metadata == NULL) {
+        goto out;
+    }
+    ret = Py_BuildValue("ddiiidO",
+        r->left, r->right, (int) r->node, source, dest, r->time, metadata);
+out:
+    Py_XDECREF(metadata);
     return ret;
 }
 
@@ -1118,6 +1123,9 @@ parse_migration_table_dict(tsk_migration_table_t *table, PyObject *dict, bool cl
     int err;
     int ret = -1;
     size_t num_rows;
+    size_t metadata_length;
+    char *metadata_data = NULL;
+    uint32_t *metadata_offset_data = NULL;
     PyObject *left_input = NULL;
     PyArrayObject *left_array = NULL;
     PyObject *right_input = NULL;
@@ -1130,6 +1138,10 @@ parse_migration_table_dict(tsk_migration_table_t *table, PyObject *dict, bool cl
     PyArrayObject *dest_array = NULL;
     PyObject *time_input = NULL;
     PyArrayObject *time_array = NULL;
+    PyObject *metadata_input = NULL;
+    PyArrayObject *metadata_array = NULL;
+    PyObject *metadata_offset_input = NULL;
+    PyArrayObject *metadata_offset_array = NULL;
 
     /* Get the input values */
     left_input = get_table_dict_value(dict, "left", true);
@@ -1154,6 +1166,14 @@ parse_migration_table_dict(tsk_migration_table_t *table, PyObject *dict, bool cl
     }
     time_input = get_table_dict_value(dict, "time", true);
     if (time_input == NULL) {
+        goto out;
+    }
+    metadata_input = get_table_dict_value(dict, "metadata", false);
+    if (metadata_input == NULL) {
+        goto out;
+    }
+    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    if (metadata_offset_input == NULL) {
         goto out;
     }
 
@@ -1182,7 +1202,25 @@ parse_migration_table_dict(tsk_migration_table_t *table, PyObject *dict, bool cl
     if (time_array == NULL) {
         goto out;
     }
-
+    if ((metadata_input == Py_None) != (metadata_offset_input == Py_None)) {
+        PyErr_SetString(PyExc_TypeError,
+                "metadata and metadata_offset must be specified together");
+        goto out;
+    }
+    if (metadata_input != Py_None) {
+        metadata_array = table_read_column_array(metadata_input, NPY_INT8,
+                &metadata_length, false);
+        if (metadata_array == NULL) {
+            goto out;
+        }
+        metadata_data = PyArray_DATA(metadata_array);
+        metadata_offset_array = table_read_offset_array(metadata_offset_input, &num_rows,
+                metadata_length, true);
+        if (metadata_offset_array == NULL) {
+            goto out;
+        }
+        metadata_offset_data = PyArray_DATA(metadata_offset_array);
+    }
     if (clear_table) {
         err = tsk_migration_table_clear(table);
         if (err != 0) {
@@ -1192,7 +1230,8 @@ parse_migration_table_dict(tsk_migration_table_t *table, PyObject *dict, bool cl
     }
     err = tsk_migration_table_append_columns(table, num_rows,
         PyArray_DATA(left_array), PyArray_DATA(right_array), PyArray_DATA(node_array),
-        PyArray_DATA(source_array), PyArray_DATA(dest_array), PyArray_DATA(time_array));
+        PyArray_DATA(source_array), PyArray_DATA(dest_array), PyArray_DATA(time_array),
+        metadata_data, metadata_offset_data);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -1205,6 +1244,8 @@ out:
     Py_XDECREF(source_array);
     Py_XDECREF(dest_array);
     Py_XDECREF(time_array);
+    Py_XDECREF(metadata_array);
+    Py_XDECREF(metadata_offset_array);
     return ret;
 }
 
@@ -1780,6 +1821,11 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
             (void *) tables->migrations.dest, tables->migrations.num_rows,  NPY_INT32},
         {"time",
             (void *) tables->migrations.time, tables->migrations.num_rows,  NPY_FLOAT64},
+        {"metadata",
+            (void *) tables->migrations.metadata, tables->migrations.metadata_length, NPY_INT8},
+        {"metadata_offset",
+            (void *) tables->migrations.metadata_offset, tables->migrations.num_rows + 1, NPY_UINT32},
+
         {NULL},
     };
 
@@ -3435,17 +3481,26 @@ MigrationTable_add_row(MigrationTable *self, PyObject *args, PyObject *kwds)
     int err;
     double left, right, time;
     int node, source, dest;
-    static char *kwlist[] = {"left", "right", "node", "source", "dest", "time", NULL};
+    PyObject *py_metadata = Py_None;
+    char *metadata = "";
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[] = {"left", "right", "node", "source", "dest", 
+        "time", "metadata", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddiiid", kwlist,
-                &left, &right, &node, &source, &dest, &time)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddiiid|O", kwlist,
+            &left, &right, &node, &source, &dest, &time, &py_metadata)) {
         goto out;
     }
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
     err = tsk_migration_table_add_row(self->table, left, right, node,
-            source, dest, time);
+            source, dest, time, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -3699,6 +3754,34 @@ out:
     return ret;
 }
 
+static PyObject *
+MigrationTable_get_metadata(MigrationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(self->table->metadata_length,
+            self->table->metadata, NPY_INT8, sizeof(char));
+out:
+    return ret;
+}
+
+static PyObject *
+MigrationTable_get_metadata_offset(MigrationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(self->table->num_rows + 1,
+            self->table->metadata_offset, NPY_UINT32, sizeof(uint32_t));
+out:
+    return ret;
+}
+
 static PyGetSetDef MigrationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) MigrationTable_get_max_rows_increment, NULL, "The size increment"},
@@ -3712,6 +3795,9 @@ static PyGetSetDef MigrationTable_getsetters[] = {
     {"source", (getter) MigrationTable_get_source, NULL, "The source array"},
     {"dest", (getter) MigrationTable_get_dest, NULL, "The dest array"},
     {"time", (getter) MigrationTable_get_time, NULL, "The time array"},
+    {"metadata", (getter) MigrationTable_get_metadata, NULL, "The metadata array"},
+    {"metadata_offset", (getter) MigrationTable_get_metadata_offset, NULL,
+        "The metadata offset array"},
     {NULL}  /* Sentinel */
 };
 

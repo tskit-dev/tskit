@@ -91,6 +91,17 @@ def get_example_tables():
             derived_state="G" * mutation.id,
             metadata=b"y" * mutation.id,
         )
+    tables.migrations.clear()
+    for migration in ts.migrations():
+        tables.migrations.add_row(
+            left=migration.left,
+            right=migration.right,
+            node=migration.node,
+            source=migration.source,
+            dest=migration.dest,
+            time=migration.time,
+            metadata=b"y" * migration.id,
+        )
     for j in range(10):
         tables.populations.add_row(metadata=b"p" * j)
         tables.provenances.add_row(timestamp="x" * j, record="y" * j)

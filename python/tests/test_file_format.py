@@ -169,6 +169,24 @@ def mutation_metadata_example():
     return tables.tree_sequence()
 
 
+def migration_metadata_example():
+    ts = migration_example()
+    tables = ts.dump_tables()
+    metadatas = [f"n_{u}" for u in range(ts.num_migrations)]
+    packed, offset = tskit.pack_strings(metadatas)
+    tables.migrations.set_columns(
+        metadata=packed,
+        metadata_offset=offset,
+        left=tables.migrations.left,
+        right=tables.migrations.right,
+        source=tables.migrations.source,
+        dest=tables.migrations.dest,
+        node=tables.migrations.node,
+        time=tables.migrations.time,
+    )
+    return tables.tree_sequence()
+
+
 def edge_metadata_example():
     ts = msprime.simulate(
         sample_size=100, recombination_rate=0.1, length=10, random_seed=1
@@ -357,6 +375,9 @@ class TestRoundTrip(TestFileFormat):
     def test_mutation_metadata_example(self):
         self.verify_round_trip(mutation_metadata_example(), 10)
 
+    def test_migration_metadata_example(self):
+        self.verify_round_trip(migration_metadata_example(), 10)
+
     def test_edge_metadata_example(self):
         # metadata for edges was introduced
         self.verify_round_trip_no_legacy(edge_metadata_example())
@@ -474,6 +495,8 @@ class TestDumpFormat(TestFileFormat):
             "individuals/metadata_offset",
             "migrations/dest",
             "migrations/left",
+            "migrations/metadata",
+            "migrations/metadata_offset",
             "migrations/node",
             "migrations/right",
             "migrations/source",
@@ -720,6 +743,9 @@ class TestDumpFormat(TestFileFormat):
 
     def test_mutation_metadata_example(self):
         self.verify_dump_format(mutation_metadata_example())
+
+    def test_migration_metadata_example(self):
+        self.verify_dump_format(migration_metadata_example())
 
     def test_general_mutation_example(self):
         self.verify_dump_format(general_mutation_example())

@@ -427,6 +427,7 @@ node                int32               Node ID.
 source              int32               Source population ID.
 dest                int32               Destination population ID.
 time                double              Time of migration event.
+metadata            binary              Migration :ref:`sec_metadata_definition`
 ================    ==============      ===========
 
 
@@ -436,6 +437,10 @@ record the IDs of the respective populations. The ``node`` column records the
 ID of the node that was associated with the ancestry segment in question
 at the time of the migration event. The ``time`` column is holds floating
 point values recording the time of the event.
+
+The ``metadata`` column provides a location for client code to store
+information about each migration. See the :ref:`sec_metadata_definition` section for
+more details on how metadata columns should be used.
 
 See the :ref:`sec_migration_requirements` section for details on the properties
 required for a valid set of mutations.
@@ -1145,7 +1150,7 @@ The mutation text format must contain the columns ``site``,
 ``node`` and ``derived_state``. The ``parent`` and ``metadata`` columns
 may also be optionally present (but ``parent`` must be specified if
 more than one mutation occurs at the same site). See the
-:ref:`mutation table definitions <sec_site_table_definition>`
+:ref:`mutation table definitions <sec_mutation_table_definition>`
 for details on these columns.
 
 mutations::
@@ -1154,6 +1159,24 @@ mutations::
     0      0       A                -1
     1      0       T                -1
     1      1       A                1
+
+
+.. _sec_migration_text_format:
+
+Migration text format
+=====================
+
+The migration text format must contain the columns ``left``,
+``right``, ``node``, ``source``, ``dest`` and ``time``. The ``metadata`` column
+may also be optionally present. See the
+:ref:`migration table definitions <sec_migration_table_definition>`
+for details on these columns.
+
+migrations::
+
+    left   right   node   source   dest   time
+    0.0    0.7     5      2        3      1.0
+    0.8    0.9     8      3        4      3.0
 
 
 .. _sec_population_text_format:

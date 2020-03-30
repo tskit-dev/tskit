@@ -992,7 +992,7 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
             )
 
 
-class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
+class TestMigrationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
     columns = [
         DoubleColumn("left"),
         DoubleColumn("right"),
@@ -1001,29 +1001,36 @@ class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
         Int32Column("dest"),
         DoubleColumn("time"),
     ]
-    ragged_list_columns = []
+    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     string_colnames = []
-    binary_colnames = []
+    binary_colnames = ["metadata"]
     input_parameters = [("max_rows_increment", 1024)]
     equal_len_columns = [["left", "right", "node", "source", "dest", "time"]]
     table_class = tskit.MigrationTable
 
     def test_simple_example(self):
         t = tskit.MigrationTable()
-        t.add_row(left=0, right=1, node=2, source=3, dest=4, time=5)
-        t.add_row(1, 2, 3, 4, 5, 6)
+        t.add_row(left=0, right=1, node=2, source=3, dest=4, time=5, metadata=b"123")
+        t.add_row(1, 2, 3, 4, 5, 6, b"\xf0")
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, 1, 2, 3, 4, 5))
-        self.assertEqual(t[1], (1, 2, 3, 4, 5, 6))
+        self.assertEqual(t[0], (0, 1, 2, 3, 4, 5, b"123"))
+        self.assertEqual(t[1], (1, 2, 3, 4, 5, 6, b"\xf0"))
         self.assertEqual(t[0].left, 0)
         self.assertEqual(t[0].right, 1)
         self.assertEqual(t[0].node, 2)
         self.assertEqual(t[0].source, 3)
         self.assertEqual(t[0].dest, 4)
         self.assertEqual(t[0].time, 5)
+        self.assertEqual(t[0].metadata, b"123")
         self.assertEqual(t[0], t[-2])
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
+
+    def test_add_row_defaults(self):
+        t = tskit.MigrationTable()
+        self.assertEqual(t.add_row(0, 0, 0, 0, 0, 0), 0)
+        self.assertEqual(len(t.metadata), 0)
+        self.assertEqual(t.metadata_offset[0], 0)
 
     def test_add_row_bad_data(self):
         t = tskit.MigrationTable()
@@ -1031,6 +1038,8 @@ class TestMigrationTable(unittest.TestCase, CommonTestsMixin):
             t.add_row(left="x", right=0, node=0, source=0, dest=0, time=0)
         with self.assertRaises(TypeError):
             t.add_row()
+        with self.assertRaises(TypeError):
+            t.add_row(0, 0, 0, 0, 0, 0, metadata=123)
 
 
 class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):

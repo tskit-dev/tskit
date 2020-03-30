@@ -314,7 +314,7 @@ class Migration(SimpleContainer):
     :vartype time: float
     """
 
-    def __init__(self, left, right, node, source, dest, time, id_=None):
+    def __init__(self, left, right, node, source, dest, time, metadata=b"", id_=None):
         self.id = id_
         self.left = left
         self.right = right
@@ -322,6 +322,22 @@ class Migration(SimpleContainer):
         self.source = source
         self.dest = dest
         self.time = time
+        self.metadata = metadata
+
+    def __repr__(self):
+        return (
+            "{{left={:.3f}, right={:.3f}, node={}, source={}, dest={} time={:.3f}"
+            " id={}, metadata={}}}".format(
+                self.left,
+                self.right,
+                self.node,
+                self.source,
+                self.dest,
+                self.time,
+                self.id,
+                self.metadata,
+            )
+        )
 
 
 class Population(SimpleContainer):
@@ -3325,9 +3341,15 @@ class TreeSequence:
 
         :rtype: :class:`.Migration`
         """
-        left, right, node, source, dest, time = self._ll_tree_sequence.get_migration(
-            id_
-        )
+        (
+            left,
+            right,
+            node,
+            source,
+            dest,
+            time,
+            metadata,
+        ) = self._ll_tree_sequence.get_migration(id_)
         return Migration(
             id_=id_,
             left=left,
@@ -3336,6 +3358,7 @@ class TreeSequence:
             source=source,
             dest=dest,
             time=time,
+            metadata=metadata,
         )
 
     def mutation(self, id_):
