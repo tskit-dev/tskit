@@ -3565,11 +3565,24 @@ tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_lengt
     return 0;
 }
 
+/* u must be a valid node in the tree. For internal use */
+static tsk_size_t
+tsk_tree_get_depth(tsk_tree_t *self, tsk_id_t u)
+{
+
+    tsk_id_t v;
+    tsk_size_t depth = 0;
+
+    for (v = self->parent[u]; v != TSK_NULL; v = self->parent[v]) {
+        depth++;
+    }
+
+    return depth;
+}
+
 int TSK_WARN_UNUSED
 tsk_tree_depth(tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
 {
-    tsk_id_t v;
-    tsk_size_t depth;
     int ret = 0;
 
     ret = tsk_tree_check_node(self, u);
@@ -3577,14 +3590,31 @@ tsk_tree_depth(tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
         goto out;
     }
 
-    depth = 0;
-    for (v = self->parent[u]; v != TSK_NULL; v = self->parent[v]) {
-        depth++;
-    }
-
-    *depth_ret = depth;
+    *depth_ret = tsk_tree_get_depth(self, u);
 out:
     return ret;
+}
+
+static int
+tsk_tree_node_root(tsk_tree_t *self, tsk_id_t u)
+{
+    tsk_id_t v = u;
+    while (self->parent[v] != TSK_NULL) {
+        v = self->parent[v];
+    }
+
+    return v;
+}
+
+/* TODO Should push this through the stack since this is a python method and
+ * it's here anyway */
+static double
+tsk_tree_branch_length(tsk_tree_t *self, tsk_id_t u)
+{
+    double *times = self->tree_sequence->tables->nodes.time;
+    tsk_id_t parent = self->parent[u];
+
+    return parent == TSK_NULL ? 0 : times[parent] - times[u];
 }
 
 static void
@@ -4331,12 +4361,11 @@ out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
+int
 tsk_diff_iter_free(tsk_diff_iter_t *self)
 {
-    int ret = 0;
     tsk_safe_free(self->edge_list_nodes);
-    return ret;
+    return 0;
 }
 
 void
@@ -4447,7 +4476,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
  * ======================================================== */
 
 typedef struct {
-    int *m;
+    tsk_size_t *m;
     double *M;
     tsk_id_t n;
     tsk_id_t N;
@@ -4460,7 +4489,7 @@ kc_vectors_alloc(kc_vectors *self, tsk_id_t n)
 
     self->n = n;
     self->N = (n * (n - 1)) / 2;
-    self->m = calloc((size_t)(self->N + self->n), sizeof(int));
+    self->m = calloc((size_t)(self->N + self->n), sizeof(tsk_size_t));
     self->M = calloc((size_t)(self->N + self->n), sizeof(double));
     if (self->m == NULL || self->M == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -4491,7 +4520,7 @@ update_kc_vectors_single_leaf(
 
 static inline void
 update_kc_vectors_all_pairs(tsk_tree_t *tree, kc_vectors *kc_vecs, tsk_id_t u,
-    tsk_id_t v, int depth, double time)
+    tsk_id_t v, tsk_size_t depth, double time)
 {
     tsk_id_t leaf1_index, leaf2_index, leaf1, leaf2, n1, n2, tmp, pair_index;
     tsk_treeseq_t *ts = tree->tree_sequence;
@@ -4500,7 +4529,7 @@ update_kc_vectors_all_pairs(tsk_tree_t *tree, kc_vectors *kc_vecs, tsk_id_t u,
     const tsk_id_t *restrict right_sample = tree->right_sample;
     const tsk_id_t *restrict next_sample = tree->next_sample;
     const tsk_id_t *restrict sample_index_map = ts->sample_index_map;
-    int *restrict kc_m = kc_vecs->m;
+    tsk_size_t *restrict kc_m = kc_vecs->m;
     double *restrict kc_M = kc_vecs->M;
 
     leaf1_index = left_sample[u];
@@ -4536,18 +4565,19 @@ update_kc_vectors_all_pairs(tsk_tree_t *tree, kc_vectors *kc_vecs, tsk_id_t u,
     }
 }
 
+struct kc_stack_elmt {
+    tsk_id_t node;
+    tsk_size_t depth;
+};
+
 static int
 fill_kc_vectors(tsk_tree_t *t, kc_vectors *kc_vecs)
 {
-    struct stack_elmt {
-        tsk_id_t node;
-        int depth;
-    };
-
-    int stack_top, depth;
+    int stack_top;
+    tsk_size_t depth;
     double time;
     const double *times;
-    struct stack_elmt *stack;
+    struct kc_stack_elmt *stack;
     tsk_id_t root, u, c1, c2;
     int ret = 0;
     tsk_treeseq_t *ts = t->tree_sequence;
@@ -4612,61 +4642,93 @@ norm_kc_vectors(kc_vectors *self, kc_vectors *other, double lambda)
     return sqrt(distance_sum);
 }
 
+static int
+check_kc_distance_tree_inputs(tsk_tree_t *self)
+{
+    tsk_id_t u, num_nodes, left_child;
+    int ret = 0;
+
+    if (tsk_tree_get_num_roots(self) != 1) {
+        ret = TSK_ERR_MULTIPLE_ROOTS;
+        goto out;
+    }
+    if (!tsk_tree_has_sample_lists(self)) {
+        ret = TSK_ERR_UNSUPPORTED_OPERATION;
+        goto out;
+    }
+
+    num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(self->tree_sequence);
+    for (u = 0; u < num_nodes; u++) {
+        left_child = self->left_child[u];
+        if (left_child != TSK_NULL && left_child == self->right_child[u]) {
+            ret = TSK_ERR_UNARY_NODES;
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
+check_kc_distance_samples_inputs(tsk_treeseq_t *self, tsk_treeseq_t *other)
+{
+    const tsk_id_t *samples, *other_samples;
+    tsk_id_t i, n;
+    int ret = 0;
+
+    if (self->num_samples != other->num_samples) {
+        ret = TSK_ERR_SAMPLE_SIZE_MISMATCH;
+        goto out;
+    }
+
+    samples = self->samples;
+    other_samples = other->samples;
+    n = (tsk_id_t) self->num_samples;
+    for (i = 0; i < n; i++) {
+        if (samples[i] != other_samples[i]) {
+            ret = TSK_ERR_SAMPLES_NOT_EQUAL;
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
 int
 tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double *result)
 {
-    tsk_id_t u, n, num_nodes, i, left_child;
+    tsk_id_t n, i, j, u, num_samples;
     kc_vectors vecs[2];
-    tsk_tree_t *t;
     tsk_tree_t *trees[2] = { self, other };
-    const tsk_id_t *samples = self->tree_sequence->samples;
-    const tsk_id_t *other_samples = other->tree_sequence->samples;
     int ret = 0;
 
     for (i = 0; i < 2; i++) {
         memset(&vecs[i], 0, sizeof(kc_vectors));
     }
 
-    if (tsk_tree_get_num_roots(self) != 1 || tsk_tree_get_num_roots(other) != 1) {
-        ret = TSK_ERR_MULTIPLE_ROOTS;
+    ret = check_kc_distance_samples_inputs(self->tree_sequence, other->tree_sequence);
+    if (ret != 0) {
         goto out;
     }
-    if (self->tree_sequence->num_samples != other->tree_sequence->num_samples) {
-        ret = TSK_ERR_SAMPLE_SIZE_MISMATCH;
-        goto out;
-    }
-    if (!tsk_tree_has_sample_lists(self) || !tsk_tree_has_sample_lists(other)) {
-        ret = TSK_ERR_UNSUPPORTED_OPERATION;
-        goto out;
-    }
-
     for (i = 0; i < 2; i++) {
-        t = trees[i];
-        num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(t->tree_sequence);
-        for (u = 0; u < num_nodes; u++) {
-            left_child = t->left_child[u];
-            if (left_child != TSK_NULL && left_child == t->right_child[u]) {
-                ret = TSK_ERR_UNARY_NODES;
+        num_samples = (tsk_id_t) trees[i]->tree_sequence->num_samples;
+        for (j = 0; j < num_samples; j++) {
+            u = trees[i]->tree_sequence->samples[j];
+            if (trees[i]->left_child[u] != TSK_NULL) {
+                /* It's probably possible to support this, but it's too awkward
+                 * to deal with and seems like a fairly niche requirement. */
+                ret = TSK_ERR_INTERNAL_SAMPLES;
                 goto out;
             }
+        }
+
+        ret = check_kc_distance_tree_inputs(trees[i]);
+        if (ret != 0) {
+            goto out;
         }
     }
 
     n = (tsk_id_t) self->tree_sequence->num_samples;
-    for (i = 0; i < n; i++) {
-        if (samples[i] != other_samples[i]) {
-            ret = TSK_ERR_SAMPLES_NOT_EQUAL;
-            goto out;
-        }
-        u = samples[i];
-        if (self->left_child[u] != TSK_NULL || other->left_child[u] != TSK_NULL) {
-            /* It's probably possible to support this, but it's too awkward
-             * to deal with and seems like a fairly niche requirement. */
-            ret = TSK_ERR_INTERNAL_SAMPLES;
-            goto out;
-        }
-    }
-
     for (i = 0; i < 2; i++) {
         ret = kc_vectors_alloc(&vecs[i], n);
         if (ret != 0) {
@@ -4682,6 +4744,244 @@ tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double 
 out:
     for (i = 0; i < 2; i++) {
         kc_vectors_free(&vecs[i]);
+    }
+    return ret;
+}
+
+static int
+check_kc_distance_tree_sequence_inputs(tsk_treeseq_t *self, tsk_treeseq_t *other)
+{
+    int ret = 0;
+
+    if (self->tables->sequence_length != other->tables->sequence_length) {
+        ret = TSK_ERR_SEQUENCE_LENGTH_MISMATCH;
+        goto out;
+    }
+
+    ret = check_kc_distance_samples_inputs(self, other);
+    if (ret != 0) {
+        goto out;
+    }
+
+out:
+    return ret;
+}
+
+static void
+update_in_out_subtree_pairs(
+    tsk_tree_t *self, kc_vectors *kc, tsk_edge_t *e, double root_time)
+{
+    tsk_id_t edge_c, c, p, sib;
+    tsk_size_t depth;
+    double *times = self->tree_sequence->tables->nodes.time;
+
+    edge_c = e->child;
+    depth = tsk_tree_get_depth(self, e->parent);
+    for (c = e->child, p = e->parent; p != TSK_NULL; c = p, p = self->parent[p]) {
+        for (sib = self->left_child[p]; sib != TSK_NULL; sib = self->right_sib[sib]) {
+            if (sib != c) {
+                update_kc_vectors_all_pairs(
+                    self, kc, edge_c, sib, depth, root_time - times[p]);
+            }
+        }
+        depth--;
+    }
+}
+
+static int
+update_in_subtree_pairs(tsk_tree_t *t, kc_vectors *kc, tsk_id_t u, double root_time)
+{
+    int stack_top;
+    tsk_size_t depth;
+    tsk_id_t v, c1, c2;
+    const double *times = t->tree_sequence->tables->nodes.time;
+    struct kc_stack_elmt *stack = NULL;
+    int ret = 0;
+
+    stack = malloc(t->num_nodes * sizeof(*stack));
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    stack_top = 0;
+    stack[stack_top].node = u;
+    stack[stack_top].depth = tsk_tree_get_depth(t, u);
+    while (stack_top >= 0) {
+        v = stack[stack_top].node;
+        depth = (tsk_size_t) stack[stack_top].depth;
+        stack_top--;
+
+        if (!tsk_tree_is_sample(t, v)) {
+            for (c1 = t->left_child[v]; c1 != TSK_NULL; c1 = t->right_sib[c1]) {
+                stack_top++;
+                stack[stack_top].node = c1;
+                stack[stack_top].depth = depth + 1;
+
+                for (c2 = t->right_sib[c1]; c2 != TSK_NULL; c2 = t->right_sib[c2]) {
+                    update_kc_vectors_all_pairs(
+                        t, kc, c1, c2, depth, root_time - times[v]);
+                }
+            }
+        }
+    }
+
+out:
+    tsk_safe_free(stack);
+    return ret;
+}
+
+static int
+update_kc_incremental(tsk_tree_t *self, kc_vectors *kc, tsk_edge_list_t *edges_out,
+    tsk_edge_list_t *edges_in)
+{
+    int ret = 0;
+    tsk_edge_list_t *e_list;
+    tsk_edge_t *e;
+    tsk_id_t u;
+    double root_time, time;
+    const double *times = self->tree_sequence->tables->nodes.time;
+
+    for (e_list = edges_out; e_list != NULL; e_list = e_list->next) {
+        e = &e_list->edge;
+        u = e->child;
+        root_time = times[tsk_tree_node_root(self, u)];
+        ret = update_in_subtree_pairs(self, kc, u, root_time);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    for (e_list = edges_in; e_list != NULL; e_list = e_list->next) {
+        e = &e_list->edge;
+        u = e->child;
+
+        if (tsk_tree_is_sample(self, u)) {
+            time = tsk_tree_branch_length(self, u);
+            update_kc_vectors_single_leaf(self->tree_sequence, kc, u, time);
+        }
+
+        root_time = times[tsk_tree_node_root(self, u)];
+        update_in_out_subtree_pairs(self, kc, e, root_time);
+        ret = update_in_subtree_pairs(self, kc, u, root_time);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+out:
+    return ret;
+}
+
+int
+tsk_treeseq_kc_distance(
+    tsk_treeseq_t *self, tsk_treeseq_t *other, double lambda_, double *result)
+{
+    int i;
+    tsk_id_t n;
+    double left, span, total;
+    tsk_treeseq_t *treeseqs[2] = { self, other };
+    tsk_tree_t trees[2];
+    kc_vectors kcs[2];
+    tsk_diff_iter_t diff_iters[2];
+    tsk_edge_list_t *edges_out[2];
+    tsk_edge_list_t *edges_in[2];
+    double t0_left, t0_right, t1_left, t1_right;
+    int ret = 0;
+
+    for (i = 0; i < 2; i++) {
+        memset(&trees[i], 0, sizeof(tsk_tree_t));
+        memset(&diff_iters[i], 0, sizeof(tsk_diff_iter_t));
+        memset(&kcs[i], 0, sizeof(kc_vectors));
+        edges_out[i] = NULL;
+        edges_in[i] = NULL;
+    }
+
+    ret = check_kc_distance_tree_sequence_inputs(self, other);
+    if (ret != 0) {
+        goto out;
+    }
+
+    n = (tsk_id_t) self->num_samples;
+    for (i = 0; i < 2; i++) {
+        ret = tsk_tree_init(&trees[i], treeseqs[i], TSK_SAMPLE_LISTS);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_diff_iter_init(&diff_iters[i], treeseqs[i]);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = kc_vectors_alloc(&kcs[i], n);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    total = 0;
+    left = 0;
+
+    ret = tsk_tree_first(&trees[0]);
+    if (ret != 1) {
+        goto out;
+    }
+    ret = check_kc_distance_tree_inputs(&trees[0]);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_diff_iter_next(
+        &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
+    assert(ret == 1);
+    ret = update_kc_incremental(&trees[0], &kcs[0], edges_out[0], edges_in[0]);
+    if (ret != 0) {
+        goto out;
+    }
+    while ((ret = tsk_tree_next(&trees[1])) == 1) {
+        ret = check_kc_distance_tree_inputs(&trees[1]);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_diff_iter_next(
+            &diff_iters[1], &t1_left, &t1_right, &edges_out[1], &edges_in[1]);
+        assert(ret == 1);
+
+        ret = update_kc_incremental(&trees[1], &kcs[1], edges_out[1], edges_in[1]);
+        if (ret != 0) {
+            goto out;
+        }
+        while (t0_right < t1_right) {
+            span = t0_right - left;
+            total += norm_kc_vectors(&kcs[0], &kcs[1], lambda_) * span;
+
+            left = t0_right;
+            ret = tsk_tree_next(&trees[0]);
+            assert(ret == 1);
+            ret = check_kc_distance_tree_inputs(&trees[0]);
+            if (ret != 0) {
+                goto out;
+            }
+            ret = tsk_diff_iter_next(
+                &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
+            assert(ret == 1);
+            ret = update_kc_incremental(&trees[0], &kcs[0], edges_out[0], edges_in[0]);
+            if (ret != 0) {
+                goto out;
+            }
+        }
+        span = t1_right - left;
+        left = t1_right;
+        total += norm_kc_vectors(&kcs[0], &kcs[1], lambda_) * span;
+    }
+    if (ret != 0) {
+        goto out;
+    }
+
+    *result = total / self->tables->sequence_length;
+out:
+    for (i = 0; i < 2; i++) {
+        tsk_tree_free(&trees[i]);
+        tsk_diff_iter_free(&diff_iters[i]);
+        kc_vectors_free(&kcs[i]);
     }
     return ret;
 }

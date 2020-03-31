@@ -6,6 +6,10 @@ In development
 
 **New features**
 
+- Add extension of Kendall-Colijn tree distance metric for tree sequences
+  computed by ``TreeSequence.kc_distance``
+  (:user:`daniel-goldstein`, :pr:`548`)
+
 - Add an optional node traversal order in ``tskit.Tree`` that uses the minimum
   lexicographic order of leaf nodes visited. This ordering (``"minlex_postorder"``)
   adds more determinism because it constraints the order in which children of

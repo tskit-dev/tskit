@@ -5370,6 +5370,20 @@ class TreeSequence:
                 arrays = pool.map(worker, splits)
             return np.vstack(list(arrays))
 
+    def kc_distance(self, other, lambda_=0.0):
+        """
+        Returns the average :meth:`Tree.kc_distance` between pairs of trees along
+        the sequence whose intervals overlap. The average is weighted by the
+        fraction of the sequence on which each pair of trees overlap.
+
+        :param TreeSequence other: The other tree sequence to compare to.
+        :param float lambda_: The KC metric lambda parameter determining the
+            relative weight of topology and branch length.
+        :return: The computed KC distance between this tree sequence and other.
+        :rtype: float
+        """
+        return self._ll_tree_sequence.get_kc_distance(other._ll_tree_sequence, lambda_)
+
     ############################################
     #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a

@@ -399,6 +399,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_UNARY_NODES:
             ret = "Unsimplified trees with unary nodes are not supported.";
             break;
+        case TSK_ERR_SEQUENCE_LENGTH_MISMATCH:
+            ret = "Sequence lengths must be identical to compare.";
+            break;
 
         /* Haplotype matching errors */
         case TSK_ERR_NULL_VITERBI_MATRIX:

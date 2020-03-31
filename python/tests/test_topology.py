@@ -184,7 +184,6 @@ class KCVectors:
 
 
 def fill_kc_vectors(tree, kc_vecs):
-    ts = tree.tree_sequence
     sample_index_map = np.zeros(tree.tree_sequence.num_nodes)
     for j, u in enumerate(tree.tree_sequence.samples()):
         sample_index_map[u] = j
@@ -194,7 +193,7 @@ def fill_kc_vectors(tree, kc_vecs):
             u, depth = stack.pop()
             if tree.is_leaf(u):
                 time = 0 if u is root else tree.branch_length(u)
-                update_kc_vectors_single_leaf(ts, kc_vecs, u, time, sample_index_map)
+                update_kc_vectors_single_leaf(kc_vecs, u, time, sample_index_map)
             else:
                 c1 = tree.left_child(u)
                 while c1 != tskit.NULL:
@@ -214,7 +213,7 @@ def fill_kc_vectors(tree, kc_vecs):
                     c1 = tree.right_sib(c1)
 
 
-def update_kc_vectors_single_leaf(ts, kc_vecs, u, time, sample_index_map):
+def update_kc_vectors_single_leaf(kc_vecs, u, time, sample_index_map):
     u_index = int(sample_index_map[u])
     kc_vecs.m[kc_vecs.N + u_index] = 1
     kc_vecs.M[kc_vecs.N + u_index] = time
@@ -396,33 +395,12 @@ class TestKCMetric(unittest.TestCase):
                 n, random_seed=seed + 1, demographic_events=demographic_events
             )
             tree2 = next(ts.trees(sample_lists=True))
-            self.assertAlmostEqual(
-                naive_kc_distance(tree1, tree2), naive_kc_distance(tree1, tree2)
-            )
-            self.assertAlmostEqual(
-                naive_kc_distance(tree2, tree1), naive_kc_distance(tree2, tree1)
-            )
-            self.assertAlmostEqual(
-                c_kc_distance(tree1, tree2), c_kc_distance(tree1, tree2)
-            )
-            self.assertAlmostEqual(
-                c_kc_distance(tree2, tree1), c_kc_distance(tree2, tree1)
-            )
+            self.do_kc_distance(tree1, tree2)
             # compare to a binary tree also
+
             ts = msprime.simulate(n, random_seed=seed + 1)
             tree2 = next(ts.trees(sample_lists=True))
-            self.assertAlmostEqual(
-                naive_kc_distance(tree1, tree2), naive_kc_distance(tree1, tree2)
-            )
-            self.assertAlmostEqual(
-                naive_kc_distance(tree2, tree1), naive_kc_distance(tree2, tree1)
-            )
-            self.assertAlmostEqual(
-                c_kc_distance(tree1, tree2), c_kc_distance(tree1, tree2)
-            )
-            self.assertAlmostEqual(
-                c_kc_distance(tree2, tree1), c_kc_distance(tree2, tree1)
-            )
+            self.do_kc_distance(tree1, tree2)
 
     def test_non_binary_sample_10(self):
         self.validate_nonbinary_trees(10)
@@ -877,7 +855,7 @@ class TestKCMetric(unittest.TestCase):
         self.assertAlmostEqual(kc1, kc3)
 
         kc1 = naive_kc_distance(t2, t1, lambda_)
-        kc2 = c_kc_distance(t1, t1, lambda_)
+        kc2 = c_kc_distance(t2, t1, lambda_)
         kc3 = t2.kc_distance(t1, lambda_)
         self.assertAlmostEqual(kc1, kc2)
         self.assertAlmostEqual(kc1, kc3)
@@ -902,6 +880,466 @@ class TestKCMetric(unittest.TestCase):
             c_kc_distance(t1, t2)
         with self.assertRaises(_tskit.LibraryError):
             t1.kc_distance(t2)
+
+
+def ts_kc_distance(ts1, ts2, lambda_=0):
+    check_kc_tree_sequence_inputs(ts1, ts2)
+
+    total = 0
+    left = 0
+    tree1_iter = ts1.trees(sample_lists=True)
+    tree1 = next(tree1_iter)
+    for tree2 in ts2.trees(sample_lists=True):
+        while tree1.interval[1] < tree2.interval[1]:
+            span = tree1.interval[1] - left
+            total += tree1.kc_distance(tree2, lambda_) * span
+
+            left = tree1.interval[1]
+            tree1 = next(tree1_iter)
+        span = tree2.interval[1] - left
+        left = tree2.interval[1]
+        total += tree1.kc_distance(tree2, lambda_) * span
+
+    return total / ts1.sequence_length
+
+
+def ts_kc_distance_incremental(ts1, ts2, lambda_=0):
+    check_kc_tree_sequence_inputs(ts1, ts2)
+
+    sample_maps = [dict(), dict()]
+    for i, ts in enumerate([ts1, ts2]):
+        for j, u in enumerate(ts.samples()):
+            sample_maps[i][u] = j
+
+    total = 0
+    left = 0
+
+    t1_vecs = KCVectors(ts1.num_samples)
+    t2_vecs = KCVectors(ts2.num_samples)
+
+    edge_diffs_iter_1 = ts1.edge_diffs()
+    tree_iter_1 = ts1.trees(sample_lists=True)
+    t1, t1_diffs = next(tree_iter_1), next(edge_diffs_iter_1)
+    update_kc_incremental(t1, t1_vecs, t1_diffs, sample_maps[0])
+    for t2, t2_diffs in zip(ts2.trees(sample_lists=True), ts2.edge_diffs()):
+        update_kc_incremental(t2, t2_vecs, t2_diffs, sample_maps[1])
+        while t1_diffs[0][1] < t2_diffs[0][1]:
+            span = t1_diffs[0][1] - left
+            total += norm_kc_vectors(t1_vecs, t2_vecs, lambda_) * span
+
+            left = t1_diffs[0][1]
+            t1, t1_diffs = next(tree_iter_1), next(edge_diffs_iter_1)
+            update_kc_incremental(t1, t1_vecs, t1_diffs, sample_maps[0])
+        span = t2_diffs[0][1] - left
+        left = t2_diffs[0][1]
+        total += norm_kc_vectors(t1_vecs, t2_vecs, lambda_) * span
+
+    return total / ts1.sequence_length
+
+
+def update_kc_incremental(tree, kc, edge_diffs, sample_index_map):
+    _, edges_out, edges_in = edge_diffs
+
+    # Update any depths/times changed by removed edges that might not be updated
+    # by inserted edges.
+    for e in edges_out:
+        update_in_subtree_pairs(tree, kc, e.child, sample_index_map)
+
+    for e in edges_in:
+        if tree.is_leaf(e.child):
+            u = e.child
+            time = tree.branch_length(u)
+            update_kc_vectors_single_leaf(kc, u, time, sample_index_map)
+        update_in_out_subtree_pairs(tree, kc, e, sample_index_map)
+        update_in_subtree_pairs(tree, kc, e.child, sample_index_map)
+
+
+def update_in_subtree_pairs(tree, kc, u, sample_index_map):
+    """
+    Visit all pairs of leaves of the internal node u, tracking
+    the mrca of each pair and the depth of that mrca.
+    """
+    root_time = tree.time(tree.root)
+    stack = [(u, tree.depth(u))]
+    while len(stack) > 0:
+        v, depth = stack.pop()
+        if not tree.is_leaf(v):
+            c1 = tree.left_child(v)
+            while c1 != -1:
+                stack.append((c1, depth + 1))
+                c2 = tree.right_sib(c1)
+                while c2 != -1:
+                    for l1 in tree.leaves(c1):
+                        for l2 in tree.leaves(c2):
+                            time = root_time - tree.time(v)
+                            update_kc_vectors_pair(
+                                kc, l1, l2, depth, time, sample_index_map
+                            )
+                    c2 = tree.right_sib(c2)
+                c1 = tree.right_sib(c1)
+
+
+def update_in_out_subtree_pairs(tree, kc, edge, sample_index_map):
+    """
+    Visit all pairs of leaves with one leaf in the subtree under
+    the given edge and the other leaf outside the subtree. Track
+    the mrca of each pair of leaves and the depth/time-to-root of
+    that mrca.
+    """
+    root_time = tree.time(tree.root)
+    edge_c = edge.child
+    p = edge.parent
+    depth = tree.depth(p)
+    c = edge_c
+    while p != -1:
+        time = root_time - tree.time(p)
+        for sibling in tree.children(p):
+            if sibling != c:
+                update_kc_vectors_all_pairs(
+                    tree, kc, sibling, edge_c, depth, time, sample_index_map
+                )
+        c, p = p, tree.parent(p)
+        depth -= 1
+
+
+def check_kc_tree_sequence_inputs(ts1, ts2):
+    if not np.array_equal(ts1.samples(), ts2.samples()):
+        raise ValueError("Trees must have the same samples")
+    if ts1.sequence_length != ts2.sequence_length:
+        raise ValueError("Can't compare with sequences of different lengths")
+
+    tree1_iter = ts1.trees(sample_lists=True)
+    tree1 = next(tree1_iter)
+    for tree2 in ts2.trees(sample_lists=True):
+        while tree1.interval[1] < tree2.interval[1]:
+            check_kc_tree_inputs(tree1, tree2)
+            tree1 = next(tree1_iter)
+        check_kc_tree_inputs(tree1, tree2)
+
+
+def check_kc_tree_inputs(tree1, tree2):
+    if not len(tree1.roots) == len(tree2.roots) == 1:
+        raise ValueError("Trees must have one root")
+    for tree in [tree1, tree2]:
+        for u in tree.nodes():
+            if tree.num_children(u) == 1:
+                raise ValueError("Unary nodes are not supported")
+
+
+class TestKCSequenceMetric(unittest.TestCase):
+    """
+    Tests the KC Metric on a tree sequence.
+    """
+
+    def test_0_distance_from_self(self):
+        ts = msprime.simulate(10)
+        self.assertEqual(ts_kc_distance(ts, ts), 0)
+
+    def verify_errors(self, ts1, ts2):
+        with self.assertRaises(ValueError):
+            ts_kc_distance(ts1, ts2)
+        with self.assertRaises(ValueError):
+            ts_kc_distance_incremental(ts1, ts2)
+        with self.assertRaises(_tskit.LibraryError):
+            ts1.kc_distance(ts2)
+
+    def test_errors_diff_seq_length(self):
+        ts1 = msprime.simulate(10, length=1)
+        ts2 = msprime.simulate(10, length=2)
+        self.verify_errors(ts1, ts2)
+
+    def test_errors_diff_num_samples(self):
+        ts1 = msprime.simulate(10, length=1)
+        ts2 = msprime.simulate(12, length=2)
+        self.verify_errors(ts1, ts2)
+
+    def test_errors_different_sample_lists(self):
+        tables_1 = tskit.TableCollection(sequence_length=2.0)
+        tables_2 = tskit.TableCollection(sequence_length=2.0)
+
+        sv1 = [True, True, True, False, False]
+        tv1 = [0.0, 0.0, 0.0, 1.0, 2.0]
+        sv2 = [True, True, False, False, True]
+        tv2 = [0.0, 0.0, 1.0, 2.0, 0.0]
+        for is_sample, t in zip(sv1, tv1):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_1.nodes.add_row(flags=flags, time=t)
+        for is_sample, t in zip(sv2, tv2):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_2.nodes.add_row(flags=flags, time=t)
+
+        lv = [0.0, 0.0, 0.0, 0.0]
+        rv = [1.0, 1.0, 1.0, 1.0]
+        pv1 = [3, 3, 4, 4]
+        cv1 = [0, 1, 2, 3]
+        for l, r, p, c in zip(lv, rv, pv1, cv1):
+            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        pv2 = [2, 2, 3, 3]
+        cv2 = [0, 1, 2, 4]
+        for l, r, p, c in zip(lv, rv, pv2, cv2):
+            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        ts1 = tables_1.tree_sequence()
+        ts2 = tables_2.tree_sequence()
+        self.verify_errors(ts1, ts2)
+
+        unsimplified_ts = msprime.simulate(
+            10, random_seed=1, recombination_rate=10, record_full_arg=True
+        )
+        self.verify_errors(unsimplified_ts, unsimplified_ts)
+
+    def test_errors_unary_nodes(self):
+        tables = tskit.TableCollection(sequence_length=2.0)
+
+        sv = [True, False, False]
+        tv = [0.0, 1.0, 2.0]
+        for is_sample, t in zip(sv, tv):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables.nodes.add_row(flags=flags, time=t)
+
+        lv = [0.0, 0.0, 0.0]
+        rv = [1.0, 1.0, 1.0]
+        pv = [1, 2]
+        cv = [0, 1]
+        for l, r, p, c in zip(lv, rv, pv, cv):
+            tables.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        ts = tables.tree_sequence()
+        self.verify_errors(ts, ts)
+
+    def test_errors_different_samples(self):
+        ts1 = msprime.simulate(10, random_seed=1)
+        ts2 = tsutil.jiggle_samples(ts1)
+        self.verify_errors(ts1, ts2)
+
+    def verify_result(self, ts1, ts2, lambda_, result, places=None):
+        kc1 = ts_kc_distance(ts1, ts2, lambda_)
+        kc2 = ts_kc_distance_incremental(ts1, ts2, lambda_)
+        kc3 = ts1.kc_distance(ts2, lambda_)
+        self.assertAlmostEqual(kc1, result, places=places)
+        self.assertAlmostEqual(kc2, result, places=places)
+        self.assertAlmostEqual(kc3, result, places=places)
+
+        kc1 = ts_kc_distance(ts2, ts1, lambda_)
+        kc2 = ts_kc_distance_incremental(ts2, ts1, lambda_)
+        kc3 = ts2.kc_distance(ts1, lambda_)
+        self.assertAlmostEqual(kc1, result, places=places)
+        self.assertAlmostEqual(kc2, result, places=places)
+        self.assertAlmostEqual(kc3, result, places=places)
+
+    def verify_same_kc(self, ts1, ts2, lambda_=0):
+        kc1 = ts_kc_distance(ts1, ts2, lambda_)
+        kc2 = ts_kc_distance_incremental(ts1, ts2, lambda_)
+        kc3 = ts1.kc_distance(ts2, lambda_)
+        self.assertAlmostEqual(kc1, kc2)
+        self.assertAlmostEqual(kc2, kc3)
+
+        kc1 = ts_kc_distance(ts2, ts1, lambda_)
+        kc2 = ts_kc_distance_incremental(ts2, ts1, lambda_)
+        kc3 = ts2.kc_distance(ts1, lambda_)
+        self.assertAlmostEqual(kc1, kc2)
+        self.assertAlmostEqual(kc2, kc3)
+
+    def validate_trees(self, n):
+        for seed in range(1, 10):
+            ts1 = msprime.simulate(n, random_seed=seed, recombination_rate=1)
+            ts2 = msprime.simulate(n, random_seed=seed + 1, recombination_rate=1)
+            self.verify_same_kc(ts1, ts2)
+            self.verify_same_kc(ts1, ts1)  # Test sequences with equal breakpoints
+
+    def test_sample_5(self):
+        self.validate_trees(5)
+
+    def test_sample_10(self):
+        self.validate_trees(10)
+
+    def test_sample_20(self):
+        self.validate_trees(20)
+
+    def validate_nonbinary_trees(self, n):
+        demographic_events = [
+            msprime.SimpleBottleneck(0.02, 0, proportion=0.25),
+            msprime.SimpleBottleneck(0.2, 0, proportion=1),
+        ]
+
+        for seed in range(1, 10):
+            ts1 = msprime.simulate(
+                n,
+                random_seed=seed,
+                demographic_events=demographic_events,
+                recombination_rate=1,
+            )
+            # Check if this is really nonbinary
+            found = False
+            for edgeset in ts1.edgesets():
+                if len(edgeset.children) > 2:
+                    found = True
+                    break
+            self.assertTrue(found)
+
+            ts2 = msprime.simulate(
+                n,
+                random_seed=seed + 1,
+                demographic_events=demographic_events,
+                recombination_rate=1,
+            )
+            self.verify_same_kc(ts1, ts2)
+
+            # compare to a binary tree also
+            ts2 = msprime.simulate(n, recombination_rate=1, random_seed=seed + 1)
+            self.verify_same_kc(ts1, ts2)
+
+    def test_non_binary_sample_10(self):
+        self.validate_nonbinary_trees(10)
+
+    def test_non_binary_sample_20(self):
+        self.validate_nonbinary_trees(20)
+
+    def test_permit_internal_samples(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(flags=1)
+        tables.nodes.add_row(flags=1)
+        tables.nodes.add_row(flags=1, time=1)
+        tables.edges.add_row(0, 1, 2, 0)
+        tables.edges.add_row(0, 1, 2, 1)
+        ts = tables.tree_sequence()
+        self.assertEqual(ts.kc_distance(ts), 0)
+        self.assertEqual(ts_kc_distance_incremental(ts, ts), 0)
+
+    def test_known_kc_sample_trees_different_shapes(self):
+        tables_1 = tskit.TableCollection(sequence_length=2.0)
+        tables_2 = tskit.TableCollection(sequence_length=2.0)
+
+        # Nodes
+        sv = [True, True, True, True, False, False, False]
+        tv = [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0]
+        for is_sample, t in zip(sv, tv):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_1.nodes.add_row(flags=flags, time=t)
+            tables_2.nodes.add_row(flags=flags, time=t)
+
+        # First tree edges
+        pv1 = [4, 4, 5, 5, 6, 6, 5, 6]
+        cv1 = [2, 3, 1, 4, 0, 5, 0, 4]
+        lv1 = [0, 0, 0, 0, 0, 0, 1, 1]
+        rv1 = [2, 2, 2, 1, 1, 2, 2, 2]
+
+        # Second tree edges
+        pv2 = [4, 4, 5, 5, 6, 6, 5, 6]
+        cv2 = [2, 3, 0, 1, 4, 5, 4, 0]
+        lv2 = [0, 0, 0, 0, 0, 0, 1, 1]
+        rv2 = [2, 2, 1, 2, 1, 2, 2, 2]
+
+        for l, r, p, c in zip(lv1, rv1, pv1, cv1):
+            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
+        for l, r, p, c in zip(lv2, rv2, pv2, cv2):
+            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        tables_1.sort()
+        tables_2.sort()
+        ts_1 = tables_1.tree_sequence()
+        ts_2 = tables_2.tree_sequence()
+        self.verify_result(ts_1, ts_2, 0, 2.0)
+
+    def test_known_kc_sample_trees_same_shape_different_times(self):
+        tables_1 = tskit.TableCollection(sequence_length=1.0)
+        tables_2 = tskit.TableCollection(sequence_length=1.0)
+
+        # Nodes
+        sv = [True, True, True, False, False]
+        tv_1 = [0.0, 0.0, 0.0, 2.0, 3.0]
+        tv_2 = [0.0, 0.0, 0.0, 4.0, 6.0]
+
+        for is_sample, t1, t2 in zip(sv, tv_1, tv_2):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_1.nodes.add_row(flags=flags, time=t1)
+            tables_2.nodes.add_row(flags=flags, time=t2)
+
+        # Edges
+        lv = [0.0, 0.0, 0.0, 0.0]
+        rv = [1.0, 1.0, 1.0, 1.0]
+        pv = [3, 3, 4, 4]
+        cv = [0, 1, 2, 3]
+
+        for l, r, p, c in zip(lv, rv, pv, cv):
+            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
+            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        ts_1 = tables_1.tree_sequence()
+        ts_2 = tables_2.tree_sequence()
+
+        self.verify_result(ts_1, ts_2, 0, 0)
+        self.verify_result(ts_1, ts_2, 1, 4.243, places=3)
+
+    def test_known_kc_same_tree_twice_same_metric(self):
+        tables_1 = tskit.TableCollection(sequence_length=2.0)
+        tables_2 = tskit.TableCollection(sequence_length=2.0)
+
+        # Nodes
+        sv = [True, True, True, False, False]
+        tv_1 = [0.0, 0.0, 0.0, 2.0, 3.0]
+        tv_2 = [0.0, 0.0, 0.0, 4.0, 6.0]
+
+        for is_sample, t1, t2 in zip(sv, tv_1, tv_2):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_1.nodes.add_row(flags=flags, time=t1)
+            tables_2.nodes.add_row(flags=flags, time=t2)
+
+        # Edges
+        pv = [3, 3, 4, 4]
+        cv = [0, 1, 2, 3]
+
+        for p, c in zip(pv, cv):
+            tables_1.edges.add_row(left=0, right=1, parent=p, child=c)
+            tables_1.edges.add_row(left=1, right=2, parent=p, child=c)
+            tables_2.edges.add_row(left=0, right=0.5, parent=p, child=c)
+            tables_2.edges.add_row(left=0.5, right=2, parent=p, child=c)
+
+        ts_1 = tables_1.tree_sequence()
+        ts_2 = tables_2.tree_sequence()
+        self.verify_result(ts_1, ts_2, 0, 0)
+        self.verify_result(ts_1, ts_2, 1, 4.243, places=3)
+
+    def test_remove_root(self):
+        tables_1 = tskit.TableCollection(sequence_length=10.0)
+        tables_2 = tskit.TableCollection(sequence_length=10.0)
+
+        # Nodes
+        sv1 = [True, True, True, True, True, False, False, False, False, False]
+        tv1 = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+
+        sv2 = [True, True, True, True, True, False, False, False, False]
+        tv2 = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0]
+
+        for is_sample, t in zip(sv1, tv1):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_1.nodes.add_row(flags=flags, time=t)
+        for is_sample, t in zip(sv2, tv2):
+            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+            tables_2.nodes.add_row(flags=flags, time=t)
+
+        # Edges
+        pv1 = [5, 5, 6, 6, 7, 7, 8, 8, 8, 9, 9]
+        cv1 = [0, 1, 3, 4, 2, 5, 2, 6, 7, 5, 8]
+        lv1 = [0, 0, 0, 0, 5, 5, 0, 0, 5, 0, 0]
+        rv1 = [10, 10, 10, 10, 10, 10, 5, 10, 10, 5, 5]
+
+        pv2 = [5, 5, 6, 6, 7, 7, 8, 8]
+        cv2 = [0, 1, 2, 3, 4, 5, 6, 7]
+        lv2 = [0, 0, 0, 0, 0, 0, 0, 0]
+        rv2 = [10, 10, 10, 10, 10, 10, 10, 10]
+
+        for p, c, l, r in zip(pv1, cv1, lv1, rv1):
+            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        for p, c, l, r in zip(pv2, cv2, lv2, rv2):
+            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+
+        ts_1 = tables_1.tree_sequence()
+        ts_2 = tables_2.tree_sequence()
+        distance = (math.sqrt(8) * 5 + math.sqrt(6) * 5) / 10
+        self.verify_result(ts_1, ts_2, 0, distance)
 
 
 class TestOverlappingSegments(unittest.TestCase):
