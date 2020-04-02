@@ -251,12 +251,7 @@ class MetadataMixin:
     Mixin class for tables that have a metadata column.
     """
 
-    def __init__(self, metadata_schema=None):
-        try:
-            self.metadata_schema = metadata_schema
-        except AttributeError:
-            # REMOVEME: This is only here as I haven't implemented for all tables!
-            pass
+    def __init__(self):
         self.metadata_column_index = self.row_class._fields.index("metadata")
 
     def packset_metadata(self, metadatas):
@@ -288,13 +283,13 @@ class MetadataMixin:
     @metadata_schema.setter
     def metadata_schema(self, metadata_schema):
         if metadata_schema is not None:
-            self.ll_table.metadata_schema = json.dumps(metadata_schema)
+            self.ll_table.metadata_schema = json.dumps(metadata_schema).encode()
         else:
             del self.metadata_schema
 
     @metadata_schema.deleter
     def metadata_schema(self):
-        self.ll_table.metadata_schema = ""
+        self.ll_table.metadata_schema = b""
 
     def parse_row(self, row):
         if self.metadata_schema is None:
@@ -350,10 +345,10 @@ class IndividualTable(BaseTable, MetadataMixin):
         "metadata_offset",
     ]
 
-    def __init__(self, max_rows_increment=0, ll_table=None, metadata_schema=None):
+    def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
-        super().__init__(ll_table, IndividualTableRow, metadata_schema=metadata_schema)
+        super().__init__(ll_table, IndividualTableRow)
 
     def _text_header_and_rows(self):
         flags = self.flags

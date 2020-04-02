@@ -2462,7 +2462,7 @@ IndividualTable_get_metadata_schema(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyUnicode_FromString(self->table->metadata_schema);
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -2470,28 +2470,27 @@ out:
 static int
 IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *closure)
 {
-    int err;
     int ret = -1;
-    char *metadata_schema = NULL;
-
-    if (!arg || !PyUnicode_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "metadata schema should be unicode");
-        goto out;
-    }
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    //PyUnicode_AsUTF8 docs state the caller is not responsible for deallocating the buffer.
-    metadata_schema = PyUnicode_AsUTF8(arg);
-    err = tsk_individual_table_set_metadata_schema(self->table, metadata_schema);
-    if (err != 0) {
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_individual_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
         goto out;
     }
     ret = 0;
 out:
     return ret;
 }
-
 
 static PyGetSetDef IndividualTable_getsetters[] = {
     {"max_rows_increment",
@@ -2923,6 +2922,44 @@ out:
     return ret;
 }
 
+static PyObject *
+NodeTable_get_metadata_schema(NodeTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (NodeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
+    if (NodeTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_node_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef NodeTable_getsetters[] = {
     {"max_rows_increment",
         (getter) NodeTable_get_max_rows_increment, NULL, "The size increment"},
@@ -2937,6 +2974,8 @@ static PyGetSetDef NodeTable_getsetters[] = {
     {"metadata", (getter) NodeTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) NodeTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) NodeTable_get_metadata_schema,
+        (setter) NodeTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -3368,6 +3407,44 @@ out:
     return ret;
 }
 
+static PyObject *
+EdgeTable_get_metadata_schema(EdgeTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_edge_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef EdgeTable_getsetters[] = {
     {"max_rows_increment",
         (getter) EdgeTable_get_max_rows_increment, NULL,
@@ -3383,7 +3460,8 @@ static PyGetSetDef EdgeTable_getsetters[] = {
     {"metadata", (getter) EdgeTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) EdgeTable_get_metadata_offset, NULL,
         "The metadata offset array"},
-
+    {"metadata_schema", (getter) EdgeTable_get_metadata_schema,
+        (setter) EdgeTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -3823,6 +3901,44 @@ out:
     return ret;
 }
 
+static PyObject *
+MigrationTable_get_metadata_schema(MigrationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_migration_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef MigrationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) MigrationTable_get_max_rows_increment, NULL, "The size increment"},
@@ -3839,6 +3955,8 @@ static PyGetSetDef MigrationTable_getsetters[] = {
     {"metadata", (getter) MigrationTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) MigrationTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) MigrationTable_get_metadata_schema,
+        (setter) MigrationTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -4239,6 +4357,44 @@ out:
     return ret;
 }
 
+static PyObject *
+SiteTable_get_metadata_schema(SiteTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (SiteTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
+    if (SiteTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_site_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef SiteTable_getsetters[] = {
     {"max_rows_increment",
         (getter) SiteTable_get_max_rows_increment, NULL,
@@ -4259,6 +4415,8 @@ static PyGetSetDef SiteTable_getsetters[] = {
         "The metadata array."},
     {"metadata_offset", (getter) SiteTable_get_metadata_offset, NULL,
         "The metadata offset array."},
+    {"metadata_schema", (getter) SiteTable_get_metadata_schema,
+        (setter) SiteTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -4694,6 +4852,44 @@ out:
     return ret;
 }
 
+static PyObject *
+MutationTable_get_metadata_schema(MutationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_mutation_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef MutationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) MutationTable_get_max_rows_increment, NULL,
@@ -4715,6 +4911,8 @@ static PyGetSetDef MutationTable_getsetters[] = {
         "The metadata array"},
     {"metadata_offset", (getter) MutationTable_get_metadata_offset, NULL,
         "The metadata_offset array"},
+    {"metadata_schema", (getter) MutationTable_get_metadata_schema,
+        (setter) MutationTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -5065,6 +5263,44 @@ out:
     return ret;
 }
 
+static PyObject *
+PopulationTable_get_metadata_schema(PopulationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (PopulationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    char *metadata_schema = "";
+    Py_ssize_t metadata_schema_length = 0;
+    
+    if (PopulationTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (arg != Py_None) {
+        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+            goto out;
+        }
+    }
+    ret = tsk_population_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
+    if (ret < 0) {
+        handle_library_error(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef PopulationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) PopulationTable_get_max_rows_increment, NULL, "The size increment"},
@@ -5075,6 +5311,8 @@ static PyGetSetDef PopulationTable_getsetters[] = {
     {"metadata", (getter) PopulationTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) PopulationTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) PopulationTable_get_metadata_schema,
+        (setter) PopulationTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
