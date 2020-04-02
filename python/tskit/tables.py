@@ -30,6 +30,7 @@ import json
 import warnings
 
 import numpy as np
+from jsonschema import validate
 
 import _tskit
 import tskit
@@ -291,12 +292,17 @@ class MetadataMixin:
     def metadata_schema(self):
         self.ll_table.metadata_schema = None
 
+    def validate_and_encode_metadata_row(self, metadata):
+        if self.metadata_schema is None:
+            return metadata
+        else:
+            validate(metadata, self.metadata_schema["schema"])
+            return json.dumps(metadata).encode()
+
     def parse_row(self, row):
         if self.metadata_schema is None:
             return row
-        schema = self.metadata_schema
-        encoding = schema["encoding"]
-        schema = schema["schema"]
+        encoding = self.metadata_schema["encoding"]
         if encoding == "json":
             return (
                 row[: self.metadata_column_index]
@@ -378,6 +384,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added node.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(flags=flags, location=location, metadata=metadata)
 
     def set_columns(
@@ -566,6 +573,7 @@ class NodeTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added node.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(flags, time, population, individual, metadata)
 
     def set_columns(
@@ -741,6 +749,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added edge.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(left, right, parent, child, metadata)
 
     def set_columns(
@@ -936,6 +945,7 @@ class MigrationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added migration.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(left, right, node, source, dest, time, metadata)
 
     def set_columns(
@@ -1123,6 +1133,7 @@ class SiteTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added site.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(position, ancestral_state, metadata)
 
     def set_columns(
@@ -1325,6 +1336,7 @@ class MutationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added mutation.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(site, node, derived_state, parent, metadata)
 
     def set_columns(
@@ -1502,6 +1514,7 @@ class PopulationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added population.
         :rtype: int
         """
+        metadata = self.validate_and_encode_metadata_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 
     def _text_header_and_rows(self):

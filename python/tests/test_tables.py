@@ -26,12 +26,12 @@ between simulations and the tree sequence.
 """
 import io
 import itertools
-import json
 import pickle
 import random
 import unittest
 import warnings
 
+import jsonschema
 import msprime
 import numpy as np
 
@@ -703,8 +703,32 @@ class MetadataTestsMixin:
             kwargs[col] = "x"
         for col in self.binary_colnames:
             kwargs[col] = b"x"
-        table.add_row(**{**kwargs, "metadata": json.dumps(data).encode()})
+        table.add_row(**{**kwargs, "metadata": data})
         self.assertDictEqual(table[0].metadata, data)
+
+    def test_bad_row_metadata_schema(self):
+        metadata_schema = {
+            "encoding": "json",
+            "schema": {
+                "title": "Example Metadata",
+                "type": "object",
+                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+                "required": ["one", "two"],
+                "additionalProperties": False,
+            },
+        }
+        data = {"one": "val one", "two": 5, "I really shouldn't be here": 6}
+        table = self.table_class()
+        table.metadata_schema = metadata_schema
+        input_data = {col.name: col.get_input(1) for col in self.columns}
+        kwargs = {col: data[0] for col, data in input_data.items()}
+        for col in self.string_colnames:
+            kwargs[col] = "x"
+        for col in self.binary_colnames:
+            kwargs[col] = b"x"
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            table.add_row(**{**kwargs, "metadata": data})
+        self.assertEqual(len(table), 0)
 
 
 class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
