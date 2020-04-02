@@ -1,7 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
-# Copyright (c) 2015-2018 University of Oxford
+# Copyright (c) 2020 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,15 +22,12 @@
 """
 Python implementation of the IBD-finding algorithms.
 """
-
-import tskit
-import numpy as np
-import itertools
-import sys
 import argparse
 
+import tskit
 
-class Segment(object):
+
+class Segment:
     """
     A class representing a single segment. Each segment has a left and right,
     denoting the loci over which it spans, a node and a next, giving the next
@@ -39,90 +35,223 @@ class Segment(object):
 
     The node it records is the *output* node ID.
     """
-    def __init__(self, left=None, right=None, node=None, next=None):
+
+    def __init__(self, left=None, right=None, node=None, next_seg=None):
         self.left = left
         self.right = right
         self.node = node
-        self.next = next
+        self.next = next_seg
 
     def __str__(self):
         s = "({}-{}->{}:next={})".format(
-            self.left, self.right, self.node, repr(self.next))
+            self.left, self.right, self.node, repr(self.next)
+        )
         return s
 
     def __repr__(self):
         return repr((self.left, self.right, self.node))
 
     def __eq__(self, other):
-        return (self.left == other.left and self.right == other.right and self.node == other.node)
+        # NOTE: to simplify tests, we DON'T check for equality of 'next'.
+        return (
+            self.left == other.left
+            and self.right == other.right
+            and self.node == other.node
+        )
 
     def __lt__(self, other):
-        return (self.node, self.left, self.right) < (other.node, other.left, other.right)
+        return (self.node, self.left, self.right) < (
+            other.node,
+            other.left,
+            other.right,
+        )
 
 
-class SegmentList(object):
+class SegmentList:
     """
-    A class representing a list of segments that are descended from a given ancestral node
-    via a particular child of the ancestor.
+    A class representing a list of segments that are descended from a given ancestral
+    node via a particular child of the ancestor.
+    Each SegmentList keeps track of the first and last segment in the list, head and
+    tail. The next attribute points to another SegmentList, allowing SegmentList
+    objects to be 'chained' to one another.
     """
-    def __init__(self, head=None, tail=None, next=None):
+
+    def __init__(self, head=None, tail=None, next_list=None):
         self.head = head
         self.tail = tail
-        self.next = next
+        self.next = next_list
 
     def __str__(self):
-        s = "head={},tail={},next={}".format(
-            self.head, self.right, repr(self.next))
+        s = "head={},tail={},next={}".format(self.head, self.tail, repr(self.next))
         return s
 
     def __repr__(self):
-        s = "[{}...]".format(repr(self.next.head))
+        if self.head is None:
+            s = "[{}]".format(repr(None))
+        elif self.head == self.tail:
+            s = "[{}]".format(repr(self.head))
+        elif self.head.next == self.tail:
+            s = "[{}, {}]".format(repr(self.head), repr(self.tail))
+        else:
+            s = "[{}, ..., {}]".format(repr(self.head), repr(self.tail))
         return s
 
+    def __len__(self):
+        # Returns the number of segments in the list.
+        count = 0
+        seg = self.head
+        while seg is not None:
+            count += 1
+            seg = seg.next
+        return count
+
+    def add(self, other):
+        """
+        Use to append another SegmentList, or a single segment.
+        SegmentList1.add(SegmentList2) will modify SegmentList1 so that
+        SegmentList1.tail.next = SegmentList2.head
+        SegmentList1.add(Segment1) will add Segment1 to the tail of SegmentList1
+        """
+        assert isinstance(other, SegmentList) or isinstance(other, Segment)
+
+        if isinstance(other, SegmentList):
+            if self.head is None:
+                self.head = other.head
+                self.tail = other.tail
+            else:
+                self.tail.next = other.head
+                self.tail = other.tail
+        elif isinstance(other, Segment):
+            if self.head is None:
+                self.head = other
+                self.tail = other
+            else:
+                self.tail.next = other
+                self.tail = other
 
 
-class IbdFinder(object):
+class IbdFinder:
     """
     Finds all IBD relationships between specified samples in a tree sequence.
     """
 
-    def __init__(
-        self,
-        ts,
-        samples=None,
-        min_length=0,
-        max_time=None):
+    def __init__(self, ts, samples=None, min_length=0, max_time=None):
 
         self.ts = ts
+        # Note: samples *must* be in order of ascending node ID
         if samples is None:
-            samples = ts.samples()
+            self.samples = ts.samples()
         else:
             self.samples = samples
+        self.samples.sort()
         self.min_length = min_length
         self.max_time = max_time
         self.current_parent = self.ts.tables.edges.parent[0]
         self.current_time = 0
-        self.A = [[] for _ in range(ts.num_nodes)] # Descendant segments
+        self.A = [None for _ in range(ts.num_nodes)]  # Descendant segments
         self.tables = self.ts.tables
-        # self.ibd_segments = dict.fromkeys(itertools.combinations(self.ts.samples(), 2), [])
+        self.parent_list = [[] for i in range(0, self.ts.num_nodes)]
+        for e in self.ts.tables.edges:
+            if (
+                len(self.parent_list[e.child]) == 0
+                or e.parent != self.parent_list[e.child][-1]
+            ):
+                self.parent_list[e.child].append(e.parent)
+        # Objects below are needed for the IBD segment-holding object.
+        self.sample_id_map = self.get_sample_id_map()
+        self.num_samples = len(self.samples)
+        self.sample_pairs = self.get_sample_pairs()
 
+        # Note: in the C code the object below should be a struct array.
+        # Each item will be accessed using its index, which corresponds to a particular
+        # sample pair. The mapping between index and sample pair is defined in the
+        # find_sample_pair_index method further down.
+
+        self.ibd_segments = {}
+        for key in self.sample_pairs:
+            self.ibd_segments[key] = None
+
+    def add_ibd_segments(self, sample0, sample1, seg):
+        index = self.find_sample_pair_index(sample0, sample1)
+
+        # Note: the code below is specific to the Python implementation, where the
+        # output is a dictionary indexed by sample pairs.
+        # In the C implementation, it'll be more like
+        # self.ibd_segments[index].add(seg)
+
+        if self.ibd_segments[self.sample_pairs[index]] is None:
+            self.ibd_segments[self.sample_pairs[index]] = SegmentList(
+                head=seg, tail=seg
+            )
+        else:
+            self.ibd_segments[self.sample_pairs[index]].add(seg)
+
+    def get_sample_id_map(self):
+        """
+        Returns id_map, a vector of length ts.num_nodes. For a node with id i,
+        id_map[i] is the position of the node in self.samples. If i is not a
+        user-specified sample, id_map[i] is -1.
+        Note: it assumes nodes in the TS are numbered 0 to ts.num_nodes - 1
+        """
+        id_map = [-1] * self.ts.num_nodes
+        for i, samp in enumerate(self.samples):
+            id_map[samp] = i
+
+        return id_map
+
+    def get_sample_pairs(self):
+        """
+        Returns a list of all pairs of samples. Replaces itertools.combinations.
+        Note: they must be sorted
+        """
+        sample_pairs = []
+        for ind, i in enumerate(self.samples):
+            for j in self.samples[(ind + 1) :]:
+                sample_pairs.append((i, j))
+
+        return sample_pairs
+
+    def find_sample_pair_index(self, sample0, sample1):
+        """
+        Note: this method isn't strictly necessary for the Python implementation
+        but is needed for the C implemention, where the output ibd_segments is a
+        struct array.
+        This calculates the position of the object corresponding to the inputted
+        sample pair in the struct array.
+        """
+
+        # Ensure samples are in order.
+        if sample0 == sample1:
+            raise ValueError("Samples in pair must have different node IDs.")
+        elif sample0 > sample1:
+            sample0, sample1 = sample1, sample0
+
+        i0 = self.sample_id_map[sample0]
+        i1 = self.sample_id_map[sample1]
+
+        # Calculate the position of the sample pair in the vector.
+        index = (
+            (self.num_samples) * (self.num_samples - 1) / 2
+            - (self.num_samples - i0) * (self.num_samples - i0 - 1) / 2
+            + i1
+            - i0
+            - 1
+        )
+
+        return int(index)
 
     def find_ibd_segments(self, min_length=0, max_time=None):
-        
-        # 1
-        # A = [[] for n in range(0, self.ts.num_nodes)]
-        ibd_segments = dict.fromkeys(itertools.combinations(self.ts.samples(), 2), [])
-        edges = self.ts.edges()  
-        parent_list = self.list_of_parents() ## Needed for memory-pruning step
-        
-        # 2
+        """
+        The wrapper for the procedure that calculates IBD segments.
+        """
+
+        # Set up an iterator over the edges in the tree sequence.
         mygen = iter(self.ts.edges())
         e = next(mygen)
-            
-        # 3
-        while e is not None:
 
-            # 3a
+        # Iterate over the edges.
+        while e is not None:
+            # Process all edges with the same parent node.
             S_head = None
             S_tail = None
             self.current_parent = e.parent
@@ -131,10 +260,11 @@ class IbdFinder(object):
                 # Stop looking for IBD segments once the
                 # processed nodes are older than the max time.
                 break
-            
-            # 3b
+
+            # Create a list of segments, S, bookended by S_head and S_tail.
+            # The list holds all segments that are immediate descendants of
+            # the current parent node being processed.
             while e is not None and self.current_parent == e.parent:
-                # Create the list S of immediate descendants of u.
                 seg = Segment(e.left, e.right, e.child)
                 if S_head is None:
                     S_head = seg
@@ -142,216 +272,185 @@ class IbdFinder(object):
                 else:
                     S_tail.next = seg
                     S_tail = S_tail.next
-                if e.id < self.ts.num_edges - 1:
-                    e = next(mygen)
-                    continue
-                else:
-                    e = None
+                e = next(mygen, None)
 
-            # 3c
+            # Create a list of SegmentList objects, SegL, bookended by SegL_head and
+            # SegL_tail. Each SegmentList corresponds to a segment s in S, and
+            # contains all segments of samples that descend from s.
+            SegL_head = SegmentList()
+            SegL_tail = SegmentList()
+
             while S_head is not None:
-                # Create A[u] from S.
-                # Do we still need to do the initialisation if the below is there??
                 u = S_head.node
-                if u in self.ts.samples():
-                    self.A[self.current_parent].append([S_head])
+                list_to_add = SegmentList()
+                if u in self.samples:
+                    list_to_add.add(Segment(S_head.left, S_head.right, u))
                 else:
-                    list_to_add = []
-                    for s in self.A[u]:
-                        l = (max(S_head.left, s.left), min(S_head.right, s.right))
-                        if l[1] - l[0] > 0:
-                            list_to_add.append(Segment(l[0], l[1], s.node))
-                    self.A[self.current_parent].append(list_to_add)
+                    if self.A[u] is not None:
+                        s = self.A[u].head
+                        while s is not None:
+                            intvl = (
+                                max(S_head.left, s.left),
+                                min(S_head.right, s.right),
+                            )
+                            if intvl[1] - intvl[0] > 0:
+                                list_to_add.add(Segment(intvl[0], intvl[1], s.node))
+                            s = s.next
+
+                # Add this list to the end of SegL.
+                if SegL_head.head is None:
+                    SegL_head = list_to_add
+                    SegL_tail = list_to_add
+                else:
+                    SegL_tail.next = list_to_add
+                    SegL_tail = list_to_add
+
                 S_head = S_head.next
 
-            # d. Squash
-            # A[self.current_parent] = self.squash(self.A[self.current_parent])
-            
-            # e. Process A[self.current_parent]
-            if len(self.A[self.current_parent]) > 1:
-                new_segs, nodes_to_remove = self.update_A_and_find_ibd_segs(ibd_segments)
-                
-                # e. Add any new IBD segments discovered.
-                for key, val in new_segs.items():
-                    for v in val:
-                        if len(ibd_segments[key]) == 0:
-                            ibd_segments[key] = [v]
-                        else:
-                            ibd_segments[key].append(v)
-                            
-                # g. Remove elements of self.A[u] if they are no longer needed.
-                ## (memory-pruning step)
+            # If we wanted to squash segments, we'd do it here.
+
+            # Use the info in SegL to find new ibd segments that descend from the
+            # parent node currently being processed.
+            if SegL_head.next is not None or self.current_parent in self.samples:
+                nodes_to_remove = self.calculate_ibd_segs(SegL_head)
+
+                # g. Remove elements of the list of ancestral segments A if they
+                # are no longer needed. (Memory-pruning step)
                 for n in nodes_to_remove:
-                    if self.current_parent in parent_list[n]:
-                        parent_list[n].remove(self.current_parent)
-                    if len(parent_list[n]) == 0:
+                    if self.current_parent in self.parent_list[n]:
+                        self.parent_list[n].remove(self.current_parent)
+                    if len(self.parent_list[n]) == 0:
                         self.A[n] = []
-                        
-            # Unlist the ancestral segments in self.A.
-            self.A[self.current_parent] = list(itertools.chain(*self.A[self.current_parent]))
 
-        # 4
-        return ibd_segments
+            # Create the list of ancestral segments, A, descending from current node.
+            # Concatenate all of the segment lists in SegL into a single list, and
+            # store in A. This is a list of all sample segments descending from
+            # the currently processed node.
+            seglist = SegL_head
+            self.A[self.current_parent] = seglist
+            seglist = seglist.next
+            while seglist is not None:
+                self.A[self.current_parent].add(seglist)
+                seglist = seglist.next
 
+        return self.ibd_segments
 
-    def update_A_and_find_ibd_segs(self, ibd_segments):
-    
-        new_segments = dict.fromkeys(itertools.combinations(self.ts.samples(), 2), [])
-        num_coalescing_sets = len(self.A[self.current_parent])
-        index_pairs = list(itertools.combinations(range(0, num_coalescing_sets), 2))
+    def calculate_ibd_segs(self, SegL_head):
+        """
+        Calculates all new IBD segments found at the current iteration of the
+        algorithm. Returns information about nodes processed in this step, which
+        allows memory to be cleared as the procedure runs.
+        """
 
-        for setpair in index_pairs:
-            for seg0 in self.A[self.current_parent][setpair[0]]:
-                for seg1 in self.A[self.current_parent][setpair[1]]:
+        list0 = SegL_head
+        # Iterate through all pairs of segment lists.
+        while list0.next is not None:
+            list1 = list0.next
+            while list1 is not None:
+                seg0 = list0.head
+                # Iterate through all segments with one taken from each list.
+                while seg0 is not None:
+                    seg1 = list1.head
+                    while seg1 is not None:
+                        left = max(seg0.left, seg1.left)
+                        right = min(seg0.right, seg1.right)
+                        if left >= right:
+                            seg1 = seg1.next
+                            continue
+                        nodes = [seg0.node, seg1.node]
+                        nodes.sort()
 
-                    if seg0.node == seg1.node:
-                        continue
-                    left = max(seg0.left, seg1.left)
-                    right = min(seg0.right, seg1.right)
-                    if left >= right:
-                        continue
-                    nodes = [seg0.node, seg1.node]
-                    nodes.sort()
+                        # If there are any overlapping segments, record as a new
+                        # IBD relationship.
+                        if right - left > self.min_length:
+                            self.add_ibd_segments(
+                                nodes[0],
+                                nodes[1],
+                                Segment(left, right, self.current_parent),
+                            )
 
-                    # if mrca_ibd:
-                        # pass # for now
-                        # existing_segs = ibd_segments[(nodes[0], nodes[1])].copy()
-                        # if right - left > self.min_length:
-                        #     if len(existing_segs) == 0:
-                        #         new_segments[(nodes[0], nodes[1])] = [Segment(left, right, self.current_parent)]
-                        #         existing_segs.append(Segment(left, right, self.current_parent))
-                        #     else:
-                        #         for i in existing_segs:
-                        #             # no overlap.
-                        #             if right <= i.left or left >= i.right:
-                        #                 if len(new_segments[(nodes[0], nodes[1])]) == 0:
-                        #                     new_segments[(nodes[0], nodes[1])] = [Segment(left, right, self.current_parent)]
-                        #                 else:
-                        #                     new_segments[(nodes[0], nodes[1])].append(Segment(left, right, self.current_parent))
-                        #                 existing_segs.append(Segment(left, right, self.current_parent))
-                        #             # partial overlap -- does this even happen?
-                        #             elif (left < i.left and right < i.right) or (i.left < left and i.right < right):
-                        #                 print('partial overlap')
-                                    # Yes, but I think it's okay to leave these segments...
-                    # else:
-                    if right - left > self.min_length:
-                        if len(new_segments[(nodes[0], nodes[1])]) == 0:
-                            new_segments[(nodes[0], nodes[1])] = [Segment(left, right, self.current_parent)]
-                        else:
-                            new_segments[(nodes[0], nodes[1])].append(Segment(left, right, self.current_parent))
+                        seg1 = seg1.next
 
-        # iv. specify elements of A that can be removed (for memory-pruning step)
+                    seg0 = seg0.next
+                list1 = list1.next
+            list0 = list0.next
+
+        # If the current processed node is itself a sample, calculate IBD separately.
+        if self.current_parent in self.samples:
+            seglist = SegL_head
+            while seglist is not None:
+                seg = seglist.head
+                while seg is not None:
+                    self.add_ibd_segments(
+                        seg.node,
+                        self.current_parent,
+                        Segment(seg.left, seg.right, self.current_parent),
+                    )
+                    seg = seg.next
+                seglist = seglist.next
+
+        # Specify elements of A that can be removed (for memory-pruning step)
         processed_child_nodes = []
-        for seglist in self.A[self.current_parent]:
-            processed_child_nodes += [seg.node for seg in seglist]
-            processed_child_nodes = list(set(processed_child_nodes))
+        seglist = SegL_head
+        while seglist is not None:
+            seg = seglist.head
+            while seg is not None:
+                processed_child_nodes += [seg.node]
+                seg = seg.next
+            seglist = seglist.next
+        processed_child_nodes = list(set(processed_child_nodes))
 
-        return new_segments, processed_child_nodes
+        return processed_child_nodes
 
-
-    def list_of_parents(self):
-        parents = [[] for i in range(0, self.ts.num_nodes)]
-        edges = self.ts.tables.edges
-        for e in edges:
-            if len(parents[e.child]) == 0 or e.parent != parents[e.child][-1]:
-                parents[e.child].append(e.parent)
-        return parents
-
-
-    # def squash(self, segment_lists):
-    
-    #     # Concatenate the input lists and record the number of
-    #     # segments in each.
-    #     A_u = []
-    #     num_desc_edges = []
-    #     for L in segment_lists:
-    #         for l in L:
-    #             A_u.append(l)
-    #         num_desc_edges.append(len(L))
-            
-    #     # Sort the list, keeping track of the original order.
-    #     sorted_A = sorted(enumerate(A_u), key=lambda i:i[1])
-        
-    #     # Squash the list.
-    #     next_ind = len(sorted_A)
-    #     inds_to_remove = []
-    #     ind = 1
-    #     while ind < len(sorted_A):
-    #         if sorted_A[ind][1].node == sorted_A[ind - 1][1].node:
-    #             if sorted_A[ind][1].right > sorted_A[ind - 1][1].right and\
-    #                 sorted_A[ind][1].left <= sorted_A[ind - 1][1].right:
-    #                 # Squash the previous int into the current one.
-    #                 sorted_A[ind][1].left = sorted_A[ind - 1][1].left
-    #                 # Flag the interval to be removed.
-    #                 inds_to_remove.append(ind - 1)
-    #                 # Change order index.
-    #                 sorted_A[ind] = (next_ind, sorted_A[ind][1])
-    #                 next_ind += 1
-    #         ind += 1
-            
-    #     # Remove any unnecessary list items.
-    #     for i in reversed(inds_to_remove):
-    #         # Needs to be done in reverse order!!
-    #         sorted_A.pop(i)
-
-    #     # Restore the original order as lists of lists.
-    #     cum_sum = np.cumsum(num_desc_edges)
-    #     squashed_sorted_A = [[] for _ in range(0, next_ind)]
-    #     for a in sorted_A:
-    #         ind = a[0]
-    #         if ind < cum_sum[-1]:
-    #             s = 0
-    #             while s < len(cum_sum):
-    #                 if a[0] < cum_sum[s]:
-    #                     squashed_sorted_A[s].append(a[1])
-    #                     break
-    #                 s += 1
-                    
-    #         else:
-    #             squashed_sorted_A[ind].append(a[1])
-                
-    #     # Remove lists of length 0.
-    #     squashed_sorted_A = [_ for _ in squashed_sorted_A if len(_) > 0]
-                
-    #     return squashed_sorted_A
-    
 
 if __name__ == "__main__":
-    # Simple CLI for running IBDFinder.
+    """
+    A simple CLI for running IBDFinder on a command line from the `python`
+    subdirectory. Basic usage:
+    > python3 ./tests/ibd.py --infile test.trees
+    """
 
-    parser = argparse.ArgumentParser(description="Command line interface for the IBDFinder.")
+    parser = argparse.ArgumentParser(
+        description="Command line interface for the IBDFinder."
+    )
 
-    parser.add_argument('--infile',
-                        type=str,
-                        dest='infile',
-                        nargs=1,
-                        metavar="IN_FILE",
-                        help="The tree sequence to be analysed.")
+    parser.add_argument(
+        "--infile",
+        type=str,
+        dest="infile",
+        nargs=1,
+        metavar="IN_FILE",
+        help="The tree sequence to be analysed.",
+    )
 
-    parser.add_argument('--min-length',
-                        type=float,
-                        dest='min_length',
-                        nargs=1,
-                        metavar="MIN_LENGTH",
-                        help="Only segments longer than this cutoff will be returned.")
+    parser.add_argument(
+        "--min-length",
+        type=float,
+        dest="min_length",
+        nargs=1,
+        metavar="MIN_LENGTH",
+        help="Only segments longer than this cutoff will be returned.",
+    )
 
-    parser.add_argument('--max-time',
-                        type=float,
-                        dest='max_time',
-                        nargs=1,
-                        metavar="MAX_TIME",
-                        help="Only segments younger this time will be returned.")
+    parser.add_argument(
+        "--max-time",
+        type=float,
+        dest="max_time",
+        nargs=1,
+        metavar="MAX_TIME",
+        help="Only segments younger this time will be returned.",
+    )
 
-    parser.add_argument('--samples',
-                        type=int,
-                        dest='samples',
-                        nargs=2,
-                        metavar="SAMPLES",
-                        help="If provided, only IBD relationships between the given node pair are returned."
-                        )
+    parser.add_argument(
+        "--samples",
+        type=int,
+        dest="samples",
+        nargs=2,
+        metavar="SAMPLES",
+        help="If provided, only this pair's IBD info is returned.",
+    )
 
     args = parser.parse_args()
-
     ts = tskit.load(args.infile[0])
     if args.min_length is None:
         min_length = 0
@@ -362,15 +461,11 @@ if __name__ == "__main__":
     else:
         max_time = args.max_time[0]
 
-    s = IbdFinder(ts, samples = ts.samples(),
-        min_length=min_length, max_time=max_time)
+    s = IbdFinder(ts, samples=ts.samples(), min_length=min_length, max_time=max_time)
     all_segs = s.find_ibd_segments()
-
 
     if args.samples is None:
         print(all_segs)
     else:
         samples = args.samples
         print(all_segs[(samples[0], samples[1])])
-
-
