@@ -29,8 +29,8 @@ import datetime
 import json
 import warnings
 
+import jsonschema
 import numpy as np
-from jsonschema import validate
 
 import _tskit
 import tskit
@@ -296,7 +296,7 @@ class MetadataMixin:
         if self.metadata_schema is None:
             return metadata
         else:
-            validate(metadata, self.metadata_schema["schema"])
+            jsonschema.validate(metadata, self.metadata_schema["schema"])
             return json.dumps(metadata).encode()
 
     def validate_and_encode_metadata_column(self, metadata, metadata_offset):
@@ -304,7 +304,7 @@ class MetadataMixin:
             return metadata, metadata_offset
         else:
             for row in metadata:
-                validate(row, self.metadata_schema["schema"])
+                jsonschema.validate(row, self.metadata_schema["schema"])
             metadata, metadata_offset = util.pack_bytes(
                 [json.dumps(row).encode() for row in metadata]
             )
