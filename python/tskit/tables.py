@@ -275,7 +275,7 @@ class MetadataMixin:
                 return json.loads(self.ll_table.metadata_schema)
             except json.decoder.JSONDecodeError:
                 raise ValueError(
-                    f"Metadata schema is not JSON, found{self.ll_table.metadata_schema}"
+                    f"Metadata schema is not JSON, found {self.ll_table.metadata_schema}"
                 )
         else:
             return None
@@ -289,7 +289,7 @@ class MetadataMixin:
 
     @metadata_schema.deleter
     def metadata_schema(self):
-        self.ll_table.metadata_schema = b""
+        self.ll_table.metadata_schema = None
 
     def parse_row(self, row):
         if self.metadata_schema is None:

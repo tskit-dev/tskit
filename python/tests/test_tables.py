@@ -612,24 +612,25 @@ class MetadataTestsMixin:
             self.assertEqual(metadatas, unpacked_metadatas)
 
     def test_optional_metadata(self):
-        for num_rows in [0, 10, 100]:
-            input_data = self.make_input_data(num_rows)
-            table = self.table_class()
-            del input_data["metadata"]
-            del input_data["metadata_offset"]
-            table.set_columns(**input_data)
-            self.assertEqual(len(list(table.metadata)), 0)
-            self.assertEqual(
-                list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
-            )
-            # Supplying None is the same not providing the column.
-            input_data["metadata"] = None
-            input_data["metadata_offset"] = None
-            table.set_columns(**input_data)
-            self.assertEqual(len(list(table.metadata)), 0)
-            self.assertEqual(
-                list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
-            )
+        if not getattr(self, "metadata_mandatory", False):
+            for num_rows in [0, 10, 100]:
+                input_data = self.make_input_data(num_rows)
+                table = self.table_class()
+                del input_data["metadata"]
+                del input_data["metadata_offset"]
+                table.set_columns(**input_data)
+                self.assertEqual(len(list(table.metadata)), 0)
+                self.assertEqual(
+                    list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
+                )
+                # Supplying None is the same not providing the column.
+                input_data["metadata"] = None
+                input_data["metadata_offset"] = None
+                table.set_columns(**input_data)
+                self.assertEqual(len(list(table.metadata)), 0)
+                self.assertEqual(
+                    list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
+                )
 
     def test_packset_metadata(self):
         for num_rows in [0, 10, 100]:
@@ -642,7 +643,48 @@ class MetadataTestsMixin:
             self.assertTrue(np.array_equal(table.metadata, metadata))
             self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
 
-    def test_metadata_schema(self):
+    def test_set_metadata_schema(self):
+        metadata_schema = {
+            "encoding": "json",
+            "schema": {
+                "title": "Example Metadata",
+                "description": "Some trees:🎄🌳🌴🌲🎋",
+                "type": "object",
+                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+                "required": ["one", "two"],
+            },
+        }
+        metadata_schema2 = {
+            "encoding": "json",
+            "schema": {},
+        }
+        table = self.table_class()
+        # Set
+        table.metadata_schema = metadata_schema
+        self.assertDictEqual(table.metadata_schema, metadata_schema)
+        # Set to None
+        table.metadata_schema = None
+        self.assertIsNone(table.metadata_schema)
+        # Overwrite
+        table.metadata_schema = metadata_schema
+        table.metadata_schema = metadata_schema2
+        self.assertDictEqual(table.metadata_schema, metadata_schema2)
+        # Delete
+        del table.metadata_schema
+        self.assertIsNone(table.metadata_schema)
+        # Empty string results in none
+        table.ll_table.metadata_schema = b""
+        self.assertIsNone(table.metadata_schema)
+
+    def test_bad_metadata_schema(self):
+        table = self.table_class()
+        table.ll_table.metadata_schema = b"I'm not JSON"
+        with self.assertRaises(ValueError):
+            table.metadata_schema
+        with self.assertRaises(TypeError):
+            table.ll_table.metadata_schema = "Normal string"
+
+    def test_row_round_trip_metadata_schema(self):
         metadata_schema = {
             "encoding": "json",
             "schema": {
@@ -1058,7 +1100,8 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
         self.assertEqual(t[1].record, "BBBB")
 
 
-class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
+class TestPopulationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
+    metadata_mandatory = True
     columns = []
     ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     equal_len_columns = [[]]
