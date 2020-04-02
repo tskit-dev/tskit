@@ -26,6 +26,7 @@ between simulations and the tree sequence.
 """
 import io
 import itertools
+import json
 import pickle
 import random
 import unittest
@@ -683,6 +684,29 @@ class MetadataTestsMixin:
             table.metadata_schema
         with self.assertRaises(TypeError):
             table.ll_table.metadata_schema = "Normal string"
+
+    def test_col_round_trip_metadata_schema(self):
+        metadata_schema = {
+            "encoding": "json",
+            "schema": {
+                "title": "Example Metadata",
+                "type": "object",
+                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+                "required": ["one", "two"],
+            },
+        }
+        for num_rows in [1, 10, 100]:
+            input_data = self.make_input_data(num_rows)
+            del input_data["metadata_offset"]
+            input_data["metadata"] = [{"one": "val one", "two": 5}] * num_rows
+            table = self.table_class()
+            table.metadata_schema = metadata_schema
+            table.set_columns(**input_data)
+            metadata, metadata_offset = tskit.pack_bytes(
+                [json.dumps(row).encode() for row in input_data["metadata"]]
+            )
+            self.assertTrue(np.array_equal(table.metadata, metadata))
+            self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
 
     def test_row_round_trip_metadata_schema(self):
         metadata_schema = {

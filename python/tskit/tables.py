@@ -299,6 +299,17 @@ class MetadataMixin:
             validate(metadata, self.metadata_schema["schema"])
             return json.dumps(metadata).encode()
 
+    def validate_and_encode_metadata_column(self, metadata, metadata_offset):
+        if self.metadata_schema is None:
+            return metadata, metadata_offset
+        else:
+            for row in metadata:
+                validate(row, self.metadata_schema["schema"])
+            metadata, metadata_offset = util.pack_bytes(
+                [json.dumps(row).encode() for row in metadata]
+            )
+            return metadata, metadata_offset
+
     def parse_row(self, row):
         if self.metadata_schema is None:
             return row
@@ -424,6 +435,9 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags)
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(
                 flags=flags,
@@ -470,6 +484,9 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags)
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(
                 flags=flags,
@@ -613,6 +630,9 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags, time=time)
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(
                 flags=flags,
@@ -661,6 +681,9 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags, time=time)
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(
                 flags=flags,
@@ -790,6 +813,9 @@ class EdgeTable(BaseTable, MetadataMixin):
 
         """
         self._check_required_args(left=left, right=right, parent=parent, child=child)
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(
                 left=left,
@@ -831,6 +857,9 @@ class EdgeTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(
                 left=left,
@@ -992,6 +1021,9 @@ class MigrationTable(BaseTable, MetadataMixin):
         self._check_required_args(
             left=left, right=right, node=node, source=source, dest=dest, time=time
         )
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(
                 left=left,
@@ -1046,6 +1078,9 @@ class MigrationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(
                 left=left,
@@ -1178,6 +1213,9 @@ class SiteTable(BaseTable, MetadataMixin):
             ancestral_state=ancestral_state,
             ancestral_state_offset=ancestral_state_offset,
         )
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(
                 position=position,
@@ -1226,6 +1264,9 @@ class SiteTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(
                 position=position,
@@ -1389,6 +1430,9 @@ class MutationTable(BaseTable, MetadataMixin):
             derived_state=derived_state,
             derived_state_offset=derived_state_offset,
         )
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(
                 site=site,
@@ -1446,6 +1490,9 @@ class MutationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(
                 site=site,
@@ -1544,6 +1591,9 @@ class PopulationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.set_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset)
         )
@@ -1565,6 +1615,9 @@ class PopulationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
+        metadata, metadata_offset = self.validate_and_encode_metadata_column(
+            metadata, metadata_offset
+        )
         self.ll_table.append_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset)
         )
