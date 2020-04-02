@@ -4595,6 +4595,31 @@ test_unequal_samples_kc(void)
     tsk_tree_free(&other_t);
 }
 
+static void
+test_unary_nodes_kc(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0\n"
+                        "0  2   0";
+    const char *edges = "0  1   2   0,1\n"
+                        "0  1   3   2";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int ret;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&t, &ts, TSK_SAMPLE_LISTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNARY_NODES);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
 /*=======================================================
  * Miscellaneous tests.
  *======================================================*/
@@ -5306,6 +5331,7 @@ main(int argc, char **argv)
         { "test_internal_samples_kc", test_internal_samples_kc },
         { "test_unequal_sample_size_kc", test_unequal_sample_size_kc },
         { "test_unequal_samples_kc", test_unequal_samples_kc },
+        { "test_unary_nodes_kc", test_unary_nodes_kc },
 
         /* Misc */
         { "test_tree_errors", test_tree_errors },

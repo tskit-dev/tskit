@@ -6,6 +6,9 @@ In development
 
 **New features**
 
+- Remove support for ``kc_distance`` on trees with unary nodes
+  (:user:`daniel-goldstein`, :`508`)
+
 - Improve Kendall-Colijn tree distance algorithm to operate in O(n^2) time
   instead of O(n^2 * log(n)) where n is the number of samples
   (:user:`daniel-goldstein`, :pr:`490`)
