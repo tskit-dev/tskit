@@ -137,6 +137,10 @@ def naive_kc_distance(tree1, tree2, lambda_=0):
     for u in samples:
         if not tree1.is_leaf(u) or not tree2.is_leaf(u):
             raise ValueError("Internal samples not supported")
+    for tree in [tree1, tree2]:
+        for u in tree.nodes():
+            if tree.num_children(u) == 1:
+                raise ValueError("Unary nodes are not supported")
 
     n = samples.shape[0]
     N = (n * (n - 1)) // 2
@@ -272,6 +276,11 @@ def c_kc_distance(tree1, tree2, lambda_=0):
     for u in samples:
         if not tree1.is_leaf(u) or not tree2.is_leaf(u):
             raise ValueError("Internal samples not supported")
+    for tree in [tree1, tree2]:
+        for u in range(tree.tree_sequence.num_nodes):
+            left_child = tree.left_child(u)
+            if left_child != tskit.NULL and left_child == tree.right_child(u):
+                raise ValueError("Unary nodes are not supported")
 
     n = tree1.tree_sequence.num_samples
     vecs1 = KCVectors(n)
@@ -323,6 +332,16 @@ class TestKCMetric(unittest.TestCase):
         ts2 = tsutil.permute_nodes(ts1, nmap)
         tree1 = next(ts1.trees(sample_lists=True))
         tree2 = next(ts2.trees(sample_lists=True))
+        self.assertRaises(ValueError, naive_kc_distance, tree1, tree2)
+        self.assertRaises(ValueError, c_kc_distance, tree1, tree2)
+        self.assertRaises(_tskit.LibraryError, tree1.kc_distance, tree2)
+
+        unsimplified_ts = msprime.simulate(
+            10, random_seed=1, recombination_rate=10, record_full_arg=True
+        )
+        trees = unsimplified_ts.trees(sample_lists=True)
+        tree1 = next(trees)
+        tree2 = next(trees)
         self.assertRaises(ValueError, naive_kc_distance, tree1, tree2)
         self.assertRaises(ValueError, c_kc_distance, tree1, tree2)
         self.assertRaises(_tskit.LibraryError, tree1.kc_distance, tree2)

@@ -4593,8 +4593,9 @@ norm_kc_vectors(kc_vectors *self, kc_vectors *other, double lambda)
 int
 tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double *result)
 {
-    tsk_id_t u, n, i;
+    tsk_id_t u, n, num_nodes, i, left_child;
     kc_vectors vecs[2];
+    tsk_tree_t *t;
     tsk_tree_t *trees[2] = { self, other };
     const tsk_id_t *samples = self->tree_sequence->samples;
     const tsk_id_t *other_samples = other->tree_sequence->samples;
@@ -4615,6 +4616,18 @@ tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double 
     if (!tsk_tree_has_sample_lists(self) || !tsk_tree_has_sample_lists(other)) {
         ret = TSK_ERR_UNSUPPORTED_OPERATION;
         goto out;
+    }
+
+    for (i = 0; i < 2; i++) {
+        t = trees[i];
+        num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(t->tree_sequence);
+        for (u = 0; u < num_nodes; u++) {
+            left_child = t->left_child[u];
+            if (left_child != TSK_NULL && left_child == t->right_child[u]) {
+                ret = TSK_ERR_UNARY_NODES;
+                goto out;
+            }
+        }
     }
 
     n = (tsk_id_t) self->tree_sequence->num_samples;

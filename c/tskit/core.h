@@ -237,6 +237,7 @@ the file.
 #define TSK_ERR_SAMPLES_NOT_EQUAL                                  -1201
 #define TSK_ERR_INTERNAL_SAMPLES                                   -1202
 #define TSK_ERR_MULTIPLE_ROOTS                                     -1203
+#define TSK_ERR_UNARY_NODES                                        -1204
 
 /* Haplotype matching errors */
 #define TSK_ERR_NULL_VITERBI_MATRIX                                -1300
