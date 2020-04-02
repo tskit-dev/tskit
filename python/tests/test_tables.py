@@ -70,11 +70,6 @@ class DoubleColumn(Column):
         return 4 + np.arange(n, dtype=np.float64)
 
 
-class DoubleArrayColumn(Column):
-    def get_input(self, n):
-        return (4 + np.arange(n, dtype=np.float64)).reshape(n, 1)
-
-
 class CommonTestsMixin:
     """
     Abstract base class for common table tests. Because of the design of unittest,
