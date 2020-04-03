@@ -705,8 +705,11 @@ class MetadataTestsMixin:
             metadata, metadata_offset = tskit.pack_bytes(
                 [json.dumps(row).encode() for row in input_data["metadata"]]
             )
-            self.assertTrue(np.array_equal(table.metadata, metadata))
-            self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
+            self.assertTrue(np.array_equal(table.ll_table.metadata, metadata))
+            self.assertTrue(
+                np.array_equal(table.ll_table.metadata_offset, metadata_offset)
+            )
+            self.assertEqual(table.metadata, input_data["metadata"])
 
     def test_row_round_trip_metadata_schema(self):
         metadata_schema = {

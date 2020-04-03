@@ -136,6 +136,8 @@ class BaseTable:
         return self.num_rows
 
     def __getattr__(self, name):
+        if name == "metadata":
+            return self.decode_metadata_column(self.ll_table.metadata)
         if name in self.column_names:
             return getattr(self.ll_table, name)
         else:
@@ -158,7 +160,7 @@ class BaseTable:
             raise IndexError("Index out of bounds")
         row = self.ll_table.get_row(index)
         try:
-            row = self.parse_row(row)
+            row = self.decode_row(row)
         except AttributeError:
             # This means the class returns the low-level row unchanged.
             pass
@@ -252,8 +254,23 @@ class MetadataMixin:
     Mixin class for tables that have a metadata column.
     """
 
+    class _Decorators:
+        @staticmethod
+        def _noop_if_no_metadata_schema(func):
+            def wrapped(self, *args, **kwargs):
+                if self.metadata_schema is None:
+                    if len(args) > 1:
+                        return args
+                    else:
+                        return args[0]
+                else:
+                    return func(self, *args, **kwargs)
+
+            return wrapped
+
     def __init__(self):
         self.metadata_column_index = self.row_class._fields.index("metadata")
+        self._update_encoder_decoder()
 
     def packset_metadata(self, metadatas):
         """
@@ -285,43 +302,55 @@ class MetadataMixin:
     def metadata_schema(self, metadata_schema):
         if metadata_schema is not None:
             self.ll_table.metadata_schema = json.dumps(metadata_schema).encode()
+            self._update_encoder_decoder()
         else:
             del self.metadata_schema
 
     @metadata_schema.deleter
     def metadata_schema(self):
         self.ll_table.metadata_schema = None
+        self._update_encoder_decoder()
 
-    def validate_and_encode_metadata_row(self, metadata):
-        if self.metadata_schema is None:
-            return metadata
-        else:
-            jsonschema.validate(metadata, self.metadata_schema["schema"])
-            return json.dumps(metadata).encode()
+    @_Decorators._noop_if_no_metadata_schema
+    def validate_and_encode_metadata_row(self, row):
+        jsonschema.validate(row, self.metadata_schema["schema"])
+        return self._metadata_encoder(row)
 
+    @_Decorators._noop_if_no_metadata_schema
     def validate_and_encode_metadata_column(self, metadata, metadata_offset):
-        if self.metadata_schema is None:
-            return metadata, metadata_offset
-        else:
-            for row in metadata:
-                jsonschema.validate(row, self.metadata_schema["schema"])
-            metadata, metadata_offset = util.pack_bytes(
-                [json.dumps(row).encode() for row in metadata]
-            )
-            return metadata, metadata_offset
+        for row in metadata:
+            jsonschema.validate(row, self.metadata_schema["schema"])
+        metadata, metadata_offset = util.pack_bytes(
+            [self._metadata_encoder(row) for row in metadata]
+        )
+        return metadata, metadata_offset
 
-    def parse_row(self, row):
+    @_Decorators._noop_if_no_metadata_schema
+    def decode_row(self, row):
+        return (
+            row[: self.metadata_column_index]
+            + (self._metadata_decoder(row[self.metadata_column_index]),)
+            + row[self.metadata_column_index + 1 :]
+        )
+
+    @_Decorators._noop_if_no_metadata_schema
+    def decode_metadata_column(self, ll_metadata):
+        return [
+            self._metadata_decoder(row)
+            for row in tskit.unpack_bytes(ll_metadata, self.ll_table.metadata_offset)
+        ]
+
+    def _update_encoder_decoder(self):
         if self.metadata_schema is None:
-            return row
-        encoding = self.metadata_schema["encoding"]
-        if encoding == "json":
-            return (
-                row[: self.metadata_column_index]
-                + (json.loads(row[self.metadata_column_index]),)
-                + row[self.metadata_column_index + 1 :]
-            )
+            self._metadata_encoder = None
+            self._metadata_decoder = None
         else:
-            raise ValueError(f"Unrecognised metadata encoding:{encoding}")
+            encoding = self.metadata_schema["encoding"]
+            if encoding == "json":
+                self._metadata_encoder = lambda row: json.dumps(row).encode()
+                self._metadata_decoder = lambda row: json.loads(row.decode())
+            else:
+                raise ValueError(f"Unrecognised metadata encoding:{encoding}")
 
 
 class IndividualTable(BaseTable, MetadataMixin):
