@@ -34,6 +34,7 @@ import numpy as np
 
 import _tskit
 import tskit
+import tskit.exceptions as exceptions
 import tskit.provenance as provenance
 import tskit.util as util
 
@@ -313,13 +314,19 @@ class MetadataMixin:
 
     @_Decorators._noop_if_no_metadata_schema
     def validate_and_encode_metadata_row(self, row):
-        jsonschema.validate(row, self.metadata_schema["schema"])
+        try:
+            jsonschema.validate(row, self.metadata_schema["schema"])
+        except jsonschema.exceptions.ValidationError as ve:
+            raise exceptions.MetadataValidationError from ve
         return self._metadata_encoder(row)
 
     @_Decorators._noop_if_no_metadata_schema
     def validate_and_encode_metadata_column(self, metadata, metadata_offset):
-        for row in metadata:
-            jsonschema.validate(row, self.metadata_schema["schema"])
+        try:
+            for row in metadata:
+                jsonschema.validate(row, self.metadata_schema["schema"])
+        except jsonschema.exceptions.ValidationError as ve:
+            raise exceptions.ProvenanceValidationError from ve
         metadata, metadata_offset = util.pack_bytes(
             [self._metadata_encoder(row) for row in metadata]
         )

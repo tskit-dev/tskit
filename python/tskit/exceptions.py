@@ -55,5 +55,11 @@ class DuplicatePositionsError(TskitException):
 
 class ProvenanceValidationError(TskitException):
     """
-    A JSON document did non validate against the provenance schema.
+    A JSON document did not validate against the provenance schema.
+    """
+
+
+class MetadataValidationError(TskitException):
+    """
+    A metadata object did not validate against the provenance schema.
     """

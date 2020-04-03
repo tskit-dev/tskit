@@ -32,13 +32,13 @@ import random
 import unittest
 import warnings
 
-import jsonschema
 import msprime
 import numpy as np
 
 import _tskit
 import tests.tsutil as tsutil
 import tskit
+import tskit.exceptions as exceptions
 
 
 class Column:
@@ -753,7 +753,7 @@ class MetadataTestsMixin:
             kwargs[col] = "x"
         for col in self.binary_colnames:
             kwargs[col] = b"x"
-        with self.assertRaises(jsonschema.exceptions.ValidationError):
+        with self.assertRaises(exceptions.MetadataValidationError):
             table.add_row(**{**kwargs, "metadata": data})
         self.assertEqual(len(table), 0)
 
