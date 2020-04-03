@@ -314,7 +314,7 @@ class MetadataMixin:
             for row in metadata:
                 jsonschema.validate(row, self.metadata_schema["schema"])
         except jsonschema.exceptions.ValidationError as ve:
-            raise exceptions.ProvenanceValidationError from ve
+            raise exceptions.MetadataValidationError from ve
         metadata, metadata_offset = util.pack_bytes(
             [self._metadata_encoder(row) for row in metadata]
         )

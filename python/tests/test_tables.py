@@ -598,6 +598,24 @@ class MetadataTestsMixin:
     Tests for column that have metadata columns.
     """
 
+    metadata_schema = {
+        "encoding": "json",
+        "schema": {
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        },
+    }
+
+    def metadata_example_data(self):
+        try:
+            self.val += 1
+        except AttributeError:
+            self.val = 0
+        return {"one": "val one", "two": self.val}
+
     def test_random_metadata(self):
         for num_rows in [0, 10, 100]:
             input_data = self.make_input_data(num_rows)
@@ -645,29 +663,19 @@ class MetadataTestsMixin:
             self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
 
     def test_set_metadata_schema(self):
-        metadata_schema = {
-            "encoding": "json",
-            "schema": {
-                "title": "Example Metadata",
-                "description": "Some trees:🎄🌳🌴🌲🎋",
-                "type": "object",
-                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
-                "required": ["one", "two"],
-            },
-        }
         metadata_schema2 = {
             "encoding": "json",
             "schema": {},
         }
         table = self.table_class()
         # Set
-        table.metadata_schema = metadata_schema
-        self.assertDictEqual(table.metadata_schema, metadata_schema)
+        table.metadata_schema = self.metadata_schema
+        self.assertDictEqual(table.metadata_schema, self.metadata_schema)
         # Set to None
         table.metadata_schema = None
         self.assertIsNone(table.metadata_schema)
         # Overwrite
-        table.metadata_schema = metadata_schema
+        table.metadata_schema = self.metadata_schema
         table.metadata_schema = metadata_schema2
         self.assertDictEqual(table.metadata_schema, metadata_schema2)
         # Delete
@@ -686,21 +694,14 @@ class MetadataTestsMixin:
             table.ll_table.metadata_schema = "Normal string"
 
     def test_col_round_trip_metadata_schema(self):
-        metadata_schema = {
-            "encoding": "json",
-            "schema": {
-                "title": "Example Metadata",
-                "type": "object",
-                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
-                "required": ["one", "two"],
-            },
-        }
         for num_rows in [1, 10, 100]:
             input_data = self.make_input_data(num_rows)
             del input_data["metadata_offset"]
-            input_data["metadata"] = [{"one": "val one", "two": 5}] * num_rows
+            input_data["metadata"] = [
+                self.metadata_example_data() for _ in range(num_rows)
+            ]
             table = self.table_class()
-            table.metadata_schema = metadata_schema
+            table.metadata_schema = self.metadata_schema
             table.set_columns(**input_data)
             metadata, metadata_offset = tskit.pack_bytes(
                 [json.dumps(row).encode() for row in input_data["metadata"]]
@@ -710,20 +711,39 @@ class MetadataTestsMixin:
                 np.array_equal(table.ll_table.metadata_offset, metadata_offset)
             )
             self.assertEqual(table.metadata, input_data["metadata"])
+            table.append_columns(**input_data)
+            metadata, metadata_offset = tskit.pack_bytes(
+                [
+                    json.dumps(row).encode()
+                    for row in input_data["metadata"] + input_data["metadata"]
+                ]
+            )
+            self.assertTrue(np.array_equal(table.ll_table.metadata, metadata))
+            self.assertTrue(
+                np.array_equal(table.ll_table.metadata_offset, metadata_offset)
+            )
+            self.assertEqual(
+                table.metadata, input_data["metadata"] + input_data["metadata"]
+            )
+
+    def test_bad_col(self):
+        input_data = self.make_input_data(10)
+        del input_data["metadata_offset"]
+        input_data["metadata"] = [self.metadata_example_data() for _ in range(10)]
+        input_data["metadata"][9]["I really shouldn't be here"] = 6
+        table = self.table_class()
+        table.metadata_schema = self.metadata_schema
+        with self.assertRaises(exceptions.MetadataValidationError):
+            table.set_columns(**input_data)
+        self.assertEqual(len(table), 0)
+        with self.assertRaises(exceptions.MetadataValidationError):
+            table.append_columns(**input_data)
+        self.assertEqual(len(table), 0)
 
     def test_row_round_trip_metadata_schema(self):
-        metadata_schema = {
-            "encoding": "json",
-            "schema": {
-                "title": "Example Metadata",
-                "type": "object",
-                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
-                "required": ["one", "two"],
-            },
-        }
-        data = {"one": "val one", "two": 5}
+        data = self.metadata_example_data()
         table = self.table_class()
-        table.metadata_schema = metadata_schema
+        table.metadata_schema = self.metadata_schema
         input_data = {col.name: col.get_input(1) for col in self.columns}
         kwargs = {col: data[0] for col, data in input_data.items()}
         for col in self.string_colnames:
@@ -734,19 +754,10 @@ class MetadataTestsMixin:
         self.assertDictEqual(table[0].metadata, data)
 
     def test_bad_row_metadata_schema(self):
-        metadata_schema = {
-            "encoding": "json",
-            "schema": {
-                "title": "Example Metadata",
-                "type": "object",
-                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
-                "required": ["one", "two"],
-                "additionalProperties": False,
-            },
-        }
-        data = {"one": "val one", "two": 5, "I really shouldn't be here": 6}
+        data = self.metadata_example_data()
+        data["I really shouldn't be here"] = 6
         table = self.table_class()
-        table.metadata_schema = metadata_schema
+        table.metadata_schema = self.metadata_schema
         input_data = {col.name: col.get_input(1) for col in self.columns}
         kwargs = {col: data[0] for col, data in input_data.items()}
         for col in self.string_colnames:
