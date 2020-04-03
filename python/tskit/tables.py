@@ -255,20 +255,6 @@ class MetadataMixin:
     Mixin class for tables that have a metadata column.
     """
 
-    class _Decorators:
-        @staticmethod
-        def _noop_if_no_metadata_schema(func):
-            def wrapped(self, *args, **kwargs):
-                if self.metadata_schema is None:
-                    if len(args) > 1:
-                        return args
-                    else:
-                        return args[0]
-                else:
-                    return func(self, *args, **kwargs)
-
-            return wrapped
-
     def __init__(self):
         self.metadata_column_index = self.row_class._fields.index("metadata")
         self._update_encoder_decoder()
@@ -312,16 +298,18 @@ class MetadataMixin:
         self.ll_table.metadata_schema = None
         self._update_encoder_decoder()
 
-    @_Decorators._noop_if_no_metadata_schema
     def validate_and_encode_metadata_row(self, row):
+        if self.metadata_schema is None:
+            return row
         try:
             jsonschema.validate(row, self.metadata_schema["schema"])
         except jsonschema.exceptions.ValidationError as ve:
             raise exceptions.MetadataValidationError from ve
         return self._metadata_encoder(row)
 
-    @_Decorators._noop_if_no_metadata_schema
     def validate_and_encode_metadata_column(self, metadata, metadata_offset):
+        if self.metadata_schema is None:
+            return metadata, metadata_offset
         try:
             for row in metadata:
                 jsonschema.validate(row, self.metadata_schema["schema"])
@@ -332,16 +320,18 @@ class MetadataMixin:
         )
         return metadata, metadata_offset
 
-    @_Decorators._noop_if_no_metadata_schema
     def decode_row(self, row):
+        if self.metadata_schema is None:
+            return row
         return (
             row[: self.metadata_column_index]
             + (self._metadata_decoder(row[self.metadata_column_index]),)
             + row[self.metadata_column_index + 1 :]
         )
 
-    @_Decorators._noop_if_no_metadata_schema
     def decode_metadata_column(self, ll_metadata):
+        if self.metadata_schema is None:
+            return ll_metadata
         return [
             self._metadata_decoder(row)
             for row in tskit.unpack_bytes(ll_metadata, self.ll_table.metadata_offset)
