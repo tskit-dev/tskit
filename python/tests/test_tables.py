@@ -616,6 +616,15 @@ class MetadataTestsMixin:
             self.val = 0
         return {"one": "val one", "two": self.val}
 
+    def input_data_for_add_row(self):
+        input_data = {col.name: col.get_input(1) for col in self.columns}
+        kwargs = {col: data[0] for col, data in input_data.items()}
+        for col in self.string_colnames:
+            kwargs[col] = "x"
+        for col in self.binary_colnames:
+            kwargs[col] = b"x"
+        return kwargs
+
     def test_random_metadata(self):
         for num_rows in [0, 10, 100]:
             input_data = self.make_input_data(num_rows)
@@ -691,6 +700,22 @@ class MetadataTestsMixin:
             table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
         )
 
+    def test_default_metadata_schema(self):
+        table = self.table_class()
+        self.assertEqual(
+            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+        )
+        table.add_row(
+            **{**self.input_data_for_add_row(), "metadata": b"acceptable bytes"}
+        )
+        with self.assertRaises(TypeError):
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": self.metadata_example_data(),
+                }
+            )
+
     def test_bad_metadata_schema(self):
         table = self.table_class()
         table.ll_table.metadata_schema = b"I'm not JSON"
@@ -703,13 +728,7 @@ class MetadataTestsMixin:
         data = self.metadata_example_data()
         table = self.table_class()
         table.metadata_schema = self.metadata_schema
-        input_data = {col.name: col.get_input(1) for col in self.columns}
-        kwargs = {col: data[0] for col, data in input_data.items()}
-        for col in self.string_colnames:
-            kwargs[col] = "x"
-        for col in self.binary_colnames:
-            kwargs[col] = b"x"
-        table.add_row(**{**kwargs, "metadata": data})
+        table.add_row(**{**self.input_data_for_add_row(), "metadata": data})
         self.assertDictEqual(table[0].metadata, data)
 
     def test_bad_row_metadata_schema(self):
