@@ -28,13 +28,14 @@ import collections
 import datetime
 import json
 import warnings
+from typing import Any
+from typing import Tuple
 
-import jsonschema
 import numpy as np
 
 import _tskit
 import tskit
-import tskit.exceptions as exceptions
+import tskit.metadata as metadata
 import tskit.provenance as provenance
 import tskit.util as util
 
@@ -137,8 +138,6 @@ class BaseTable:
         return self.num_rows
 
     def __getattr__(self, name):
-        if name == "metadata":
-            return self.decode_metadata_column(self.ll_table.metadata)
         if name in self.column_names:
             return getattr(self.ll_table, name)
         else:
@@ -257,7 +256,7 @@ class MetadataMixin:
 
     def __init__(self):
         self.metadata_column_index = self.row_class._fields.index("metadata")
-        self._update_encoder_decoder()
+        self._update_metadata_schema_cache_from_ll()
 
     def packset_metadata(self, metadatas):
         """
@@ -274,80 +273,30 @@ class MetadataMixin:
         self.set_columns(**d)
 
     @property
-    def metadata_schema(self):
-        if len(self.ll_table.metadata_schema) > 0:
-            try:
-                return json.loads(self.ll_table.metadata_schema)
-            except json.decoder.JSONDecodeError:
-                raise ValueError(
-                    f"Metadata schema is not JSON, found {self.ll_table.metadata_schema}"
-                )
-        else:
-            return None
+    def metadata_schema(self) -> metadata.MetadataSchema:
+        return self._metadata_schema_cache
 
     @metadata_schema.setter
-    def metadata_schema(self, metadata_schema):
-        if metadata_schema is not None:
-            self.ll_table.metadata_schema = json.dumps(metadata_schema).encode()
-            self._update_encoder_decoder()
-        else:
-            del self.metadata_schema
+    def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
+        self.ll_table.metadata_schema = schema.to_bytes()
+        self._update_metadata_schema_cache_from_ll()
 
     @metadata_schema.deleter
-    def metadata_schema(self):
-        self.ll_table.metadata_schema = None
-        self._update_encoder_decoder()
+    def metadata_schema(self) -> None:
+        self.ll_table.metadata_schema = b""
+        self._update_metadata_schema_cache_from_ll()
 
-    def validate_and_encode_metadata_row(self, row):
-        if self.metadata_schema is None:
-            return row
-        try:
-            jsonschema.validate(row, self.metadata_schema["schema"])
-        except jsonschema.exceptions.ValidationError as ve:
-            raise exceptions.MetadataValidationError from ve
-        return self._metadata_encoder(row)
-
-    def validate_and_encode_metadata_column(self, metadata, metadata_offset):
-        if self.metadata_schema is None:
-            return metadata, metadata_offset
-        try:
-            for row in metadata:
-                jsonschema.validate(row, self.metadata_schema["schema"])
-        except jsonschema.exceptions.ValidationError as ve:
-            raise exceptions.MetadataValidationError from ve
-        metadata, metadata_offset = util.pack_bytes(
-            [self._metadata_encoder(row) for row in metadata]
-        )
-        return metadata, metadata_offset
-
-    def decode_row(self, row):
-        if self.metadata_schema is None:
-            return row
+    def decode_row(self, row: Tuple[Any]) -> Tuple:
         return (
             row[: self.metadata_column_index]
-            + (self._metadata_decoder(row[self.metadata_column_index]),)
+            + (self._metadata_schema_cache.decode_row(row[self.metadata_column_index]),)
             + row[self.metadata_column_index + 1 :]
         )
 
-    def decode_metadata_column(self, ll_metadata):
-        if self.metadata_schema is None:
-            return ll_metadata
-        return [
-            self._metadata_decoder(row)
-            for row in tskit.unpack_bytes(ll_metadata, self.ll_table.metadata_offset)
-        ]
-
-    def _update_encoder_decoder(self):
-        if self.metadata_schema is None:
-            self._metadata_encoder = None
-            self._metadata_decoder = None
-        else:
-            encoding = self.metadata_schema["encoding"]
-            if encoding == "json":
-                self._metadata_encoder = lambda row: json.dumps(row).encode()
-                self._metadata_decoder = lambda row: json.loads(row.decode())
-            else:
-                raise ValueError(f"Unrecognised metadata encoding:{encoding}")
+    def _update_metadata_schema_cache_from_ll(self) -> None:
+        self._metadata_schema_cache = metadata.MetadataSchema.from_bytes(
+            self.ll_table.metadata_schema
+        )
 
 
 class IndividualTable(BaseTable, MetadataMixin):
@@ -421,7 +370,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added node.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags=flags, location=location, metadata=metadata)
 
     def set_columns(
@@ -461,9 +410,6 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags)
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.set_columns(
             dict(
                 flags=flags,
@@ -510,9 +456,6 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags)
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(
                 flags=flags,
@@ -616,7 +559,7 @@ class NodeTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added node.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags, time, population, individual, metadata)
 
     def set_columns(
@@ -656,9 +599,6 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags, time=time)
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.set_columns(
             dict(
                 flags=flags,
@@ -707,9 +647,6 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
         self._check_required_args(flags=flags, time=time)
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(
                 flags=flags,
@@ -798,7 +735,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added edge.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, parent, child, metadata)
 
     def set_columns(
@@ -839,9 +776,6 @@ class EdgeTable(BaseTable, MetadataMixin):
 
         """
         self._check_required_args(left=left, right=right, parent=parent, child=child)
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.set_columns(
             dict(
                 left=left,
@@ -883,9 +817,6 @@ class EdgeTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(
                 left=left,
@@ -1000,7 +931,7 @@ class MigrationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added migration.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, node, source, dest, time, metadata)
 
     def set_columns(
@@ -1046,9 +977,6 @@ class MigrationTable(BaseTable, MetadataMixin):
         """
         self._check_required_args(
             left=left, right=right, node=node, source=source, dest=dest, time=time
-        )
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
         )
         self.ll_table.set_columns(
             dict(
@@ -1104,9 +1032,6 @@ class MigrationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(
                 left=left,
@@ -1194,7 +1119,7 @@ class SiteTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added site.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(position, ancestral_state, metadata)
 
     def set_columns(
@@ -1238,9 +1163,6 @@ class SiteTable(BaseTable, MetadataMixin):
             position=position,
             ancestral_state=ancestral_state,
             ancestral_state_offset=ancestral_state_offset,
-        )
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
         )
         self.ll_table.set_columns(
             dict(
@@ -1290,9 +1212,6 @@ class SiteTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(
                 position=position,
@@ -1403,7 +1322,7 @@ class MutationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added mutation.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(site, node, derived_state, parent, metadata)
 
     def set_columns(
@@ -1455,9 +1374,6 @@ class MutationTable(BaseTable, MetadataMixin):
             node=node,
             derived_state=derived_state,
             derived_state_offset=derived_state_offset,
-        )
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
         )
         self.ll_table.set_columns(
             dict(
@@ -1516,9 +1432,6 @@ class MutationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(
                 site=site,
@@ -1587,7 +1500,7 @@ class PopulationTable(BaseTable, MetadataMixin):
         :return: The ID of the newly added population.
         :rtype: int
         """
-        metadata = self.validate_and_encode_metadata_row(metadata)
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 
     def _text_header_and_rows(self):
@@ -1617,9 +1530,6 @@ class PopulationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.set_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset)
         )
@@ -1641,9 +1551,6 @@ class PopulationTable(BaseTable, MetadataMixin):
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
         """
-        metadata, metadata_offset = self.validate_and_encode_metadata_column(
-            metadata, metadata_offset
-        )
         self.ll_table.append_columns(
             dict(metadata=metadata, metadata_offset=metadata_offset)
         )

@@ -284,3 +284,9 @@ class TestLoadTextMetadata(unittest.TestCase):
         expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, p):
             self.assertEqual(a.encode("utf8"), b.metadata)
+
+
+class TestMetadataSchema(unittest.TestCase):
+    """
+    Tests that use the MetadataSchema Class
+    """

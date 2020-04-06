@@ -26,7 +26,6 @@ between simulations and the tree sequence.
 """
 import io
 import itertools
-import json
 import pickle
 import random
 import unittest
@@ -39,6 +38,7 @@ import _tskit
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
+import tskit.metadata as metadata
 
 
 class Column:
@@ -598,16 +598,16 @@ class MetadataTestsMixin:
     Tests for column that have metadata columns.
     """
 
-    metadata_schema = {
-        "encoding": "json",
-        "schema": {
+    metadata_schema = metadata.MetadataSchema(
+        encoding="json",
+        schema={
             "title": "Example Metadata",
             "type": "object",
             "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
             "required": ["one", "two"],
             "additionalProperties": False,
         },
-    }
+    )
 
     def metadata_example_data(self):
         try:
@@ -663,82 +663,41 @@ class MetadataTestsMixin:
             self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
 
     def test_set_metadata_schema(self):
-        metadata_schema2 = {
-            "encoding": "json",
-            "schema": {},
-        }
+        metadata_schema2 = metadata.MetadataSchema("json", {})
         table = self.table_class()
         # Set
         table.metadata_schema = self.metadata_schema
-        self.assertDictEqual(table.metadata_schema, self.metadata_schema)
-        # Set to None
-        table.metadata_schema = None
-        self.assertIsNone(table.metadata_schema)
+        self.assertEqual(
+            table.metadata_schema.to_bytes(), self.metadata_schema.to_bytes()
+        )
+        # Remove
+        del table.metadata_schema
+        self.assertEqual(
+            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+        )
         # Overwrite
         table.metadata_schema = self.metadata_schema
         table.metadata_schema = metadata_schema2
-        self.assertDictEqual(table.metadata_schema, metadata_schema2)
+        self.assertEqual(table.metadata_schema.to_bytes(), metadata_schema2.to_bytes())
         # Delete
         del table.metadata_schema
-        self.assertIsNone(table.metadata_schema)
+        self.assertEqual(
+            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+        )
         # Empty string results in none
         table.ll_table.metadata_schema = b""
-        self.assertIsNone(table.metadata_schema)
+        table._update_metadata_schema_cache_from_ll()
+        self.assertEqual(
+            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+        )
 
     def test_bad_metadata_schema(self):
         table = self.table_class()
         table.ll_table.metadata_schema = b"I'm not JSON"
         with self.assertRaises(ValueError):
-            table.metadata_schema
+            table._update_metadata_schema_cache_from_ll()
         with self.assertRaises(TypeError):
             table.ll_table.metadata_schema = "Normal string"
-
-    def test_col_round_trip_metadata_schema(self):
-        for num_rows in [1, 10, 100]:
-            input_data = self.make_input_data(num_rows)
-            del input_data["metadata_offset"]
-            input_data["metadata"] = [
-                self.metadata_example_data() for _ in range(num_rows)
-            ]
-            table = self.table_class()
-            table.metadata_schema = self.metadata_schema
-            table.set_columns(**input_data)
-            metadata, metadata_offset = tskit.pack_bytes(
-                [json.dumps(row).encode() for row in input_data["metadata"]]
-            )
-            self.assertTrue(np.array_equal(table.ll_table.metadata, metadata))
-            self.assertTrue(
-                np.array_equal(table.ll_table.metadata_offset, metadata_offset)
-            )
-            self.assertEqual(table.metadata, input_data["metadata"])
-            table.append_columns(**input_data)
-            metadata, metadata_offset = tskit.pack_bytes(
-                [
-                    json.dumps(row).encode()
-                    for row in input_data["metadata"] + input_data["metadata"]
-                ]
-            )
-            self.assertTrue(np.array_equal(table.ll_table.metadata, metadata))
-            self.assertTrue(
-                np.array_equal(table.ll_table.metadata_offset, metadata_offset)
-            )
-            self.assertEqual(
-                table.metadata, input_data["metadata"] + input_data["metadata"]
-            )
-
-    def test_bad_col(self):
-        input_data = self.make_input_data(10)
-        del input_data["metadata_offset"]
-        input_data["metadata"] = [self.metadata_example_data() for _ in range(10)]
-        input_data["metadata"][9]["I really shouldn't be here"] = 6
-        table = self.table_class()
-        table.metadata_schema = self.metadata_schema
-        with self.assertRaises(exceptions.MetadataValidationError):
-            table.set_columns(**input_data)
-        self.assertEqual(len(table), 0)
-        with self.assertRaises(exceptions.MetadataValidationError):
-            table.append_columns(**input_data)
-        self.assertEqual(len(table), 0)
 
     def test_row_round_trip_metadata_schema(self):
         data = self.metadata_example_data()
