@@ -17,7 +17,7 @@ pyparsing
 pysam
 python_jsonschema_objects
 PyVCF
-sphinx
+sphinx==2.4.4 #Pinned as breathe doesn't support 3.0 yet
 sphinx-argparse
 sphinx-issues
 sphinx_rtd_theme
