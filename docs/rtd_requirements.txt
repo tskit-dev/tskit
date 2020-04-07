@@ -3,5 +3,6 @@ svgwrite
 jsonschema
 h5py
 breathe
+sphinx==2.4.4 # Pin version as breathe doesn't yet support higher
 sphinx-issues
 sphinx-argparse
