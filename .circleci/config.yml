@@ -20,7 +20,7 @@ jobs:
             libgsl-dev
             # Install meson to the system packages so we can run it as root
             sudo pip install meson
-            pip install --user -r python/requirements/development.txt
+            pip install --user -r python/requirements/CI.txt
             pip install twine --user
             # Remove tskit installed by msprime
             pip uninstall tskit -y
