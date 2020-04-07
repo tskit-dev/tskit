@@ -1,0 +1,9 @@
+version: 1
+update_configs:
+  - package_manager: "python"
+    directory: "/python/requirements/CI"
+    update_schedule: "live"
+    default_reviewers:
+      - "benjeffery"
+    default_labels:
+      - "dependancy-upgrade"
