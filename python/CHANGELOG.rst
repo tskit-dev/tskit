@@ -6,8 +6,11 @@ In development
 
 **New features**
 
+- Add ``_repr_html_`` to tables, so that jupyter notebooks render them as
+  html tables (:user:`benjeffery`, :pr:`514`)
+
 - Remove support for ``kc_distance`` on trees with unary nodes
-  (:user:`daniel-goldstein`, :`508`)
+  (:user:`daniel-goldstein`, :pr:`508`)
 
 - Improve Kendall-Colijn tree distance algorithm to operate in O(n^2) time
   instead of O(n^2 * log(n)) where n is the number of samples
@@ -19,10 +22,10 @@ In development
 - Add a metadata column to the edges table. Works similarly to existing
   metadata columns on other tables(:user:`benjeffery`, :pr:`496`).
 
-- Allow sites with missing data to be output by the `haplotypes` method, by
+- Allow sites with missing data to be output by the ``haplotypes`` method, by
   default replacing with ``-``. Errors are no longer raised for missing data
-  with `impute_missing_data=False`; the error types returned for bad alleles
-  (e.g. multiletter or non-ascii) have also changed from `_tskit.LibraryError`
+  with ``impute_missing_data=False``; the error types returned for bad alleles
+  (e.g. multiletter or non-ascii) have also changed from ``_tskit.LibraryError``
   to TypeError, or ValueError if the missing data character clashes
   (:user:`hyanwong`, :pr:`426`).
 
@@ -36,7 +39,7 @@ In development
   us to efficiently iterate over 'real' roots when we have
   missing data (:user:`jeromekelleher`, :pr:`462`).
 
-- Add pickle support for `TreeSequence` (:user:`terhorst`, :pr:`473`).
+- Add pickle support for ``TreeSequence`` (:user:`terhorst`, :pr:`473`).
 
 **Bugfixes**
 
@@ -75,7 +78,7 @@ method to manipulate tree sequence data.
 
 - Fix height scaling issues with SVG tree drawing (:user:`jeromekelleher`,
   :pr:`407`, :issue:`383`, :pr:`378`).
-- Do not reuse buffers in LdCalculator (:user:`jeromekelleher`). See :pr:`397` and
+- Do not reuse buffers in ``LdCalculator`` (:user:`jeromekelleher`). See :pr:`397` and
   :issue:`396`.
 
 --------------------

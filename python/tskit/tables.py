@@ -206,6 +206,38 @@ class BaseTable:
         """
         raise NotImplementedError()
 
+    def __str__(self):
+        headers, rows = self._text_header_and_rows()
+        return "\n".join("\t".join(row) for row in [headers] + rows)
+
+    def _repr_html_(self):
+        """
+        Called by jupyter notebooks to render tables
+        """
+        headers, rows = self._text_header_and_rows()
+        headers = "".join(f"<th>{header}</th>" for header in headers)
+        rows = ("".join(f"<td>{cell}</td>" for cell in row) for row in rows)
+        rows = "".join(f"<tr>{row}</tr>\n" for row in rows)
+        return f"""
+            <div>
+                <style scoped="">
+                    .tskit-table tbody tr th:only-of-type {{vertical-align: middle;}}
+                    .tskit-table tbody tr th {{vertical-align: top;}}
+                    .tskit-table tbody td {{text-align: right;}}
+                </style>
+                <table border="1" class="tskit-table">
+                    <thead>
+                        <tr>
+                            {headers}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows}
+                    </tbody>
+                </table>
+            </div>
+        """
+
 
 class MetadataMixin:
     """
@@ -270,16 +302,19 @@ class IndividualTable(BaseTable, MetadataMixin):
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, IndividualTableRow)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         flags = self.flags
         location = util.unpack_arrays(self.location, self.location_offset)
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tflags\tlocation\tmetadata\n"
+        headers = ("id", "flags", "location", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
             location_str = ",".join(map(str, location))
-            ret += "{}\t{}\t{}\t{}\n".format(j, flags[j], location_str, md)
-        return ret[:-1]
+            rows.append(
+                "{}\t{}\t{}\t{}".format(j, flags[j], location_str, md).split("\t")
+            )
+        return headers, rows
 
     def add_row(self, flags=0, location=None, metadata=None):
         """
@@ -450,19 +485,22 @@ class NodeTable(BaseTable, MetadataMixin):
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, NodeTableRow)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         time = self.time
         flags = self.flags
         population = self.population
         individual = self.individual
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tflags\tpopulation\tindividual\ttime\tmetadata\n"
+        headers = ("id", "flags", "population", "individual", "time", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += "{}\t{}\t{}\t{}\t{:.14f}\t{}\n".format(
-                j, flags[j], population[j], individual[j], time[j], md
+            rows.append(
+                "{}\t{}\t{}\t{}\t{:.14f}\t{}".format(
+                    j, flags[j], population[j], individual[j], time[j], md
+                ).split("\t")
             )
-        return ret[:-1]
+        return headers, rows
 
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
         """
@@ -624,19 +662,22 @@ class EdgeTable(BaseTable, MetadataMixin):
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, EdgeTableRow)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         left = self.left
         right = self.right
         parent = self.parent
         child = self.child
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tleft\t\tright\t\tparent\tchild\tmetadata\n"
+        headers = ("id", "left\t", "right\t", "parent", "child", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\n".format(
-                j, left[j], right[j], parent[j], child[j], md
+            rows.append(
+                "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}".format(
+                    j, left[j], right[j], parent[j], child[j], md
+                ).split("\t")
             )
-        return ret[:-1]
+        return headers, rows
 
     def add_row(self, left, right, parent, child, metadata=None):
         """
@@ -812,7 +853,7 @@ class MigrationTable(BaseTable, MetadataMixin):
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MigrationTableRow)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         left = self.left
         right = self.right
         node = self.node
@@ -820,13 +861,16 @@ class MigrationTable(BaseTable, MetadataMixin):
         dest = self.dest
         time = self.time
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tleft\tright\tnode\tsource\tdest\ttime\tmetadata\n"
+        headers = ("id", "left", "right", "node", "source", "dest", "time", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}\n".format(
-                j, left[j], right[j], node[j], source[j], dest[j], time[j], md
+            rows.append(
+                "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}".format(
+                    j, left[j], right[j], node[j], source[j], dest[j], time[j], md
+                ).split("\t")
             )
-        return ret[:-1]
+        return headers, rows
 
     def add_row(self, left, right, node, source, dest, time, metadata=None):
         """
@@ -1002,17 +1046,22 @@ class SiteTable(BaseTable, MetadataMixin):
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, SiteTableRow)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         position = self.position
         ancestral_state = util.unpack_strings(
             self.ancestral_state, self.ancestral_state_offset
         )
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tposition\tancestral_state\tmetadata\n"
+        headers = ("id", "position", "ancestral_state", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += "{}\t{:.8f}\t{}\t{}\n".format(j, position[j], ancestral_state[j], md)
-        return ret[:-1]
+            rows.append(
+                "{}\t{:.8f}\t{}\t{}".format(
+                    j, position[j], ancestral_state[j], md
+                ).split("\t")
+            )
+        return headers, rows
 
     def add_row(self, position, ancestral_state, metadata=None):
         """
@@ -1194,7 +1243,7 @@ class MutationTable(BaseTable, MetadataMixin):
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MutationTableRow)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         site = self.site
         node = self.node
         parent = self.parent
@@ -1202,13 +1251,16 @@ class MutationTable(BaseTable, MetadataMixin):
             self.derived_state, self.derived_state_offset
         )
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tsite\tnode\tderived_state\tparent\tmetadata\n"
+        headers = ("id", "site", "node", "derived_state", "parent", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += "{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                j, site[j], node[j], derived_state[j], parent[j], md
+            rows.append(
+                "{}\t{}\t{}\t{}\t{}\t{}".format(
+                    j, site[j], node[j], derived_state[j], parent[j], md
+                ).split("\t")
             )
-        return ret[:-1]
+        return headers, rows
 
     def add_row(self, site, node, derived_state, parent=-1, metadata=None):
         """
@@ -1404,13 +1456,14 @@ class PopulationTable(BaseTable, MetadataMixin):
         """
         return self.ll_table.add_row(metadata=metadata)
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        ret = "id\tmetadata\n"
+        headers = ("id", "metadata")
+        rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            ret += f"{j}\t{md}\n"
-        return ret[:-1]
+            rows.append((str(j), str(md)))
+        return headers, rows
 
     def set_columns(self, metadata=None, metadata_offset=None):
         """
@@ -1577,13 +1630,14 @@ class ProvenanceTable(BaseTable):
             )
         )
 
-    def __str__(self):
+    def _text_header_and_rows(self):
         timestamp = util.unpack_strings(self.timestamp, self.timestamp_offset)
         record = util.unpack_strings(self.record, self.record_offset)
-        ret = "id\ttimestamp\trecord\n"
+        headers = ("id", "timestamp", "record")
+        rows = []
         for j in range(self.num_rows):
-            ret += "{}\t{}\t{}\n".format(j, timestamp[j], record[j])
-        return ret[:-1]
+            rows.append((str(j), str(timestamp[j]), str(record[j])))
+        return headers, rows
 
     def packset_record(self, records):
         """
