@@ -92,7 +92,7 @@ class MetadataSchema(AbstractMetadataSchema):
                 self.encoding
             ]
         except KeyError:
-            ValueError(f"Unrecognised metadata encoding:{self.encoding}")
+            raise ValueError(f"Unrecognised metadata encoding:{self.encoding}")
 
     def to_bytes(self) -> bytes:
         return json.dumps({"encoding": self.encoding, "schema": self.schema}).encode()

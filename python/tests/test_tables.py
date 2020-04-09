@@ -736,15 +736,17 @@ class MetadataTestsMixin:
         data["I really shouldn't be here"] = 6
         table = self.table_class()
         table.metadata_schema = self.metadata_schema
-        input_data = {col.name: col.get_input(1) for col in self.columns}
-        kwargs = {col: data[0] for col, data in input_data.items()}
-        for col in self.string_colnames:
-            kwargs[col] = "x"
-        for col in self.binary_colnames:
-            kwargs[col] = b"x"
         with self.assertRaises(exceptions.MetadataValidationError):
-            table.add_row(**{**kwargs, "metadata": data})
+            table.add_row(**{**self.input_data_for_add_row(), "metadata": data})
         self.assertEqual(len(table), 0)
+
+    def test_absent_metadata_with_required_schema(self):
+        table = self.table_class()
+        table.metadata_schema = self.metadata_schema
+        input_data = self.input_data_for_add_row()
+        del input_data["metadata"]
+        with self.assertRaises(exceptions.MetadataValidationError):
+            table.add_row(**{**input_data})
 
 
 class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
