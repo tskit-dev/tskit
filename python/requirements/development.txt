@@ -1,6 +1,6 @@
 biopython
 black
-breathe
+breathe==4.14.2 #Pinned as next version needs sphinx 3 (see below)
 codecov
 coverage
 flake8
@@ -17,7 +17,7 @@ pyparsing
 pysam
 python_jsonschema_objects
 PyVCF
-sphinx==2.4.4 #Pinned as breathe doesn't support 3.0 yet
+sphinx==2.4.4 #Pinned as breathe v3 compatibility is rough for now.
 sphinx-argparse
 sphinx-issues
 sphinx_rtd_theme
