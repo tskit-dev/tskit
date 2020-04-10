@@ -17,7 +17,7 @@ pyparsing==2.4.7
 pysam==0.15.4
 python-jsonschema-objects==0.3.12
 PyVCF==0.6.8
-sphinx==2.4.4
+sphinx==3.0.1
 sphinx-argparse==0.2.5
 sphinx-issues==1.2.0
 sphinx_rtd_theme==0.4.3
