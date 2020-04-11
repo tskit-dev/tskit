@@ -378,7 +378,6 @@ typedef struct {
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
-    bool metadata_malloced_locally;
     /** @brief The metadata schema */
     char *metadata_schema;
 } tsk_edge_table_t;
@@ -417,7 +416,6 @@ typedef struct {
     char *metadata;
     /** @brief The metadata_offset column. */
     tsk_size_t *metadata_offset;
-    bool metadata_malloced_locally;
     /** @brief The metadata schema */
     char *metadata_schema;
 } tsk_migration_table_t;
@@ -579,9 +577,7 @@ typedef struct {
     struct {
         tsk_id_t *edge_insertion_order;
         tsk_id_t *edge_removal_order;
-        bool malloced_locally;
     } indexes;
-    kastore_t *store;
 } tsk_table_collection_t;
 
 /**

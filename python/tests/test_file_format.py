@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2016-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -95,6 +95,7 @@ def migration_example():
         population_configurations=population_configurations,
         demographic_events=demographic_events,
         random_seed=1,
+        mutation_rate=1,
         record_migrations=True,
     )
     return ts
@@ -776,6 +777,42 @@ class TestUuid(TestFileFormat):
         self.assertEqual(len(uuids), len(set(uuids)))
 
 
+class TestOptionalColumns(TestFileFormat):
+    """
+    Checks that optional columns in the file format are correctly handled.
+    """
+
+    def test_empty_edge_metadata(self):
+        ts1 = migration_example()
+        ts1.dump(self.temp_file)
+        ts2 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts2.tables)
+        self.assertEqual(len(ts1.tables.edges.metadata), 0)
+
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        del all_data["edges/metadata"]
+        del all_data["edges/metadata_offset"]
+        kastore.dump(all_data, self.temp_file)
+        ts3 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts3.tables)
+
+    def test_empty_migration_metadata(self):
+        ts1 = migration_example()
+        ts1.dump(self.temp_file)
+        ts2 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts2.tables)
+        self.assertEqual(len(ts1.tables.migrations.metadata), 0)
+
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        del all_data["migrations/metadata"]
+        del all_data["migrations/metadata_offset"]
+        kastore.dump(all_data, self.temp_file)
+        ts3 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts3.tables)
+
+
 class TestFileFormatErrors(TestFileFormat):
     """
     Tests for errors in the HDF5 format.
@@ -783,7 +820,7 @@ class TestFileFormatErrors(TestFileFormat):
 
     current_major_version = 12
 
-    def verify_fields(self, ts):
+    def verify_missing_fields(self, ts):
         ts.dump(self.temp_file)
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
@@ -792,7 +829,6 @@ class TestFileFormatErrors(TestFileFormat):
             if "metadata_schema" not in key:
                 data = dict(all_data)
                 del data[key]
-                print(key)
                 kastore.dump(data, self.temp_file)
                 with self.assertRaises(
                     (exceptions.FileFormatError, exceptions.LibraryError)
@@ -800,7 +836,109 @@ class TestFileFormatErrors(TestFileFormat):
                     tskit.load(self.temp_file)
 
     def test_missing_fields(self):
-        self.verify_fields(migration_example())
+        self.verify_missing_fields(migration_example())
+
+    def verify_equal_length_columns(self, ts, table):
+        ts.dump(self.temp_file)
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        table_cols = [
+            colname for colname in all_data.keys() if colname.startswith(table)
+        ]
+        # Remove all the 'offset' columns
+        for col in list(table_cols):
+            if col.endswith("_offset"):
+                main_col = col[: col.index("_offset")]
+                table_cols.remove(main_col)
+                table_cols.remove(col)
+            if "metadata_schema" in col:
+                table_cols.remove(col)
+        # Remaining columns should all be the same length
+        for col in table_cols:
+            for bad_val in [[], all_data[col][:-1]]:
+                data = dict(all_data)
+                data[col] = bad_val
+                kastore.dump(data, self.temp_file)
+                with self.assertRaises(exceptions.FileFormatError):
+                    tskit.load(self.temp_file)
+
+    def test_equal_length_columns(self):
+        ts = migration_example()
+        for table in ["nodes", "edges", "migrations", "sites", "mutations"]:
+            self.verify_equal_length_columns(ts, table)
+
+    def verify_offset_columns(self, ts):
+        ts.dump(self.temp_file)
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        offset_col_pairs = []
+        for col in all_data.keys():
+            if col.endswith("_offset"):
+                main_col = col[: col.index("_offset")]
+                offset_col_pairs.append((main_col, col))
+        for col, offset_col in offset_col_pairs:
+            num_rows = len(all_data[offset_col]) - 1
+            data = dict(all_data)
+            # Check bad lengths of the offset col
+            for bad_col_length in [[], range(2 * num_rows)]:
+                data[offset_col] = bad_col_length
+                kastore.dump(data, self.temp_file)
+                with self.assertRaises(exceptions.FileFormatError):
+                    tskit.load(self.temp_file)
+
+            # Check for a bad offset
+            data = dict(all_data)
+            original_offset = data[offset_col]
+            original_col = data[col]
+            data[offset_col] = np.zeros_like(original_offset)
+            data[col] = np.zeros(10, dtype=original_col.dtype)
+            kastore.dump(data, self.temp_file)
+            with self.assertRaises(exceptions.LibraryError):
+                tskit.load(self.temp_file)
+
+    def test_offset_columns(self):
+        ts = migration_example()
+        self.verify_offset_columns(ts)
+
+    def test_index_columns(self):
+        ts = migration_example()
+        ts.dump(self.temp_file)
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+
+        edge_removal_order = "indexes/edge_removal_order"
+        edge_insertion_order = "indexes/edge_insertion_order"
+
+        data = dict(all_data)
+        del data[edge_removal_order]
+        del data[edge_insertion_order]
+        kastore.dump(data, self.temp_file)
+        with self.assertRaises(exceptions.LibraryError):
+            tskit.load(self.temp_file)
+
+        data = dict(all_data)
+        del data[edge_removal_order]
+        kastore.dump(data, self.temp_file)
+        with self.assertRaises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)
+
+        data = dict(all_data)
+        del data[edge_insertion_order]
+        kastore.dump(data, self.temp_file)
+        with self.assertRaises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)
+
+        data = dict(all_data)
+        data[edge_insertion_order] = data[edge_insertion_order][:1]
+        kastore.dump(data, self.temp_file)
+        with self.assertRaises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)
+
+        data = dict(all_data)
+        data[edge_removal_order] = data[edge_removal_order][:1]
+        kastore.dump(data, self.temp_file)
+        with self.assertRaises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)
 
     def test_load_empty_kastore(self):
         kastore.dump({}, self.temp_file)

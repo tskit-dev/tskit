@@ -3015,7 +3015,9 @@ test_load_reindex(void)
     /* Dump the unindexed version */
     ret = tsk_table_collection_dump(&tables, _tmp_file_name, TSK_NO_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_load(&tables, _tmp_file_name, TSK_NO_INIT);
+    ret = tsk_table_collection_free(&tables);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
     ret = tsk_table_collection_build_index(&tables, 0);
