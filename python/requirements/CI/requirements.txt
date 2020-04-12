@@ -2,7 +2,7 @@ biopython==1.76
 black==19.10b0
 breathe==4.14.2
 codecov==2.0.22
-coverage==5.0.4
+coverage==5.1
 flake8==3.7.9
 h5py==2.10.0
 jsonschema==3.2.0
