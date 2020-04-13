@@ -2620,6 +2620,10 @@ class TreeSequence:
         return self._ll_tree_sequence.get_num_samples()
 
     @property
+    def metadata_schemas(self):
+        return self._ll_tree_sequence.get_metadata_schemas()
+
+    @property
     def sample_size(self):
         # Deprecated alias for num_samples
         return self.num_samples

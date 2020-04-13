@@ -184,6 +184,9 @@ typedef struct {
     tsk_viterbi_matrix_t *viterbi_matrix;
 } ViterbiMatrix;
 
+/* A named tuple of metadata schemas for a tree sequence */
+PyTypeObject MetadataSchemas={};
+
 static void
 handle_library_error(int err)
 {
@@ -6583,6 +6586,24 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_metadata_schemas(TreeSequence *self) {
+    PyObject *ret = NULL;
+
+    ret = PyStructSequence_New(&MetadataSchemas);
+    if (ret == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(
+        ret, 
+        0, 
+        PyBytes_FromStringAndSize(
+            self->tree_sequence->tables->nodes.metadata_schema, 
+            self->tree_sequence->tables->nodes.metadata_schema_length));
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_mutation(TreeSequence *self, PyObject *args)
 {
     int err;
@@ -8015,6 +8036,8 @@ static PyMethodDef TreeSequence_methods[] = {
         "Returns the number of unique nodes in the tree sequence." },
     {"get_num_samples", (PyCFunction) TreeSequence_get_num_samples, METH_NOARGS,
         "Returns the sample size" },
+    {"get_metadata_schemas", (PyCFunction) TreeSequence_get_metadata_schemas, METH_NOARGS,
+        "Returns the metadata schemas for the tree sequence tables"},
     {"get_samples", (PyCFunction) TreeSequence_get_samples, METH_NOARGS,
         "Returns the samples." },
     {"genealogical_nearest_neighbours",
@@ -10537,6 +10560,21 @@ PyInit__tskit(void)
     }
     Py_INCREF(&LsHmmType);
     PyModule_AddObject(module, "LsHmm", (PyObject *) &LsHmmType);
+
+    /* Metadata schemas namedtuple type*/
+    PyStructSequence_Field metadata_schemas_fields[] = {
+        {"node", "The node metadata schema"},
+        {NULL}
+    };
+    PyStructSequence_Desc metadata_schemas_desc = {
+        "MetadataSchemas",
+        "Namedtuple of metadata schemas for this tree sequence",
+        metadata_schemas_fields,
+        1
+    };
+    PyStructSequence_InitType(&MetadataSchemas, &metadata_schemas_desc);
+    Py_INCREF(&MetadataSchemas);
+    PyModule_AddObject(module, "MetadataSchemas", (PyObject*)&MetadataSchemas);
 
     /* Errors and constants */
     TskitException = PyErr_NewException("_tskit.TskitException", NULL, NULL);

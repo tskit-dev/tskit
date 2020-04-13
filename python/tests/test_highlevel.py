@@ -1331,6 +1331,17 @@ class TestTreeSequence(HighLevelTestCase):
                         self.assertEqual(i, length - 1 - n.id)
                     self.assertEqual(n.id, 0)
 
+    def test_metadata_schemas(self):
+        ts = msprime.simulate(5)
+        tables = ts.dump_tables()
+        schema = tskit.metadata.MetadataSchema(
+            encoding="json", schema={"TEST": "SCHEMA"}
+        )
+        tables.nodes.metadata_schema = schema
+        ts = tskit.TreeSequence.load_tables(tables)
+        # TODO - SHOULD RETURN SCHEMA CLASS FOR ALL TABLES
+        self.assertEqual(ts.metadata_schemas.node, schema.to_bytes())
+
 
 class TestPickle(HighLevelTestCase):
     """
