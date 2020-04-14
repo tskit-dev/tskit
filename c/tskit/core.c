@@ -167,9 +167,11 @@ tsk_strerror_internal(int err)
             ret = "tskit file version is too new for this instance. "
                   "Please upgrade tskit to the latest version";
             break;
-        case TSK_REQUIRED_COL_NOT_FOUND:
-            ret = "A column that is a required member of a table was not "
-                  "found in the file.";
+        case TSK_ERR_REQUIRED_COL_NOT_FOUND:
+            ret = "A required column was not found in the file.";
+            break;
+        case TSK_ERR_BOTH_COLUMNS_REQUIRED:
+            ret = "Both columns in a related pair must be provided";
             break;
 
         /* Out of bounds errors */

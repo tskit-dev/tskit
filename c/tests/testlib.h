@@ -25,7 +25,10 @@
 #ifndef __TESTLIB_H__
 #define __TESTLIB_H__
 
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include <CUnit/Basic.h>
 #include <tskit/trees.h>

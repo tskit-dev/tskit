@@ -919,13 +919,13 @@ class TestFileFormatErrors(TestFileFormat):
         data = dict(all_data)
         del data[edge_removal_order]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.FileFormatError):
+        with self.assertRaises(exceptions.LibraryError):
             tskit.load(self.temp_file)
 
         data = dict(all_data)
         del data[edge_insertion_order]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.FileFormatError):
+        with self.assertRaises(exceptions.LibraryError):
             tskit.load(self.temp_file)
 
         data = dict(all_data)
@@ -942,7 +942,7 @@ class TestFileFormatErrors(TestFileFormat):
 
     def test_load_empty_kastore(self):
         kastore.dump({}, self.temp_file)
-        self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+        self.assertRaises(exceptions.LibraryError, tskit.load, self.temp_file)
 
     def test_load_non_tskit_hdf5(self):
         with h5py.File(self.temp_file, "w") as root:

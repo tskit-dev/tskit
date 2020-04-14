@@ -22,11 +22,6 @@
  * SOFTWARE.
  */
 
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-
 #include "testlib.h"
 
 /* Simple single tree example. */
@@ -524,7 +519,8 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
     tsk_table_collection_free(&tables);
 }
 
-/* Returns a tree sequence consisting of a single tree with n samples.
+/* Returns a tree sequence consisting of a single tree with n samples. This
+ * is a full example of the data model, with values included for all fields.
  */
 tsk_treeseq_t *
 caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
@@ -533,8 +529,14 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     tsk_treeseq_t *ts = malloc(sizeof(tsk_treeseq_t));
     tsk_table_collection_t tables;
     tsk_id_t j, k, last_node, u;
-    int state;
+    int state, m;
+    double position[2];
     const char *states[] = { "0", "1" };
+    const char *metadata[] = { "This", "is", "some", "metadata" };
+    const int num_metadatas = sizeof(metadata) / sizeof(*metadata);
+    const char *metadata_schema = "mock metadata schema";
+    const char *prov_timestamp = "a timestamp, should be ISO8601";
+    const char *prov_record = "Produced by caterpillar_tree for testing purposes";
 
     CU_ASSERT_FATAL(ts != NULL);
     ret = tsk_table_collection_init(&tables, 1.0);
@@ -543,40 +545,83 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     CU_ASSERT_FATAL(num_sites > 0 && num_mutations < n - 1);
 
     tables.sequence_length = 1.0;
+    tsk_population_table_set_metadata_schema(
+        &tables.populations, metadata_schema, strlen(metadata_schema));
+    tsk_individual_table_set_metadata_schema(
+        &tables.individuals, metadata_schema, strlen(metadata_schema));
+    tsk_node_table_set_metadata_schema(
+        &tables.nodes, metadata_schema, strlen(metadata_schema));
+    tsk_edge_table_set_metadata_schema(
+        &tables.edges, metadata_schema, strlen(metadata_schema));
+    tsk_site_table_set_metadata_schema(
+        &tables.sites, metadata_schema, strlen(metadata_schema));
+    tsk_mutation_table_set_metadata_schema(
+        &tables.mutations, metadata_schema, strlen(metadata_schema));
+    tsk_migration_table_set_metadata_schema(
+        &tables.migrations, metadata_schema, strlen(metadata_schema));
+
     for (j = 0; j < (tsk_id_t) n; j++) {
-        ret = tsk_node_table_add_row(
-            &tables.nodes, TSK_NODE_IS_SAMPLE, 0, TSK_NULL, TSK_NULL, NULL, 0);
+        position[0] = j;
+        position[1] = j;
+        m = j % num_metadatas;
+        ret = tsk_population_table_add_row(
+            &tables.populations, metadata[m], strlen(metadata[m]));
+        CU_ASSERT_EQUAL_FATAL(ret, j);
+        ret = tsk_individual_table_add_row(
+            &tables.individuals, 0, position, 2, metadata[m], strlen(metadata[m]));
+        CU_ASSERT_EQUAL_FATAL(ret, j);
+        ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0, j, j,
+            metadata[m], strlen(metadata[m]));
         CU_ASSERT_EQUAL_FATAL(ret, j);
     }
     last_node = 0;
     for (j = 0; j < n - 1; j++) {
+        m = j % num_metadatas;
         ret = tsk_node_table_add_row(
-            &tables.nodes, 0, j + 1, TSK_NULL, TSK_NULL, NULL, 0);
+            &tables.nodes, 0, j + 1, j % n, TSK_NULL, metadata[m], strlen(metadata[m]));
         CU_ASSERT_FATAL(ret >= 0);
         u = ret;
-        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, last_node, NULL, 0);
+        ret = tsk_edge_table_add_row(
+            &tables.edges, 0, 1, u, last_node, metadata[m], strlen(metadata[m]));
         CU_ASSERT_FATAL(ret >= 0);
-        ret = tsk_edge_table_add_row(&tables.edges, 0, 1, u, j + 1, NULL, 0);
+        ret = tsk_edge_table_add_row(
+            &tables.edges, 0, 1, u, j + 1, metadata[m], strlen(metadata[m]));
         CU_ASSERT_FATAL(ret >= 0);
         last_node = u;
     }
     for (j = 0; j < num_sites; j++) {
-        ret = tsk_site_table_add_row(
-            &tables.sites, (j + 1) / (double) n, "0", 1, NULL, 0);
+        m = j % num_metadatas;
+        ret = tsk_site_table_add_row(&tables.sites, (j + 1) / (double) n, states[0],
+            strlen(states[0]), metadata[m], strlen(metadata[m]));
         CU_ASSERT_FATAL(ret >= 0);
         u = 2 * n - 3;
         state = 0;
         for (k = 0; k < num_mutations; k++) {
+            m = k % num_metadatas;
             state = (state + 1) % 2;
-            ret = tsk_mutation_table_add_row(
-                &tables.mutations, j, u, TSK_NULL, states[state], 1, NULL, 0);
+            ret = tsk_mutation_table_add_row(&tables.mutations, j, u, TSK_NULL,
+                states[state], strlen(states[state]), metadata[m], strlen(metadata[m]));
             CU_ASSERT_FATAL(ret >= 0);
             u--;
         }
     }
+    ret = tsk_provenance_table_add_row(&tables.provenances, prov_timestamp,
+        strlen(prov_timestamp), prov_record, strlen(prov_record));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_table_collection_sort(&tables, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add in some mock migrations. Must be done after sort as it doesn't support
+     * migrations.
+     * TODO make these consistent with the caterpillar tree topology. */
+    for (j = 0; j < n - 1; j++) {
+        m = j % num_metadatas;
+        ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, j, j, j + 1, j + 1.5,
+            metadata[m], strlen(metadata[m]));
+        CU_ASSERT_FATAL(ret >= 0);
+    }
+
     ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);

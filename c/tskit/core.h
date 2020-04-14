@@ -148,7 +148,13 @@ of tskit.
 A column that is a required member of a table was not found in
 the file.
 */
-#define TSK_REQUIRED_COL_NOT_FOUND                                  -103
+#define TSK_ERR_REQUIRED_COL_NOT_FOUND                              -103
+
+/**
+One of a pair of columns that must be specified together was
+not found in the file.
+*/
+#define TSK_ERR_BOTH_COLUMNS_REQUIRED                               -104
 
 /* Out of bounds errors */
 #define TSK_ERR_BAD_OFFSET                                          -200
