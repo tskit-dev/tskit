@@ -48,6 +48,9 @@ In development.
 - Tables with metadata now have an optional `metadata_schema` field that can contain
   arbitary bytes. (:user:`benjeffery`, :pr:`493`)
 
+- Tables loaded from a file can now be edited in the same way as any other
+  table collection (:user:`jeromekelleher`, :issue:`536`, :pr:`530`.
+
 
 **Deprecated**
 

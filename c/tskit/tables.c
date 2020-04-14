@@ -34,11 +34,6 @@
 
 #include <tskit/tables.h>
 
-/* This is a flag for tsk_table_collection_init used by tsk_table_collection_load to
- * avoid allocating the table columns. It's defined internally for now as it's
- * not clear how this would be useful outside of tskit. */
-#define TSK_NO_INIT_TABLES (1 << 30)
-
 #define DEFAULT_SIZE_INCREMENT 1024
 #define TABLE_SEP "-----------------------------------------\n"
 
@@ -106,6 +101,10 @@ read_table_cols(kastore_t *store, read_table_col_t *read_cols, size_t num_cols)
             }
             last_len = *read_cols[j].len_dest;
             if (last_len == (tsk_size_t) -1) {
+                if (len < read_cols[j].len_offset) {
+                    ret = TSK_ERR_FILE_FORMAT;
+                    goto out;
+                }
                 *read_cols[j].len_dest = (tsk_size_t)(len - read_cols[j].len_offset);
             } else if ((last_len + read_cols[j].len_offset) != (tsk_size_t) len) {
                 ret = TSK_ERR_FILE_FORMAT;
@@ -116,13 +115,8 @@ read_table_cols(kastore_t *store, read_table_col_t *read_cols, size_t num_cols)
                 goto out;
             }
         } else if (!(read_cols[j].options & TSK_COL_OPTIONAL)) {
-            ret = TSK_REQUIRED_COL_NOT_FOUND;
+            ret = TSK_ERR_REQUIRED_COL_NOT_FOUND;
             goto out;
-        } else {
-            read_cols[j].array_dest = NULL;
-            if (*read_cols[j].len_dest == (tsk_size_t) -1) {
-                *read_cols[j].len_dest = 0;
-            }
         }
     }
 out:
@@ -153,10 +147,6 @@ check_offsets(size_t num_rows, tsk_size_t *offsets, tsk_size_t length, bool chec
 {
     int ret = TSK_ERR_BAD_OFFSET;
     size_t j;
-
-    if (offsets == NULL) {
-        return 0;
-    }
 
     if (offsets[0] != 0) {
         goto out;
@@ -761,12 +751,12 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, location_offset, location_length, true);
-    if (ret != 0) {
+    if (location_offset[num_rows] != location_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if (metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_individual_table_set_columns(
@@ -774,8 +764,13 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_individual_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_individual_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -1245,8 +1240,8 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if (metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_node_table_set_columns(
@@ -1254,9 +1249,13 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-
-    ret = tsk_node_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_node_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -1692,8 +1691,12 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if ((metadata == NULL) != (metadata_offset == NULL)) {
+        ret = TSK_ERR_BOTH_COLUMNS_REQUIRED;
+        goto out;
+    }
+    if (metadata != NULL && metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_edge_table_set_columns(
@@ -1701,8 +1704,13 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_edge_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -2265,12 +2273,12 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, ancestral_state_offset, ancestral_state_length, true);
-    if (ret != 0) {
+    if (ancestral_state_offset[num_rows] != ancestral_state_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if (metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_site_table_set_columns(self, num_rows, position, ancestral_state,
@@ -2278,8 +2286,13 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_site_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_site_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -2830,12 +2843,12 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, derived_state_offset, derived_state_length, true);
-    if (ret != 0) {
+    if (derived_state_offset[num_rows] != derived_state_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if (metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_mutation_table_set_columns(self, num_rows, site, node, parent,
@@ -2843,8 +2856,13 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_mutation_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_mutation_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -3314,8 +3332,12 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if ((metadata == NULL) != (metadata_offset == NULL)) {
+        ret = TSK_ERR_BOTH_COLUMNS_REQUIRED;
+        goto out;
+    }
+    if (metadata != NULL && metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_migration_table_set_columns(self, num_rows, left, right, node, source,
@@ -3323,8 +3345,13 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_migration_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_migration_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -3584,6 +3611,9 @@ tsk_population_table_print_state(tsk_population_table_t *self, FILE *out)
         (int) self->metadata_length, (int) self->max_metadata_length,
         (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
+    fprintf(out, "#metadata_schema#\n");
+    fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
+    fprintf(out, "#end#metadata_schema\n");
     fprintf(out, "index\tmetadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
         fprintf(out, "%d\t%d\t", (int) j, self->metadata_offset[j]);
@@ -3716,16 +3746,21 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, metadata_offset, metadata_length, true);
-    if (ret != 0) {
+    if (metadata_offset[num_rows] != metadata_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_population_table_set_columns(self, num_rows, metadata, metadata_offset);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_population_table_set_metadata_schema(
-        self, metadata_schema, metadata_schema_length);
+    if (metadata_schema != NULL) {
+        ret = tsk_population_table_set_metadata_schema(
+            self, metadata_schema, metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -4185,16 +4220,19 @@ tsk_provenance_table_load(tsk_provenance_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = check_offsets(num_rows, timestamp_offset, timestamp_length, true);
-    if (ret != 0) {
+    if (timestamp_offset[num_rows] != timestamp_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    ret = check_offsets(num_rows, record_offset, record_length, true);
-    if (ret != 0) {
+    if (record_offset[num_rows] != record_length) {
+        ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
     ret = tsk_provenance_table_set_columns(
         self, num_rows, timestamp, timestamp_offset, record, record_offset);
+    if (ret != 0) {
+        goto out;
+    }
 out:
     return ret;
 }
@@ -6654,44 +6692,42 @@ tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
+tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     memset(self, 0, sizeof(*self));
-    if (!(options & TSK_NO_INIT_TABLES)) {
-        /* Allocate all the tables with their default increments */
-        ret = tsk_node_table_init(&self->nodes, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_edge_table_init(&self->edges, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_migration_table_init(&self->migrations, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_site_table_init(&self->sites, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_mutation_table_init(&self->mutations, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_individual_table_init(&self->individuals, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_population_table_init(&self->populations, 0);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_provenance_table_init(&self->provenances, 0);
-        if (ret != 0) {
-            goto out;
-        }
+    /* Allocate all the tables with their default increments */
+    ret = tsk_node_table_init(&self->nodes, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_edge_table_init(&self->edges, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_migration_table_init(&self->migrations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_site_table_init(&self->sites, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_mutation_table_init(&self->mutations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_individual_table_init(&self->individuals, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_population_table_init(&self->populations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_provenance_table_init(&self->provenances, 0);
+    if (ret != 0) {
+        goto out;
     }
 out:
     return ret;
@@ -6965,6 +7001,9 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
     memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
     self->file_uuid[TSK_UUID_SIZE] = '\0';
 out:
+    if ((ret ^ (1 << TSK_KAS_ERR_BIT)) == KAS_ERR_KEY_NOT_FOUND) {
+        ret = TSK_ERR_REQUIRED_COL_NOT_FOUND;
+    }
     return ret;
 }
 
@@ -7006,7 +7045,7 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self, kastore_t *store
         goto out;
     }
     if ((edge_insertion_order == NULL) != (edge_removal_order == NULL)) {
-        ret = TSK_ERR_FILE_FORMAT;
+        ret = TSK_ERR_BOTH_COLUMNS_REQUIRED;
         goto out;
     }
     if (edge_insertion_order != NULL) {
@@ -7082,8 +7121,14 @@ tsk_table_collection_load(
     if (ret != 0) {
         goto out;
     }
+    ret = kastore_close(&store);
+    if (ret != 0) {
+        goto out;
+    }
 out:
-    /* Any read errors will have already happened so we ignore any errors here. */
+    /* If we're exiting on an error, we ignore any further errors that might come
+     * from kastore. In the nominal case, closing an already-closed store is a
+     * safe noop */
     kastore_close(&store);
     return ret;
 }

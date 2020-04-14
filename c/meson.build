@@ -15,89 +15,94 @@ extra_c_args = [
     '-fshort-enums', '-fno-common']
 
 lib_sources = [
-    'tskit/core.c', 'tskit/tables.c', 'tskit/trees.c', 
+    'tskit/core.c', 'tskit/tables.c', 'tskit/trees.c',
     'tskit/genotypes.c', 'tskit/stats.c', 'tskit/convert.c', 'tskit/haplotype_matching.c']
 lib_headers = [
-    'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h', 
+    'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h',
     'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h', 'tskit/haplotype_matching.h']
 
 # Subprojects use the static library for simplicity.
 inc = include_directories(['.', 'tskit'])
-tskit_lib = static_library('tskit', 
+tskit_lib = static_library('tskit',
     sources: lib_sources, dependencies: lib_deps)
 tskit_dep = declare_dependency(include_directories:inc, link_with: tskit_lib)
 
 if not meson.is_subproject()
 
     # Shared library install target.
-    shared_library('tskit', 
+    shared_library('tskit',
         sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true)
     install_headers('tskit.h')
-    install_headers(lib_headers, subdir: 'tskit') 
+    install_headers(lib_headers, subdir: 'tskit')
 
     cunit_dep = dependency('cunit')
     # We don't specify extra C args here as CUnit won't pass the checks.
-    test_lib = static_library('testlib', 
+    test_lib = static_library('testlib',
         sources: ['tests/testlib.c'], dependencies: [cunit_dep, kastore_dep, tskit_dep])
 
-    test_core = executable('test_core', 
-        sources: ['tests/test_core.c'], 
+    test_core = executable('test_core',
+        sources: ['tests/test_core.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('core', test_core)
 
-    test_tables = executable('test_tables', 
-        sources: ['tests/test_tables.c'], 
+    test_tables = executable('test_tables',
+        sources: ['tests/test_tables.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('tables', test_tables)
 
-    test_trees = executable('test_trees', 
-        sources: ['tests/test_trees.c'], 
+    test_trees = executable('test_trees',
+        sources: ['tests/test_trees.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('trees', test_trees)
 
-    test_genotypes = executable('test_genotypes', 
-        sources: ['tests/test_genotypes.c'], 
+    test_genotypes = executable('test_genotypes',
+        sources: ['tests/test_genotypes.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('genotypes', test_genotypes)
 
-    test_convert = executable('test_convert', 
-        sources: ['tests/test_convert.c'], 
+    test_convert = executable('test_convert',
+        sources: ['tests/test_convert.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('convert', test_convert)
-         
-    test_stats = executable('test_stats', 
-        sources: ['tests/test_stats.c'], 
+
+    test_stats = executable('test_stats',
+        sources: ['tests/test_stats.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('stats', test_stats)
 
-    test_haplotype_matching = executable('test_haplotype_matching', 
-        sources: ['tests/test_haplotype_matching.c'], 
+    test_haplotype_matching = executable('test_haplotype_matching',
+        sources: ['tests/test_haplotype_matching.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('haplotype_matching', test_haplotype_matching)
 
-    test_minimal_cpp = executable('test_minimal_cpp', 
+    test_file_format = executable('test_file_format',
+        sources: ['tests/test_file_format.c'],
+        link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
+    test('file_format', test_file_format)
+
+    test_minimal_cpp = executable('test_minimal_cpp',
         sources: ['tests/test_minimal_cpp.cpp'], link_with: [tskit_lib],
         dependencies: kastore_dep)
     test('minimal_cpp', test_minimal_cpp)
 
     # The development CLI. Don't use extra C args because argtable code won't pass
-    executable('dev-cli', 
-        sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'], 
+    executable('dev-cli',
+        sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'],
         link_with: [tskit_lib], c_args:['-Dlint'], dependencies: kastore_dep)
 
-    # Example programs. 
-    executable('api_structure', 
+    # Example programs.
+    executable('api_structure',
         sources: ['examples/api_structure.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('error_handling', 
+    executable('error_handling',
         sources: ['examples/error_handling.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('tree_iteration', 
+    executable('tree_iteration',
         sources: ['examples/tree_iteration.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('tree_traversal', 
+    executable('tree_traversal',
         sources: ['examples/tree_traversal.c'], link_with: [tskit_lib], dependencies: lib_deps)
 
     gsl_dep = dependency('gsl', required: false)
     if gsl_dep.found()
-        executable('haploid_wright_fisher', 
+        executable('haploid_wright_fisher',
             sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib],
             dependencies: [gsl_dep, lib_deps])
     endif
@@ -105,5 +110,4 @@ endif
 
 # TMP: until we've ported all the tests, keep this compilable.
 # gsl_dep = dependency('gsl')
-# executable('old_tests', sources: ['tests/old_tests.c'], link_with: tskit_lib, 
-#     dependencies: [cunit_dep, gsl_dep])
+# executable('old_tests', sources: ['tests/old_tests.c'], link_with: tskit_lib, #     dependencies: [cunit_dep, gsl_dep])
