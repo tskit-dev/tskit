@@ -1334,13 +1334,29 @@ class TestTreeSequence(HighLevelTestCase):
     def test_metadata_schemas(self):
         ts = msprime.simulate(5)
         tables = ts.dump_tables()
-        schema = tskit.metadata.MetadataSchema(
-            encoding="json", schema={"TEST": "SCHEMA"}
-        )
-        tables.nodes.metadata_schema = schema
+        metadata_tables = [
+            "node",
+            "edge",
+            "site",
+            "mutation",
+            "migration",
+            "individual",
+            "population",
+        ]
+        schemas = {
+            table: tskit.metadata.MetadataSchema(
+                encoding="json", schema={"TEST": f"{table}-SCHEMA"}
+            )
+            for table in metadata_tables
+        }
+        for table in metadata_tables:
+            getattr(tables, f"{table}s").metadata_schema = schemas[table]
         ts = tskit.TreeSequence.load_tables(tables)
-        # TODO - SHOULD RETURN SCHEMA CLASS FOR ALL TABLES
-        self.assertEqual(ts.metadata_schemas.node, schema.to_bytes())
+        for table in metadata_tables:
+            self.assertEqual(
+                getattr(ts.metadata_schemas, table).to_bytes(),
+                schemas[table].to_bytes(),
+            )
 
 
 class TestPickle(HighLevelTestCase):

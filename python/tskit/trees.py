@@ -39,6 +39,7 @@ import _tskit
 import tskit.drawing as drawing
 import tskit.exceptions as exceptions
 import tskit.formats as formats
+import tskit.metadata as metadata
 import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.util as util
@@ -49,6 +50,11 @@ from tskit import NULL
 
 CoalescenceRecord = collections.namedtuple(
     "CoalescenceRecord", ["left", "right", "node", "children", "time", "population"]
+)
+
+MetadataSchemas = collections.namedtuple(
+    "MetadataSchemas",
+    ["node", "edge", "site", "mutation", "migration", "individual", "population"],
 )
 
 
@@ -2350,6 +2356,15 @@ class TreeSequence:
 
     def __init__(self, ll_tree_sequence):
         self._ll_tree_sequence = ll_tree_sequence
+        ll_metadata_schemas = self._ll_tree_sequence.get_metadata_schemas()
+        self._metadata_schemas = MetadataSchemas(
+            **{
+                name: metadata.MetadataSchema.from_bytes(
+                    getattr(ll_metadata_schemas, name)
+                )
+                for name in MetadataSchemas._fields
+            }
+        )
 
     # Implement the pickle protocol for TreeSequence
     def __getstate__(self):
@@ -2621,7 +2636,7 @@ class TreeSequence:
 
     @property
     def metadata_schemas(self):
-        return self._ll_tree_sequence.get_metadata_schemas()
+        return self._metadata_schemas
 
     @property
     def sample_size(self):

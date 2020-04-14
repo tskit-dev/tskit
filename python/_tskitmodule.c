@@ -6588,17 +6588,25 @@ out:
 static PyObject *
 TreeSequence_get_metadata_schemas(TreeSequence *self) {
     PyObject *ret = NULL;
-
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
     ret = PyStructSequence_New(&MetadataSchemas);
     if (ret == NULL) {
         goto out;
     }
-    PyStructSequence_SetItem(
-        ret, 
-        0, 
-        PyBytes_FromStringAndSize(
-            self->tree_sequence->tables->nodes.metadata_schema, 
-            self->tree_sequence->tables->nodes.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 0, PyBytes_FromStringAndSize(
+            tables->nodes.metadata_schema, tables->nodes.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 1, PyBytes_FromStringAndSize(
+            tables->edges.metadata_schema, tables->edges.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 2, PyBytes_FromStringAndSize(
+            tables->sites.metadata_schema, tables->sites.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 3, PyBytes_FromStringAndSize(
+            tables->mutations.metadata_schema, tables->mutations.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 4, PyBytes_FromStringAndSize(
+            tables->migrations.metadata_schema, tables->migrations.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 5, PyBytes_FromStringAndSize(
+            tables->individuals.metadata_schema, tables->individuals.metadata_schema_length));
+    PyStructSequence_SetItem(ret, 6, PyBytes_FromStringAndSize(
+            tables->populations.metadata_schema, tables->populations.metadata_schema_length));
 out:
     return ret;
 }
@@ -10564,6 +10572,12 @@ PyInit__tskit(void)
     /* Metadata schemas namedtuple type*/
     PyStructSequence_Field metadata_schemas_fields[] = {
         {"node", "The node metadata schema"},
+        {"edge", "The edge metadata schema"},
+        {"site", "The site metadata schema"},
+        {"mutation", "The mutation metadata schema"},
+        {"migration", "The migration metadata schema"},
+        {"individual", "The individual metadata schema"},
+        {"population", "The node metadata schema"},
         {NULL}
     };
     PyStructSequence_Desc metadata_schemas_desc = {
