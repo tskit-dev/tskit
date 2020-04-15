@@ -702,12 +702,14 @@ class MetadataTestsMixin:
 
     def test_default_metadata_schema(self):
         table = self.table_class()
+        # Default is no-op metadata codec
         self.assertEqual(
             table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
         )
         table.add_row(
             **{**self.input_data_for_add_row(), "metadata": b"acceptable bytes"}
         )
+        # Adding non-bytes metadata should error
         with self.assertRaises(TypeError):
             table.add_row(
                 **{
@@ -721,6 +723,8 @@ class MetadataTestsMixin:
         table.ll_table.metadata_schema = b"I'm not JSON"
         with self.assertRaises(ValueError):
             table._update_metadata_schema_cache_from_ll()
+        with self.assertRaises(AttributeError):
+            table.metadata_schema = b"I'm not JSON"
         with self.assertRaises(TypeError):
             table.ll_table.metadata_schema = "Normal string"
 

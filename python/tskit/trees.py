@@ -71,7 +71,46 @@ class SimpleContainer:
         return repr(self.__dict__)
 
 
-class Individual(SimpleContainer):
+class SimpleContainerWithMetadata(SimpleContainer):
+    """
+    This class allows metadata to be lazily decoded and cached
+    """
+
+    class CachedMetadata:
+        def __get__(self, container, owner):
+            decoded = container._metadata_decoder(container._encoded_metadata)
+            container.__dict__["metadata"] = decoded
+            return decoded
+
+    metadata = CachedMetadata()
+
+    def __eq__(self, other):
+        # We need to remove metadata and the decoder so we are just comparing
+        # the encoded metadata, along with the other attributes
+        other = {**other.__dict__}
+        try:
+            del other["metadata"]
+        except KeyError:
+            pass
+        del other["_metadata_decoder"]
+        self_ = {**self.__dict__}
+        try:
+            del self_["metadata"]
+        except KeyError:
+            pass
+        del self_["_metadata_decoder"]
+        return self_ == other
+
+    def __repr__(self):
+        # Make sure we have a decoded metadata
+        _ = self.metadata
+        out = {**self.__dict__}
+        del out["_encoded_metadata"]
+        del out["_metadata_decoder"]
+        return repr(out)
+
+
+class Individual(SimpleContainerWithMetadata):
     """
     An :ref:`individual <sec_individual_table_definition>` in a tree sequence.
     Since nodes correspond to genomes, individuals are associated with a collection
@@ -97,11 +136,20 @@ class Individual(SimpleContainer):
     :vartype metadata: bytes
     """
 
-    def __init__(self, id_=None, flags=0, location=None, nodes=None, metadata=""):
+    def __init__(
+        self,
+        id_=None,
+        flags=0,
+        location=None,
+        nodes=None,
+        encoded_metadata=b"",
+        metadata_decoder=lambda metadata: metadata,
+    ):
         self.id = id_
         self.flags = flags
         self.location = location
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
         self.nodes = nodes
 
     def __eq__(self, other):
@@ -114,7 +162,7 @@ class Individual(SimpleContainer):
         )
 
 
-class Node(SimpleContainer):
+class Node(SimpleContainerWithMetadata):
     """
     A :ref:`node <sec_node_table_definition>` in a tree sequence, corresponding
     to a single genome. The ``time`` and ``population`` are attributes of the
@@ -140,13 +188,21 @@ class Node(SimpleContainer):
     """
 
     def __init__(
-        self, id_=None, flags=0, time=0, population=NULL, individual=NULL, metadata=""
+        self,
+        id_=None,
+        flags=0,
+        time=0,
+        population=NULL,
+        individual=NULL,
+        encoded_metadata=b"",
+        metadata_decoder=lambda metadata: metadata,
     ):
         self.id = id_
         self.time = time
         self.population = population
         self.individual = individual
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
         self.flags = flags
 
     def is_sample(self):
@@ -159,7 +215,7 @@ class Node(SimpleContainer):
         return self.flags & NODE_IS_SAMPLE
 
 
-class Edge(SimpleContainer):
+class Edge(SimpleContainerWithMetadata):
     """
     An :ref:`edge <sec_edge_table_definition>` in a tree sequence.
 
@@ -185,13 +241,23 @@ class Edge(SimpleContainer):
     :vartype metadata: bytes
     """
 
-    def __init__(self, left, right, parent, child, metadata=b"", id_=None):
+    def __init__(
+        self,
+        left,
+        right,
+        parent,
+        child,
+        encoded_metadata=b"",
+        id_=None,
+        metadata_decoder=lambda metadata: metadata,
+    ):
         self.id = id_
         self.left = left
         self.right = right
         self.parent = parent
         self.child = child
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
 
     def __repr__(self):
         return (
@@ -212,7 +278,7 @@ class Edge(SimpleContainer):
         return self.right - self.left
 
 
-class Site(SimpleContainer):
+class Site(SimpleContainerWithMetadata):
     """
     A :ref:`site <sec_site_table_definition>` in a tree sequence.
 
@@ -237,15 +303,24 @@ class Site(SimpleContainer):
     :vartype mutations: list[:class:`Mutation`]
     """
 
-    def __init__(self, id_, position, ancestral_state, mutations, metadata):
+    def __init__(
+        self,
+        id_,
+        position,
+        ancestral_state,
+        mutations,
+        encoded_metadata=b"",
+        metadata_decoder=lambda metadata: metadata,
+    ):
         self.id = id_
         self.position = position
         self.ancestral_state = ancestral_state
         self.mutations = mutations
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
 
 
-class Mutation(SimpleContainer):
+class Mutation(SimpleContainerWithMetadata):
     """
     A :ref:`mutation <sec_mutation_table_definition>` in a tree sequence.
 
@@ -285,17 +360,19 @@ class Mutation(SimpleContainer):
         node=NULL,
         derived_state=None,
         parent=NULL,
-        metadata=None,
+        encoded_metadata=b"",
+        metadata_decoder=lambda metadata: metadata,
     ):
         self.id = id_
         self.site = site
         self.node = node
         self.derived_state = derived_state
         self.parent = parent
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
 
 
-class Migration(SimpleContainer):
+class Migration(SimpleContainerWithMetadata):
     """
     A :ref:`migration <sec_migration_table_definition>` in a tree sequence.
 
@@ -320,7 +397,18 @@ class Migration(SimpleContainer):
     :vartype time: float
     """
 
-    def __init__(self, left, right, node, source, dest, time, metadata=b"", id_=None):
+    def __init__(
+        self,
+        left,
+        right,
+        node,
+        source,
+        dest,
+        time,
+        encoded_metadata=b"",
+        metadata_decoder=lambda metadata: metadata,
+        id_=None,
+    ):
         self.id = id_
         self.left = left
         self.right = right
@@ -328,7 +416,8 @@ class Migration(SimpleContainer):
         self.source = source
         self.dest = dest
         self.time = time
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
 
     def __repr__(self):
         return (
@@ -346,7 +435,7 @@ class Migration(SimpleContainer):
         )
 
 
-class Population(SimpleContainer):
+class Population(SimpleContainerWithMetadata):
     """
     A :ref:`population <sec_population_table_definition>` in a tree sequence.
 
@@ -360,9 +449,12 @@ class Population(SimpleContainer):
     :vartype metadata: bytes
     """
 
-    def __init__(self, id_, metadata=""):
+    def __init__(
+        self, id_, encoded_metadata=b"", metadata_decoder=lambda metadata: metadata,
+    ):
         self.id = id_
-        self.metadata = metadata
+        self._encoded_metadata = encoded_metadata
+        self._metadata_decoder = metadata_decoder
 
 
 class Variant(SimpleContainer):
@@ -2358,12 +2450,10 @@ class TreeSequence:
         self._ll_tree_sequence = ll_tree_sequence
         ll_metadata_schemas = self._ll_tree_sequence.get_metadata_schemas()
         self._metadata_schemas = MetadataSchemas(
-            **{
-                name: metadata.MetadataSchema.from_bytes(
-                    getattr(ll_metadata_schemas, name)
-                )
+            *[
+                metadata.MetadataSchema.from_bytes(getattr(ll_metadata_schemas, name))
                 for name in MetadataSchemas._fields
-            }
+            ]
         )
 
     # Implement the pickle protocol for TreeSequence
@@ -2908,9 +2998,10 @@ class TreeSequence:
         :rtype: :class:`collections.abc.Iterable`
         """
         iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence)
+        metadata_decoder = self.metadata_schemas.edge.decode_row
         for interval, edge_tuples_out, edge_tuples_in in iterator:
-            edges_out = [Edge(*e) for e in edge_tuples_out]
-            edges_in = [Edge(*e) for e in edge_tuples_in]
+            edges_out = [Edge(*(e + (metadata_decoder,))) for e in edge_tuples_out]
+            edges_in = [Edge(*(e + (metadata_decoder,))) for e in edge_tuples_in]
             yield interval, edges_out, edges_in
 
     def sites(self):
@@ -3310,7 +3401,12 @@ class TreeSequence:
         """
         flags, location, metadata, nodes = self._ll_tree_sequence.get_individual(id_)
         return Individual(
-            id_=id_, flags=flags, location=location, metadata=metadata, nodes=nodes
+            id_=id_,
+            flags=flags,
+            location=location,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.node.decode_row,
+            nodes=nodes,
         )
 
     def node(self, id_):
@@ -3333,7 +3429,8 @@ class TreeSequence:
             time=time,
             population=population,
             individual=individual,
-            metadata=metadata,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.node.decode_row,
         )
 
     def edge(self, id_):
@@ -3350,7 +3447,8 @@ class TreeSequence:
             right=right,
             parent=parent,
             child=child,
-            metadata=metadata,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.edge.decode_row,
         )
 
     def migration(self, id_):
@@ -3377,7 +3475,8 @@ class TreeSequence:
             source=source,
             dest=dest,
             time=time,
-            metadata=metadata,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.migration.decode_row,
         )
 
     def mutation(self, id_):
@@ -3400,7 +3499,8 @@ class TreeSequence:
             node=node,
             derived_state=derived_state,
             parent=parent,
-            metadata=metadata,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.mutation.decode_row,
         )
 
     def site(self, id_):
@@ -3418,7 +3518,8 @@ class TreeSequence:
             position=pos,
             ancestral_state=ancestral_state,
             mutations=mutations,
-            metadata=metadata,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.site.decode_row,
         )
 
     def population(self, id_):
@@ -3429,7 +3530,11 @@ class TreeSequence:
         :rtype: :class:`Population`
         """
         (metadata,) = self._ll_tree_sequence.get_population(id_)
-        return Population(id_=id_, metadata=metadata)
+        return Population(
+            id_=id_,
+            encoded_metadata=metadata,
+            metadata_decoder=self.metadata_schemas.population.decode_row,
+        )
 
     def provenance(self, id_):
         timestamp, record = self._ll_tree_sequence.get_provenance(id_)

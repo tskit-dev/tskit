@@ -33,26 +33,22 @@ import tskit.exceptions as exceptions
 
 
 class MetadataCodec(abc.ABC):
-    @classmethod
     @abc.abstractmethod
-    def decode(cls, encoded_bytes: bytes) -> Any:
+    def decode(self, encoded_bytes: bytes) -> Any:
         pass
 
-    @classmethod
     @abc.abstractmethod
-    def encode(cls, obj: Any) -> bytes:
+    def encode(self, obj: Any) -> bytes:
         pass
 
 
 class JSONCodec(MetadataCodec):
     name = "json"
 
-    @classmethod
-    def decode(cls, encoded_bytes: bytes) -> Any:
+    def decode(self, encoded_bytes: bytes) -> Any:
         return json.loads(encoded_bytes.decode())
 
-    @classmethod
-    def encode(cls, obj: Any) -> bytes:
+    def encode(self, obj: Any) -> bytes:
         return json.dumps(obj).encode()
 
 

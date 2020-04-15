@@ -213,7 +213,10 @@ class PythonTreeSequence:
                 node=node,
                 derived_state=derived_state,
                 parent=parent,
-                metadata=metadata,
+                encoded_metadata=metadata,
+                metadata_decoder=tskit.metadata.MetadataSchema.from_bytes(
+                    ll_ts.get_metadata_schemas().mutation
+                ).decode_row,
             )
 
         for j in range(tree_sequence.num_sites):
@@ -224,7 +227,10 @@ class PythonTreeSequence:
                     position=pos,
                     ancestral_state=ancestral_state,
                     mutations=[make_mutation(ll_mut) for ll_mut in ll_mutations],
-                    metadata=metadata,
+                    encoded_metadata=metadata,
+                    metadata_decoder=tskit.metadata.MetadataSchema.from_bytes(
+                        ll_ts.get_metadata_schemas().site
+                    ).decode_row,
                 )
             )
 

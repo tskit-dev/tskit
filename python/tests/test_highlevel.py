@@ -1331,32 +1331,84 @@ class TestTreeSequence(HighLevelTestCase):
                         self.assertEqual(i, length - 1 - n.id)
                     self.assertEqual(n.id, 0)
 
+
+class TestTreeSequenceMetadata(unittest.TestCase):
+    metadata_tables = [
+        "node",
+        "edge",
+        "site",
+        "mutation",
+        "migration",
+        "individual",
+        "population",
+    ]
+    metadata_schema = tskit.metadata.MetadataSchema(
+        encoding="json",
+        schema={
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {
+                "table": {"type": "string"},
+                "string_prop": {"type": "string"},
+                "num_prop": {"type": "number"},
+            },
+            "required": ["table", "string_prop", "num_prop"],
+            "additionalProperties": False,
+        },
+    )
+
     def test_metadata_schemas(self):
         ts = msprime.simulate(5)
         tables = ts.dump_tables()
-        metadata_tables = [
-            "node",
-            "edge",
-            "site",
-            "mutation",
-            "migration",
-            "individual",
-            "population",
-        ]
         schemas = {
             table: tskit.metadata.MetadataSchema(
                 encoding="json", schema={"TEST": f"{table}-SCHEMA"}
             )
-            for table in metadata_tables
+            for table in self.metadata_tables
         }
-        for table in metadata_tables:
+        for table in self.metadata_tables:
             getattr(tables, f"{table}s").metadata_schema = schemas[table]
         ts = tskit.TreeSequence.load_tables(tables)
-        for table in metadata_tables:
+        # Each table should get its own schema back
+        for table in self.metadata_tables:
             self.assertEqual(
                 getattr(ts.metadata_schemas, table).to_bytes(),
                 schemas[table].to_bytes(),
             )
+
+    def test_metadata_round_trip_via_row_getters(self):
+        ts = msprime.simulate(8, random_seed=3, mutation_rate=1)
+        self.assertGreater(ts.num_sites, 2)
+        new_tables = ts.dump_tables()
+        tables_copy = ts.dump_tables()
+        for table in self.metadata_tables:
+            table_obj = getattr(new_tables, f"{table}s")
+            table_obj.metadata_schema = self.metadata_schema
+            table_obj.clear()
+            # Write back the rows, but adding unique metadata
+            for j, row in enumerate(getattr(tables_copy, f"{table}s")):
+                row_data = {k: v for k, v in zip(row._fields, row)}
+                row_data["metadata"] = {
+                    "table": table,
+                    "string_prop": f"Row number{j}",
+                    "num_prop": j,
+                }
+                table_obj.add_row(**row_data)
+        new_ts = new_tables.tree_sequence()
+        for table in self.metadata_tables:
+            self.assertEqual(
+                getattr(new_ts, f"num_{table}s"), getattr(ts, f"num_{table}s")
+            )
+        for table in self.metadata_tables:
+            for row in getattr(new_ts, f"{table}s")():
+                self.assertDictEqual(
+                    row.metadata,
+                    {
+                        "table": table,
+                        "string_prop": f"Row number{row.id}",
+                        "num_prop": row.id,
+                    },
+                )
 
 
 class TestPickle(HighLevelTestCase):
@@ -2464,30 +2516,98 @@ class SimpleContainersMixin:
         self.assertGreater(len(repr(c)), 0)
 
 
-class TestIndividualContainer(unittest.TestCase, SimpleContainersMixin):
-    def get_instances(self, n):
-        return [
-            tskit.Individual(id_=j, flags=j, location=[j], nodes=[j], metadata=b"x" * j)
-            for j in range(n)
-        ]
+class SimpleContainersWithMetadataMixin:
+    """
+    Tests for the SimpleContainerWithMetadata classes.
+    """
+
+    def test_metadata(self):
+        # Test decoding
+        instances = self.get_instances(5)
+        for j, inst in enumerate(instances):
+            self.assertEqual(inst.metadata, ("x" * j) + "decoded")
+
+        # Decoder doesn't effect equality
+        (inst,) = self.get_instances(1)
+        (inst2,) = self.get_instances(1)
+        self.assertTrue(inst == inst2)
+        inst._metadata_decoder = lambda m: "different decoder"
+        self.assertTrue(inst == inst2)
+
+    def test_decoder_run_once(self):
+        # For a given instance, the decoded metadata should be cached
+        (inst,) = self.get_instances(1)
+        times_run = 0
+
+        def decoder(m):
+            nonlocal times_run
+            times_run += 1
+            return m.decode() + "decoded"
+
+        inst._metadata_decoder = decoder
+        self.assertEqual(times_run, 0)
+        _ = inst.metadata
+        self.assertEqual(times_run, 1)
+        _ = inst.metadata
+        self.assertEqual(times_run, 1)
 
 
-class TestNodeContainer(unittest.TestCase, SimpleContainersMixin):
+class TestIndividualContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
     def get_instances(self, n):
         return [
-            tskit.Node(
-                id_=j, flags=j, time=j, population=j, individual=j, metadata=b"x" * j
+            tskit.Individual(
+                id_=j,
+                flags=j,
+                location=[j],
+                nodes=[j],
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
 
 
-class TestEdgeContainer(unittest.TestCase, SimpleContainersMixin):
+class TestNodeContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
     def get_instances(self, n):
-        return [tskit.Edge(left=j, right=j, parent=j, child=j, id_=j) for j in range(n)]
+        return [
+            tskit.Node(
+                id_=j,
+                flags=j,
+                time=j,
+                population=j,
+                individual=j,
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
+            )
+            for j in range(n)
+        ]
 
 
-class TestSiteContainer(unittest.TestCase, SimpleContainersMixin):
+class TestEdgeContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
+    def get_instances(self, n):
+        return [
+            tskit.Edge(
+                left=j,
+                right=j,
+                parent=j,
+                child=j,
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
+                id_=j,
+            )
+            for j in range(n)
+        ]
+
+
+class TestSiteContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
     def get_instances(self, n):
         return [
             tskit.Site(
@@ -2495,13 +2615,16 @@ class TestSiteContainer(unittest.TestCase, SimpleContainersMixin):
                 position=j,
                 ancestral_state="A" * j,
                 mutations=TestMutationContainer().get_instances(j),
-                metadata=b"x" * j,
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
 
 
-class TestMutationContainer(unittest.TestCase, SimpleContainersMixin):
+class TestMutationContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
     def get_instances(self, n):
         return [
             tskit.Mutation(
@@ -2510,23 +2633,44 @@ class TestMutationContainer(unittest.TestCase, SimpleContainersMixin):
                 node=j,
                 derived_state="A" * j,
                 parent=j,
-                metadata=b"x" * j,
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
 
 
-class TestMigrationContainer(unittest.TestCase, SimpleContainersMixin):
+class TestMigrationContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
     def get_instances(self, n):
         return [
-            tskit.Migration(left=j, right=j, node=j, source=j, dest=j, time=j)
+            tskit.Migration(
+                left=j,
+                right=j,
+                node=j,
+                source=j,
+                dest=j,
+                time=j,
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
+            )
             for j in range(n)
         ]
 
 
-class TestPopulationContainer(unittest.TestCase, SimpleContainersMixin):
+class TestPopulationContainer(
+    unittest.TestCase, SimpleContainersMixin, SimpleContainersWithMetadataMixin
+):
     def get_instances(self, n):
-        return [tskit.Population(id_=j, metadata="x" * j) for j in range(n)]
+        return [
+            tskit.Population(
+                id_=j,
+                encoded_metadata=b"x" * j,
+                metadata_decoder=lambda m: m.decode() + "decoded",
+            )
+            for j in range(n)
+        ]
 
 
 class TestProvenanceContainer(unittest.TestCase, SimpleContainersMixin):
