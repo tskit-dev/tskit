@@ -2480,7 +2480,7 @@ IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }
@@ -2948,7 +2948,7 @@ NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }
@@ -3433,7 +3433,7 @@ EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }
@@ -3927,7 +3927,7 @@ MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *cl
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }
@@ -4383,7 +4383,7 @@ SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }
@@ -4878,7 +4878,7 @@ MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *clos
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }
@@ -5289,7 +5289,7 @@ PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != Py_None) {
+    if (arg != NULL) {
         if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
             goto out;
         }

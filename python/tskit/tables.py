@@ -283,7 +283,7 @@ class MetadataMixin:
 
     @metadata_schema.deleter
     def metadata_schema(self) -> None:
-        self.ll_table.metadata_schema = b""
+        del self.ll_table.metadata_schema
         self._update_metadata_schema_cache_from_ll()
 
     def decode_row(self, row: Tuple[Any]) -> Tuple:
