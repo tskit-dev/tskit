@@ -164,6 +164,16 @@ pygments_style = None
 #
 html_theme = "sphinx_rtd_theme"
 
+# Options for sphinx_rtd_theme. See
+# https://docs.readthedocs.io/en/stable/guides/vcs.html#github
+html_context = {
+    "display_github": True,  # Integrate GitHub
+    "github_user": "tskit-dev",
+    "github_repo": "tskit",  # Repo name
+    "github_version": "master",  # Version
+    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
+}
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
