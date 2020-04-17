@@ -2500,7 +2500,7 @@ IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *
         }
     }
     ret = tsk_individual_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
@@ -2969,7 +2969,7 @@ NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
         }
     }
     ret = tsk_node_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
@@ -3455,7 +3455,7 @@ EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
         }
     }
     ret = tsk_edge_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
@@ -3950,7 +3950,7 @@ MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *cl
         }
     }
     ret = tsk_migration_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
@@ -4407,7 +4407,7 @@ SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
         }
     }
     ret = tsk_site_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
@@ -4903,7 +4903,7 @@ MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *clos
         }
     }
     ret = tsk_mutation_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
@@ -5315,7 +5315,7 @@ PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *
         }
     }
     ret = tsk_population_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret < 0) {
+    if (ret != 0) {
         handle_library_error(ret);
         goto out;
     }
