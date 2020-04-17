@@ -184,6 +184,25 @@ typedef struct {
     tsk_viterbi_matrix_t *viterbi_matrix;
 } ViterbiMatrix;
 
+/* A named tuple of metadata schemas for a tree sequence */
+static PyTypeObject MetadataSchemas;
+static PyStructSequence_Field metadata_schemas_fields[] = {
+    {"node", "The node metadata schema"},
+    {"edge", "The edge metadata schema"},
+    {"site", "The site metadata schema"},
+    {"mutation", "The mutation metadata schema"},
+    {"migration", "The migration metadata schema"},
+    {"individual", "The individual metadata schema"},
+    {"population", "The population metadata schema"},
+    {NULL}
+};
+static PyStructSequence_Desc metadata_schemas_desc = {
+    "MetadataSchemas",
+    "Namedtuple of metadata schemas for this tree sequence",
+    metadata_schemas_fields,
+    7
+};
+
 static void
 handle_library_error(int err)
 {
@@ -236,6 +255,20 @@ make_metadata(const char *metadata, Py_ssize_t length)
 {
     const char *m = metadata == NULL? "": metadata;
     return PyBytes_FromStringAndSize(m, length);
+}
+
+static PyObject *
+make_Py_Unicode_FromStringAndLength(const char *str, size_t length) {
+    PyObject *ret = NULL;
+
+    /* Py_BuildValue returns Py_None for zero length, we would rather
+       return a zero-length string */
+    if (length == 0) {
+        ret = PyUnicode_FromString("");
+    } else {
+        ret = Py_BuildValue("s#", str, length);
+    }
+    return ret;
 }
 
 static PyObject *
@@ -2454,6 +2487,52 @@ out:
     return ret;
 }
 
+static PyObject *
+IndividualTable_get_metadata_schema(IndividualTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_individual_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef IndividualTable_getsetters[] = {
     {"max_rows_increment",
         (getter) IndividualTable_get_max_rows_increment, NULL, "The size increment"},
@@ -2468,6 +2547,8 @@ static PyGetSetDef IndividualTable_getsetters[] = {
     {"metadata", (getter) IndividualTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) IndividualTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) IndividualTable_get_metadata_schema,
+        (setter) IndividualTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -2882,6 +2963,52 @@ out:
     return ret;
 }
 
+static PyObject *
+NodeTable_get_metadata_schema(NodeTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (NodeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (NodeTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_node_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef NodeTable_getsetters[] = {
     {"max_rows_increment",
         (getter) NodeTable_get_max_rows_increment, NULL, "The size increment"},
@@ -2896,6 +3023,8 @@ static PyGetSetDef NodeTable_getsetters[] = {
     {"metadata", (getter) NodeTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) NodeTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) NodeTable_get_metadata_schema,
+        (setter) NodeTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -3327,6 +3456,51 @@ out:
     return ret;
 }
 
+static PyObject *
+EdgeTable_get_metadata_schema(EdgeTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(PyExc_AttributeError,
+        "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_edge_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef EdgeTable_getsetters[] = {
     {"max_rows_increment",
         (getter) EdgeTable_get_max_rows_increment, NULL,
@@ -3342,7 +3516,8 @@ static PyGetSetDef EdgeTable_getsetters[] = {
     {"metadata", (getter) EdgeTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) EdgeTable_get_metadata_offset, NULL,
         "The metadata offset array"},
-
+    {"metadata_schema", (getter) EdgeTable_get_metadata_schema,
+        (setter) EdgeTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -3782,6 +3957,52 @@ out:
     return ret;
 }
 
+static PyObject *
+MigrationTable_get_metadata_schema(MigrationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_migration_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef MigrationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) MigrationTable_get_max_rows_increment, NULL, "The size increment"},
@@ -3798,6 +4019,8 @@ static PyGetSetDef MigrationTable_getsetters[] = {
     {"metadata", (getter) MigrationTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) MigrationTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) MigrationTable_get_metadata_schema,
+        (setter) MigrationTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -4198,6 +4421,52 @@ out:
     return ret;
 }
 
+static PyObject *
+SiteTable_get_metadata_schema(SiteTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (SiteTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (SiteTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_site_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef SiteTable_getsetters[] = {
     {"max_rows_increment",
         (getter) SiteTable_get_max_rows_increment, NULL,
@@ -4218,6 +4487,8 @@ static PyGetSetDef SiteTable_getsetters[] = {
         "The metadata array."},
     {"metadata_offset", (getter) SiteTable_get_metadata_offset, NULL,
         "The metadata offset array."},
+    {"metadata_schema", (getter) SiteTable_get_metadata_schema,
+        (setter) SiteTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -4653,6 +4924,52 @@ out:
     return ret;
 }
 
+static PyObject *
+MutationTable_get_metadata_schema(MutationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_mutation_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef MutationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) MutationTable_get_max_rows_increment, NULL,
@@ -4674,6 +4991,8 @@ static PyGetSetDef MutationTable_getsetters[] = {
         "The metadata array"},
     {"metadata_offset", (getter) MutationTable_get_metadata_offset, NULL,
         "The metadata_offset array"},
+    {"metadata_schema", (getter) MutationTable_get_metadata_schema,
+        (setter) MutationTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -5024,6 +5343,52 @@ out:
     return ret;
 }
 
+static PyObject *
+PopulationTable_get_metadata_schema(PopulationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (PopulationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->table->metadata_schema, self->table->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    if (PopulationTable_check_state(self) != 0) {
+        goto out;
+    }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_population_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static PyGetSetDef PopulationTable_getsetters[] = {
     {"max_rows_increment",
         (getter) PopulationTable_get_max_rows_increment, NULL, "The size increment"},
@@ -5034,6 +5399,8 @@ static PyGetSetDef PopulationTable_getsetters[] = {
     {"metadata", (getter) PopulationTable_get_metadata, NULL, "The metadata array"},
     {"metadata_offset", (getter) PopulationTable_get_metadata_offset, NULL,
         "The metadata offset array"},
+    {"metadata_schema", (getter) PopulationTable_get_metadata_schema,
+        (setter) PopulationTable_set_metadata_schema, "The metadata schema"},
     {NULL}  /* Sentinel */
 };
 
@@ -6300,6 +6667,46 @@ TreeSequence_get_site(TreeSequence *self, PyObject *args)
     }
     ret = make_site_object(&record);
 out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_table_metadata_schemas(TreeSequence *self) {
+    PyObject *ret = NULL;
+    PyObject *value = NULL;
+    PyObject *schema = NULL;
+    size_t j;
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
+    struct schema_pair {
+        const char * schema;
+        tsk_size_t length;
+    };
+    struct schema_pair schema_pairs[] = {
+        {tables->nodes.metadata_schema, tables->nodes.metadata_schema_length},
+        {tables->edges.metadata_schema, tables->edges.metadata_schema_length},
+        {tables->sites.metadata_schema, tables->sites.metadata_schema_length},
+        {tables->mutations.metadata_schema, tables->mutations.metadata_schema_length},
+        {tables->migrations.metadata_schema, tables->migrations.metadata_schema_length},
+        {tables->individuals.metadata_schema, tables->individuals.metadata_schema_length},
+        {tables->populations.metadata_schema, tables->populations.metadata_schema_length},
+    };
+
+    value = PyStructSequence_New(&MetadataSchemas);
+    if (value == NULL) {
+        goto out;
+    }
+    for (j = 0; j < sizeof(schema_pairs) / sizeof(*schema_pairs); j++) {
+        schema = make_Py_Unicode_FromStringAndLength(
+            schema_pairs[j].schema, schema_pairs[j].length);
+        if (schema == NULL) {
+            goto out;
+        }
+        PyStructSequence_SetItem(value, j, schema);
+    }
+    ret = value;
+    value = NULL;
+out:
+    Py_XDECREF(value);
     return ret;
 }
 
@@ -7736,6 +8143,8 @@ static PyMethodDef TreeSequence_methods[] = {
         "Returns the number of unique nodes in the tree sequence." },
     {"get_num_samples", (PyCFunction) TreeSequence_get_num_samples, METH_NOARGS,
         "Returns the sample size" },
+    {"get_table_metadata_schemas", (PyCFunction) TreeSequence_get_table_metadata_schemas, METH_NOARGS,
+        "Returns the metadata schemas for the tree sequence tables"},
     {"get_samples", (PyCFunction) TreeSequence_get_samples, METH_NOARGS,
         "Returns the samples." },
     {"genealogical_nearest_neighbours",
@@ -10258,6 +10667,13 @@ PyInit__tskit(void)
     }
     Py_INCREF(&LsHmmType);
     PyModule_AddObject(module, "LsHmm", (PyObject *) &LsHmmType);
+
+    /* Metadata schemas namedtuple type*/
+    if (PyStructSequence_InitType2(&MetadataSchemas, &metadata_schemas_desc) < 0) {
+        return NULL;
+    };
+    Py_INCREF(&MetadataSchemas);
+    PyModule_AddObject(module, "MetadataSchemas", (PyObject*)&MetadataSchemas);
 
     /* Errors and constants */
     TskitException = PyErr_NewException("_tskit.TskitException", NULL, NULL);
