@@ -185,7 +185,7 @@ typedef struct {
 } ViterbiMatrix;
 
 /* A named tuple of metadata schemas for a tree sequence */
-PyTypeObject MetadataSchemas={};
+PyTypeObject MetadataSchemas;
 
 static void
 handle_library_error(int err)
