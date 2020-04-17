@@ -3544,6 +3544,31 @@ class TreeSequence:
         for duplicates in this array, or perform any checks to ensure that
         the output VCF is well-formed.
 
+        .. note::
+
+            Warning to ``plink`` users:
+
+            As the default first individual name is ``tsk_0``, ``plink`` will
+            throw this error when loading the VCF:
+
+            ``Error: Sample ID ends with "_0", which induces an invalid IID of '0'.``
+
+            This can be fixed by using the ``individual_names`` argument
+            to set the names to anything where the first name doesn't end with ``_0``.
+            An example implementation for diploid individuals is:
+
+            .. code-block:: python
+
+                n_dip_indv = int(ts.num_samples / 2)
+                indv_names = [f"tsk_{str(i)}indv" for i in range(n_dip_indv)]
+                with open("output.vcf", "w") as vcf_file:
+                    ts.write_vcf(vcf_file, ploidy=2, individual_names=indv_names)
+
+            Adding a second ``_`` (eg: ``tsk_0_indv``) is not recommended as
+            ``plink`` uses ``_`` as the default separator for separating family
+            id and individual id, and two ``_`` will throw an error.
+
+
         The REF value in the output VCF is the ancestral allele for a site
         and ALT values are the remaining alleles. It is important to note,
         therefore, that for real data this means that the REF value for a given
