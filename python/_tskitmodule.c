@@ -185,7 +185,23 @@ typedef struct {
 } ViterbiMatrix;
 
 /* A named tuple of metadata schemas for a tree sequence */
-PyTypeObject MetadataSchemas;
+static PyTypeObject MetadataSchemas;
+static PyStructSequence_Field metadata_schemas_fields[] = {
+    {"node", "The node metadata schema"},
+    {"edge", "The edge metadata schema"},
+    {"site", "The site metadata schema"},
+    {"mutation", "The mutation metadata schema"},
+    {"migration", "The migration metadata schema"},
+    {"individual", "The individual metadata schema"},
+    {"population", "The node metadata schema"},
+    {NULL}
+};
+static PyStructSequence_Desc metadata_schemas_desc = {
+    "MetadataSchemas",
+    "Namedtuple of metadata schemas for this tree sequence",
+    metadata_schemas_fields,
+    7
+};
 
 static void
 handle_library_error(int err)
@@ -2487,21 +2503,25 @@ static int
 IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_individual_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_individual_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -2956,21 +2976,25 @@ static int
 NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_node_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_node_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -3442,21 +3466,25 @@ static int
 EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_edge_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_edge_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -3937,21 +3965,25 @@ static int
 MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_migration_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_migration_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -4394,21 +4426,25 @@ static int
 SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_site_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_site_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -4890,21 +4926,25 @@ static int
 MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_mutation_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_mutation_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -5302,21 +5342,25 @@ static int
 PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    const char *metadata_schema = "";
-    Py_ssize_t metadata_schema_length = 0;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
     
+    if (arg == NULL) {
+        PyErr_Format(PyExc_ValueError, "Cannot del metadata_schema");
+        goto out;
+    }
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    if (arg != NULL) {
-        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
-        if (metadata_schema == NULL) {
-            goto out;
-        }
+    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
     }
-    ret = tsk_population_table_set_metadata_schema(self->table, metadata_schema, metadata_schema_length);
-    if (ret != 0) {
-        handle_library_error(ret);
+    err = tsk_population_table_set_metadata_schema(
+        self->table, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
         goto out;
     }
     ret = 0;
@@ -6608,48 +6652,42 @@ out:
 static PyObject *
 TreeSequence_get_metadata_schemas(TreeSequence *self) {
     PyObject *ret = NULL;
+    PyObject *value = NULL;
     PyObject *schema = NULL;
+    size_t j;
     tsk_table_collection_t *tables = self->tree_sequence->tables;
-    ret = PyStructSequence_New(&MetadataSchemas);
-    if (ret == NULL) {
+
+    struct schema_pair {
+        const char * schema;
+        tsk_size_t length;
+    };
+
+    struct schema_pair schema_pairs[] = {
+        {tables->nodes.metadata_schema, tables->nodes.metadata_schema_length},
+        {tables->edges.metadata_schema, tables->edges.metadata_schema_length},
+        {tables->sites.metadata_schema, tables->sites.metadata_schema_length},
+        {tables->mutations.metadata_schema, tables->mutations.metadata_schema_length},
+        {tables->migrations.metadata_schema, tables->migrations.metadata_schema_length},
+        {tables->individuals.metadata_schema, tables->individuals.metadata_schema_length},
+        {tables->populations.metadata_schema, tables->populations.metadata_schema_length},
+    };
+    
+    value = PyStructSequence_New(&MetadataSchemas);
+    if (value == NULL) {
         goto out;
     }
-    schema = make_Py_Unicode_FromStringAndLength(tables->nodes.metadata_schema, tables->nodes.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
+    for (j = 0; j < sizeof(schema_pairs) / sizeof(*schema_pairs); j++) {
+        schema = make_Py_Unicode_FromStringAndLength(
+            schema_pairs[j].schema, schema_pairs[j].length);
+        if (schema == NULL) {
+            goto out;
+        }
+        PyStructSequence_SetItem(value, j, schema);
     }
-    PyStructSequence_SetItem(ret, 0, schema);
-    schema = make_Py_Unicode_FromStringAndLength(tables->edges.metadata_schema, tables->edges.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
-    }
-    PyStructSequence_SetItem(ret, 1, schema);
-    schema = make_Py_Unicode_FromStringAndLength(tables->sites.metadata_schema, tables->sites.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
-    }
-    PyStructSequence_SetItem(ret, 2, schema);
-    schema = make_Py_Unicode_FromStringAndLength(tables->mutations.metadata_schema, tables->mutations.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
-    }
-    PyStructSequence_SetItem(ret, 3, schema);
-    schema = make_Py_Unicode_FromStringAndLength(tables->migrations.metadata_schema, tables->migrations.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
-    }
-    PyStructSequence_SetItem(ret, 4, schema);
-    schema = make_Py_Unicode_FromStringAndLength(tables->individuals.metadata_schema, tables->individuals.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
-    }
-    PyStructSequence_SetItem(ret, 5, schema);
-    schema = make_Py_Unicode_FromStringAndLength(tables->populations.metadata_schema, tables->populations.metadata_schema_length);
-    if (schema == NULL) {
-        goto out;
-    }
-    PyStructSequence_SetItem(ret, 6, schema);
+    ret = value;
+    value = NULL;
 out:
+    Py_XDECREF(value);
     return ret;
 }
 
@@ -10612,23 +10650,9 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "LsHmm", (PyObject *) &LsHmmType);
 
     /* Metadata schemas namedtuple type*/
-    PyStructSequence_Field metadata_schemas_fields[] = {
-        {"node", "The node metadata schema"},
-        {"edge", "The edge metadata schema"},
-        {"site", "The site metadata schema"},
-        {"mutation", "The mutation metadata schema"},
-        {"migration", "The migration metadata schema"},
-        {"individual", "The individual metadata schema"},
-        {"population", "The node metadata schema"},
-        {NULL}
+    if (PyStructSequence_InitType2(&MetadataSchemas, &metadata_schemas_desc) < 0) {
+        return NULL;
     };
-    PyStructSequence_Desc metadata_schemas_desc = {
-        "MetadataSchemas",
-        "Namedtuple of metadata schemas for this tree sequence",
-        metadata_schemas_fields,
-        1
-    };
-    PyStructSequence_InitType(&MetadataSchemas, &metadata_schemas_desc);
     Py_INCREF(&MetadataSchemas);
     PyModule_AddObject(module, "MetadataSchemas", (PyObject*)&MetadataSchemas);
 

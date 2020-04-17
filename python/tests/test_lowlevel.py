@@ -468,7 +468,7 @@ class TestTreeSequence(LowLevelTestCase):
             )
         for table_name in metadata_tables:
             table = getattr(tables, f"{table_name}s")
-            del table.metadata_schema
+            table.metadata_schema = ""
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         schemas = ts.get_metadata_schemas()
@@ -2043,27 +2043,56 @@ class TestTree(LowLevelTestCase):
             self.assertRaises(_tskit.LibraryError, tree.map_mutations, genotypes)
 
 
-class TestTableMetaDataSchema(unittest.TestCase):
+class MetadataTestMixin:
+    tables = [
+        "nodes",
+        "edges",
+        "sites",
+        "mutations",
+        "migrations",
+        "individuals",
+        "populations",
+    ]
+
+
+class TestTableMetadataSchema(unittest.TestCase, MetadataTestMixin):
     def test_metadata_schema_attribute(self):
         tables = _tskit.TableCollection(1.0)
-        for table in [
-            "nodes",
-            "edges",
-            "sites",
-            "individuals",
-            "mutations",
-            "migrations",
-            "populations",
-        ]:
+        for table in self.tables:
             table = getattr(tables, table)
             self.assertEqual(table.metadata_schema, "")
             example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋"
             table.metadata_schema = example
             self.assertEqual(table.metadata_schema, example)
-            del table.metadata_schema
+            with self.assertRaises(ValueError):
+                del table.metadata_schema
+            table.metadata_schema = ""
             self.assertEqual(table.metadata_schema, "")
             with self.assertRaises(TypeError):
                 table.metadata_schema = None
+
+
+class TestMetadataSchemaNamedTuple(unittest.TestCase, MetadataTestMixin):
+    def test_named_tuple_init(self):
+        with self.assertRaises(TypeError):
+            metadata_schemas = _tskit.MetadataSchemas()
+        with self.assertRaises(TypeError):
+            metadata_schemas = _tskit.MetadataSchemas([])
+        with self.assertRaises(TypeError):
+            metadata_schemas = _tskit.MetadataSchemas(["test_schema"])
+        metadata_schemas = _tskit.MetadataSchemas(
+            f"{table}_test_schema" for table in self.tables
+        )
+        self.assertEqual(
+            metadata_schemas, tuple(f"{table}_test_schema" for table in self.tables)
+        )
+        for table in self.tables:
+            self.assertEqual(
+                getattr(metadata_schemas, table[:-1]), f"{table}_test_schema"
+            )
+        for table in self.tables:
+            with self.assertRaises(AttributeError):
+                setattr(metadata_schemas, table[:-1], "")
 
 
 class TestModuleFunctions(unittest.TestCase):
