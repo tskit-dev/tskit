@@ -2451,7 +2451,7 @@ class TreeSequence:
         ll_metadata_schemas = self._ll_tree_sequence.get_metadata_schemas()
         self._metadata_schemas = MetadataSchemas(
             *[
-                metadata.MetadataSchema.from_bytes(getattr(ll_metadata_schemas, name))
+                metadata.MetadataSchema.from_str(getattr(ll_metadata_schemas, name))
                 for name in MetadataSchemas._fields
             ]
         )

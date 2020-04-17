@@ -278,7 +278,7 @@ class MetadataMixin:
 
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
-        self.ll_table.metadata_schema = schema.to_bytes()
+        self.ll_table.metadata_schema = schema.to_str()
         self._update_metadata_schema_cache_from_ll()
 
     @metadata_schema.deleter
@@ -294,7 +294,7 @@ class MetadataMixin:
         )
 
     def _update_metadata_schema_cache_from_ll(self) -> None:
-        self._metadata_schema_cache = metadata.MetadataSchema.from_bytes(
+        self._metadata_schema_cache = metadata.MetadataSchema.from_str(
             self.ll_table.metadata_schema
         )
 

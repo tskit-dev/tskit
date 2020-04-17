@@ -676,35 +676,33 @@ class MetadataTestsMixin:
         table = self.table_class()
         # Set
         table.metadata_schema = self.metadata_schema
-        self.assertEqual(
-            table.metadata_schema.to_bytes(), self.metadata_schema.to_bytes()
-        )
+        self.assertEqual(table.metadata_schema.to_str(), self.metadata_schema.to_str())
         # Remove
         del table.metadata_schema
         self.assertEqual(
-            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+            table.metadata_schema.to_str(), metadata.NullMetadataSchema().to_str()
         )
         # Overwrite
         table.metadata_schema = self.metadata_schema
         table.metadata_schema = metadata_schema2
-        self.assertEqual(table.metadata_schema.to_bytes(), metadata_schema2.to_bytes())
+        self.assertEqual(table.metadata_schema.to_str(), metadata_schema2.to_str())
         # Delete
         del table.metadata_schema
         self.assertEqual(
-            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+            table.metadata_schema.to_str(), metadata.NullMetadataSchema().to_str()
         )
-        # Empty string results in none
-        table.ll_table.metadata_schema = b""
+        # Empty string results in NullMetadataSchema
+        table.ll_table.metadata_schema = ""
         table._update_metadata_schema_cache_from_ll()
         self.assertEqual(
-            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+            table.metadata_schema.to_str(), metadata.NullMetadataSchema().to_str()
         )
 
     def test_default_metadata_schema(self):
         table = self.table_class()
         # Default is no-op metadata codec
         self.assertEqual(
-            table.metadata_schema.to_bytes(), metadata.NullMetadataSchema().to_bytes()
+            table.metadata_schema.to_str(), metadata.NullMetadataSchema().to_str()
         )
         table.add_row(
             **{**self.input_data_for_add_row(), "metadata": b"acceptable bytes"}
@@ -720,13 +718,23 @@ class MetadataTestsMixin:
 
     def test_bad_metadata_schema(self):
         table = self.table_class()
-        table.ll_table.metadata_schema = b"I'm not JSON"
+        table.ll_table.metadata_schema = "I'm not JSON"
         with self.assertRaises(ValueError):
             table._update_metadata_schema_cache_from_ll()
         with self.assertRaises(AttributeError):
-            table.metadata_schema = b"I'm not JSON"
+            table.metadata_schema = "I'm not JSON"
+
+    def test_ll_metadata_schema(self):
+        table = self.table_class()
+        ll_table = table.ll_table
+        self.assertEqual(ll_table.metadata_schema, "")
+        example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋"
+        ll_table.metadata_schema = example
+        self.assertEqual(ll_table.metadata_schema, example)
+        del ll_table.metadata_schema
+        self.assertEqual(ll_table.metadata_schema, "")
         with self.assertRaises(TypeError):
-            table.ll_table.metadata_schema = "Normal string"
+            table.ll_table.metadata_schema = None
 
     def test_row_round_trip_metadata_schema(self):
         data = self.metadata_example_data()

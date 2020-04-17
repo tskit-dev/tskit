@@ -214,7 +214,7 @@ class PythonTreeSequence:
                 derived_state=derived_state,
                 parent=parent,
                 encoded_metadata=metadata,
-                metadata_decoder=tskit.metadata.MetadataSchema.from_bytes(
+                metadata_decoder=tskit.metadata.MetadataSchema.from_str(
                     ll_ts.get_metadata_schemas().mutation
                 ).decode_row,
             )
@@ -228,7 +228,7 @@ class PythonTreeSequence:
                     ancestral_state=ancestral_state,
                     mutations=[make_mutation(ll_mut) for ll_mut in ll_mutations],
                     encoded_metadata=metadata,
-                    metadata_decoder=tskit.metadata.MetadataSchema.from_bytes(
+                    metadata_decoder=tskit.metadata.MetadataSchema.from_str(
                         ll_ts.get_metadata_schemas().site
                     ).decode_row,
                 )

@@ -1372,8 +1372,7 @@ class TestTreeSequenceMetadata(unittest.TestCase):
         # Each table should get its own schema back
         for table in self.metadata_tables:
             self.assertEqual(
-                getattr(ts.metadata_schemas, table).to_bytes(),
-                schemas[table].to_bytes(),
+                getattr(ts.metadata_schemas, table).to_str(), schemas[table].to_str(),
             )
 
     def test_metadata_round_trip_via_row_getters(self):

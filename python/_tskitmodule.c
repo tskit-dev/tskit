@@ -242,6 +242,19 @@ make_metadata(const char *metadata, Py_ssize_t length)
 }
 
 static PyObject *
+make_Py_Unicode_FromStringAndLength(const char * str, size_t length) {
+    PyObject * ret;
+    /* Py_BuildValue returns Py_None for zero length */
+    if (length == 0) {
+        ret = PyUnicode_FromString("");
+    } else {
+        ret = Py_BuildValue("s#", str, length);
+    }
+    return ret;
+}
+    
+
+static PyObject *
 make_mutation(tsk_mutation_t *mutation)
 {
     PyObject *ret = NULL;
@@ -2465,7 +2478,7 @@ IndividualTable_get_metadata_schema(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -2474,14 +2487,15 @@ static int
 IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -2933,7 +2947,7 @@ NodeTable_get_metadata_schema(NodeTable *self, void *closure)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -2942,14 +2956,15 @@ static int
 NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -3418,7 +3433,7 @@ EdgeTable_get_metadata_schema(EdgeTable *self, void *closure)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -3427,14 +3442,15 @@ static int
 EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -3912,7 +3928,7 @@ MigrationTable_get_metadata_schema(MigrationTable *self, void *closure)
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -3921,14 +3937,15 @@ static int
 MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -4368,7 +4385,7 @@ SiteTable_get_metadata_schema(SiteTable *self, void *closure)
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -4377,14 +4394,15 @@ static int
 SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -4863,7 +4881,7 @@ MutationTable_get_metadata_schema(MutationTable *self, void *closure)
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -4872,14 +4890,15 @@ static int
 MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -5274,7 +5293,7 @@ PopulationTable_get_metadata_schema(PopulationTable *self, void *closure)
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = PyBytes_FromStringAndSize(self->table->metadata_schema, self->table->metadata_schema_length);
+    ret = make_Py_Unicode_FromStringAndLength(self->table->metadata_schema, self->table->metadata_schema_length);
 out:
     return ret;
 }
@@ -5283,14 +5302,15 @@ static int
 PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *closure)
 {
     int ret = -1;
-    char *metadata_schema = "";
+    const char *metadata_schema = "";
     Py_ssize_t metadata_schema_length = 0;
     
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
     if (arg != NULL) {
-        if (PyBytes_AsStringAndSize(arg, &metadata_schema, &metadata_schema_length) < 0) {
+        metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+        if (metadata_schema == NULL) {
             goto out;
         }
     }
@@ -6588,25 +6608,47 @@ out:
 static PyObject *
 TreeSequence_get_metadata_schemas(TreeSequence *self) {
     PyObject *ret = NULL;
+    PyObject *schema = NULL;
     tsk_table_collection_t *tables = self->tree_sequence->tables;
     ret = PyStructSequence_New(&MetadataSchemas);
     if (ret == NULL) {
         goto out;
     }
-    PyStructSequence_SetItem(ret, 0, PyBytes_FromStringAndSize(
-            tables->nodes.metadata_schema, tables->nodes.metadata_schema_length));
-    PyStructSequence_SetItem(ret, 1, PyBytes_FromStringAndSize(
-            tables->edges.metadata_schema, tables->edges.metadata_schema_length));
-    PyStructSequence_SetItem(ret, 2, PyBytes_FromStringAndSize(
-            tables->sites.metadata_schema, tables->sites.metadata_schema_length));
-    PyStructSequence_SetItem(ret, 3, PyBytes_FromStringAndSize(
-            tables->mutations.metadata_schema, tables->mutations.metadata_schema_length));
-    PyStructSequence_SetItem(ret, 4, PyBytes_FromStringAndSize(
-            tables->migrations.metadata_schema, tables->migrations.metadata_schema_length));
-    PyStructSequence_SetItem(ret, 5, PyBytes_FromStringAndSize(
-            tables->individuals.metadata_schema, tables->individuals.metadata_schema_length));
-    PyStructSequence_SetItem(ret, 6, PyBytes_FromStringAndSize(
-            tables->populations.metadata_schema, tables->populations.metadata_schema_length));
+    schema = make_Py_Unicode_FromStringAndLength(tables->nodes.metadata_schema, tables->nodes.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 0, schema);
+    schema = make_Py_Unicode_FromStringAndLength(tables->edges.metadata_schema, tables->edges.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 1, schema);
+    schema = make_Py_Unicode_FromStringAndLength(tables->sites.metadata_schema, tables->sites.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 2, schema);
+    schema = make_Py_Unicode_FromStringAndLength(tables->mutations.metadata_schema, tables->mutations.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 3, schema);
+    schema = make_Py_Unicode_FromStringAndLength(tables->migrations.metadata_schema, tables->migrations.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 4, schema);
+    schema = make_Py_Unicode_FromStringAndLength(tables->individuals.metadata_schema, tables->individuals.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 5, schema);
+    schema = make_Py_Unicode_FromStringAndLength(tables->populations.metadata_schema, tables->populations.metadata_schema_length);
+    if (schema == NULL) {
+        goto out;
+    }
+    PyStructSequence_SetItem(ret, 6, schema);
 out:
     return ret;
 }

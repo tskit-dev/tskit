@@ -26,6 +26,7 @@ Classes for metadata decoding, encoding and validation
 import abc
 import json
 from typing import Any
+from typing import Optional
 
 import jsonschema
 
@@ -54,7 +55,7 @@ class JSONCodec(MetadataCodec):
 
 class AbstractMetadataSchema(abc.ABC):
     @abc.abstractmethod
-    def to_bytes(self) -> bytes:
+    def to_str(self) -> Optional[str]:
         pass
 
     @abc.abstractmethod
@@ -68,12 +69,12 @@ class AbstractMetadataSchema(abc.ABC):
 
 class MetadataSchema(AbstractMetadataSchema):
     @classmethod
-    def from_bytes(cls, encoded_schema: bytes) -> AbstractMetadataSchema:
-        if encoded_schema == b"":
+    def from_str(cls, encoded_schema: Optional[str]) -> AbstractMetadataSchema:
+        if encoded_schema == "":
             return NullMetadataSchema()
         else:
             try:
-                decoded = json.loads(encoded_schema.decode())
+                decoded = json.loads(encoded_schema)
             except json.decoder.JSONDecodeError:
                 raise ValueError(f"Metadata schema is not JSON, found {encoded_schema}")
             return cls(decoded["encoding"], decoded["schema"])
@@ -90,8 +91,8 @@ class MetadataSchema(AbstractMetadataSchema):
         except KeyError:
             raise ValueError(f"Unrecognised metadata encoding:{self.encoding}")
 
-    def to_bytes(self) -> bytes:
-        return json.dumps({"encoding": self.encoding, "schema": self.schema}).encode()
+    def to_str(self) -> str:
+        return json.dumps({"encoding": self.encoding, "schema": self.schema})
 
     def validate_and_encode_row(self, row: Any) -> bytes:
         try:
@@ -105,8 +106,8 @@ class MetadataSchema(AbstractMetadataSchema):
 
 
 class NullMetadataSchema(AbstractMetadataSchema):
-    def to_bytes(self) -> bytes:
-        return b""
+    def to_str(self) -> None:
+        return None
 
     def validate_and_encode_row(self, row: bytes) -> bytes:
         return row
