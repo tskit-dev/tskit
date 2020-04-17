@@ -724,18 +724,6 @@ class MetadataTestsMixin:
         with self.assertRaises(AttributeError):
             table.metadata_schema = "I'm not JSON"
 
-    def test_ll_metadata_schema(self):
-        table = self.table_class()
-        ll_table = table.ll_table
-        self.assertEqual(ll_table.metadata_schema, "")
-        example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋"
-        ll_table.metadata_schema = example
-        self.assertEqual(ll_table.metadata_schema, example)
-        del ll_table.metadata_schema
-        self.assertEqual(ll_table.metadata_schema, "")
-        with self.assertRaises(TypeError):
-            table.ll_table.metadata_schema = None
-
     def test_row_round_trip_metadata_schema(self):
         data = self.metadata_example_data()
         table = self.table_class()

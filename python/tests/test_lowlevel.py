@@ -445,6 +445,36 @@ class TestTreeSequence(LowLevelTestCase):
             A = ts.mean_descendants([focal[2:], focal[:2]])
             self.assertEqual(A.shape, (ts.get_num_nodes(), 2))
 
+    def test_metadata_schemas(self):
+        tables = _tskit.TableCollection(1.0)
+        metadata_tables = [
+            "node",
+            "edge",
+            "site",
+            "individual",
+            "mutation",
+            "migration",
+            "population",
+        ]
+        for table_name in metadata_tables:
+            table = getattr(tables, f"{table_name}s")
+            table.metadata_schema = f"{table_name} test metadata schema"
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        schemas = ts.get_metadata_schemas()
+        for table_name in metadata_tables:
+            self.assertEqual(
+                getattr(schemas, table_name), f"{table_name} test metadata schema"
+            )
+        for table_name in metadata_tables:
+            table = getattr(tables, f"{table_name}s")
+            del table.metadata_schema
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        schemas = ts.get_metadata_schemas()
+        for table_name in metadata_tables:
+            self.assertEqual(getattr(schemas, table_name), "")
+
 
 class StatsInterfaceMixin:
     """
@@ -2011,6 +2041,29 @@ class TestTree(LowLevelTestCase):
         for bad_value in [64, 65, 127, -2]:
             genotypes[0] = bad_value
             self.assertRaises(_tskit.LibraryError, tree.map_mutations, genotypes)
+
+
+class TestTableMetaDataSchema(unittest.TestCase):
+    def test_metadata_schema_attribute(self):
+        tables = _tskit.TableCollection(1.0)
+        for table in [
+            "nodes",
+            "edges",
+            "sites",
+            "individuals",
+            "mutations",
+            "migrations",
+            "populations",
+        ]:
+            table = getattr(tables, table)
+            self.assertEqual(table.metadata_schema, "")
+            example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋"
+            table.metadata_schema = example
+            self.assertEqual(table.metadata_schema, example)
+            del table.metadata_schema
+            self.assertEqual(table.metadata_schema, "")
+            with self.assertRaises(TypeError):
+                table.metadata_schema = None
 
 
 class TestModuleFunctions(unittest.TestCase):
