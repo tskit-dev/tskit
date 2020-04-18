@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -55,5 +55,17 @@ class DuplicatePositionsError(TskitException):
 
 class ProvenanceValidationError(TskitException):
     """
-    A JSON document did non validate against the provenance schema.
+    A JSON document did not validate against the provenance schema.
+    """
+
+
+class MetadataValidationError(TskitException):
+    """
+    A metadata object did not validate against the provenance schema.
+    """
+
+
+class MetadataSchemaValidationError(TskitException):
+    """
+    A metadata schema object did not validate against the metaschema.
     """

@@ -17,6 +17,7 @@ Welcome to tskit's documentation!
    c-api
    cli
    data-model
+   metadata
    provenance
    development
    tutorial

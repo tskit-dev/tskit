@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,11 +30,14 @@ import pickle
 import tempfile
 import unittest
 
+import msgpack
 import msprime
 import numpy as np
 import python_jsonschema_objects as pjs
 
 import tskit
+import tskit.exceptions as exceptions
+import tskit.metadata as metadata
 
 
 class TestMetadataHdf5RoundTrip(unittest.TestCase):
@@ -163,7 +166,7 @@ class TestMetadataPickleDecoding(unittest.TestCase):
         self.assertEqual(unpickled.two, metadata.two)
 
 
-class TestJsonSchemaDecoding(unittest.TestCase):
+class TestJSONSchemaDecoding(unittest.TestCase):
     """
     Tests in which use json-schema to decode the metadata.
     """
@@ -284,3 +287,116 @@ class TestLoadTextMetadata(unittest.TestCase):
         expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, p):
             self.assertEqual(a.encode("utf8"), b.metadata)
+
+
+class TestMetadataModule(unittest.TestCase):
+    """
+    Tests that use the metadata module
+    """
+
+    def test_metadata_schema(self):
+        # Bad jsonschema
+        with self.assertRaises(exceptions.MetadataSchemaValidationError):
+            metadata.MetadataSchema(
+                {"codec": "json", "additionalProperties": "THIS ISN'T RIGHT"},
+            )
+        # Bad codec
+        with self.assertRaises(exceptions.MetadataSchemaValidationError):
+            metadata.MetadataSchema({"codec": "morse-code"})
+        # Missing codec
+        with self.assertRaises(exceptions.MetadataSchemaValidationError):
+            metadata.MetadataSchema({})
+        schema = {
+            "codec": "json",
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        }
+        ms = metadata.MetadataSchema(schema)
+        self.assertEqual(str(ms), json.dumps(schema))
+        # Missing required properties
+        with self.assertRaises(exceptions.MetadataValidationError):
+            ms.validate_and_encode_row({})
+
+    def test_register_codec(self):
+        class TestCodec(metadata.AbstractMetadataCodec):
+            pass
+
+        metadata.register_metadata_codec(TestCodec, "test")
+        self.assertEqual(TestCodec, metadata.codec_registry["test"])
+
+    def test_parse(self):
+        # Empty string gives MetaDataSchema with None codec
+        ms = metadata.parse_metadata_schema("")
+        self.assertIsInstance(ms, metadata.MetadataSchema)
+        self.assertEqual(ms.schema, None)
+
+        # json gives MetaDataSchema with json codec
+        ms = metadata.parse_metadata_schema(json.dumps({"codec": "json"}))
+        self.assertIsInstance(ms, metadata.MetadataSchema)
+        self.assertDictEqual(ms.schema, {"codec": "json"})
+
+        # Bad JSON gives error
+        with self.assertRaises(ValueError):
+            metadata.parse_metadata_schema(json.dumps({"codec": "json"})[:-1])
+
+    def test_null_codec(self):
+        ms = metadata.MetadataSchema(None)
+        self.assertEqual(str(ms), "")
+        row = b"Some binary data that tskit can't interpret "
+        # Encode/decode are no-ops
+        self.assertEqual(row, ms.validate_and_encode_row(row))
+        self.assertEqual(row, ms.decode_row(row))
+        # Only bytes validate
+        with self.assertRaises(TypeError):
+            ms.validate_and_encode_row({})
+
+    def test_json_codec(self):
+        schema = {
+            "codec": "json",
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        }
+        ms = metadata.MetadataSchema(schema)
+        # Valid row data
+        row_data = {"one": "tree", "two": 5}
+        self.assertEqual(
+            ms.validate_and_encode_row(row_data), json.dumps(row_data).encode()
+        )
+        self.assertEqual(ms.decode_row(json.dumps(row_data).encode()), row_data)
+        # Round trip
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+
+    def test_msgpack_codec(self):
+        class MsgPackCodec(metadata.AbstractMetadataCodec):
+            def __init__(self, schema):
+                pass
+
+            def encode(self, obj):
+                return msgpack.dumps(obj)
+
+            def decode(self, encoded):
+                return msgpack.loads(encoded)
+
+        metadata.register_metadata_codec(MsgPackCodec, "msgpack")
+
+        schema = {
+            "codec": "msgpack",
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        }
+        ms = metadata.MetadataSchema(schema)
+        # Valid row data
+        row_data = {"one": "tree", "two": 5}
+        self.assertEqual(ms.validate_and_encode_row(row_data), msgpack.dumps(row_data))
+        self.assertEqual(ms.decode_row(msgpack.dumps(row_data)), row_data)
+        # Round trip
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)

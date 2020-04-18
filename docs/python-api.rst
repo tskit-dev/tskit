@@ -321,10 +321,11 @@ Binary columns
 Columns storing binary data take the same approach as
 :ref:`sec_tables_api_text_columns` to encoding
 :ref:`variable length data <sec_encoding_ragged_columns>`.
-The difference between the two is
-only raw :class:`bytes` values are accepted: no character encoding or
-decoding is done on the data. Consider the following example::
-
+The difference between the two is only raw :class:`bytes` values are accepted: no
+character encoding or decoding is done on the data. Consider the following example
+where a table has no ``metadata_schema`` such that arbitrary bytes can be stored and
+no automatic encoding or decoding of objects is performed by the Python API and we can
+store and retrive raw ``bytes``. (See :ref:`sec_metadata` for details)::
 
     >>> t = tskit.NodeTable()
     >>> t.add_row(metadata=b"raw bytes")
@@ -388,30 +389,37 @@ and use, see :ref:`the table definitions <sec_table_definitions>`.
 .. autoclass:: tskit.IndividualTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.NodeTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.EdgeTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.MigrationTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.SiteTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.MutationTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.PopulationTable()
     :members:
     :inherited-members:
+    :special-members: __getitem__
 
 .. autoclass:: tskit.ProvenanceTable()
     :members:
@@ -460,6 +468,22 @@ Table functions
 .. autofunction:: tskit.pack_bytes
 
 .. autofunction:: tskit.unpack_bytes
+
+.. _sec_metadata_api:
+
+********
+Metadata
+********
+
+The ``metadata`` module provides validation, encoding and decoding of metadata
+using a schema. See :ref:`sec_metadata`, :ref:`sec_metadata_api_overview` and
+:ref:`sec_tutorial_metadata`.
+
+.. autoclass:: tskit.MetadataSchema
+    :members:
+    :inherited-members:
+
+.. autofunction:: tskit.register_metadata_codec
 
 .. _sec_stats_api:
 

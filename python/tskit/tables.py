@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,12 +27,15 @@ import base64
 import datetime
 import json
 import warnings
+from typing import Any
+from typing import Tuple
 
 import attr
 import numpy as np
 
 import _tskit
 import tskit
+import tskit.metadata as metadata
 import tskit.provenance as provenance
 import tskit.util as util
 
@@ -143,9 +146,10 @@ class BaseTable:
     # The list of columns in the table. Must be set by subclasses.
     column_names = []
 
-    def __init__(self, ll_table, row_class):
+    def __init__(self, ll_table, row_class, **kwargs):
         self.ll_table = ll_table
         self.row_class = row_class
+        super().__init__(**kwargs)
 
     def _check_required_args(self, **kwargs):
         for k, v in kwargs.items():
@@ -193,11 +197,23 @@ class BaseTable:
             object.__setattr__(self, name, value)
 
     def __getitem__(self, index):
+        """
+        Return the specifed row of this table, decoding metadata if it is present.
+        Supports negative indexing, e.g. ``table[-5]``.
+
+        :param int index: the zero-index of the desired row
+        """
         if index < 0:
             index += len(self)
         if index < 0 or index >= len(self):
             raise IndexError("Index out of bounds")
-        return self.row_class(*self.ll_table.get_row(index))
+        row = self.ll_table.get_row(index)
+        try:
+            row = self.decode_row(row)
+        except AttributeError:
+            # This means the class returns the low-level row unchanged.
+            pass
+        return self.row_class(*row)
 
     def clear(self):
         """
@@ -287,6 +303,12 @@ class MetadataMixin:
     Mixin class for tables that have a metadata column.
     """
 
+    def __init__(self):
+        self.metadata_column_index = list(
+            attr.fields_dict(self.row_class).keys()
+        ).index("metadata")
+        self._update_metadata_schema_cache_from_ll()
+
     def packset_metadata(self, metadatas):
         """
         Packs the specified list of metadata values and updates the ``metadata``
@@ -300,6 +322,30 @@ class MetadataMixin:
         d["metadata"] = packed
         d["metadata_offset"] = offset
         self.set_columns(**d)
+
+    @property
+    def metadata_schema(self) -> metadata.MetadataSchema:
+        """
+            The :class:`tskit.MetadataSchema` for this table.
+        """
+        return self._metadata_schema_cache
+
+    @metadata_schema.setter
+    def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
+        self.ll_table.metadata_schema = str(schema)
+        self._update_metadata_schema_cache_from_ll()
+
+    def decode_row(self, row: Tuple[Any]) -> Tuple:
+        return (
+            row[: self.metadata_column_index]
+            + (self._metadata_schema_cache.decode_row(row[self.metadata_column_index]),)
+            + row[self.metadata_column_index + 1 :]
+        )
+
+    def _update_metadata_schema_cache_from_ll(self) -> None:
+        self._metadata_schema_cache = metadata.parse_metadata_schema(
+            self.ll_table.metadata_schema
+        )
 
 
 class IndividualTable(BaseTable, MetadataMixin):
@@ -330,6 +376,8 @@ class IndividualTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
     """
 
     column_names = [
@@ -362,17 +410,19 @@ class IndividualTable(BaseTable, MetadataMixin):
     def add_row(self, flags=0, location=None, metadata=None):
         """
         Adds a new row to this :class:`IndividualTable` and returns the ID of the
-        corresponding individual.
+        corresponding individual. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.IndividualTable.metadata_schema>`.
 
         :param int flags: The bitwise flags for the new node.
         :param array-like location: A list of numeric values or one-dimensional numpy
             array describing the location of this individual. If not specified
             or None, a zero-dimensional location is stored.
-        :param bytes metadata: The binary-encoded metadata for the new individual. If not
-            specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added node.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags=flags, location=location, metadata=metadata)
 
     def set_columns(
@@ -394,7 +444,8 @@ class IndividualTable(BaseTable, MetadataMixin):
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param flags: The bitwise flags for each individual. Required.
         :type flags: numpy.ndarray, dtype=np.uint32
@@ -440,7 +491,8 @@ class IndividualTable(BaseTable, MetadataMixin):
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param flags: The bitwise flags for each individual. Required.
         :type flags: numpy.ndarray, dtype=np.uint32
@@ -512,7 +564,9 @@ class NodeTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
-    """
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
+"""
 
     column_names = [
         "time",
@@ -548,7 +602,9 @@ class NodeTable(BaseTable, MetadataMixin):
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
         """
         Adds a new row to this :class:`NodeTable` and returns the ID of the
-        corresponding node.
+        corresponding node. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.NodeTable.metadata_schema>`.
 
         :param int flags: The bitwise flags for the new node.
         :param float time: The birth time for the new node.
@@ -556,11 +612,11 @@ class NodeTable(BaseTable, MetadataMixin):
             Defaults to :data:`tskit.NULL`.
         :param int individual: The ID of the individual in which the new node was born.
             Defaults to :data:`tskit.NULL`.
-        :param bytes metadata: The binary-encoded metadata for the new node. If not
-            specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added node.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags, time, population, individual, metadata)
 
     def set_columns(
@@ -580,7 +636,8 @@ class NodeTable(BaseTable, MetadataMixin):
         which is equal to the number of nodes the table will contain. The
         ``metadata`` and ``metadata_offset`` parameters must be supplied together, and
         meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param flags: The bitwise flags for each node. Required.
         :type flags: numpy.ndarray, dtype=np.uint32
@@ -628,7 +685,8 @@ class NodeTable(BaseTable, MetadataMixin):
         which is equal to the number of nodes that will be added to the table. The
         ``metadata`` and ``metadata_offset`` parameters must be supplied together, and
         meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param flags: The bitwise flags for each node. Required.
         :type flags: numpy.ndarray, dtype=np.uint32
@@ -688,8 +746,9 @@ class EdgeTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
-
-    """
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
+"""
 
     column_names = [
         "left",
@@ -725,17 +784,19 @@ class EdgeTable(BaseTable, MetadataMixin):
     def add_row(self, left, right, parent, child, metadata=None):
         """
         Adds a new row to this :class:`EdgeTable` and returns the ID of the
-        corresponding edge.
+        corresponding edge. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.EdgeTable.metadata_schema>`.
 
         :param float left: The left coordinate (inclusive).
         :param float right: The right coordinate (exclusive).
         :param int parent: The ID of parent node.
         :param int child: The ID of child node.
-        :param bytes metadata: The binary-encoded metadata for the new edge. If not
-            specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added edge.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, parent, child, metadata)
 
     def set_columns(
@@ -756,7 +817,8 @@ class EdgeTable(BaseTable, MetadataMixin):
         edges the table will contain).
         The ``metadata`` and ``metadata_offset`` parameters must be supplied together,
         and meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
 
         :param left: The left coordinates (inclusive).
@@ -799,7 +861,8 @@ class EdgeTable(BaseTable, MetadataMixin):
         additional edges to add to the table). The ``metadata`` and
         ``metadata_offset`` parameters must be supplied together, and
         meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
 
         :param left: The left coordinates (inclusive).
@@ -878,7 +941,9 @@ class MigrationTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
-    """
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
+"""
 
     column_names = [
         "left",
@@ -918,7 +983,9 @@ class MigrationTable(BaseTable, MetadataMixin):
     def add_row(self, left, right, node, source, dest, time, metadata=None):
         """
         Adds a new row to this :class:`MigrationTable` and returns the ID of the
-        corresponding migration.
+        corresponding migration. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.MigrationTable.metadata_schema>`.
 
         :param float left: The left coordinate (inclusive).
         :param float right: The right coordinate (exclusive).
@@ -926,11 +993,11 @@ class MigrationTable(BaseTable, MetadataMixin):
         :param int source: The ID of the source population.
         :param int dest: The ID of the destination population.
         :param float time: The time of the migration event.
-        :param bytes metadata: The binary-encoded metadata for the new migration. If not
-            specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added migration.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, node, source, dest, time, metadata)
 
     def set_columns(
@@ -953,7 +1020,8 @@ class MigrationTable(BaseTable, MetadataMixin):
         migrations the table will contain).
         The ``metadata`` and ``metadata_offset`` parameters must be supplied together,
         and meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param left: The left coordinates (inclusive).
         :type left: numpy.ndarray, dtype=np.float64
@@ -1010,7 +1078,8 @@ class MigrationTable(BaseTable, MetadataMixin):
         additional migrations to add to the table). The ``metadata`` and
         ``metadata_offset`` parameters must be supplied together, and
         meet the requirements for :ref:`sec_encoding_ragged_columns`.
-        See :ref:`sec_tables_api_binary_columns` for more information.
+        See :ref:`sec_tables_api_binary_columns` for more information and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param left: The left coordinates (inclusive).
         :type left: numpy.ndarray, dtype=np.float64
@@ -1074,7 +1143,9 @@ class SiteTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
-    """
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
+"""
 
     column_names = [
         "position",
@@ -1109,15 +1180,17 @@ class SiteTable(BaseTable, MetadataMixin):
     def add_row(self, position, ancestral_state, metadata=None):
         """
         Adds a new row to this :class:`SiteTable` and returns the ID of the
-        corresponding site.
+        corresponding site. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.SiteTable.metadata_schema>`.
 
         :param float position: The position of this site in genome coordinates.
         :param str ancestral_state: The state of this site at the root of the tree.
-        :param bytes metadata: The binary-encoded metadata for the new site. If not
-            specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added site.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(position, ancestral_state, metadata)
 
     def set_columns(
@@ -1142,7 +1215,8 @@ class SiteTable(BaseTable, MetadataMixin):
         ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
         :ref:`sec_encoding_ragged_columns` (see
-        :ref:`sec_tables_api_binary_columns` for more information).
+        :ref:`sec_tables_api_binary_columns` for more information) and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param position: The position of each site in genome coordinates.
         :type position: numpy.ndarray, dtype=np.float64
@@ -1195,7 +1269,8 @@ class SiteTable(BaseTable, MetadataMixin):
         ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
         :ref:`sec_encoding_ragged_columns` (see
-        :ref:`sec_tables_api_binary_columns` for more information).
+        :ref:`sec_tables_api_binary_columns` for more information) and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param position: The position of each site in genome coordinates.
         :type position: numpy.ndarray, dtype=np.float64
@@ -1269,7 +1344,9 @@ class MutationTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
-    """
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
+"""
 
     column_names = [
         "site",
@@ -1308,18 +1385,20 @@ class MutationTable(BaseTable, MetadataMixin):
     def add_row(self, site, node, derived_state, parent=-1, metadata=None):
         """
         Adds a new row to this :class:`MutationTable` and returns the ID of the
-        corresponding mutation.
+        corresponding mutation. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.MutationTable.metadata_schema>`.
 
         :param int site: The ID of the site that this mutation occurs at.
         :param int node: The ID of the first node inheriting this mutation.
         :param str derived_state: The state of the site at this mutation's node.
         :param int parent: The ID of the parent mutation. If not specified,
             defaults to :attr:`NULL`.
-        :param bytes metadata: The binary-encoded metadata for the new mutation. If not
-            specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added mutation.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(site, node, derived_state, parent, metadata)
 
     def set_columns(
@@ -1347,7 +1426,8 @@ class MutationTable(BaseTable, MetadataMixin):
         ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
         :ref:`sec_encoding_ragged_columns` (see
-        :ref:`sec_tables_api_binary_columns` for more information).
+        :ref:`sec_tables_api_binary_columns` for more information) and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param site: The ID of the site each mutation occurs at.
         :type site: numpy.ndarray, dtype=np.int32
@@ -1410,7 +1490,8 @@ class MutationTable(BaseTable, MetadataMixin):
         ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
         :ref:`sec_encoding_ragged_columns` (see
-        :ref:`sec_tables_api_binary_columns` for more information).
+        :ref:`sec_tables_api_binary_columns` for more information) and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param site: The ID of the site each mutation occurs at.
         :type site: numpy.ndarray, dtype=np.int32
@@ -1478,7 +1559,9 @@ class PopulationTable(BaseTable, MetadataMixin):
     :ivar metadata_offset: The array of offsets into the metadata column. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
-    """
+    :ivar metadata_schema: The metadata schema for this table's metadata column
+    :vartype metadata_schema: tskit.MetadataSchema
+"""
 
     column_names = ["metadata", "metadata_offset"]
 
@@ -1490,13 +1573,15 @@ class PopulationTable(BaseTable, MetadataMixin):
     def add_row(self, metadata=None):
         """
         Adds a new row to this :class:`PopulationTable` and returns the ID of the
-        corresponding population.
+        corresponding population. Metadata, if specified, will be validated and encoded
+        according to the table's
+        :attr:`metadata_schema<tskit.PopulationTable.metadata_schema>`.
 
-        :param bytes metadata: The binary-encoded metadata for the new population.
-            If not specified or None, a zero-length byte string is stored.
+        :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added population.
         :rtype: int
         """
+        metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 
     def _text_header_and_rows(self):
@@ -1517,7 +1602,8 @@ class PopulationTable(BaseTable, MetadataMixin):
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
         :ref:`sec_encoding_ragged_columns` (see
-        :ref:`sec_tables_api_binary_columns` for more information).
+        :ref:`sec_tables_api_binary_columns` for more information) and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
@@ -1538,7 +1624,8 @@ class PopulationTable(BaseTable, MetadataMixin):
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
         :ref:`sec_encoding_ragged_columns` (see
-        :ref:`sec_tables_api_binary_columns` for more information).
+        :ref:`sec_tables_api_binary_columns` for more information) and
+        :ref:`sec_tutorial_metadata_bulk` for an example of how to prepare metadata.
 
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata

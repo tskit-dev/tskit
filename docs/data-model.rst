@@ -492,32 +492,14 @@ record              char                Provenance record.
 Metadata
 ========
 
-Users of the tables API sometimes need to store auxiliary information for
-the various entities defined here. For example, in a forwards-time simulation,
-the simulation engine may wish to store the time at which a particular mutation
-arose or some other pertinent information. If we are representing real data,
-we may wish to store information derived from a VCF INFO field, or associate
-information relating to samples or populations. The columns defined in tables
-here are deliberately minimal: we define columns only for information which
-the library itself can use. All other information is considered to be
-**metadata**, and is stored in the ``metadata`` columns of the various
-tables.
+Each table (excluding provenance) has a metadata column for storing and passing along
+information that tskit does not use or interpret. See :ref:`sec_metadata` for details.
+The metadata columns are :ref:`binary columns <sec_tables_api_binary_columns>`.
 
-Arbitrary binary data can be stored in ``metadata`` columns, and the
-``tskit`` library makes no attempt to interpret this information. How the
-information held in this field is encoded is entirely the choice of client code.
-
-To ensure that metadata can be safely interchanged using the :ref:`sec_text_file_format`,
-each row is `base 64 encoded <https://en.wikipedia.org/wiki/Base64>`_. Thus,
-binary information can be safely printed and exchanged, but may not be
+When using the :ref:`sec_text_file_format`, to ensure that metadata can be safely
+interchanged, each row is `base 64 encoded <https://en.wikipedia.org/wiki/Base64>`_.
+Thus, binary information can be safely printed and exchanged, but may not be
 human readable.
-
-.. todo::
-    We plan on providing more sophisticated tools for working with metadata
-    in future, including the auto decoding metadata via pluggable
-    functions and the ability to store metadata schemas so that metadata
-    is self-describing.
-
 
 .. _sec_valid_tree_sequence_requirements:
 
