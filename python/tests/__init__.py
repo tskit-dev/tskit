@@ -110,6 +110,30 @@ class PythonTree:
         for c in self.children(u):
             self._levelorder_nodes(c, l, level + 1)
 
+    def _minlex_postorder_nodes(self, u, l):
+        l.extend(self._minlex_postorder_nodes_helper(u)[1])
+
+    def _minlex_postorder_nodes_helper(self, u):
+        """
+        For a given input ID u, this function returns a tuple whose first value
+        is the minimum leaf node ID under node u, and whose second value is
+        a list containing the minlex postorder for the subtree rooted at node u.
+        The first value is needed for sorting, and the second value is what
+        finally gets returned.
+        """
+        children = self.children(u)
+        if len(children) > 0:
+            children_return = [self._minlex_postorder_nodes_helper(c) for c in children]
+            # sorts by first value, which is the minimum leaf node ID
+            children_return.sort()
+            minlex_postorder = []
+            for _, child_minlex_postorder in children_return:
+                minlex_postorder.extend(child_minlex_postorder)
+            minlex_postorder.extend([u])
+            return (children_return[0][0], minlex_postorder)
+        else:
+            return (u, [u])
+
     def nodes(self, root=None, order="preorder"):
         roots = [root]
         if root is None:
@@ -127,6 +151,8 @@ class PythonTree:
                 # Nested list comprehension flattens node_list in order
                 self._levelorder_nodes(u, node_list, 0)
                 node_list = iter([i for level in node_list for i in level])
+            elif order == "minlex_postorder":
+                self._minlex_postorder_nodes(u, node_list)
             else:
                 raise ValueError("order not supported")
             yield from node_list

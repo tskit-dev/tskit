@@ -1564,12 +1564,82 @@ class Tree:
             yield v
 
     def _timeasc_traversal(self, u):
-        yield from sorted(self.nodes(u, order="levelorder"), key=self.time)
+        """
+        Sorts by increasing time but falls back to increasing ID for equal times.
+        """
+        yield from sorted(
+            self.nodes(u, order="levelorder"), key=lambda u: (self.time(u), u)
+        )
 
     def _timedesc_traversal(self, u):
+        """
+        Sorts by decreasing time but falls back to decreasing ID for equal times.
+        """
         yield from sorted(
-            self.nodes(u, order="levelorder"), key=self.time, reverse=True
+            self.nodes(u, order="levelorder"),
+            key=lambda u: (self.time(u), u),
+            reverse=True,
         )
+
+    def _minlex_postorder_traversal(self, u):
+        """
+        Postorder traversal that visits leaves in minimum lexicographic order.
+
+        Minlex stands for minimum lexicographic. We wish to visit a tree in such
+        a way that the leaves visited, when their IDs are listed out, have
+        minimum lexicographic order. This is a useful ordering for drawing
+        multiple Trees of a TreeSequence, as it leads to more consistency
+        between adjacent Trees.
+        """
+        # We skip perf optimisations here (compared to _preorder_traversal and
+        # _postorder_traversal) as this ordering is unlikely to be used in perf
+        # sensitive applications
+        stack = collections.deque([u])
+        parent = NULL
+
+        # We compute a dictionary mapping from internal node ID to min leaf ID
+        # under the node, using a first postorder traversal
+        min_leaf_dict = {}
+        while len(stack) > 0:
+            v = stack[-1]
+            children = [] if v == parent else self.children(v)
+            if children:
+                # The first time visiting a node, we push its children onto the stack.
+                # reversed is not strictly necessary, but it gives the postorder
+                # we would intuitively expect.
+                stack.extend(reversed(children))
+            else:
+                # The second time visiting a node, we record its min leaf ID
+                # underneath, pop it, and update the parent variable
+                if v != parent:
+                    # at a leaf node
+                    min_leaf_dict[v] = v
+                else:
+                    # at a parent after finishing all its children
+                    min_leaf_dict[v] = min([min_leaf_dict[c] for c in self.children(v)])
+                parent = self.get_parent(v)
+                stack.pop()
+
+        # Now we do a second postorder traversal
+        stack.clear()
+        stack.extend([u])
+        parent = NULL
+        while len(stack) > 0:
+            v = stack[-1]
+            children = [] if v == parent else self.children(v)
+            if children:
+                # The first time visiting a node, we push onto the stack its children
+                # in order of reverse min leaf ID under each child. This guarantees
+                # that the earlier children visited have smaller min leaf ID,
+                # which is equivalent to the minlex condition.
+                stack.extend(
+                    sorted(children, key=lambda u: min_leaf_dict[u], reverse=True)
+                )
+            else:
+                # The second time visiting a node, we pop and yield it, and
+                # we update the parent variable
+                parent = self.get_parent(v)
+                yield stack.pop()
 
     def nodes(self, root=None, order="preorder"):
         """
@@ -1582,10 +1652,45 @@ class Tree:
             Unlike the :meth:`TreeSequence.nodes` method, this iterator produces
             integer node IDs, not :class:`Node` objects.
 
+        The currently implemented traversal orders are:
+
+            - 'preorder': starting at root, yield the current node, then recurse
+              and do a preorder on each child of the current node. See also `Wikipedia
+              <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`__.
+            - 'inorder': starting at root, assuming binary trees, recurse and do
+              an inorder on the first child, then yield the current node, then
+              recurse and do an inorder on the second child. In the case of ``n``
+              child nodes (not necessarily 2), the first ``n // 2`` children are
+              visited in the first stage, and the remaining ``n - n // 2`` children
+              are visited in the second stage. See also `Wikipedia
+              <https://en.wikipedia.org/wiki/Tree_traversal#In-order_(LNR)>`__.
+            - 'postorder': starting at root, recurse and do a postorder on each
+              child of the current node, then yield the current node. See also
+              `Wikipedia
+              <https://en.wikipedia.org/wiki/Tree_traversal#Post-order_(LRN)>`__.
+            - 'levelorder' ('breadthfirst'): visit the nodes under root (including
+              the root) in increasing order of their depth from root. See also
+              `Wikipedia
+              <https://en.wikipedia.org/wiki/Tree_traversal\
+#Breadth-first_search_/_level_order>`__.
+            - 'timeasc': visits the nodes in order of increasing time, falling back to
+              increasing ID if times are equal.
+            - 'timedesc': visits the nodes in order of decreasing time, falling back to
+              decreasing ID if times are equal.
+            - 'minlex_postorder': a usual postorder has ambiguity in the order in
+              which children of a node are visited. We constrain this by outputting
+              a postorder such that the leaves visited, when their IDs are
+              listed out, have minimum `lexicographic order
+              <https://en.wikipedia.org/wiki/Lexicographical_order>`__ out of all valid
+              traversals. This traversal is useful for drawing multiple trees of
+              a ``TreeSequence``, as it leads to more consistency between adjacent
+              trees. Note that internal non-leaf nodes are not counted in
+              assessing the lexicographic order.
+
         :param int root: The root of the subtree we are traversing.
         :param str order: The traversal ordering. Currently 'preorder',
             'inorder', 'postorder', 'levelorder' ('breadthfirst'), 'timeasc' and
-            'timedesc' are supported.
+            'timedesc' and 'minlex_postorder' are supported.
         :return: An iterator over the node IDs in the tree in some traversal order.
         :rtype: collections.abc.Iterable, int
         """
@@ -1597,6 +1702,7 @@ class Tree:
             "breadthfirst": self._levelorder_traversal,
             "timeasc": self._timeasc_traversal,
             "timedesc": self._timedesc_traversal,
+            "minlex_postorder": self._minlex_postorder_traversal,
         }
         try:
             iterator = methods[order]
@@ -1605,8 +1711,20 @@ class Tree:
         roots = [root]
         if root is None:
             roots = self.roots
-        for u in roots:
-            yield from iterator(u)
+        if order == "minlex_postorder" and len(roots) > 1:
+            # we need to visit the roots in minlex order as well
+            # we first visit all the roots and then sort by the min value
+            root_values = []
+            for u in roots:
+                root_minlex_postorder = list(iterator(u))
+                min_value = root_minlex_postorder[0]
+                root_values.append([min_value, root_minlex_postorder])
+            root_values.sort()
+            for _, nodes_for_root in root_values:
+                yield from nodes_for_root
+        else:
+            for u in roots:
+                yield from iterator(u)
 
     # TODO make this a bit less embarrassing by using an iterative method.
     def __build_newick(self, node, precision, node_labels):
