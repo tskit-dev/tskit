@@ -6,6 +6,11 @@ In development
 
 **New features**
 
+- Add an optional node traversal order in ``tskit.Tree`` that uses the minimum
+  lexicographic order of leaf nodes visited. This ordering (``"minlex_postorder"``)
+  adds more determinism because it constraints the order in which children of
+  a node are visited (:user:`brianzhang01`, :pr:`411`).
+
 - Add ``_repr_html_`` to tables, so that jupyter notebooks render them as
   html tables (:user:`benjeffery`, :pr:`514`)
 

@@ -1888,9 +1888,8 @@ class TestTree(HighLevelTestCase):
             tree = next(ts.trees())
             self.verify_traversals(tree)
 
-            # To verify time-ordered traversal we can't use the method used for the
-            # other traversals above, it checks for one-to-one correspondence.
-            # As more than one ordering is valid for time, we do it separately here
+            # Verify time-ordered traversals separately, because the PythonTree
+            # class does not contain time information at the moment
             for root in tree.roots:
                 time_ordered = tree.nodes(root, order="timeasc")
                 t = tree.time(next(time_ordered))
@@ -1909,7 +1908,13 @@ class TestTree(HighLevelTestCase):
         t1 = tree
         t2 = tests.PythonTree.from_tree(t1)
         self.assertEqual(list(t1.nodes()), list(t2.nodes()))
-        orders = ["inorder", "postorder", "levelorder", "breadthfirst"]
+        orders = [
+            "inorder",
+            "postorder",
+            "levelorder",
+            "breadthfirst",
+            "minlex_postorder",
+        ]
         if tree.num_roots == 1:
             self.assertRaises(ValueError, list, t1.nodes(order="bad order"))
             self.assertEqual(list(t1.nodes()), list(t1.nodes(t1.get_root())))
@@ -1946,7 +1951,10 @@ class TestTree(HighLevelTestCase):
                         list(t2.nodes(root, order=test_order)),
                     )
                     all_nodes.extend(t1.nodes(root, order=test_order))
-                self.assertEqual(all_nodes, list(t1.nodes(order=test_order)))
+                # minlex_postorder reorders the roots, so this last test is
+                # not appropriate
+                if test_order != "minlex_postorder":
+                    self.assertEqual(all_nodes, list(t1.nodes(order=test_order)))
 
     def test_total_branch_length(self):
         # Note: this definition works when we have no non-sample branches.

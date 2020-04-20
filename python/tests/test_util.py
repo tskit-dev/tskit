@@ -121,7 +121,9 @@ class TestNumpyArrayCasting(unittest.TestCase):
         ]
         for dtype in self.dtypes_to_test:
             for bad_input in bad_inputs:
-                with self.assertRaises(TypeError):
+                # On some platforms and Python / numpy versions, a ValueError
+                # occurs instead
+                with self.assertRaises((TypeError, ValueError)):
                     util.safe_np_int_cast(bad_input, dtype)
 
 
