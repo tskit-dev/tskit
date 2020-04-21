@@ -5468,3 +5468,35 @@ class TreeSequence:
             "This method is no longer supported. Please use the Tree.newick"
             " method instead"
         )
+
+    def nexus(self, precision=14):
+        """
+        Returns a nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
+        of this tree. Trees along the sequence are listed sequentially in
+        the TREES block. The tree spanning the interval :math:`[x, y)`` is
+        given the name "tree_x_y". Spatial positions are written at the
+        specified precision.
+
+        :param int precision: The numerical precision with which branch lengths
+            and tree positions are printed.
+        :return: A nexus representation of the TreeSequence.
+        :rtype: str
+        """
+        node_labels = {node.id: f"tsk_{node.flags}_{node.id}" for node in self.nodes()}
+
+        s = "#NEXUS\n"
+        s += "BEGIN TAXA;\n"
+        s += "TAXLABELS "
+        s += ",".join(node_labels[node.id] for node in self.nodes()) + ";\n"
+        s += "END;\n"
+
+        s += "BEGIN TREES;\n"
+        for tree in self.trees():
+            start_interval = "{0:.{1}f}".format(tree.interval[0], precision)
+            end_interval = "{0:.{1}f}".format(tree.interval[1], precision)
+            newick = tree.newick(precision, node_labels=node_labels)
+            s += f"\tTREE tree{start_interval}_{end_interval} = {newick}\n"
+
+        s += "END;\n"
+        print(s)
+        return s

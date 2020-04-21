@@ -23,39 +23,20 @@
 """
 Tests for the newick output feature.
 """
+import itertools
 import unittest
 
 import msprime
 import newick
+from Bio.Nexus import Nexus
 
 
-class TestNewick(unittest.TestCase):
+class TreeExamples(unittest.TestCase):
     """
-    Tests that the newick output has the properties that we need using
-    external Newick parser.
+    Generates trees for testing the phylo format outputs.
     """
 
     random_seed = 155
-
-    def verify_newick_topology(self, tree, root=None, node_labels=None):
-        if root is None:
-            root = tree.root
-        ns = tree.newick(precision=16, root=root, node_labels=node_labels)
-        if node_labels is None:
-            leaf_labels = {u: str(u + 1) for u in tree.leaves(root)}
-        else:
-            leaf_labels = {u: node_labels[u] for u in tree.leaves(root)}
-        newick_tree = newick.loads(ns)[0]
-        leaf_names = newick_tree.get_leaf_names()
-        self.assertEqual(sorted(leaf_names), sorted(leaf_labels.values()))
-        for u in tree.leaves(root):
-            name = leaf_labels[u]
-            node = newick_tree.get_node(name)
-            while u != root:
-                self.assertAlmostEqual(node.length, tree.branch_length(u))
-                node = node.ancestor
-                u = tree.parent(u)
-            self.assertIsNone(node.ancestor)
 
     def get_nonbinary_example(self):
         ts = msprime.simulate(
@@ -93,6 +74,36 @@ class TestNewick(unittest.TestCase):
             child=edges.child[:n],
         )
         return tables.tree_sequence()
+
+    def get_single_tree(self):
+        return msprime.simulate(10, random_seed=2)
+
+
+class TestNewick(TreeExamples):
+    """
+    Tests that the newick output has the properties that we need using
+    external Newick parser.
+    """
+
+    def verify_newick_topology(self, tree, root=None, node_labels=None):
+        if root is None:
+            root = tree.root
+        ns = tree.newick(precision=16, root=root, node_labels=node_labels)
+        if node_labels is None:
+            leaf_labels = {u: str(u + 1) for u in tree.leaves(root)}
+        else:
+            leaf_labels = {u: node_labels[u] for u in tree.leaves(root)}
+        newick_tree = newick.loads(ns)[0]
+        leaf_names = newick_tree.get_leaf_names()
+        self.assertEqual(sorted(leaf_names), sorted(leaf_labels.values()))
+        for u in tree.leaves(root):
+            name = leaf_labels[u]
+            node = newick_tree.get_node(name)
+            while u != root:
+                self.assertAlmostEqual(node.length, tree.branch_length(u))
+                node = node.ancestor
+                u = tree.parent(u)
+            self.assertIsNone(node.ancestor)
 
     def test_nonbinary_tree(self):
         ts = self.get_nonbinary_example()
@@ -146,3 +157,60 @@ class TestNewick(unittest.TestCase):
             [n.name for n in root.walk()],
             [labels[tree.root]] + [None for _ in range(len(list(tree.nodes())) - 1)],
         )
+
+
+class TestNexus(TreeExamples):
+    """
+    Tests that the nexus output has the properties that we need using
+    external Nexus parser.
+    """
+
+    def verify_tree(self, nexus_tree, tree):
+        root = tree.root
+        self.assertEqual(len(nexus_tree.get_terminals()), tree.num_samples())
+        for u in nexus_tree.get_terminals():
+            leaf_label = nexus_tree.node(u).data.taxon
+            leaf_data = leaf_label.split("_")
+            self.assertEqual(len(leaf_data), 3)
+            t_id = int(leaf_data[2])
+            self.assertTrue(tree.is_leaf(t_id))
+            node = nexus_tree.node(u)
+            while t_id != root:
+                self.assertAlmostEqual(node.data.branchlength, tree.branch_length(t_id))
+                ancestor_id = node.get_prev()
+                node = nexus_tree.node(ancestor_id)
+                t_id = tree.parent(t_id)
+            self.assertIsNone(node.get_prev())
+
+    def verify_nexus_topology(self, treeseq):
+        nexus = treeseq.nexus(precision=16)
+        nexus_treeseq = Nexus.Nexus(nexus)
+        self.assertEqual(treeseq.num_trees, len(nexus_treeseq.trees))
+        for tree, nexus_tree in itertools.zip_longest(
+            treeseq.trees(), nexus_treeseq.trees
+        ):
+            name = nexus_tree.name
+            split_name = name.split("_")
+            self.assertEqual(len(split_name), 2)
+            start = float(split_name[0][4:])
+            end = float(split_name[1])
+            self.assertAlmostEqual(tree.interval[0], start)
+            self.assertAlmostEqual(tree.interval[1], end)
+
+            self.verify_tree(nexus_tree, tree)
+
+    def test_binary_tree(self):
+        ts = self.get_binary_example()
+        self.verify_nexus_topology(ts)
+
+    def test_nonbinary_example(self):
+        ts = self.get_nonbinary_example()
+        self.verify_nexus_topology(ts)
+
+    def test_single_tree(self):
+        ts = self.get_single_tree()
+        self.verify_nexus_topology(ts)
+
+    def test_multiroot(self):
+        ts = self.get_multiroot_example()
+        self.assertRaises(ValueError, ts.nexus)
