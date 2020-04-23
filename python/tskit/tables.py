@@ -24,11 +24,11 @@
 Tree sequence IO via the tables API.
 """
 import base64
-import collections
 import datetime
 import json
 import warnings
 
+import attr
 import numpy as np
 
 import _tskit
@@ -36,43 +36,70 @@ import tskit
 import tskit.provenance as provenance
 import tskit.util as util
 
-
-IndividualTableRow = collections.namedtuple(
-    "IndividualTableRow", ["flags", "location", "metadata"]
-)
+attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 
 
-NodeTableRow = collections.namedtuple(
-    "NodeTableRow", ["flags", "time", "population", "individual", "metadata"]
-)
+@attr.s(**attr_options)
+class IndividualTableRow:
+    flags: int
+    location: np.ndarray
+    metadata: bytes
 
 
-EdgeTableRow = collections.namedtuple(
-    "EdgeTableRow", ["left", "right", "parent", "child", "metadata"]
-)
+@attr.s(**attr_options)
+class NodeTableRow:
+    flags: int
+    time: float
+    population: int
+    individual: int
+    metadata: bytes
 
 
-MigrationTableRow = collections.namedtuple(
-    "MigrationTableRow", ["left", "right", "node", "source", "dest", "time", "metadata"]
-)
+@attr.s(**attr_options)
+class EdgeTableRow:
+    left: float
+    right: float
+    parent: int
+    child: int
+    metadata: bytes
 
 
-SiteTableRow = collections.namedtuple(
-    "SiteTableRow", ["position", "ancestral_state", "metadata"]
-)
+@attr.s(**attr_options)
+class MigrationTableRow:
+    left: float
+    right: float
+    node: int
+    source: int
+    dest: int
+    time: float
+    metadata: bytes
 
 
-MutationTableRow = collections.namedtuple(
-    "MutationTableRow", ["site", "node", "derived_state", "parent", "metadata"]
-)
+@attr.s(**attr_options)
+class SiteTableRow:
+    position: float
+    ancestral_state: str
+    metadata: bytes
 
 
-PopulationTableRow = collections.namedtuple("PopulationTableRow", ["metadata"])
+@attr.s(**attr_options)
+class MutationTableRow:
+    site: int
+    node: int
+    derived_state: str
+    parent: int
+    metadata: bytes
 
 
-ProvenanceTableRow = collections.namedtuple(
-    "ProvenanceTableRow", ["timestamp", "record"]
-)
+@attr.s(**attr_options)
+class PopulationTableRow:
+    metadata: bytes
+
+
+@attr.s(**attr_options)
+class ProvenanceTableRow:
+    timestamp: str
+    record: str
 
 
 def keep_with_offset(keep, data, offset):

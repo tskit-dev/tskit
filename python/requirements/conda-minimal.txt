@@ -1,3 +1,4 @@
+attrs>=19.1.0 #Pinned as we need kw_args support
 numpy
 nose
 h5py
