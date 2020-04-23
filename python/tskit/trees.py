@@ -952,6 +952,18 @@ class Tree:
         """
         return self._ll_tree.get_time(u)
 
+    def depth(self, u):
+        """
+        Returns the number of nodes on the path from ``u`` to a
+        root, not including ``u``. Thus, the depth of a root is
+        zero.
+
+        :param int u: The node of interest.
+        :return: The depth of u.
+        :rtype: int
+        """
+        return self._ll_tree.depth(u)
+
     def get_population(self, u):
         # Deprecated alias for self.population
         return self.population(u)

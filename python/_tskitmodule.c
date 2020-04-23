@@ -8765,6 +8765,26 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_depth(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    tsk_size_t depth;
+    int node, err;
+
+    if (Tree_get_node_argument(self, args, &node) != 0) {
+        goto out;
+    }
+    err = tsk_tree_depth(self->tree, node, &depth);
+    if (ret != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("I", (unsigned int) depth);
+out:
+    return ret;
+}
+
 static bool
 Tree_check_sample_list(Tree *self)
 {
@@ -9196,6 +9216,8 @@ static PyMethodDef Tree_methods[] = {
             "Returns True if the specified node is a sample." },
     {"is_descendant", (PyCFunction) Tree_is_descendant, METH_VARARGS,
             "Returns True if u is a descendant of v." },
+    {"depth", (PyCFunction) Tree_depth, METH_VARARGS,
+            "Returns the depth of node u" },
     {"get_parent", (PyCFunction) Tree_get_parent, METH_VARARGS,
             "Returns the parent of node u" },
     {"get_time", (PyCFunction) Tree_get_time, METH_VARARGS,

@@ -434,10 +434,20 @@ class HighLevelTestCase(unittest.TestCase):
         self.assertEqual(st.num_samples(), len(samples))
         self.assertEqual(sorted(st.samples()), sorted(samples))
 
+    def verify_tree_depths(self, st):
+        for root in st.roots:
+            stack = [(root, 0)]
+            while len(stack) > 0:
+                u, depth = stack.pop()
+                self.assertEqual(st.depth(u), depth)
+                for c in st.children(u):
+                    stack.append((c, depth + 1))
+
     def verify_tree(self, st):
         self.verify_tree_mrcas(st)
         self.verify_tree_branch_lengths(st)
         self.verify_tree_structure(st)
+        self.verify_tree_depths(st)
 
     def verify_trees(self, ts):
         pts = tests.PythonTreeSequence(ts)

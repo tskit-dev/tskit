@@ -3565,6 +3565,28 @@ tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_lengt
     return 0;
 }
 
+int TSK_WARN_UNUSED
+tsk_tree_depth(tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
+{
+    tsk_id_t v;
+    tsk_size_t depth;
+    int ret = 0;
+
+    ret = tsk_tree_check_node(self, u);
+    if (ret != 0) {
+        goto out;
+    }
+
+    depth = 0;
+    for (v = self->parent[u]; v != TSK_NULL; v = self->parent[v]) {
+        depth++;
+    }
+
+    *depth_ret = depth;
+out:
+    return ret;
+}
+
 static void
 tsk_tree_check_state(tsk_tree_t *self)
 {
