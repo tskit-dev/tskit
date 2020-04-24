@@ -279,6 +279,7 @@ epub_exclude_files = ["search.html"]
 intersphinx_mapping = {
     "https://docs.python.org/": None,
     "http://docs.scipy.org/doc/numpy/": None,
+    "https://svgwrite.readthedocs.io/en/stable/": None,
 }
 
 # -- Options for todo extension ----------------------------------------------
