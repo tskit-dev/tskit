@@ -1730,6 +1730,7 @@ class TestTree(LowLevelTestCase):
                 self.assertRaises(ValueError, st.get_right_sample, v)
                 self.assertRaises(ValueError, st.is_descendant, v, 0)
                 self.assertRaises(ValueError, st.is_descendant, 0, v)
+                self.assertRaises(ValueError, st.depth, v)
             n = ts.get_num_samples()
             for v in [-100, -1, n + 1, n + 100, n * 100]:
                 self.assertRaises(ValueError, st.get_next_sample, v)

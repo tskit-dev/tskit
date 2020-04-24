@@ -381,6 +381,7 @@ int tsk_tree_get_num_samples(tsk_tree_t *self, tsk_id_t u, size_t *num_samples);
 int tsk_tree_get_num_tracked_samples(
     tsk_tree_t *self, tsk_id_t u, size_t *num_tracked_samples);
 int tsk_tree_get_sites(tsk_tree_t *self, tsk_site_t **sites, tsk_size_t *sites_length);
+int tsk_tree_depth(tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth);
 
 typedef struct {
     tsk_id_t node;

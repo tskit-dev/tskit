@@ -3508,6 +3508,51 @@ test_single_tree_iter_times(void)
 }
 
 static void
+test_single_tree_iter_depths(void)
+{
+    int ret = 0;
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0\n"
+                        "0  2   0\n"
+                        "0  3   0\n";
+    const char *edges = "0  6   4   0,1\n"
+                        "0  6   5   2,3\n"
+                        "0  6   6   4,5\n";
+    unsigned int depths[] = { 2, 2, 2, 2, 1, 1, 0 };
+    unsigned int depth;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_id_t u;
+    uint32_t num_nodes = 7;
+
+    tsk_treeseq_from_text(&ts, 6, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL(ret, 1);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), num_nodes);
+
+    for (u = 0; u < (tsk_id_t) num_nodes; u++) {
+        ret = tsk_tree_depth(&tree, u, &depth);
+        CU_ASSERT_EQUAL(ret, 0);
+        CU_ASSERT_EQUAL(depth, depths[u]);
+    }
+
+    ret = tsk_tree_depth(&tree, (tsk_id_t) num_nodes, &depth);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_tree_depth(&tree, TSK_NULL, &depth);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_tree_next(&tree);
+    CU_ASSERT_EQUAL(ret, 0);
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+static void
 test_single_tree_simplify(void)
 {
     tsk_treeseq_t ts;
@@ -5287,6 +5332,7 @@ main(int argc, char **argv)
             test_single_tree_general_samples_iter },
         { "test_single_nonbinary_tree_iter", test_single_nonbinary_tree_iter },
         { "test_single_tree_iter_times", test_single_tree_iter_times },
+        { "test_single_tree_iter_depths", test_single_tree_iter_depths },
         { "test_single_tree_simplify", test_single_tree_simplify },
         { "test_single_tree_simplify_no_sample_nodes",
             test_single_tree_simplify_no_sample_nodes },
