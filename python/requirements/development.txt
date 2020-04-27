@@ -1,3 +1,4 @@
+attrs>=19.1.0 #Pinned as we need kw_args support
 biopython
 black
 breathe==4.14.2 #Pinned as next version needs sphinx 3 (see below)

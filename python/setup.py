@@ -96,7 +96,7 @@ setup(
     packages=["tskit"],
     include_package_data=True,
     ext_modules=[_tskit_module],
-    install_requires=[numpy_ver, "h5py", "svgwrite", "jsonschema"],
+    install_requires=[numpy_ver, "h5py", "svgwrite", "jsonschema", "attrs>=19.1.0"],
     entry_points={"console_scripts": ["tskit=tskit.cli:tskit_main"]},
     project_urls={
         "Bug Reports": "https://github.com/tskit-dev/tskit/issues",

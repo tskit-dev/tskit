@@ -31,6 +31,7 @@ import random
 import unittest
 import warnings
 
+import attr
 import msprime
 import numpy as np
 
@@ -369,7 +370,7 @@ class CommonTestsMixin:
                 self.assertTrue(np.all(input_array == output_array))
             t2 = self.table_class()
             for row in list(t1):
-                t2.add_row(**row._asdict())
+                t2.add_row(**attr.asdict(row))
             self.assertEqual(t1, t2)
 
     def test_set_columns_data(self):
@@ -782,8 +783,8 @@ class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
         s = str(t)
         self.assertGreater(len(s), 0)
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, 1, 2, 0, b"123"))
-        self.assertEqual(t[1], (1, 2, 3, 1, b"\xf0"))
+        self.assertEqual(attr.astuple(t[0]), (0, 1, 2, 0, b"123"))
+        self.assertEqual(attr.astuple(t[1]), (1, 2, 3, 1, b"\xf0"))
         self.assertEqual(t[0].flags, 0)
         self.assertEqual(t[0].time, 1)
         self.assertEqual(t[0].population, 2)
@@ -860,8 +861,8 @@ class TestEdgeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
         t.add_row(left=0, right=1, parent=2, child=3, metadata=b"123")
         t.add_row(1, 2, 3, 4, b"\xf0")
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, 1, 2, 3, b"123"))
-        self.assertEqual(t[1], (1, 2, 3, 4, b"\xf0"))
+        self.assertEqual(attr.astuple(t[0]), (0, 1, 2, 3, b"123"))
+        self.assertEqual(attr.astuple(t[1]), (1, 2, 3, 4, b"\xf0"))
         self.assertEqual(t[0].left, 0)
         self.assertEqual(t[0].right, 1)
         self.assertEqual(t[0].parent, 2)
@@ -906,8 +907,8 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
         s = str(t)
         self.assertGreater(len(s), 0)
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, "1", b"2"))
-        self.assertEqual(t[1], (1, "2", b"\xf0"))
+        self.assertEqual(attr.astuple(t[0]), (0, "1", b"2"))
+        self.assertEqual(attr.astuple(t[1]), (1, "2", b"\xf0"))
         self.assertEqual(t[0].position, 0)
         self.assertEqual(t[0].ancestral_state, "1")
         self.assertEqual(t[0].metadata, b"2")
@@ -965,8 +966,8 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
         s = str(t)
         self.assertGreater(len(s), 0)
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, 1, "2", 3, b"4"))
-        self.assertEqual(t[1], (1, 2, "3", 4, b"\xf0"))
+        self.assertEqual(attr.astuple(t[0]), (0, 1, "2", 3, b"4"))
+        self.assertEqual(attr.astuple(t[1]), (1, 2, "3", 4, b"\xf0"))
         self.assertEqual(t[0].site, 0)
         self.assertEqual(t[0].node, 1)
         self.assertEqual(t[0].derived_state, "2")
@@ -1025,8 +1026,8 @@ class TestMigrationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin
         t.add_row(left=0, right=1, node=2, source=3, dest=4, time=5, metadata=b"123")
         t.add_row(1, 2, 3, 4, 5, 6, b"\xf0")
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (0, 1, 2, 3, 4, 5, b"123"))
-        self.assertEqual(t[1], (1, 2, 3, 4, 5, 6, b"\xf0"))
+        self.assertEqual(attr.astuple(t[0]), (0, 1, 2, 3, 4, 5, b"123"))
+        self.assertEqual(attr.astuple(t[1]), (1, 2, 3, 4, 5, 6, b"\xf0"))
         self.assertEqual(t[0].left, 0)
         self.assertEqual(t[0].right, 1)
         self.assertEqual(t[0].node, 2)
@@ -1071,8 +1072,8 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
         t.add_row(timestamp="0", record="1")
         t.add_row("2", "1")  # The orders are reversed for default timestamp.
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], ("0", "1"))
-        self.assertEqual(t[1], ("1", "2"))
+        self.assertEqual(attr.astuple(t[0]), ("0", "1"))
+        self.assertEqual(attr.astuple(t[1]), ("1", "2"))
         self.assertEqual(t[0].timestamp, "0")
         self.assertEqual(t[0].record, "1")
         self.assertEqual(t[0], t[-2])
@@ -1120,9 +1121,9 @@ class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
         s = str(t)
         self.assertGreater(len(s), 0)
         self.assertEqual(len(t), 2)
-        self.assertEqual(t[0], (b"\xf0",))
+        self.assertEqual(attr.astuple(t[0]), (b"\xf0",))
         self.assertEqual(t[0].metadata, b"\xf0")
-        self.assertEqual(t[1], (b"1",))
+        self.assertEqual(attr.astuple(t[1]), (b"1",))
         self.assertRaises(IndexError, t.__getitem__, -3)
 
     def test_add_row_bad_data(self):
