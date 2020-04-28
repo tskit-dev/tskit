@@ -3817,8 +3817,8 @@ class TreeSequence:
         the nodes given in the list ``samples``. If ``map_nodes`` is true,
         also return a numpy array whose ``u``th element is the ID of the node
         in the simplified tree sequence that corresponds to node ``u`` in the
-        new tree sequence, or :data:`tskit.NULL` (-1) if ``u`` is not present
-        in the simplified tree sequence.
+        original tree sequence, or :data:`tskit.NULL` (-1) if ``u`` is no longer
+        present in the simplified tree sequence.
 
         In the returned tree sequence, the node with ID ``0`` corresponds to
         ``samples[0]``, node ``1`` corresponds to ``samples[1]``, and so on.
