@@ -1393,9 +1393,12 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             root_group.attrib["class"], r"\b(tree|tree-sequence)\b"
         )
         if "tree-sequence" in root_group.attrib["class"]:
-            trees = root_group.find(prefix + "g")
-            self.assertIn("class", trees.attrib)
-            self.assertRegexpMatches(trees.attrib["class"], r"\btrees\b")
+            trees = None
+            for g in root_group.findall(prefix + "g"):
+                if "trees" in g.attrib.get("class", ""):
+                    trees = g
+                    break
+            self.assertIsNotNone(trees)  # Must have found a trees group
             first_tree = trees.find(prefix + "g")
             self.assertIn("class", first_tree.attrib)
             self.assertRegexpMatches(first_tree.attrib["class"], r"\btree\b")
@@ -1768,6 +1771,19 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         for bad_scale in [0, "", "NOT A SCALE"]:
             with self.assertRaises(ValueError):
                 ts.draw_svg(tree_height_scale=bad_scale)
+
+    def test_x_scale(self):
+        ts = msprime.simulate(4, random_seed=2)
+        svg = ts.draw_svg(x_scale="physical")
+        self.verify_basic_svg(svg)
+        svg = ts.draw_svg(x_scale="treewise")
+        self.verify_basic_svg(svg)
+
+    def test_bad_x_scale(self):
+        ts = msprime.simulate(4, random_seed=2)
+        for bad_x_scale in ["te", "asdf", "", [], b"23"]:
+            with self.assertRaises(ValueError):
+                ts.draw_svg(x_scale=bad_x_scale)
 
     def test_known_svg_tree(self):
         tree = self.get_simple_ts().first()

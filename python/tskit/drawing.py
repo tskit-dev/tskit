@@ -102,6 +102,20 @@ def check_order(order):
     return traversal_orders[order]
 
 
+def check_x_scale(x_scale):
+    """
+    Checks the specified x_scale is valid and sets default if None
+    """
+    if x_scale is None:
+        x_scale = "physical"
+    x_scales = ["physical", "treewise"]
+    if x_scale not in x_scales:
+        raise ValueError(
+            f"Unknown display x_scale '{x_scale}'. " f"Supported orders are {x_scales}"
+        )
+    return x_scale
+
+
 def add_text_in_group(dwg, elem, x, y, text, **kwargs):
     """
     Add the text to the elem within a group. This allows text rotations to work smoothly
@@ -205,6 +219,7 @@ class SvgTreeSequence:
         self,
         ts,
         size=None,
+        x_scale=None,
         tree_height_scale=None,
         max_tree_height=None,
         node_labels=None,
@@ -221,6 +236,7 @@ class SvgTreeSequence:
         self.ts = ts
         if size is None:
             size = (200 * ts.num_trees, 200)
+        x_scale = check_x_scale(x_scale)
         if root_svg_attributes is None:
             root_svg_attributes = {}
         if max_tree_height is None:
@@ -229,15 +245,24 @@ class SvgTreeSequence:
         self.drawing = svgwrite.Drawing(
             size=self.image_size, debug=True, **root_svg_attributes
         )
+        dwg = self.drawing
         if style is not None:
-            self.drawing.defs.add(self.drawing.style(style))
+            dwg.defs.add(dwg.style(style))
+        root_group = dwg.add(dwg.g(class_="tree-sequence"))
+        if x_scale == "physical":
+            background = root_group.add(dwg.g(class_="background"))
+            axis_top_padding = 20
+            tick_len = (0, 5)
+        else:
+            axis_top_padding = 5
+            tick_len = (5, 5)
+
         self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
         # TODO add general padding arguments following matplotlib's terminology.
         self.axes_x_offset = 15
         self.axes_y_offset = 10
         self.treebox_x_offset = self.axes_x_offset + 5
-        self.treebox_y_offset = self.axes_y_offset + 5
-        x = self.treebox_x_offset
+        self.treebox_y_offset = self.axes_y_offset + axis_top_padding
         treebox_width = size[0] - 2 * self.treebox_x_offset
         treebox_height = size[1] - 2 * self.treebox_y_offset
         tree_width = treebox_width / ts.num_trees
@@ -259,20 +284,20 @@ class SvgTreeSequence:
             for tree in ts.trees()
         ]
 
-        ticks = []
+        ticks = []  # svg_x_pos of drawn trees, svg_x_pos of breakpoints, & labels
         y = self.treebox_y_offset
-
-        dwg = self.drawing
-        ts_class = "tree-sequence"
-        root_group = dwg.add(dwg.g(class_=ts_class))
-
         trees = root_group.add(dwg.g(class_="trees"))
+        drawing_scale = float(tree_width * ts.num_trees) / ts.sequence_length
+        tree_x = self.treebox_x_offset
+        break_x = self.treebox_x_offset
+
         for svg_tree, tree in zip(svg_trees, ts.trees()):
-            svg_tree.root_group["transform"] = f"translate({x} {y})"
+            svg_tree.root_group["transform"] = f"translate({tree_x} {y})"
             trees.add(svg_tree.root_group)
-            ticks.append((x, tree.interval[0]))
-            x += tree_width
-        ticks.append((x, ts.sequence_length))
+            ticks.append((tree_x, break_x, tree.interval[0]))
+            tree_x += tree_width
+            break_x += tree.span * drawing_scale
+        ticks.append((tree_x, break_x, ts.sequence_length))
 
         # TODO - add the ability to show the commented section below as a flag
         # # Debug --- draw the tree and axes boxes
@@ -290,9 +315,35 @@ class SvgTreeSequence:
         y = self.image_size[1] - 2 * self.axes_y_offset
         axis = root_group.add(dwg.g(class_="axis"))
         axis.add(dwg.line((axes_left, y), (axes_right, y), stroke="black"))
-        for x, genome_coord in ticks:
-            delta = 5
-            axis.add(dwg.line((x, y - delta), (x, y + delta), stroke="black"))
+
+        for i, tick in enumerate(ticks):
+            tree_x, break_x, genome_coord = tick
+            if x_scale == "treewise":
+                x = tree_x
+            elif x_scale == "physical":
+                x = break_x
+                if i > 0 and i % 2 == 1:
+                    # draw an alternating grey background
+                    prev_tree_x, prev_break_x, _ = ticks[i - 1]
+                    background.add(
+                        dwg.polygon(
+                            [
+                                (prev_break_x, y + tick_len[1]),
+                                (prev_break_x, y),
+                                (prev_tree_x, y - axis_top_padding),
+                                (prev_tree_x, 0),
+                                (tree_x, 0),
+                                (tree_x, y - axis_top_padding),
+                                (break_x, y),
+                                (break_x, y + tick_len[1]),
+                            ],
+                            fill="#F1F1F1",
+                        )
+                    )
+
+            axis.add(
+                dwg.line((x, y - tick_len[0]), (x, y + tick_len[1]), stroke="black")
+            )
             add_text_in_group(
                 dwg,
                 axis,
