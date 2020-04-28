@@ -180,16 +180,26 @@ class SvgTreeSequence:
         node_labels=None,
         mutation_labels=None,
         node_attrs=None,
+        mutation_attrs=None,
         edge_attrs=None,
         node_label_attrs=None,
-        mutation_attrs=None,
         mutation_label_attrs=None,
+        root_svg_attributes=None,
+        style=None,
     ):
         self.ts = ts
         if size is None:
             size = (200 * ts.num_trees, 200)
+        if root_svg_attributes is None:
+            root_svg_attributes = {}
+        if max_tree_height is None:
+            max_tree_height = "ts"
         self.image_size = size
-        self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
+        self.drawing = svgwrite.Drawing(
+            size=self.image_size, debug=True, **root_svg_attributes
+        )
+        if style is not None:
+            self.drawing.defs.add(self.drawing.style(style))
         self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
         # TODO add general padding arguments following matplotlib's terminology.
         self.axes_x_offset = 15
@@ -207,7 +217,7 @@ class SvgTreeSequence:
                 node_labels=node_labels,
                 mutation_labels=mutation_labels,
                 tree_height_scale=tree_height_scale,
-                max_tree_height="ts",
+                max_tree_height=max_tree_height,
                 node_attrs=node_attrs,
                 edge_attrs=edge_attrs,
                 node_label_attrs=node_label_attrs,
@@ -272,21 +282,28 @@ class SvgTree:
         self,
         tree,
         size=None,
-        node_labels=None,
-        mutation_labels=None,
         tree_height_scale=None,
         max_tree_height=None,
+        node_labels=None,
+        mutation_labels=None,
         node_attrs=None,
+        mutation_attrs=None,
         edge_attrs=None,
         node_label_attrs=None,
-        mutation_attrs=None,
         mutation_label_attrs=None,
+        root_svg_attributes=None,
+        style=None,
     ):
         self.tree = tree
         if size is None:
             size = (200, 200)
         self.image_size = size
-        self.setup_drawing()
+        if root_svg_attributes is None:
+            root_svg_attributes = {}
+        self.root_svg_attributes = root_svg_attributes
+        self.drawing = self.setup_drawing()
+        if style is not None:
+            self.drawing.defs.add(self.drawing.style(style))
         self.treebox_x_offset = 10
         self.treebox_y_offset = 10
         self.treebox_width = size[0] - 2 * self.treebox_x_offset
@@ -338,8 +355,10 @@ class SvgTree:
         self.draw()
 
     def setup_drawing(self):
-        self.drawing = svgwrite.Drawing(size=self.image_size, debug=True)
-        dwg = self.drawing
+        "Return an svgwrite.Drawing object for further use"
+        dwg = svgwrite.Drawing(
+            size=self.image_size, debug=True, **self.root_svg_attributes
+        )
         tree_class = f"tree t{self.tree.index}"
         self.root_group = dwg.add(dwg.g(class_=tree_class))
         self.edges = self.root_group.add(
@@ -358,6 +377,7 @@ class SvgTree:
         self.right_labels = self.node_labels.add(dwg.g(text_anchor="end"))
         self.mutation_left_labels = self.mutation_labels.add(dwg.g(text_anchor="start"))
         self.mutation_right_labels = self.mutation_labels.add(dwg.g(text_anchor="end"))
+        return dwg
 
     def assign_y_coordinates(self, tree_height_scale, max_tree_height):
         tree_height_scale = check_tree_height_scale(tree_height_scale)
