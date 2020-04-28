@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg baseProfile="full" height="200" id="XYZ" version="1.1" width="1000" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <style type="text/css">
+<![CDATA[.edges {stroke: blue}]]>    </style>
+  </defs>
+  <g class="tree-sequence">
+    <g class="trees">
+      <g class="tree t0" transform="translate(20 15)">
+        <g class="edges" fill="none" stroke="black">
+          <path class="p9 c4" d="M 61.599999999999994 139.70389833418668 V 30.0 H 95.99999999999999"/>
+          <path class="p4 c0" d="M 44.4 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p4 c1" d="M 78.8 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p9 c5" d="M 130.39999999999998 138.6596223256533 V 30.0 H 95.99999999999999"/>
+          <path class="p5 c2" d="M 113.19999999999999 140.0 V 138.6596223256533 H 130.39999999999998"/>
+          <path class="p5 c3" d="M 147.6 140.0 V 138.6596223256533 H 130.39999999999998"/>
+        </g>
+        <g class="symbols">
+          <g class="nodes">
+            <circle class="n9" cx="95.99999999999999" cy="30.0" r="3"/>
+            <circle class="n4" cx="61.599999999999994" cy="139.70389833418668" r="3"/>
+            <circle class="n0 sample" cx="44.4" cy="140.0" r="3"/>
+            <circle class="n1 sample" cx="78.8" cy="140.0" r="3"/>
+            <circle class="n5" cx="130.39999999999998" cy="138.6596223256533" r="3"/>
+            <circle class="n2 sample" cx="113.19999999999999" cy="140.0" r="3"/>
+            <circle class="n3 sample" cx="147.6" cy="140.0" r="3"/>
+          </g>
+          <g class="mutations" fill="red">
+            <rect class="m0 s0 n4" height="6" transform="translate(-3 -3)" width="6" x="61.599999999999994" y="84.85194916709334"/>
+          </g>
+        </g>
+        <g class="labels" dominant-baseline="middle" font-size="14">
+          <g class="nodes">
+            <g text-anchor="start">
+              <g transform="translate(135.39999999999998, 133.6596223256533)">
+                <text class="n5">5</text>
+              </g>
+            </g>
+            <g text-anchor="middle">
+              <g transform="translate(95.99999999999999, 25.0)">
+                <text class="n9">9</text>
+              </g>
+              <g transform="translate(44.4, 160.0)">
+                <text class="n0 sample">0</text>
+              </g>
+              <g transform="translate(78.8, 160.0)">
+                <text class="n1 sample">1</text>
+              </g>
+              <g transform="translate(113.19999999999999, 160.0)">
+                <text class="n2 sample">2</text>
+              </g>
+              <g transform="translate(147.6, 160.0)">
+                <text class="n3 sample">3</text>
+              </g>
+            </g>
+            <g text-anchor="end">
+              <g transform="translate(56.599999999999994, 134.70389833418668)">
+                <text class="n4">4</text>
+              </g>
+            </g>
+          </g>
+          <g class="mutations" font-style="italic">
+            <g text-anchor="start"/>
+            <g text-anchor="end">
+              <g transform="translate(56.599999999999994, 88.85194916709334)">
+                <text class="m0 s0 n4">0</text>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+      <g class="tree t1" transform="translate(212.0 15)">
+        <g class="edges" fill="none" stroke="black">
+          <path class="p7 c4" d="M 61.599999999999994 139.70389833418668 V 112.01678495513357 H 95.99999999999999"/>
+          <path class="p4 c0" d="M 44.4 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p4 c1" d="M 78.8 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p7 c5" d="M 130.39999999999998 138.6596223256533 V 112.01678495513357 H 95.99999999999999"/>
+          <path class="p5 c2" d="M 113.19999999999999 140.0 V 138.6596223256533 H 130.39999999999998"/>
+          <path class="p5 c3" d="M 147.6 140.0 V 138.6596223256533 H 130.39999999999998"/>
+        </g>
+        <g class="symbols">
+          <g class="nodes">
+            <circle class="n7" cx="95.99999999999999" cy="112.01678495513357" r="3"/>
+            <circle class="n4" cx="61.599999999999994" cy="139.70389833418668" r="3"/>
+            <circle class="n0 sample" cx="44.4" cy="140.0" r="3"/>
+            <circle class="n1 sample" cx="78.8" cy="140.0" r="3"/>
+            <circle class="n5" cx="130.39999999999998" cy="138.6596223256533" r="3"/>
+            <circle class="n2 sample" cx="113.19999999999999" cy="140.0" r="3"/>
+            <circle class="n3 sample" cx="147.6" cy="140.0" r="3"/>
+          </g>
+          <g class="mutations" fill="red"/>
+        </g>
+        <g class="labels" dominant-baseline="middle" font-size="14">
+          <g class="nodes">
+            <g text-anchor="start">
+              <g transform="translate(135.39999999999998, 133.6596223256533)">
+                <text class="n5">5</text>
+              </g>
+            </g>
+            <g text-anchor="middle">
+              <g transform="translate(95.99999999999999, 107.01678495513357)">
+                <text class="n7">7</text>
+              </g>
+              <g transform="translate(44.4, 160.0)">
+                <text class="n0 sample">0</text>
+              </g>
+              <g transform="translate(78.8, 160.0)">
+                <text class="n1 sample">1</text>
+              </g>
+              <g transform="translate(113.19999999999999, 160.0)">
+                <text class="n2 sample">2</text>
+              </g>
+              <g transform="translate(147.6, 160.0)">
+                <text class="n3 sample">3</text>
+              </g>
+            </g>
+            <g text-anchor="end">
+              <g transform="translate(56.599999999999994, 134.70389833418668)">
+                <text class="n4">4</text>
+              </g>
+            </g>
+          </g>
+          <g class="mutations" font-style="italic">
+            <g text-anchor="start"/>
+            <g text-anchor="end"/>
+          </g>
+        </g>
+      </g>
+      <g class="tree t2" transform="translate(404.0 15)">
+        <g class="edges" fill="none" stroke="black">
+          <path class="p6 c4" d="M 61.599999999999994 139.70389833418668 V 118.8061198904806 H 95.99999999999999"/>
+          <path class="p4 c0" d="M 44.4 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p4 c1" d="M 78.8 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p6 c5" d="M 130.39999999999998 138.6596223256533 V 118.8061198904806 H 95.99999999999999"/>
+          <path class="p5 c2" d="M 113.19999999999999 140.0 V 138.6596223256533 H 130.39999999999998"/>
+          <path class="p5 c3" d="M 147.6 140.0 V 138.6596223256533 H 130.39999999999998"/>
+        </g>
+        <g class="symbols">
+          <g class="nodes">
+            <circle class="n6" cx="95.99999999999999" cy="118.8061198904806" r="3"/>
+            <circle class="n4" cx="61.599999999999994" cy="139.70389833418668" r="3"/>
+            <circle class="n0 sample" cx="44.4" cy="140.0" r="3"/>
+            <circle class="n1 sample" cx="78.8" cy="140.0" r="3"/>
+            <circle class="n5" cx="130.39999999999998" cy="138.6596223256533" r="3"/>
+            <circle class="n2 sample" cx="113.19999999999999" cy="140.0" r="3"/>
+            <circle class="n3 sample" cx="147.6" cy="140.0" r="3"/>
+          </g>
+          <g class="mutations" fill="red"/>
+        </g>
+        <g class="labels" dominant-baseline="middle" font-size="14">
+          <g class="nodes">
+            <g text-anchor="start">
+              <g transform="translate(135.39999999999998, 133.6596223256533)">
+                <text class="n5">5</text>
+              </g>
+            </g>
+            <g text-anchor="middle">
+              <g transform="translate(95.99999999999999, 113.8061198904806)">
+                <text class="n6">6</text>
+              </g>
+              <g transform="translate(44.4, 160.0)">
+                <text class="n0 sample">0</text>
+              </g>
+              <g transform="translate(78.8, 160.0)">
+                <text class="n1 sample">1</text>
+              </g>
+              <g transform="translate(113.19999999999999, 160.0)">
+                <text class="n2 sample">2</text>
+              </g>
+              <g transform="translate(147.6, 160.0)">
+                <text class="n3 sample">3</text>
+              </g>
+            </g>
+            <g text-anchor="end">
+              <g transform="translate(56.599999999999994, 134.70389833418668)">
+                <text class="n4">4</text>
+              </g>
+            </g>
+          </g>
+          <g class="mutations" font-style="italic">
+            <g text-anchor="start"/>
+            <g text-anchor="end"/>
+          </g>
+        </g>
+      </g>
+      <g class="tree t3" transform="translate(596.0 15)">
+        <g class="edges" fill="none" stroke="black">
+          <path class="p7 c4" d="M 61.599999999999994 139.70389833418668 V 112.01678495513357 H 95.99999999999999"/>
+          <path class="p4 c0" d="M 44.4 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p4 c1" d="M 78.8 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p7 c5" d="M 130.39999999999998 138.6596223256533 V 112.01678495513357 H 95.99999999999999"/>
+          <path class="p5 c2" d="M 113.19999999999999 140.0 V 138.6596223256533 H 130.39999999999998"/>
+          <path class="p5 c3" d="M 147.6 140.0 V 138.6596223256533 H 130.39999999999998"/>
+        </g>
+        <g class="symbols">
+          <g class="nodes">
+            <circle class="n7" cx="95.99999999999999" cy="112.01678495513357" r="3"/>
+            <circle class="n4" cx="61.599999999999994" cy="139.70389833418668" r="3"/>
+            <circle class="n0 sample" cx="44.4" cy="140.0" r="3"/>
+            <circle class="n1 sample" cx="78.8" cy="140.0" r="3"/>
+            <circle class="n5" cx="130.39999999999998" cy="138.6596223256533" r="3"/>
+            <circle class="n2 sample" cx="113.19999999999999" cy="140.0" r="3"/>
+            <circle class="n3 sample" cx="147.6" cy="140.0" r="3"/>
+          </g>
+          <g class="mutations" fill="red"/>
+        </g>
+        <g class="labels" dominant-baseline="middle" font-size="14">
+          <g class="nodes">
+            <g text-anchor="start">
+              <g transform="translate(135.39999999999998, 133.6596223256533)">
+                <text class="n5">5</text>
+              </g>
+            </g>
+            <g text-anchor="middle">
+              <g transform="translate(95.99999999999999, 107.01678495513357)">
+                <text class="n7">7</text>
+              </g>
+              <g transform="translate(44.4, 160.0)">
+                <text class="n0 sample">0</text>
+              </g>
+              <g transform="translate(78.8, 160.0)">
+                <text class="n1 sample">1</text>
+              </g>
+              <g transform="translate(113.19999999999999, 160.0)">
+                <text class="n2 sample">2</text>
+              </g>
+              <g transform="translate(147.6, 160.0)">
+                <text class="n3 sample">3</text>
+              </g>
+            </g>
+            <g text-anchor="end">
+              <g transform="translate(56.599999999999994, 134.70389833418668)">
+                <text class="n4">4</text>
+              </g>
+            </g>
+          </g>
+          <g class="mutations" font-style="italic">
+            <g text-anchor="start"/>
+            <g text-anchor="end"/>
+          </g>
+        </g>
+      </g>
+      <g class="tree t4" transform="translate(788.0 15)">
+        <g class="edges" fill="none" stroke="black">
+          <path class="p8 c4" d="M 61.599999999999994 139.70389833418668 V 96.72565330282865 H 95.99999999999999"/>
+          <path class="p4 c0" d="M 44.4 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p4 c1" d="M 78.8 140.0 V 139.70389833418668 H 61.599999999999994"/>
+          <path class="p8 c5" d="M 130.39999999999998 138.6596223256533 V 96.72565330282865 H 95.99999999999999"/>
+          <path class="p5 c2" d="M 113.19999999999999 140.0 V 138.6596223256533 H 130.39999999999998"/>
+          <path class="p5 c3" d="M 147.6 140.0 V 138.6596223256533 H 130.39999999999998"/>
+        </g>
+        <g class="symbols">
+          <g class="nodes">
+            <circle class="n8" cx="95.99999999999999" cy="96.72565330282865" r="3"/>
+            <circle class="n4" cx="61.599999999999994" cy="139.70389833418668" r="3"/>
+            <circle class="n0 sample" cx="44.4" cy="140.0" r="3"/>
+            <circle class="n1 sample" cx="78.8" cy="140.0" r="3"/>
+            <circle class="n5" cx="130.39999999999998" cy="138.6596223256533" r="3"/>
+            <circle class="n2 sample" cx="113.19999999999999" cy="140.0" r="3"/>
+            <circle class="n3 sample" cx="147.6" cy="140.0" r="3"/>
+          </g>
+          <g class="mutations" fill="red"/>
+        </g>
+        <g class="labels" dominant-baseline="middle" font-size="14">
+          <g class="nodes">
+            <g text-anchor="start">
+              <g transform="translate(135.39999999999998, 133.6596223256533)">
+                <text class="n5">5</text>
+              </g>
+            </g>
+            <g text-anchor="middle">
+              <g transform="translate(95.99999999999999, 91.72565330282865)">
+                <text class="n8">8</text>
+              </g>
+              <g transform="translate(44.4, 160.0)">
+                <text class="n0 sample">0</text>
+              </g>
+              <g transform="translate(78.8, 160.0)">
+                <text class="n1 sample">1</text>
+              </g>
+              <g transform="translate(113.19999999999999, 160.0)">
+                <text class="n2 sample">2</text>
+              </g>
+              <g transform="translate(147.6, 160.0)">
+                <text class="n3 sample">3</text>
+              </g>
+            </g>
+            <g text-anchor="end">
+              <g transform="translate(56.599999999999994, 134.70389833418668)">
+                <text class="n4">4</text>
+              </g>
+            </g>
+          </g>
+          <g class="mutations" font-style="italic">
+            <g text-anchor="start"/>
+            <g text-anchor="end"/>
+          </g>
+        </g>
+      </g>
+    </g>
+    <g class="axis">
+      <line stroke="black" x1="20" x2="980" y1="180" y2="180"/>
+      <line stroke="black" x1="20" x2="20" y1="175" y2="185"/>
+      <g transform="translate(20, 200)">
+        <text font-size="14" font-weight="bold" text-anchor="middle">0.00</text>
+      </g>
+      <line stroke="black" x1="212.0" x2="212.0" y1="175" y2="185"/>
+      <g transform="translate(212.0, 200)">
+        <text font-size="14" font-weight="bold" text-anchor="middle">0.06</text>
+      </g>
+      <line stroke="black" x1="404.0" x2="404.0" y1="175" y2="185"/>
+      <g transform="translate(404.0, 200)">
+        <text font-size="14" font-weight="bold" text-anchor="middle">0.79</text>
+      </g>
+      <line stroke="black" x1="596.0" x2="596.0" y1="175" y2="185"/>
+      <g transform="translate(596.0, 200)">
+        <text font-size="14" font-weight="bold" text-anchor="middle">0.91</text>
+      </g>
+      <line stroke="black" x1="788.0" x2="788.0" y1="175" y2="185"/>
+      <g transform="translate(788.0, 200)">
+        <text font-size="14" font-weight="bold" text-anchor="middle">0.91</text>
+      </g>
+      <line stroke="black" x1="980.0" x2="980.0" y1="175" y2="185"/>
+      <g transform="translate(980.0, 200)">
+        <text font-size="14" font-weight="bold" text-anchor="middle">1.00</text>
+      </g>
+    </g>
+  </g>
+</svg>

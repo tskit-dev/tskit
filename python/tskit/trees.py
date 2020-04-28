@@ -1203,108 +1203,104 @@ class Tree:
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
-        node_attrs=None,
-        edge_attrs=None,
-        node_label_attrs=None,
-        mutation_attrs=None,
-        mutation_label_attrs=None,
         root_svg_attributes=None,
         style=None,
+        **kwargs,
     ):
         """
         Return an SVG representation of a single tree.
 
         When working in a Jupyter notebook, use the ``IPython.display.SVG`` function
-        to display the SVG output from this function inline in the notebook.
+        to display the SVG output from this function inline in the notebook::
 
-        .. note::
+            >>> SVG(tree.draw_svg())
 
-            The elements in the tree are placed into
-            different `SVG groups <https://www.w3.org/TR/SVG2/struct.html#Groups>`_ for
-            easy styling and manipulation. Both these groups and their component items
-            are marked with SVG classes so that they can be targetted. This allows
-            individual components of the drawing to be hidden, styled, or otherwise
-            manipulated. For example, when drawing (say) the first tree from a tree
-            sequence, all the SVG components will be placed in a group of class ``tree``.
-            The group will have the additional class ``t0``, indicating that this tree
-            has index 0 in the tree sequence. The general SVG structure is as follows:
 
-            * The *tree* group (classes ``tree`` and ``tN`` where `N` is the tree index).
-              This contains the following three groups:
 
-              * The *edges* group (class ``edges``), containing edges. Each edge has
-                classes ``pX``, and ``cY`` where `X` and `Y` are the ids of the parent
-                and child nodes.
-              * The *symbols* group (class ``symbols``), containing two subgroups:
+        The elements in the tree are placed into
+        different `SVG groups <https://www.w3.org/TR/SVG2/struct.html#Groups>`_ for
+        easy styling and manipulation. Both these groups and their component items
+        are marked with SVG classes so that they can be targetted. This allows
+        individual components of the drawing to be hidden, styled, or otherwise
+        manipulated. For example, when drawing (say) the first tree from a tree
+        sequence, all the SVG components will be placed in a group of class ``tree``.
+        The group will have the additional class ``t0``, indicating that this tree
+        has index 0 in the tree sequence. The general SVG structure is as follows:
 
-                * The *node symbols* group (class ``nodes``) containing a
-                  `circle <https://www.w3.org/TR/SVG2/shapes.html#CircleElement>`_ for
-                  each node. Each node symbol has a class ``nX`` where ``X`` is the node
-                  id. Symbols corresponding to sample nodes are additionally labelled
-                  with a class of ``sample``.
-                * The *mutation symbols* group (class ``mutations``) containing a
-                  `rectangle <https://www.w3.org/TR/SVG2/shapes.html#RectElement>`_ for
-                  each mutation. Each mutation symbol has classes ``mX``, ``sY``, and
-                  ``nZ`` where `X` is the mutation id, `Y` is the site id, and `Z` is
-                  the id of the node above which the mutation occurs.
+        * The *tree* group (classes ``tree`` and ``tN`` where `N` is the tree index).
+          This contains the following three groups:
 
-              * The *labels* group (class ``labels``) containing two subgroups:
+          * The *edges* group (class ``edges``), containing edges. Each edge has
+            classes ``pX``, and ``cY`` where `X` and `Y` are the ids of the parent
+            and child nodes.
+          * The *symbols* group (class ``symbols``), containing two subgroups:
 
-                * The *node labels* group (class ``nodes``) containing text for each
-                  node. Each `text <https://www.w3.org/TR/SVG2/text.html#TextElement>`_
-                  element in this group corresponds to a node, and has the same set of
-                  classes as its equivalent node symbol (i.e. ``nX`` and potentially
-                  ``sample``)
-                * The *mutation labels* group (class `mutations`) containing containing
-                  text for each mutation. Each
-                  `text <https://www.w3.org/TR/SVG2/text.html#TextElement>`_ element in
-                  this group corresponds to a mutation, and has the same set of classes
-                  as its equivalent mutation symbol (i.e. ``mX``, ``sY``, and ``nZ``)
+            * The *node symbols* group (class ``nodes``) containing a
+              `circle <https://www.w3.org/TR/SVG2/shapes.html#CircleElement>`_ for
+              each node. Each node symbol has a class ``nX`` where ``X`` is the node
+              id. Symbols corresponding to sample nodes are additionally labelled
+              with a class of ``sample``.
+            * The *mutation symbols* group (class ``mutations``) containing a
+              `rectangle <https://www.w3.org/TR/SVG2/shapes.html#RectElement>`_ for
+              each mutation. Each mutation symbol has classes ``mX``, ``sY``, and
+              ``nZ`` where `X` is the mutation id, `Y` is the site id, and `Z` is
+              the id of the node above which the mutation occurs.
 
-            The classes can be used to manipulate the element, e.g. by using
-            `stylesheets <https://www.w3.org/TR/SVG2/styling.html>`_. Style strings can
-            be embedded in the svg by using the ``style`` parameter, or added to html
-            pages which contain the raw SVG (e.g. within a Jupyter notebook by using the
-            IPython HTML() function). As a simple example, the following style string
-            will hide all labels:
+          * The *labels* group (class ``labels``) containing two subgroups:
 
-            .. code-block:: css
+            * The *node labels* group (class ``nodes``) containing text for each
+              node. Each `text <https://www.w3.org/TR/SVG2/text.html#TextElement>`_
+              element in this group corresponds to a node, and has the same set of
+              classes as its equivalent node symbol (i.e. ``nX`` and potentially
+              ``sample``)
+            * The *mutation labels* group (class `mutations`) containing containing
+              text for each mutation. Each
+              `text <https://www.w3.org/TR/SVG2/text.html#TextElement>`_ element in
+              this group corresponds to a mutation, and has the same set of classes
+              as its equivalent mutation symbol (i.e. ``mX``, ``sY``, and ``nZ``)
 
-                .tree .labels {visibility: hidden}
+        The classes can be used to manipulate the element, e.g. by using
+        `stylesheets <https://www.w3.org/TR/SVG2/styling.html>`_. Style strings can
+        be embedded in the svg by using the ``style`` parameter, or added to html
+        pages which contain the raw SVG (e.g. within a Jupyter notebook by using the
+        IPython HTML() function). As a simple example, the following style string
+        will hide all labels:
 
-            You can also change the format of various items: the following styles will
-            display the symbols of the *sample* nodes only in blue, and hide the labels
-            of all the internal nodes:
+        .. code-block:: css
 
-            .. code-block:: css
+            .tree .labels {visibility: hidden}
 
-                .tree .symbols .nodes .sample {fill: blue}
-                .tree .labels .nodes text:not(.sample) {visibility: hidden}
+        You can also change the format of various items: the following styles will
+        display the symbols of the *sample* nodes only in blue, rotate the sample
+        node labels by 90 degrees, and hide the internal node labels:
 
-            Specific nodes can be targetted by number. The following style will display
-            node 10 in red, and also colour in red the edges whose parent is node 10:
+        .. code-block:: css
 
-            .. code-block:: css
+            .tree .symbols .nodes .sample {fill: blue}
+            .tree .labels .nodes text.sample {transform: rotate(90deg)}
+            .tree .labels .nodes text:not(.sample) {visibility: hidden}
 
-                .tree .symbols .nodes .n10 {fill: red}
-                .tree .edges .p10 {stroke: red}
+        Specific nodes can be targetted by number. The following style will display
+        node 10 in red, and also colour in red the edges whose parent is node 10:
 
-            Mutations can be targetted by id, site id, or node number. The following
-            style displays all mutations immediately above node 10 as yellow with a black
-            border, and decreases the height of all mutation symbols on the tree,
-            displaying them as only 2 pixels high, rather than the default of 6.
+        .. code-block:: css
 
-            .. code-block:: css
+            .tree .symbols .nodes .n10 {fill: red}
+            .tree .edges .p10 {stroke: red}
 
-                .tree .symbols .mutations .n10 {fill: yellow; stroke: black}
-                .tree .symbols .mutations rect {width: 6px; height: 2px;
-                    /* also must re-centre the rect */ transform: translate(-3px, -1px);}
+        Mutations can be targetted by id, site id, or node number. The following
+        style displays all mutations immediately above node 10 as yellow with a black
+        border
+
+        .. code-block:: css
+
+            .tree .symbols .mutations .n10 {fill: yellow; stroke: black}
 
         :param str path: The path to the file to write the output. If None, do not
             write to file.
         :param size: A tuple of (width, height) giving the width and height of the
             produced SVG drawing in abstract user units (usually interpreted as pixels on
-            initial display). If None, a default of (200, 200) is used.
+            initial display).
         :type size: tuple(int, int)
         :param str tree_height_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"`` (the default), node heights are proportional
@@ -1327,35 +1323,11 @@ class Tree:
             mutations (specified by ID) that are present in the map; any mutations
             not present will not have a label.
         :type mutation_labels: dict(int, str)
-        :param node_attrs: Set custom attributes for specific node symbols. Each key in
-            the `node_attrs` map is a node id; the corresponding value must be a
-            dictionary specifying additional parameters passed to the
-            :meth:`svgwrite.drawing.Drawing.circle` method.
-        :type node_attrs: dict(int, dict)
-        :param mutation_attrs: Set custom attributes for specific mutation symbols. Each
-            key in the `mutation_attrs` map is a mutation id; the corresponding value
-            must be a dictionary specifying additional parameters passed to the
-            :meth:`svgwrite.drawing.Drawing.rect` method.
-        :type mutation_attrs: dict(int, dict)
-        :param edge_attrs: Set custom attributes for specific edges. Each key
-            in the `edge_attrs` map is the *node* id of the child node of an edge;
-            the corresponding value must be a dictionary specifying additional parameters
-            passed to the :meth:`svgwrite.drawing.Drawing.path` method.
-        :type edge_attrs: dict(int, dict)
-        :param node_label_attrs: Set custom attributes for specific node labels. Each key
-            in the `node_label_attrs` map is a node id; the corresponding value must be a
-            dictionary specifying additional parameters passed to the
-            :meth:`svgwrite.drawing.Drawing.text` method.
-        :type node_label_attrs: dict(int, dict)
-        :param mutation_label_attrs: Set custom attributes for specific mutation labels.
-            Each key in the `mutation_label_attrs` map is a mutation id; the
-            corresponding value must be a dictionary specifying additional parameters
-            passed to the :meth:`svgwrite.drawing.Drawing.text` method.
-        :type mutation_label_attrs: dict(int, dict)
         :param dict root_svg_attributes: Additional attributes, such as an id, that will
             be embedded in the root ``<svg>`` tag of the generated drawing.
-        :param str style: A `css style string <https://www.w3.org/TR/CSS21/syndata.htm>`_
-            that will be included in the ``<style>`` tag of the generated svg.
+        :param str style: A
+            `css style string <https://www.w3.org/TR/CSS22/syndata.html>`_ that will be
+            included in the ``<style>`` tag of the generated svg.
 
         :return: An SVG representation of a tree.
         :rtype: str
@@ -1367,13 +1339,9 @@ class Tree:
             max_tree_height=max_tree_height,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
-            node_attrs=node_attrs,
-            mutation_attrs=mutation_attrs,
-            edge_attrs=edge_attrs,
-            node_label_attrs=node_label_attrs,
-            mutation_label_attrs=mutation_label_attrs,
             root_svg_attributes=root_svg_attributes,
             style=style,
+            **kwargs,
         )
         output = draw.drawing.tostring()
         if path is not None:
@@ -4246,62 +4214,48 @@ class TreeSequence:
         *,
         size=None,
         tree_height_scale=None,
-        max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
-        node_attrs=None,
-        mutation_attrs=None,
-        edge_attrs=None,
-        node_label_attrs=None,
-        mutation_label_attrs=None,
         root_svg_attributes=None,
         style=None,
+        **kwargs,
     ):
         """
         Return an SVG representation of a tree sequence.
 
         When working in a Jupyter notebook, use the ``IPython.display.SVG`` function
-        to display the SVG output from this function inline in the notebook.
+        to display the SVG output from this function inline in the notebook::
 
-        .. note::
+            >>> SVG(tree.draw_svg())
 
-            The visual elements in the svg are
-            `grouped <https://www.w3.org/TR/SVG2/struct.html#Groups>`_
-            for easy styling and manipulation. The entire visualization with trees and X
-            axis is contained within a group of class ``tree-sequence``. Each tree in
-            the displayed tree sequence is contained in a group of class ``tree``, as
-            described in :meth:`Tree.draw_svg`, so that visual elements pertaining to one
-            or more trees targetted as documented in that method. For instance, the
-            following style will change the colour of all the edges of the *initial*
-            tree in the sequence and hide the internal node labels in *all* the trees
+        The visual elements in the svg are
+        `grouped <https://www.w3.org/TR/SVG2/struct.html#Groups>`_
+        for easy styling and manipulation. The entire visualization with trees and X
+        axis is contained within a group of class ``tree-sequence``. Each tree in
+        the displayed tree sequence is contained in a group of class ``tree``, as
+        described in :meth:`Tree.draw_svg`, so that visual elements pertaining to one
+        or more trees targetted as documented in that method. For instance, the
+        following style will change the colour of all the edges of the *initial*
+        tree in the sequence and hide the internal node labels in *all* the trees
 
-            .. code-block:: css
+        .. code-block:: css
 
-                .tree.t0 .edges {stroke: blue}
-                .tree .labels .nodes text:not(.sample) {visibility: hidden}
+            .tree.t0 .edges {stroke: blue}
+            .tree .labels .nodes text:not(.sample) {visibility: hidden}
 
-            See :meth:`Tree.draw_svg` for further details.
+        See :meth:`Tree.draw_svg` for further details.
 
         :param str path: The path to the file to write the output. If None, do not write
             to file.
         :param size: A tuple of (width, height) giving the width and height of the
             produced SVG drawing in abstract user units (usually interpreted as pixels on
-            display). If None, defaults of height=:math:`200` and
-            width=:math:`200 \times num_trees` are used.
+            display).
         :type size: tuple(int, int)
         :param str tree_height_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
             values (this is the default). If this is equal to ``"log_time"``, node
             heights are proportional to their log(time) values. If it is equal to
             ``"rank"``, node heights are spaced equally according to their ranked times.
-        :param str,float max_tree_height: The maximum tree height value for each tree in
-            the current scaling system (see ``tree_height_scale``). Can be either a
-            string or a numeric value. If equal to ``"tree"``, the maximum tree height is
-            set to be that of the oldest root in each separate tree. If equal to ``"ts"``
-            (the default), the maximum height is set to be the height of the oldest root
-            in the tree sequence; this is useful when drawing trees from the same tree
-            sequence as it ensures that node heights are consistent. If a numeric value,
-            this is used as the maximum tree height by which to scale other nodes.
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
             not have a label.
@@ -4310,31 +4264,6 @@ class TreeSequence:
             mutations (specified by ID) that are present in the map; any mutations
             not present will not have a label.
         :type mutation_labels: dict(int, str)
-        :param node_attrs: Set custom attributes for specific node symbols. Each key in
-            the `node_attrs` map is a node id; the corresponding value must be a
-            dictionary specifying additional parameters passed to the
-            :meth:`svgwrite.drawing.Drawing.circle` method.
-        :type node_attrs: dict(int, dict)
-        :param mutation_attrs: Set custom attributes for specific mutation symbols. Each
-            key in the `mutation_attrs` map is a mutation id; the corresponding value
-            must be a dictionary specifying additional parameters passed to the
-            :meth:`svgwrite.drawing.Drawing.rect` method.
-        :type mutation_attrs: dict(int, dict)
-        :param edge_attrs: Set custom attributes for specific edges. Each key
-            in the `edge_attrs` map is the *node* id of the child node of an edge;
-            the corresponding value must be a dictionary specifying additional parameters
-            passed to the :meth:`svgwrite.drawing.Drawing.path` method.
-        :type edge_attrs: dict(int, dict)
-        :param node_label_attrs: Set custom attributes for specific node labels. Each key
-            in the `node_label_attrs` map is a node id; the corresponding value must be a
-            dictionary specifying additional parameters passed to the
-            :meth:`svgwrite.drawing.Drawing.text` method.
-        :type node_label_attrs: dict(int, dict)
-        :param mutation_label_attrs: Set custom attributes for specific mutation labels.
-            Each key in the `mutation_label_attrs` map is a mutation id; the
-            corresponding value must be a dictionary specifying additional parameters
-            passed to the :meth:`svgwrite.drawing.Drawing.text` method.
-        :type mutation_label_attrs: dict(int, dict)
         :param dict root_svg_attributes: Additional attributes, such as an id, that will
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A `css string <https://www.w3.org/TR/CSS21/syndata.htm>`_
@@ -4347,16 +4276,11 @@ class TreeSequence:
             self,
             size,
             tree_height_scale=tree_height_scale,
-            max_tree_height=max_tree_height,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
-            node_attrs=node_attrs,
-            node_label_attrs=node_label_attrs,
-            edge_attrs=edge_attrs,
-            mutation_attrs=mutation_attrs,
-            mutation_label_attrs=mutation_label_attrs,
             root_svg_attributes=root_svg_attributes,
             style=style,
+            **kwargs,
         )
         output = draw.drawing.tostring()
         if path is not None:

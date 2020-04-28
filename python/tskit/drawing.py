@@ -250,6 +250,7 @@ class SvgTreeSequence:
             x += tree_width
         ticks.append((x, ts.sequence_length))
 
+        # TODO - add the ability to show the commented section below as a flag
         # # Debug --- draw the tree and axes boxes
         # w = self.image_size[0] - 2 * self.treebox_x_offset
         # h = self.image_size[1] - 2 * self.treebox_y_offset
