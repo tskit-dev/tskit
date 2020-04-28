@@ -83,6 +83,14 @@ def check_format(format):  # noqa A002
     return fmt
 
 
+def add_text_in_group(dwg, elem, x, y, text, **kwargs):
+    """
+    Add the text to the elem within a group. This allows text rotations to work smoothly
+    """
+    grp = elem.add(dwg.g(transform=f"translate({x}, {y})"))
+    grp.add(dwg.text(text, **kwargs))
+
+
 def draw_tree(
     tree,
     width=None,
@@ -260,14 +268,15 @@ class SvgTreeSequence:
         for x, genome_coord in ticks:
             delta = 5
             axis.add(dwg.line((x, y - delta), (x, y + delta), stroke="black"))
-            axis.add(
-                dwg.text(
-                    f"{genome_coord:.2f}",
-                    (x, y + 20),
-                    font_size=14,
-                    text_anchor="middle",
-                    font_weight="bold",
-                )
+            add_text_in_group(
+                dwg,
+                axis,
+                x,
+                y + 20,
+                f"{genome_coord:.2f}",
+                font_size=14,
+                text_anchor="middle",
+                font_weight="bold",
             )
 
 
@@ -339,7 +348,7 @@ class SvgTree:
                 # We need to offset the rectangle so that it's centred
                 self.mutation_attrs[m] = {
                     "size": (6, 6),
-                    "transform": "translate(-3, -3)",
+                    "transform": "translate(-3 -3)",
                 }
                 if mutation_attrs is not None and m in mutation_attrs:
                     self.mutation_attrs[m].update(mutation_attrs[m])
@@ -367,7 +376,9 @@ class SvgTree:
         self.symbols = self.root_group.add(dwg.g(class_="symbols"))
         self.nodes = self.symbols.add(dwg.g(class_="nodes"))
         self.mutations = self.symbols.add(dwg.g(class_="mutations", fill="red"))
-        self.labels = self.root_group.add(dwg.g(class_="labels", font_size=14))
+        self.labels = self.root_group.add(
+            dwg.g(class_="labels", font_size=14, dominant_baseline="middle")
+        )
         self.node_labels = self.labels.add(dwg.g(class_="nodes"))
         self.mutation_labels = self.labels.add(
             dwg.g(class_="mutations", font_style="italic")
@@ -496,12 +507,13 @@ class SvgTree:
                     labels = self.left_labels
             # TODO get rid of these manual positioning tweaks and add them
             # as offsets the user can access via a transform or something.
-            labels.add(
-                dwg.text(
-                    insert=(pu[0] + dx, pu[1] + dy),
-                    class_=node_class,
-                    **self.node_label_attrs[u],
-                )
+            add_text_in_group(
+                dwg,
+                labels,
+                pu[0] + dx,
+                pu[1] + dy,
+                class_=node_class,
+                **self.node_label_attrs[u],
             )
             v = tree.parent(u)
             if v != NULL:
@@ -539,12 +551,13 @@ class SvgTree:
                 # TODO get rid of these manual positioning tweaks and add them
                 # as offsets the user can access via a transform or something.
                 dy = 4
-                labels.add(
-                    dwg.text(
-                        insert=(x + dx, y + dy),
-                        class_=mutation_class,
-                        **self.mutation_label_attrs[mutation.id],
-                    )
+                add_text_in_group(
+                    dwg,
+                    labels,
+                    x + dx,
+                    y + dy,
+                    class_=mutation_class,
+                    **self.mutation_label_attrs[mutation.id],
                 )
                 y -= delta
 

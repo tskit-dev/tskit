@@ -1448,11 +1448,11 @@ class TestDrawSvg(TestTreeDraw):
         svg2 = ts.at_index(1).draw()
         # if not scaled to ts, node 3 is at a different height in both trees, because the
         # root is at a different height. We expect a label looking something like
-        # <text x="10.0" y="XXXX">3</text> where XXXX is different
+        # <g transform="translate(10.0 XXXX)"><text>3</text></g> where XXXX is different
         str_pos = svg1.find(">3<")
-        snippet1 = svg1[svg1.rfind("<", 0, str_pos) : str_pos]
+        snippet1 = svg1[svg1.rfind("<g", 0, str_pos) : str_pos]
         str_pos = svg2.find(">3<")
-        snippet2 = svg2[svg2.rfind("<", 0, str_pos) : str_pos]
+        snippet2 = svg2[svg2.rfind("<g", 0, str_pos) : str_pos]
         self.assertNotEqual(snippet1, snippet2)
 
         svg1 = ts.at_index(0).draw(max_tree_height="ts")
@@ -1462,9 +1462,9 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg1)
         self.verify_basic_svg(svg2)
         str_pos = svg1.find(">3<")
-        snippet1 = svg1[svg1.rfind("<", 0, str_pos) : str_pos]
+        snippet1 = svg1[svg1.rfind("<g", 0, str_pos) : str_pos]
         str_pos = svg2.find(">3<")
-        snippet2 = svg2[svg2.rfind("<", 0, str_pos) : str_pos]
+        snippet2 = svg2[svg2.rfind("<g", 0, str_pos) : str_pos]
         self.assertEqual(snippet1, snippet2)
 
     def test_draw_simple_ts(self):
