@@ -2363,7 +2363,7 @@ class TableCollection:
 
     def drop_index(self):
         """
-        Drops an indexes present on this table collection. If the table are not currently
+        Drops any indexes present on this table collection. If the table are not currently
         indexed this method has no effect.
         """
         self.ll_tables.drop_index()
