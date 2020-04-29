@@ -1320,7 +1320,7 @@ class TestSortTables(unittest.TestCase):
         tables2 = ts2.dump_tables()
         tables2.edges.set_columns(**tables1.edges.asdict())
         # The edges in tables2 will refer to nodes that don't exist.
-        self.assertRaises(_tskit.LibraryError, tables1.sort())
+        self.assertRaises(_tskit.LibraryError, tables2.sort)
 
     def test_incompatible_sites(self):
         ts1 = msprime.simulate(10, random_seed=self.random_seed)
