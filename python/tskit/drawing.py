@@ -83,6 +83,25 @@ def check_format(format):  # noqa A002
     return fmt
 
 
+def check_order(order):
+    """
+    Checks the specified drawing order is valid and returns the corresponding
+    tree traversal order.
+    """
+    if order is None:
+        order = "minlex"
+    traversal_orders = {
+        "minlex": "minlex_postorder",
+        "tree": "postorder",
+    }
+    if order not in traversal_orders:
+        raise ValueError(
+            f"Unknown display order '{order}'. "
+            f"Supported orders are {list(traversal_orders.keys())}"
+        )
+    return traversal_orders[order]
+
+
 def add_text_in_group(dwg, elem, x, y, text, **kwargs):
     """
     Add the text to the elem within a group. This allows text rotations to work smoothly
@@ -103,6 +122,7 @@ def draw_tree(
     edge_colours=None,
     tree_height_scale=None,
     max_tree_height=None,
+    order=None,
 ):
 
     # See tree.draw() for documentation on these arguments.
@@ -142,6 +162,7 @@ def draw_tree(
             edge_attrs=edge_attrs,
             node_label_attrs=node_label_attrs,
             mutation_attrs=mutation_attrs,
+            order=order,
         )
         return tree.drawing.tostring()
 
@@ -168,6 +189,7 @@ def draw_tree(
             max_tree_height=max_tree_height,
             use_ascii=use_ascii,
             orientation=TOP,
+            order=order,
         )
         return str(text_tree)
 
@@ -194,6 +216,7 @@ class SvgTreeSequence:
         mutation_label_attrs=None,
         root_svg_attributes=None,
         style=None,
+        order=None,
     ):
         self.ts = ts
         if size is None:
@@ -231,6 +254,7 @@ class SvgTreeSequence:
                 node_label_attrs=node_label_attrs,
                 mutation_attrs=mutation_attrs,
                 mutation_label_attrs=mutation_label_attrs,
+                order=order,
             )
             for tree in ts.trees()
         ]
@@ -303,8 +327,10 @@ class SvgTree:
         mutation_label_attrs=None,
         root_svg_attributes=None,
         style=None,
+        order=None,
     ):
         self.tree = tree
+        self.traversal_order = check_order(order)
         if size is None:
             size = (200, 200)
         self.image_size = size
@@ -461,7 +487,7 @@ class SvgTree:
         node_x_coord_map = {}
         leaf_x = x_start
         for root in tree.roots:
-            for u in tree.nodes(root, order="postorder"):
+            for u in tree.nodes(root, order=self.traversal_order):
                 if tree.is_leaf(u):
                     leaf_x += x_scale
                     node_x_coord_map[u] = leaf_x
@@ -575,6 +601,7 @@ class TextTreeSequence:
         use_ascii=False,
         time_label_format=None,
         position_label_format=None,
+        order=None,
     ):
         self.ts = ts
 
@@ -592,7 +619,11 @@ class TextTreeSequence:
         ]
         trees = [
             VerticalTextTree(
-                tree, max_tree_height="ts", node_labels=node_labels, use_ascii=use_ascii
+                tree,
+                max_tree_height="ts",
+                node_labels=node_labels,
+                use_ascii=use_ascii,
+                order=order,
             )
             for tree in self.ts.trees()
         ]
@@ -650,15 +681,32 @@ def to_np_unicode(string):
     return np_string
 
 
-def closest_left_node(tree, u):
+def get_left_neighbour(tree, traversal_order):
     """
-    Returns the node that closest to u in a left-to-right sense.
+    Returns the left-most neighbour of each node in the tree according to the
+    specified traversal order. The left neighbour is the closest node in terms
+    of path distance to the left of a given node.
     """
-    ret = NULL
-    while u != NULL and ret == NULL:
-        ret = tree.left_sib(u)
-        u = tree.parent(u)
-    return ret
+    # The traversal order will define the order of children and roots.
+    # Root order is defined by this traversal, and the roots are
+    # the children of -1
+    children = collections.defaultdict(list)
+    for u in tree.nodes(order=traversal_order):
+        children[tree.parent(u)].append(u)
+
+    left_neighbour = np.full(tree.num_nodes + 1, NULL, dtype=int)
+
+    def find_neighbours(u, neighbour):
+        left_neighbour[u] = neighbour
+        for v in children[u]:
+            find_neighbours(v, neighbour)
+            neighbour = v
+
+    # The children of -1 are the roots and the neighbour of all left-most
+    # nodes in the tree is also -1 (NULL)
+    find_neighbours(-1, -1)
+
+    return left_neighbour[:-1]
 
 
 def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
@@ -721,8 +769,10 @@ class TextTree:
         max_tree_height=None,
         use_ascii=False,
         orientation=None,
+        order=None,
     ):
         self.tree = tree
+        self.traversal_order = check_order(order)
         self.max_tree_height = check_max_tree_height(
             max_tree_height, allow_numeric=False
         )
@@ -791,33 +841,32 @@ class VerticalTextTree(TextTree):
 
     def _assign_traversal_positions(self):
         self.label_x = {}
+        left_neighbour = get_left_neighbour(self.tree, self.traversal_order)
         x = 0
-        for root in self.tree.roots:
-            for u in self.tree.nodes(root, order="postorder"):
-                label_size = len(self.node_labels[u])
-                if self.tree.is_leaf(u):
-                    self.traversal_position[u] = x + label_size // 2
-                    self.label_x[u] = x
-                    x += label_size + 1
+        for u in self.tree.nodes(order=self.traversal_order):
+            label_size = len(self.node_labels[u])
+            if self.tree.is_leaf(u):
+                self.traversal_position[u] = x + label_size // 2
+                self.label_x[u] = x
+                x += label_size + 1
+            else:
+                coords = [self.traversal_position[c] for c in self.tree.children(u)]
+                if len(coords) == 1:
+                    self.traversal_position[u] = coords[0]
                 else:
-                    coords = [self.traversal_position[c] for c in self.tree.children(u)]
-                    if len(coords) == 1:
-                        self.traversal_position[u] = coords[0]
-                    else:
-                        a = min(coords)
-                        b = max(coords)
-                        child_mid = int(round(a + (b - a) / 2))
-                        self.traversal_position[u] = child_mid
-                    self.label_x[u] = self.traversal_position[u] - label_size // 2
-                    sib_x = -1
-                    sib = closest_left_node(self.tree, u)
-                    if sib != NULL:
-                        sib_x = self.traversal_position[sib]
-                    self.label_x[u] = max(sib_x + 1, self.label_x[u])
-                    x = max(x, self.label_x[u] + label_size + 1)
-                assert self.label_x[u] >= 0
-            x += 1
-        self.width = x - 1
+                    a = min(coords)
+                    b = max(coords)
+                    child_mid = int(round(a + (b - a) / 2))
+                    self.traversal_position[u] = child_mid
+                self.label_x[u] = self.traversal_position[u] - label_size // 2
+                neighbour_x = -1
+                neighbour = left_neighbour[u]
+                if neighbour != NULL:
+                    neighbour_x = self.traversal_position[neighbour]
+                self.label_x[u] = max(neighbour_x + 1, self.label_x[u])
+                x = max(x, self.label_x[u] + label_size + 1)
+            assert self.label_x[u] >= 0
+        self.width = x
 
     def _draw(self):
         if self.use_ascii:
@@ -899,7 +948,7 @@ class HorizontalTextTree(TextTree):
     def _assign_traversal_positions(self):
         y = 0
         for root in self.tree.roots:
-            for u in self.tree.nodes(root, order="postorder"):
+            for u in self.tree.nodes(root, order=self.traversal_order):
                 if self.tree.is_leaf(u):
                     self.traversal_position[u] = y
                     y += 2

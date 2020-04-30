@@ -59,7 +59,7 @@ individual
 sample
     The focal nodes of a tree sequence, usually thought of as those that we
     have obtained data from. The specification of these affects various
-    methods: (1) :meth:`TreeSequence.variants` and 
+    methods: (1) :meth:`TreeSequence.variants` and
     :meth:`TreeSequence.haplotypes` will output the genotypes of the samples,
     and :attr:`Tree.roots` only return roots ancestral to at least one
     sample. (See the :ref:`node table definitions <sec_node_table_definition>`
@@ -713,7 +713,7 @@ Table transformation methods
 
 In several cases it may be necessary to transform the data stored in a
 :class:`TableCollection`. For example, an application may produce tables
-which, while logically consistent, do not meet all the 
+which, while logically consistent, do not meet all the
 :ref:`requirements <sec_valid_tree_sequence_requirements>` for a valid tree
 sequence, which exist for algorithmic and efficiency reasons; table
 transformation methods can make such a set of tables valid, and thus ready

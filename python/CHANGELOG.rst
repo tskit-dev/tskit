@@ -4,6 +4,12 @@
 
 In development
 
+**Breaking changes**
+
+- The default display order for tree visualisations has been changed to ``minlex``
+  (see below) to stabilise the node ordering and to make trees more readily
+  comparable. The old behaviour is still available with ``order="tree"``.
+
 **New features**
 
 - Tables with a metadata column now have a ``metadata_schema`` that is used to
@@ -27,6 +33,12 @@ In development
   lexicographic order of leaf nodes visited. This ordering (``"minlex_postorder"``)
   adds more determinism because it constraints the order in which children of
   a node are visited (:user:`brianzhang01`, :pr:`411`).
+
+- Add an ``order`` argument to the tree visualisation functions which supports
+  two node orderings: ``"tree"`` (the previous default) and ``"minlex"``
+  which stabilises the node ordering (making it easier to compare trees).
+  The default node ordering is changed to ``"minlex"``.
+  (:user:`brianzhang01`, :user:`jeromekelleher`, :issue:`389`, :pr:`566`).
 
 - Add ``_repr_html_`` to tables, so that jupyter notebooks render them as
   html tables (:user:`benjeffery`, :pr:`514`)
