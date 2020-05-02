@@ -25,6 +25,7 @@ Test cases for visualisation in tskit.
 """
 import collections
 import io
+import math
 import os
 import tempfile
 import unittest
@@ -1410,13 +1411,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         for group in groups:
             self.assertIn("class", group.attrib)
             cls = group.attrib["class"]
-            self.assertRegexpMatches(cls, r"\b(edges|symbols|labels)\b")
-            if "symbols" in cls or "labels" in cls:
-                # Check that we have nodes & mutations subgroups
-                for subgroup in group.findall(prefix + "g"):
-                    self.assertIn("class", subgroup.attrib)
-                    subcls = subgroup.attrib["class"]
-                    self.assertRegexpMatches(subcls, r"\b(nodes|mutations)\b")
+            self.assertRegexpMatches(cls, r"\broot\b")
 
     def test_draw_file(self):
         t = self.get_binary_tree()
@@ -1719,13 +1714,13 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
 
         svg1 = ts.at_index(0).draw()
         svg2 = ts.at_index(1).draw()
-        # if not scaled to ts, node 3 is at a different height in both trees, because the
-        # root is at a different height. We expect a label looking something like
-        # <g transform="translate(10.0 XXXX)"><text>3</text></g> where XXXX is different
-        str_pos = svg1.find(">3<")
-        snippet1 = svg1[svg1.rfind("<g", 0, str_pos) : str_pos]
-        str_pos = svg2.find(">3<")
-        snippet2 = svg2[svg2.rfind("<g", 0, str_pos) : str_pos]
+        # if not scaled to ts, the edge above node 0 is of a different length in both
+        # trees, because the root is at a different height. We expect a group like
+        # <path class="edge" d="M 0 0 V -46 H 22.5" /><text>0</text>
+        str_pos = svg1.find(">0<")
+        snippet1 = svg1[svg1.rfind("edge", 0, str_pos) : str_pos]
+        str_pos = svg2.find(">0<")
+        snippet2 = svg2[svg2.rfind("edge", 0, str_pos) : str_pos]
         self.assertNotEqual(snippet1, snippet2)
 
         svg1 = ts.at_index(0).draw(max_tree_height="ts")
@@ -1734,10 +1729,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         # should be the same
         self.verify_basic_svg(svg1)
         self.verify_basic_svg(svg2)
-        str_pos = svg1.find(">3<")
-        snippet1 = svg1[svg1.rfind("<g", 0, str_pos) : str_pos]
-        str_pos = svg2.find(">3<")
-        snippet2 = svg2[svg2.rfind("<g", 0, str_pos) : str_pos]
+        str_pos = svg1.find(">0<")
+        snippet1 = svg1[svg1.rfind("edge", 0, str_pos) : str_pos]
+        str_pos = svg2.find(">0<")
+        snippet2 = svg2[svg2.rfind("edge", 0, str_pos) : str_pos]
         self.assertEqual(snippet1, snippet2)
 
     def test_draw_sized_tree(self):
@@ -1814,3 +1809,15 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
+
+
+class TestRounding(unittest.TestCase):
+    def test_rnd(self):
+        self.assertEqual(0, drawing.rnd(0))
+        self.assertEqual(math.inf, drawing.rnd(math.inf))
+        self.assertEqual(1, drawing.rnd(1))
+        self.assertEqual(1.1, drawing.rnd(1.1))
+        self.assertEqual(1.11111, drawing.rnd(1.111111))
+        self.assertEqual(1111110, drawing.rnd(1111111))
+        self.assertEqual(123.457, drawing.rnd(123.4567))
+        self.assertEqual(123.456, drawing.rnd(123.4564))

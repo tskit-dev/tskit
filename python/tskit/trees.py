@@ -1315,86 +1315,86 @@ class Tree:
 
             >>> SVG(tree.draw_svg())
 
-
-
-        The elements in the tree are placed into
-        different `SVG groups <https://www.w3.org/TR/SVG2/struct.html#Groups>`_ for
-        easy styling and manipulation. Both these groups and their component items
-        are marked with SVG classes so that they can be targetted. This allows
-        individual components of the drawing to be hidden, styled, or otherwise
+        The elements in the tree are grouped according to the structure of the tree,
+        using `SVG groups <https://www.w3.org/TR/SVG2/struct.html#Groups>`_. This allows
+        easy styling and manipulation of elements and subtrees. Elements in the SVG file
+        are marked with SVG classes so that they can be targetted, allowing
+        different components of the drawing to be hidden, styled, or otherwise
         manipulated. For example, when drawing (say) the first tree from a tree
         sequence, all the SVG components will be placed in a group of class ``tree``.
         The group will have the additional class ``t0``, indicating that this tree
         has index 0 in the tree sequence. The general SVG structure is as follows:
 
-        * The *tree* group (classes ``tree`` and ``tN`` where `N` is the tree index).
-          This contains the following three groups:
+        Each tree is contained in a group of class ``tree``. Additionally, this group
+        has a class ``tN`` where `N` is the tree index.
 
-          * The *edges* group (class ``edges``), containing edges. Each edge has
-            classes ``pX``, and ``cY`` where `X` and `Y` are the ids of the parent
-            and child nodes.
-          * The *symbols* group (class ``symbols``), containing two subgroups:
+        Within the ``tree`` group there is a nested hierarchy of groups corresponding
+        to the tree structure. Any particular node in the tree will have a corresponding
+        group containing child groups (if any) followed by the edge above that node, a
+        node symbol, and (potentially) text containing the node label. For example, a
+        simple two tip tree, with tip node ids 0 and 1, and a root node id of 2 will have
+        a structure similar to the following:
 
-            * The *node symbols* group (class ``nodes``) containing a
-              `circle <https://www.w3.org/TR/SVG2/shapes.html#CircleElement>`_ for
-              each node. Each node symbol has a class ``nX`` where ``X`` is the node
-              id. Symbols corresponding to sample nodes are additionally labelled
-              with a class of ``sample``.
-            * The *mutation symbols* group (class ``mutations``) containing a
-              `rectangle <https://www.w3.org/TR/SVG2/shapes.html#RectElement>`_ for
-              each mutation. Each mutation symbol has classes ``mX``, ``sY``, and
-              ``nZ`` where `X` is the mutation id, `Y` is the site id, and `Z` is
-              the id of the node above which the mutation occurs.
+        .. code-block::
 
-          * The *labels* group (class ``labels``) containing two subgroups:
-
-            * The *node labels* group (class ``nodes``) containing text for each
-              node. Each `text <https://www.w3.org/TR/SVG2/text.html#TextElement>`_
-              element in this group corresponds to a node, and has the same set of
-              classes as its equivalent node symbol (i.e. ``nX`` and potentially
-              ``sample``)
-            * The *mutation labels* group (class `mutations`) containing containing
-              text for each mutation. Each
-              `text <https://www.w3.org/TR/SVG2/text.html#TextElement>`_ element in
-              this group corresponds to a mutation, and has the same set of classes
-              as its equivalent mutation symbol (i.e. ``mX``, ``sY``, and ``nZ``)
+            <g class="tree t0">
+              <g class="node n2 root">
+                <g class="node n1 p2 sample leaf">
+                  <path class="edge" ... />
+                  <circle />
+                  <text>Node 1</text>
+                </g>
+                <g class="node n0 p2 sample leaf">
+                  <path class="edge" ... />
+                  <circle />
+                  <text>Node 0</text>
+                </g>
+                <path class="edge" ... />
+                <circle />
+                <text>Root (Node 2)</text>
+              </g>
+            </g>
 
         The classes can be used to manipulate the element, e.g. by using
         `stylesheets <https://www.w3.org/TR/SVG2/styling.html>`_. Style strings can
         be embedded in the svg by using the ``style`` parameter, or added to html
         pages which contain the raw SVG (e.g. within a Jupyter notebook by using the
-        IPython HTML() function). As a simple example, the following style string
-        will hide all labels:
+        IPython ``HTML()`` function). As a simple example, passing the following
+        string as the ``style`` parameter will hide all labels:
 
         .. code-block:: css
 
-            .tree .labels {visibility: hidden}
+            .tree text {visibility: hidden}
 
         You can also change the format of various items: the following styles will
-        display the symbols of the *sample* nodes only in blue, rotate the sample
-        node labels by 90 degrees, and hide the internal node labels:
+        rotate the leaf nodes labels by 90 degrees, colour the leaf nodes (which are
+        adjacent siblings to the edge lines) blue, and hide the non-sample node labels:
 
         .. code-block:: css
 
-            .tree .symbols .nodes .sample {fill: blue}
-            .tree .labels .nodes text.sample {transform: rotate(90deg)}
-            .tree .labels .nodes text:not(.sample) {visibility: hidden}
+            .tree .node.leaf > text {
+                transform: translateY(0.5em) rotate(90deg); text-anchor: start}
+            .tree .node.leaf > .edge + * {fill: blue}
+            .tree .node:not(.sample) > text {visibility: hidden}
 
         Specific nodes can be targetted by number. The following style will display
-        node 10 in red, and also colour in red the edges whose parent is node 10:
+        a large symbol for node 10, coloured red with a black border, and will also use
+        thick red lines for all the edges that have it as a direct or indirect parent:
 
         .. code-block:: css
 
-            .tree .symbols .nodes .n10 {fill: red}
-            .tree .edges .p10 {stroke: red}
+            .tree .node.n10 > .edge + * {fill: red; stroke: black; r: 8px}
+            .tree .node.p10 .edge {stroke: red; stroke-width: 2px}
 
-        Mutations can be targetted by id, site id, or node number. The following
-        style displays all mutations immediately above node 10 as yellow with a black
-        border
+        .. note::
 
-        .. code-block:: css
-
-            .tree .symbols .mutations .n10 {fill: yellow; stroke: black}
+            A feature of SVG style commands is that they apply not just to the contents
+            within the <svg> container, but to the entire file. Thus if an SVG file is
+            embedded in a larger document, such as an HTML file (e.g. when an SVG
+            is displayed inline in a Jupyter notebook), the style will apply to all SVG
+            drawings in the notebook. To avoid this, you can tag the SVG with a unique
+            SVG using ``root_svg_attributes={'id':'MY_UID'}``, and prepend this to the
+            style string, as in ``#MY_UID .tree .edges {stroke: gray}``.
 
         :param str path: The path to the file to write the output. If None, do not
             write to file.
@@ -4389,12 +4389,12 @@ class TreeSequence:
         described in :meth:`Tree.draw_svg`, so that visual elements pertaining to one
         or more trees targetted as documented in that method. For instance, the
         following style will change the colour of all the edges of the *initial*
-        tree in the sequence and hide the internal node labels in *all* the trees
+        tree in the sequence and hide the non-sample node labels in *all* the trees
 
         .. code-block:: css
 
             .tree.t0 .edges {stroke: blue}
-            .tree .labels .nodes text:not(.sample) {visibility: hidden}
+            .tree .node:not(.sample) > text {visibility: hidden}
 
         See :meth:`Tree.draw_svg` for further details.
 
