@@ -436,7 +436,6 @@ class SvgTree:
                     else:
                         a = min(child_coords)
                         b = max(child_coords)
-                        assert b - a > 1
                         node_x_coord_map[u] = a + (b - a) / 2
         return node_x_coord_map
 
