@@ -30,6 +30,7 @@ import unittest
 import xml.etree
 
 import msprime
+import xmlunittest
 
 import tests.tsutil as tsutil
 import tskit
@@ -44,18 +45,20 @@ class TestTreeDraw(unittest.TestCase):
         ts = msprime.simulate(10, random_seed=1, mutation_rate=1)
         return next(ts.trees())
 
-    def get_nonbinary_tree(self):
+    def get_nonbinary_ts(self):
         demographic_events = [
             msprime.SimpleBottleneck(time=0.1, population=0, proportion=0.5)
         ]
-        ts = msprime.simulate(
+        return msprime.simulate(
             10,
             recombination_rate=5,
             mutation_rate=10,
             demographic_events=demographic_events,
             random_seed=1,
         )
-        for t in ts.trees():
+
+    def get_nonbinary_tree(self):
+        for t in self.get_nonbinary_ts().trees():
             for u in t.nodes():
                 if len(t.children(u)) > 2:
                     return t
@@ -139,6 +142,60 @@ class TestTreeDraw(unittest.TestCase):
         tables = tskit.TableCollection(sequence_length=1)
         ts = tables.tree_sequence()
         return next(ts.trees())
+
+    def get_simple_ts(self):
+        """
+        return a simple tree seq that does not depend on msprime
+        """
+        nodes = io.StringIO(
+            """\
+        id      is_sample   population      individual      time    metadata
+        0       1       0       -1      0.00000000000000
+        1       1       0       -1      0.00000000000000
+        2       1       0       -1      0.00000000000000
+        3       1       0       -1      0.00000000000000
+        4       0       0       -1      0.02445014598813
+        5       0       0       -1      0.11067965364865
+        6       0       0       -1      1.75005250750382
+        7       0       0       -1      2.31067154311640
+        8       0       0       -1      3.57331354884652
+        9       0       0       -1      9.08308317451295
+        """
+        )
+        edges = io.StringIO(
+            """\
+        id      left            right           parent  child
+        0       0.00000000      1.00000000      4       0
+        1       0.00000000      1.00000000      4       1
+        2       0.00000000      1.00000000      5       2
+        3       0.00000000      1.00000000      5       3
+        4       0.79258618      0.90634460      6       4
+        5       0.79258618      0.90634460      6       5
+        6       0.05975243      0.79258618      7       4
+        7       0.90634460      0.91029435      7       4
+        8       0.05975243      0.79258618      7       5
+        9       0.90634460      0.91029435      7       5
+        10      0.91029435      1.00000000      8       4
+        11      0.91029435      1.00000000      8       5
+        12      0.00000000      0.05975243      9       4
+        13      0.00000000      0.05975243      9       5
+        """
+        )
+        sites = io.StringIO(
+            """\
+        position      ancestral_state
+        0.01          A
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site   node    derived_state    parent
+        0      4       T                -1
+        """
+        )
+        return tskit.load_text(
+            nodes, edges, sites=sites, mutations=mutations, strict=False
+        )
 
 
 class TestFormats(TestTreeDraw):
@@ -364,7 +421,7 @@ class TestDrawTextErrors(unittest.TestCase):
                 t.draw_text(orientation=bad_orientation)
 
 
-class TestDrawTextExamples(unittest.TestCase):
+class TestDrawTextExamples(TestTreeDraw):
     """
     Verify that we get the correct rendering for some examples.
     """
@@ -954,42 +1011,7 @@ class TestDrawTextExamples(unittest.TestCase):
         self.verify_text_rendering(t.draw_text(), tree)
 
     def test_simple_tree_sequence(self):
-        nodes = io.StringIO(
-            """\
-            id      is_sample   population      individual      time    metadata
-            0       1       0       -1      0.00000000000000
-            1       1       0       -1      0.00000000000000
-            2       1       0       -1      0.00000000000000
-            3       1       0       -1      0.00000000000000
-            4       0       0       -1      0.02445014598813
-            5       0       0       -1      0.11067965364865
-            6       0       0       -1      1.75005250750382
-            7       0       0       -1      2.31067154311640
-            8       0       0       -1      3.57331354884652
-            9       0       0       -1      9.08308317451295
-        """
-        )
-        edges = io.StringIO(
-            """\
-            id      left            right           parent  child
-            0       0.00000000      1.00000000      4       0
-            1       0.00000000      1.00000000      4       1
-            2       0.00000000      1.00000000      5       2
-            3       0.00000000      1.00000000      5       3
-            4       0.79258618      0.90634460      6       4
-            5       0.79258618      0.90634460      6       5
-            6       0.05975243      0.79258618      7       4
-            7       0.90634460      0.91029435      7       4
-            8       0.05975243      0.79258618      7       5
-            9       0.90634460      0.91029435      7       5
-            10      0.91029435      1.00000000      8       4
-            11      0.91029435      1.00000000      8       5
-            12      0.00000000      0.05975243      9       4
-            13      0.00000000      0.05975243      9       5
-        """
-        )
-        ts = tskit.load_text(nodes, edges, strict=False)
-
+        ts = self.get_simple_ts()
         ts_drawing = (
             "9.08┊    9    ┊         ┊         ┊         ┊         ┊\n"
             "    ┊  ┏━┻━┓  ┊         ┊         ┊         ┊         ┊\n"
@@ -1065,41 +1087,7 @@ class TestDrawTextExamples(unittest.TestCase):
         )
 
     def test_max_tree_height(self):
-        nodes = io.StringIO(
-            """\
-            id      is_sample   population      individual      time    metadata
-            0       1       0       -1      0.00000000000000
-            1       1       0       -1      0.00000000000000
-            2       1       0       -1      0.00000000000000
-            3       1       0       -1      0.00000000000000
-            4       0       0       -1      0.02445014598813
-            5       0       0       -1      0.11067965364865
-            6       0       0       -1      1.75005250750382
-            7       0       0       -1      2.31067154311640
-            8       0       0       -1      3.57331354884652
-            9       0       0       -1      9.08308317451295
-        """
-        )
-        edges = io.StringIO(
-            """\
-            id      left            right           parent  child
-            0       0.00000000      1.00000000      4       0
-            1       0.00000000      1.00000000      4       1
-            2       0.00000000      1.00000000      5       2
-            3       0.00000000      1.00000000      5       3
-            4       0.79258618      0.90634460      6       4
-            5       0.79258618      0.90634460      6       5
-            6       0.05975243      0.79258618      7       4
-            7       0.90634460      0.91029435      7       4
-            8       0.05975243      0.79258618      7       5
-            9       0.90634460      0.91029435      7       5
-            10      0.91029435      1.00000000      8       4
-            11      0.91029435      1.00000000      8       5
-            12      0.00000000      0.05975243      9       4
-            13      0.00000000      0.05975243      9       5
-        """
-        )
-        ts = tskit.load_text(nodes, edges, strict=False)
+        ts = self.get_simple_ts()
         tree = (
             "   9   \n"
             " ┏━┻━┓ \n"
@@ -1134,16 +1122,46 @@ class TestDrawTextExamples(unittest.TestCase):
                 t.draw_text(max_tree_height=bad_max_tree_height)
 
 
-class TestDrawSvg(TestTreeDraw):
+class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
     """
     Tests the SVG tree drawing.
     """
 
     def verify_basic_svg(self, svg, width=200, height=200):
+        prefix = "{http://www.w3.org/2000/svg}"
         root = xml.etree.ElementTree.fromstring(svg)
-        self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
+        self.assertEqual(root.tag, prefix + "svg")
         self.assertEqual(width, int(root.attrib["width"]))
         self.assertEqual(height, int(root.attrib["height"]))
+
+        # Verify the class structure of the svg
+        root_group = root.find(prefix + "g")
+        self.assertIn("class", root_group.attrib)
+        self.assertRegexpMatches(
+            root_group.attrib["class"], r"\b(tree|tree-sequence)\b"
+        )
+        if "tree-sequence" in root_group.attrib["class"]:
+            trees = root_group.find(prefix + "g")
+            self.assertIn("class", trees.attrib)
+            self.assertRegexpMatches(trees.attrib["class"], r"\btrees\b")
+            first_tree = trees.find(prefix + "g")
+            self.assertIn("class", first_tree.attrib)
+            self.assertRegexpMatches(first_tree.attrib["class"], r"\btree\b")
+        else:
+            first_tree = root_group
+        # Check that we have edges, symbols, and labels groups
+        groups = first_tree.findall(prefix + "g")
+        self.assertGreater(len(groups), 0)
+        for group in groups:
+            self.assertIn("class", group.attrib)
+            cls = group.attrib["class"]
+            self.assertRegexpMatches(cls, r"\b(edges|symbols|labels)\b")
+            if "symbols" in cls or "labels" in cls:
+                # Check that we have nodes & mutations subgroups
+                for subgroup in group.findall(prefix + "g"):
+                    self.assertIn("class", subgroup.attrib)
+                    subcls = subgroup.attrib["class"]
+                    self.assertRegexpMatches(subcls, r"\b(nodes|mutations)\b")
 
     def test_draw_file(self):
         t = self.get_binary_tree()
@@ -1346,7 +1364,7 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg1)
         svg2 = t.draw_svg(tree_height_scale="rank")
         self.assertEqual(svg1, svg2)
-        svg3 = t.draw_svg("tmp.svg", max_tree_height="ts", tree_height_scale="rank")
+        svg3 = t.draw_svg(max_tree_height="ts", tree_height_scale="rank")
         self.assertNotEqual(svg1, svg3)
         self.verify_basic_svg(svg3)
         # Numeric max tree height not supported for rank scale.
@@ -1448,11 +1466,11 @@ class TestDrawSvg(TestTreeDraw):
         svg2 = ts.at_index(1).draw()
         # if not scaled to ts, node 3 is at a different height in both trees, because the
         # root is at a different height. We expect a label looking something like
-        # <text x="10.0" y="XXXX">3</text> where XXXX is different
+        # <g transform="translate(10.0 XXXX)"><text>3</text></g> where XXXX is different
         str_pos = svg1.find(">3<")
-        snippet1 = svg1[svg1.rfind("<", 0, str_pos) : str_pos]
+        snippet1 = svg1[svg1.rfind("<g", 0, str_pos) : str_pos]
         str_pos = svg2.find(">3<")
-        snippet2 = svg2[svg2.rfind("<", 0, str_pos) : str_pos]
+        snippet2 = svg2[svg2.rfind("<g", 0, str_pos) : str_pos]
         self.assertNotEqual(snippet1, snippet2)
 
         svg1 = ts.at_index(0).draw(max_tree_height="ts")
@@ -1462,15 +1480,30 @@ class TestDrawSvg(TestTreeDraw):
         self.verify_basic_svg(svg1)
         self.verify_basic_svg(svg2)
         str_pos = svg1.find(">3<")
-        snippet1 = svg1[svg1.rfind("<", 0, str_pos) : str_pos]
+        snippet1 = svg1[svg1.rfind("<g", 0, str_pos) : str_pos]
         str_pos = svg2.find(">3<")
-        snippet2 = svg2[svg2.rfind("<", 0, str_pos) : str_pos]
+        snippet2 = svg2[svg2.rfind("<g", 0, str_pos) : str_pos]
         self.assertEqual(snippet1, snippet2)
+
+    def test_draw_sized_tree(self):
+        tree = self.get_binary_tree()
+        svg = tree.draw_svg(size=(600, 400))
+        self.verify_basic_svg(svg, width=600, height=400)
 
     def test_draw_simple_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
+
+    def test_draw_even_height_ts(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
+        svg = ts.draw_svg(max_tree_height="tree")
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+
+    def test_draw_sized_ts(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
+        svg = ts.draw_svg(size=(600, 400))
+        self.verify_basic_svg(svg, width=600, height=400)
 
     def test_tree_height_scale(self):
         ts = msprime.simulate(4, random_seed=2)
@@ -1483,3 +1516,24 @@ class TestDrawSvg(TestTreeDraw):
         for bad_scale in [0, "", "NOT A SCALE"]:
             with self.assertRaises(ValueError):
                 ts.draw_svg(tree_height_scale=bad_scale)
+
+    def test_known_svg_tree(self):
+        tree = self.get_simple_ts().first()
+        svg = tree.draw_svg(
+            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
+        )
+        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "tree.svg")
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)
+
+    def test_known_svg_ts(self):
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(
+            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
+        )
+        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "ts.svg")
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)

@@ -6,6 +6,11 @@ In development
 
 **New features**
 
+- Add classes to SVG drawings to allow easy adjustment and styling, and document the new
+  ``tskit.Tree.draw_svg()`` and ``tskit.TreeSequence.draw_svg()`` methods. This also fixes
+  :issue:`467` for duplicate SVG entity ``id`` s in Jupyter notebooks.
+  (:user:`hyanwong`, :pr:`555`)
+
 - Add a ``nexus`` function that outputs a tree sequence in Nexus format
   (:user:`saunack`, :pr:`550`).
 
