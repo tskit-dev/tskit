@@ -337,7 +337,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
-            location_str = ",".join(map(str, location))
+            location_str = ",".join(map(str, location[j]))
             rows.append(
                 "{}\t{}\t{}\t{}".format(j, flags[j], location_str, md).split("\t")
             )
