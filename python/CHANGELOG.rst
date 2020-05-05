@@ -6,6 +6,9 @@ In development
 
 **New features**
 
+- Add a ``nexus`` function that outputs a tree sequence in Nexus format
+  (:user:`saunack`, :pr:`550`).
+
 - Add extension of Kendall-Colijn tree distance metric for tree sequences
   computed by ``TreeSequence.kc_distance``
   (:user:`daniel-goldstein`, :pr:`548`)

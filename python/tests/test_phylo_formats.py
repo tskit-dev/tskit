@@ -30,6 +30,9 @@ import msprime
 import newick
 from Bio.Nexus import Nexus
 
+import tskit
+from tests import tsutil
+
 
 class TreeExamples(unittest.TestCase):
     """
@@ -165,22 +168,30 @@ class TestNexus(TreeExamples):
     external Nexus parser.
     """
 
-    def verify_tree(self, nexus_tree, tree):
-        root = tree.root
-        self.assertEqual(len(nexus_tree.get_terminals()), tree.num_samples())
-        for u in nexus_tree.get_terminals():
-            leaf_label = nexus_tree.node(u).data.taxon
-            leaf_data = leaf_label.split("_")
-            self.assertEqual(len(leaf_data), 3)
-            t_id = int(leaf_data[2])
-            self.assertTrue(tree.is_leaf(t_id))
-            node = nexus_tree.node(u)
-            while t_id != root:
-                self.assertAlmostEqual(node.data.branchlength, tree.branch_length(t_id))
-                ancestor_id = node.get_prev()
-                node = nexus_tree.node(ancestor_id)
-                t_id = tree.parent(t_id)
-            self.assertIsNone(node.get_prev())
+    def verify_tree(self, nexus_tree, tsk_tree):
+        self.assertEqual(len(nexus_tree.get_terminals()), tsk_tree.num_samples())
+
+        bio_node_map = {}
+        for node_id in nexus_tree.all_ids():
+            bio_node = nexus_tree.node(node_id)
+            bio_node_map[bio_node.data.taxon] = bio_node
+
+        for u in tsk_tree.nodes():
+            node = tsk_tree.tree_sequence.node(u)
+            label = f"tsk_{node.id}_{node.flags}"
+            bio_node = bio_node_map.pop(label)
+            self.assertAlmostEqual(
+                bio_node.data.branchlength, tsk_tree.branch_length(u)
+            )
+            if tsk_tree.parent(u) == tskit.NULL:
+                self.assertEqual(bio_node.prev, None)
+            else:
+                bio_node_parent = nexus_tree.node(bio_node.prev)
+                parent = tsk_tree.tree_sequence.node(tsk_tree.parent(u))
+                self.assertEqual(
+                    bio_node_parent.data.taxon, f"tsk_{parent.id}_{parent.flags}"
+                )
+        self.assertEqual(len(bio_node_map), 0)
 
     def verify_nexus_topology(self, treeseq):
         nexus = treeseq.nexus(precision=16)
@@ -214,3 +225,16 @@ class TestNexus(TreeExamples):
     def test_multiroot(self):
         ts = self.get_multiroot_example()
         self.assertRaises(ValueError, ts.nexus)
+
+    def test_many_trees(self):
+        ts = msprime.simulate(4, recombination_rate=2, random_seed=123)
+        self.verify_nexus_topology(ts)
+
+    def test_many_trees_sequence_length(self):
+        ts = msprime.simulate(4, length=10, recombination_rate=0.2, random_seed=13)
+        self.verify_nexus_topology(ts)
+
+    def test_internal_samples(self):
+        ts = msprime.simulate(8, random_seed=2)
+        ts = tsutil.jiggle_samples(ts)
+        self.verify_nexus_topology(ts)
