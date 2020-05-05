@@ -189,9 +189,15 @@ typedef struct {
 
 /* Diff iterator. TODO Not sure if we want to keep this, as it's not used
  * very much in the C code. */
-typedef struct _tsk_edge_list_t {
+typedef struct _tsk_edge_list_node_t {
     tsk_edge_t edge;
-    struct _tsk_edge_list_t *next;
+    struct _tsk_edge_list_node_t *next;
+    struct _tsk_edge_list_node_t *prev;
+} tsk_edge_list_node_t;
+
+typedef struct {
+    tsk_edge_list_node_t *head;
+    tsk_edge_list_node_t *tail;
 } tsk_edge_list_t;
 
 typedef struct {
@@ -202,7 +208,7 @@ typedef struct {
     size_t insertion_index;
     size_t removal_index;
     size_t tree_index;
-    tsk_edge_list_t *edge_list_nodes;
+    tsk_edge_list_node_t *edge_list_nodes;
 } tsk_diff_iter_t;
 
 /****************************************************************************/
@@ -406,7 +412,7 @@ int tsk_tree_kc_distance(
 int tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence);
 int tsk_diff_iter_free(tsk_diff_iter_t *self);
 int tsk_diff_iter_next(tsk_diff_iter_t *self, double *left, double *right,
-    tsk_edge_list_t **edges_out, tsk_edge_list_t **edges_in);
+    tsk_edge_list_t *edges_out, tsk_edge_list_t *edges_in);
 void tsk_diff_iter_print_state(tsk_diff_iter_t *self, FILE *out);
 
 #ifdef __cplusplus
