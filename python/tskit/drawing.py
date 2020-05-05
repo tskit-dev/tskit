@@ -195,7 +195,6 @@ class SvgTreeSequence:
         root_svg_attributes=None,
         style=None,
     ):
-        self.ts = ts
         if size is None:
             size = (200 * ts.num_trees, 200)
         if root_svg_attributes is None:
@@ -208,7 +207,8 @@ class SvgTreeSequence:
         )
         if style is not None:
             self.drawing.defs.add(self.drawing.style(style))
-        self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
+        if node_labels is None:
+            node_labels = {u: str(u) for u in range(ts.num_nodes)}
         # TODO add general padding arguments following matplotlib's terminology.
         self.axes_x_offset = 15
         self.axes_y_offset = 10
