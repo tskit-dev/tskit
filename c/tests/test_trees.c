@@ -357,7 +357,8 @@ verify_tree_diffs(tsk_treeseq_t *ts)
     int ret;
     tsk_diff_iter_t iter;
     tsk_tree_t tree;
-    tsk_edge_list_t *record, *records_out, *records_in;
+    tsk_edge_list_node_t *record;
+    tsk_edge_list_t records_out, records_in;
     size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
     size_t j, num_trees;
     double left, right;
@@ -386,10 +387,22 @@ verify_tree_diffs(tsk_treeseq_t *ts)
            == 1) {
         tsk_diff_iter_print_state(&iter, _devnull);
         num_trees++;
-        for (record = records_out; record != NULL; record = record->next) {
+        /* Update forwards */
+        for (record = records_out.head; record != NULL; record = record->next) {
             parent[record->edge.child] = TSK_NULL;
         }
-        for (record = records_in; record != NULL; record = record->next) {
+        for (record = records_in.head; record != NULL; record = record->next) {
+            parent[record->edge.child] = record->edge.parent;
+        }
+        /* Now check against the sparse tree iterator. */
+        for (j = 0; j < num_nodes; j++) {
+            CU_ASSERT_EQUAL(parent[j], tree.parent[j]);
+        }
+        /* Update backwards */
+        for (record = records_out.tail; record != NULL; record = record->prev) {
+            parent[record->edge.child] = TSK_NULL;
+        }
+        for (record = records_in.tail; record != NULL; record = record->prev) {
             parent[record->edge.child] = record->edge.parent;
         }
         /* Now check against the sparse tree iterator. */

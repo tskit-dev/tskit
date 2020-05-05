@@ -297,7 +297,8 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self)
     tsk_id_t *restrict parent = self->parent;
     tsk_id_t *restrict T_index = self->transition_index;
     tsk_value_transition_t *restrict T = self->transitions;
-    tsk_edge_list_t *record, *records_out, *records_in;
+    tsk_edge_list_node_t *record;
+    tsk_edge_list_t records_out, records_in;
     tsk_edge_t edge;
     double left, right;
     tsk_id_t u;
@@ -308,7 +309,7 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self)
         goto out;
     }
 
-    for (record = records_out; record != NULL; record = record->next) {
+    for (record = records_out.head; record != NULL; record = record->next) {
         u = record->edge.child;
         if (T_index[u] == TSK_NULL) {
             /* Ensure the subtree we're detaching has a transition at the root */
@@ -325,7 +326,7 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self)
         parent[record->edge.child] = TSK_NULL;
     }
 
-    for (record = records_in; record != NULL; record = record->next) {
+    for (record = records_in.head; record != NULL; record = record->next) {
         edge = record->edge;
         parent[edge.child] = edge.parent;
         u = edge.parent;

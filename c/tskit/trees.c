@@ -4352,7 +4352,7 @@ tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence)
     self->removal_index = 0;
     self->tree_left = 0;
     self->tree_index = (size_t) -1;
-    self->edge_list_nodes = malloc(self->num_edges * sizeof(tsk_edge_list_t));
+    self->edge_list_nodes = malloc(self->num_edges * sizeof(*self->edge_list_nodes));
     if (self->edge_list_nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4381,7 +4381,7 @@ tsk_diff_iter_print_state(tsk_diff_iter_t *self, FILE *out)
 
 int TSK_WARN_UNUSED
 tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
-    tsk_edge_list_t **edges_out, tsk_edge_list_t **edges_in)
+    tsk_edge_list_t *edges_out_ret, tsk_edge_list_t *edges_in_ret)
 {
     int ret = 0;
     tsk_id_t k;
@@ -4390,15 +4390,20 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     double right = sequence_length;
     size_t next_edge_list_node = 0;
     tsk_treeseq_t *s = self->tree_sequence;
-    tsk_edge_list_t *out_head = NULL;
-    tsk_edge_list_t *out_tail = NULL;
-    tsk_edge_list_t *in_head = NULL;
-    tsk_edge_list_t *in_tail = NULL;
-    tsk_edge_list_t *w = NULL;
+    tsk_edge_list_node_t *out_head = NULL;
+    tsk_edge_list_node_t *out_tail = NULL;
+    tsk_edge_list_node_t *in_head = NULL;
+    tsk_edge_list_node_t *in_tail = NULL;
+    tsk_edge_list_node_t *w = NULL;
+    tsk_edge_list_t edges_out;
+    tsk_edge_list_t edges_in;
     size_t num_trees = tsk_treeseq_get_num_trees(s);
     const tsk_edge_table_t *edges = &s->tables->edges;
     const tsk_id_t *insertion_order = s->tables->indexes.edge_insertion_order;
     const tsk_id_t *removal_order = s->tables->indexes.edge_removal_order;
+
+    memset(&edges_out, 0, sizeof(edges_out));
+    memset(&edges_in, 0, sizeof(edges_in));
 
     if (self->tree_index + 1 < num_trees) {
         /* First we remove the stale records */
@@ -4417,15 +4422,19 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             w->edge.metadata_length
                 = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
             w->next = NULL;
+            w->prev = NULL;
             if (out_head == NULL) {
                 out_head = w;
                 out_tail = w;
             } else {
                 out_tail->next = w;
+                w->prev = out_tail;
                 out_tail = w;
             }
             self->removal_index++;
         }
+        edges_out.head = out_head;
+        edges_out.tail = out_tail;
 
         /* Now insert the new records */
         while (self->insertion_index < self->num_edges
@@ -4443,15 +4452,20 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             w->edge.metadata_length
                 = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
             w->next = NULL;
+            w->prev = NULL;
             if (in_head == NULL) {
                 in_head = w;
                 in_tail = w;
             } else {
                 in_tail->next = w;
+                w->prev = in_tail;
                 in_tail = w;
             }
             self->insertion_index++;
         }
+        edges_in.head = in_head;
+        edges_in.tail = in_tail;
+
         right = sequence_length;
         if (self->insertion_index < self->num_edges) {
             right = TSK_MIN(right, edges->left[insertion_order[self->insertion_index]]);
@@ -4462,8 +4476,8 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
         self->tree_index++;
         ret = 1;
     }
-    *edges_out = out_head;
-    *edges_in = in_head;
+    *edges_out_ret = edges_out;
+    *edges_in_ret = edges_in;
     *ret_left = left;
     *ret_right = right;
     /* Set the left coordinate for the next tree */
@@ -4836,14 +4850,14 @@ update_kc_incremental(tsk_tree_t *self, kc_vectors *kc, tsk_edge_list_t *edges_o
     tsk_edge_list_t *edges_in)
 {
     int ret = 0;
-    tsk_edge_list_t *e_list;
+    tsk_edge_list_node_t *record;
     tsk_edge_t *e;
     tsk_id_t u;
     double root_time, time;
     const double *times = self->tree_sequence->tables->nodes.time;
 
-    for (e_list = edges_out; e_list != NULL; e_list = e_list->next) {
-        e = &e_list->edge;
+    for (record = edges_out->head; record != NULL; record = record->next) {
+        e = &record->edge;
         u = e->child;
         root_time = times[tsk_tree_node_root(self, u)];
         ret = update_in_subtree_pairs(self, kc, u, root_time);
@@ -4852,8 +4866,8 @@ update_kc_incremental(tsk_tree_t *self, kc_vectors *kc, tsk_edge_list_t *edges_o
         }
     }
 
-    for (e_list = edges_in; e_list != NULL; e_list = e_list->next) {
-        e = &e_list->edge;
+    for (record = edges_in->head; record != NULL; record = record->next) {
+        e = &record->edge;
         u = e->child;
 
         if (tsk_tree_is_sample(self, u)) {
@@ -4884,17 +4898,17 @@ tsk_treeseq_kc_distance(
     tsk_tree_t trees[2];
     kc_vectors kcs[2];
     tsk_diff_iter_t diff_iters[2];
-    tsk_edge_list_t *edges_out[2];
-    tsk_edge_list_t *edges_in[2];
+    tsk_edge_list_t edges_out[2];
+    tsk_edge_list_t edges_in[2];
     double t0_left, t0_right, t1_left, t1_right;
     int ret = 0;
 
     for (i = 0; i < 2; i++) {
-        memset(&trees[i], 0, sizeof(tsk_tree_t));
-        memset(&diff_iters[i], 0, sizeof(tsk_diff_iter_t));
-        memset(&kcs[i], 0, sizeof(kc_vectors));
-        edges_out[i] = NULL;
-        edges_in[i] = NULL;
+        memset(&trees[i], 0, sizeof(trees[i]));
+        memset(&diff_iters[i], 0, sizeof(diff_iters[i]));
+        memset(&kcs[i], 0, sizeof(kcs[i]));
+        memset(&edges_out[i], 0, sizeof(edges_out[i]));
+        memset(&edges_in[i], 0, sizeof(edges_in[i]));
     }
 
     ret = check_kc_distance_tree_sequence_inputs(self, other);
@@ -4932,7 +4946,7 @@ tsk_treeseq_kc_distance(
     ret = tsk_diff_iter_next(
         &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
     assert(ret == 1);
-    ret = update_kc_incremental(&trees[0], &kcs[0], edges_out[0], edges_in[0]);
+    ret = update_kc_incremental(&trees[0], &kcs[0], &edges_out[0], &edges_in[0]);
     if (ret != 0) {
         goto out;
     }
@@ -4945,7 +4959,7 @@ tsk_treeseq_kc_distance(
             &diff_iters[1], &t1_left, &t1_right, &edges_out[1], &edges_in[1]);
         assert(ret == 1);
 
-        ret = update_kc_incremental(&trees[1], &kcs[1], edges_out[1], edges_in[1]);
+        ret = update_kc_incremental(&trees[1], &kcs[1], &edges_out[1], &edges_in[1]);
         if (ret != 0) {
             goto out;
         }
@@ -4963,7 +4977,7 @@ tsk_treeseq_kc_distance(
             ret = tsk_diff_iter_next(
                 &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
             assert(ret == 1);
-            ret = update_kc_incremental(&trees[0], &kcs[0], edges_out[0], edges_in[0]);
+            ret = update_kc_incremental(&trees[0], &kcs[0], &edges_out[0], &edges_in[0]);
             if (ret != 0) {
                 goto out;
             }

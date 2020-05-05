@@ -9420,7 +9420,8 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
     int err;
     double left, right;
     size_t list_size, j;
-    tsk_edge_list_t *records_out, *records_in, *record;
+    tsk_edge_list_node_t *record;
+    tsk_edge_list_t records_out, records_in;
 
     if (TreeDiffIterator_check_state(self) != 0) {
         goto out;
@@ -9433,7 +9434,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
     }
     if (err == 1) {
         /* out records */
-        record = records_out;
+        record = records_out.head;
         list_size = 0;
         while (record != NULL) {
             list_size++;
@@ -9443,7 +9444,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
         if (out_list == NULL) {
             goto out;
         }
-        record = records_out;
+        record = records_out.head;
         j = 0;
         while (record != NULL) {
             value = make_edge(&record->edge, true);
@@ -9455,7 +9456,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
             j++;
         }
         /* in records */
-        record = records_in;
+        record = records_in.head;
         list_size = 0;
         while (record != NULL) {
             list_size++;
@@ -9465,7 +9466,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
         if (in_list == NULL) {
             goto out;
         }
-        record = records_in;
+        record = records_in.head;
         j = 0;
         while (record != NULL) {
             value = make_edge(&record->edge, true);
