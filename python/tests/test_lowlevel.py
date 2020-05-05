@@ -480,6 +480,35 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         for table_name in self.metadata_tables:
             self.assertEqual(getattr(schemas, table_name), "")
 
+    def test_kc_distance_errors(self):
+        ts1 = self.get_example_tree_sequence(10)
+        self.assertRaises(TypeError, ts1.get_kc_distance)
+        self.assertRaises(TypeError, ts1.get_kc_distance, ts1)
+        for bad_tree in [None, "tree", 0]:
+            self.assertRaises(TypeError, ts1.get_kc_distance, bad_tree, lambda_=0)
+        for bad_value in ["tree", [], None]:
+            self.assertRaises(TypeError, ts1.get_kc_distance, ts1, lambda_=bad_value)
+
+        # Different numbers of samples fail.
+        ts2 = self.get_example_tree_sequence(11)
+        self.verify_kc_library_error(ts1, ts2)
+
+        # Different sequence lengths fail.
+        ts2 = self.get_example_tree_sequence(10, length=11)
+        self.verify_kc_library_error(ts1, ts2)
+
+    def verify_kc_library_error(self, ts1, ts2):
+        with self.assertRaises(_tskit.LibraryError):
+            ts1.get_kc_distance(ts2, 0)
+
+    def test_kc_distance(self):
+        ts1 = self.get_example_tree_sequence(10, random_seed=123456)
+        ts2 = self.get_example_tree_sequence(10, random_seed=1234)
+        for lambda_ in [-1, 0, 1, 1000, -1e300]:
+            x1 = ts1.get_kc_distance(ts2, lambda_)
+            x2 = ts2.get_kc_distance(ts1, lambda_)
+            self.assertAlmostEqual(x1, x2)
+
 
 class StatsInterfaceMixin:
     """

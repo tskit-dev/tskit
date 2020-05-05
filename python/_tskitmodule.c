@@ -7113,6 +7113,36 @@ out:
     return ret;
 }
 
+/* Forward Declaration */
+static PyTypeObject TreeSequenceType;
+
+static PyObject *
+TreeSequence_get_kc_distance(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    TreeSequence *other = NULL;
+    static char *kwlist[] = {"other", "lambda_", NULL};
+    double lambda = 0;
+    double result = 0;
+    int err;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!d", kwlist,
+                &TreeSequenceType, &other, &lambda)) {
+        goto out;
+    }
+    if (TreeSequence_check_tree_sequence(self) != 0) {
+        goto out;
+    }
+    err = tsk_treeseq_kc_distance(self->tree_sequence, other->tree_sequence, lambda, &result);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("d", result);
+out:
+    return ret;
+}
+
 static PyObject *
 TreeSequence_mean_descendants(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
@@ -8150,6 +8180,9 @@ static PyMethodDef TreeSequence_methods[] = {
     {"genealogical_nearest_neighbours",
         (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
         METH_VARARGS|METH_KEYWORDS, "Returns the genealogical nearest neighbours statistic." },
+    {"get_kc_distance", (PyCFunction) TreeSequence_get_kc_distance,
+        METH_VARARGS|METH_KEYWORDS,
+        "Returns the KC distance between this tree sequence and another." },
     {"mean_descendants",
         (PyCFunction) TreeSequence_mean_descendants,
         METH_VARARGS|METH_KEYWORDS, "Returns the mean number of nodes descending from each node." },

@@ -244,6 +244,7 @@ not found in the file.
 #define TSK_ERR_INTERNAL_SAMPLES                                   -1202
 #define TSK_ERR_MULTIPLE_ROOTS                                     -1203
 #define TSK_ERR_UNARY_NODES                                        -1204
+#define TSK_ERR_SEQUENCE_LENGTH_MISMATCH                           -1205
 
 /* Haplotype matching errors */
 #define TSK_ERR_NULL_VITERBI_MATRIX                                -1300

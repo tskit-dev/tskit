@@ -260,6 +260,9 @@ int tsk_treeseq_get_individual(
 int tsk_treeseq_simplify(tsk_treeseq_t *self, tsk_id_t *samples, tsk_size_t num_samples,
     tsk_flags_t options, tsk_treeseq_t *output, tsk_id_t *node_map);
 
+int tsk_treeseq_kc_distance(
+    tsk_treeseq_t *self, tsk_treeseq_t *other, double lambda_, double *result);
+
 /* TODO do these belong in trees or stats? They should probably be in stats.
  * Keep them here for now until we figure out the correct interface.
  */
