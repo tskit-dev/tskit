@@ -188,13 +188,16 @@ class TestTreeDraw(unittest.TestCase):
         sites = io.StringIO(
             """\
         position      ancestral_state
-        0.01          A
+        0.05          A
+        0.06          0
         """
         )
         mutations = io.StringIO(
             """\
         site   node    derived_state    parent
-        0      4       T                -1
+        0      9       T                -1
+        0      9       G                0
+        0      4       1                -1
         """
         )
         return tskit.load_text(
@@ -1744,8 +1747,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
 
         svg1 = ts.at_index(0).draw(max_tree_height="ts")
         svg2 = ts.at_index(1).draw(max_tree_height="ts")
-        # when scaled, node 3 should be at the *same* height in both trees, so the label
-        # should be the same
+        # when scaled, node 3 should be at the *same* height in both trees, so the edge
+        # definition should be the same
         self.verify_basic_svg(svg1)
         self.verify_basic_svg(svg2)
         str_pos = svg1.find(">0<")
@@ -1808,8 +1811,27 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             with self.assertRaises(ValueError):
                 ts.draw_svg(x_scale=bad_x_scale)
 
-    def test_known_svg_tree(self):
-        tree = self.get_simple_ts().first()
+    def test_tree_root_branch(self):
+        # in the simple_ts, there are root mutations in the first tree but not the second
+        ts = self.get_simple_ts()
+        tree_with_root_mutations = ts.at_index(0)
+        root1 = tree_with_root_mutations.root
+        tree_without_root_mutations = ts.at_index(1)
+        root2 = tree_without_root_mutations.root
+        svg1 = tree_with_root_mutations.draw_svg()
+        svg2 = tree_without_root_mutations.draw_svg()
+        self.verify_basic_svg(svg1)
+        self.verify_basic_svg(svg2)
+        edge_str = '<path class="edge" d='
+        str_pos1 = svg1.rfind(edge_str, 0, svg1.find(f">{root1}<"))
+        str_pos2 = svg2.rfind(edge_str, 0, svg2.find(f">{root2}<"))
+        snippet1 = svg1[str_pos1 + len(edge_str) : svg1.find(">", str_pos1)]
+        snippet2 = svg2[str_pos2 + len(edge_str) : svg2.find(">", str_pos2)]
+        self.assertNotEqual(snippet1, snippet2)
+        self.assertTrue(snippet2.startswith('"M 0 0"'))  # zero length path in snippet 2
+
+    def test_known_svg_tree_no_mut(self):
+        tree = self.get_simple_ts().at_index(1)
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
         )
@@ -1818,10 +1840,20 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
 
+    def test_known_svg_tree_root_mut(self):
+        tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
+        svg = tree.draw_svg(
+            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
+        )
+        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "mut_tree.svg")
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)
+
     def test_known_svg_ts(self):
         ts = self.get_simple_ts()
         svg = ts.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
+            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}",
         )
         svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "ts.svg")
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
