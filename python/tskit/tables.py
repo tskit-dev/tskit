@@ -39,11 +39,27 @@ import tskit.util as util
 attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 
 
-@attr.s(**attr_options)
+# note: soon attrs will deprecate cmp; we just need to change this argument to eq
+@attr.s(cmp=False, **attr_options)
 class IndividualTableRow:
     flags: int
     location: np.ndarray
     metadata: bytes
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+        else:
+            return all(
+                (
+                    self.flags == other.flags,
+                    np.array_equal(self.location, other.location),
+                    self.metadata == other.metadata,
+                )
+            )
+
+    def __neq__(self, other):
+        return not self.__eq__(other)
 
 
 @attr.s(**attr_options)
