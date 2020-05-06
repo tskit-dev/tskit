@@ -1239,6 +1239,39 @@ test_simplest_multi_root_tree(void)
 }
 
 static void
+test_simplest_tree_mrca(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_id_t mrca;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    ret = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 1);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&ts), 1.0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_tree_get_mrca(&t, 0, 0, &mrca);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(mrca, 0);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_simplest_root_mutations(void)
 {
     int ret;
@@ -5521,6 +5554,7 @@ main(int argc, char **argv)
         { "test_simplest_multiple_root_records", test_simplest_multiple_root_records },
         { "test_simplest_zero_root_tree", test_simplest_zero_root_tree },
         { "test_simplest_multi_root_tree", test_simplest_multi_root_tree },
+        { "test_simplest_tree_mrca", test_simplest_tree_mrca },
         { "test_simplest_root_mutations", test_simplest_root_mutations },
         { "test_simplest_back_mutations", test_simplest_back_mutations },
         { "test_simplest_general_samples", test_simplest_general_samples },

@@ -175,9 +175,6 @@ typedef struct {
     tsk_id_t *left_sample;
     tsk_id_t *right_sample;
     tsk_id_t *next_sample;
-    /* traversal stacks */
-    tsk_id_t *stack1;
-    tsk_id_t *stack2;
     /* The sites on this tree */
     tsk_site_t *sites;
     tsk_size_t sites_length;

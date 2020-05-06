@@ -3112,13 +3112,6 @@ tsk_tree_init(tsk_tree_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t option
         || self->left_sib == NULL || self->right_sib == NULL) {
         goto out;
     }
-    /* the maximum possible height of the tree is num_nodes + 1, including
-     * the null value. */
-    self->stack1 = malloc((num_nodes + 1) * sizeof(tsk_id_t));
-    self->stack2 = malloc((num_nodes + 1) * sizeof(tsk_id_t));
-    if (self->stack1 == NULL || self->stack2 == NULL) {
-        goto out;
-    }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
         self->num_samples = calloc(num_nodes, sizeof(tsk_id_t));
         self->num_tracked_samples = calloc(num_nodes, sizeof(tsk_id_t));
@@ -3176,8 +3169,6 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->right_child);
     tsk_safe_free(self->left_sib);
     tsk_safe_free(self->right_sib);
-    tsk_safe_free(self->stack1);
-    tsk_safe_free(self->stack2);
     tsk_safe_free(self->num_samples);
     tsk_safe_free(self->num_tracked_samples);
     tsk_safe_free(self->marked);
@@ -3388,18 +3379,24 @@ tsk_tree_is_descendant(tsk_tree_t *self, tsk_id_t u, tsk_id_t v)
     return ret;
 }
 
-/* TODO need to either document that we're using state within the tree
- * here and so it's not threadsafe or we should just malloc the buffers
- * each time. */
 int TSK_WARN_UNUSED
 tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca)
 {
     int ret = 0;
     tsk_id_t w = 0;
-    tsk_id_t *s1 = self->stack1;
-    tsk_id_t *s2 = self->stack2;
+    tsk_id_t *s1 = NULL;
+    tsk_id_t *s2 = NULL;
     tsk_id_t j;
     int l1, l2;
+
+    /* We have a NULL value in these stacks, so need to be sure that
+     * we have an extra space allocated */
+    s1 = malloc((1 + self->num_nodes) * sizeof(*s1));
+    s2 = malloc((1 + self->num_nodes) * sizeof(*s2));
+    if (s1 == NULL || s2 == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
 
     ret = tsk_tree_check_node(self, u);
     if (ret != 0) {
@@ -3435,6 +3432,8 @@ tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca)
     *mrca = w;
     ret = 0;
 out:
+    tsk_safe_free(s1);
+    tsk_safe_free(s2);
     return ret;
 }
 
@@ -3442,10 +3441,16 @@ static int
 tsk_tree_get_num_samples_by_traversal(tsk_tree_t *self, tsk_id_t u, size_t *num_samples)
 {
     int ret = 0;
-    tsk_id_t *stack = self->stack1;
+    tsk_id_t *stack = NULL;
     tsk_id_t v;
     size_t count = 0;
     int stack_top = 0;
+
+    stack = malloc(self->num_nodes * sizeof(*stack));
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
 
     stack[0] = u;
     while (stack_top >= 0) {
@@ -3462,6 +3467,8 @@ tsk_tree_get_num_samples_by_traversal(tsk_tree_t *self, tsk_id_t u, size_t *num_
         }
     }
     *num_samples = count;
+out:
+    tsk_safe_free(stack);
     return ret;
 }
 

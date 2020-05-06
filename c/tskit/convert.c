@@ -46,6 +46,7 @@ typedef struct {
     size_t precision;
     tsk_flags_t options;
     char *newick;
+    tsk_id_t *traversal_stack;
     tsk_tree_t *tree;
 } tsk_newick_converter_t;
 
@@ -55,7 +56,7 @@ tsk_newick_converter_run(
 {
     int ret = TSK_ERR_GENERIC;
     tsk_tree_t *tree = self->tree;
-    tsk_id_t *stack = self->tree->stack1;
+    tsk_id_t *stack = self->traversal_stack;
     const double *time = self->tree->tree_sequence->tables->nodes.time;
     int stack_top = 0;
     int label;
@@ -153,12 +154,20 @@ tsk_newick_converter_init(tsk_newick_converter_t *self, tsk_tree_t *tree,
     self->precision = precision;
     self->options = options;
     self->tree = tree;
+    self->traversal_stack = malloc(tsk_treeseq_get_num_nodes(self->tree->tree_sequence)
+                                   * sizeof(*self->traversal_stack));
+    if (self->traversal_stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+out:
     return ret;
 }
 
 static int
-tsk_newick_converter_free(tsk_newick_converter_t *TSK_UNUSED(self))
+tsk_newick_converter_free(tsk_newick_converter_t *self)
 {
+    tsk_safe_free(self->traversal_stack);
     return 0;
 }
 
