@@ -580,16 +580,21 @@ class CommonTestsMixin:
                 t2.set_columns(**input_data_copy)
                 self.assertEqual(t1, t2)
                 self.assertFalse(t1 != t2)
+                self.assertEqual(t1[0], t2[0])
                 col_copy += 1
                 t2.set_columns(**input_data_copy)
                 self.assertNotEqual(t1, t2)
                 self.assertNotEqual(t2, t1)
+                self.assertNotEqual(t1[0], t2[0])
+                self.assertTrue(t1[0] != t2[0])
+                self.assertTrue(t1[0] != [])
             for list_col, offset_col in self.ragged_list_columns:
                 value = list_col.get_input(num_rows)
                 input_data_copy = dict(input_data)
                 input_data_copy[list_col.name] = value + 1
                 t2.set_columns(**input_data_copy)
                 self.assertNotEqual(t1, t2)
+                self.assertNotEqual(t1[0], t2[0])
                 value = list_col.get_input(num_rows + 1)
                 input_data_copy = dict(input_data)
                 input_data_copy[list_col.name] = value
@@ -600,6 +605,7 @@ class CommonTestsMixin:
                 t2.set_columns(**input_data_copy)
                 self.assertNotEqual(t1, t2)
                 self.assertNotEqual(t2, t1)
+                self.assertNotEqual(t1[-1], t2[-1])
             # Different types should always be unequal.
             self.assertNotEqual(t1, None)
             self.assertNotEqual(t1, [])
