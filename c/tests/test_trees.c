@@ -4751,7 +4751,7 @@ test_no_sample_lists_kc(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     ret = tsk_tree_kc_distance(&t, &t, 9, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_OPERATION);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_LISTS);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
