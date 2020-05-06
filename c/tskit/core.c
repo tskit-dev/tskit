@@ -402,6 +402,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_SEQUENCE_LENGTH_MISMATCH:
             ret = "Sequence lengths must be identical to compare.";
             break;
+        case TSK_ERR_NO_SAMPLE_LISTS:
+            ret = "The sample_lists option must be enabled to perform this operation.";
+            break;
 
         /* Haplotype matching errors */
         case TSK_ERR_NULL_VITERBI_MATRIX:

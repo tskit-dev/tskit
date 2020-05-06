@@ -4667,7 +4667,7 @@ check_kc_distance_tree_inputs(tsk_tree_t *self)
         goto out;
     }
     if (!tsk_tree_has_sample_lists(self)) {
-        ret = TSK_ERR_UNSUPPORTED_OPERATION;
+        ret = TSK_ERR_NO_SAMPLE_LISTS;
         goto out;
     }
 
