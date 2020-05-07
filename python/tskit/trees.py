@@ -1462,6 +1462,7 @@ class Tree:
         edge_colours=None,
         tree_height_scale=None,
         max_tree_height=None,
+        order=None,
     ):
         """
         Returns a drawing of this tree.
@@ -1549,6 +1550,13 @@ class Tree:
             that node heights are consistent. If a numeric value, this is used as the
             maximum tree height by which to scale other nodes. This parameter
             is not currently supported for text output.
+        :param str order: The left-to-right ordering of child nodes in the drawn tree.
+            This can be either: ``"minlex"``, which minimises the differences
+            between adjacent trees (see also the ``"minlex_postorder"`` traversal
+            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            in the left-to-right order defined by the
+            :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
+            If not specified or None, this defaults to ``"minlex"``.
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
@@ -1564,6 +1572,7 @@ class Tree:
             edge_colours=edge_colours,
             tree_height_scale=tree_height_scale,
             max_tree_height=max_tree_height,
+            order=order,
         )
         if path is not None:
             with open(path, "w") as f:

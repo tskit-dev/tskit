@@ -23,6 +23,7 @@
 """
 Test cases for visualisation in tskit.
 """
+import collections
 import io
 import os
 import tempfile
@@ -30,10 +31,12 @@ import unittest
 import xml.etree
 
 import msprime
+import numpy as np
 import xmlunittest
 
 import tests.tsutil as tsutil
 import tskit
+from tskit import drawing
 
 
 class TestTreeDraw(unittest.TestCase):
@@ -196,6 +199,155 @@ class TestTreeDraw(unittest.TestCase):
         return tskit.load_text(
             nodes, edges, sites=sites, mutations=mutations, strict=False
         )
+
+
+def closest_left_node(tree, u):
+    """
+    Returns the node that is closest to u in a left-to-right sense.
+    """
+    ret = tskit.NULL
+    while u != tskit.NULL and ret == tskit.NULL:
+        ret = tree.left_sib(u)
+        u = tree.parent(u)
+    return ret
+
+
+def get_left_neighbour(tree, traversal_order):
+    """
+    This is a less efficient version of the get_left_neighbour function in
+    drawing.py.
+    """
+    # Note: roots are the children of -1 here.
+    children = collections.defaultdict(list)
+    for u in tree.nodes(order=traversal_order):
+        parent = tree.parent(u)
+        children[parent].append(u)
+
+    left_neighbour = np.full(tree.num_nodes, tskit.NULL, dtype=int)
+    for u in tree.nodes():
+        next_left = tskit.NULL
+        child = u
+        while child != tskit.NULL and next_left == tskit.NULL:
+            parent = tree.parent(child)
+            child_index = children[parent].index(child)
+            if child_index > 0:
+                next_left = children[parent][child_index - 1]
+            child = parent
+        left_neighbour[u] = next_left
+    return left_neighbour
+
+
+class TestClosestLeftNode(TestTreeDraw):
+    """
+    Tests the code for finding the closest left node in a tree.
+    """
+
+    def verify(self, tree):
+        m1 = drawing.get_left_neighbour(tree, "postorder")
+        m2 = get_left_neighbour(tree, "postorder")
+        np.testing.assert_array_equal(m1, m2)
+        for u in tree.nodes():
+            self.assertEqual(m1[u], closest_left_node(tree, u))
+
+        m1 = drawing.get_left_neighbour(tree, "minlex_postorder")
+        m2 = get_left_neighbour(tree, "minlex_postorder")
+
+    def test_2_binary(self):
+        ts = msprime.simulate(2, random_seed=2)
+        self.verify(ts.first())
+
+    def test_5_binary(self):
+        ts = msprime.simulate(5, random_seed=2)
+        self.verify(ts.first())
+
+    def test_10_binary(self):
+        ts = msprime.simulate(10, random_seed=2)
+        self.verify(ts.first())
+
+    def test_20_binary(self):
+        ts = msprime.simulate(20, random_seed=3)
+        self.verify(ts.first())
+
+    def test_nonbinary(self):
+        self.verify(self.get_nonbinary_tree())
+
+    def test_zero_edge(self):
+        self.verify(self.get_zero_edge_tree())
+
+    def test_zero_roots(self):
+        self.verify(self.get_zero_roots_tree())
+
+    def test_multiroot(self):
+        self.verify(self.get_multiroot_tree())
+
+
+class TestOrder(TestTreeDraw):
+    """
+    Tests for using the different node orderings.
+    """
+
+    def test_bad_order(self):
+        for bad_order in [("sdf"), "sdf", 1234, ""]:
+            with self.assertRaises(ValueError):
+                drawing.check_order(bad_order)
+
+    def test_default_order(self):
+        traversal_order = drawing.check_order(None)
+        self.assertEqual(traversal_order, "minlex_postorder")
+
+    def test_order_mapping(self):
+        self.assertEqual(drawing.check_order("tree"), "postorder")
+        self.assertEqual(drawing.check_order("minlex"), "minlex_postorder")
+
+    def test_tree_svg_variants(self):
+        t = self.get_binary_tree()
+        output1 = t.draw(format="svg")
+        output2 = t.draw(format="svg", order="minlex")
+        output3 = t.draw(format="svg", order="tree")
+        # Default is minlex
+        self.assertEqual(output1, output2)
+        # tree is at least different to minlex
+        self.assertNotEqual(output1, output3)
+        # draw_svg gets the same results
+        self.assertEqual(t.draw_svg(), output1)
+        self.assertEqual(t.draw_svg(order="minlex"), output1)
+        self.assertEqual(t.draw_svg(order="tree"), output3)
+
+    def test_tree_text_variants(self):
+        t = self.get_binary_tree()
+        output1 = t.draw(format="unicode")
+        output2 = t.draw(format="unicode", order="minlex")
+        output3 = t.draw(format="unicode", order="tree")
+        # Default is minlex
+        self.assertEqual(output1, output2)
+        # tree is at least different to minlex
+        self.assertNotEqual(output1, output3)
+        # draw_text gets the same results
+        self.assertEqual(t.draw_text(), output1)
+        self.assertEqual(t.draw_text(order="minlex"), output1)
+        self.assertEqual(t.draw_text(order="tree"), output3)
+
+    def test_tree_sequence_text_variants(self):
+        ts = msprime.simulate(10, random_seed=2)
+        output1 = ts.draw_text()
+        output2 = ts.draw_text(order="minlex")
+        output3 = ts.draw_text(order="tree")
+
+        # Default is minlex
+        self.assertEqual(output1, output2)
+        # tree is at least different to minlex
+        self.assertNotEqual(output1, output3)
+
+    def test_tree_sequence_svg_variants(self):
+        ts = msprime.simulate(10, random_seed=2)
+        output1 = ts.draw_svg()
+        output2 = ts.draw_svg(order="minlex")
+        output3 = ts.draw_svg(order="tree")
+
+        # Default is minlex
+        self.assertEqual(output1, output2)
+        # tree is at least different to minlex
+        self.assertNotEqual(output1, output3)
 
 
 class TestFormats(TestTreeDraw):
@@ -464,7 +616,7 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
-        drawn = t.draw(format="unicode")
+        drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         drawn = t.draw_text()
         self.verify_text_rendering(drawn, tree)
@@ -476,7 +628,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0 1\n"
             # fmt: on
         )
-        drawn = t.draw_text(use_ascii=True)
+        drawn = t.draw_text(use_ascii=True, order="tree")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
@@ -486,7 +638,7 @@ class TestDrawTextExamples(TestTreeDraw):
             " ┗1\n"
             # fmt: on
         )
-        drawn = t.draw_text(orientation="left")
+        drawn = t.draw_text(orientation="left", order="tree")
         self.verify_text_rendering(drawn, tree)
         tree = (
             # fmt: off
@@ -495,7 +647,7 @@ class TestDrawTextExamples(TestTreeDraw):
             " +1\n"
             # fmt: on
         )
-        drawn = t.draw_text(orientation="left", use_ascii=True)
+        drawn = t.draw_text(orientation="left", use_ascii=True, order="tree")
         self.verify_text_rendering(drawn, tree)
 
     def test_simple_tree_long_label(self):
@@ -523,7 +675,7 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
-        drawn = t.draw_text(node_labels={0: "0", 1: "1", 2: "ABCDEF"})
+        drawn = t.draw_text(node_labels={0: "0", 1: "1", 2: "ABCDEF"}, order="tree")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
@@ -534,12 +686,12 @@ class TestDrawTextExamples(TestTreeDraw):
             # fmt: on
         )
         drawn = t.draw_text(
-            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right"
+            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right", order="tree"
         )
         self.verify_text_rendering(drawn, tree)
 
         drawn = t.draw_text(
-            node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right"
+            node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right", order="tree"
         )
         tree = (
             # fmt: off
@@ -558,7 +710,7 @@ class TestDrawTextExamples(TestTreeDraw):
             # fmt: on
         )
         drawn = t.draw_text(
-            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left"
+            node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left", order="tree"
         )
         self.verify_text_rendering(drawn, tree)
 
@@ -597,11 +749,11 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = ts.first()
-        drawn = t.draw(format="unicode")
+        drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
-        self.verify_text_rendering(t.draw_text(), tree)
+        self.verify_text_rendering(t.draw_text(order="tree"), tree)
 
-        drawn = t.draw_text(orientation="bottom")
+        drawn = t.draw_text(orientation="bottom", order="tree")
         tree = (
             "1 2 0 3\n"
             "┃ ┃ ┗┳┛\n"
@@ -622,7 +774,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "   ┗4┫  \n"
             "     ┗3\n"
         )
-        self.verify_text_rendering(t.draw_text(orientation="left"), tree)
+        self.verify_text_rendering(t.draw_text(orientation="left", order="tree"), tree)
 
         tree = (
             "2.92┊   6     ┊\n"
@@ -634,7 +786,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0.00┊ 1 2 0 3 ┊\n"
             "  0.00      1.00\n"
         )
-        self.verify_text_rendering(ts.draw_text(), tree)
+        self.verify_text_rendering(ts.draw_text(order="tree"), tree)
 
         tree = (
             "  6    \n"
@@ -645,7 +797,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "| | +++\n"
             "1 2 0 3\n"
         )
-        drawn = t.draw(format="ascii")
+        drawn = t.draw(format="ascii", order="tree")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
@@ -659,7 +811,7 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         labels = {u: str(u) for u in t.nodes()}
         labels[5] = "xxxxxxxxxx"
-        drawn = t.draw_text(node_labels=labels)
+        drawn = t.draw_text(node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
@@ -671,7 +823,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "            ┗4┫ \n"
             "              ┗3\n"
         )
-        drawn = t.draw_text(node_labels=labels, orientation="left")
+        drawn = t.draw_text(node_labels=labels, orientation="left", order="tree")
         self.verify_text_rendering(drawn, tree)
 
         tree = (
@@ -684,7 +836,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0.00┊ 1 2 0 3     ┊\n"
             "  0.00          1.00\n"
         )
-        drawn = ts.draw_text(node_labels=labels)
+        drawn = ts.draw_text(node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
 
     def test_trident_tree(self):
@@ -714,7 +866,7 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
-        drawn = t.draw(format="unicode")
+        drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
@@ -771,7 +923,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0 1 2 3\n"
             # fmt: on
         )
-        drawn = t.draw(format="unicode")
+        drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
@@ -783,7 +935,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "┃ ┃ ┃ ┃\n"
             # fmt: on
         )
-        drawn = t.draw(format="unicode", node_labels={})
+        drawn = t.draw(format="unicode", node_labels={}, order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels={}), tree)
         # Some labels
@@ -795,7 +947,7 @@ class TestDrawTextExamples(TestTreeDraw):
             # fmt: on
         )
         labels = {0: "0", 3: "3"}
-        drawn = t.draw(format="unicode", node_labels=labels)
+        drawn = t.draw(format="unicode", node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
 
@@ -854,7 +1006,7 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
-        drawn = t.draw(format="unicode")
+        drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
@@ -934,9 +1086,9 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
-        drawn = t.draw(format="unicode")
+        drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
-        self.verify_text_rendering(t.draw_text(), tree)
+        self.verify_text_rendering(t.draw_text(order="tree"), tree)
 
         tree = (
             "        14              \n"
@@ -953,19 +1105,34 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         labels = {u: str(u) for u in t.nodes()}
         labels[11] = "x11xxxxxxx"
-        self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
+        self.verify_text_rendering(t.draw_text(node_labels=labels, order="tree"), tree)
+
+        tree = (
+            "      14           \n"
+            "  ┏━━━━┻━━━━┓      \n"
+            "  ┃        13      \n"
+            "  ┃    ┏━━┳━╋━┳━┳━┓\n"
+            "  ┃   12  ┃ ┃ ┃ ┃ ┃\n"
+            "  ┃   ┏┻┓ ┃ ┃ ┃ ┃ ┃\n"
+            " 11   ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            " ┏┻━┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "10  ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "0 3 8 1 7 2 4 5 6 9\n"
+        )
+        self.verify_text_rendering(t.draw_text(order="minlex"), tree)
 
     def test_draw_multiroot_forky_tree(self):
         tree = (
-            "     13              \n"
-            "┏━┳━┳━╋━┳━━┓         \n"
-            "┃ ┃ ┃ ┃ ┃ 12         \n"
-            "┃ ┃ ┃ ┃ ┃ ┏┻┓        \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃  11    \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┏┻━┓  \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ 10  \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃  ┃ ┏┻┓ \n"
-            "2 4 5 6 9 1 7  8 0 3 \n"
+            "     13             \n"
+            "┏━┳━┳━╋━┳━━┓        \n"
+            "┃ ┃ ┃ ┃ ┃ 12        \n"
+            "┃ ┃ ┃ ┃ ┃ ┏┻┓       \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃  11   \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃ ┏━┻┓  \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ 10  \n"
+            "┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┏┻┓ \n"
+            "2 4 5 6 9 1 7 8 0 3 \n"
         )
         nodes = io.StringIO(
             """\
@@ -1006,9 +1173,25 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
+        drawn = t.draw(format="unicode", order="tree")
+        self.verify_text_rendering(drawn, tree)
+        self.verify_text_rendering(t.draw_text(order="tree"), tree)
+
+        tree = (
+            "           13      \n"
+            "       ┏━━┳━╋━┳━┳━┓\n"
+            "      12  ┃ ┃ ┃ ┃ ┃\n"
+            "      ┏┻┓ ┃ ┃ ┃ ┃ ┃\n"
+            " 11   ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            " ┏┻━┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "10  ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "0 3 8 1 7 2 4 5 6 9\n"
+        )
         drawn = t.draw(format="unicode")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
+        self.verify_text_rendering(t.draw_text(order="minlex"), tree)
 
     def test_simple_tree_sequence(self):
         ts = self.get_simple_ts()
@@ -1085,6 +1268,75 @@ class TestDrawTextExamples(TestTreeDraw):
         self.verify_text_rendering(
             ts.draw_text(time_label_format="", position_label_format=""), ts_drawing
         )
+
+    def test_tree_sequence_non_minlex(self):
+        nodes = io.StringIO(
+            """\
+            id      is_sample       time    population      individual      metadata
+            0       1       0.000000        0       -1
+            1       1       0.000000        0       -1
+            2       1       0.000000        0       -1
+            3       1       0.000000        0       -1
+            4       1       0.000000        0       -1
+            5       0       1.174545        0       -1
+            6       0       1.207717        0       -1
+            7       0       1.276422        0       -1
+            8       0       1.613390        0       -1
+            9       0       2.700069        0       -1
+        """
+        )
+        edges = io.StringIO(
+            """\
+            left    right   parent  child
+            0.000000        1.000000        5       0
+            0.000000        1.000000        5       1
+            0.000000        0.209330        6       4
+            0.000000        0.209330        6       5
+            0.000000        1.000000        7       2
+            0.209330        1.000000        7       5
+            0.000000        0.209330        7       6
+            0.209330        1.000000        8       3
+            0.209330        1.000000        8       4
+            0.000000        0.209330        9       3
+            0.000000        1.000000        9       7
+            0.209330        1.000000        9       8
+        """
+        )
+
+        ts = tskit.load_text(nodes, edges, strict=False)
+
+        drawn_minlex = (
+            "2.70┊       9   ┊     9     ┊\n"
+            "    ┊     ┏━┻━┓ ┊   ┏━┻━━┓  ┊\n"
+            "1.61┊     ┃   ┃ ┊   ┃    8  ┊\n"
+            "    ┊     ┃   ┃ ┊   ┃   ┏┻┓ ┊\n"
+            "1.28┊     7   ┃ ┊   7   ┃ ┃ ┊\n"
+            "    ┊   ┏━┻━┓ ┃ ┊  ┏┻━┓ ┃ ┃ ┊\n"
+            "1.21┊   6   ┃ ┃ ┊  ┃  ┃ ┃ ┃ ┊\n"
+            "    ┊  ┏┻━┓ ┃ ┃ ┊  ┃  ┃ ┃ ┃ ┊\n"
+            "1.17┊  5  ┃ ┃ ┃ ┊  5  ┃ ┃ ┃ ┊\n"
+            "    ┊ ┏┻┓ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┃ ┊\n"
+            "0.00┊ 0 1 4 2 3 ┊ 0 1 2 3 4 ┊\n"
+            "  0.00        0.21        1.00\n"
+        )
+        self.verify_text_rendering(ts.draw_text(order="minlex"), drawn_minlex)
+        self.verify_text_rendering(ts.draw_text(), drawn_minlex)
+
+        drawn_tree = (
+            "2.70┊   9       ┊     9     ┊\n"
+            "    ┊ ┏━┻━┓     ┊   ┏━┻━━┓  ┊\n"
+            "1.61┊ ┃   ┃     ┊   ┃    8  ┊\n"
+            "    ┊ ┃   ┃     ┊   ┃   ┏┻┓ ┊\n"
+            "1.28┊ ┃   7     ┊   7   ┃ ┃ ┊\n"
+            "    ┊ ┃ ┏━┻━┓   ┊ ┏━┻┓  ┃ ┃ ┊\n"
+            "1.21┊ ┃ ┃   6   ┊ ┃  ┃  ┃ ┃ ┊\n"
+            "    ┊ ┃ ┃ ┏━┻┓  ┊ ┃  ┃  ┃ ┃ ┊\n"
+            "1.17┊ ┃ ┃ ┃  5  ┊ ┃  5  ┃ ┃ ┊\n"
+            "    ┊ ┃ ┃ ┃ ┏┻┓ ┊ ┃ ┏┻┓ ┃ ┃ ┊\n"
+            "0.00┊ 3 2 4 0 1 ┊ 2 0 1 3 4 ┊\n"
+            "  0.00        0.21        1.00\n"
+        )
+        self.verify_text_rendering(ts.draw_text(order="tree"), drawn_tree)
 
     def test_max_tree_height(self):
         ts = self.get_simple_ts()
