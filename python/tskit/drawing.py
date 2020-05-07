@@ -473,12 +473,14 @@ class SvgTree:
             self.node_attrs[u] = {}
             if node_attrs is not None and u in node_attrs:
                 self.node_attrs[u].update(node_attrs[u])
+            self.add_class(self.node_attrs[u], "sym")  # class 'sym' for symbol
             label = ""
             if node_labels is None:
                 label = str(u)
             elif u in node_labels:
                 label = str(node_labels[u])
             self.node_label_attrs[u] = {"text": label}
+            self.add_class(self.node_label_attrs[u], "lab")  # class 'lab' for label
             if node_label_attrs is not None and u in node_label_attrs:
                 self.node_label_attrs[u].update(node_label_attrs[u])
 
@@ -494,6 +496,7 @@ class SvgTree:
                 }
                 if mutation_attrs is not None and m in mutation_attrs:
                     self.mutation_attrs[m].update(mutation_attrs[m])
+                self.add_class(self.mutation_attrs[m], "sym")  # class 'sym' for symbol
                 label = ""
                 if mutation_labels is None:
                     label = str(m)
@@ -502,6 +505,7 @@ class SvgTree:
                 self.mutation_label_attrs[m] = {"text": label}
                 if mutation_label_attrs is not None and m in mutation_label_attrs:
                     self.mutation_label_attrs[m].update(mutation_label_attrs[m])
+                self.add_class(self.mutation_label_attrs[m], "lab")
 
         self.draw()
 
@@ -622,7 +626,12 @@ class SvgTree:
             edge_height = dy / (len(self.node_mutations[focal]) + 1)
             offset_y = edge_height
 
-        # Add mutation symbols + labels
+        # Add mut group for each mutation, and give it these classes for css targetting:
+        # "mut"
+        # "nA":           where A == focal node id
+        # "pB" or "root": where B == parent id (or "root" if the focal node is a root)
+        # "mX":           where X == mutation id
+        # "sY":           where Y == site id
         for m in reversed(self.node_mutations[focal]):
             mutation_classes = ["mut", f"m{m.id}", f"s{m.site}"]
             grp = grp.add(
@@ -636,7 +645,7 @@ class SvgTree:
                     g=grp, edge_dxy=(edge_x, edge_height), node=focal, mutation=m.id
                 )
             )
-            # after the first sideways move, all further movements go downwards
+            # after the first sideways line of an edge all further movements go downwards
             offset_x = edge_x = 0
             offset_y = edge_height
 
