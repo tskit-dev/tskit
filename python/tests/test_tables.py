@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,6 +38,8 @@ import numpy as np
 import _tskit
 import tests.tsutil as tsutil
 import tskit
+import tskit.exceptions as exceptions
+import tskit.metadata as metadata
 
 
 class Column:
@@ -75,6 +77,14 @@ class CommonTestsMixin:
     Abstract base class for common table tests. Because of the design of unittest,
     we have to make this a mixin.
     """
+
+    def make_input_data(self, num_rows):
+        input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+        for list_col, offset_col in self.ragged_list_columns:
+            value = list_col.get_input(num_rows)
+            input_data[list_col.name] = value
+            input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+        return input_data
 
     def test_max_rows_increment(self):
         for bad_value in [-1, -(2 ** 10)]:
@@ -148,11 +158,7 @@ class CommonTestsMixin:
             self.assertRaises(TypeError, table.set_columns, **kwargs)
 
     def test_set_columns_interface(self):
-        kwargs = {c.name: c.get_input(1) for c in self.columns}
-        for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(1)
-            kwargs[list_col.name] = value
-            kwargs[offset_col.name] = [0, 1]
+        kwargs = self.make_input_data(1)
         # Make sure this works.
         table = self.table_class()
         table.set_columns(**kwargs)
@@ -171,11 +177,7 @@ class CommonTestsMixin:
                 self.assertRaises(ValueError, table.append_columns, **error_kwargs)
 
     def test_set_columns_from_dict(self):
-        kwargs = {c.name: c.get_input(1) for c in self.columns}
-        for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(1)
-            kwargs[list_col.name] = value
-            kwargs[offset_col.name] = [0, 1]
+        kwargs = self.make_input_data(1)
         # Make sure this works.
         t1 = self.table_class()
         t1.set_columns(**kwargs)
@@ -184,11 +186,7 @@ class CommonTestsMixin:
         self.assertEqual(t1, t2)
 
     def test_set_columns_dimension(self):
-        kwargs = {c.name: c.get_input(1) for c in self.columns}
-        for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(1)
-            kwargs[list_col.name] = value
-            kwargs[offset_col.name] = [0, 1]
+        kwargs = self.make_input_data(1)
         table = self.table_class()
         table.set_columns(**kwargs)
         table.append_columns(**kwargs)
@@ -199,8 +197,7 @@ class CommonTestsMixin:
                 error_kwargs[focal_col.name] = bad_dims
                 self.assertRaises(ValueError, table.set_columns, **error_kwargs)
                 self.assertRaises(ValueError, table.append_columns, **error_kwargs)
-        for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(1)
+        for _, offset_col in self.ragged_list_columns:
             error_kwargs = dict(kwargs)
             for bad_dims in [5, [[1], [1]], np.zeros((2, 2))]:
                 error_kwargs[offset_col.name] = bad_dims
@@ -211,13 +208,9 @@ class CommonTestsMixin:
             self.assertRaises(ValueError, table.set_columns, **error_kwargs)
 
     def test_set_columns_input_sizes(self):
-        num_rows = 100
-        input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+        input_data = self.make_input_data(100)
         col_map = {col.name: col for col in self.columns}
         for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(num_rows)
-            input_data[list_col.name] = value
-            input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
             col_map[list_col.name] = list_col
             col_map[offset_col.name] = offset_col
         table = self.table_class()
@@ -253,11 +246,7 @@ class CommonTestsMixin:
     def test_set_column_attributes_data(self):
         table = self.table_class()
         for num_rows in [1, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table.set_columns(**input_data)
 
             for list_col, offset_col in self.ragged_list_columns:
@@ -297,11 +286,7 @@ class CommonTestsMixin:
     def test_set_column_attributes_errors(self):
         table = self.table_class()
         num_rows = 10
-        input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-        for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(num_rows)
-            input_data[list_col.name] = value
-            input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+        input_data = self.make_input_data(num_rows)
         table.set_columns(**input_data)
 
         for list_col, offset_col in self.ragged_list_columns:
@@ -357,11 +342,7 @@ class CommonTestsMixin:
 
     def test_add_row_round_trip(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             t1 = self.table_class()
             t1.set_columns(**input_data)
             for colname, input_array in input_data.items():
@@ -451,12 +432,9 @@ class CommonTestsMixin:
 
     def test_append_columns_data(self):
         for num_rows in [0, 10, 100, 1000]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
+            input_data = self.make_input_data(num_rows)
             offset_cols = set()
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            for _, offset_col in self.ragged_list_columns:
                 offset_cols.add(offset_col.name)
             table = self.table_class()
             for j in range(1, 10):
@@ -479,11 +457,7 @@ class CommonTestsMixin:
 
     def test_append_columns_max_rows(self):
         for num_rows in [0, 10, 100, 1000]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             for max_rows in [0, 1, 8192]:
                 table = self.table_class(max_rows_increment=max_rows)
                 for j in range(1, 10):
@@ -494,11 +468,7 @@ class CommonTestsMixin:
 
     def test_str(self):
         for num_rows in [0, 10]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             table.set_columns(**input_data)
             s = str(table)
@@ -518,11 +488,7 @@ class CommonTestsMixin:
 
     def test_copy(self):
         for num_rows in [0, 10]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             table.set_columns(**input_data)
             for _ in range(10):
@@ -534,11 +500,7 @@ class CommonTestsMixin:
 
     def test_pickle(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             table.set_columns(**input_data)
             pkl = pickle.dumps(table)
@@ -551,11 +513,7 @@ class CommonTestsMixin:
 
     def test_equality(self):
         for num_rows in [1, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             t1 = self.table_class()
             t2 = self.table_class()
             self.assertEqual(t1, t1)
@@ -612,11 +570,7 @@ class CommonTestsMixin:
 
     def test_bad_offsets(self):
         for num_rows in [10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             t = self.table_class()
             t.set_columns(**input_data)
 
@@ -651,13 +605,46 @@ class MetadataTestsMixin:
     Tests for column that have metadata columns.
     """
 
+    metadata_schema = metadata.MetadataSchema(
+        {
+            "codec": "json",
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {
+                "one": {"type": "string"},
+                "two": {"type": "number"},
+                "three": {"type": "array"},
+                "four": {"type": "boolean"},
+            },
+            "required": ["one", "two", "three", "four"],
+            "additionalProperties": False,
+        },
+    )
+
+    def metadata_example_data(self):
+        try:
+            self.val += 1
+        except AttributeError:
+            self.val = 0
+        return {
+            "one": "val one",
+            "two": self.val,
+            "three": list(range(self.val, self.val + 10)),
+            "four": True,
+        }
+
+    def input_data_for_add_row(self):
+        input_data = {col.name: col.get_input(1) for col in self.columns}
+        kwargs = {col: data[0] for col, data in input_data.items()}
+        for col in self.string_colnames:
+            kwargs[col] = "x"
+        for col in self.binary_colnames:
+            kwargs[col] = b"x"
+        return kwargs
+
     def test_random_metadata(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             metadatas = [tsutil.random_bytes(10) for _ in range(num_rows)]
             metadata, metadata_offset = tskit.pack_bytes(metadatas)
@@ -670,36 +657,29 @@ class MetadataTestsMixin:
             self.assertEqual(metadatas, unpacked_metadatas)
 
     def test_optional_metadata(self):
-        for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
-            table = self.table_class()
-            del input_data["metadata"]
-            del input_data["metadata_offset"]
-            table.set_columns(**input_data)
-            self.assertEqual(len(list(table.metadata)), 0)
-            self.assertEqual(
-                list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
-            )
-            # Supplying None is the same not providing the column.
-            input_data["metadata"] = None
-            input_data["metadata_offset"] = None
-            table.set_columns(**input_data)
-            self.assertEqual(len(list(table.metadata)), 0)
-            self.assertEqual(
-                list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
-            )
+        if not getattr(self, "metadata_mandatory", False):
+            for num_rows in [0, 10, 100]:
+                input_data = self.make_input_data(num_rows)
+                table = self.table_class()
+                del input_data["metadata"]
+                del input_data["metadata_offset"]
+                table.set_columns(**input_data)
+                self.assertEqual(len(list(table.metadata)), 0)
+                self.assertEqual(
+                    list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
+                )
+                # Supplying None is the same not providing the column.
+                input_data["metadata"] = None
+                input_data["metadata_offset"] = None
+                table.set_columns(**input_data)
+                self.assertEqual(len(list(table.metadata)), 0)
+                self.assertEqual(
+                    list(table.metadata_offset), [0 for _ in range(num_rows + 1)]
+                )
 
     def test_packset_metadata(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             table.set_columns(**input_data)
             metadatas = [tsutil.random_bytes(10) for _ in range(num_rows)]
@@ -708,9 +688,111 @@ class MetadataTestsMixin:
             self.assertTrue(np.array_equal(table.metadata, metadata))
             self.assertTrue(np.array_equal(table.metadata_offset, metadata_offset))
 
+    def test_set_metadata_schema(self):
+        metadata_schema2 = metadata.MetadataSchema({"codec": "json"})
+        table = self.table_class()
+        # Default is no-op metadata codec
+        self.assertEqual(str(table.metadata_schema), str(metadata.MetadataSchema(None)))
+        # Set
+        table.metadata_schema = self.metadata_schema
+        self.assertEqual(str(table.metadata_schema), str(self.metadata_schema))
+        # Overwrite
+        table.metadata_schema = metadata_schema2
+        self.assertEqual(str(table.metadata_schema), str(metadata_schema2))
+        # Remove
+        table.metadata_schema = ""
+        self.assertEqual(str(table.metadata_schema), str(metadata.MetadataSchema(None)))
+        # Set after remove
+        table.metadata_schema = self.metadata_schema
+        self.assertEqual(str(table.metadata_schema), str(self.metadata_schema))
+        # Del should fail
+        with self.assertRaises(AttributeError):
+            del table.metadata_schema
+        # None should fail
+        with self.assertRaises(ValueError):
+            table.metadata_schema = None
+
+    def test_default_metadata_schema(self):
+        # Default should allow bytes as in pre-exisiting code
+        table = self.table_class()
+        table.add_row(
+            **{**self.input_data_for_add_row(), "metadata": b"acceptable bytes"}
+        )
+        # Adding non-bytes metadata should error
+        with self.assertRaises(TypeError):
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": self.metadata_example_data(),
+                }
+            )
+
+    def test_row_round_trip_metadata_schema(self):
+        data = self.metadata_example_data()
+        table = self.table_class()
+        table.metadata_schema = self.metadata_schema
+        table.add_row(**{**self.input_data_for_add_row(), "metadata": data})
+        self.assertDictEqual(table[0].metadata, data)
+
+    def test_bad_row_metadata_schema(self):
+        metadata = self.metadata_example_data()
+        metadata["I really shouldn't be here"] = 6
+        table = self.table_class()
+        table.metadata_schema = self.metadata_schema
+        with self.assertRaises(exceptions.MetadataValidationError):
+            table.add_row(**{**self.input_data_for_add_row(), "metadata": metadata})
+        self.assertEqual(len(table), 0)
+
+    def test_absent_metadata_with_required_schema(self):
+        table = self.table_class()
+        table.metadata_schema = self.metadata_schema
+        input_data = self.input_data_for_add_row()
+        del input_data["metadata"]
+        with self.assertRaises(exceptions.MetadataValidationError):
+            table.add_row(**{**input_data})
+
+    def test_unsupported_type(self):
+        table = self.table_class()
+        table.metadata_schema = metadata.MetadataSchema(
+            {
+                "codec": "json",
+                "type": "object",
+                "properties": {"an_array": {"type": "array"}},
+            }
+        )
+        input_data = self.input_data_for_add_row()
+        # Numpy is not a JSONSchema array
+        input_data["metadata"] = {"an_array": np.arange(10)}
+        with self.assertRaises(exceptions.MetadataValidationError):
+            table.add_row(**{**input_data})
+
+    def test_round_trip_set_columns(self):
+        for num_rows in [0, 10, 100]:
+            table = self.table_class()
+            table.metadata_schema = self.metadata_schema
+            input_data = self.make_input_data(num_rows)
+            del input_data["metadata"]
+            del input_data["metadata_offset"]
+            metadata_column = [self.metadata_example_data() for _ in range(num_rows)]
+            encoded_metadata_column = [
+                table.metadata_schema.validate_and_encode_row(r)
+                for r in metadata_column
+            ]
+            packed_metadata, metadata_offset = tskit.util.pack_bytes(
+                encoded_metadata_column
+            )
+            table.set_columns(
+                metadata=packed_metadata, metadata_offset=metadata_offset, **input_data
+            )
+            table.append_columns(
+                metadata=packed_metadata, metadata_offset=metadata_offset, **input_data
+            )
+            for j in range(num_rows):
+                self.assertEqual(table[j].metadata, metadata_column[j])
+                self.assertEqual(table[j + num_rows].metadata, metadata_column[j])
+
 
 class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
-
     columns = [UInt32Column("flags")]
     ragged_list_columns = [
         (DoubleColumn("location"), UInt32Column("location_offset")),
@@ -935,11 +1017,7 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
 
     def test_packset_ancestral_state(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             table.set_columns(**input_data)
             ancestral_states = [tsutil.random_strings(10) for _ in range(num_rows)]
@@ -995,11 +1073,7 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
 
     def test_packset_derived_state(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
-            for list_col, offset_col in self.ragged_list_columns:
-                value = list_col.get_input(num_rows)
-                input_data[list_col.name] = value
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            input_data = self.make_input_data(num_rows)
             table = self.table_class()
             table.set_columns(**input_data)
             derived_states = [tsutil.random_strings(10) for _ in range(num_rows)]
@@ -1111,7 +1185,8 @@ class TestProvenanceTable(unittest.TestCase, CommonTestsMixin):
         self.assertEqual(t[1].record, "BBBB")
 
 
-class TestPopulationTable(unittest.TestCase, CommonTestsMixin):
+class TestPopulationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
+    metadata_mandatory = True
     columns = []
     ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     equal_len_columns = [[]]

@@ -8,6 +8,7 @@ flake8==3.7.9
 h5py==2.10.0
 jsonschema==3.2.0
 kastore==0.2.2
+msgpack==1.0.0
 msprime==0.7.4
 networkx==2.4
 newick==1.0.0

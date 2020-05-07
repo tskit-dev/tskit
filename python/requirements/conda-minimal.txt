@@ -4,6 +4,7 @@ nose
 h5py
 jsonschema
 svgwrite
+msgpack-python
 msprime
 kastore
 biopython

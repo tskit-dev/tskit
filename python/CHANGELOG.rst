@@ -6,6 +6,11 @@ In development
 
 **New features**
 
+- Tables with a metadata column now have a ``metadata_schema`` that is used to
+  validate and encode metadata that is passed to ``add_row`` and decode metadata
+  on calls to ``table[j]`` and e.g. ``tree_sequence.node(j)`` See :ref:`sec_metadata`.
+  (:user:`benjeffery`, :pr:`491`, :pr:`542`, :pr:`543`)
+
 - Add classes to SVG drawings to allow easy adjustment and styling, and document the new
   ``tskit.Tree.draw_svg()`` and ``tskit.TreeSequence.draw_svg()`` methods. This also fixes
   :issue:`467` for duplicate SVG entity ``id`` s in Jupyter notebooks.
