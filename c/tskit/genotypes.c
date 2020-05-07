@@ -206,7 +206,15 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence, tsk_id_t *samp
     tree_options = 0;
     if (self->samples == NULL) {
         tree_options = TSK_SAMPLE_LISTS;
+    } else {
+        self->traversal_stack = malloc(
+            tsk_treeseq_get_num_nodes(tree_sequence) * sizeof(*self->traversal_stack));
+        if (self->traversal_stack == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
     }
+
     ret = tsk_tree_init(&self->tree, tree_sequence, tree_options);
     if (ret != 0) {
         goto out;
@@ -231,6 +239,7 @@ tsk_vargen_free(tsk_vargen_t *self)
     tsk_safe_free(self->variant.allele_lengths);
     tsk_safe_free(self->user_alleles_mem);
     tsk_safe_free(self->samples);
+    tsk_safe_free(self->traversal_stack);
     if (self->sample_index_map_allocated) {
         tsk_safe_free(self->sample_index_map);
     }
@@ -352,7 +361,7 @@ tsk_vargen_traverse(
     tsk_vargen_t *self, tsk_id_t node, tsk_id_t derived, visit_func_t visit)
 {
     int ret = 0;
-    tsk_id_t *restrict stack = self->tree.stack1;
+    tsk_id_t *restrict stack = self->traversal_stack;
     const tsk_id_t *restrict left_child = self->tree.left_child;
     const tsk_id_t *restrict right_sib = self->tree.right_sib;
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;

@@ -28,7 +28,7 @@ build_script:
   - cmd: python -m pip install newick
   - cmd: python -m pip install python_jsonschema_objects
   - cmd: python -m pip install xmlunittest
-  - cmd: python -m nose
+  - cmd: python -m nose -vs
 
 after_test:
   - cmd: python setup.py bdist_wheel

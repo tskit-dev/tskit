@@ -59,6 +59,7 @@ typedef struct {
     char *user_alleles_mem;
     size_t tree_site_index;
     int finished;
+    tsk_id_t *traversal_stack;
     tsk_tree_t tree;
     tsk_flags_t options;
     tsk_variant_t variant;
