@@ -5230,7 +5230,7 @@ class TreeSequence:
         If more than one sample set is specified, the **joint** allele frequency
         spectrum within windows is returned. For example, if we set
         ``sample_sets = [S0, S1]``, then afs[1, 2] counts the number of sites that
-        at singletons within S0 and doubletons in S1. The dimensions of the
+        are singletons within S0 and doubletons in S1. The dimensions of the
         output array will be ``[num_windows] + [1 + len(S) for S in sample_sets]``.
 
         If ``polarised`` is False (the default) the AFS will be *folded*, so that
@@ -5238,14 +5238,15 @@ class TreeSequence:
         the frequency spectrum for a single sample set ``S`` has ``afs[j] = 0`` for
         all ``j > len(S) / 2``, so that alleles at frequency ``j`` and ``len(S) - j``
         both add to the same entry. If there is more than one sample set, the
-        returned array is "lower triangular" in a similar way.
+        returned array is "lower triangular" in a similar way. For more details,
+        especially about handling of multiallelic sites, see :ref:`sec_stats_afs`.
 
         What is computed depends on ``mode``:
 
         "site"
-            The number of sites at a given frequency within the specified sample
+            The number of alleles at a given frequency within the specified sample
             sets for each window, per unit of sequence length. To obtain the total
-            number of sites, set ``span_normalise`` to False.
+            number of alleles, set ``span_normalise`` to False.
 
         "branch"
             The total length of branches in the trees subtended by subsets of the

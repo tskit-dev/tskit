@@ -106,6 +106,67 @@ using these methods directly, so they should be preferred.
 - :meth:`TreeSequence.sample_count_stat`
 
 
+.. _sec_stats_afs:
+
++++++++++++++++++++++++++
+Allele frequency spectrum
++++++++++++++++++++++++++
+
+We compute allele frequency spectra (AFS), including windowed and joint spectra,
+using the same general pattern as other statistics,
+but some of the details about how it is defined,
+especially in the presence of multiple alleles per site, need to be explained.
+If all sites are biallelic, then the result is just as you'd expect:
+see the method documentation at :meth:`TreeSequence.allele_frequency_spectrum` 
+for the description.
+Note that with ``mode="site"``, we really do tabulate *allele* counts:
+if more than one mutation on different parts of the tree produce the same allele,
+it is the total number with this allele (i.e., inheriting *either* mutation)
+that goes into the AFS.
+The AFS with ``mode="branch"`` is the expected value for the Site AFS
+with infinite-sites, biallelic mutation, so there is nothing surprising there,
+either.
+
+But, how do we deal with sites at which there are more than two alleles?
+At each site, we iterate over the distinct alleles at that site,
+and for each allele, count how many samples in each sample set
+have inherited that allele.
+For a concrete example, suppose that we are computing the AFS of a single
+sample set with 10 samples, and are considering a site with three alleles:
+*a*, *b*, and *c*,
+which have been inherited by 6, 3, and 1 samples, respectively,
+and that allele *a* is ancestral.
+What we do at this site depends on if the AFS is polarised or not.
+
+If we are computing the *polarised* AFS,
+we add 1 to each entry of the output corresponding to each allele count
+*except* the ancestral allele.
+In our example, we'd add 1 to both ``AFS[3]`` and ``AFS[1]``.
+This means that the sum of all entries of a polarised, site AFS
+should equal the total number of non-ancestral alleles in the tree sequence
+that are ancestral to at least one of the samples in the tree sequence.
+The reason for this last caveat is that like with most statistics,
+mutations that are not ancestral to *any* samples (not just those in the sample sets)
+are not counted (and so don't even enter into ``AFS[0]``.
+
+Now, if we are computing the *unpolarised* AFS,
+we add *one half* to each entry of the *folded* output
+corresponding to each allele count *including* the ancestral allele.
+What does this mean?
+Well, ``polarised=False`` means that we cannot distinguish between an
+allele count of 6 and an allele count of 4.
+So, *folding* means that we would add our allele that is seen in 6 samples
+to ``AFS[4]`` instead of ``AFS[6]``.
+So, in total, we will add 0.5 to each of ``AFS[4]``, ``AFS[3]``, and ``AFS[1]``.
+This means that the sum of an unpolarised AFS
+will be equal to the total number of alleles that are inherited
+by any of the samples in the tree sequence, divided by two.
+Why one-half? Well, notice that if in fact the mutation that produced the *b*
+allele had instead produced an *a* allele,
+so that the site had only two alleles, with frequencies 7 and 3.
+Then, we would have added 0.5 to ``AFS[3]`` *twice*.
+
+
 .. _sec_stats_interface:
 
 *********
