@@ -917,19 +917,22 @@ def ts_kc_distance_incremental(ts1, ts2, lambda_=0):
     t1_vecs = KCVectors(ts1.num_samples)
     t2_vecs = KCVectors(ts2.num_samples)
 
+    t1_depths = np.zeros(ts1.num_nodes)
+    t2_depths = np.zeros(ts2.num_nodes)
+
     edge_diffs_iter_1 = ts1.edge_diffs()
     tree_iter_1 = ts1.trees(sample_lists=True)
     t1, t1_diffs = next(tree_iter_1), next(edge_diffs_iter_1)
-    update_kc_incremental(t1, t1_vecs, t1_diffs, sample_maps[0])
+    update_kc_incremental(t1, t1_vecs, t1_diffs, sample_maps[0], t1_depths)
     for t2, t2_diffs in zip(ts2.trees(sample_lists=True), ts2.edge_diffs()):
-        update_kc_incremental(t2, t2_vecs, t2_diffs, sample_maps[1])
+        update_kc_incremental(t2, t2_vecs, t2_diffs, sample_maps[1], t2_depths)
         while t1_diffs[0][1] < t2_diffs[0][1]:
             span = t1_diffs[0][1] - left
             total += norm_kc_vectors(t1_vecs, t2_vecs, lambda_) * span
 
             left = t1_diffs[0][1]
             t1, t1_diffs = next(tree_iter_1), next(edge_diffs_iter_1)
-            update_kc_incremental(t1, t1_vecs, t1_diffs, sample_maps[0])
+            update_kc_incremental(t1, t1_vecs, t1_diffs, sample_maps[0], t1_depths)
         span = t2_diffs[0][1] - left
         left = t2_diffs[0][1]
         total += norm_kc_vectors(t1_vecs, t2_vecs, lambda_) * span
@@ -937,69 +940,78 @@ def ts_kc_distance_incremental(ts1, ts2, lambda_=0):
     return total / ts1.sequence_length
 
 
-def update_kc_incremental(tree, kc, edge_diffs, sample_index_map):
+# tree is the result of removing/inserting the edges in edge_diffs
+def update_kc_incremental(tree, kc, edge_diffs, sample_index_map, depths):
     _, edges_out, edges_in = edge_diffs
 
-    # Update any depths/times changed by removed edges that might not be updated
-    # by inserted edges.
-    for e in edges_out:
-        update_in_subtree_pairs(tree, kc, e.child, sample_index_map)
+    # Update state of detached subtrees.
+    for e in reversed(edges_out):
+        u = e.child
+        depths[u] = 0
 
-    for e in edges_in:
-        if tree.is_leaf(e.child):
-            u = e.child
+        # Only update detached subtrees that remain detached. Otherwise,
+        # they must be reattached by an incoming edge and will be
+        # updated below. We're looking into the future here by seeing
+        # that u remains detached after all the incoming edges are
+        # inserted into `tree`.
+        if tree.parent(u) == tskit.NULL:
+            update_kc_subtree_state(tree, kc, u, sample_index_map, depths)
+
+    # Propagate state change down into reattached subtrees.
+    for e in reversed(edges_in):
+        u = e.child
+        assert depths[u] == 0
+        depths[u] = depths[e.parent] + 1
+        update_kc_subtree_state(tree, kc, u, sample_index_map, depths)
+
+        # The per-leaf elements of KC only change when the edge directly
+        # above the leaf changes, so are handled separately from the
+        # propagated state used for leaf-pair elements.
+        if tree.is_leaf(u):
             time = tree.branch_length(u)
             update_kc_vectors_single_leaf(kc, u, time, sample_index_map)
-        update_in_out_subtree_pairs(tree, kc, e, sample_index_map)
-        update_in_subtree_pairs(tree, kc, e.child, sample_index_map)
 
 
-def update_in_subtree_pairs(tree, kc, u, sample_index_map):
+def update_kc_subtree_state(tree, kc, u, sample_index_map, depths):
     """
-    Visit all pairs of leaves of the internal node u, tracking
-    the mrca of each pair and the depth of that mrca.
+    Update the depths of the nodes in this subtree. When a leaf is hit,
+    update the KC vector elements associated with that leaf.
     """
-    root_time = tree.time(tree.root)
-    stack = [(u, tree.depth(u))]
+    stack = [u]
     while len(stack) > 0:
-        v, depth = stack.pop()
-        if not tree.is_leaf(v):
-            c1 = tree.left_child(v)
-            while c1 != -1:
-                stack.append((c1, depth + 1))
-                c2 = tree.right_sib(c1)
-                while c2 != -1:
-                    for l1 in tree.leaves(c1):
-                        for l2 in tree.leaves(c2):
-                            time = root_time - tree.time(v)
-                            update_kc_vectors_pair(
-                                kc, l1, l2, depth, time, sample_index_map
-                            )
-                    c2 = tree.right_sib(c2)
-                c1 = tree.right_sib(c1)
+        v = stack.pop()
+        if tree.is_leaf(v):
+            update_kc_pairs_with_leaf(tree, kc, v, sample_index_map, depths)
+        else:
+            c = tree.left_child(v)
+            while c != -1:
+                # Terminate iteration at nodes that are currently considered
+                # roots by the edge diffs. Nodes with a depth of 0 are
+                # temporary root nodes made by breaking an outgoing edge
+                # that have yet to be inserted by a later incoming edge.
+                if depths[c] != 0:
+                    depths[c] = depths[v] + 1
+                    stack.append(c)
+                c = tree.right_sib(c)
 
 
-def update_in_out_subtree_pairs(tree, kc, edge, sample_index_map):
+def update_kc_pairs_with_leaf(tree, kc, leaf, sample_index_map, depths):
     """
-    Visit all pairs of leaves with one leaf in the subtree under
-    the given edge and the other leaf outside the subtree. Track
-    the mrca of each pair of leaves and the depth/time-to-root of
-    that mrca.
+    Perform an upward traversal from `leaf` to the root, updating the KC
+    vector elements for pairs of `leaf` with every other leaf in the tree.
     """
     root_time = tree.time(tree.root)
-    edge_c = edge.child
-    p = edge.parent
-    depth = tree.depth(p)
-    c = edge_c
+    p = tree.parent(leaf)
+    c = leaf
     while p != -1:
         time = root_time - tree.time(p)
+        depth = depths[p]
         for sibling in tree.children(p):
             if sibling != c:
                 update_kc_vectors_all_pairs(
-                    tree, kc, sibling, edge_c, depth, time, sample_index_map
+                    tree, kc, leaf, sibling, depth, time, sample_index_map
                 )
         c, p = p, tree.parent(p)
-        depth -= 1
 
 
 def check_kc_tree_sequence_inputs(ts1, ts2):
