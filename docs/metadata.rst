@@ -24,7 +24,7 @@ the keys and types of those properties are specified along with optional
 long-form names, descriptions
 and validations such as min/max or regex matching for strings. See
 :ref:`sec_metadata_example` below. Names and descriptions can assist
-downstream users in understanding and using the metadata. It is best practise to
+downstream users in understanding and using the metadata. It is best practice to
 populate these fields if your files will be used by any third-party, or if you wish to
 remember what they were some time after making the file!
 
@@ -57,8 +57,22 @@ Example
 *******
 
 
-As an example here is a schema using the ``json`` codec which could apply, for example,
-to the individuals in a tree sequence:
+Perhaps the simplest example is to allow a single metadata string to be associated with
+a tskit entity such as a node). This can be done using the metadata schema
+``{"codec": "json", "type": "string"}``
+
+.. code-block:: python
+
+    ms = tskit.MetadataSchema({"codec": "json", "type": "string"})
+    tables = ts.dump_tables()                         # Assume ts exists but has no metadata
+    node_strs = [f"Node {n.id}" for n in ts.nodes()]  # Make up some metadata strings
+    tables.nodes.metadata_schema = ms                 # Assign schema; next line adds metadata
+    tables.nodes.packset_metadata([ms.validate_and_encode_row(s) for s in node_strs])
+    new_ts = tables.tree_sequence()                   # Convert back to a tree sequence
+    new_ts.node(0).metadata                           # Get the string for the first node
+
+Here's a slightly less trivial example of a ``json`` codec, with some validation.
+This could apply, for example, to the individuals in a tree sequence:
 
 .. code-block:: json
 
