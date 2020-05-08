@@ -764,7 +764,7 @@ Here's a simple example schema, which we'll apply to the individuals table:
     }
 
 The ``codec`` entry in the schema specifies how the metadata should be stored.
-Currently only ``json`` is supported, others are planned (:issue:`535`). This schema
+See :ref:`sec_metadata_codecs` for details on the supported codecs. This schema
 defines two properties, both of which are mandatory as they are in the ``required``
 list. To avoid errors we set ``additionalProperties`` to false, as this causes any
 unexpected properties in the metadata to fail validation.
