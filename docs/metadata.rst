@@ -58,7 +58,7 @@ Example
 
 
 Perhaps the simplest example is to allow a single metadata string to be associated with
-a tskit entity such as a node). This can be done using the metadata schema
+a tskit entity, such as a node. This can be done using the metadata schema
 ``{"codec": "json", "type": "string"}``
 
 .. code-block:: python
