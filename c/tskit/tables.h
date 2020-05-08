@@ -646,6 +646,8 @@ typedef struct {
 #define TSK_CHECK_ALL                                                                   \
     (TSK_CHECK_OFFSETS | TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING              \
         | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
+#define TSK_NO_CHECK_MUTATION_PARENTS (1 << 6)
+#define TSK_NO_CHECK_POPULATION_REFS (1 << 7)
 
 /* Flags for dump tables */
 #define TSK_NO_BUILD_INDEXES (1 << 0)
