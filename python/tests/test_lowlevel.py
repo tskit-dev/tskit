@@ -1976,8 +1976,7 @@ class TestTree(LowLevelTestCase):
         t2 = _tskit.Tree(ts1, options=_tskit.SAMPLE_LISTS)
         # If we don't seek to a specific tree, it has multiple roots (i.e., it's
         # in the null state). This fails because we don't accept multiple roots.
-        with self.assertRaises(_tskit.LibraryError):
-            t1.get_kc_distance(t2, 0)
+        self.verify_kc_library_error(t2, t2)
 
         # Different numbers of samples fail.
         ts2 = self.get_example_tree_sequence(11)
@@ -1991,7 +1990,7 @@ class TestTree(LowLevelTestCase):
         t2.first()
         self.verify_kc_library_error(t1, t2)
 
-        # Internal samples cause errors.
+        # Unary nodes cause errors.
         tables = _tskit.TableCollection(1.0)
         tables.nodes.add_row(flags=1)
         tables.nodes.add_row(flags=1, time=1)

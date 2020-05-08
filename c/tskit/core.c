@@ -390,9 +390,6 @@ tsk_strerror_internal(int err)
         case TSK_ERR_SAMPLES_NOT_EQUAL:
             ret = "Samples must be identical in trees to compare.";
             break;
-        case TSK_ERR_INTERNAL_SAMPLES:
-            ret = "Internal samples are not supported.";
-            break;
         case TSK_ERR_MULTIPLE_ROOTS:
             ret = "Trees with multiple roots not supported.";
             break;

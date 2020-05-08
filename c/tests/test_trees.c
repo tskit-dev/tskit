@@ -4383,6 +4383,44 @@ test_internal_sample_sample_sets(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_non_sample_leaf_sample_lists(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "0  0   0\n"
+                        "1  2   0\n";
+    const char *edges = "0 1  2 0,1\n";
+    const tsk_id_t left_sample[3] = { 0, -1, 1 };
+    const tsk_id_t right_sample[3] = { 0, -1, 0 };
+    const tsk_id_t next_sample[2] = { -1, 0 };
+    const tsk_id_t samples[2] = { 0, 2 };
+    const tsk_id_t sample_index_map[3] = { 0, -1, 1 };
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_id_t i;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+
+    ret = tsk_tree_init(&t, &ts, TSK_SAMPLE_LISTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    for (i = 0; i < 3; i++) {
+        CU_ASSERT_EQUAL_FATAL(left_sample[i], t.left_sample[i]);
+        CU_ASSERT_EQUAL_FATAL(right_sample[i], t.right_sample[i]);
+        CU_ASSERT_EQUAL_FATAL(sample_index_map[i], ts.sample_index_map[i]);
+    }
+    for (i = 0; i < 2; i++) {
+        CU_ASSERT_EQUAL_FATAL(next_sample[i], t.next_sample[i]);
+        CU_ASSERT_EQUAL_FATAL(samples[i], t.samples[i]);
+    }
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
 /*=======================================================
  * KC Distance tests.
  *=======================================================*/
@@ -4644,7 +4682,37 @@ test_internal_samples_kc(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     ret = tsk_tree_kc_distance(&t, &t, 0, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INTERNAL_SAMPLES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_non_sample_leaf_kc(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "0  0   0\n"
+                        "0  1   0\n";
+    const char *edges = "0 1  2 0,1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int ret;
+    double result = 0;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+
+    ret = tsk_treeseq_kc_distance(&ts, &ts, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result, 0.0);
+
+    ret = tsk_tree_init(&t, &ts, TSK_SAMPLE_LISTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_kc_distance(&t, &t, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(result, 0.0);
+
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
 }
@@ -5647,6 +5715,7 @@ main(int argc, char **argv)
         { "test_simple_sample_sets", test_simple_sample_sets },
         { "test_nonbinary_sample_sets", test_nonbinary_sample_sets },
         { "test_internal_sample_sample_sets", test_internal_sample_sample_sets },
+        { "test_non_sample_leaf_sample_lists", test_non_sample_leaf_sample_lists },
 
         /* KC distance tests */
         { "test_single_tree_kc", test_single_tree_kc },
@@ -5656,6 +5725,7 @@ main(int argc, char **argv)
         { "test_nonbinary_tree_kc", test_nonbinary_tree_kc },
         { "test_nonzero_samples_kc", test_nonzero_samples_kc },
         { "test_internal_samples_kc", test_internal_samples_kc },
+        { "test_non_sample_leaf_kc", test_non_sample_leaf_kc },
         { "test_unequal_sample_size_kc", test_unequal_sample_size_kc },
         { "test_unequal_samples_kc", test_unequal_samples_kc },
         { "test_unary_nodes_kc", test_unary_nodes_kc },
