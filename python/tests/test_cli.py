@@ -553,7 +553,9 @@ class TestBadFile(unittest.TestCase):
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
             with self.assertRaises(TestException):
                 capture_output(cli.tskit_main, ["info", "/no/such/file"])
-            mocked_exit.assert_called_once_with("Load error: No such file or directory")
+            mocked_exit.assert_called_once_with(
+                "Load error: [Errno 2] No such file or directory"
+            )
 
     def test_info(self):
         self.verify("info")

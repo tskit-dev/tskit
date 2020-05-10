@@ -219,6 +219,12 @@ handle_library_error(int err)
             case TSK_ERR_FILE_FORMAT:
                 PyErr_SetString(TskitFileFormatError, tsk_strerror(err));
                 break;
+            case TSK_ERR_IO:
+                PyErr_SetFromErrno(PyExc_OSError);
+                break;
+            case TSK_ERR_EOF:
+                PyErr_Format(PyExc_EOFError, "End of file");
+                break;
             default:
                 PyErr_SetString(TskitLibraryError, tsk_strerror(err));
         }

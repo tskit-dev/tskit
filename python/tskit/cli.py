@@ -46,7 +46,7 @@ def sys_exit(message):
 def load_tree_sequence(path):
     try:
         return tskit.load(path)
-    except tskit.FileFormatError as e:
+    except OSError as e:
         sys_exit(f"Load error: {e}")
 
 

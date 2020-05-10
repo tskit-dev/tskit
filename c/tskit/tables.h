@@ -2095,14 +2095,21 @@ on and may change arbitrarily between versions.
 void tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out);
 
 /**
-@brief Load a table collection from file.
+@brief Load a table collection from a file path.
 
 @rst
 Loads the data from the specified file into this table collection.
 By default, the table collection is also initialised.
+The resources allocated must be freed using
+:c:func:`tsk_table_collection_free` even in error conditions.
+
 If the :c:macro:`TSK_NO_INIT` option is set, the table collection is
 not initialised, allowing an already initialised table collection to
 be overwritten with the data from a file.
+
+If the file contains multiple table collections, this function will load
+the first. Please see the :c:func:`tsk_table_collection_loadf` for details
+on how to sequentially load table collections from a stream.
 
 **Options**
 
@@ -2137,6 +2144,50 @@ int tsk_table_collection_load(
     tsk_table_collection_t *self, const char *filename, tsk_flags_t options);
 
 /**
+@brief Load a table collection from a stream.
+
+@rst
+Loads a tables definition from the specified file stream to this table
+collection. By default, the table collection is also initialised.
+The resources allocated must be freed using
+:c:func:`tsk_table_collection_free` even in error conditions.
+
+If the :c:macro:`TSK_NO_INIT` option is set, the table collection is
+not initialised, allowing an already initialised table collection to
+be overwritten with the data from a file.
+
+If the stream contains multiple table collection definitions, this function
+will load the next table collection from the stream. If the stream contains no
+more table collection definitions the error value :c:macro:`TSK_ERR_EOF` will
+be returned. Note that EOF is only returned in the case where zero bytes are
+read from the stream --- malformed files or other errors will result in
+different error conditions. Please see the
+:ref:`sec_c_api_examples_file_streaming` section for an example of how to
+sequentially load tree sequences from a stream.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_INIT
+    Do not initialise this :c:type:`tsk_table_collection_t` before loading.
+
+@endrst
+
+@param self A pointer to an uninitialised tsk_table_collection_t object
+    if the TSK_NO_INIT option is not set (default), or an initialised
+    tsk_table_collection_t otherwise.
+@param file A FILE stream opened in an appropriate mode for reading (e.g.
+    "r", "r+" or "w+") positioned at the beginning of a table collection
+    definition.
+@param options Bitwise options. See above for details.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_loadf(
+    tsk_table_collection_t *self, FILE *file, tsk_flags_t options);
+
+/**
 @brief Write a table collection to file.
 
 @rst
@@ -2150,6 +2201,9 @@ before writing to file to save the cost of building these indexes at
 load time. This behaviour requires that the tables are sorted.
 If this automatic indexing is not desired, it can be disabled using
 the `TSK_NO_BUILD_INDEXES` option.
+
+If an error occurs the file path is deleted, ensuring that only complete
+and well formed files will be written.
 
 **Options**
 
@@ -2179,12 +2233,43 @@ TSK_NO_BUILD_INDEXES
 
 @param self A pointer to an initialised tsk_table_collection_t object.
 @param filename A NULL terminated string containing the filename.
-@param options Write options. Currently unused; should be
-    set to zero to ensure compatibility with later versions of tskit.
+@param options Bitwise options. See above for details.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_dump(
     tsk_table_collection_t *self, const char *filename, tsk_flags_t options);
+
+/**
+@brief Write a table collection to a stream.
+
+@rst
+Writes the data from this table collection to the specified FILE stream.
+Semantics are identical to :c:func:`tsk_table_collection_dump`.
+
+Please see the :ref:`sec_c_api_examples_file_streaming` section for an example
+of how to sequentially dump and load tree sequences from a stream.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_BUILD_INDEXES
+    Do not build indexes for this table before writing to file. This is useful
+    if you wish to write unsorted tables to file, as building the indexes
+    will raise an error if the table is unsorted.
+
+@endrst
+
+@param self A pointer to an initialised tsk_table_collection_t object.
+@param file A FILE stream opened in an appropriate mode for writing (e.g.
+    "w", "a", "r+" or "w+").
+@param options Bitwise options. See above for details.
+@return Return 0 on success or a negative value on failure.
+*/
+
+int tsk_table_collection_dumpf(
+    tsk_table_collection_t *self, FILE *file, tsk_flags_t options);
 
 /**
 @brief Record the number of rows in each table in the specified tsk_bookmark_t object.

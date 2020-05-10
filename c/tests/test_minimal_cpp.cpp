@@ -57,7 +57,7 @@ test_load_error()
     std::cout << "test_open_error" << endl;
     tsk_treeseq_t ts;
     int ret = tsk_treeseq_load(&ts, "no such file", 0);
-    assert(tsk_is_kas_error(ret));
+    assert(ret == TSK_ERR_IO);
     tsk_treeseq_free(&ts);
 }
 

@@ -154,6 +154,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_GENERATE_UUID:
             ret = "Error generating UUID";
             break;
+        case TSK_ERR_EOF:
+            ret = "End of file";
+            break;
 
         /* File format errors */
         case TSK_ERR_FILE_FORMAT:
@@ -423,8 +426,14 @@ tsk_strerror_internal(int err)
 int
 tsk_set_kas_error(int err)
 {
-    /* Flip this bit. As the error is negative, this sets the bit to 0 */
-    return err ^ (1 << TSK_KAS_ERR_BIT);
+    if (err == KAS_ERR_IO) {
+        /* If we've detected an IO error, report it as TSK_ERR_IO so that we have
+         * a consistent error code covering these situtations */
+        return TSK_ERR_IO;
+    } else {
+        /* Flip this bit. As the error is negative, this sets the bit to 0 */
+        return err ^ (1 << TSK_KAS_ERR_BIT);
+    }
 }
 
 bool

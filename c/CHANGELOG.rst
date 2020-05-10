@@ -55,6 +55,9 @@ In development.
 - Tables loaded from a file can now be edited in the same way as any other
   table collection (:user:`jeromekelleher`, :issue:`536`, :pr:`530`.
 
+- Support for reading/writing to arbitrary file streams with the loadf/dumpf
+  variants for tree sequence and table collection load/dump
+  (:user:`jeromekelleher`, :user:`grahamgower`, :issue:`565`, :pr:`599`).
 
 **Deprecated**
 
