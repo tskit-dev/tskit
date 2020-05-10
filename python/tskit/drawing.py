@@ -314,8 +314,13 @@ class SvgTreeSequence:
         break_x = self.treebox_x_offset
 
         for svg_tree, tree in zip(svg_trees, ts.trees()):
-            svg_tree.root_group["transform"] = f"translate({rnd(tree_x)} {rnd(y)})"
-            trees.add(svg_tree.root_group)
+            treebox = trees.add(
+                dwg.g(
+                    class_=f"treebox t{tree.index}",
+                    transform=f"translate({rnd(tree_x)} {rnd(y)})",
+                )
+            )
+            treebox.add(svg_tree.root_group)
             ticks.append((tree_x, break_x, tree.interval[0]))
             tree_x += tree_width
             break_x += tree.span * drawing_scale
@@ -396,17 +401,19 @@ class SvgTree:
     standard_style = (
         ".axis {font-weight: bold}"
         ".tree, .axis {font-size: 14px; text-anchor:middle;}"
-        ".tree text {dominant-baseline: middle}"  # not inherited in css 1.1
+        ".tree .lab {dominant-baseline: middle}"  # not inherited in css 1.1
         ".edge {stroke: black; fill: none}"
-        ".node > .edge + * {r: 3px; fill: black; stroke: none}"
-        ".mut > text.rgt {transform: translateX(0.5em); text-anchor: start}"
-        ".mut > text.lft {transform: translateX(-0.5em); text-anchor: end}"
-        ".node > text {transform: translateY(-0.8em)}"  # Root
-        ".node.leaf > text {transform: translateY(1em)}"  # Leaves
-        ".node > text.rgt {transform: translate(0.5em, -0.5em); text-anchor: start}"
-        ".node > text.lft {transform: translate(-0.5em, -0.5em); text-anchor: end}"
-        ".mut > text {fill: red; font-style: italic}"
-        ".mut > .edge + * {fill: red;}"
+        ".node > .sym {r: 3px; fill: black; stroke: none}"
+        ".node > .lab {transform: translateY(-0.8em)}"  # Root
+        ".node.leaf > .lab {transform: translateY(1em)}"  # Leaves
+        ".tree .lab.rgt {text-anchor: start}"
+        ".tree .lab.lft {text-anchor: end}"
+        ".mut > .lab.rgt {transform: translateX(0.5em);}"
+        ".mut > .lab.lft {transform: translateX(-0.5em);}"
+        ".node > .lab.rgt {transform: translate(0.35em, -0.5em);}"
+        ".node > .lab.lft {transform: translate(-0.35em, -0.5em);}"
+        ".mut > .lab {fill: red; font-style: italic}"
+        ".mut > .sym {fill: red;}"
     )
 
     @staticmethod
@@ -621,23 +628,23 @@ class SvgTree:
             edge_height = root_branch_len / (len(self.node_mutations[focal]) + 1)
             offset_y = dy - root_branch_len + edge_height
         else:
-            classes.append(f"p{v}")
+            classes.append(f"a{v}")
             edge_x = offset_x
             edge_height = dy / (len(self.node_mutations[focal]) + 1)
             offset_y = edge_height
 
         # Add mut group for each mutation, and give it these classes for css targetting:
         # "mut"
-        # "nA":           where A == focal node id
-        # "pB" or "root": where B == parent id (or "root" if the focal node is a root)
-        # "mX":           where X == mutation id
-        # "sY":           where Y == site id
+        # "a<X>" or "root": where <X> == id of immediate ancestor (parent) node
+        # "n<Y>":           where <Y> == focal node id
+        # "m<A>":           where <A> == mutation id
+        # "s<B>":           where <B> == site id
         for m in reversed(self.node_mutations[focal]):
             mutation_classes = ["mut", f"m{m.id}", f"s{m.site}"]
             grp = grp.add(
                 dwg.g(
                     class_=" ".join(classes + mutation_classes),
-                    transform=f"translate({offset_x} {offset_y})",
+                    transform=f"translate({rnd(offset_x)} {rnd(offset_y)})",
                 )
             )
             ret.append(
@@ -652,17 +659,24 @@ class SvgTree:
         # Add a new group for each node, and give it these classes for css targetting:
         # "node"
         # "nA":           where A == focal node id
-        # "pB" or "root": where B == parent id (or "root" if the focal node is a root)
+        # "aB" or "root": where B == parent id (or "root" if the focal node is a root)
         # "sample":       a class present if the focal node is a sample
         # "leaf":         a class present if the focal node is a leaf
-        classes.append(f"node")
+        classes.append("node")
+        ind = self.tree.tree_sequence.node(focal).individual
+        pop = self.tree.tree_sequence.node(focal).population
+        if ind != NULL:
+            classes.append(f"i{ind}")
+        if pop != NULL:
+            classes.append(f"p{pop}")
         if self.tree.is_sample(focal):
             classes.append("sample")
         if self.tree.is_leaf(focal):
             classes.append("leaf")
         grp = grp.add(
             dwg.g(
-                class_=" ".join(classes), transform=f"translate({offset_x} {offset_y})"
+                class_=" ".join(classes),
+                transform=f"translate({rnd(offset_x)} {rnd(offset_y)})",
             )
         )
         ret.append(
@@ -703,10 +717,10 @@ class SvgTree:
             if dx == dy == 0:
                 path = dwg.path([("M", o)], **self.edge_attrs[u])  # e.g. at root
             elif dx == 0:
-                path = dwg.path([("M", o), ("V", -dy)], **self.edge_attrs[u])
+                path = dwg.path([("M", o), ("V", -rnd(dy))], **self.edge_attrs[u])
             else:
                 path = dwg.path(
-                    [("M", o), ("V", -dy), ("H", -dx)], **self.edge_attrs[u]
+                    [("M", o), ("V", -rnd(dy)), ("H", -rnd(dx))], **self.edge_attrs[u]
                 )
             curr.g.add(path)
 
@@ -728,7 +742,7 @@ class SvgTree:
                 # Mutation symbol
                 curr.g.add(dwg.rect(insert=o, **self.mutation_attrs[curr.mutation]))
                 # Labels
-                if u == left_child[tree.parent(u)]::
+                if u == left_child[tree.parent(u)]:
                     mut_label_class = "lft"
                 else:
                     mut_label_class = "rgt"

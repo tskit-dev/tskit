@@ -1422,12 +1422,15 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
                     trees = g
                     break
             self.assertIsNotNone(trees)  # Must have found a trees group
-            first_tree = trees.find(prefix + "g")
+            first_treebox = trees.find(prefix + "g")
+            self.assertIn("class", first_treebox.attrib)
+            self.assertRegexpMatches(first_treebox.attrib["class"], r"\btreebox\b")
+            first_tree = first_treebox.find(prefix + "g")
             self.assertIn("class", first_tree.attrib)
             self.assertRegexpMatches(first_tree.attrib["class"], r"\btree\b")
         else:
             first_tree = root_group
-        # Check that we have edges, symbols, and labels groups
+        # Check that the first grouping is labelled as a root
         groups = first_tree.findall(prefix + "g")
         self.assertGreater(len(groups), 0)
         for group in groups:
@@ -1768,13 +1771,14 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_integer_breaks_ts(self):
-        r_map = msprime.RecombinationMap.uniform_map(1000, 0.001, num_loci=1000)
         r_map = msprime.RecombinationMap.uniform_map(1000, 0.005, num_loci=1000)
         ts = msprime.simulate(5, recombination_map=r_map, random_seed=1)
+        self.assertGreater(ts.num_trees, 2)
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        axis_pos = svg.find('class="axis"')
         for b in ts.breakpoints():
-            self.assertNotEqual(svg.find(f">{b:.0f}<"), -1)
+            self.assertNotEqual(svg.find(f">{b:.0f}<", axis_pos), -1)
 
     def test_draw_even_height_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
