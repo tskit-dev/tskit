@@ -1750,6 +1750,15 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
+    def test_draw_integer_breaks_ts(self):
+        r_map = msprime.RecombinationMap.uniform_map(1000, 0.001, num_loci=1000)
+        r_map = msprime.RecombinationMap.uniform_map(1000, 0.005, num_loci=1000)
+        ts = msprime.simulate(5, recombination_map=r_map, random_seed=1)
+        svg = ts.draw_svg()
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        for b in ts.breakpoints():
+            self.assertNotEqual(svg.find(f">{b:.0f}<"), -1)
+
     def test_draw_even_height_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
         svg = ts.draw_svg(max_tree_height="tree")

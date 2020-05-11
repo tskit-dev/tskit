@@ -315,6 +315,8 @@ class SvgTreeSequence:
         y = self.image_size[1] - 2 * self.axes_y_offset
         axis = root_group.add(dwg.g(class_="axis"))
         axis.add(dwg.line((axes_left, y), (axes_right, y), stroke="black"))
+        integer_ticks = all(round(label) == label for _, _, label in ticks)
+        label_precision = 0 if integer_ticks else 2
 
         for i, tick in enumerate(ticks):
             tree_x, break_x, genome_coord = tick
@@ -349,7 +351,7 @@ class SvgTreeSequence:
                 axis,
                 x,
                 y + 20,
-                f"{genome_coord:.2f}",
+                f"{genome_coord:.{label_precision}f}",
                 font_size=14,
                 text_anchor="middle",
                 font_weight="bold",
