@@ -790,7 +790,8 @@ Now that the table has a schema calls to
 
     tables.individuals.add_row(0, metadata={"accession": "Bob1234", "pcr": True})
 
-and if we try to add metadata that doesn't fit the schema we'll get an error:
+and if we try to add metadata that doesn't fit the schema, such as accidentally using a
+string instead of a proper Python boolean, we'll get an error:
 
 .. code-block:: python
 
@@ -859,7 +860,8 @@ Metadata for bulk table methods
 +++++++++++++++++++++++++++++++
 
 In the interests of efficiency each table's
-:meth:`set_columns <tskit.NodeTable.set_columns>` and
+:meth:`packset_metadata <tskit.NodeTable.packset_metadata>` method, as well as the more
+general :meth:`set_columns <tskit.NodeTable.set_columns>` and
 :meth:`append_columns <tskit.NodeTable.append_columns>` do not attempt to validate or
 encode metadata. You can call
 :meth:`MetadataSchema.validate_and_encode_row <tskit.MetadataSchema.validate_and_encode_row>`
