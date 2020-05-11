@@ -26,7 +26,7 @@
  * in a simple C++ program */
 
 #include <iostream>
-#include <assert.h>
+#include <cassert>
 #include <sstream>
 
 #include <tskit.h>
