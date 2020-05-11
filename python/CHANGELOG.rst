@@ -12,6 +12,9 @@ In development
 
 **New features**
 
+- Add background shading to SVG tree sequences to reflect tree position along the
+  sequence (:user:`hyanwong`, :pr:`563`)
+
 - Tables with a metadata column now have a ``metadata_schema`` that is used to
   validate and encode metadata that is passed to ``add_row`` and decode metadata
   on calls to ``table[j]`` and e.g. ``tree_sequence.node(j)`` See :ref:`sec_metadata`.

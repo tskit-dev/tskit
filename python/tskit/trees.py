@@ -4367,6 +4367,7 @@ class TreeSequence:
         path=None,
         *,
         size=None,
+        x_scale=None,
         tree_height_scale=None,
         node_labels=None,
         mutation_labels=None,
@@ -4405,6 +4406,12 @@ class TreeSequence:
             produced SVG drawing in abstract user units (usually interpreted as pixels on
             display).
         :type size: tuple(int, int)
+        :param str x_scale: Control how the X axis is drawn. If "physical" (the default)
+            the axis scales linearly with physical distance along the sequence, and
+            background shading is used to indicate the position of the trees along the
+            sequence. If "treewise", each axis tick corresponds to a tree boundary, which
+            are positioned evenly along the axis, so that the X axis is of variable scale
+            and no background scaling is required.
         :param str tree_height_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
             values (this is the default). If this is equal to ``"log_time"``, node
@@ -4429,6 +4436,7 @@ class TreeSequence:
         draw = drawing.SvgTreeSequence(
             self,
             size,
+            x_scale=x_scale,
             tree_height_scale=tree_height_scale,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
