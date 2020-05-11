@@ -8,7 +8,7 @@ flake8
 h5py
 jsonschema
 kastore
-msgpack
+msgpack>=1.0.0
 msprime
 networkx
 newick
