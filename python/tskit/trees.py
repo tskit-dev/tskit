@@ -2553,10 +2553,6 @@ def load_text(
     be parsable by :func:`parse_sites`, :func:`parse_individuals`,
     :func:`parse_populations`, and :func:`parse_mutations`, respectively.
 
-    TODO: there is no method to parse the remaining tables at present, so
-    only tree sequences not requiring Population and Individual tables can
-    be loaded. This will be fixed: https://github.com/tskit-dev/msprime/issues/498
-
     The ``sequence_length`` parameter determines the
     :attr:`TreeSequence.sequence_length` of the returned tree sequence. If it
     is 0 or not specified, the value is taken to be the maximum right
