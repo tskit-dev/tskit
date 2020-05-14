@@ -4529,7 +4529,7 @@ kc_vectors_free(kc_vectors *self)
 }
 
 static inline void
-update_kc_vectors_single_leaf(
+update_kc_vectors_single_sample(
     tsk_treeseq_t *ts, kc_vectors *kc_vecs, tsk_id_t u, double time)
 {
     const tsk_id_t *sample_index_map = ts->sample_index_map;
@@ -4543,25 +4543,19 @@ static inline void
 update_kc_vectors_all_pairs(tsk_tree_t *tree, kc_vectors *kc_vecs, tsk_id_t u,
     tsk_id_t v, tsk_size_t depth, double time)
 {
-    tsk_id_t leaf1_index, leaf2_index, leaf1, leaf2, n1, n2, tmp, pair_index;
-    tsk_treeseq_t *ts = tree->tree_sequence;
-    const tsk_id_t *restrict samples = ts->samples;
+    tsk_id_t sample1_index, sample2_index, n1, n2, tmp, pair_index;
     const tsk_id_t *restrict left_sample = tree->left_sample;
     const tsk_id_t *restrict right_sample = tree->right_sample;
     const tsk_id_t *restrict next_sample = tree->next_sample;
-    const tsk_id_t *restrict sample_index_map = ts->sample_index_map;
     tsk_size_t *restrict kc_m = kc_vecs->m;
     double *restrict kc_M = kc_vecs->M;
 
-    leaf1_index = left_sample[u];
-    while (true) {
-        leaf1 = samples[leaf1_index];
-        leaf2_index = left_sample[v];
-        while (true) {
-            leaf2 = samples[leaf2_index];
-
-            n1 = sample_index_map[leaf1];
-            n2 = sample_index_map[leaf2];
+    sample1_index = left_sample[u];
+    while (sample1_index != TSK_NULL) {
+        sample2_index = left_sample[v];
+        while (sample2_index != TSK_NULL) {
+            n1 = sample1_index;
+            n2 = sample2_index;
             if (n1 > n2) {
                 tmp = n1;
                 n1 = n2;
@@ -4574,15 +4568,15 @@ update_kc_vectors_all_pairs(tsk_tree_t *tree, kc_vectors *kc_vecs, tsk_id_t u,
             kc_m[pair_index] = depth;
             kc_M[pair_index] = time;
 
-            if (leaf2_index == right_sample[v]) {
+            if (sample2_index == right_sample[v]) {
                 break;
             }
-            leaf2_index = next_sample[leaf2_index];
+            sample2_index = next_sample[sample2_index];
         }
-        if (leaf1_index == right_sample[u]) {
+        if (sample1_index == right_sample[u]) {
             break;
         }
-        leaf1_index = next_sample[leaf1_index];
+        sample1_index = next_sample[sample1_index];
     }
 }
 
@@ -4620,22 +4614,21 @@ fill_kc_vectors(tsk_tree_t *t, kc_vectors *kc_vecs)
             depth = stack[stack_top].depth;
             stack_top--;
 
-            if (t->left_child[u] == TSK_NULL) {
-                if (u == root) {
-                    time = 0;
-                } else {
-                    time = times[t->parent[u]] - times[u];
-                }
-                update_kc_vectors_single_leaf(ts, kc_vecs, u, time);
-            } else {
+            if (tsk_tree_is_sample(t, u)) {
+                time = tsk_tree_branch_length(t, u);
+                update_kc_vectors_single_sample(ts, kc_vecs, u, time);
+            }
+
+            /* Don't bother going deeper if there are no samples under this node */
+            if (t->left_sample[u] != TSK_NULL) {
                 for (c1 = t->left_child[u]; c1 != TSK_NULL; c1 = t->right_sib[c1]) {
                     stack_top++;
                     stack[stack_top].node = c1;
                     stack[stack_top].depth = depth + 1;
 
                     for (c2 = t->right_sib[c1]; c2 != TSK_NULL; c2 = t->right_sib[c2]) {
-                        update_kc_vectors_all_pairs(
-                            t, kc_vecs, c1, c2, depth, times[root] - times[u]);
+                        time = times[root] - times[u];
+                        update_kc_vectors_all_pairs(t, kc_vecs, c1, c2, depth, time);
                     }
                 }
             }
@@ -4718,7 +4711,7 @@ out:
 int
 tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double *result)
 {
-    tsk_id_t n, i, j, u, num_samples;
+    tsk_id_t n, i;
     kc_vectors vecs[2];
     tsk_tree_t *trees[2] = { self, other };
     int ret = 0;
@@ -4732,17 +4725,6 @@ tsk_tree_kc_distance(tsk_tree_t *self, tsk_tree_t *other, double lambda, double 
         goto out;
     }
     for (i = 0; i < 2; i++) {
-        num_samples = (tsk_id_t) trees[i]->tree_sequence->num_samples;
-        for (j = 0; j < num_samples; j++) {
-            u = trees[i]->tree_sequence->samples[j];
-            if (trees[i]->left_child[u] != TSK_NULL) {
-                /* It's probably possible to support this, but it's too awkward
-                 * to deal with and seems like a fairly niche requirement. */
-                ret = TSK_ERR_INTERNAL_SAMPLES;
-                goto out;
-            }
-        }
-
         ret = check_kc_distance_tree_inputs(trees[i]);
         if (ret != 0) {
             goto out;
@@ -4789,7 +4771,7 @@ out:
 }
 
 static void
-update_kc_pairs_with_leaf(tsk_tree_t *self, kc_vectors *kc, tsk_id_t leaf,
+update_kc_pair_with_sample(tsk_tree_t *self, kc_vectors *kc, tsk_id_t sample,
     tsk_size_t *depths, double root_time)
 {
     tsk_id_t c, p, sib;
@@ -4797,14 +4779,16 @@ update_kc_pairs_with_leaf(tsk_tree_t *self, kc_vectors *kc, tsk_id_t leaf,
     tsk_size_t depth;
     double *times = self->tree_sequence->tables->nodes.time;
 
-    for (c = leaf, p = self->parent[leaf]; p != TSK_NULL; c = p, p = self->parent[p]) {
+    c = sample;
+    for (p = self->parent[sample]; p != TSK_NULL; p = self->parent[p]) {
         time = root_time - times[p];
         depth = depths[p];
         for (sib = self->left_child[p]; sib != TSK_NULL; sib = self->right_sib[sib]) {
             if (sib != c) {
-                update_kc_vectors_all_pairs(self, kc, leaf, sib, depth, time);
+                update_kc_vectors_all_pairs(self, kc, sample, sib, depth, time);
             }
         }
+        c = p;
     }
 }
 
@@ -4830,14 +4814,13 @@ update_kc_subtree_state(
         stack_top--;
 
         if (tsk_tree_is_sample(t, v)) {
-            update_kc_pairs_with_leaf(t, kc, v, depths, root_time);
-        } else {
-            for (c = t->left_child[v]; c != TSK_NULL; c = t->right_sib[c]) {
-                if (depths[c] != 0) {
-                    depths[c] = depths[v] + 1;
-                    stack_top++;
-                    stack[stack_top] = c;
-                }
+            update_kc_pair_with_sample(t, kc, v, depths, root_time);
+        }
+        for (c = t->left_child[v]; c != TSK_NULL; c = t->right_sib[c]) {
+            if (depths[c] != 0) {
+                depths[c] = depths[v] + 1;
+                stack_top++;
+                stack[stack_top] = c;
             }
         }
     }
@@ -4889,7 +4872,7 @@ update_kc_incremental(tsk_tree_t *self, kc_vectors *kc, tsk_edge_list_t *edges_o
 
         if (tsk_tree_is_sample(self, u)) {
             time = tsk_tree_branch_length(self, u);
-            update_kc_vectors_single_leaf(self->tree_sequence, kc, u, time);
+            update_kc_vectors_single_sample(self->tree_sequence, kc, u, time);
         }
     }
 

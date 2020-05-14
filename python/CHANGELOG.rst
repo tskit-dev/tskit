@@ -12,6 +12,9 @@ In development
 
 **New features**
 
+- Add support for trees with internal samples for the Kendall-Colijn tree distance
+  metric. (:user:`daniel-goldstein`, :pr:`610`)
+
 - Add background shading to SVG tree sequences to reflect tree position along the
   sequence (:user:`hyanwong`, :pr:`563`)
 

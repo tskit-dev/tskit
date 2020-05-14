@@ -134,9 +134,6 @@ def naive_kc_distance(tree1, tree2, lambda_=0):
         raise ValueError("Trees must have the same samples")
     if not len(tree1.roots) == len(tree2.roots) == 1:
         raise ValueError("Trees must have one root")
-    for u in samples:
-        if not tree1.is_leaf(u) or not tree2.is_leaf(u):
-            raise ValueError("Internal samples not supported")
     for tree in [tree1, tree2]:
         for u in tree.nodes():
             if tree.num_children(u) == 1:
@@ -191,26 +188,20 @@ def fill_kc_vectors(tree, kc_vecs):
         stack = [(tree.root, 0)]
         while len(stack) > 0:
             u, depth = stack.pop()
-            if tree.is_leaf(u):
-                time = 0 if u is root else tree.branch_length(u)
+            if tree.is_sample(u):
+                time = tree.branch_length(u)
                 update_kc_vectors_single_leaf(kc_vecs, u, time, sample_index_map)
-            else:
-                c1 = tree.left_child(u)
-                while c1 != tskit.NULL:
-                    stack.append((c1, depth + 1))
-                    c2 = tree.right_sib(c1)
-                    while c2 != tskit.NULL:
-                        update_kc_vectors_all_pairs(
-                            tree,
-                            kc_vecs,
-                            c1,
-                            c2,
-                            depth,
-                            tree.time(root) - tree.time(u),
-                            sample_index_map,
-                        )
-                        c2 = tree.right_sib(c2)
-                    c1 = tree.right_sib(c1)
+
+            c1 = tree.left_child(u)
+            while c1 != tskit.NULL:
+                stack.append((c1, depth + 1))
+                c2 = tree.right_sib(c1)
+                while c2 != tskit.NULL:
+                    update_kc_vectors_all_pairs(
+                        tree, kc_vecs, c1, c2, depth, tree.time(root) - tree.time(u),
+                    )
+                    c2 = tree.right_sib(c2)
+                c1 = tree.right_sib(c1)
 
 
 def update_kc_vectors_single_leaf(kc_vecs, u, time, sample_index_map):
@@ -219,30 +210,23 @@ def update_kc_vectors_single_leaf(kc_vecs, u, time, sample_index_map):
     kc_vecs.M[kc_vecs.N + u_index] = time
 
 
-def update_kc_vectors_all_pairs(tree, kc_vecs, c1, c2, depth, time, sample_index_map):
-    leaves = tree.tree_sequence.samples()
-    c1_left = tree.left_sample(c1)
-    c1_right = tree.right_sample(c1)
-    leaf1_index = c1_left
+def update_kc_vectors_all_pairs(tree, kc_vecs, c1, c2, depth, time):
+    s1_index = tree.left_sample(c1)
     while True:
-        c2_left = tree.left_sample(c2)
-        c2_right = tree.right_sample(c2)
-        leaf2_index = c2_left
+        s2_index = tree.left_sample(c2)
         while True:
-            leaf1 = leaves[leaf1_index]
-            leaf2 = leaves[leaf2_index]
-            update_kc_vectors_pair(kc_vecs, leaf1, leaf2, depth, time, sample_index_map)
-            if leaf2_index == c2_right:
+            update_kc_vectors_pair(kc_vecs, s1_index, s2_index, depth, time)
+            if s2_index == tree.right_sample(c2):
                 break
-            leaf2_index = tree.next_sample(leaf2_index)
-        if leaf1_index == c1_right:
+            s2_index = tree.next_sample(s2_index)
+        if s1_index == tree.right_sample(c1):
             break
-        leaf1_index = tree.next_sample(leaf1_index)
+        s1_index = tree.next_sample(s1_index)
 
 
-def update_kc_vectors_pair(kc_vecs, u, v, depth, time, sample_index_map):
-    n1 = int(min(sample_index_map[u], sample_index_map[v]))
-    n2 = int(max(sample_index_map[u], sample_index_map[v]))
+def update_kc_vectors_pair(kc_vecs, n1, n2, depth, time):
+    if n1 > n2:
+        n1, n2 = n2, n1
     pair_index = n2 - n1 - 1 + (-1 * n1 * (n1 - 2 * kc_vecs.n + 1)) // 2
 
     kc_vecs.m[pair_index] = depth
@@ -267,14 +251,13 @@ def c_kc_distance(tree1, tree2, lambda_=0):
     Written without Python features to aid writing C implementation.
     """
     samples = tree1.tree_sequence.samples()
+    if tree1.tree_sequence.num_samples != tree2.tree_sequence.num_samples:
+        raise ValueError("Trees must have the same samples")
     for sample1, sample2 in zip(samples, tree2.tree_sequence.samples()):
         if sample1 != sample2:
             raise ValueError("Trees must have the same samples")
     if not len(tree1.roots) == len(tree2.roots) == 1:
         raise ValueError("Trees must have one root")
-    for u in samples:
-        if not tree1.is_leaf(u) or not tree2.is_leaf(u):
-            raise ValueError("Internal samples not supported")
     for tree in [tree1, tree2]:
         for u in range(tree.tree_sequence.num_nodes):
             left_child = tree.left_child(u)
@@ -874,12 +857,104 @@ class TestKCMetric(unittest.TestCase):
         t1 = next(ts2.trees(sample_lists=True))
         t2 = next(ts2.trees(sample_lists=True))
 
-        with self.assertRaises(ValueError):
-            naive_kc_distance(t1, t2)
-        with self.assertRaises(ValueError):
-            c_kc_distance(t1, t2)
-        with self.assertRaises(_tskit.LibraryError):
-            t1.kc_distance(t2)
+        naive_kc_distance(t1, t2)
+        c_kc_distance(t1, t2)
+        t1.kc_distance(t2)
+
+    def test_root_sample(self):
+        tables1 = tskit.TableCollection(sequence_length=1.0)
+        tables1.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        only_root = next(tables1.tree_sequence().trees(sample_lists=True))
+        self.assertEqual(only_root.kc_distance(only_root), 0)
+        self.assertEqual(only_root.kc_distance(only_root, lambda_=1), 0)
+
+    def test_non_sample_leaf(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        c1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        c2 = tables.nodes.add_row(time=0)
+        p = tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c2)
+        ts = tables.tree_sequence()
+        tree = next(ts.trees(sample_lists=True))
+        self.assertEqual(ts.kc_distance(ts), 0)
+        self.assertEqual(tree.kc_distance(tree), 0)
+
+        # mirrored
+        tables = tskit.TableCollection(sequence_length=1.0)
+        c1 = tables.nodes.add_row(time=0)
+        c2 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        p = tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c2)
+        ts = tables.tree_sequence()
+        tree = next(ts.trees(sample_lists=True))
+        self.assertEqual(ts.kc_distance(ts), 0)
+        self.assertEqual(tree.kc_distance(tree), 0)
+
+    def test_ignores_subtrees_with_no_samples(self):
+        nodes_1 = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   0   0.000000    0   -1
+        1   0   0.000000    0   -1
+        2   0   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   0   0.000000    0   -1
+        5   0   0.000000    0   -1
+        6   1   1.000000    0   -1
+        7   1   2.000000    0   -1
+        8   0   2.000000    0   -1
+        9   0   3.000000    0   -1
+        """
+        )
+        edges_1 = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    6  0
+        0.000000    1.000000    6  1
+        0.000000    1.000000    7  2
+        0.000000    1.000000    7  6
+        0.000000    1.000000    8  4
+        0.000000    1.000000    8  5
+        0.000000    1.000000    9  3
+        0.000000    1.000000    9  7
+        0.000000    1.000000    9  8
+        """
+        )
+        redundant = tskit.load_text(
+            nodes_1, edges_1, sequence_length=1, strict=False, base64_metadata=False
+        )
+
+        nodes_2 = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   0   0.000000    0   -1
+        1   0   0.000000    0   -1
+        2   0   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   0   0.000000    0   -1
+        5   0   0.000000    0   -1
+        6   1   1.000000    0   -1
+        7   1   2.000000    0   -1
+        8   0   2.000000    0   -1
+        9   0   3.000000    0   -1
+        """
+        )
+        edges_2 = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    7  2
+        0.000000    1.000000    7  6
+        0.000000    1.000000    9  3
+        0.000000    1.000000    9  7
+        """
+        )
+        simplified = tskit.load_text(
+            nodes_2, edges_2, sequence_length=1, strict=False, base64_metadata=False
+        )
+        self.assertEqual(redundant.kc_distance(simplified, 0), 0)
+        self.assertEqual(redundant.kc_distance(simplified, 1), 0)
 
 
 def ts_kc_distance(ts1, ts2, lambda_=0):
@@ -1008,9 +1083,7 @@ def update_kc_pairs_with_leaf(tree, kc, leaf, sample_index_map, depths):
         depth = depths[p]
         for sibling in tree.children(p):
             if sibling != c:
-                update_kc_vectors_all_pairs(
-                    tree, kc, leaf, sibling, depth, time, sample_index_map
-                )
+                update_kc_vectors_all_pairs(tree, kc, leaf, sibling, depth, time)
         c, p = p, tree.parent(p)
 
 
@@ -1352,6 +1425,72 @@ class TestKCSequenceMetric(unittest.TestCase):
         ts_2 = tables_2.tree_sequence()
         distance = (math.sqrt(8) * 5 + math.sqrt(6) * 5) / 10
         self.verify_result(ts_1, ts_2, 0, distance)
+
+    def test_ignores_subtrees_with_no_samples(self):
+        nodes_1 = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   0   0.000000    0   -1
+        1   0   0.000000    0   -1
+        2   0   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   0   0.000000    0   -1
+        5   0   0.000000    0   -1
+        6   1   1.000000    0   -1
+        7   1   2.000000    0   -1
+        8   0   2.000000    0   -1
+        9   0   3.000000    0   -1
+        """
+        )
+        edges_1 = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    6  0
+        0.000000    1.000000    6  1
+        0.000000    1.000000    7  2
+        0.000000    1.000000    7  6
+        0.000000    1.000000    8  4
+        0.000000    1.000000    8  5
+        0.000000    1.000000    9  3
+        0.000000    1.000000    9  7
+        0.000000    1.000000    9  8
+        """
+        )
+        redundant = tskit.load_text(
+            nodes_1, edges_1, sequence_length=1, strict=False, base64_metadata=False
+        )
+
+        nodes_2 = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   0   0.000000    0   -1
+        1   0   0.000000    0   -1
+        2   0   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   0   0.000000    0   -1
+        5   0   0.000000    0   -1
+        6   1   1.000000    0   -1
+        7   1   2.000000    0   -1
+        8   0   2.000000    0   -1
+        9   0   3.000000    0   -1
+        """
+        )
+        edges_2 = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    7  2
+        0.000000    1.000000    7  6
+        0.000000    1.000000    9  3
+        0.000000    1.000000    9  7
+        """
+        )
+        simplified = tskit.load_text(
+            nodes_2, edges_2, sequence_length=1, strict=False, base64_metadata=False
+        )
+        t1 = next(redundant.trees(sample_lists=True))
+        t2 = next(simplified.trees(sample_lists=True))
+        self.assertEqual(t1.kc_distance(t2, 0), 0)
+        self.assertEqual(t1.kc_distance(t2, 1), 0)
 
 
 class TestOverlappingSegments(unittest.TestCase):

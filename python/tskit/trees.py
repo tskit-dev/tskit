@@ -2163,7 +2163,9 @@ class Tree:
         <https://academic.oup.com/mbe/article/33/10/2735/2925548>`_ for details.
 
         The trees we are comparing to must have identical lists of sample
-        nodes (i.e., the same IDs in the same order).
+        nodes (i.e., the same IDs in the same order). The metric operates on
+        samples, not leaves, so internal samples are treated identically to
+        sample tips. Subtrees with no samples do not contribute to the metric.
 
         :param Tree other: The other tree to compare to.
         :param float lambda_: The KC metric lambda parameter determining the
