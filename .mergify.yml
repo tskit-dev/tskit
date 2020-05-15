@@ -8,10 +8,10 @@ pull_request_rules:
       - status-success=lint-c
       - status-success=pre-commit
       - "status-success=ci/circleci: build"
-      - status-success=codecov/patch
-      - status-success=codecov/project/c-tests
-      - status-success=codecov/project/python-c-tests
-      - status-success=codecov/project/python-tests
+      #- status-success=codecov/patch
+      #- status-success=codecov/project/c-tests
+      #- status-success=codecov/project/python-c-tests
+      #- status-success=codecov/project/python-tests
       - status-success=continuous-integration/appveyor/pr
       - status-success=continuous-integration/travis-ci/pr
     actions:
