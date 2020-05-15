@@ -2266,3 +2266,152 @@ class TestBaseTable(unittest.TestCase):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
             t.set_columns()
+
+
+class TestGraft(unittest.TestCase):
+    """
+    Tests of grafting ability.
+    """
+
+    def get_msprime_mig_example(self, T=100, t=10, N=100, n=10):
+        # we assume after the T the ts are completely independent
+        # t is used to set the split within the two independent pops
+        M = [
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+        ]
+        population_configurations = [
+            msprime.PopulationConfiguration(sample_size=n),
+            msprime.PopulationConfiguration(sample_size=n),
+            msprime.PopulationConfiguration(sample_size=n),
+            msprime.PopulationConfiguration(sample_size=n),
+        ]
+        demographic_events = [
+            msprime.MassMigration(t, source=2, dest=0, proportion=1),
+            msprime.MassMigration(t, source=3, dest=1, proportion=1),
+            msprime.MassMigration(T, source=1, dest=0, proportion=1),
+            msprime.CensusEvent(time=T),
+        ]
+        dd = msprime.DemographyDebugger(
+            population_configurations=population_configurations,
+            migration_matrix=M,
+            demographic_events=demographic_events,
+        )
+        dd.print_history()
+        ts = msprime.simulate(
+            Ne=N,
+            population_configurations=population_configurations,
+            demographic_events=demographic_events,
+            migration_matrix=M,
+            length=2e4,
+            recombination_rate=1e-8,
+            mutation_rate=1e-8,
+            record_migrations=True,
+        )
+        return ts
+
+    def verify_graft_simplification(self, tables, tablesg, node_map):
+        # check that if we simplify tablesg = tables.graft(tables2) back to
+        # tables.samples, we get the same trees: after simplification
+        # everything but provenance should be the same
+        nodes = [
+            k for k, n in enumerate(tables.nodes) if n.flags & tskit.NODE_IS_SAMPLE
+        ]
+        nodesg = [node_map[n] for n in nodes]
+        # simplifying with filter_populations=False bc SLiM can start
+        # with id 1 instead of zero
+        tables = tables.simplify(nodes, filter_populations=False)
+        tablesg = tablesg.simplify(nodesg, filter_populations=False)
+        # TODO: a test for provenances
+        tables.provenances.clear()
+        tablesg.provenances.clear()
+        self.assertEqual(len(tables.nodes), len(tablesg.nodes))
+        # simplify does not put individuals in order
+        # but it does for nodes. that is why we check
+        # for equality of individuals as follows
+        for j in range(len(tables.nodes)):
+            na = tables.nodes[j]
+            nb = tablesg.nodes[j]
+            if na.individual != -1 or nb.individual != -1:
+                self.assertFalse((na.individual == -1) or (nb.individual == -1))
+                ia = tables.individuals[na.individual]
+                ib = tablesg.individuals[nb.individual]
+                self.assertEqual(ia.flags, ib.flags)
+                self.assertEqual(ia.metadata, ib.metadata)
+                self.assertTrue((ia.location == ib.location).all())
+            if na.population != -1 or nb.population != -1:
+                pa = tables.populations[na.population]
+                pb = tablesg.populations[nb.population]
+                self.assertEqual(pa, pb)
+            self.assertEqual(na.time, nb.time)
+            self.assertEqual(na.metadata, nb.metadata)
+            self.assertEqual(na.flags, nb.flags)
+        tables.individuals.clear()
+        tablesg.individuals.clear()
+        tables.populations.clear()
+        tablesg.populations.clear()
+        tables.nodes.clear()
+        tablesg.nodes.clear()
+        self.assertEqual(tables, tablesg)
+
+    def verify_node_populations(self, tables1, tables2, node_map):
+        tablesg, (node_map2new, pop_map2new, ind_map2new) = tables1.graft(
+            tables2, node_map
+        )
+        # check that tables1 pops remain unchanged
+        for j, p in enumerate(tables1.populations):
+            self.assertEqual(p, tablesg.populations[j])
+        # check that each tables2 pop maps to a unique tablesg pop
+        self.assertEqual(len(pop_map2new.keys()), len(set(pop_map2new.values())))
+        # check that tables2 pops are unchanged, and that newly added nodes
+        # have a new population
+        for n2 in range(tables2.num_nodes):
+            p2 = tables2.nodes[n2].population
+            ng = node_map2new[n2]
+            pg = tablesg.nodes[ng].population
+            self.assertEqual(tables2.populations[p2], tablesg.populations[pg])
+            if n2 not in node_map:
+                self.assertGreaterEqual(pg, tables1.num_populations)
+
+    def test_msprime_example(self):
+        T = 100
+        ts = self.get_msprime_example(T, 50, 2)
+        shared_nodes = [n.id for n in ts.nodes() if n.time >= T]
+        pop1 = list(ts.samples(population=0))
+        pop2 = list(ts.samples(population=1))
+        ts1_samples = shared_nodes + pop1
+        ts2_samples = shared_nodes + pop2
+        assert len(ts1_samples) == len(ts2_samples)
+        node_map = {i: i for i in range(len(shared_nodes))}
+        ts = ts.simplify(ts1_samples + pop2)
+        tables1 = ts.simplify(ts1_samples).tables
+        tables2 = ts.simplify(ts2_samples).tables
+        tablesg, (node_map2new, pop_map2new, ind_map2new) = tables1.graft(
+            tables2, node_map
+        )
+
+        # check that nodes added to tables1 were assigned new pop
+        self.verify_node_populations(tables1, tables2, node_map)
+
+        # check that tables1 has not been changed by grafting
+        samples1 = [
+            k for k, n in enumerate(tables1.nodes) if n.flags & tskit.NODE_IS_SAMPLE
+        ]
+        self.verify_graft_simplification(
+            tables1, tablesg, node_map={n: n for n in samples1}
+        )
+
+        # check that tables2 has not been changed by grafting
+        full_sample_map = node_map2new.copy()
+        # we'll need all the samples of tables2 in the node map:
+        samples2 = [
+            k for k, n in enumerate(tables2.nodes) if n.flags & tskit.NODE_IS_SAMPLE
+        ]
+        for n in samples2:
+            if n in node_map2new:
+                pass
+            else:
+                full_sample_map[n] = n
+        self.verify_graft_simplification(tables2, tablesg, node_map=full_sample_map)

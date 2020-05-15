@@ -4360,6 +4360,14 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
+    def graft(self, other, node_map):
+        """
+        TODO: document (see table collection method).
+        """
+        tables = self.dump_tables()
+        other_tables = other.dump_tables()
+        return tables.graft(other_tables, node_map).tree_sequence()
+
     def draw_svg(
         self,
         path=None,

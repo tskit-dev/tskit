@@ -2470,3 +2470,152 @@ class TableCollection:
         currently indexed this method has no effect.
         """
         self.ll_tables.drop_index()
+
+    def add_time(self, dt):
+        """
+        This function modifies a table collection IN PLACE by adding ``dt`` to
+        all times in the node table. (TODO: also to the migration table?)
+        """
+        nodes_dict = self.nodes.asdict()
+        nodes_dict["time"] = nodes_dict["time"] + dt
+        self.nodes.set_columns(**nodes_dict)
+
+    def graft(self, other, node_map, check_overlap=False):
+        """
+        Returns tables by grafting the table collection ``other`` onto this
+        table collection along the nodes specified in the dictionary ``node_map``,
+        which should be a dictionary whose keys are node IDs in ``other`` and values
+        are the equivalent node IDs in this set of tables.
+        Any populations of nodes that are newly added to this table collection
+        are considered new in the grafted tables, even if their IDs are the same.
+        Map is returned (TODO: say exactly what).
+
+        If ``check_overlap`` is True, then check whether the two tables, simplified
+        to the shared nodes, are equal. This check is optional because it is relatively
+        expensive. TODO: should it be optional?
+        """
+        # checking shift in time ago between ts1 and ts2
+        dt = [self.nodes.time[node_map[a]].time for a in node_map]
+        if len(set(dt)) > 1:
+            raise ValueError(
+                "Inconsistent time differences among the equivalent nodes."
+            )
+        new_tables = self.copy()
+        tables2 = other.copy()
+        dT = int(dt[0])
+        if dT > 0:
+            tables2.add_time(dT)
+        elif dT < 0:
+            new_tables.add_time(abs(dT))
+        # TODO: should this be factored out?
+        # checking the trees are the same below the nodes_map21
+
+        def _verify_overlap(tables1, tables2, node_map):
+            """
+            Given two tree sequences with shared nodes as described in
+            `node_map`, test whether simplifying on those nodes gives
+            you the same tree sequences.
+            """
+            nodes2 = list(node_map.keys())
+            nodes1 = list(node_map.values())
+            tables1s = tables1.simplify(nodes1)
+            tables2s = tables2.simplify(nodes2)
+            tables1s.provenances.clear()
+            tables2s.provenances.clear()
+            if tables1s != tables2s:
+                raise ValueError("Tables are not equal above shared nodes.")
+
+        if check_overlap:
+            _verify_overlap(new_tables, tables2, node_map)
+        # mapping nodes in tables2 to new nodes in the grafted tables
+        node_map2new = {}
+        node_map2new.update(node_map)
+        # mapping of individuals in tables2 to new
+        ind_map2new = {}
+        # adding the pops in tables2 to new
+        pop_map2new = {}
+        # need to loop through nodes in tables2, find the unmatched nodes
+        # and add them to the new_tables node table
+        # for k, n in enumerate(ts2.nodes()):
+        for k, n in enumerate(tables2.nodes):
+            if k not in node_map:
+                if n.population not in pop_map2new:
+                    pop = tables2.populations[n.population]
+                    pid = new_tables.populations.add_row(pop.metadata)
+                    pop_map2new[n.population] = pid
+                new_pop = pop_map2new[n.population]
+                if n.individual >= 0:
+                    ind = tables2.individual[n.individual]
+                    iid = new_tables.individuals.add_row(
+                        flags=ind.flags, location=ind.location, metadata=ind.metadata
+                    )
+                    ind_map2new[n.individual] = iid
+                    new_ind = iid
+                else:
+                    new_ind = n.individual
+                nid = new_tables.nodes.add_row(
+                    **{
+                        "time": n.time,
+                        "population": new_pop,
+                        "individual": new_ind,
+                        "metadata": n.metadata,
+                        "flags": n.flags,
+                    }
+                )
+                node_map2new[k] = nid
+        # creating a set with nodes that are new to tables1
+        new_nodes = set(node_map2new) - set(node_map)
+        # edges
+        for e in tables2.edges:
+            if (e.parent in new_nodes) or (e.child in new_nodes):
+                if (e.parent in new_nodes) and (e.child not in new_nodes):
+                    raise ValueError("Cannot graft nodes above existing nodes.")
+                # translating the node ids from tables2 to new
+                new_parent = node_map2new[e.parent]
+                new_child = node_map2new[e.child]
+                new_tables.edges.add_row(
+                    left=e.left, right=e.right, parent=new_parent, child=new_child
+                )
+        # sites and muts
+        new_muts = {}
+        for k, m in enumerate(tables2.mutations):
+            if m.node in new_nodes:
+                # translating node id
+                new_node = node_map2new[m.node]
+                # add site: may be in tables1 already, but we deduplicate sites below
+                s = tables2.site[m.site]
+                sid = new_tables.sites.add_row(
+                    position=s.position,
+                    ancestral_state=s.ancestral_state,
+                    metadata=s.metadata,
+                )
+                mid = new_tables.mutations.add_row(
+                    site=sid,
+                    node=new_node,
+                    derived_state=m.derived_state,
+                    parent=tskit.NULL,
+                    metadata=m.metadata,
+                )
+                new_muts[k] = mid
+        # migration table is not grafted
+        new_tables.migrations.clear()
+        # grafting provenance table
+        # TODO: this is NOT the definitive way it should be handled
+        tables2_prov_records = [prov.record for prov in tables2.provenances]
+        record = {
+            "schema_version": "1.0.0",
+            "software": {"name": "tskit", "version": tskit.__version__},
+            "parameters": {
+                "command": "graft",
+                "tables2_prov_records": tables2_prov_records,
+                "node_map": node_map,
+            },
+            "environment": tskit.provenance.get_environment(),
+        }
+        new_tables.provenances.add_row(record)
+        # sorting, deduplicating sites, and re-computing mutation parents
+        new_tables.sort()
+        new_tables.deduplicate_sites()
+        new_tables.build_index()
+        new_tables.compute_mutation_parents()
+        return new_tables, (node_map2new, pop_map2new, ind_map2new)
