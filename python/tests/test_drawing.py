@@ -252,6 +252,7 @@ class TestClosestLeftNode(TestTreeDraw):
 
         m1 = drawing.get_left_neighbour(tree, "minlex_postorder")
         m2 = get_left_neighbour(tree, "minlex_postorder")
+        np.testing.assert_array_equal(m1, m2)
 
     def test_2_binary(self):
         ts = msprime.simulate(2, random_seed=2)
@@ -280,6 +281,24 @@ class TestClosestLeftNode(TestTreeDraw):
 
     def test_multiroot(self):
         self.verify(self.get_multiroot_tree())
+
+    def test_left_child(self):
+        t = self.get_nonbinary_tree()
+        left_child = drawing.get_left_child(t, "postorder")
+        for u in t.nodes(order="postorder"):
+            if t.num_children(u) > 0:
+                self.assertEqual(left_child[u], t.children(u)[0])
+
+    def test_null_node_left_child(self):
+        t = self.get_nonbinary_tree()
+        left_child = drawing.get_left_child(t, "minlex_postorder")
+        self.assertEqual(left_child[tskit.NULL], tskit.NULL)
+
+    def test_leaf_node_left_child(self):
+        t = self.get_nonbinary_tree()
+        left_child = drawing.get_left_child(t, "minlex_postorder")
+        for u in t.samples():
+            self.assertEqual(left_child[u], tskit.NULL)
 
 
 class TestOrder(TestTreeDraw):

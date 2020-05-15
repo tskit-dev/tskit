@@ -612,6 +612,7 @@ class SvgTree:
         node_x_coord_map = self.node_x_coord_map
         node_y_coord_map = self.node_y_coord_map
         tree = self.tree
+        left_child = get_left_child(tree, self.traversal_order)
 
         # Iterate over nodes, adding groups to reflect the tree heirarchy
         stack = []
@@ -658,7 +659,7 @@ class SvgTree:
             curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
             # Labels
             if not tree.is_leaf(u) and tree.parent(u) != NULL:
-                if tree.left_sib(u) == NULL:
+                if u == left_child[tree.parent(u)]:
                     self.add_class(self.node_label_attrs[u], "rgt")
                 else:
                     self.add_class(self.node_label_attrs[u], "lft")
@@ -677,7 +678,7 @@ class SvgTree:
                 # Symbols
                 mut_group.add(dwg.rect(insert=o, **self.mutation_attrs[mutation.id]))
                 # Labels
-                if tree.left_sib(mutation.node) == NULL:
+                if mutation.node == left_child[tree.parent(mutation.node)]:
                     mut_label_class = "rgt"
                 else:
                     mut_label_class = "lft"
@@ -803,6 +804,20 @@ def get_left_neighbour(tree, traversal_order):
     find_neighbours(-1, -1)
 
     return left_neighbour[:-1]
+
+
+def get_left_child(tree, traversal_order):
+    """
+    Returns the left-most child of each node in the tree according to the
+    specified traversal order. If a node has no children or NULL is passed
+    in, return NULL.
+    """
+    left_child = np.full(tree.num_nodes + 1, NULL, dtype=int)
+    for u in tree.nodes(order=traversal_order):
+        parent = tree.parent(u)
+        if parent != NULL and left_child[parent] == NULL:
+            left_child[parent] = u
+    return left_child
 
 
 def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
