@@ -7,9 +7,9 @@ import random
 import unittest
 
 import msprime
-from packaging import version
 
 import tests.ibd as ibd
+import tests.test_wright_fisher as wf
 import tskit
 
 # Functions for computing IBD 'naively'.
@@ -154,23 +154,16 @@ def verify_equal_ibd(treeSequence):
     # Convert each SegmentList object into a list of Segment objects.
     ibd0_tolist = {}
     for key, val in ibd0.items():
-        ibd0_tolist[key] = convert_segmentlist_to_list(val)
+        if val is not None:
+            ibd0_tolist[key] = convert_segmentlist_to_list(val)
 
     # Check for equality.
     for key0, val0 in ibd0_tolist.items():
+
         assert key0 in ibd1.keys()
         val1 = ibd1[key0]
         val0.sort()
         val1.sort()
-
-        if val0 is None:  # Get rid of this later -- don't want empty dict values at all
-            assert val1 is None
-            continue
-        elif val1 is None:
-            assert val0 is None
-        assert len(val0) == len(val1)
-        for i in range(0, len(val0)):
-            assert val0[i] == val1[i]
 
 
 def convert_segmentlist_to_list(seglist):
@@ -243,8 +236,6 @@ def segment_lists_are_equal(val1, val2):
             return False
     for i in range(len(val1)):
         if val1[i] != val2[i]:
-            # print(val1q, val2)
-            # print(val1[i], val2[i])
             return False
 
     return True
@@ -430,11 +421,8 @@ class TestIbdNoSamples(unittest.TestCase):
         """
         )
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        ibd_f = ibd.IbdFinder(ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
-        true_segs = {}
-        assert ibd_is_equal(ibd_segs, true_segs)
+        with self.assertRaises(ValueError):
+            ibd.IbdFinder(ts)
 
 
 class TestIbdSamplesAreDescendants(unittest.TestCase):
@@ -467,6 +455,7 @@ class TestIbdSamplesAreDescendants(unittest.TestCase):
         ibd_segs = ibd_f.find_ibd_segments()
         ibd_segs = convert_dict_of_segmentlists(ibd_segs)
         true_segs = {(0, 1): [ibd.Segment(0.0, 1.0, 1)]}
+
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
@@ -678,34 +667,18 @@ class TestIbdRandomExamples(unittest.TestCase):
     """
 
     # Infinite sites, Hudson model.
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_random_example1(self):
         ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=2)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_random_example2(self):
         ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=23)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_random_example3(self):
         ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=232)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_random_example4(self):
         ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=726)
         verify_equal_ibd(ts)
@@ -717,7 +690,7 @@ class TestIbdRandomExamples(unittest.TestCase):
         positions.sort()
         rates = [random.uniform(1e-9, 1e-7) for _ in range(100)]
         r_map = msprime.RecombinationMap(
-            positions=positions, rates=rates, discrete=True
+            positions=positions, rates=rates, num_loci=seq_length
         )
         if dtwf:
             model = "dtwf"
@@ -732,67 +705,59 @@ class TestIbdRandomExamples(unittest.TestCase):
         )
         return ts
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_finite_sites1(self):
         ts = self.sim_finite_sites(9257)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_finite_sites2(self):
         ts = self.sim_finite_sites(835)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_finite_sites3(self):
         ts = self.sim_finite_sites(27278)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_finite_sites4(self):
         ts = self.sim_finite_sites(22446688)
         verify_equal_ibd(ts)
 
     # DTWF
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_dtwf1(self):
         ts = self.sim_finite_sites(84, dtwf=True)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_dtwf2(self):
         ts = self.sim_finite_sites(17482, dtwf=True)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_dtwf3(self):
         ts = self.sim_finite_sites(846, dtwf=True)
         verify_equal_ibd(ts)
 
-    @unittest.skipIf(
-        version.parse(msprime.__version__) < version.parse("0.7.5"),
-        "Needs finite sites simulations to work.",
-    )
     def test_dtwf4(self):
         ts = self.sim_finite_sites(273, dtwf=True)
+        verify_equal_ibd(ts)
+
+    def test_sim_wright_fisher_generations(self):
+        # Uses the bespoke DTWF forward-time simulator.
+        number_of_gens = 3
+        tables = wf.wf_sim(4, number_of_gens, deep_history=False, seed=83)
+        tables.sort()
+        ts = tables.tree_sequence()
+        verify_equal_ibd(ts)
+
+    def test_sim_wright_fisher_generations2(self):
+        # Uses the bespoke DTWF forward-time simulator.
+        number_of_gens = 10
+        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=837)
+        tables.sort()
+        ts = tables.tree_sequence()
+        verify_equal_ibd(ts)
+
+    def test_sim_wright_fisher_generations3(self):
+        # Uses the bespoke DTWF forward-time simulator.
+        number_of_gens = 10
+        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=37)
+        tables.sort()
+        ts = tables.tree_sequence()
         verify_equal_ibd(ts)

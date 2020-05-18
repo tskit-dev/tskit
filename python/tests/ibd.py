@@ -24,6 +24,8 @@ Python implementation of the IBD-finding algorithms.
 """
 import argparse
 
+import numpy as np
+
 import tskit
 
 
@@ -96,15 +98,6 @@ class SegmentList:
             s = "[{}, ..., {}]".format(repr(self.head), repr(self.tail))
         return s
 
-    def __len__(self):
-        # Returns the number of segments in the list.
-        count = 0
-        seg = self.head
-        while seg is not None:
-            count += 1
-            seg = seg.next
-        return count
-
     def add(self, other):
         """
         Use to append another SegmentList, or a single segment.
@@ -143,22 +136,23 @@ class IbdFinder:
             self.samples = ts.samples()
         else:
             self.samples = samples
-        self.samples.sort()
+        if len(self.samples) == 0:
+            raise ValueError("The tree sequence contains no samples.")
+
+        self.sample_id_map = np.zeros(ts.num_nodes, dtype=int) - 1
+        for index, u in enumerate(self.samples):
+            self.sample_id_map[u] = index
         self.min_length = min_length
-        self.max_time = max_time
-        self.current_parent = self.ts.tables.edges.parent[0]
-        self.current_time = 0
+        if max_time is None:
+            self.max_time = 2 * ts.max_root_time
+        else:
+            self.max_time = max_time
         self.A = [None for _ in range(ts.num_nodes)]  # Descendant segments
         self.tables = self.ts.tables
-        self.parent_list = [[] for i in range(0, self.ts.num_nodes)]
-        for e in self.ts.tables.edges:
-            if (
-                len(self.parent_list[e.child]) == 0
-                or e.parent != self.parent_list[e.child][-1]
-            ):
-                self.parent_list[e.child].append(e.parent)
+
+        self.oldest_parent = self.get_oldest_parents()
+
         # Objects below are needed for the IBD segment-holding object.
-        self.sample_id_map = self.get_sample_id_map()
         self.num_samples = len(self.samples)
         self.sample_pairs = self.get_sample_pairs()
 
@@ -170,6 +164,18 @@ class IbdFinder:
         self.ibd_segments = {}
         for key in self.sample_pairs:
             self.ibd_segments[key] = None
+
+    def get_oldest_parents(self):
+        oldest_parents = [-1 for _ in range(self.ts.num_nodes)]
+        node_times = self.ts.tables.nodes.time
+        for e in self.ts.tables.edges:
+            c = e.child
+            if (
+                oldest_parents[c] == -1
+                or node_times[oldest_parents[c]] < node_times[e.parent]
+            ):
+                oldest_parents[c] = e.parent
+        return oldest_parents
 
     def add_ibd_segments(self, sample0, sample1, seg):
         index = self.find_sample_pair_index(sample0, sample1)
@@ -185,19 +191,6 @@ class IbdFinder:
             )
         else:
             self.ibd_segments[self.sample_pairs[index]].add(seg)
-
-    def get_sample_id_map(self):
-        """
-        Returns id_map, a vector of length ts.num_nodes. For a node with id i,
-        id_map[i] is the position of the node in self.samples. If i is not a
-        user-specified sample, id_map[i] is -1.
-        Note: it assumes nodes in the TS are numbered 0 to ts.num_nodes - 1
-        """
-        id_map = [-1] * self.ts.num_nodes
-        for i, samp in enumerate(self.samples):
-            id_map[samp] = i
-
-        return id_map
 
     def get_sample_pairs(self):
         """
@@ -240,167 +233,104 @@ class IbdFinder:
 
         return int(index)
 
-    def find_ibd_segments(self, min_length=0, max_time=None):
+    def find_ibd_segments(self):
         """
         The wrapper for the procedure that calculates IBD segments.
         """
 
         # Set up an iterator over the edges in the tree sequence.
-        mygen = iter(self.ts.edges())
-        e = next(mygen)
+        edges_iter = iter(self.ts.edges())
+        e = next(edges_iter)
+        parent_should_be_added = True
+        node_times = self.tables.nodes.time
 
         # Iterate over the edges.
         while e is not None:
-            # Process all edges with the same parent node.
-            S_head = None
-            S_tail = None
-            self.current_parent = e.parent
-            self.current_time = self.tables.nodes.time[self.current_parent]
-            if self.max_time is not None and self.current_time > self.max_time:
+
+            current_parent = e.parent
+            current_time = node_times[current_parent]
+            if current_time > self.max_time:
                 # Stop looking for IBD segments once the
                 # processed nodes are older than the max time.
                 break
 
-            # Create a list of segments, S, bookended by S_head and S_tail.
-            # The list holds all segments that are immediate descendants of
-            # the current parent node being processed.
-            while e is not None and self.current_parent == e.parent:
-                seg = Segment(e.left, e.right, e.child)
-                if S_head is None:
-                    S_head = seg
-                    S_tail = seg
-                else:
-                    S_tail.next = seg
-                    S_tail = S_tail.next
-                e = next(mygen, None)
+            seg = Segment(e.left, e.right, e.child)
 
-            # Create a list of SegmentList objects, SegL, bookended by SegL_head and
-            # SegL_tail. Each SegmentList corresponds to a segment s in S, and
-            # contains all segments of samples that descend from s.
-            SegL_head = SegmentList()
-            SegL_tail = SegmentList()
+            # Create a SegmentList() holding all segments that descend from seg.
+            list_to_add = SegmentList()
+            u = seg.node
+            if self.sample_id_map[u] != tskit.NULL:
+                list_to_add.add(seg)
+            else:
+                if self.A[u] is not None:
+                    s = self.A[u].head
+                    while s is not None:
+                        intvl = (
+                            max(seg.left, s.left),
+                            min(seg.right, s.right),
+                        )
+                        if intvl[1] - intvl[0] > 0:
+                            list_to_add.add(Segment(intvl[0], intvl[1], s.node))
+                        s = s.next
 
-            while S_head is not None:
-                u = S_head.node
-                list_to_add = SegmentList()
-                if u in self.samples:
-                    list_to_add.add(Segment(S_head.left, S_head.right, u))
-                else:
-                    if self.A[u] is not None:
-                        s = self.A[u].head
-                        while s is not None:
-                            intvl = (
-                                max(S_head.left, s.left),
-                                min(S_head.right, s.right),
-                            )
-                            if intvl[1] - intvl[0] > 0:
-                                list_to_add.add(Segment(intvl[0], intvl[1], s.node))
-                            s = s.next
+            if list_to_add.head is not None:
+                self.calculate_ibd_segs(current_parent, list_to_add)
 
-                # Add this list to the end of SegL.
-                if SegL_head.head is None:
-                    SegL_head = list_to_add
-                    SegL_tail = list_to_add
-                else:
-                    SegL_tail.next = list_to_add
-                    SegL_tail = list_to_add
+            # For parents that are also samples
+            if (
+                self.sample_id_map[current_parent] != tskit.NULL
+            ) and parent_should_be_added:
+                singleton_seg = SegmentList()
+                singleton_seg.add(Segment(0, self.ts.sequence_length, current_parent))
+                self.calculate_ibd_segs(current_parent, singleton_seg)
+                parent_should_be_added = False
 
-                S_head = S_head.next
+            # Move to next edge.
+            e = next(edges_iter, None)
 
-            # If we wanted to squash segments, we'd do it here.
-
-            # Use the info in SegL to find new ibd segments that descend from the
-            # parent node currently being processed.
-            if SegL_head.next is not None or self.current_parent in self.samples:
-                nodes_to_remove = self.calculate_ibd_segs(SegL_head)
-
-                # g. Remove elements of the list of ancestral segments A if they
-                # are no longer needed. (Memory-pruning step)
-                for n in nodes_to_remove:
-                    if self.current_parent in self.parent_list[n]:
-                        self.parent_list[n].remove(self.current_parent)
-                    if len(self.parent_list[n]) == 0:
-                        self.A[n] = []
-
-            # Create the list of ancestral segments, A, descending from current node.
-            # Concatenate all of the segment lists in SegL into a single list, and
-            # store in A. This is a list of all sample segments descending from
-            # the currently processed node.
-            seglist = SegL_head
-            self.A[self.current_parent] = seglist
-            seglist = seglist.next
-            while seglist is not None:
-                self.A[self.current_parent].add(seglist)
-                seglist = seglist.next
+            # Remove any processed nodes that are no longer needed.
+            if e is not None and e.parent != current_parent:
+                for i, n in enumerate(self.oldest_parent):
+                    if current_parent == n:
+                        self.A[i] = None
 
         return self.ibd_segments
 
-    def calculate_ibd_segs(self, SegL_head):
+    def calculate_ibd_segs(self, current_parent, list_to_add):
         """
-        Calculates all new IBD segments found at the current iteration of the
-        algorithm. Returns information about nodes processed in this step, which
-        allows memory to be cleared as the procedure runs.
+        Write later.
         """
 
-        list0 = SegL_head
-        # Iterate through all pairs of segment lists.
-        while list0.next is not None:
-            list1 = list0.next
-            while list1 is not None:
-                seg0 = list0.head
-                # Iterate through all segments with one taken from each list.
-                while seg0 is not None:
-                    seg1 = list1.head
-                    while seg1 is not None:
-                        left = max(seg0.left, seg1.left)
-                        right = min(seg0.right, seg1.right)
-                        if left >= right:
-                            seg1 = seg1.next
-                            continue
-                        nodes = [seg0.node, seg1.node]
-                        nodes.sort()
+        if list_to_add.head is None:
+            return []
 
-                        # If there are any overlapping segments, record as a new
-                        # IBD relationship.
-                        if right - left > self.min_length:
-                            self.add_ibd_segments(
-                                nodes[0],
-                                nodes[1],
-                                Segment(left, right, self.current_parent),
-                            )
+        if self.A[current_parent] is None:
+            self.A[current_parent] = list_to_add
 
+        else:
+            seg0 = self.A[current_parent].head
+            while seg0 is not None:
+                seg1 = list_to_add.head
+                while seg1 is not None:
+                    left = max(seg0.left, seg1.left)
+                    right = min(seg0.right, seg1.right)
+                    if left >= right:
                         seg1 = seg1.next
+                        continue
+                    nodes = [seg0.node, seg1.node]
+                    nodes.sort()
 
-                    seg0 = seg0.next
-                list1 = list1.next
-            list0 = list0.next
+                    # If there are any overlapping segments, record as a new
+                    # IBD relationship.
+                    if right - left > self.min_length:
+                        self.add_ibd_segments(
+                            nodes[0], nodes[1], Segment(left, right, current_parent),
+                        )
+                    seg1 = seg1.next
+                seg0 = seg0.next
 
-        # If the current processed node is itself a sample, calculate IBD separately.
-        if self.current_parent in self.samples:
-            seglist = SegL_head
-            while seglist is not None:
-                seg = seglist.head
-                while seg is not None:
-                    self.add_ibd_segments(
-                        seg.node,
-                        self.current_parent,
-                        Segment(seg.left, seg.right, self.current_parent),
-                    )
-                    seg = seg.next
-                seglist = seglist.next
-
-        # Specify elements of A that can be removed (for memory-pruning step)
-        processed_child_nodes = []
-        seglist = SegL_head
-        while seglist is not None:
-            seg = seglist.head
-            while seg is not None:
-                processed_child_nodes += [seg.node]
-                seg = seg.next
-            seglist = seglist.next
-        processed_child_nodes = list(set(processed_child_nodes))
-
-        return processed_child_nodes
+            # Add list_to_add to A[u].
+            self.A[current_parent].add(list_to_add)
 
 
 if __name__ == "__main__":
