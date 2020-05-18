@@ -2,7 +2,7 @@ attrs==19.3.0
 biopython==1.76
 black==19.10b0
 breathe==4.14.2
-codecov==2.0.22
+codecov==2.1.0
 coverage==5.1
 flake8==3.8.1
 h5py==2.10.0
