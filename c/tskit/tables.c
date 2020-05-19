@@ -4277,17 +4277,6 @@ typedef struct {
     double time;
 } edge_sort_t;
 
-typedef struct {
-    /* Input tables. */
-    tsk_node_table_t *nodes;
-    tsk_edge_table_t *edges;
-    tsk_site_table_t *sites;
-    tsk_mutation_table_t *mutations;
-    tsk_migration_table_t *migrations;
-    /* Mapping from input site IDs to output site IDs */
-    tsk_id_t *site_id_map;
-} table_sorter_t;
-
 static int
 cmp_site(const void *a, const void *b)
 {
@@ -4344,42 +4333,14 @@ cmp_edge(const void *a, const void *b)
 }
 
 static int
-table_sorter_init(table_sorter_t *self, tsk_table_collection_t *tables,
-    tsk_flags_t TSK_UNUSED(options))
+tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
 {
     int ret = 0;
-
-    memset(self, 0, sizeof(table_sorter_t));
-    if (tables->migrations.num_rows != 0) {
-        ret = TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED;
-        goto out;
-    }
-    ret = tsk_table_collection_check_integrity(tables, TSK_CHECK_OFFSETS);
-    if (ret != 0) {
-        goto out;
-    }
-    self->nodes = &tables->nodes;
-    self->edges = &tables->edges;
-    self->mutations = &tables->mutations;
-    self->sites = &tables->sites;
-    self->migrations = &tables->migrations;
-
-    self->site_id_map = malloc(self->sites->num_rows * sizeof(tsk_id_t));
-    if (self->site_id_map == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-out:
-    return ret;
-}
-
-static int
-table_sorter_sort_edges(table_sorter_t *self, tsk_size_t start)
-{
-    int ret = 0;
+    const tsk_edge_table_t *edges = &self->tables->edges;
+    const double *restrict node_time = self->tables->nodes.time;
     edge_sort_t *e;
     tsk_size_t j, k;
-    tsk_size_t n = self->edges->num_rows - start;
+    tsk_size_t n = self->tables->edges.num_rows - start;
     edge_sort_t *sorted_edges = malloc(n * sizeof(*sorted_edges));
 
     if (sorted_edges == NULL) {
@@ -4389,21 +4350,21 @@ table_sorter_sort_edges(table_sorter_t *self, tsk_size_t start)
     for (j = 0; j < n; j++) {
         e = sorted_edges + j;
         k = start + j;
-        e->left = self->edges->left[k];
-        e->right = self->edges->right[k];
-        e->parent = self->edges->parent[k];
-        e->child = self->edges->child[k];
-        e->time = self->nodes->time[e->parent];
+        e->left = edges->left[k];
+        e->right = edges->right[k];
+        e->parent = edges->parent[k];
+        e->child = edges->child[k];
+        e->time = node_time[e->parent];
     }
     qsort(sorted_edges, n, sizeof(edge_sort_t), cmp_edge);
     /* Copy the edges back into the table. */
     for (j = 0; j < n; j++) {
         e = sorted_edges + j;
         k = start + j;
-        self->edges->left[k] = e->left;
-        self->edges->right[k] = e->right;
-        self->edges->parent[k] = e->parent;
-        self->edges->child[k] = e->child;
+        edges->left[k] = e->left;
+        edges->right[k] = e->right;
+        edges->parent[k] = e->parent;
+        edges->child[k] = e->child;
     }
 out:
     tsk_safe_free(sorted_edges);
@@ -4411,15 +4372,16 @@ out:
 }
 
 static int
-table_sorter_sort_sites(table_sorter_t *self)
+tsk_table_sorter_sort_sites(tsk_table_sorter_t *self)
 {
     int ret = 0;
+    tsk_site_table_t *sites = &self->tables->sites;
     tsk_site_table_t copy;
     tsk_size_t j;
-    tsk_size_t num_sites = self->sites->num_rows;
+    tsk_size_t num_sites = sites->num_rows;
     tsk_site_t *sorted_sites = malloc(num_sites * sizeof(*sorted_sites));
 
-    ret = tsk_site_table_copy(self->sites, &copy, 0);
+    ret = tsk_site_table_copy(sites, &copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -4435,14 +4397,14 @@ table_sorter_sort_sites(table_sorter_t *self)
     }
 
     /* Sort the sites by position */
-    qsort(sorted_sites, self->sites->num_rows, sizeof(*sorted_sites), cmp_site);
+    qsort(sorted_sites, num_sites, sizeof(*sorted_sites), cmp_site);
 
     /* Build the mapping from old site IDs to new site IDs and copy back into the table
      */
-    tsk_site_table_clear(self->sites);
+    tsk_site_table_clear(sites);
     for (j = 0; j < num_sites; j++) {
         self->site_id_map[sorted_sites[j].id] = (tsk_id_t) j;
-        ret = tsk_site_table_add_row(self->sites, sorted_sites[j].position,
+        ret = tsk_site_table_add_row(sites, sorted_sites[j].position,
             sorted_sites[j].ancestral_state, sorted_sites[j].ancestral_state_length,
             sorted_sites[j].metadata, sorted_sites[j].metadata_length);
         if (ret < 0) {
@@ -4457,17 +4419,18 @@ out:
 }
 
 static int
-table_sorter_sort_mutations(table_sorter_t *self)
+tsk_table_sorter_sort_mutations(tsk_table_sorter_t *self)
 {
     int ret = 0;
     tsk_size_t j;
     tsk_id_t parent, mapped_parent;
-    tsk_size_t num_mutations = self->mutations->num_rows;
+    tsk_mutation_table_t *mutations = &self->tables->mutations;
+    tsk_size_t num_mutations = mutations->num_rows;
     tsk_mutation_table_t copy;
     tsk_mutation_t *sorted_mutations = malloc(num_mutations * sizeof(*sorted_mutations));
     tsk_id_t *mutation_id_map = malloc(num_mutations * sizeof(*mutation_id_map));
 
-    ret = tsk_mutation_table_copy(self->mutations, &copy, 0);
+    ret = tsk_mutation_table_copy(mutations, &copy, 0);
     if (ret != 0) {
         goto out;
     }
@@ -4483,7 +4446,7 @@ table_sorter_sort_mutations(table_sorter_t *self)
         }
         sorted_mutations[j].site = self->site_id_map[sorted_mutations[j].site];
     }
-    ret = tsk_mutation_table_clear(self->mutations);
+    ret = tsk_mutation_table_clear(mutations);
     if (ret != 0) {
         goto out;
     }
@@ -4501,7 +4464,7 @@ table_sorter_sort_mutations(table_sorter_t *self)
         if (parent != TSK_NULL) {
             mapped_parent = mutation_id_map[parent];
         }
-        ret = tsk_mutation_table_add_row(self->mutations, sorted_mutations[j].site,
+        ret = tsk_mutation_table_add_row(mutations, sorted_mutations[j].site,
             sorted_mutations[j].node, mapped_parent, sorted_mutations[j].time,
             sorted_mutations[j].derived_state, sorted_mutations[j].derived_state_length,
             sorted_mutations[j].metadata, sorted_mutations[j].metadata_length);
@@ -4518,20 +4481,43 @@ out:
     return ret;
 }
 
-static int
-table_sorter_run(table_sorter_t *self, tsk_size_t edge_start)
+int
+tsk_table_sorter_run(tsk_table_sorter_t *self, tsk_bookmark_t *start)
 {
     int ret = 0;
+    tsk_size_t edge_start = 0;
 
-    ret = table_sorter_sort_edges(self, edge_start);
+    if (start != NULL) {
+        if (start->edges > self->tables->edges.num_rows) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
+            goto out;
+        }
+        edge_start = start->edges;
+
+        /* For now, if migrations, sites or mutations are non-zero we get an error.
+         * This should be fixed: https://github.com/tskit-dev/tskit/issues/101
+         */
+        if (start->migrations != 0 || start->sites != 0 || start->mutations != 0) {
+            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
+            goto out;
+        }
+    }
+    /* The indexes will be invalidated, so drop them */
+    ret = tsk_table_collection_drop_index(self->tables, 0);
     if (ret != 0) {
         goto out;
     }
-    ret = table_sorter_sort_sites(self);
+    if (self->sort_edges != NULL) {
+        ret = self->sort_edges(self, edge_start);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_table_sorter_sort_sites(self);
     if (ret != 0) {
         goto out;
     }
-    ret = table_sorter_sort_mutations(self);
+    ret = tsk_table_sorter_sort_mutations(self);
     if (ret != 0) {
         goto out;
     }
@@ -4539,10 +4525,42 @@ out:
     return ret;
 }
 
-static void
-table_sorter_free(table_sorter_t *self)
+int
+tsk_table_sorter_init(
+    tsk_table_sorter_t *self, tsk_table_collection_t *tables, tsk_flags_t options)
+{
+    int ret = 0;
+
+    memset(self, 0, sizeof(tsk_table_sorter_t));
+    if (tables->migrations.num_rows != 0) {
+        ret = TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+    if (!(options & TSK_NO_CHECK_INTEGRITY)) {
+        ret = tsk_table_collection_check_integrity(tables, TSK_CHECK_OFFSETS);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    self->tables = tables;
+
+    self->site_id_map = malloc(self->tables->sites.num_rows * sizeof(tsk_id_t));
+    if (self->site_id_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    /* Set the sort_edges method to the default. */
+    self->sort_edges = tsk_table_sorter_sort_edges;
+out:
+    return ret;
+}
+
+int
+tsk_table_sorter_free(tsk_table_sorter_t *self)
 {
     tsk_safe_free(self->site_id_map);
+    return 0;
 }
 
 /*************************
@@ -7543,37 +7561,18 @@ tsk_table_collection_sort(
     tsk_table_collection_t *self, tsk_bookmark_t *start, tsk_flags_t options)
 {
     int ret = 0;
-    table_sorter_t sorter;
-    tsk_size_t edge_start = 0;
+    tsk_table_sorter_t sorter;
 
-    /* Must init the sorter before we check errors */
-    ret = table_sorter_init(&sorter, self, options);
+    ret = tsk_table_sorter_init(&sorter, self, options);
     if (ret != 0) {
         goto out;
     }
-    if (start != NULL) {
-        if (start->edges > self->edges.num_rows) {
-            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
-            goto out;
-        }
-        edge_start = start->edges;
-
-        /* For now, if migrations, sites or mutations are non-zero we get an error.
-         * This should be fixed: https://github.com/tskit-dev/tskit/issues/101
-         */
-        if (start->migrations != 0 || start->sites != 0 || start->mutations != 0) {
-            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
-            goto out;
-        }
-    }
-    ret = table_sorter_run(&sorter, edge_start);
+    ret = tsk_table_sorter_run(&sorter, start);
     if (ret != 0) {
         goto out;
     }
-    /* The indexes are invalidated now so drop them */
-    ret = tsk_table_collection_drop_index(self, 0);
 out:
-    table_sorter_free(&sorter);
+    tsk_table_sorter_free(&sorter);
     return ret;
 }
 

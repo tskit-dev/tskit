@@ -341,6 +341,34 @@ Trees
 .. doxygengroup:: TREE_API_GROUP
     :content-only:
 
+
+.. _sec_c_api_low_level_sorting:
+
+*****************
+Low-level sorting
+*****************
+
+In some highly performance sensitive cases it can be useful to
+have more control over the process of sorting tables. This low-level
+API allows a user to provide their own edge sorting function.
+This can be useful, for example, to use parallel sorting algorithms,
+or to take advantage of the more efficient sorting procedures
+available in C++. It is the user's responsibility to ensure that the
+edge sorting requirements are fulfilled by this function.
+
+.. todo::
+    Create an idiomatic C++11 example where we load a table collection
+    file from argv[1], and sort the edges  using std::sort, based
+    on the example in tests/test_minimal_cpp.cpp. We can include
+    this in the examples below, and link to it here.
+
+.. doxygenstruct:: _tsk_table_sorter_t
+    :members:
+
+.. doxygengroup:: TABLE_SORTER_API_GROUP
+    :content-only:
+
+
 ***********************
 Miscellaneous functions
 ***********************

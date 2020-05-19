@@ -612,6 +612,20 @@ typedef struct {
     tsk_size_t provenances;
 } tsk_bookmark_t;
 
+/**
+@brief Low-level table sorting method.
+*/
+typedef struct _tsk_table_sorter_t {
+    /** @brief The input tables that are being sorted. */
+    tsk_table_collection_t *tables;
+    /** @brief The edge sorting function. If set to NULL, edges are not sorted. */
+    int (*sort_edges)(struct _tsk_table_sorter_t *self, tsk_size_t start);
+    /** @brief An opaque pointer for use by client code */
+    void *user_data;
+    /** @brief Mapping from input site IDs to output site IDs */
+    tsk_id_t *site_id_map;
+} tsk_table_sorter_t;
+
 /****************************************************************************/
 /* Common function options */
 /****************************************************************************/
@@ -630,6 +644,9 @@ typedef struct {
 
 /** @brief Do not initialise the parameter object. */
 #define TSK_NO_INIT (1u << 30)
+
+/** @brief Do not run integrity checks before performing an operation. */
+#define TSK_NO_CHECK_INTEGRITY (1u << 30)
 
 /**@} */
 
@@ -2340,6 +2357,23 @@ and ``provenance``) are ignored and can be set to arbitrary values.
 The table collection will always be unindexed after sort successfully completes.
 
 See the :ref:`table sorting <sec_table_sorting>` section for more details.
+For more control over the sorting process, see the
+:ref:`sec_c_api_low_level_sorting` section.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_CHECK_INTEGRITY
+    Do not run integrity checks using
+    :c:func:`tsk_table_collection_check_integrity` before sorting,
+    potentially leading to a small reduction in execution time. This
+    performance optimisation should not be used unless the calling code can
+    guarantee reference integrity within the table collection. References
+    to rows not in the table or bad offsets will result in undefined
+    behaviour.
+
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -2519,6 +2553,21 @@ Any existing index is first dropped using :c:func:`tsk_table_collection_drop_ind
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t options);
+
+/**
+@brief Runs integrity checks on this table collection.
+
+@rst
+TODO: document me. https://github.com/tskit-dev/tskit/issues/592
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise options.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_check_integrity(
+    tsk_table_collection_t *self, tsk_flags_t options);
+
 /** @} */
 
 /* Undocumented methods */
@@ -2533,8 +2582,82 @@ int tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_times(
     tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options));
-int tsk_table_collection_check_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options);
+
+/**
+@defgroup TABLE_SORTER_API_GROUP Low-level table sorter API.
+@{
+*/
+
+/* NOTE: We use the "struct _tsk_table_sorter_t" form here
+ * rather then the usual tsk_table_sorter_t alias because
+ * of problems with Doxygen. This was the only way I could
+ * get it to work - ideally, we'd use the usual typedefs
+ * to avoid confusing people.
+ */
+
+/**
+@brief Initialises the memory for the sorter object.
+
+@rst
+This must be called before any operations are performed on the
+table sorter and initialises all fields. The ``edge_sort`` function
+is set to the default method using qsort. The ``user_data``
+field is set to NULL.
+This method supports the same options as
+:c:func:`tsk_table_collection_sort`.
+
+@endrst
+
+@param self A pointer to an uninitialised tsk_table_sorter_t object.
+@param tables The table collection to sort.
+@param options Sorting options.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_sorter_init(struct _tsk_table_sorter_t *self,
+    tsk_table_collection_t *tables, tsk_flags_t options);
+
+/**
+@brief Runs the sort using the configured functions.
+
+@rst
+Runs the sorting process:
+
+1. Drop the table indexes.
+2. If the ``sort_edges`` function pointer is not NULL, run it. The
+   first parameter to the called function will be a pointer to this
+   table_sorter_t object. The second parameter will be the value
+   ``start.edges``. This specifies the offset at which sorting should
+   start in the edge table. This offset is guaranteed to be within the
+   bounds of the edge table.
+3. Sort the site table, building the mapping between site IDs in the
+   current and sorted tables.
+4. Sort the mutation table.
+
+If an error occurs during the execution of a user-supplied
+sorting function a non-zero value must be returned. This value
+will then be returned by ``tsk_table_sorter_run``. The error
+return value should be chosen to avoid conflicts with tskit error
+codes.
+
+See :c:func:`tsk_table_collection_sort` for details on the ``start`` parameter.
+
+@endrst
+
+@param self A pointer to a tsk_table_sorter_t object.
+@param start The position in the tables at which sorting starts.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_sorter_run(struct _tsk_table_sorter_t *self, tsk_bookmark_t *start);
+
+/**
+@brief Free the internal memory for the specified table sorter.
+
+@param self A pointer to an initialised tsk_table_sorter_t object.
+@return Always returns 0.
+*/
+int tsk_table_sorter_free(struct _tsk_table_sorter_t *self);
+
+/* @} */
 
 int tsk_squash_edges(
     tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
