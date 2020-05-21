@@ -1555,7 +1555,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         colours = {0: colour}
         svg = t.draw(format="svg", node_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count(f'fill="{colour}"'), 1)
+        self.assertEqual(svg.count(f"fill:{colour}"), 1)
         svg = t.draw_svg(node_attrs={0: {"fill": colour}})
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count(f'fill="{colour}"'), 1)
@@ -1566,7 +1566,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         svg = t.draw(format="svg", node_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertEqual(svg.count(f'fill="{colour}"'), 1)
+            self.assertEqual(svg.count(f"fill:{colour}"), 1)
 
         svg = t.draw_svg(node_attrs={u: {"fill": colours[u]} for u in t.nodes()})
         self.verify_basic_svg(svg)
@@ -1579,7 +1579,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         colour = None
         colours = {0: colour}
         svg = t.draw(format="svg", node_colours=colours)
-        self.assertEqual(svg.count('opacity="0"'), 1)
+        self.assertEqual(svg.count("opacity:0"), 1)
 
     def test_one_edge_colour(self):
         t = self.get_binary_tree()
@@ -1587,7 +1587,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         colours = {0: colour}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertGreater(svg.count(f'stroke="{colour}"'), 0)
+        self.assertGreater(svg.count(f"stroke:{colour}"), 0)
         svg = t.draw_svg(edge_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
         self.assertEqual(svg.count(f'stroke="{colour}"'), 1)
@@ -1649,7 +1649,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertGreater(svg.count(f'stroke="{colour}"'), 0)
+            self.assertGreater(svg.count(f"stroke:{colour}"), 0)
 
     def test_unplotted_edge(self):
         t = self.get_binary_tree()
@@ -1657,7 +1657,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         colours = {0: colour}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('opacity="0"'), 1)
+        self.assertEqual(svg.count("opacity:0"), 1)
 
     def test_mutation_labels(self):
         t = self.get_binary_tree()
@@ -1686,7 +1686,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         colours = {0: colour}
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count(f'fill="{colour}"'), 1)
+        self.assertEqual(svg.count(f"fill:{colour}"), 1)
 
     def test_all_mutations_colour(self):
         t = self.get_binary_tree()
@@ -1696,7 +1696,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
-            self.assertEqual(svg.count(f'fill="{colour}"'), 1)
+            self.assertEqual(svg.count(f"fill:{colour}"), 1)
 
     def test_unplotted_mutation(self):
         t = self.get_binary_tree()
@@ -1704,7 +1704,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         colours = {0: colour}
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
-        self.assertEqual(svg.count('opacity="0"'), 1)
+        self.assertEqual(svg.count("fill-opacity:0"), 1)
 
     def test_max_tree_height(self):
         nodes = io.StringIO(

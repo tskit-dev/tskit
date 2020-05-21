@@ -159,22 +159,23 @@ def draw_tree(
         if height is None:
             height = 200
 
-        def remap(original_map, new_key, none_value):
+        def remap_style(original_map, new_key, none_value):
             if original_map is None:
                 return None
             new_map = {}
             for key, value in original_map.items():
                 if value is None:
-                    new_map[key] = none_value
+                    new_map[key] = {"style": none_value}
                 else:
-                    new_map[key] = {new_key: value}
+                    new_map[key] = {"style": f"{new_key}:{value};"}
             return new_map
 
+        # Set style rather than fill & stroke directly to override top stylesheet
         # Old semantics were to not draw the node if colour is None.
         # Setting opacity to zero has the same effect.
-        node_attrs = remap(node_colours, "fill", {"opacity": 0})
-        edge_attrs = remap(edge_colours, "stroke", {"opacity": 0})
-        mutation_attrs = remap(mutation_colours, "fill", {"opacity": 0})
+        node_attrs = remap_style(node_colours, "fill", "fill-opacity:0;")
+        edge_attrs = remap_style(edge_colours, "stroke", "stroke-opacity:0;")
+        mutation_attrs = remap_style(mutation_colours, "fill", "fill-opacity:0;")
 
         node_label_attrs = None
         tree = SvgTree(
