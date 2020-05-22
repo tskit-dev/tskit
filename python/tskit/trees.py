@@ -833,6 +833,57 @@ class Tree:
         """
         return combinatorics.RankTree.unrank(rank, num_leaves).to_tsk_tree()
 
+    def count_topologies(self, sample_sets=None):
+        """
+        Calculates the distribution of embedded topologies for every combination
+        of the sample sets in ``sample_sets``. ``sample_sets`` defaults to all
+        samples in the tree grouped by population.
+
+        ``sample_sets`` need not include all samples but must be pairwise disjoint.
+
+        The returned object is a :class:`tskit.TopologyCounter` that contains
+        counts of topologies per combination of sample sets. For example,
+
+        >>> topology_counter = tree.count_topologies()
+        >>> rank, count = topology_counter[0, 1, 2].most_common(1)[0]
+
+        produces the most common tree topology, with populations 0, 1
+        and 2 as its tips, according to the genealogies of those
+        populations' samples in this tree.
+
+        The counts for each topology in the :class:`tskit.TopologyCounter`
+        are absolute counts that we would get if we were to select all
+        combinations of samples from the relevant sample sets.
+        For sample sets :math:`[s_0, s_1, ..., s_n]`, the total number of
+        topologies for those sample sets is equal to
+        :math:`|s_0| * |s_1| * ... * |s_n|`, so the counts in the counter
+        ``topology_counter[0, 1, ..., n]`` should sum to
+        :math:`|s_0| * |s_1| * ... * |s_n|`.
+
+        To convert the topology counts to probabilities, divide by the total
+        possible number of sample combinations from the sample sets in question::
+
+            >>> set_sizes = [len(sample_set) for sample_set in sample_sets]
+            >>> p = count / (set_sizes[0] * set_sizes[1] * set_sizes[2])
+
+        .. warning:: The interface for this method is preliminary and may be subject to
+            backwards incompatible changes in the near future.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+            Defaults to all samples grouped by population.
+        :rtype: tskit.TopologyCounter
+        :raises ValueError: If nodes in ``sample_sets`` are invalid or are
+            internal samples.
+        """
+        if sample_sets is None:
+            sample_sets = [
+                self.tree_sequence.samples(population=pop.id)
+                for pop in self.tree_sequence.populations()
+            ]
+
+        return combinatorics.tree_count_topologies(self, sample_sets)
+
     def get_branch_length(self, u):
         # Deprecated alias for branch_length
         return self.branch_length(u)
@@ -5839,6 +5890,29 @@ class TreeSequence:
         :rtype: float
         """
         return self._ll_tree_sequence.get_kc_distance(other._ll_tree_sequence, lambda_)
+
+    def count_topologies(self, sample_sets=None):
+        """
+        Returns a generator that produces the same distribution of topologies as
+        :meth:`Tree.count_topologies` but sequentially for every tree in a tree
+        sequence. For use on a tree sequence this method is much faster than
+        computing the result independently per tree.
+
+        .. warning:: The interface for this method is preliminary and may be subject to
+            backwards incompatible changes in the near future.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of individuals to compute the statistic with.
+        :rtype: iter(:class:`tskit.TopologyCounter`)
+        :raises ValueError: If nodes in ``sample_sets`` are invalid or are
+            internal samples.
+        """
+        if sample_sets is None:
+            sample_sets = [
+                self.samples(population=pop.id) for pop in self.populations()
+            ]
+
+        yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
     ############################################
     #

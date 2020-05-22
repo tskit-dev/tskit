@@ -23,11 +23,18 @@
 """
 Test cases for combinatorial algorithms.
 """
+import collections
+import io
 import itertools
 import unittest
 
+import msprime
+import numpy as np
+
+import tests.test_wright_fisher as wf
 import tskit
 import tskit.combinatorics as comb
+from tests import test_stats
 from tskit.combinatorics import RankTree
 
 
@@ -351,6 +358,24 @@ class TestRankTree(unittest.TestCase):
                 self.assertTrue(tree.is_canonical())
                 self.assertEqual(tree, reconstructed)
 
+    def test_from_unary_tree(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        c = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        p = tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c)
+
+        t = tables.tree_sequence().first()
+        with self.assertRaises(ValueError):
+            RankTree.from_tsk_tree(t)
+
+    def test_to_tsk_tree_errors(self):
+        alpha_tree = RankTree.unrank((0, 0), 3, ["A", "B", "C"])
+        out_of_bounds_tree = RankTree.unrank((0, 0), 3, [2, 3, 4])
+        with self.assertRaises(ValueError):
+            alpha_tree.to_tsk_tree()
+        with self.assertRaises(ValueError):
+            out_of_bounds_tree.to_tsk_tree()
+
     def test_rank_errors_multiple_roots(self):
         tables = tskit.TableCollection(sequence_length=1.0)
 
@@ -420,3 +445,518 @@ class TestRankTree(unittest.TestCase):
         self.assertFalse(three_leaf_asym.is_symmetrical())
         six_leaf_sym = RankTree(children=[three_leaf_asym, three_leaf_asym])
         self.assertTrue(six_leaf_sym.is_symmetrical())
+
+
+class TestPartialTopologyCounter(unittest.TestCase):
+    def test_add_sibling_topologies_simple(self):
+        a = RankTree(children=[], label="A")
+        b = RankTree(children=[], label="B")
+        ab = RankTree(children=[a, b])
+
+        a_counter = comb.TopologyCounter()
+        a_counter["A"][a.rank()] = 1
+        self.assertEqual(a_counter, comb.TopologyCounter.from_sample("A"))
+
+        b_counter = comb.TopologyCounter()
+        b_counter["B"][b.rank()] = 1
+        self.assertEqual(b_counter, comb.TopologyCounter.from_sample("B"))
+
+        partial_counter = comb.PartialTopologyCounter()
+        partial_counter.add_sibling_topologies(a_counter)
+        partial_counter.add_sibling_topologies(b_counter)
+
+        expected = comb.TopologyCounter()
+        expected["A"][a.rank()] = 1
+        expected["B"][b.rank()] = 1
+        expected["A", "B"][ab.rank()] = 1
+        joined_counter = partial_counter.join_all_combinations()
+        self.assertEqual(joined_counter, expected)
+
+    def test_add_sibling_topologies_polytomy(self):
+        """
+        Goes through the topology-merging step at the root
+        of this tree:
+                    |
+                    |
+            +----+-----+----+
+            |    |     |    |
+            |    |     |    |
+            |    |     |  +---+
+            |    |     |  |   |
+            |    |     |  |   |
+            A    A     B  A   C
+        """
+        partial_counter = comb.PartialTopologyCounter()
+        a = RankTree(children=[], label="A")
+        c = RankTree(children=[], label="C")
+        ac = RankTree(children=[a, c])
+
+        expected = collections.defaultdict(collections.Counter)
+
+        a_counter = comb.TopologyCounter.from_sample("A")
+        b_counter = comb.TopologyCounter.from_sample("B")
+        ac_counter = comb.TopologyCounter()
+        ac_counter["A"][a.rank()] = 1
+        ac_counter["C"][c.rank()] = 1
+        ac_counter["A", "C"][ac.rank()] = 1
+
+        partial_counter.add_sibling_topologies(a_counter)
+        expected[("A",)] = collections.Counter({((("A",), (0, 0)),): 1})
+        self.assertEqual(partial_counter.partials, expected)
+
+        partial_counter.add_sibling_topologies(a_counter)
+        expected[("A",)][((("A",), (0, 0)),)] += 1
+        self.assertEqual(partial_counter.partials, expected)
+
+        partial_counter.add_sibling_topologies(b_counter)
+        expected[("B",)][((("B",), (0, 0)),)] = 1
+        expected[("A", "B")][((("A",), (0, 0)), (("B",), (0, 0)))] = 2
+        self.assertEqual(partial_counter.partials, expected)
+
+        partial_counter.add_sibling_topologies(ac_counter)
+        expected[("A",)][((("A",), (0, 0)),)] += 1
+        expected[("C",)][((("C",), (0, 0)),)] = 1
+        expected[("A", "B")][((("A",), (0, 0)), (("B",), (0, 0)))] += 1
+        expected[("A", "C")][((("A",), (0, 0)), (("C",), (0, 0)))] = 2
+        expected[("A", "C")][((("A", "C"), (0, 0)),)] = 1
+        expected[("B", "C")][((("B",), (0, 0)), (("C",), (0, 0)))] = 1
+        expected[("A", "B", "C")][
+            ((("A",), (0, 0)), (("B",), (0, 0)), (("C",), (0, 0)))
+        ] = 2
+        expected[("A", "B", "C")][((("A", "C"), (0, 0)), (("B",), (0, 0)))] = 1
+        self.assertEqual(partial_counter.partials, expected)
+
+        expected_topologies = comb.TopologyCounter()
+        expected_topologies["A"][(0, 0)] = 3
+        expected_topologies["B"][(0, 0)] = 1
+        expected_topologies["C"][(0, 0)] = 1
+        expected_topologies["A", "B"][(0, 0)] = 3
+        expected_topologies["A", "C"][(0, 0)] = 3
+        expected_topologies["B", "C"][(0, 0)] = 1
+        expected_topologies["A", "B", "C"][(0, 0)] = 2
+        expected_topologies["A", "B", "C"][(1, 1)] = 1
+        joined_topologies = partial_counter.join_all_combinations()
+        self.assertEqual(joined_topologies, expected_topologies)
+
+    def test_join_topologies(self):
+        a = RankTree(children=[], label="A")
+        b = RankTree(children=[], label="B")
+        c = RankTree(children=[], label="C")
+        a_tuple = (("A"), a.rank())
+        b_tuple = (("B"), b.rank())
+        c_tuple = (("C"), c.rank())
+        ab_tuple = (("A", "B"), RankTree(children=[a, b]).rank())
+        ac_tuple = (("A", "C"), RankTree(children=[a, c]).rank())
+        bc_tuple = (("B", "C"), RankTree(children=[b, c]).rank())
+
+        self.verify_join_topologies((a_tuple, b_tuple), (0, 0))
+        self.verify_join_topologies((b_tuple, a_tuple), (0, 0))
+        self.verify_join_topologies((b_tuple, c_tuple), (0, 0))
+
+        self.verify_join_topologies((a_tuple, b_tuple, c_tuple), (0, 0))
+        self.verify_join_topologies((a_tuple, bc_tuple), (1, 0))
+        self.verify_join_topologies((b_tuple, ac_tuple), (1, 1))
+        self.verify_join_topologies((c_tuple, ab_tuple), (1, 2))
+
+    def verify_join_topologies(self, topologies, expected_topology):
+        actual_topology = comb.PartialTopologyCounter.join_topologies(topologies)
+        self.assertEqual(actual_topology, expected_topology)
+
+
+class TestCountTopologies(unittest.TestCase):
+    def verify_topologies(self, ts, sample_sets=None, expected=None):
+        if sample_sets is None:
+            sample_sets = [ts.samples(population=pop.id) for pop in ts.populations()]
+        topologies = [t.count_topologies(sample_sets) for t in ts.trees()]
+        inc_topologies = list(ts.count_topologies(sample_sets))
+        # count_topologies calculates the embedded topologies for every
+        # combination of populations, so we need to check the results
+        # of subsampling for every combination.
+        for num_sample_sets in range(1, len(sample_sets) + 1):
+            for i, t in enumerate(ts.trees()):
+                just_t = ts.keep_intervals([t.interval], simplify=False)
+                for sample_set_indexes in itertools.combinations(
+                    range(len(sample_sets)), num_sample_sets
+                ):
+                    actual_topologies = topologies[i][sample_set_indexes]
+                    actual_inc_topologies = inc_topologies[i][sample_set_indexes]
+                    if len(t.roots) == 1:
+                        subsampled_topologies = self.subsample_topologies(
+                            just_t, sample_sets, sample_set_indexes
+                        )
+                        self.assertEqual(actual_topologies, subsampled_topologies)
+                    if expected is not None:
+                        self.assertEqual(
+                            actual_topologies, expected[i][sample_set_indexes]
+                        )
+                    self.assertEqual(actual_topologies, actual_inc_topologies)
+
+    def subsample_topologies(self, ts, sample_sets, sample_set_indexes):
+        subsample_sets = [sample_sets[i] for i in sample_set_indexes]
+        topologies = collections.Counter()
+        for subsample in itertools.product(*subsample_sets):
+            for pop_tree in ts.simplify(samples=subsample).trees():
+                # regions before and after keep interval have all samples as roots
+                # so don't count those
+                # The single tree of interest should have one root
+                if len(pop_tree.roots) == 1:
+                    topologies[pop_tree.rank()] += 1
+        return topologies
+
+    def test_single_population(self):
+        n = 10
+        ts = msprime.simulate(n, recombination_rate=10)
+        expected = comb.TopologyCounter()
+        expected[0] = collections.Counter({(0, 0): n})
+        self.verify_topologies(ts, expected=[expected] * ts.num_trees)
+
+    def test_three_populations(self):
+        nodes = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1
+        1   1   0.000000    1   -1
+        2   1   0.000000    1   -1
+        3   1   0.000000    2   -1
+        4   1   0.000000    2   -1
+        5   1   0.000000    0   -1
+        6   0   1.000000    0   -1
+        7   0   2.000000    0   -1
+        8   0   2.000000    0   -1
+        9   0   3.000000    0   -1
+        10  0   4.000000    0   -1
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    6  4
+        0.000000    1.000000    6  5
+        0.000000    1.000000    7  1
+        0.000000    1.000000    7  2
+        0.000000    1.000000    8  3
+        0.000000    1.000000    8  6
+        0.000000    1.000000    9  7
+        0.000000    1.000000    9  8
+        0.000000    1.000000    10  0
+        0.000000    1.000000    10  9
+        """
+        )
+        ts = tskit.load_text(
+            nodes, edges, sequence_length=1, strict=False, base64_metadata=False
+        )
+
+        expected = comb.TopologyCounter()
+        expected[0] = collections.Counter({(0, 0): 2})
+        expected[1] = collections.Counter({(0, 0): 2})
+        expected[2] = collections.Counter({(0, 0): 2})
+        expected[0, 1] = collections.Counter({(0, 0): 4})
+        expected[0, 2] = collections.Counter({(0, 0): 4})
+        expected[1, 2] = collections.Counter({(0, 0): 4})
+        expected[0, 1, 2] = collections.Counter({(1, 0): 4, (1, 1): 4})
+        self.verify_topologies(ts, expected=[expected])
+
+    def test_multiple_roots(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        tables.populations.add_row()
+        tables.populations.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=1)
+
+        # Not samples so they are ignored
+        tables.nodes.add_row(time=1)
+        tables.nodes.add_row(time=1, population=1)
+
+        expected = comb.TopologyCounter()
+        expected[0] = collections.Counter({(0, 0): 1})
+        expected[1] = collections.Counter({(0, 0): 1})
+        self.verify_topologies(tables.tree_sequence(), expected=[expected])
+
+    def test_no_sample_subtrees(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        c1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        c2 = tables.nodes.add_row(time=0)
+        c3 = tables.nodes.add_row(time=0)
+        p1 = tables.nodes.add_row(time=1)
+        p2 = tables.nodes.add_row(time=1)
+
+        tables.edges.add_row(left=0, right=1, parent=p1, child=c2)
+        tables.edges.add_row(left=0, right=1, parent=p1, child=c3)
+        tables.edges.add_row(left=0, right=1, parent=p2, child=c1)
+
+        expected = comb.TopologyCounter()
+        expected[0] = collections.Counter({(0, 0): 1})
+        self.verify_topologies(tables.tree_sequence(), expected=[expected])
+
+    def test_no_full_topology(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        tables.populations.add_row()
+        tables.populations.add_row()
+        tables.populations.add_row()
+        child1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=0)
+        child2 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=1)
+        parent = tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=1, parent=parent, child=child1)
+        tables.edges.add_row(left=0, right=1, parent=parent, child=child2)
+
+        # Left as root so there is no topology with all three populations
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=2)
+
+        expected = comb.TopologyCounter()
+        for pop_combo in [(0,), (1,), (2,), (0, 1)]:
+            expected[pop_combo] = collections.Counter({(0, 0): 1})
+        self.verify_topologies(tables.tree_sequence(), expected=[expected])
+
+    def test_polytomies(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        tables.populations.add_row()
+        tables.populations.add_row()
+        tables.populations.add_row()
+        c1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=0)
+        c2 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=1)
+        c3 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, population=2)
+        p = tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c2)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c3)
+
+        expected = comb.TopologyCounter()
+        for pop_combos in [0, 1, 2, (0, 1), (0, 2), (1, 2), (0, 1, 2)]:
+            expected[pop_combos] = collections.Counter({(0, 0): 1})
+        self.verify_topologies(tables.tree_sequence(), expected=[expected])
+
+    def test_custom_key(self):
+        nodes = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1
+        1   1   0.000000    0   -1
+        2   1   0.000000    0   -1
+        3   1   0.000000    0   -1
+        4   1   0.000000    0   -1
+        5   0   1.000000    0   -1
+        6   0   1.000000    0   -1
+        7   0   2.000000    0   -1
+        8   0   3.000000    0   -1
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    5  0
+        0.000000    1.000000    5  1
+        0.000000    1.000000    6  2
+        0.000000    1.000000    6  3
+        0.000000    1.000000    7  5
+        0.000000    1.000000    7  6
+        0.000000    1.000000    8  4
+        0.000000    1.000000    8  7
+        """
+        )
+        ts = tskit.load_text(
+            nodes, edges, sequence_length=1, strict=False, base64_metadata=False
+        )
+
+        sample_sets = [[0, 1], [2, 3], [4]]
+
+        expected = comb.TopologyCounter()
+        expected[0] = collections.Counter({(0, 0): 2})
+        expected[1] = collections.Counter({(0, 0): 2})
+        expected[2] = collections.Counter({(0, 0): 1})
+        expected[0, 1] = collections.Counter({(0, 0): 4})
+        expected[0, 2] = collections.Counter({(0, 0): 2})
+        expected[1, 2] = collections.Counter({(0, 0): 2})
+        expected[0, 1, 2] = collections.Counter({(1, 2): 4})
+
+        tree_topologies = ts.first().count_topologies(sample_sets)
+        treeseq_topologies = list(ts.count_topologies(sample_sets))
+        self.assertEqual(tree_topologies, expected)
+        self.assertEqual(treeseq_topologies, [expected])
+
+    def test_ignores_non_sample_leaves(self):
+        nodes = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1
+        1   0   0.000000    0   -1
+        2   1   0.000000    0   -1
+        3   0   0.000000    0   -1
+        4   1   0.000000    0   -1
+        5   0   1.000000    0   -1
+        6   0   1.000000    0   -1
+        7   0   2.000000    0   -1
+        8   0   3.000000    0   -1
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    1.000000    5  0
+        0.000000    1.000000    5  1
+        0.000000    1.000000    6  2
+        0.000000    1.000000    6  3
+        0.000000    1.000000    7  5
+        0.000000    1.000000    7  6
+        0.000000    1.000000    8  4
+        0.000000    1.000000    8  7
+        """
+        )
+        ts = tskit.load_text(
+            nodes, edges, sequence_length=1, strict=False, base64_metadata=False
+        )
+
+        sample_sets = [[0], [2], [4]]
+
+        expected = comb.TopologyCounter()
+        expected[0] = collections.Counter({(0, 0): 1})
+        expected[1] = collections.Counter({(0, 0): 1})
+        expected[2] = collections.Counter({(0, 0): 1})
+        expected[0, 1] = collections.Counter({(0, 0): 1})
+        expected[0, 2] = collections.Counter({(0, 0): 1})
+        expected[1, 2] = collections.Counter({(0, 0): 1})
+        expected[0, 1, 2] = collections.Counter({(1, 2): 1})
+
+        tree_topologies = ts.first().count_topologies(sample_sets)
+        treeseq_topologies = list(ts.count_topologies(sample_sets))
+        self.assertEqual(tree_topologies, expected)
+        self.assertEqual(treeseq_topologies, [expected])
+
+    def test_internal_samples_errors(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+
+        c1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        c2 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        p = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=1)
+
+        tables.edges.add_row(left=0, right=1, parent=p, child=c1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c2)
+
+        self.verify_value_error(tables.tree_sequence())
+
+    def test_non_sample_nodes_errors(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+
+        c1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        c2 = tables.nodes.add_row(time=0)
+        p = tables.nodes.add_row(time=1)
+
+        tables.edges.add_row(left=0, right=1, parent=p, child=c1)
+        tables.edges.add_row(left=0, right=1, parent=p, child=c2)
+
+        sample_sets = [[0], [1]]
+        self.verify_value_error(tables.tree_sequence(), sample_sets)
+
+        sample_sets = [[0], [-1]]
+        self.verify_node_out_of_bounds_error(tables.tree_sequence(), sample_sets)
+
+    def verify_value_error(self, ts, sample_sets=None):
+        with self.assertRaises(ValueError):
+            ts.first().count_topologies(sample_sets)
+        with self.assertRaises(ValueError):
+            list(ts.count_topologies(sample_sets))
+
+    def verify_node_out_of_bounds_error(self, ts, sample_sets=None):
+        with self.assertRaises(ValueError):
+            ts.first().count_topologies(sample_sets)
+        with self.assertRaises(IndexError):
+            list(ts.count_topologies(sample_sets))
+
+    def test_standard_msprime_migrations(self):
+        for num_populations in range(2, 5):
+            samples = [5] * num_populations
+            ts = self.simulate_multiple_populations(samples)
+            self.verify_topologies(ts)
+
+    def simulate_multiple_populations(self, sample_sizes):
+        d = len(sample_sizes)
+        M = 0.2
+        m = M / (2 * (d - 1))
+
+        migration_matrix = [
+            [m if k < d and k == i + 1 else 0 for k in range(d)] for i in range(d)
+        ]
+
+        pop_configurations = [
+            msprime.PopulationConfiguration(sample_size=size) for size in sample_sizes
+        ]
+        return msprime.simulate(
+            population_configurations=pop_configurations,
+            migration_matrix=migration_matrix,
+            recombination_rate=0.1,
+        )
+
+    def test_msprime_dtwf(self):
+        migration_matrix = np.zeros((4, 4))
+        population_configurations = [
+            msprime.PopulationConfiguration(
+                sample_size=10, initial_size=10, growth_rate=0
+            ),
+            msprime.PopulationConfiguration(
+                sample_size=10, initial_size=10, growth_rate=0
+            ),
+            msprime.PopulationConfiguration(
+                sample_size=10, initial_size=10, growth_rate=0
+            ),
+            msprime.PopulationConfiguration(
+                sample_size=0, initial_size=10, growth_rate=0
+            ),
+        ]
+        demographic_events = [
+            msprime.PopulationParametersChange(population=1, time=0.1, initial_size=5),
+            msprime.PopulationParametersChange(population=0, time=0.2, initial_size=5),
+            msprime.MassMigration(time=1.1, source=0, dest=2),
+            msprime.MassMigration(time=1.2, source=1, dest=3),
+            msprime.MigrationRateChange(time=2.1, rate=0.3, matrix_index=(2, 3)),
+            msprime.MigrationRateChange(time=2.2, rate=0.3, matrix_index=(3, 2)),
+        ]
+        ts = msprime.simulate(
+            migration_matrix=migration_matrix,
+            population_configurations=population_configurations,
+            demographic_events=demographic_events,
+            random_seed=2,
+            model="dtwf",
+        )
+
+        self.verify_topologies(ts)
+
+    def test_forward_time_wright_fisher_unsimplified_all_sample_sets(self):
+        tables = wf.wf_sim(
+            4,
+            5,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=10,
+        )
+        tables.sort()
+        ts = tables.tree_sequence()
+        for S in test_stats.set_partitions(list(ts.samples())):
+            self.verify_topologies(ts, sample_sets=S)
+
+    def test_forward_time_wright_fisher_unsimplified(self):
+        tables = wf.wf_sim(
+            20,
+            15,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=20,
+        )
+        tables.sort()
+        ts = tables.tree_sequence()
+        samples = ts.samples()
+        self.verify_topologies(ts, sample_sets=[samples[:10], samples[10:]])
+
+    def test_forward_time_wright_fisher_simplified(self):
+        tables = wf.wf_sim(
+            30,
+            10,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=5,
+        )
+        tables.sort()
+        ts = tables.tree_sequence()
+        samples = ts.samples()
+        self.verify_topologies(ts, sample_sets=[samples[:10], samples[10:]])

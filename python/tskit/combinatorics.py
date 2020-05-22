@@ -24,11 +24,235 @@
 Module for ranking and unranking trees. Trees are considered only
 leaf-labelled and unordered, so order of children does not influence equality.
 """
+import collections
+import functools
 import heapq
 import itertools
-from functools import lru_cache
+
+import numpy as np
 
 import tskit
+
+
+def treeseq_count_topologies(ts, sample_sets):
+    topology_counter = np.full(ts.num_nodes, None, dtype=object)
+    parent = np.full(ts.num_nodes, -1)
+
+    def update_state(tree, u):
+        stack = [u]
+        while len(stack) > 0:
+            v = stack.pop()
+            children = []
+            for c in tree.children(v):
+                if topology_counter[c] is not None:
+                    children.append(topology_counter[c])
+            if len(children) > 0:
+                topology_counter[v] = combine_child_topologies(children)
+            else:
+                topology_counter[v] = None
+            p = parent[v]
+            if p != -1:
+                stack.append(p)
+
+    for sample_set_index, sample_set in enumerate(sample_sets):
+        for u in sample_set:
+            if not ts.node(u).is_sample():
+                raise ValueError(f"Node {u} in sample_sets is not a sample.")
+            topology_counter[u] = TopologyCounter.from_sample(sample_set_index)
+
+    for tree, (_, edges_out, edges_in) in zip(ts.trees(), ts.edge_diffs()):
+        # Avoid recomputing anything for the parent until all child edges
+        # for that parent are inserted/removed
+        for p, sibling_edges in itertools.groupby(edges_out, key=lambda e: e.parent):
+            for e in sibling_edges:
+                parent[e.child] = -1
+            update_state(tree, p)
+        for p, sibling_edges in itertools.groupby(edges_in, key=lambda e: e.parent):
+            if tree.is_sample(p):
+                raise ValueError("Internal samples not supported.")
+            for e in sibling_edges:
+                parent[e.child] = p
+            update_state(tree, p)
+
+        counters = []
+        for root in tree.roots:
+            if topology_counter[root] is not None:
+                counters.append(topology_counter[root])
+        yield TopologyCounter.merge(counters)
+
+
+def tree_count_topologies(tree, sample_sets):
+    for u in tree.samples():
+        if not tree.is_leaf(u):
+            raise ValueError("Internal samples not supported.")
+
+    topology_counter = np.full(tree.tree_sequence.num_nodes, None, dtype=object)
+    for sample_set_index, sample_set in enumerate(sample_sets):
+        for u in sample_set:
+            if not tree.is_sample(u):
+                raise ValueError(f"Node {u} in sample_sets is not a sample.")
+            topology_counter[u] = TopologyCounter.from_sample(sample_set_index)
+
+    for u in tree.nodes(order="postorder"):
+        children = []
+        for v in tree.children(u):
+            if topology_counter[v] is not None:
+                children.append(topology_counter[v])
+        if len(children) > 0:
+            topology_counter[u] = combine_child_topologies(children)
+
+    counters = []
+    for root in tree.roots:
+        if topology_counter[root] is not None:
+            counters.append(topology_counter[root])
+    return TopologyCounter.merge(counters)
+
+
+def combine_child_topologies(topology_counters):
+    """
+    Select all combinations of topologies from different
+    counters in ``topology_counters`` that are capable of
+    being combined into a single topology. This includes
+    any combination of at least two topologies, all from
+    different children, where no topologies share a
+    sample set index.
+    """
+    partial_topologies = PartialTopologyCounter()
+    for tc in topology_counters:
+        partial_topologies.add_sibling_topologies(tc)
+
+    return partial_topologies.join_all_combinations()
+
+
+class TopologyCounter:
+    """
+    Contains the distributions of embedded topologies for every combination
+    of the sample sets used to generate the ``TopologyCounter``. It is
+    indexable by a combination of sample set indexes and returns a
+    ``collections.Counter`` whose keys are topology ranks
+    (see :ref:`sec_tree_ranks`). See :meth:`Tree.count_topologies` for more
+    detail on how this structure is used.
+    """
+
+    def __init__(self):
+        self.topologies = collections.defaultdict(collections.Counter)
+
+    def __getitem__(self, sample_set_indexes):
+        k = TopologyCounter._to_key(sample_set_indexes)
+        return self.topologies[k]
+
+    def __setitem__(self, sample_set_indexes, counter):
+        k = TopologyCounter._to_key(sample_set_indexes)
+        self.topologies[k] = counter
+
+    @staticmethod
+    def _to_key(sample_set_indexes):
+        if not isinstance(sample_set_indexes, collections.Iterable):
+            sample_set_indexes = (sample_set_indexes,)
+        return tuple(sorted(sample_set_indexes))
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.topologies == other.topologies
+
+    @staticmethod
+    def merge(topology_counters):
+        """
+        Union together independent topology counters into one.
+        """
+        total = TopologyCounter()
+        for tc in topology_counters:
+            for k, v in tc.topologies.items():
+                total.topologies[k] += v
+
+        return total
+
+    @staticmethod
+    def from_sample(sample_set_index):
+        """
+        Generate the topologies covered by a single sample. This
+        is the single-leaf topology representing the single sample
+        set.
+        """
+        rank_tree = RankTree(children=[], label=sample_set_index)
+        tc = TopologyCounter()
+        tc[sample_set_index][rank_tree.rank()] = 1
+        return tc
+
+
+class PartialTopologyCounter:
+    """
+    Represents the possible combinations of children under a node in a tree
+    and the combinations of embedded topologies that are rooted at the node.
+    This allows an efficient way of calculating which unique embedded
+    topologies arise by only every storing a given pairing of sibling topologies
+    once.
+    ``partials`` is a dictionary where a key is a tuple of sample set indexes,
+    and the value is a ``collections.Counter`` that counts combinations of
+    sibling topologies whose tips represent the sample sets in the key.
+    Each element of the counter is a homogeneous tuple where each element represents
+    a topology. The topology is itself a tuple of the sample set indexes in that
+    topology and the rank.
+    """
+
+    def __init__(self):
+        self.partials = collections.defaultdict(collections.Counter)
+
+    def add_sibling_topologies(self, topology_counter):
+        """
+        Combine each topology in the given TopologyCounter with every existing
+        combination of topologies whose sample set indexes are disjoint from the
+        topology from the counter. This also includes adding the topologies from
+        the counter without joining them to any existing combinations.
+        """
+        merged = collections.defaultdict(collections.Counter)
+        for sample_set_indexes, topologies in topology_counter.topologies.items():
+            for rank, count in topologies.items():
+                topology = ((sample_set_indexes, rank),)
+                # Cross with existing topology combinations
+                for sibling_sample_set_indexes, siblings in self.partials.items():
+                    if isdisjoint(sample_set_indexes, sibling_sample_set_indexes):
+                        for sib_topologies, sib_count in siblings.items():
+                            merged_topologies = merge_tuple(sib_topologies, topology)
+                            merged_sample_set_indexes = merge_tuple(
+                                sibling_sample_set_indexes, sample_set_indexes
+                            )
+                            merged[merged_sample_set_indexes][merged_topologies] += (
+                                count * sib_count
+                            )
+                # Propagate without combining
+                merged[sample_set_indexes][topology] += count
+
+        for sample_set_indexes, counter in merged.items():
+            self.partials[sample_set_indexes] += counter
+
+    def join_all_combinations(self):
+        """
+        For each pairing of child topologies, join them together into a new
+        tree and count the resulting topologies.
+        """
+        topology_counter = TopologyCounter()
+        for sample_set_indexes, sibling_topologies in self.partials.items():
+            for topologies, count in sibling_topologies.items():
+                # A node must have at least two children
+                if len(topologies) >= 2:
+                    rank = PartialTopologyCounter.join_topologies(topologies)
+                    topology_counter[sample_set_indexes][rank] += count
+                else:
+                    # Pass on the single tree without adding a parent
+                    for _, rank in topologies:
+                        topology_counter[sample_set_indexes][rank] += count
+
+        return topology_counter
+
+    @staticmethod
+    def join_topologies(child_topologies):
+        children = []
+        for sample_set_indexes, rank in child_topologies:
+            n = len(sample_set_indexes)
+            t = RankTree.unrank(rank, n, list(sample_set_indexes))
+            children.append(t)
+        children.sort(key=RankTree.canonical_order)
+        return RankTree(children).rank()
 
 
 def all_trees(num_leaves):
@@ -205,12 +429,17 @@ class RankTree:
         return self._label_rank
 
     @staticmethod
-    def unrank(rank, num_leaves):
+    def unrank(rank, num_leaves, labels=None):
+        """
+        Produce a ``RankTree`` of the given ``rank`` with ``num_leaves`` leaves,
+        labelled with ``labels``. Labels must be sorted, and if ``None`` default
+        to ``[0, num_leaves)``.
+        """
         shape_rank, label_rank = rank
         if shape_rank < 0 or label_rank < 0:
             raise ValueError("Rank is out of bounds.")
         unlabelled = RankTree.shape_unrank(shape_rank, num_leaves)
-        return unlabelled.label_unrank(label_rank)
+        return unlabelled.label_unrank(label_rank, labels)
 
     @staticmethod
     def shape_unrank(shape_rank, n):
@@ -230,7 +459,7 @@ class RankTree:
     def label_unrank(self, label_rank, labels=None):
         """
         Generate a tree with the same shape, whose leaves are labelled
-        from `labels` with the labelling corresponding to `label_rank`.
+        from ``labels`` with the labelling corresponding to ``label_rank``.
         """
         if labels is None:
             labels = list(range(self.num_leaves))
@@ -268,6 +497,9 @@ class RankTree:
         if tree.is_leaf(u):
             return RankTree(children=[], label=u)
 
+        if tree.num_children(u) == 1:
+            raise ValueError("Cannot rank trees with unary nodes")
+
         children = list(
             sorted(
                 (RankTree.from_tsk_tree_node(tree, c) for c in tree.children(u)),
@@ -279,11 +511,14 @@ class RankTree:
     @staticmethod
     def from_tsk_tree(tree):
         if tree.num_roots != 1:
-            raise ValueError("Can't rank trees with multiple roots")
+            raise ValueError("Cannot rank trees with multiple roots")
 
         return RankTree.from_tsk_tree_node(tree, tree.root)
 
     def to_tsk_tree(self):
+        if set(self.labels) != set(range(self.num_leaves)):
+            raise ValueError("Labels set must be equivalent to [0, num_leaves)")
+
         seq_length = 1
         tables = tskit.TableCollection(seq_length)
 
@@ -480,7 +715,7 @@ class RankTree:
 # so we should compute a vector of those results up front instead of using
 # repeated calls to this function.
 # Put an lru_cache on for now as a quick replacement (cuts test time down by 80%)
-@lru_cache()
+@functools.lru_cache()
 def num_shapes(n):
     """
     The cardinality of the set of unlabelled trees with n leaves,
@@ -860,3 +1095,11 @@ def group_by(values, equal):
 
 def group_partition(part):
     return group_by(part, lambda x, y: x == y)
+
+
+def merge_tuple(tup1, tup2):
+    return tuple(heapq.merge(tup1, tup2))
+
+
+def isdisjoint(iterable1, iterable2):
+    return set(iterable1).isdisjoint(iterable2)
