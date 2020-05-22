@@ -1841,10 +1841,15 @@ class TestTree(LowLevelTestCase):
         self.assertEqual(st.get_newick(0), b"1;")
         for bad_type in [None, "", [], {}]:
             self.assertRaises(TypeError, st.get_newick, precision=bad_type)
-            self.assertRaises(TypeError, st.get_newick, ts, time_scale=bad_type)
+            self.assertRaises(TypeError, st.get_newick, ts, buffer_size=bad_type)
         while st.next():
-            newick = st.get_newick(st.get_left_root())
+            u = st.get_left_root()
+            newick = st.get_newick(u)
             self.assertTrue(newick.endswith(b";"))
+            with self.assertRaises(ValueError):
+                st.get_newick(u, buffer_size=-1)
+            with self.assertRaises(_tskit.LibraryError):
+                st.get_newick(u, buffer_size=1)
 
     def test_index(self):
         for ts in self.get_example_tree_sequences():
