@@ -23,10 +23,12 @@
 """
 Tests for metadata handling.
 """
+import collections
 import io
 import json
 import os
 import pickle
+import struct
 import tempfile
 import unittest
 
@@ -400,3 +402,1075 @@ class TestMetadataModule(unittest.TestCase):
         self.assertEqual(ms.decode_row(msgpack.dumps(row_data)), row_data)
         # Round trip
         self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+
+
+class TestStructCodec(unittest.TestCase):
+    def encode_decode(self, method_name, sub_schema, obj, buffer):
+        self.assertEqual(
+            getattr(metadata.StructCodec, f"{method_name}_encode")(sub_schema)(obj),
+            buffer,
+        )
+        self.assertEqual(
+            getattr(metadata.StructCodec, f"{method_name}_decode")(sub_schema)(
+                iter(buffer)
+            ),
+            obj,
+        )
+
+    def test_order_schema(self):
+        # Make a guaranteed-unordered nested, schema
+        schema = {
+            "codec": "struct",
+            "title": "Example Struct-encoded Metadata",
+            "type": "object",
+            "properties": collections.OrderedDict(
+                [
+                    ("d", {"type": "number", "binaryFormat": "L"}),
+                    ("a", {"type": "string", "binaryFormat": "10s"}),
+                    (
+                        "f",
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": collections.OrderedDict(
+                                    [
+                                        (
+                                            "m",
+                                            {
+                                                "type": "number",
+                                                "index": 0,
+                                                "binaryFormat": "L",
+                                            },
+                                        ),
+                                        (
+                                            "n",
+                                            {
+                                                "type": "string",
+                                                "index": -1000,
+                                                "binaryFormat": "10s",
+                                            },
+                                        ),
+                                        (
+                                            "l",
+                                            {
+                                                "type": "string",
+                                                "index": 1000,
+                                                "binaryFormat": "10s",
+                                            },
+                                        ),
+                                    ]
+                                ),
+                            },
+                        },
+                    ),
+                    ("c", {"type": "string", "binaryFormat": "10s"}),
+                    (
+                        "h",
+                        {
+                            "type": "object",
+                            "properties": collections.OrderedDict(
+                                [
+                                    (
+                                        "i",
+                                        {
+                                            "type": "string",
+                                            "index": 1000,
+                                            "binaryFormat": "10s",
+                                        },
+                                    ),
+                                    (
+                                        "j",
+                                        {
+                                            "type": "string",
+                                            "index": 567,
+                                            "binaryFormat": "10s",
+                                        },
+                                    ),
+                                    (
+                                        "k",
+                                        {
+                                            "type": "number",
+                                            "index": 567.5,
+                                            "binaryFormat": "L",
+                                        },
+                                    ),
+                                ]
+                            ),
+                        },
+                    ),
+                    ("e", {"type": "string", "binaryFormat": "10s"}),
+                    ("g", {"type": "string", "binaryFormat": "10s"}),
+                    ("b", {"type": "number", "binaryFormat": "L"}),
+                ]
+            ),
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        }
+        schema_sorted = {
+            "codec": "struct",
+            "title": "Example Struct-encoded Metadata",
+            "type": "object",
+            "properties": collections.OrderedDict(
+                [
+                    ("a", {"type": "string", "binaryFormat": "10s"}),
+                    ("b", {"type": "number", "binaryFormat": "L"}),
+                    ("c", {"type": "string", "binaryFormat": "10s"}),
+                    ("d", {"type": "number", "binaryFormat": "L"}),
+                    ("e", {"type": "string", "binaryFormat": "10s"}),
+                    (
+                        "f",
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": collections.OrderedDict(
+                                    [
+                                        (
+                                            "n",
+                                            {
+                                                "type": "string",
+                                                "index": -1000,
+                                                "binaryFormat": "10s",
+                                            },
+                                        ),
+                                        (
+                                            "m",
+                                            {
+                                                "type": "number",
+                                                "index": 0,
+                                                "binaryFormat": "L",
+                                            },
+                                        ),
+                                        (
+                                            "l",
+                                            {
+                                                "type": "string",
+                                                "index": 1000,
+                                                "binaryFormat": "10s",
+                                            },
+                                        ),
+                                    ]
+                                ),
+                            },
+                        },
+                    ),
+                    ("g", {"type": "string", "binaryFormat": "10s"}),
+                    (
+                        "h",
+                        {
+                            "type": "object",
+                            "properties": collections.OrderedDict(
+                                [
+                                    (
+                                        "j",
+                                        {
+                                            "type": "string",
+                                            "index": 567,
+                                            "binaryFormat": "10s",
+                                        },
+                                    ),
+                                    (
+                                        "k",
+                                        {
+                                            "type": "number",
+                                            "index": 567.5,
+                                            "binaryFormat": "L",
+                                        },
+                                    ),
+                                    (
+                                        "i",
+                                        {
+                                            "type": "string",
+                                            "index": 1000,
+                                            "binaryFormat": "10s",
+                                        },
+                                    ),
+                                ]
+                            ),
+                        },
+                    ),
+                ]
+            ),
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        }
+        self.assertDictEqual(metadata.StructCodec.order_by_index(schema), schema_sorted)
+
+    def test_make_encode_and_decode(self):
+        self.encode_decode(
+            "make",
+            {
+                "type": "array",
+                "arrayLengthFormat": "B",
+                "items": {"type": "number", "binaryFormat": "b"},
+            },
+            list(range(5)),
+            b"\x05\x00\x01\x02\x03\x04",
+        )
+        self.encode_decode(
+            "make",
+            {
+                "type": "object",
+                "properties": {
+                    "a": {"type": "number", "binaryFormat": "b"},
+                    "b": {"type": "string", "binaryFormat": "5p"},
+                },
+            },
+            {"a": 5, "b": "FOO"},
+            b"\x05\x03FOO\x00",
+        )
+        self.encode_decode(
+            "make",
+            {"type": "string", "binaryFormat": "10p"},
+            "FOOBAR",
+            b"\x06FOOBAR\x00\x00\x00",
+        )
+        self.encode_decode("make", {"type": "null"}, None, b"")
+        self.encode_decode(
+            "make", {"type": "boolean", "binaryFormat": "?"}, True, b"\x01"
+        )
+        self.encode_decode(
+            "make", {"type": "integer", "binaryFormat": "b"}, -128, b"\x80"
+        )
+        self.encode_decode(
+            "make",
+            {"type": "number", "binaryFormat": "f"},
+            42.424198150634766,
+            b"a\xb2)B",
+        )
+
+    def test_make_array_encode_and_decode(self):
+        # Default array length format is 'L'
+        self.encode_decode(
+            "make_array",
+            {"type": "array", "items": {"type": "number", "binaryFormat": "b"}},
+            list(range(5)),
+            b"\x05\x00\x00\x00\x00\x01\x02\x03\x04",
+        )
+        self.encode_decode(
+            "make_array",
+            {
+                "type": "array",
+                "arrayLengthFormat": "H",
+                "items": {"type": "number", "binaryFormat": "b"},
+            },
+            list(range(6)),
+            b"\x06\x00\x00\x01\x02\x03\x04\x05",
+        )
+        self.encode_decode(
+            "make_array",
+            {
+                "type": "array",
+                "arrayLengthFormat": "B",
+                "items": {"type": "number", "binaryFormat": "b"},
+            },
+            [],
+            b"\x00",
+        )
+        sub_schema = {
+            "type": "array",
+            "arrayLengthFormat": "B",
+            "items": {
+                "type": "array",
+                "arrayLengthFormat": "B",
+                "items": {"type": "number", "binaryFormat": "b"},
+            },
+        }
+        self.encode_decode("make_array", sub_schema, [], b"\x00")
+        self.encode_decode("make_array", sub_schema, [[]], b"\x01\x00")
+        self.encode_decode(
+            "make_array", sub_schema, [[3, 4], [5]], b"\x02\x02\x03\x04\x01\x05"
+        )
+
+    def test_make_array_no_length_encoding_exhaust_buffer(self):
+        self.encode_decode(
+            "make_array",
+            {
+                "type": "array",
+                "noLengthEncodingExhaustBuffer": True,
+                "items": {"type": "number", "binaryFormat": "b"},
+            },
+            list(range(5)),
+            b"\x00\x01\x02\x03\x04",
+        )
+
+        self.encode_decode(
+            "make_array",
+            {
+                "type": "array",
+                "noLengthEncodingExhaustBuffer": True,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "number", "binaryFormat": "b"},
+                        "b": {"type": "number", "binaryFormat": "Q"},
+                        "c": {"type": "number", "binaryFormat": "?"},
+                        "d": {"type": "string", "binaryFormat": "5p"},
+                    },
+                },
+            },
+            [
+                {
+                    "a": 5 + i,
+                    "b": 18446744073709551615 - i,
+                    "c": (i // 2) == 0,
+                    "d": "FOO",
+                }
+                for i in range(10)
+            ],
+            b"\x05\xff\xff\xff\xff\xff\xff\xff\xff\x01\x03FOO\x00"
+            b"\x06\xfe\xff\xff\xff\xff\xff\xff\xff\x01\x03FOO\x00"
+            b"\x07\xfd\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x08\xfc\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x09\xfb\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x0a\xfa\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x0b\xf9\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x0c\xf8\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x0d\xf7\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00"
+            b"\x0e\xf6\xff\xff\xff\xff\xff\xff\xff\x00\x03FOO\x00",
+        )
+
+        # Other struct errors should still be raised
+        schema = {
+            "type": "array",
+            "noLengthEncodingExhaustBuffer": True,
+            "items": {"type": "number", "binaryFormat": "I'M NOT VALID"},
+        }
+        with self.assertRaises(struct.error):
+            metadata.StructCodec.make_array_encode(schema)(5)
+        with self.assertRaises(struct.error):
+            metadata.StructCodec.make_array_decode(schema)(5)
+
+    def test_make_object_encode_and_decode(self):
+        self.encode_decode(
+            "make_object", {"type": "object", "properties": {}}, {}, b"",
+        )
+        self.encode_decode(
+            "make_object",
+            {
+                "type": "object",
+                "properties": {
+                    "a": {"type": "number", "binaryFormat": "b"},
+                    "b": {"type": "number", "binaryFormat": "Q"},
+                    "c": {"type": "number", "binaryFormat": "?"},
+                    "d": {"type": "string", "binaryFormat": "5p"},
+                },
+            },
+            {"a": 5, "b": 18446744073709551615, "c": True, "d": "FOO"},
+            b"\x05\xff\xff\xff\xff\xff\xff\xff\xff\x01\x03FOO\x00",
+        )
+        self.encode_decode(
+            "make_object",
+            {
+                "type": "object",
+                "properties": {
+                    "obj": {
+                        "type": "object",
+                        "properties": {
+                            "a": {"type": "number", "binaryFormat": "b"},
+                            "b": {"type": "number", "binaryFormat": "Q"},
+                            "c": {"type": "number", "binaryFormat": "?"},
+                            "d": {"type": "string", "binaryFormat": "5p"},
+                        },
+                    },
+                },
+            },
+            {"obj": {"a": 5, "b": 18446744073709551615, "c": True, "d": "FOO"}},
+            b"\x05\xff\xff\xff\xff\xff\xff\xff\xff\x01\x03FOO\x00",
+        )
+
+    def test_make_string_encode_and_decode(self):
+        # Single byte
+        self.encode_decode(
+            "make_string", {"type": "string", "binaryFormat": "c"}, "a", b"a"
+        )
+        # With "s" encoding exactly the right size comes back fine
+        self.encode_decode(
+            "make_string", {"type": "string", "binaryFormat": "4s"}, "abcd", b"abcd"
+        )
+        # If too small gets truncated
+        self.assertEqual(
+            metadata.StructCodec.make_string_encode(
+                {"type": "string", "binaryFormat": "2s"}
+            )("abcd"),
+            b"ab",
+        )
+        # If too large gets padded - have to test separately as encode and decode are not
+        # inverse of each other in this case
+        self.assertEqual(
+            metadata.StructCodec.make_string_encode(
+                {"type": "string", "binaryFormat": "6s"}
+            )("abcd"),
+            b"abcd\x00\x00",
+        )
+        # Too large getting decoded returns padding
+        self.assertEqual(
+            metadata.StructCodec.make_string_decode(
+                {"type": "string", "binaryFormat": "6s"}
+            )(b"abcd\x00\x00"),
+            "abcd\x00\x00",
+        )
+        self.assertEqual(
+            metadata.StructCodec.make_string_decode(
+                {"type": "string", "binaryFormat": "6s", "nullTerminated": False}
+            )(b"abcd\x00\x00"),
+            "abcd\x00\x00",
+        )
+        # Unless we specify that the field is null-teminated
+        self.encode_decode(
+            "make_string",
+            {"type": "string", "binaryFormat": "6s", "nullTerminated": True},
+            "abcd",
+            b"abcd\x00\x00",
+        )
+        # For "p" the padding is not returned, even if nullTerminated is False
+        self.encode_decode(
+            "make_string",
+            {"type": "string", "binaryFormat": "8p"},
+            "abcd",
+            b"\x04abcd\x00\x00\x00",
+        )
+
+        # Unicode
+        self.encode_decode(
+            "make_string",
+            {"type": "string", "binaryFormat": "6s", "nullTerminated": True},
+            "💩",
+            b"\xf0\x9f\x92\xa9\x00\x00",
+        )
+        self.encode_decode(
+            "make_string",
+            {
+                "type": "string",
+                "binaryFormat": "8s",
+                "nullTerminated": True,
+                "stringEncoding": "utf-16",
+            },
+            "💩",
+            b"\xff\xfe=\xd8\xa9\xdc\x00\x00",
+        )
+        self.encode_decode(
+            "make_string",
+            {"type": "string", "binaryFormat": "9p", "stringEncoding": "utf-32"},
+            "💩",
+            b"\x08\xff\xfe\x00\x00\xa9\xf4\x01\x00",
+        )
+
+    def test_make_null_encode_and_decode(self):
+        self.encode_decode("make_null", {"type": "null"}, None, b"")
+        self.encode_decode(
+            "make_null", {"type": "null", "binaryFormat": "x"}, None, b"\x00"
+        )
+        self.encode_decode(
+            "make_null", {"type": "null", "binaryFormat": "3x"}, None, b"\x00\x00\x00"
+        )
+
+    def test_make_numeric_encode_and_decode(self):
+        self.encode_decode(
+            "make_numeric",
+            {"type": "number", "binaryFormat": "f"},
+            42.424198150634766,
+            b"a\xb2)B",
+        )
+        self.encode_decode(
+            "make_numeric", {"type": "integer", "binaryFormat": "b"}, 42, b"*",
+        )
+
+
+class TestStructCodecRoundTrip(unittest.TestCase):
+    def round_trip(self, schema, row_data):
+        ms = metadata.MetadataSchema(schema)
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+
+    def test_simple_types(self):
+        schema = {"codec": "struct", "type": "number", "binaryFormat": "i"}
+        self.round_trip(schema, 5)
+        schema = {"codec": "struct", "type": "number", "binaryFormat": "d"}
+        self.round_trip(schema, 5.5)
+        schema = {"codec": "struct", "type": "string", "binaryFormat": "10p"}
+        self.round_trip(schema, "42")
+        schema = {"codec": "struct", "type": "boolean", "binaryFormat": "?"}
+        self.round_trip(schema, True)
+        schema = {"codec": "struct", "type": "null"}
+        self.round_trip(schema, None)
+        schema = {"codec": "struct", "type": "null", "binaryFormat": "10x"}
+        self.round_trip(schema, None)
+
+    def test_flat_object(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "i"},
+                "float": {"type": "number", "binaryFormat": "d"},
+                "null": {"type": "null", "binaryFormat": "3x"},
+                "str": {"type": "string", "binaryFormat": "10p"},
+                "bool": {"type": "boolean", "binaryFormat": "?"},
+            },
+        }
+        self.round_trip(
+            schema, {"null": None, "bool": True, "float": 5.5, "int": 5, "str": "42"}
+        )
+
+    def test_nested_object(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "i"},
+                "float": {"type": "number", "binaryFormat": "d"},
+                "str": {"type": "string", "binaryFormat": "10p"},
+                "bool": {"type": "boolean", "binaryFormat": "?"},
+                "obj": {
+                    "index": 5,
+                    "type": "object",
+                    "properties": {
+                        "int": {"type": "number", "binaryFormat": "i"},
+                        "float": {"type": "number", "binaryFormat": "d"},
+                        "str": {"type": "string", "binaryFormat": "5p"},
+                        "bool": {"type": "boolean", "binaryFormat": "?"},
+                    },
+                },
+            },
+        }
+        self.round_trip(
+            schema,
+            {
+                "bool": True,
+                "float": 5.5,
+                "int": 5,
+                "str": "42",
+                "obj": {"float": 5.78, "int": 9, "bool": False, "str": "41"},
+            },
+        )
+
+    def test_flat_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "items": {"type": "number", "binaryFormat": "i"},
+        }
+        self.round_trip(schema, [])
+        self.round_trip(schema, [1])
+        self.round_trip(schema, [1, 6, -900])
+
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "items": {"type": "number", "binaryFormat": "d"},
+        }
+        self.round_trip(schema, [])
+        self.round_trip(schema, [1.5])
+        self.round_trip(schema, [1.5, 6.7, -900.00001])
+
+    def test_nested_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "items": {
+                "type": "array",
+                "items": {"type": "number", "binaryFormat": "i"},
+            },
+        }
+        self.round_trip(schema, [[]])
+        self.round_trip(schema, [[]])
+        self.round_trip(schema, [[], []])
+        self.round_trip(schema, [[1]])
+        self.round_trip(schema, [[1, 6, -900]])
+        self.round_trip(schema, [[0, 987, 234903], [1, 6, -900]])
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "items": {
+                "type": "array",
+                "items": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        self.round_trip(schema, [[]])
+        self.round_trip(schema, [[]])
+        self.round_trip(schema, [[], []])
+        self.round_trip(schema, [[1.67]])
+        self.round_trip(schema, [[1.34, 6.56422, -900.0000006]])
+        self.round_trip(schema, [[0.0, 987.123, 234903.123], [1.1235, 6, -900]])
+
+    def test_array_of_objects(self):
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "int": {"type": "number", "binaryFormat": "i"},
+                    "float": {"type": "number", "binaryFormat": "d"},
+                    "padding": {"type": "null", "binaryFormat": "5x"},
+                    "str": {"type": "string", "binaryFormat": "10p"},
+                    "bool": {"type": "boolean", "binaryFormat": "?"},
+                },
+            },
+        }
+        self.round_trip(schema, [])
+        self.round_trip(
+            schema,
+            [{"padding": None, "float": 5.78, "int": 9, "bool": False, "str": "41"}],
+        )
+        self.round_trip(
+            schema,
+            [
+                {"padding": None, "float": 5.78, "int": 9, "bool": False, "str": "41"},
+                {"str": "FOO", "int": 7, "bool": True, "float": 45.7, "padding": None},
+            ],
+        )
+
+    def test_object_with_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "i"},
+                "arr": {
+                    "index": 2,
+                    "type": "array",
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        self.round_trip(schema, {"int": 5, "arr": []})
+        self.round_trip(schema, {"int": 5, "arr": [5]})
+        self.round_trip(schema, {"arr": [5, 6, 7], "int": 5})
+
+    def test_array_length_format(self):
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "arrayLengthFormat": "B",
+            "items": {"type": "number", "binaryFormat": "H"},
+        }
+        self.round_trip(schema, [])
+        self.round_trip(
+            schema, [1],
+        )
+        self.round_trip(
+            schema, list(range(255)),
+        )
+
+    def test_string_encoding(self):
+        schema = {
+            "codec": "struct",
+            "type": "string",
+            "stringEncoding": "utf-16",
+            "binaryFormat": "40p",
+        }
+        self.round_trip(schema, "Test string")
+
+    def test_ordering_of_fields(self):
+        row_data = {
+            "null": None,
+            "bool": True,
+            "float": -1.8440714901698642e18,
+            "int": 5,
+            "str": "foo",
+        }
+        alpha_ordered_encoded = b"\x01\xaa\xbb\xcc\xdd\x05\x00\x00\x00\x03foo"
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "null": {"type": "null", "binaryFormat": "3x"},
+                "float": {"type": "number", "binaryFormat": "f"},
+                "bool": {"type": "boolean", "binaryFormat": "?"},
+                "int": {"type": "number", "binaryFormat": "b"},
+                "str": {"type": "string", "binaryFormat": "4p"},
+            },
+        }
+        alpha_ordered_encoded = b"\x01\xaa\xbb\xcc\xdd\x05\x00\x00\x00\x03foo"
+        ms = metadata.MetadataSchema(schema)
+        self.assertEqual(ms.validate_and_encode_row(row_data), alpha_ordered_encoded)
+        self.assertDictEqual(ms.decode_row(alpha_ordered_encoded), row_data)
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "null": {"type": "null", "binaryFormat": "3x", "index": 0},
+                "float": {"type": "number", "binaryFormat": "f", "index": 1},
+                "bool": {"type": "boolean", "binaryFormat": "?", "index": 2},
+                "int": {"type": "number", "binaryFormat": "b", "index": 3},
+                "str": {"type": "string", "binaryFormat": "4p", "index": 4},
+            },
+        }
+        index_order_encoded = b"\x00\x00\x00\xaa\xbb\xcc\xdd\x01\x05\x03foo"
+        ms = metadata.MetadataSchema(schema)
+        self.assertEqual(ms.validate_and_encode_row(row_data), index_order_encoded)
+        self.assertDictEqual(ms.decode_row(index_order_encoded), row_data)
+
+
+class TestStructCodecErrors(unittest.TestCase):
+    def encode(self, schema, row_data):
+        ms = metadata.MetadataSchema(schema)
+        ms.validate_and_encode_row(row_data)
+
+    def test_missing_and_extra_property(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "i"},
+                "float": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataValidationError, "'int' is a required property"
+        ):
+            self.encode(schema, {"float": 5.5})
+        with self.assertRaisesRegex(
+            exceptions.MetadataValidationError, "Additional properties are not allowed"
+        ):
+            self.encode(
+                schema, {"float": 5.5, "int": 9, "extra": "I really shouldn't be here"}
+            )
+
+    def test_bad_schema_union_type(self):
+        schema = {"codec": "struct", "type": ["object", "number"], "binaryFormat": "d"}
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not one of"
+        ):
+            metadata.MetadataSchema(schema)
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"test": {"type": ["number", "string"], "binaryFormat": "d"}},
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not one of"
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_bad_schema_hetrogeneous_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "items": [{"type": "number"}, {"type": "string"}],
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not of type 'object'"
+        ):
+            metadata.MetadataSchema(schema)
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "hetro_array": {
+                    "type": "array",
+                    "items": [{"type": "string"}, {"type": "number"}],
+                }
+            },
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not of type 'object'"
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_bad_binary_format(self):
+        schema = {"codec": "struct", "type": "number", "binaryFormat": "int"}
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "does not match"
+        ):
+            metadata.MetadataSchema(schema)
+        # Can't specify endianness
+        schema = {"codec": "struct", "type": "number", "binaryFormat": ">b"}
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "does not match"
+        ):
+            metadata.MetadataSchema(schema)
+        schema = {"codec": "struct", "type": "null", "binaryFormat": "l"}
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError,
+            "null type binaryFormat must be padding",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_bad_array_length_format(self):
+        schema = {"codec": "struct", "type": "array", "arrayLengthFormat": "b"}
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "does not match",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_missing_binary_format(self):
+        schema = {
+            "codec": "struct",
+            "type": "number",
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError,
+            "number type must have binaryFormat set",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_bad_string_encoding(self):
+        schema = {
+            "codec": "struct",
+            "type": "string",
+            "binaryFormat": "5s",
+            "stringEncoding": 58,
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not of type",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_bad_null_terminated(self):
+        schema = {
+            "codec": "struct",
+            "type": "string",
+            "binaryFormat": "5s",
+            "nullTerminated": 58,
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not of type",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_bad_no_length_encoding_exhaust_buffer(self):
+        schema = {
+            "codec": "struct",
+            "type": "string",
+            "binaryFormat": "5s",
+            "noLengthEncodingExhaustBuffer": 58,
+        }
+        with self.assertRaisesRegex(
+            exceptions.MetadataSchemaValidationError, "is not of type",
+        ):
+            metadata.MetadataSchema(schema)
+
+
+class TestSLiMDecoding(unittest.TestCase):
+    """
+    Test with byte strings copied from a SLiM tree sequence
+    """
+
+    def test_node(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "genomeID": {"type": "integer", "binaryFormat": "q", "index": 0},
+                "isNull": {"type": "boolean", "binaryFormat": "?", "index": 1},
+                "genomeType": {"type": "integer", "binaryFormat": "B", "index": 2},
+            },
+        }
+        for example, expected in [
+            (
+                b"E,\x00\x00\x00\x00\x00\x00\x00\x01",
+                {"genomeID": 11333, "genomeType": 1, "isNull": False},
+            ),
+            (
+                b"\xdd.\x00\x00\x00\x00\x00\x00\x01\x00",
+                {"genomeID": 11997, "genomeType": 0, "isNull": True},
+            ),
+        ]:
+            self.assertDictEqual(
+                metadata.MetadataSchema(schema).decode_row(example), expected
+            )
+
+    def test_individual(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "pedigreeID": {"type": "integer", "binaryFormat": "q", "index": 1},
+                "age": {"type": "integer", "binaryFormat": "i", "index": 2},
+                "subpopulationID": {"type": "integer", "binaryFormat": "i", "index": 3},
+                "sex": {"type": "integer", "binaryFormat": "i", "index": 4},
+                "flags": {"type": "integer", "binaryFormat": "I", "index": 5},
+            },
+        }
+        for example, expected in [
+            (
+                b"\x17\x99\x07\x00\x00\x00\x00\x00\x05\x00\x01\x00\x03\x00\x00\x00\x01"
+                b"\x00\x00\x00\x00\x10\x00\x00",
+                {
+                    "age": 65541,
+                    "flags": 4096,
+                    "pedigreeID": 497943,
+                    "sex": 1,
+                    "subpopulationID": 3,
+                },
+            ),
+            (
+                b"\x18\x99\x07\x00\x00\x00\x00\x00\x05\x00\x00\x00\x01\x00\x00\x00\x01"
+                b"\x00\x00\x00\x00\x00\x00\x00",
+                {
+                    "age": 5,
+                    "flags": 0,
+                    "pedigreeID": 497944,
+                    "sex": 1,
+                    "subpopulationID": 1,
+                },
+            ),
+        ]:
+            self.assertDictEqual(
+                metadata.MetadataSchema(schema).decode_row(example), expected
+            )
+
+    def test_mutation(self):
+        schema = {
+            "codec": "struct",
+            "type": "array",
+            "noLengthEncodingExhaustBuffer": True,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "mutationTypeID": {
+                        "type": "integer",
+                        "binaryFormat": "i",
+                        "index": 1,
+                    },
+                    "selectionCoeff": {
+                        "type": "number",
+                        "binaryFormat": "f",
+                        "index": 2,
+                    },
+                    "subpopulationID": {
+                        "type": "integer",
+                        "binaryFormat": "i",
+                        "index": 3,
+                    },
+                    "originGeneration": {
+                        "type": "integer",
+                        "binaryFormat": "i",
+                        "index": 4,
+                    },
+                    "nucleotide": {"type": "integer", "binaryFormat": "b", "index": 5},
+                },
+            },
+        }
+
+        for example, expected in [
+            (
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\xd8\x03\x00\x00\xff",
+                [
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 984,
+                        "nucleotide": -1,
+                    }
+                ],
+            ),
+            (
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\xc8\x03\x00\x00\xff"
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x94\x01\x00\x00\xff",
+                [
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 968,
+                        "nucleotide": -1,
+                    },
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 404,
+                        "nucleotide": -1,
+                    },
+                ],
+            ),
+            (
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\xd1\x03\x00\x00\xff"
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\xb1\x02\x00\x00\xff"
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\xdf\x01\x00\x00\xff"
+                b"\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\xbc\x00\x00\x00\xff",
+                [
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 977,
+                        "nucleotide": -1,
+                    },
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 689,
+                        "nucleotide": -1,
+                    },
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 479,
+                        "nucleotide": -1,
+                    },
+                    {
+                        "mutationTypeID": 1,
+                        "selectionCoeff": 0.0,
+                        "subpopulationID": 1,
+                        "originGeneration": 188,
+                        "nucleotide": -1,
+                    },
+                ],
+            ),
+        ]:
+            self.assertEqual(
+                metadata.MetadataSchema(schema).decode_row(example), expected
+            )
+
+    def test_population(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "subpopulationID": {"type": "integer", "binaryFormat": "i", "index": 0},
+                "femaleCloneFraction": {
+                    "type": "number",
+                    "binaryFormat": "d",
+                    "index": 1,
+                },
+                "maleCloneFraction": {
+                    "type": "number",
+                    "binaryFormat": "d",
+                    "index": 2,
+                },
+                "sexRatio": {"type": "number", "binaryFormat": "d", "index": 3},
+                "boundsX0": {"type": "number", "binaryFormat": "d", "index": 4},
+                "boundsX1": {"type": "number", "binaryFormat": "d", "index": 5},
+                "boundsY0": {"type": "number", "binaryFormat": "d", "index": 6},
+                "boundsY1": {"type": "number", "binaryFormat": "d", "index": 7},
+                "boundsZ0": {"type": "number", "binaryFormat": "d", "index": 8},
+                "boundsZ1": {"type": "number", "binaryFormat": "d", "index": 9},
+                "migrationRecCount": {
+                    "type": "integer",
+                    "binaryFormat": "d",
+                    "index": 10,
+                },
+            },
+        }
+        example = (
+            b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            b"\x00\x00\xe0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            b"\x00\xf0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            b"\xf0?\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0"
+            b"?\x00\x00\x00\x00"
+        )
+        expected = {
+            "boundsX0": 0.5,
+            "boundsX1": 0.0,
+            "boundsY0": 1.0,
+            "boundsY1": 0.0,
+            "boundsZ0": 1.0,
+            "boundsZ1": 0.0,
+            "femaleCloneFraction": 0.0,
+            "maleCloneFraction": 0.0,
+            "migrationRecCount": 1.0,
+            "sexRatio": 0.0,
+            "subpopulationID": 1,
+        }
+        self.assertDictEqual(
+            metadata.MetadataSchema(schema).decode_row(example), expected
+        )
