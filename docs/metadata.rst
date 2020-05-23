@@ -19,11 +19,10 @@ is in the form of a
 `JSON Schema <http://json-schema.org/>`_. A good to guide to creating JSON Schemas is at
 `Understanding JSON Schema <https://json-schema.org/understanding-json-schema/>`_.
 
-In the most common case where the metadata schema specifies an object with properties,
+The metadata schema must specify an object with properties,
 the keys and types of those properties are specified along with optional
-long-form names, descriptions
-and validations such as min/max or regex matching for strings. See
-:ref:`sec_metadata_example` below. Names and descriptions can assist
+long-form names, descriptions and validations such as min/max or regex matching for
+strings. See :ref:`sec_metadata_example` below. Names and descriptions can assist
 downstream users in understanding and using the metadata. It is best practise to
 populate these fields if your files will be used by any third-party, or if you wish to
 remember what they were some time after making the file!
