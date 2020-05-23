@@ -30,6 +30,7 @@ import concurrent.futures
 import functools
 import itertools
 import json
+import math
 import textwrap
 import warnings
 from typing import Any
@@ -2045,7 +2046,16 @@ class Tree:
                 )
             root = self.root
         if node_labels is None:
-            s = self._ll_tree.get_newick(precision=precision, root=root)
+            # This should be a safe over-estimate.
+            root_time = max(1, self.time(root))
+            max_label_size = math.ceil(math.log10(self.tree_sequence.num_nodes))
+            single_node_size = (
+                3 + max_label_size + math.ceil(math.log10(root_time)) + precision
+            )
+            buffer_size = single_node_size * self.num_nodes
+            s = self._ll_tree.get_newick(
+                precision=precision, root=root, buffer_size=buffer_size
+            )
             s = s.decode()
         else:
             return self.__build_newick(root, precision, node_labels) + ";"

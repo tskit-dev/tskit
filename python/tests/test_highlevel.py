@@ -1887,6 +1887,18 @@ class TestTree(HighLevelTestCase):
             for tree in ts.trees():
                 self.verify_newick(tree)
 
+    def test_newick_large_times(self):
+        for n in [2, 10, 20, 100]:
+            ts = msprime.simulate(n, Ne=100e6, random_seed=1)
+            tree = ts.first()
+            for precision in [0, 1, 16]:
+                newick_py = tree.newick(
+                    node_labels={u: str(u + 1) for u in ts.samples()},
+                    precision=precision,
+                )
+                newick_c = tree.newick(precision=precision)
+                self.assertEqual(newick_c, newick_py)
+
     def test_as_dict_of_dicts(self):
         for ts in get_example_tree_sequences():
             tree = next(ts.trees())

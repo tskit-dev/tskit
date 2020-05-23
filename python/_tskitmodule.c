@@ -3659,7 +3659,7 @@ MigrationTable_add_row(MigrationTable *self, PyObject *args, PyObject *kwds)
     PyObject *py_metadata = Py_None;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
-    static char *kwlist[] = {"left", "right", "node", "source", "dest", 
+    static char *kwlist[] = {"left", "right", "node", "source", "dest",
         "time", "metadata", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddiiid|O", kwlist,
@@ -9017,34 +9017,35 @@ static PyObject *
 Tree_get_newick(Tree *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = {"root", "precision", NULL};
+    static char *kwlist[] = {"root", "precision", "buffer_size", NULL};
     int precision = 14;
+    /* We have a default bufsize for convenience, but the high-level code
+     * should set this by computing an upper bound. */
+    Py_ssize_t buffer_size = 1024;
     int root, err;
-    size_t buffer_size;
     char *buffer = NULL;
 
     if (Tree_check_tree(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|i", kwlist, &root, &precision)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|in", kwlist, &root, &precision,
+                &buffer_size)) {
         goto out;
     }
     if (precision < 0 || precision > 16) {
         PyErr_SetString(PyExc_ValueError, "Precision must be between 0 and 16, inclusive");
         goto out;
     }
-    buffer_size = tsk_treeseq_get_num_nodes(self->tree->tree_sequence);
-    /* For every node, we have roughly precision bytes, plus bracketing and leading values.
-     * This is a rough guess, so add 10 just to be on the safe side. We might need
-     * to be more precise with this though if we have large time values.
-     */
-    buffer_size *= precision + 10;
+    if (buffer_size <= 0) {
+        PyErr_SetString(PyExc_ValueError, "Buffer size must be > 0");
+        goto out;
+    }
     buffer = PyMem_Malloc(buffer_size);
     if (buffer == NULL) {
         PyErr_NoMemory();
     }
     err = tsk_convert_newick(self->tree, (tsk_id_t) root, precision, 0,
-            buffer_size, buffer);
+            (size_t) buffer_size, buffer);
     if (err != 0) {
         handle_library_error(err);
         goto out;

@@ -83,6 +83,9 @@ In development
 
 **Bugfixes**
 
+- :issue:`453` - Fix LibraryError when ``tree.newick()`` is called with large node time
+  values (:user:`jeromekelleher`, :pr:`637`).
+
 **Deprecated**
 
 - The ``sample_counts`` feature has been deprecated and is now
