@@ -39,6 +39,7 @@ import attr
 import numpy as np
 
 import _tskit
+import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
 import tskit.exceptions as exceptions
 import tskit.formats as formats
@@ -801,6 +802,36 @@ class Tree:
         self.first()
         while self.interval[1] <= position:
             self.next()
+
+    def rank(self):
+        """
+        Produce the rank of this tree in the enumeration of all leaf-labelled
+        trees of n leaves. See the :ref:`sec_combinatorics` section for
+        details on ranking and unranking trees.
+
+        :rtype: tuple(int)
+        :raises ValueError: If the tree has multiple roots.
+        """
+        return combinatorics.RankTree.from_tsk_tree(self).rank()
+
+    @staticmethod
+    def unrank(rank, num_leaves):
+        """
+        Reconstruct the tree of the given ``rank``
+        (see :func: `tskit.Tree.rank`) with ``num_leaves`` leaves.
+        The labels and times of internal nodes are chosen arbitrarily, and
+        the time of each leaf is 0.
+
+        See the :ref:`sec_combinatorics` section for details on ranking and
+        unranking trees and what constitutes valid ranks.
+
+        :param tuple(int) rank: The rank of the tree to generate.
+        :param int num_leaves: The number of leaves of the tree to generate.
+        :rtype: Tree
+        :raises: ValueError: If the given rank is out of bounds for trees
+            with ``num_leaves`` leaves.
+        """
+        return combinatorics.RankTree.unrank(rank, num_leaves).to_tsk_tree()
 
     def get_branch_length(self, u):
         # Deprecated alias for branch_length

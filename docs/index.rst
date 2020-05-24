@@ -18,6 +18,7 @@ Welcome to tskit's documentation!
    cli
    data-model
    metadata
+   combinatorics
    provenance
    development
    tutorial
