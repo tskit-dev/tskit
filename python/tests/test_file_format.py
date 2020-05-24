@@ -40,7 +40,7 @@ import tskit.exceptions as exceptions
 
 
 CURRENT_FILE_MAJOR = 12
-CURRENT_FILE_MINOR = 1
+CURRENT_FILE_MINOR = 2
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -496,6 +496,8 @@ class TestDumpFormat(TestFileFormat):
             "individuals/metadata",
             "individuals/metadata_offset",
             "individuals/metadata_schema",
+            "metadata",
+            "metadata_schema",
             "migrations/dest",
             "migrations/left",
             "migrations/metadata",
@@ -825,8 +827,8 @@ class TestFileFormatErrors(TestFileFormat):
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
         for key in all_data.keys():
-            # We skip this key as it is optional
-            if "metadata_schema" not in key:
+            # We skip these keys as they are optional
+            if "metadata_schema" not in key and key != "metadata":
                 data = dict(all_data)
                 del data[key]
                 kastore.dump(data, self.temp_file)

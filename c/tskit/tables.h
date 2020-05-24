@@ -558,6 +558,12 @@ typedef struct {
     /** @brief The sequence length defining the tree sequence's coordinate space */
     double sequence_length;
     char *file_uuid;
+    /** @brief The tree-sequence metadata */
+    char *metadata;
+    tsk_size_t metadata_length;
+    /** @brief The metadata schema */
+    char *metadata_schema;
+    tsk_size_t metadata_schema_length;
     /** @brief The individual table */
     tsk_individual_table_t individuals;
     /** @brief The node table */
@@ -2315,6 +2321,32 @@ completes.
 */
 int tsk_table_collection_simplify(tsk_table_collection_t *self, tsk_id_t *samples,
     tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
+
+/**
+@brief Set the metadata
+@rst
+Copies the metadata string to this table collection, replacing any existing.
+@endrst
+@param self A pointer to a tsk_table_collection_t object.
+@param metadata A pointer to a char array
+@param metadata_length The size of the metadata in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_set_metadata(
+    tsk_table_collection_t *self, const char *metadata, tsk_size_t metadata_length);
+
+/**
+@brief Set the metadata schema
+@rst
+Copies the metadata schema string to this table collection, replacing any existing.
+@endrst
+@param self A pointer to a tsk_table_collection_t object.
+@param metadata_schema A pointer to a char array
+@param metadata_schema_length The size of the metadata schema in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @brief Returns true if this table collection is indexed.

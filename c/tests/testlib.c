@@ -535,6 +535,8 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     const char *metadata[] = { "This", "is", "some", "metadata" };
     const int num_metadatas = sizeof(metadata) / sizeof(*metadata);
     const char *metadata_schema = "mock metadata schema";
+    const char *ts_metadata = "This is a caterpillar tree";
+    const char *ts_metadata_schema = "The metadata is an example";
     const char *prov_timestamp = "a timestamp, should be ISO8601";
     const char *prov_record = "Produced by caterpillar_tree for testing purposes";
 
@@ -545,6 +547,10 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     CU_ASSERT_FATAL(num_sites > 0 && num_mutations < n - 1);
 
     tables.sequence_length = 1.0;
+
+    tsk_table_collection_set_metadata(&tables, ts_metadata, strlen(ts_metadata));
+    tsk_table_collection_set_metadata_schema(
+        &tables, ts_metadata_schema, strlen(ts_metadata_schema));
     tsk_population_table_set_metadata_schema(
         &tables.populations, metadata_schema, strlen(metadata_schema));
     tsk_individual_table_set_metadata_schema(

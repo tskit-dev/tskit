@@ -467,6 +467,30 @@ tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
 
 /* Simple attribute getters */
 
+char *
+tsk_treeseq_get_metadata(tsk_treeseq_t *self)
+{
+    return self->tables->metadata;
+}
+
+tsk_size_t
+tsk_treeseq_get_metadata_length(tsk_treeseq_t *self)
+{
+    return self->tables->metadata_length;
+}
+
+char *
+tsk_treeseq_get_metadata_schema(tsk_treeseq_t *self)
+{
+    return self->tables->metadata_schema;
+}
+
+tsk_size_t
+tsk_treeseq_get_metadata_schema_length(tsk_treeseq_t *self)
+{
+    return self->tables->metadata_schema_length;
+}
+
 double
 tsk_treeseq_get_sequence_length(tsk_treeseq_t *self)
 {

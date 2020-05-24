@@ -5607,6 +5607,49 @@ test_sample_counts_deprecated(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_tree_sequence_metadata(void)
+{
+    int ret;
+    tsk_table_collection_t tc;
+    tsk_treeseq_t ts;
+
+    char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
+    char example_metadata_schema[100]
+        = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
+    tsk_size_t example_metadata_schema_length
+        = (tsk_size_t) strlen(example_metadata_schema);
+
+    ret = tsk_table_collection_init(&tc, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tc.sequence_length = 1.0;
+    ret = tsk_table_collection_build_index(&tc, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_metadata(
+        &tc, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_init(&ts, &tc, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_metadata_length(&ts), example_metadata_length);
+    CU_ASSERT_EQUAL(
+        tsk_treeseq_get_metadata_schema_length(&ts), example_metadata_schema_length);
+    CU_ASSERT_EQUAL(
+        memcmp(tsk_treeseq_get_metadata(&ts), example_metadata, example_metadata_length),
+        0);
+    CU_ASSERT_EQUAL(memcmp(tsk_treeseq_get_metadata_schema(&ts), example_metadata_schema,
+                        example_metadata_schema_length),
+        0);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tc);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -5747,6 +5790,7 @@ main(int argc, char **argv)
         { "test_empty_tree_sequence", test_empty_tree_sequence },
         { "test_zero_edges", test_zero_edges },
         { "test_sample_counts_deprecated", test_sample_counts_deprecated },
+        { "test_tree_sequence_metadata", test_tree_sequence_metadata },
 
         { NULL, NULL },
     };

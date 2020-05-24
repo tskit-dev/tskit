@@ -613,7 +613,8 @@ test_metadata_schemas_optional(void)
     tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
     tsk_table_collection_t t1, t2;
     const char *cols[] = {
-        /* "metadata_schema", FIXME - add when table collection gets this */
+        "metadata",
+        "metadata_schema",
         "individuals/metadata_schema",
         "populations/metadata_schema",
         "nodes/metadata_schema",
