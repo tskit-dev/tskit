@@ -105,17 +105,7 @@
         "required": {"$ref": "#/definitions/stringArray"},
         "then": {"$ref": "#/definitions/root"},
         "title": {"type": "string"},
-        "type": {
-          "anyOf": [
-            {"$ref": "#/definitions/simpleTypes"},
-            {
-              "items": {"$ref": "#/definitions/simpleTypes"},
-              "minItems": 1,
-              "type": "array",
-              "uniqueItems": true,
-            },
-          ]
-        },
+        "type": {"enum": ["object"]},
         "uniqueItems": {"default": false, "type": "boolean"},
       },
       "title": "Core schema meta-schema",

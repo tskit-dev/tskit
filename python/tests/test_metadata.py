@@ -344,6 +344,15 @@ class TestMetadataModule(unittest.TestCase):
         with self.assertRaises(ValueError):
             metadata.parse_metadata_schema(json.dumps({"codec": "json"})[:-1])
 
+    def test_bad_top_level_type(self):
+        for bad_type in ["array", "boolean", "integer", "null", "number", "string"]:
+            schema = {
+                "codec": "json",
+                "type": bad_type,
+            }
+            with self.assertRaises(exceptions.MetadataSchemaValidationError):
+                metadata.MetadataSchema(schema)
+
     def test_null_codec(self):
         ms = metadata.MetadataSchema(None)
         self.assertEqual(str(ms), "")
@@ -884,18 +893,27 @@ class TestStructCodecRoundTrip(unittest.TestCase):
         self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
 
     def test_simple_types(self):
-        schema = {"codec": "struct", "type": "number", "binaryFormat": "i"}
-        self.round_trip(schema, 5)
-        schema = {"codec": "struct", "type": "number", "binaryFormat": "d"}
-        self.round_trip(schema, 5.5)
-        schema = {"codec": "struct", "type": "string", "binaryFormat": "10p"}
-        self.round_trip(schema, "42")
-        schema = {"codec": "struct", "type": "boolean", "binaryFormat": "?"}
-        self.round_trip(schema, True)
-        schema = {"codec": "struct", "type": "null"}
-        self.round_trip(schema, None)
-        schema = {"codec": "struct", "type": "null", "binaryFormat": "10x"}
-        self.round_trip(schema, None)
+        for type_, binaryFormat, value in (
+            ("number", "i", 5),
+            ("number", "d", 5.5),
+            ("string", "10p", "foobar"),
+            ("boolean", "?", True),
+            ("boolean", "?", False),
+            ("null", "10x", None),
+        ):
+            schema = {
+                "codec": "struct",
+                "type": "object",
+                "properties": {type_: {"type": type_, "binaryFormat": binaryFormat}},
+            }
+            self.round_trip(schema, {type_: value})
+
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"null": {"type": "null"}},
+        }
+        self.round_trip(schema, {"null": None})
 
     def test_flat_object(self):
         schema = {
@@ -948,78 +966,127 @@ class TestStructCodecRoundTrip(unittest.TestCase):
     def test_flat_array(self):
         schema = {
             "codec": "struct",
-            "type": "array",
-            "items": {"type": "number", "binaryFormat": "i"},
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {"type": "number", "binaryFormat": "i"},
+                }
+            },
         }
-        self.round_trip(schema, [])
-        self.round_trip(schema, [1])
-        self.round_trip(schema, [1, 6, -900])
+        self.round_trip(schema, {"array": []})
+        self.round_trip(schema, {"array": [1]})
+        self.round_trip(schema, {"array": [1, 6, -900]})
 
         schema = {
             "codec": "struct",
-            "type": "array",
-            "items": {"type": "number", "binaryFormat": "d"},
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {"type": "number", "binaryFormat": "d"},
+                }
+            },
         }
-        self.round_trip(schema, [])
-        self.round_trip(schema, [1.5])
-        self.round_trip(schema, [1.5, 6.7, -900.00001])
+        self.round_trip(schema, {"array": []})
+        self.round_trip(schema, {"array": [1.5]})
+        self.round_trip(schema, {"array": [1.5, 6.7, -900.00001]})
 
     def test_nested_array(self):
         schema = {
             "codec": "struct",
-            "type": "array",
-            "items": {
-                "type": "array",
-                "items": {"type": "number", "binaryFormat": "i"},
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {"type": "number", "binaryFormat": "i"},
+                    },
+                }
             },
         }
-        self.round_trip(schema, [[]])
-        self.round_trip(schema, [[]])
-        self.round_trip(schema, [[], []])
-        self.round_trip(schema, [[1]])
-        self.round_trip(schema, [[1, 6, -900]])
-        self.round_trip(schema, [[0, 987, 234903], [1, 6, -900]])
+        self.round_trip(schema, {"array": [[]]})
+        self.round_trip(schema, {"array": [[], []]})
+        self.round_trip(schema, {"array": [[1]]})
+        self.round_trip(schema, {"array": [[1, 6, -900]]})
+        self.round_trip(schema, {"array": [[0, 987, 234903], [1, 6, -900]]})
         schema = {
             "codec": "struct",
-            "type": "array",
-            "items": {
-                "type": "array",
-                "items": {"type": "number", "binaryFormat": "d"},
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {"type": "number", "binaryFormat": "d"},
+                    },
+                }
             },
         }
-        self.round_trip(schema, [[]])
-        self.round_trip(schema, [[]])
-        self.round_trip(schema, [[], []])
-        self.round_trip(schema, [[1.67]])
-        self.round_trip(schema, [[1.34, 6.56422, -900.0000006]])
-        self.round_trip(schema, [[0.0, 987.123, 234903.123], [1.1235, 6, -900]])
+        self.round_trip(schema, {"array": [[]]})
+        self.round_trip(schema, {"array": [[], []]})
+        self.round_trip(schema, {"array": [[1.67]]})
+        self.round_trip(schema, {"array": [[1.34, 6.56422, -900.0000006]]})
+        self.round_trip(
+            schema, {"array": [[0.0, 987.123, 234903.123], [1.1235, 6, -900]]}
+        )
 
     def test_array_of_objects(self):
         schema = {
             "codec": "struct",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "int": {"type": "number", "binaryFormat": "i"},
-                    "float": {"type": "number", "binaryFormat": "d"},
-                    "padding": {"type": "null", "binaryFormat": "5x"},
-                    "str": {"type": "string", "binaryFormat": "10p"},
-                    "bool": {"type": "boolean", "binaryFormat": "?"},
-                },
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "int": {"type": "number", "binaryFormat": "i"},
+                            "float": {"type": "number", "binaryFormat": "d"},
+                            "padding": {"type": "null", "binaryFormat": "5x"},
+                            "str": {"type": "string", "binaryFormat": "10p"},
+                            "bool": {"type": "boolean", "binaryFormat": "?"},
+                        },
+                    },
+                }
             },
         }
-        self.round_trip(schema, [])
+        self.round_trip(schema, {"array": []})
         self.round_trip(
             schema,
-            [{"padding": None, "float": 5.78, "int": 9, "bool": False, "str": "41"}],
+            {
+                "array": [
+                    {
+                        "padding": None,
+                        "float": 5.78,
+                        "int": 9,
+                        "bool": False,
+                        "str": "41",
+                    }
+                ]
+            },
         )
         self.round_trip(
             schema,
-            [
-                {"padding": None, "float": 5.78, "int": 9, "bool": False, "str": "41"},
-                {"str": "FOO", "int": 7, "bool": True, "float": 45.7, "padding": None},
-            ],
+            {
+                "array": [
+                    {
+                        "padding": None,
+                        "float": 5.78,
+                        "int": 9,
+                        "bool": False,
+                        "str": "41",
+                    },
+                    {
+                        "str": "FOO",
+                        "int": 7,
+                        "bool": True,
+                        "float": 45.7,
+                        "padding": None,
+                    },
+                ],
+            },
         )
 
     def test_object_with_array(self):
@@ -1042,26 +1109,36 @@ class TestStructCodecRoundTrip(unittest.TestCase):
     def test_array_length_format(self):
         schema = {
             "codec": "struct",
-            "type": "array",
-            "arrayLengthFormat": "B",
-            "items": {"type": "number", "binaryFormat": "H"},
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "arrayLengthFormat": "B",
+                    "items": {"type": "number", "binaryFormat": "H"},
+                }
+            },
         }
-        self.round_trip(schema, [])
+        self.round_trip(schema, {"array": []})
         self.round_trip(
-            schema, [1],
+            schema, {"array": [1]},
         )
         self.round_trip(
-            schema, list(range(255)),
+            schema, {"array": list(range(255))},
         )
 
     def test_string_encoding(self):
         schema = {
             "codec": "struct",
-            "type": "string",
-            "stringEncoding": "utf-16",
-            "binaryFormat": "40p",
+            "type": "object",
+            "properties": {
+                "string": {
+                    "type": "string",
+                    "stringEncoding": "utf-16",
+                    "binaryFormat": "40p",
+                }
+            },
         }
-        self.round_trip(schema, "Test string")
+        self.round_trip(schema, {"string": "Test string"})
 
     def test_ordering_of_fields(self):
         row_data = {
@@ -1148,20 +1225,11 @@ class TestStructCodecErrors(unittest.TestCase):
     def test_bad_schema_hetrogeneous_array(self):
         schema = {
             "codec": "struct",
-            "type": "array",
-            "items": [{"type": "number"}, {"type": "string"}],
-        }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type 'object'"
-        ):
-            metadata.MetadataSchema(schema)
-        schema = {
-            "codec": "struct",
             "type": "object",
             "properties": {
-                "hetro_array": {
+                "array": {
                     "type": "array",
-                    "items": [{"type": "string"}, {"type": "number"}],
+                    "items": [{"type": "number"}, {"type": "string"}],
                 }
             },
         }
@@ -1171,18 +1239,30 @@ class TestStructCodecErrors(unittest.TestCase):
             metadata.MetadataSchema(schema)
 
     def test_bad_binary_format(self):
-        schema = {"codec": "struct", "type": "number", "binaryFormat": "int"}
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"int": {"type": "number", "binaryFormat": "int"}},
+        }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError, "does not match"
         ):
             metadata.MetadataSchema(schema)
         # Can't specify endianness
-        schema = {"codec": "struct", "type": "number", "binaryFormat": ">b"}
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"int": {"type": "number", "binaryFormat": ">b"}},
+        }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError, "does not match"
         ):
             metadata.MetadataSchema(schema)
-        schema = {"codec": "struct", "type": "null", "binaryFormat": "l"}
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"null": {"type": "null", "binaryFormat": "l"}},
+        }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError,
             "null type binaryFormat must be padding",
@@ -1190,7 +1270,11 @@ class TestStructCodecErrors(unittest.TestCase):
             metadata.MetadataSchema(schema)
 
     def test_bad_array_length_format(self):
-        schema = {"codec": "struct", "type": "array", "arrayLengthFormat": "b"}
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"array": {"type": "array", "arrayLengthFormat": "b"}},
+        }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError, "does not match",
         ):
@@ -1199,7 +1283,8 @@ class TestStructCodecErrors(unittest.TestCase):
     def test_missing_binary_format(self):
         schema = {
             "codec": "struct",
-            "type": "number",
+            "type": "object",
+            "properties": {"int": {"type": "number"}},
         }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError,
@@ -1210,9 +1295,14 @@ class TestStructCodecErrors(unittest.TestCase):
     def test_bad_string_encoding(self):
         schema = {
             "codec": "struct",
-            "type": "string",
-            "binaryFormat": "5s",
-            "stringEncoding": 58,
+            "type": "object",
+            "properties": {
+                "string": {
+                    "type": "string",
+                    "binaryFormat": "5s",
+                    "stringEncoding": 58,
+                }
+            },
         }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError, "is not of type",
@@ -1222,9 +1312,14 @@ class TestStructCodecErrors(unittest.TestCase):
     def test_bad_null_terminated(self):
         schema = {
             "codec": "struct",
-            "type": "string",
-            "binaryFormat": "5s",
-            "nullTerminated": 58,
+            "type": "object",
+            "properties": {
+                "string": {
+                    "type": "string",
+                    "binaryFormat": "5s",
+                    "nullTerminated": 58,
+                }
+            },
         }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError, "is not of type",
@@ -1234,9 +1329,14 @@ class TestStructCodecErrors(unittest.TestCase):
     def test_bad_no_length_encoding_exhaust_buffer(self):
         schema = {
             "codec": "struct",
-            "type": "string",
-            "binaryFormat": "5s",
-            "noLengthEncodingExhaustBuffer": 58,
+            "type": "object",
+            "properties": {
+                "string": {
+                    "type": "string",
+                    "binaryFormat": "5s",
+                    "noLengthEncodingExhaustBuffer": 58,
+                }
+            },
         }
         with self.assertRaisesRegex(
             exceptions.MetadataSchemaValidationError, "is not of type",
@@ -1280,7 +1380,11 @@ class TestSLiMDecoding(unittest.TestCase):
             "properties": {
                 "pedigreeID": {"type": "integer", "binaryFormat": "q", "index": 1},
                 "age": {"type": "integer", "binaryFormat": "i", "index": 2},
-                "subpopulationID": {"type": "integer", "binaryFormat": "i", "index": 3},
+                "subpopulationID": {
+                    "type": "integer",
+                    "binaryFormat": "i",
+                    "index": 3,
+                },
                 "sex": {"type": "integer", "binaryFormat": "i", "index": 4},
                 "flags": {"type": "integer", "binaryFormat": "I", "index": 5},
             },
@@ -1316,33 +1420,42 @@ class TestSLiMDecoding(unittest.TestCase):
     def test_mutation(self):
         schema = {
             "codec": "struct",
-            "type": "array",
-            "noLengthEncodingExhaustBuffer": True,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "mutationTypeID": {
-                        "type": "integer",
-                        "binaryFormat": "i",
-                        "index": 1,
+            "type": "object",
+            "properties": {
+                "stacked_mutation_array": {
+                    "type": "array",
+                    "noLengthEncodingExhaustBuffer": True,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "mutationTypeID": {
+                                "type": "integer",
+                                "binaryFormat": "i",
+                                "index": 1,
+                            },
+                            "selectionCoeff": {
+                                "type": "number",
+                                "binaryFormat": "f",
+                                "index": 2,
+                            },
+                            "subpopulationID": {
+                                "type": "integer",
+                                "binaryFormat": "i",
+                                "index": 3,
+                            },
+                            "originGeneration": {
+                                "type": "integer",
+                                "binaryFormat": "i",
+                                "index": 4,
+                            },
+                            "nucleotide": {
+                                "type": "integer",
+                                "binaryFormat": "b",
+                                "index": 5,
+                            },
+                        },
                     },
-                    "selectionCoeff": {
-                        "type": "number",
-                        "binaryFormat": "f",
-                        "index": 2,
-                    },
-                    "subpopulationID": {
-                        "type": "integer",
-                        "binaryFormat": "i",
-                        "index": 3,
-                    },
-                    "originGeneration": {
-                        "type": "integer",
-                        "binaryFormat": "i",
-                        "index": 4,
-                    },
-                    "nucleotide": {"type": "integer", "binaryFormat": "b", "index": 5},
-                },
+                }
             },
         }
 
@@ -1417,7 +1530,10 @@ class TestSLiMDecoding(unittest.TestCase):
             ),
         ]:
             self.assertEqual(
-                metadata.MetadataSchema(schema).decode_row(example), expected
+                metadata.MetadataSchema(schema).decode_row(example)[
+                    "stacked_mutation_array"
+                ],
+                expected,
             )
 
     def test_population(self):
@@ -1425,7 +1541,11 @@ class TestSLiMDecoding(unittest.TestCase):
             "codec": "struct",
             "type": "object",
             "properties": {
-                "subpopulationID": {"type": "integer", "binaryFormat": "i", "index": 0},
+                "subpopulationID": {
+                    "type": "integer",
+                    "binaryFormat": "i",
+                    "index": 0,
+                },
                 "femaleCloneFraction": {
                     "type": "number",
                     "binaryFormat": "d",

@@ -55,12 +55,14 @@ TSKITMetadataSchemaValidator = jsonschema.validators.extend(
     jsonschema.validators.Draft7Validator
 )
 META_SCHEMA: Mapping[str, Any] = copy.deepcopy(TSKITMetadataSchemaValidator.META_SCHEMA)
-# We need a top-level only required property so we need to rewite any reference
+# We need a top-level only required property so we need to rewrite any reference
 # to the top-level schema to a copy in a definition.
 META_SCHEMA = replace_root_refs(META_SCHEMA)
 META_SCHEMA["definitions"]["root"] = copy.deepcopy(META_SCHEMA)
 META_SCHEMA["codec"] = {"type": "string"}
 META_SCHEMA["required"] = ["codec"]
+# For interoperability reasons, force the top-level to be an object
+META_SCHEMA["properties"]["type"] = {"enum": ["object"]}
 TSKITMetadataSchemaValidator.META_SCHEMA = META_SCHEMA
 
 
@@ -201,12 +203,12 @@ META_SCHEMA["definitions"]["root"]["properties"]["stringEncoding"] = META_SCHEMA
 META_SCHEMA["properties"]["nullTerminated"] = {"type": "boolean"}
 META_SCHEMA["definitions"]["root"]["properties"]["nullTerminated"] = META_SCHEMA[
     "properties"
-]["index"]
+]["nullTerminated"]
 # noLengthEncodingExhaustBuffer is a boolean
 META_SCHEMA["properties"]["noLengthEncodingExhaustBuffer"] = {"type": "boolean"}
 META_SCHEMA["definitions"]["root"]["properties"][
     "noLengthEncodingExhaustBuffer"
-] = META_SCHEMA["properties"]["index"]
+] = META_SCHEMA["properties"]["noLengthEncodingExhaustBuffer"]
 StructCodecSchemaValidator.META_SCHEMA = META_SCHEMA
 
 
