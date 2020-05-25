@@ -173,16 +173,23 @@ class TestRankTree(unittest.TestCase):
     def test_generate_trees_roundtrip(self):
         n = 5
         all_rank_trees = RankTree.all_labelled_trees(n)
-        all_tsk_trees = comb.all_trees(n)
+        all_tsk_trees = tskit.all_trees(n)
         for rank_tree, tsk_tree in zip(all_rank_trees, all_tsk_trees):
             self.assertEqual(rank_tree, RankTree.from_tsk_tree(tsk_tree))
+
+    def test_all_shapes_roundtrip(self):
+        n = 5
+        all_rank_tree_shapes = RankTree.all_unlabelled_trees(n)
+        all_tsk_tree_shapes = tskit.all_tree_shapes(n)
+        for rank_tree, tsk_tree in zip(all_rank_tree_shapes, all_tsk_tree_shapes):
+            self.assertTrue(rank_tree.shape_equal(RankTree.from_tsk_tree(tsk_tree)))
 
     def test_all_labellings_roundtrip(self):
         n = 5
         rank_tree = RankTree.unrank((comb.num_shapes(n) - 1, 0), n)
         tsk_tree = rank_tree.to_tsk_tree()
         rank_tree_labellings = RankTree.all_labellings(rank_tree)
-        tsk_tree_labellings = comb.all_tree_labellings(tsk_tree)
+        tsk_tree_labellings = tskit.all_tree_labellings(tsk_tree)
         for rank_t, tsk_t in zip(rank_tree_labellings, tsk_tree_labellings):
             self.assertEqual(rank_t, RankTree.from_tsk_tree(tsk_t))
 

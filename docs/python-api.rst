@@ -487,6 +487,21 @@ using a schema. See :ref:`sec_metadata`, :ref:`sec_metadata_api_overview` and
 
 .. _sec_stats_api:
 
+*************
+Combinatorics
+*************
+The following are generators for fully enumerating unique tree topologies.
+The position of a tree in the enumeration ``all_trees`` is given by
+:meth:`Tree.rank`. Inversely, a :class:`Tree` can be constructed from a
+position in the enumeration with :meth:`Tree.unrank`.
+See :ref:`sec_combinatorics` for details.
+
+.. autofunction:: tskit.all_trees
+
+.. autofunction:: tskit.all_tree_shapes
+
+.. autofunction:: tskit.all_tree_labellings
+
 **********************
 Linkage disequilibrium
 **********************
