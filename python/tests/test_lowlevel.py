@@ -197,6 +197,38 @@ class TestTableCollection(LowLevelTestCase):
             tables.sequence_length = value
             self.assertEqual(tables.sequence_length, value)
 
+    def test_set_metadata_errors(self):
+        tables = _tskit.TableCollection(1)
+        with self.assertRaises(AttributeError):
+            del tables.metadata
+        for bad_value in ["bytes only", 59, 43.4, None, []]:
+            with self.assertRaises(TypeError):
+                tables.metadata = bad_value
+
+    def test_set_metadata(self):
+        tables = _tskit.TableCollection(1)
+        self.assertEqual(tables.metadata, b"")
+        for value in [b"foo", b"", "💩".encode(), b"null char \0 in string"]:
+            tables.metadata = value
+            tables.metadata_schema = "Test we have two separate fields"
+            self.assertEqual(tables.metadata, value)
+
+    def test_set_metadata_schema_errors(self):
+        tables = _tskit.TableCollection(1)
+        with self.assertRaises(AttributeError):
+            del tables.metadata_schema
+        for bad_value in [59, 43.4, None, []]:
+            with self.assertRaises(TypeError):
+                tables.metadata_schema = bad_value
+
+    def test_set_metadata_schema(self):
+        tables = _tskit.TableCollection(1)
+        self.assertEqual(tables.metadata_schema, "")
+        for value in ["foo", "", "💩", "null char \0 in string"]:
+            tables.metadata_schema = value
+            tables.metadata = b"Test we have two separate fields"
+            self.assertEqual(tables.metadata_schema, value)
+
     def test_simplify_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables.ll_tables
@@ -477,6 +509,28 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         schemas = ts.get_table_metadata_schemas()
         for table_name in self.metadata_tables:
             self.assertEqual(getattr(schemas, table_name), "")
+
+    def test_metadata(self):
+        tables = _tskit.TableCollection(1)
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        self.assertEqual(ts.get_metadata(), b"")
+        for value in [b"foo", b"", "💩".encode(), b"null char \0 in string"]:
+            tables.metadata = value
+            ts = _tskit.TreeSequence()
+            ts.load_tables(tables)
+            self.assertEqual(ts.get_metadata(), value)
+
+    def test_metadata_schema(self):
+        tables = _tskit.TableCollection(1)
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        self.assertEqual(ts.get_metadata_schema(), "")
+        for value in ["foo", "", "💩", "null char \0 in string"]:
+            tables.metadata_schema = value
+            ts = _tskit.TreeSequence()
+            ts.load_tables(tables)
+            self.assertEqual(ts.get_metadata_schema(), value)
 
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
