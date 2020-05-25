@@ -1,12 +1,12 @@
 ---------------------
-[0.99.3] - 2019-XX-XX
+[0.99.3] - 2020-XX-XX
 ---------------------
 
 In development.
 
 **Breaking changes**
 
-- Change genotypes from unsigned to signed to accomodate missing data
+- Change genotypes from unsigned to signed to accommodate missing data
   (see :issue:`144` for discussion). This only affects users of the
   ``tsk_vargen_t`` class. Genotypes are now stored as int8_t and int16_t
   types rather than the former unsigned types. The field names in the
@@ -34,6 +34,10 @@ In development.
 
 **New features**
 
+- Add ``metadata`` and ``metadata_schema`` fields to table collection, with accessors on
+  tree sequence. These store arbitrary bytes and are optional in the file format.
+  (:user: `benjeffery`, :pr:`641`)
+
 - Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`
   and :pr:`143`.
 
@@ -46,7 +50,7 @@ In development.
   off (:pr:`462`).
 
 - Tables with metadata now have an optional `metadata_schema` field that can contain
-  arbitary bytes. (:user:`benjeffery`, :pr:`493`)
+  arbitrary bytes. (:user:`benjeffery`, :pr:`493`)
 
 - Tables loaded from a file can now be edited in the same way as any other
   table collection (:user:`jeromekelleher`, :issue:`536`, :pr:`530`.

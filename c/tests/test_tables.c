@@ -63,6 +63,95 @@ test_table_collection_simplify_errors(void)
 }
 
 static void
+test_table_collection_metadata(void)
+{
+    int ret;
+    tsk_table_collection_t tc1, tc2;
+
+    char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
+    char example_metadata_schema[100]
+        = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
+    tsk_size_t example_metadata_schema_length
+        = (tsk_size_t) strlen(example_metadata_schema);
+
+    // Test equality
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_init(&tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2));
+    ret = tsk_table_collection_set_metadata(
+        &tc2, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc1, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2));
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc2, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+
+    // Test copy
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_copy(&tc1, &tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc1, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_copy(&tc1, &tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+
+    // Test dump and load with empty metadata and schema
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tc1.sequence_length = 1.0;
+    ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tc2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+
+    // Test dump and load with set metadata and schema
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tc1.sequence_length = 1.0;
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc1, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tc2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2));
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+}
+
+static void
 test_node_table(void)
 {
     int ret;
@@ -2830,6 +2919,7 @@ main(int argc, char **argv)
         { "test_provenance_table", test_provenance_table },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
+        { "test_table_collection_metadata", test_table_collection_metadata },
         { "test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes },
         { "test_simplify_empty_tables", test_simplify_empty_tables },
         { "test_link_ancestors_no_edges", test_link_ancestors_no_edges },

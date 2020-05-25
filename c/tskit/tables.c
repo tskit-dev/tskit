@@ -92,7 +92,12 @@ read_table_cols(kastore_t *store, read_table_col_t *read_cols, size_t num_cols)
         *read_cols[j].len_dest = (tsk_size_t) -1;
     }
     for (j = 0; j < num_cols; j++) {
-        if (kastore_containss(store, read_cols[j].name)) {
+        ret = kastore_containss(store, read_cols[j].name);
+        if (ret < 0) {
+            ret = tsk_set_kas_error(ret);
+            goto out;
+        }
+        if (ret == 1) {
             ret = kastore_gets(
                 store, read_cols[j].name, read_cols[j].array_dest, &len, &type);
             if (ret != 0) {
@@ -6681,6 +6686,12 @@ tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
 {
     fprintf(out, "Table collection state\n");
     fprintf(out, "sequence_length = %f\n", self->sequence_length);
+    fprintf(out, "#metadata_schema#\n");
+    fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
+    fprintf(out, "#end#metadata_schema\n");
+    fprintf(out, "#metadata#\n");
+    fprintf(out, "%.*s\n", self->metadata_length, self->metadata);
+    fprintf(out, "#end#metadata\n");
     tsk_individual_table_print_state(&self->individuals, out);
     tsk_node_table_print_state(&self->nodes, out);
     tsk_edge_table_print_state(&self->edges, out);
@@ -6747,6 +6758,8 @@ tsk_table_collection_free(tsk_table_collection_t *self)
     tsk_safe_free(self->indexes.edge_insertion_order);
     tsk_safe_free(self->indexes.edge_removal_order);
     tsk_safe_free(self->file_uuid);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_schema);
     return 0;
 }
 
@@ -6758,6 +6771,14 @@ bool
 tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collection_t *other)
 {
     bool ret = self->sequence_length == other->sequence_length
+               && self->metadata_length == other->metadata_length
+               && self->metadata_schema_length == other->metadata_schema_length
+               && memcmp(self->metadata, other->metadata,
+                      self->metadata_length * sizeof(char))
+                      == 0
+               && memcmp(self->metadata_schema, other->metadata_schema,
+                      self->metadata_schema_length * sizeof(char))
+                      == 0
                && tsk_individual_table_equals(&self->individuals, &other->individuals)
                && tsk_node_table_equals(&self->nodes, &other->nodes)
                && tsk_edge_table_equals(&self->edges, &other->edges)
@@ -6767,6 +6788,22 @@ tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collection_t
                && tsk_population_table_equals(&self->populations, &other->populations)
                && tsk_provenance_table_equals(&self->provenances, &other->provenances);
     return ret;
+}
+
+int
+tsk_table_collection_set_metadata(
+    tsk_table_collection_t *self, const char *metadata, tsk_size_t metadata_length)
+{
+    return replace_string(
+        &self->metadata, &self->metadata_length, metadata, metadata_length);
+}
+
+int
+tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
+    const char *metadata_schema, tsk_size_t metadata_schema_length)
+{
+    return replace_string(&self->metadata_schema, &self->metadata_schema_length,
+        metadata_schema, metadata_schema_length);
 }
 
 static int
@@ -6922,6 +6959,16 @@ tsk_table_collection_copy(
             goto out;
         }
     }
+    ret = tsk_table_collection_set_metadata(dest, self->metadata, self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_set_metadata_schema(
+        dest, self->metadata_schema, self->metadata_schema_length);
+    if (ret != 0) {
+        goto out;
+    }
+
 out:
     return ret;
 }
@@ -6934,6 +6981,10 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
     uint32_t *version;
     int8_t *format_name, *uuid;
     double *L;
+
+    char *metadata = NULL;
+    char *metadata_schema = NULL;
+    size_t metadata_length, metadata_schema_length;
 
     ret = kastore_gets_int8(store, "format/name", &format_name, &len);
     if (ret != 0) {
@@ -7000,6 +7051,45 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
     }
     memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
     self->file_uuid[TSK_UUID_SIZE] = '\0';
+
+    ret = kastore_containss(store, "metadata");
+    if (ret < 0) {
+        ret = tsk_set_kas_error(ret);
+        goto out;
+    }
+    if (ret == 1) {
+        ret = kastore_gets_int8(
+            store, "metadata", (int8_t **) &metadata, (size_t *) &metadata_length);
+        if (ret != 0) {
+            ret = tsk_set_kas_error(ret);
+            goto out;
+        }
+        ret = tsk_table_collection_set_metadata(
+            self, metadata, (tsk_size_t) metadata_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    ret = kastore_containss(store, "metadata_schema");
+    if (ret < 0) {
+        ret = tsk_set_kas_error(ret);
+        goto out;
+    }
+    if (ret == 1) {
+        ret = kastore_gets_int8(store, "metadata_schema", (int8_t **) &metadata_schema,
+            (size_t *) &metadata_schema_length);
+        if (ret != 0) {
+            ret = tsk_set_kas_error(ret);
+            goto out;
+        }
+        ret = tsk_table_collection_set_metadata_schema(
+            self, metadata_schema, (tsk_size_t) metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
 out:
     if ((ret ^ (1 << TSK_KAS_ERR_BIT)) == KAS_ERR_KEY_NOT_FOUND) {
         ret = TSK_ERR_REQUIRED_COL_NOT_FOUND;
@@ -7146,6 +7236,9 @@ tsk_table_collection_write_format_data(tsk_table_collection_t *self, kastore_t *
         { "format/version", (void *) version, 2, KAS_UINT32 },
         { "sequence_length", (void *) &self->sequence_length, 1, KAS_FLOAT64 },
         { "uuid", (void *) uuid, TSK_UUID_SIZE, KAS_INT8 },
+        { "metadata", (void *) self->metadata, self->metadata_length, KAS_INT8 },
+        { "metadata_schema", (void *) self->metadata_schema,
+            self->metadata_schema_length, KAS_INT8 },
     };
 
     ret = tsk_generate_uuid(uuid, 0);
