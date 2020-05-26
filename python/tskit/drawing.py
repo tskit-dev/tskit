@@ -260,7 +260,6 @@ class SvgTreeSequence:
         dwg = svgwrite.Drawing(size=self.image_size, debug=True, **root_svg_attributes)
         self.drawing = dwg
         dwg.defs.add(dwg.style(SvgTree.standard_style))
-        self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
         if node_labels is None:
             node_labels = {u: str(u) for u in range(ts.num_nodes)}
         if style is not None:
@@ -273,7 +272,6 @@ class SvgTreeSequence:
         else:
             axis_top_padding = 5
             tick_len = (5, 5)
-        self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
         if root_branch is None:
             root_branch = any(
                 any(tree.parent(mut.node) == NULL for mut in tree.mutations())
@@ -619,14 +617,11 @@ class SvgTree:
         offset_y = dy
         if v == NULL:
             classes.append(f"root")
-            if self.root_branch:
-                # FIXME this is pretty crappy for spacing mutations over a root.
-                root_branch_len = self.root_branch_length
-            else:
-                root_branch_len = 0
             edge_x = 0
-            edge_height = root_branch_len / (len(self.node_mutations[focal]) + 1)
-            offset_y = dy - root_branch_len + edge_height
+            edge_height = self.root_branch_length / (
+                len(self.node_mutations[focal]) + 1
+            )
+            offset_y = dy - self.root_branch_length + edge_height
         else:
             classes.append(f"a{v}")
             edge_x = offset_x
@@ -653,7 +648,8 @@ class SvgTree:
                 )
             )
             # after the first sideways line of an edge all further movements go downwards
-            offset_x = edge_x = 0
+            offset_x = 0
+            edge_x = 0
             offset_y = edge_height
 
         # Add a new group for each node, and give it these classes for css targetting:
@@ -663,13 +659,12 @@ class SvgTree:
         # "sample":       a class present if the focal node is a sample
         # "leaf":         a class present if the focal node is a leaf
         classes.append("node")
-        ind = self.tree.tree_sequence.node(focal).individual
-        pop = self.tree.tree_sequence.node(focal).population
-        if ind != NULL:
-            classes.append(f"i{ind}")
-        if pop != NULL:
-            classes.append(f"p{pop}")
-        if self.tree.is_sample(focal):
+        focal_node = self.tree.tree_sequence.node(focal)
+        if focal_node.individual != NULL:
+            classes.append(f"i{focal_node.individual}")
+        if focal_node.population != NULL:
+            classes.append(f"p{focal_node.population}")
+        if focal_node.is_sample():
             classes.append("sample")
         if self.tree.is_leaf(focal):
             classes.append("leaf")
@@ -714,11 +709,10 @@ class SvgTree:
 
             # Add edge first => below
             dx, dy = curr.edge_dxy
-            if dx == dy == 0:
+            if dx == 0 and dy == 0:
                 path = dwg.path([("M", o)], **self.edge_attrs[u])  # e.g. at root
-            elif dx == 0:
-                path = dwg.path([("M", o), ("V", -rnd(dy))], **self.edge_attrs[u])
             else:
+                # allowing "H 0" means that animating transitions works correctly
                 path = dwg.path(
                     [("M", o), ("V", -rnd(dy)), ("H", -rnd(dx))], **self.edge_attrs[u]
                 )
@@ -979,7 +973,7 @@ class TextTree:
                 # If we don't specify node_labels, default to node ID
                 self.node_labels[u] = str(u)
             else:
-                # If we do specify node_labels, default an empty line
+                # If we do specify node_labels, default to an empty line
                 self.node_labels[u] = self.default_node_label
         if node_labels is not None:
             for node, label in node_labels.items():

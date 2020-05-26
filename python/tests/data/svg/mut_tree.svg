@@ -22,7 +22,7 @@
                 <circle class="sym" cx="0" cy="0" r="1"/>
                 <text class="lab">1</text>
               </g>
-              <path class="edge" d="M 0 0 V -59.8385"/>
+              <path class="edge" d="M 0 0 V -59.8385 H 0"/>
               <circle class="sym" cx="0" cy="0" r="1"/>
               <text class="lab lft">4</text>
             </g>
@@ -45,15 +45,15 @@
             <circle class="sym" cx="0" cy="0" r="1"/>
             <text class="lab rgt">5</text>
           </g>
-          <path class="edge" d="M 0 0 V -6.66667"/>
+          <path class="edge" d="M 0 0 V -6.66667 H 0"/>
           <circle class="sym" cx="0" cy="0" r="1"/>
           <text class="lab rgt">9</text>
         </g>
-        <path class="edge" d="M 0 0 V -6.66667"/>
+        <path class="edge" d="M 0 0 V -6.66667 H 0"/>
         <rect class="sym" height="6" transform="translate(-3 -3)" width="6" x="0" y="0"/>
         <text class="lab rgt">0</text>
       </g>
-      <path class="edge" d="M 0 0 V -6.66667"/>
+      <path class="edge" d="M 0 0 V -6.66667 H 0"/>
       <rect class="sym" height="6" transform="translate(-3 -3)" width="6" x="0" y="0"/>
       <text class="lab rgt">1</text>
     </g>
