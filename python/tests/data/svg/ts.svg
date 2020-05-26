@@ -30,7 +30,7 @@
                       <circle class="sym" cx="0" cy="0" r="1"/>
                       <text class="lab">1</text>
                     </g>
-                    <path class="edge" d="M 0 0 V -32.9112 H 0"/>
+                    <path class="edge" d="M 0 0 V -65.8223 H 34.4"/>
                     <circle class="sym" cx="0" cy="0" r="1"/>
                     <text class="lab lft">4</text>
                   </g>
@@ -53,7 +53,7 @@
                   <circle class="sym" cx="0" cy="0" r="1"/>
                   <text class="lab rgt">5</text>
                 </g>
-                <path class="edge" d="M 0 0 V -4.66667 H 0"/>
+                <path class="edge" d="M 0 0 V -14.0 H 0"/>
                 <circle class="sym" cx="0" cy="0" r="1"/>
                 <text class="lab rgt">9</text>
               </g>

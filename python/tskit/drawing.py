@@ -617,11 +617,12 @@ class SvgTree:
         offset_y = dy
         if v == NULL:
             classes.append(f"root")
+            # set the origin of the
+            dx = 0
+            dy = self.root_branch_length
             edge_x = 0
-            edge_height = self.root_branch_length / (
-                len(self.node_mutations[focal]) + 1
-            )
-            offset_y = dy - self.root_branch_length + edge_height
+            edge_height = dy / (len(self.node_mutations[focal]) + 1)
+            offset_y = offset_y - self.root_branch_length + edge_height
         else:
             classes.append(f"a{v}")
             edge_x = offset_x
@@ -674,11 +675,7 @@ class SvgTree:
                 transform=f"translate({rnd(offset_x)} {rnd(offset_y)})",
             )
         )
-        ret.append(
-            SvgGroupInfo(
-                g=grp, edge_dxy=(edge_x, edge_height), node=focal, mutation=None
-            )
-        )
+        ret.append(SvgGroupInfo(g=grp, edge_dxy=(dx, dy), node=focal, mutation=None))
         return ret
 
     def draw(self):
