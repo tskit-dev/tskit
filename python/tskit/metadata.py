@@ -264,7 +264,6 @@ class StructCodec(AbstractMetadataCodec):
         exhaust_buffer = sub_schema.get("noLengthEncodingExhaustBuffer", False)
 
         def array_decode(buffer):
-            print(array_length_f)
             array_length = struct.unpack(
                 array_length_f, bytes(islice(buffer, array_length_size))
             )[0]
