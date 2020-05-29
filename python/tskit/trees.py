@@ -806,7 +806,7 @@ class Tree:
     def rank(self):
         """
         Produce the rank of this tree in the enumeration of all leaf-labelled
-        trees of n leaves. See the :ref:`sec_combinatorics` section for
+        trees of n leaves. See the :ref:`sec_tree_ranks` section for
         details on ranking and unranking trees.
 
         :rtype: tuple(int)
@@ -818,11 +818,11 @@ class Tree:
     def unrank(rank, num_leaves):
         """
         Reconstruct the tree of the given ``rank``
-        (see :func: `tskit.Tree.rank`) with ``num_leaves`` leaves.
+        (see :meth:`tskit.Tree.rank`) with ``num_leaves`` leaves.
         The labels and times of internal nodes are chosen arbitrarily, and
         the time of each leaf is 0.
 
-        See the :ref:`sec_combinatorics` section for details on ranking and
+        See the :ref:`sec_tree_ranks` section for details on ranking and
         unranking trees and what constitutes valid ranks.
 
         :param tuple(int) rank: The rank of the tree to generate.
