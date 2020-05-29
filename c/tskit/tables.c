@@ -6445,6 +6445,8 @@ out:
  * TSK_CHECK_MUTATION_ORDERING   Check mutation ordering contraints for a tree sequence.
  * TSK_CHECK_INDEXES             Check indexes exist & reference integrity.
  * TSK_CHECK_ALL                 All above checks.
+ * TSK_NO_CHECK_MUTATION_PARENTS Do not check contraints on mutation 'parent' column.
+ * TSK_NO_CHECK_POPULATION_REFS  Do not check integrity of references to populations.
  */
 int TSK_WARN_UNUSED
 tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options)
@@ -6467,6 +6469,10 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
     bool check_site_ordering = !!(options & TSK_CHECK_SITE_ORDERING);
     bool check_site_duplicates = !!(options & TSK_CHECK_SITE_DUPLICATES);
     bool check_mutation_ordering = !!(options & TSK_CHECK_MUTATION_ORDERING);
+    bool check_mutation_parents
+        = (check_mutation_ordering & !(options & TSK_NO_CHECK_MUTATION_PARENTS));
+    bool check_populations = !(options & TSK_NO_CHECK_POPULATION_REFS);
+    bool check_indexes = !!(options & TSK_CHECK_INDEXES);
 
     if (self->sequence_length <= 0) {
         ret = TSK_ERR_BAD_SEQUENCE_LENGTH;
@@ -6480,10 +6486,12 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
         }
-        population = self->nodes.population[j];
-        if (population < TSK_NULL || population >= num_populations) {
-            ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
-            goto out;
+        if (check_populations) {
+            population = self->nodes.population[j];
+            if (population < TSK_NULL || population >= num_populations) {
+                ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
+                goto out;
+            }
         }
         individual = self->nodes.individual[j];
         if (individual < TSK_NULL || individual >= num_individuals) {
@@ -6582,7 +6590,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             ret = TSK_ERR_MUTATION_PARENT_EQUAL;
             goto out;
         }
-        if (check_mutation_ordering) {
+        if (check_mutation_parents) {
             if (parent_mut != TSK_NULL) {
                 /* Parents must be listed before their children */
                 if (parent_mut > (tsk_id_t) j) {
@@ -6594,6 +6602,8 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
                     goto out;
                 }
             }
+        }
+        if (check_mutation_ordering) {
             if (j > 0) {
                 if (self->mutations.site[j - 1] > self->mutations.site[j]) {
                     ret = TSK_ERR_UNSORTED_MUTATIONS;
@@ -6645,7 +6655,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
         }
     }
 
-    if (!!(options & TSK_CHECK_INDEXES)) {
+    if (check_indexes) {
         if (!tsk_table_collection_has_index(self, 0)) {
             ret = TSK_ERR_TABLES_NOT_INDEXED;
             goto out;

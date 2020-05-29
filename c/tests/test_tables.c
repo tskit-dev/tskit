@@ -2898,6 +2898,320 @@ test_column_overflow(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_table_collection_check_integrity(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    /* nodes */
+    ret = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, INFINITY, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
+
+    ret = tsk_node_table_clear(&tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+
+    ret = tsk_node_table_clear(&tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+
+    ret = tsk_node_table_clear(&tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* edges */
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, TSK_NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_PARENT);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 2, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_CHILD);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, INFINITY, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, -1.0, 1.0, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_LEFT_LESS_ZERO);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.1, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_RIGHT_GREATER_SEQ_LENGTH);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.5, 0.1, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 0.5, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
+
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* sites */
+    ret = tsk_site_table_add_row(&tables.sites, INFINITY, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
+
+    ret = tsk_site_table_clear(&tables.sites);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_add_row(&tables.sites, -0.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
+
+    ret = tsk_site_table_clear(&tables.sites);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 1.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
+
+    ret = tsk_site_table_clear(&tables.sites);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_SITE_DUPLICATES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SITE_POSITION);
+
+    ret = tsk_site_table_clear(&tables.sites);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.4, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_SITE_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_SITES);
+
+    ret = tsk_site_table_clear(&tables.sites);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.6, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    /* mutations */
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 2, 0, TSK_NULL, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 2, TSK_NULL, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 2, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_EQUAL);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 1, TSK_NULL, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
+    ret = tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING | TSK_NO_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 1, TSK_NULL, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 1, 1, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 1, TSK_NULL, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 1, TSK_NULL, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    /* migrations */
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, 0.5, 2, 0, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    /* migrations */
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, 0.5, 2, 0, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, 0.5, 1, 2, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, 0.5, 1, 0, 2, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, 0.5, 1, 0, 1, INFINITY, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, INFINITY, 1, 0, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, -0.3, 0.5, 1, 0, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_LEFT_LESS_ZERO);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.0, 1.5, 1, 0, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_RIGHT_GREATER_SEQ_LENGTH);
+
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_add_row(
+        &tables.migrations, 0.6, 0.5, 1, 0, 1, 1.5, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
+
+    tsk_table_collection_free(&tables);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -2941,6 +3255,8 @@ main(int argc, char **argv)
         { "test_load_reindex", test_load_reindex },
         { "test_table_overflow", test_table_overflow },
         { "test_column_overflow", test_column_overflow },
+        { "test_table_collection_check_integrity",
+            test_table_collection_check_integrity },
         { NULL, NULL },
     };
 
