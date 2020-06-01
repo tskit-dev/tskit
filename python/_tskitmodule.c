@@ -1786,6 +1786,24 @@ out:
     return ret;
 }
 
+static const char *
+parse_metadata_schema_arg(PyObject *arg, Py_ssize_t* metadata_schema_length) 
+{
+    const char *ret = NULL;
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+        goto out;
+    }
+    ret = PyUnicode_AsUTF8AndSize(arg, metadata_schema_length);
+    if (ret == NULL) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
 static int
 write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
 {
@@ -2519,16 +2537,10 @@ IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(
-            PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -2995,16 +3007,10 @@ NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(
-            PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -3488,15 +3494,10 @@ EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(PyExc_AttributeError,
-        "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -3989,16 +3990,10 @@ MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *cl
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(
-            PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -4453,16 +4448,10 @@ SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(
-            PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -4956,16 +4945,10 @@ MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *clos
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(
-            PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -5375,16 +5358,10 @@ PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (arg == NULL) {
-        PyErr_Format(
-            PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
-        goto out;
-    }
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = PyUnicode_AsUTF8AndSize(arg, &metadata_schema_length);
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -6084,6 +6061,71 @@ TableCollection_get_file_uuid(TableCollection *self, void *closure)
 }
 
 static PyObject *
+TableCollection_get_metadata(TableCollection *self, void *closure)
+{
+    return PyBytes_FromStringAndSize(self->tables->metadata, self->tables->metadata_length);
+}
+
+static int
+TableCollection_set_metadata(TableCollection *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    char *metadata;
+    Py_ssize_t metadata_length;
+
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError,
+            "Cannot del metadata, set to empty string (b\"\") to clear.");
+        goto out;
+    }
+    err = PyBytes_AsStringAndSize(arg, &metadata, &metadata_length);
+    if (err != 0) {
+        goto out;
+    }
+    err = tsk_table_collection_set_metadata(
+        self->tables, metadata, metadata_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_get_metadata_schema(TableCollection *self, void *closure)
+{
+    return make_Py_Unicode_FromStringAndLength(
+        self->tables->metadata_schema, self->tables->metadata_schema_length);
+}
+
+static int
+TableCollection_set_metadata_schema(TableCollection *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *metadata_schema;
+    Py_ssize_t metadata_schema_length;
+
+    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    if (metadata_schema == NULL) {
+        goto out;
+    }
+    err = tsk_table_collection_set_metadata_schema(
+        self->tables, metadata_schema, metadata_schema_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
@@ -6340,6 +6382,12 @@ static PyGetSetDef TableCollection_getsetters[] = {
         (setter) TableCollection_set_sequence_length, "The sequence length."},
     {"file_uuid", (getter) TableCollection_get_file_uuid, NULL,
         "The UUID of the corresponding file."},
+    {"metadata",
+        (getter) TableCollection_get_metadata,
+        (setter) TableCollection_set_metadata, "The metadata."},
+    {"metadata_schema",
+        (getter) TableCollection_get_metadata_schema,
+        (setter) TableCollection_set_metadata_schema, "The metadata schema."},
     {NULL}  /* Sentinel */
 };
 
@@ -6678,6 +6726,20 @@ TreeSequence_get_site(TreeSequence *self, PyObject *args)
     ret = make_site_object(&record);
 out:
     return ret;
+}
+
+static PyObject * 
+TreeSequence_get_metadata(TreeSequence * self) {
+    return PyBytes_FromStringAndSize(
+        self->tree_sequence->tables->metadata, 
+        self->tree_sequence->tables->metadata_length);
+}
+
+static PyObject * 
+TreeSequence_get_metadata_schema(TreeSequence * self) {
+    return make_Py_Unicode_FromStringAndLength(
+        self->tree_sequence->tables->metadata_schema, 
+        self->tree_sequence->tables->metadata_schema_length);
 }
 
 static PyObject *
@@ -8173,6 +8235,10 @@ static PyMethodDef TreeSequence_methods[] = {
         METH_NOARGS, "Returns the tree breakpoints as a numpy array." },
     {"get_file_uuid", (PyCFunction) TreeSequence_get_file_uuid,
         METH_NOARGS, "Returns the UUID of the underlying file, if present." },
+    {"get_metadata", (PyCFunction) TreeSequence_get_metadata, METH_NOARGS,
+        "Returns the metadata for the tree sequence"},
+    {"get_metadata_schema", (PyCFunction) TreeSequence_get_metadata_schema, METH_NOARGS,
+        "Returns the metadata schema for the tree sequence metadata"},
     {"get_num_sites", (PyCFunction) TreeSequence_get_num_sites,
         METH_NOARGS, "Returns the number of sites" },
     {"get_num_mutations", (PyCFunction) TreeSequence_get_num_mutations, METH_NOARGS,
