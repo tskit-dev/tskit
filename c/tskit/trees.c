@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2020 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -353,8 +353,7 @@ out:
  *   in this case because we have an independent copy.
  * - Need an option to take 'ownership' of the tables so that we keep the
  *   tables and free them at the end of the treeseq's lifetime. This will be
- *   used in tsk_treeseq_load below, where we can take advantage of the read-only
- *   access directly into the store's memory and avoid copying the tree sequence.
+ *   used in tsk_treeseq_load below where we can avoid copying the tree sequence.
  * - We should also allow a read-only "borrowed reference" where we use the
  *   tables directly, but don't free it at the end.
  */
@@ -460,9 +459,40 @@ out:
 }
 
 int TSK_WARN_UNUSED
+tsk_treeseq_loadf(tsk_treeseq_t *self, FILE *file, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_table_collection_t tables;
+
+    /* Need to make sure that we're zero'd out in case of error */
+    memset(self, 0, sizeof(*self));
+    ret = tsk_table_collection_loadf(&tables, file, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    /* TODO the implementation is wasteful here, as we don't need to allocate
+     * a new table here but could load directly into the main table instead.
+     * See notes on the owned reference for treeseq_alloc above.
+     */
+    ret = tsk_treeseq_init(self, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    tsk_table_collection_free(&tables);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
 tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
 {
     return tsk_table_collection_dump(self->tables, filename, options);
+}
+
+int TSK_WARN_UNUSED
+tsk_treeseq_dumpf(tsk_treeseq_t *self, FILE *file, tsk_flags_t options)
+{
+    return tsk_table_collection_dumpf(self->tables, file, options);
 }
 
 /* Simple attribute getters */

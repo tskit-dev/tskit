@@ -643,26 +643,155 @@ test_metadata_schemas_optional(void)
 }
 
 static void
-test_table_collection_load_errors(void)
+test_load_bad_file_formats(void)
 {
     tsk_table_collection_t tables;
-    int ret;
-    const char *str;
+    tsk_treeseq_t ts;
+    int ret, ret2;
+    off_t offset;
+    FILE *f;
 
-    ret = tsk_table_collection_load(&tables, "/", 0);
-    CU_ASSERT_TRUE(tsk_is_kas_error(ret));
-    CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_IO);
-    str = tsk_strerror(ret);
-    CU_ASSERT_TRUE(strlen(str) > 0);
-
+    /* A zero byte file is TSK_ERR_EOF */
+    f = fopen(_tmp_file_name, "w+");
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    ret2 = tsk_treeseq_loadf(&ts, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, ret2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
     tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+    fclose(f);
+
+    for (offset = 1; offset < 100; offset++) {
+        ret = tsk_table_collection_init(&tables, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        tables.sequence_length = 1.0;
+        ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+        truncate(_tmp_file_name, offset);
+        ret = tsk_table_collection_load(&tables, _tmp_file_name, TSK_NO_INIT);
+        CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_BAD_FILE_FORMAT);
+        tsk_table_collection_free(&tables);
+    }
 }
 
 static void
-test_table_collection_dump_errors(void)
+test_load_errors(void)
+{
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    int ret, ret2;
+    const char *str;
+    FILE *f;
+
+    ret = tsk_table_collection_load(&tables, "/", 0);
+    ret2 = tsk_treeseq_load(&ts, "/", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, ret2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
+    str = tsk_strerror(ret);
+    CU_ASSERT_TRUE(strlen(str) > 0);
+    CU_ASSERT_STRING_EQUAL(str, strerror(EISDIR));
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_table_collection_load(&tables, "/bin/theres_no_way_this_file_exists", 0);
+    ret2 = tsk_treeseq_load(&ts, "/bin/theres_no_way_this_file_exists", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, ret2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
+    str = tsk_strerror(ret);
+    CU_ASSERT_TRUE(strlen(str) > 0);
+    CU_ASSERT_STRING_EQUAL(str, strerror(ENOENT));
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_table_collection_load(&tables, "/bin/sh", 0);
+    ret2 = tsk_treeseq_load(&ts, "/bin/sh", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, ret2);
+    CU_ASSERT_TRUE(tsk_is_kas_error(ret));
+    CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_BAD_FILE_FORMAT);
+    str = tsk_strerror(ret);
+    CU_ASSERT_TRUE(strlen(str) > 0);
+    tsk_table_collection_free(&tables);
+
+    /* open a file in the wrong mode */
+    f = fopen(_tmp_file_name, "w");
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    ret2 = tsk_treeseq_loadf(&ts, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, ret2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
+    str = tsk_strerror(ret);
+    CU_ASSERT_TRUE(strlen(str) > 0);
+    CU_ASSERT_STRING_EQUAL(str, strerror(EBADF));
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+    fclose(f);
+}
+
+static void
+test_load_eof(void)
+{
+    tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
+    tsk_table_collection_t tables;
+    int ret;
+    FILE *f;
+
+    f = fopen(_tmp_file_name, "w+");
+    CU_ASSERT_NOT_EQUAL(f, NULL);
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
+    fclose(f);
+    tsk_table_collection_free(&tables);
+
+    /* Reading an empty file also returns EOF */
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
+    tsk_table_collection_free(&tables);
+
+    f = fopen(_tmp_file_name, "w+");
+    CU_ASSERT_NOT_EQUAL(f, NULL);
+    ret = tsk_treeseq_dumpf(ts, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Reading from the end of the stream gives EOF */
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
+    tsk_table_collection_free(&tables);
+
+    /* Reading the start of the stream is fine */
+    fseek(f, 0, SEEK_SET);
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_table_collection_free(&tables);
+
+    /* And we should be back to the end of the stream */
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
+    tsk_table_collection_free(&tables);
+
+    /* Trying to read the same end stream should give the same
+     * result. */
+    ret = tsk_table_collection_loadf(&tables, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
+    tsk_table_collection_free(&tables);
+
+    /* A previously init'd tables should be good too */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_loadf(&tables, f, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EOF);
+    tsk_table_collection_free(&tables);
+
+    fclose(f);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
+test_dump_errors(void)
 {
     tsk_table_collection_t tables;
     int ret;
+    FILE *f;
     const char *str;
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -670,10 +799,27 @@ test_table_collection_dump_errors(void)
     tables.sequence_length = 1.0;
 
     ret = tsk_table_collection_dump(&tables, "/", 0);
-    CU_ASSERT_TRUE(tsk_is_kas_error(ret));
-    CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_IO);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
     str = tsk_strerror(ret);
     CU_ASSERT_TRUE(strlen(str) > 0);
+    CU_ASSERT_STRING_EQUAL(str, strerror(EISDIR));
+
+    /* We're assuming that we don't have write access to /bin, so don't run this
+     * as root! */
+    ret = tsk_table_collection_dump(&tables, "/bin/theres_no_way_this_file_exists", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
+    str = tsk_strerror(ret);
+    CU_ASSERT_TRUE(strlen(str) > 0);
+    CU_ASSERT_STRING_EQUAL(str, strerror(EACCES));
+
+    /* open a file in the wrong mode */
+    f = fopen(_tmp_file_name, "r");
+    ret = tsk_table_collection_dumpf(&tables, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
+    str = tsk_strerror(ret);
+    CU_ASSERT_TRUE(strlen(str) > 0);
+    CU_ASSERT_STRING_EQUAL(str, strerror(EBADF));
+    fclose(f);
 
     /* We'd like to catch close errors also, but it's hard to provoke them
      * without intercepting calls to fclose() */
@@ -775,10 +921,12 @@ static void
 test_example_round_trip(void)
 {
     int ret;
-    tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
+    tsk_treeseq_t *ts1 = caterpillar_tree(5, 3, 3);
+    tsk_treeseq_t ts2;
     tsk_table_collection_t t1, t2;
+    FILE *f;
 
-    ret = tsk_treeseq_copy_tables(ts, &t1, 0);
+    ret = tsk_treeseq_copy_tables(ts1, &t1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -786,10 +934,111 @@ test_example_round_trip(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
 
-    tsk_table_collection_free(&t1);
+    /* Reading multiple times into the same tables with TSK_NO_INIT is supported. */
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
     tsk_table_collection_free(&t2);
-    tsk_treeseq_free(ts);
-    free(ts);
+
+    /* Do the same thing with treeseq API */
+    remove(_tmp_file_name);
+    ret = tsk_treeseq_dump(ts1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_load(&ts2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables));
+    tsk_treeseq_free(&ts2);
+
+    /* Use loadf form */
+    f = fopen(_tmp_file_name, "w+");
+    ret = tsk_table_collection_dumpf(&t1, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    fseek(f, 0, SEEK_SET);
+    ret = tsk_table_collection_loadf(&t2, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+    fclose(f);
+
+    /* Do the same thing with treeseq API */
+    f = fopen(_tmp_file_name, "w+");
+    ret = tsk_treeseq_dumpf(ts1, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    fseek(f, 0, SEEK_SET);
+    ret = tsk_treeseq_loadf(&ts2, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables));
+    tsk_treeseq_free(&ts2);
+
+    fclose(f);
+    tsk_table_collection_free(&t1);
+    tsk_treeseq_free(ts1);
+    free(ts1);
+}
+
+static void
+test_multiple_round_trip(void)
+{
+    int ret;
+    tsk_size_t j;
+    tsk_size_t num_examples = 10;
+    tsk_treeseq_t *ts;
+    tsk_table_collection_t in_tables[num_examples];
+    tsk_table_collection_t out_tables;
+    FILE *f = fopen(_tmp_file_name, "w+");
+
+    CU_ASSERT_NOT_EQUAL_FATAL(f, NULL);
+
+    for (j = 0; j < num_examples; j++) {
+        ts = caterpillar_tree(5 + j, 3 + j, 3 + j);
+        ret = tsk_treeseq_copy_tables(ts, &in_tables[j], 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_treeseq_dumpf(ts, f, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        tsk_treeseq_free(ts);
+        free(ts);
+    }
+
+    fseek(f, 0, SEEK_SET);
+    for (j = 0; j < num_examples; j++) {
+        ret = tsk_table_collection_loadf(&out_tables, f, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables));
+        tsk_table_collection_free(&out_tables);
+    }
+
+    /* Can do the same with the same set of previously init'd tables. */
+    ret = tsk_table_collection_init(&out_tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    fseek(f, 0, SEEK_SET);
+    for (j = 0; j < num_examples; j++) {
+        ret = tsk_table_collection_loadf(&out_tables, f, TSK_NO_INIT);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables));
+    }
+    tsk_table_collection_free(&out_tables);
+
+    /* Can also read until EOF to do the same thing */
+    ret = tsk_table_collection_init(&out_tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    fseek(f, 0, SEEK_SET);
+    j = 0;
+    while (true) {
+        ret = tsk_table_collection_loadf(&out_tables, f, TSK_NO_INIT);
+        if (ret == TSK_ERR_EOF) {
+            break;
+        }
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables));
+        j++;
+    }
+    tsk_table_collection_free(&out_tables);
+    CU_ASSERT_EQUAL_FATAL(j, num_examples);
+
+    for (j = 0; j < num_examples; j++) {
+        tsk_table_collection_free(&in_tables[j]);
+    }
+    fclose(f);
 }
 
 static void
@@ -826,9 +1075,12 @@ main(int argc, char **argv)
         { "test_bad_offset_columns", test_bad_offset_columns },
         { "test_metadata_schemas_optional", test_metadata_schemas_optional },
         { "test_load_node_table_errors", test_load_node_table_errors },
-        { "test_table_collection_load_errors", test_table_collection_load_errors },
-        { "test_table_collection_dump_errors", test_table_collection_dump_errors },
+        { "test_load_bad_file_formats", test_load_bad_file_formats },
+        { "test_load_errors", test_load_errors },
+        { "test_load_eof", test_load_eof },
+        { "test_dump_errors", test_dump_errors },
         { "test_example_round_trip", test_example_round_trip },
+        { "test_multiple_round_trip", test_multiple_round_trip },
         { "test_copy_store_drop_columns", test_copy_store_drop_columns },
         { NULL, NULL },
     };

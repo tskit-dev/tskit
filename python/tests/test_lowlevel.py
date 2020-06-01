@@ -260,21 +260,19 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 self.assertRaises(TypeError, func, bad_type)
             # Try to dump/load files we don't have access to or don't exist.
             for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
-                self.assertRaises(_tskit.FileFormatError, func, f)
+                self.assertRaises(OSError, func, f)
                 try:
                     func(f)
-                except _tskit.FileFormatError as e:
+                except OSError as e:
                     message = str(e)
                     self.assertGreater(len(message), 0)
-            # use a long filename and make sure we don't overflow error
-            # buffers
             f = "/" + 4000 * "x"
-            self.assertRaises(_tskit.FileFormatError, func, f)
+            self.assertRaises(OSError, func, f)
             try:
                 func(f)
-            except _tskit.FileFormatError as e:
+            except OSError as e:
                 message = str(e)
-                self.assertLess(len(message), 1024)
+            self.assertTrue(message.endswith("File name too long"))
 
     def test_initial_state(self):
         # Check the initial state to make sure that it is empty.

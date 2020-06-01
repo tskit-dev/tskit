@@ -119,6 +119,10 @@ An IO error occured.
 #define TSK_ERR_BUFFER_OVERFLOW                                     -5
 #define TSK_ERR_UNSUPPORTED_OPERATION                               -6
 #define TSK_ERR_GENERATE_UUID                                       -7
+/**
+The file stream ended after reading zero bytes.
+*/
+#define TSK_ERR_EOF                                                 -8
 /** @} */
 
 /**

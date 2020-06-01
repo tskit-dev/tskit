@@ -983,8 +983,8 @@ class TestFileFormatErrors(TestFileFormat):
 
     def test_load_bad_formats(self):
         # try loading a bunch of files in various formats.
-        # First, check the emtpy file.
-        self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+        # First, check the empty file.
+        self.assertRaises(EOFError, tskit.load, self.temp_file)
         # Now some ascii text
         with open(self.temp_file, "wb") as f:
             f.write(b"Some ASCII text")

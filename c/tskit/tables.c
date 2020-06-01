@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2020 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -7052,7 +7052,10 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
         ret = TSK_ERR_FILE_FORMAT;
         goto out;
     }
-
+    /* This is safe because either we are in a case where TSK_NO_INIT has been set
+     * and there is a valid pointer, or this is a fresh table collection where all
+     * all pointers have been set to zero */
+    tsk_safe_free(self->file_uuid);
     /* Allow space for \0 so we can print it as a string */
     self->file_uuid = malloc(TSK_UUID_SIZE + 1);
     if (self->file_uuid == NULL) {
@@ -7163,22 +7166,23 @@ out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
-tsk_table_collection_load(
-    tsk_table_collection_t *self, const char *filename, tsk_flags_t options)
+static int TSK_WARN_UNUSED
+tsk_table_collection_loadf_inited(tsk_table_collection_t *self, FILE *file)
 {
     int ret = 0;
     kastore_t store;
 
-    memset(&store, 0, sizeof(store));
-
-    ret = tsk_table_collection_init(self, options);
+    ret = kastore_openf(&store, file, "r", KAS_READ_ALL);
     if (ret != 0) {
-        goto out;
-    }
-    ret = kastore_open(&store, filename, "r", KAS_READ_ALL);
-    if (ret != 0) {
-        ret = tsk_set_kas_error(ret);
+        if (ret == KAS_ERR_EOF) {
+            /* KAS_ERR_EOF means that we tried to read a store from the stream
+             * and we hit EOF immediately without reading any bytes. We signal
+             * this back to the client, which allows it to read an indefinite
+             * number of stores from a stream */
+            ret = TSK_ERR_EOF;
+        } else {
+            ret = tsk_set_kas_error(ret);
+        }
         goto out;
     }
     ret = tsk_table_collection_read_format_data(self, &store);
@@ -7233,6 +7237,61 @@ out:
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_table_collection_loadf(tsk_table_collection_t *self, FILE *file, tsk_flags_t options)
+{
+    int ret = 0;
+
+    if (!(options & TSK_NO_INIT)) {
+        ret = tsk_table_collection_init(self, options);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_table_collection_loadf_inited(self, file);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_load(
+    tsk_table_collection_t *self, const char *filename, tsk_flags_t options)
+{
+    int ret = 0;
+    FILE *file = NULL;
+
+    if (!(options & TSK_NO_INIT)) {
+        ret = tsk_table_collection_init(self, options);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    file = fopen(filename, "rb");
+    if (file == NULL) {
+        ret = TSK_ERR_IO;
+        goto out;
+    }
+    ret = tsk_table_collection_loadf_inited(self, file);
+    if (ret != 0) {
+        goto out;
+    }
+    if (fclose(file) != 0) {
+        ret = TSK_ERR_IO;
+        goto out;
+    }
+    file = NULL;
+out:
+    if (file != NULL) {
+        /* Ignore any additional errors we might get when closing the file
+         * in error conditions */
+        fclose(file);
+    }
+    return ret;
+}
+
 static int TSK_WARN_UNUSED
 tsk_table_collection_write_format_data(tsk_table_collection_t *self, kastore_t *store)
 {
@@ -7268,6 +7327,36 @@ tsk_table_collection_dump(
     tsk_table_collection_t *self, const char *filename, tsk_flags_t options)
 {
     int ret = 0;
+    FILE *file = fopen(filename, "wb");
+
+    if (file == NULL) {
+        ret = TSK_ERR_IO;
+        goto out;
+    }
+    ret = tsk_table_collection_dumpf(self, file, options);
+    if (ret != 0) {
+        goto out;
+    }
+    if (fclose(file) != 0) {
+        ret = TSK_ERR_IO;
+        goto out;
+    }
+    file = NULL;
+out:
+    if (file != NULL) {
+        /* Ignore any additional errors we might get when closing the file
+         * in error conditions */
+        fclose(file);
+        /* If an error occurred make sure that the filename is removed */
+        remove(filename);
+    }
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_dumpf(tsk_table_collection_t *self, FILE *file, tsk_flags_t options)
+{
+    int ret = 0;
     kastore_t store;
 
     memset(&store, 0, sizeof(store));
@@ -7282,7 +7371,7 @@ tsk_table_collection_dump(
         }
     }
 
-    ret = kastore_open(&store, filename, "w", 0);
+    ret = kastore_openf(&store, file, "w", 0);
     if (ret != 0) {
         ret = tsk_set_kas_error(ret);
         goto out;
@@ -7330,11 +7419,12 @@ tsk_table_collection_dump(
     if (ret != 0) {
         goto out;
     }
+
     ret = kastore_close(&store);
     if (ret != 0) {
         ret = tsk_set_kas_error(ret);
+        goto out;
     }
-
 out:
     /* It's safe to close a kastore twice. */
     if (ret != 0) {

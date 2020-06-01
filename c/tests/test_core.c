@@ -47,7 +47,7 @@ test_strerror(void)
 static void
 test_strerror_kastore(void)
 {
-    int kastore_errors[] = { KAS_ERR_NO_MEMORY, KAS_ERR_IO, KAS_ERR_KEY_NOT_FOUND };
+    int kastore_errors[] = { KAS_ERR_NO_MEMORY, KAS_ERR_KEY_NOT_FOUND };
     size_t j;
     int err;
 

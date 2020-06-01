@@ -442,3 +442,37 @@ tree in three different ways:
 .. literalinclude:: ../c/examples/tree_traversal.c
     :language: c
 
+.. _sec_c_api_examples_file_streaming:
+
+--------------
+File streaming
+--------------
+
+It is often useful to read tree sequence files from a stream rather than
+from a fixed filename. This example shows how to do this using the
+:c:func:`tsk_table_collection_loadf` and
+:c:func:`tsk_table_collection_dumpf` functions. Here, we sequentially
+load table collections from the ``stdin`` stream and write them
+back out to ``stdout`` with their mutations removed.
+
+.. literalinclude:: ../c/examples/streaming.c
+    :language: c
+
+Note that we use the value :c:macro:`TSK_ERR_EOF` to detect when the stream
+ends, as we don't know how many tree sequences to expect on the input.
+In this case, :c:macro:`TSK_ERR_EOF` is not considered an error and we exit
+normally.
+
+Running this program on some tree sequence files we might get::
+
+    $ cat tmp1.trees tmp2.trees | ./build/streaming > no_mutations.trees
+    Tree sequence 0 had 38 mutations
+    Tree sequence 1 had 132 mutations
+
+Then, running this program again on the output of the previous command,
+we see that we now have two tree sequences with their mutations removed
+stored in the file ``no_mutations.trees``::
+
+    $ ./build/streaming < no_mutations.trees > /dev/null
+    Tree sequence 0 had 0 mutations
+    Tree sequence 1 had 0 mutations

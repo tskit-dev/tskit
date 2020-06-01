@@ -10,6 +10,10 @@ In development
   (see below) to stabilise the node ordering and to make trees more readily
   comparable. The old behaviour is still available with ``order="tree"``.
 
+- File system operations such as dump/load now raise an appropriate OSError
+  instead of tskit.FileFormatError. Loading from an empty file now raises
+  and EOFError.
+
 **New features**
 
 - Add support for trees with internal samples for the Kendall-Colijn tree distance
