@@ -36,6 +36,7 @@ import msprime
 import numpy as np
 
 import _tskit
+import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
@@ -2363,3 +2364,168 @@ class TestBaseTable(unittest.TestCase):
         t = tskit.BaseTable(None, None)
         with self.assertRaises(NotImplementedError):
             t.set_columns()
+
+
+class TestSubsetTables(unittest.TestCase):
+    """
+    Tests for the TableCollection.subset method.
+    """
+
+    def get_msprime_example(self, sample_size=10, seed=1234):
+        M = [[0.0, 0.1], [1.0, 0.0]]
+        population_configurations = [
+            msprime.PopulationConfiguration(sample_size=sample_size),
+            msprime.PopulationConfiguration(sample_size=sample_size),
+        ]
+        ts = msprime.simulate(
+            population_configurations=population_configurations,
+            migration_matrix=M,
+            length=2e5,
+            recombination_rate=1e-8,
+            mutation_rate=1e-7,
+            record_migrations=False,
+            random_seed=seed,
+        )
+        # adding metadata and locations
+        ts = tsutil.add_random_metadata(ts, seed)
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1)
+        return ts.tables
+
+    def get_wf_example(self, N=5, ngens=2, seed=1249):
+        tables = wf.wf_sim(N, N, seed=seed)
+        tables.sort()
+        ts = tables.tree_sequence()
+        # adding muts
+        ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
+        ts = tsutil.add_random_metadata(ts, seed)
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
+        return ts.tables
+
+    def get_examples(self, seed):
+        yield self.get_msprime_example(seed=seed)
+        yield self.get_wf_example(seed=seed)
+
+    def verify_subset_equality(self, tables, nodes):
+        sub1 = tables.copy()
+        sub2 = tables.copy()
+        tsutil.py_subset(sub1, nodes, record_provenance=False)
+        sub2.subset(nodes, record_provenance=False)
+        self.assertEqual(sub1, sub2)
+
+    def verify_subset(self, tables, nodes):
+        self.verify_subset_equality(tables, nodes)
+        subset = tables.copy()
+        subset.subset(nodes, record_provenance=False)
+        # adding one so the last element always maps to NULL (-1 -> -1)
+        node_map = np.repeat(tskit.NULL, tables.nodes.num_rows + 1)
+        indivs = []
+        pops = []
+        for k, n in enumerate(nodes):
+            node_map[n] = k
+            ind = tables.nodes[n].individual
+            pop = tables.nodes[n].population
+            if ind not in indivs and ind != tskit.NULL:
+                indivs.append(ind)
+            if pop not in pops and pop != tskit.NULL:
+                pops.append(pop)
+        ind_map = np.repeat(tskit.NULL, tables.individuals.num_rows + 1)
+        ind_map[indivs] = np.arange(len(indivs), dtype="int32")
+        pop_map = np.repeat(tskit.NULL, tables.populations.num_rows + 1)
+        pop_map[pops] = np.arange(len(pops), dtype="int32")
+        self.assertEqual(subset.nodes.num_rows, len(nodes))
+        for k, n in zip(nodes, subset.nodes):
+            nn = tables.nodes[k]
+            self.assertEqual(nn.time, n.time)
+            self.assertEqual(nn.flags, n.flags)
+            self.assertEqual(nn.metadata, n.metadata)
+            self.assertEqual(ind_map[nn.individual], n.individual)
+            self.assertEqual(pop_map[nn.population], n.population)
+        self.assertEqual(subset.individuals.num_rows, len(indivs))
+        for k, i in zip(indivs, subset.individuals):
+            ii = tables.individuals[k]
+            self.assertEqual(ii, i)
+        self.assertEqual(subset.populations.num_rows, len(pops))
+        for k, p in zip(pops, subset.populations):
+            pp = tables.populations[k]
+            self.assertEqual(pp, p)
+        edges = [
+            i
+            for i, e in enumerate(tables.edges)
+            if e.parent in nodes and e.child in nodes
+        ]
+        self.assertEqual(subset.edges.num_rows, len(edges))
+        for k, e in zip(edges, subset.edges):
+            ee = tables.edges[k]
+            self.assertEqual(ee.left, e.left)
+            self.assertEqual(ee.right, e.right)
+            self.assertEqual(node_map[ee.parent], e.parent)
+            self.assertEqual(node_map[ee.child], e.child)
+            self.assertEqual(ee.metadata, e.metadata)
+        muts = []
+        sites = []
+        for k, m in enumerate(tables.mutations):
+            if m.node in nodes:
+                muts.append(k)
+                if m.site not in sites:
+                    sites.append(m.site)
+        site_map = np.repeat(-1, tables.sites.num_rows)
+        site_map[sites] = np.arange(len(sites), dtype="int32")
+        mutation_map = np.repeat(tskit.NULL, tables.mutations.num_rows + 1)
+        mutation_map[muts] = np.arange(len(muts), dtype="int32")
+        self.assertEqual(subset.sites.num_rows, len(sites))
+        for k, s in zip(sites, subset.sites):
+            ss = tables.sites[k]
+            self.assertEqual(ss, s)
+        self.assertEqual(subset.mutations.num_rows, len(muts))
+        for k, m in zip(muts, subset.mutations):
+            mm = tables.mutations[k]
+            self.assertEqual(mutation_map[mm.parent], m.parent)
+            self.assertEqual(site_map[mm.site], m.site)
+            self.assertEqual(node_map[mm.node], m.node)
+            self.assertEqual(mm.derived_state, m.derived_state)
+            self.assertEqual(mm.metadata, m.metadata)
+        self.assertEqual(tables.migrations, subset.migrations)
+        self.assertEqual(tables.provenances, subset.provenances)
+
+    def test_ts_subset(self):
+        nodes = np.array([0, 1])
+        for tables in self.get_examples(83592):
+            ts = tables.tree_sequence()
+            tables2 = ts.subset(nodes, record_provenance=False).dump_tables()
+            tables.subset(nodes, record_provenance=False)
+            self.assertEqual(tables, tables2)
+
+    def test_subset_all(self):
+        # subsetting to everything shouldn't change things
+        # except the individual ids in the node tables if
+        # there are gaps
+        for tables in self.get_examples(123583):
+            tables2 = tables.copy()
+            tables2.subset(np.arange(tables.nodes.num_rows))
+            tables.provenances.clear()
+            tables2.provenances.clear()
+            tables.individuals.clear()
+            tables2.individuals.clear()
+            tables.nodes.clear()
+            tables2.nodes.clear()
+            self.assertEqual(tables, tables2)
+
+    def test_random_subsets(self):
+        rng = np.random.default_rng(1542)
+        for tables in self.get_examples(9412):
+            for n in [2, tables.nodes.num_rows - 10]:
+                nodes = rng.choice(np.arange(tables.nodes.num_rows), n, replace=False)
+                self.verify_subset(tables, nodes)
+
+    def test_empty_nodes(self):
+        for tables in self.get_examples(8724):
+            subset = tables.copy()
+            subset.subset(np.array([]), record_provenance=False)
+            self.assertEqual(subset.nodes.num_rows, 0)
+            self.assertEqual(subset.edges.num_rows, 0)
+            self.assertEqual(subset.populations.num_rows, 0)
+            self.assertEqual(subset.individuals.num_rows, 0)
+            self.assertEqual(subset.migrations.num_rows, 0)
+            self.assertEqual(subset.sites.num_rows, 0)
+            self.assertEqual(subset.mutations.num_rows, 0)
+            self.assertEqual(subset.provenances, tables.provenances)

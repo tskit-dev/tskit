@@ -2494,3 +2494,23 @@ class TableCollection:
         currently indexed this method has no effect.
         """
         self.ll_tables.drop_index()
+
+    def subset(self, nodes, record_provenance=True):
+        """
+        Modifies the tables in place to contain only the entries referring to
+        the provided list of nodes, with nodes reordered according to the order
+        they appear in the list. See :meth:`TreeSequence.subset` for a more
+        detailed description.
+
+        :param list nodes: The list of nodes for which to retain information. This
+            may be a numpy array (or array-like) object (dtype=np.int32).
+        :param bool record_provenance: Whether to record a provenance entry
+            in the provenance table for this operation.
+        """
+        nodes = util.safe_np_int_cast(nodes, np.int32)
+        self.ll_tables.subset(nodes)
+        if record_provenance:
+            parameters = {"command": "subset", "nodes": nodes.tolist()}
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )

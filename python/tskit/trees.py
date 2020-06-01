@@ -4470,6 +4470,45 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
+    def subset(self, nodes, record_provenance=True):
+        """
+        Returns a tree sequence modified to contain only the entries referring to
+        the provided list of nodes, with nodes reordered according to the order
+        they appear in the ``nodes`` argument. Specifically, this subsets and reorders
+        each of the tables as follows:
+
+        1. Nodes: if in the list of nodes, and in the order provided.
+        2. Individuals and Populations: if referred to by a retained node,
+           and in the order first seen when traversing the list of retained nodes.
+        3. Edges: if both parent and child are retained nodes.
+        4. Mutations: if the mutation's node is a retained node.
+        5. Sites: if any mutations remain at the site after removing mutations.
+        6. Migrations: if the migration's node is a retained node.
+
+        Retained edges, mutations, sites, and migrations appear in the same
+        order as in the original tables.
+
+        If ``nodes`` is the entire list of nodes in the tables, then the
+        resulting tables will be identical to the original tables, but with
+        nodes (and individuals and populations) reordered.
+
+        To instead subset the tables to a given portion of the *genome*, see
+        :meth:`.keep_intervals`.
+
+        **Note:** This is quite different from :meth:`.simplify`: the resulting
+        tables contain only the nodes given, not ancestral ones as well, and
+        does not simplify the relationships in any way.
+
+        :param list nodes: The list of nodes for which to retain information. This
+            may be a numpy array (or array-like) object (dtype=np.int32).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :rtype: .TreeSequence
+        """
+        tables = self.dump_tables()
+        tables.subset(nodes, record_provenance)
+        return tables.tree_sequence()
+
     def draw_svg(
         self,
         path=None,
