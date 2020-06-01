@@ -1,5 +1,5 @@
 attrs==19.3.0
-biopython==1.76
+biopython==1.77
 black==19.10b0
 breathe==4.14.2
 codecov==2.1.3
