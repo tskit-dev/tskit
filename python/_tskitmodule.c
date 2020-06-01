@@ -326,8 +326,12 @@ make_population(tsk_population_t *population)
     PyObject *ret = NULL;
     PyObject *metadata = make_metadata(population->metadata,
             (Py_ssize_t) population->metadata_length);
-
+    if (metadata == NULL) {
+        goto out;
+    }
     ret = Py_BuildValue("(O)", metadata);
+out:
+    Py_XDECREF(metadata);
     return ret;
 }
 
