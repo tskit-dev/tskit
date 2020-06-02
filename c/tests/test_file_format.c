@@ -810,7 +810,8 @@ test_dump_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IO);
     str = tsk_strerror(ret);
     CU_ASSERT_TRUE(strlen(str) > 0);
-    CU_ASSERT_STRING_EQUAL(str, strerror(EACCES));
+    CU_ASSERT_TRUE(
+        (strcmp(str, strerror(EACCES)) == 0) || (strcmp(str, strerror(EPERM)) == 0));
 
     /* open a file in the wrong mode */
     f = fopen(_tmp_file_name, "r");
