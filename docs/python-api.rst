@@ -502,6 +502,8 @@ See :ref:`sec_combinatorics` for details.
 
 .. autofunction:: tskit.all_tree_labellings
 
+.. autoclass:: tskit.TopologyCounter
+
 **********************
 Linkage disequilibrium
 **********************

@@ -56,6 +56,7 @@ from tskit.combinatorics import (  # NOQA
     all_trees,
     all_tree_shapes,
     all_tree_labellings,
+    TopologyCounter,
 )
 from tskit.exceptions import *  # NOQA
 from tskit.util import *  # NOQA
