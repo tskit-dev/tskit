@@ -35,6 +35,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <limits.h>
 
 #ifdef __GNUC__
 #define TSK_WARN_UNUSED __attribute__((warn_unused_result))
@@ -44,6 +45,11 @@ extern "C" {
 #define TSK_UNUSED(x) TSK_UNUSED_##x
 /* Don't bother with restrict for MSVC */
 #define restrict
+#endif
+
+/* We assume CHAR_BIT == 8 when loading strings from 8-bit byte arrays */
+#if CHAR_BIT != 8
+#error CHAR_BIT MUST EQUAL 8
 #endif
 
 /* This sets up TSK_DBL_DECIMAL_DIG, which can then be used as a
