@@ -43,7 +43,7 @@ import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
 import tskit.exceptions as exceptions
 import tskit.formats as formats
-import tskit.metadata as metadata
+import tskit.metadata as metadata_module
 import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.util as util
@@ -2829,19 +2829,21 @@ class TreeSequence:
         Convenience class for returning schemas
         """
 
-        node: metadata.MetadataSchema
-        edge: metadata.MetadataSchema
-        site: metadata.MetadataSchema
-        mutation: metadata.MetadataSchema
-        migration: metadata.MetadataSchema
-        individual: metadata.MetadataSchema
-        population: metadata.MetadataSchema
+        node: metadata_module.MetadataSchema
+        edge: metadata_module.MetadataSchema
+        site: metadata_module.MetadataSchema
+        mutation: metadata_module.MetadataSchema
+        migration: metadata_module.MetadataSchema
+        individual: metadata_module.MetadataSchema
+        population: metadata_module.MetadataSchema
 
     def __init__(self, ll_tree_sequence):
         self._ll_tree_sequence = ll_tree_sequence
         metadata_schema_strings = self._ll_tree_sequence.get_table_metadata_schemas()
         metadata_schema_instances = {
-            name: metadata.parse_metadata_schema(getattr(metadata_schema_strings, name))
+            name: metadata_module.parse_metadata_schema(
+                getattr(metadata_schema_strings, name)
+            )
             for name in vars(self._TableMetadataSchemas)
             if not name.startswith("_")
         }
@@ -3154,6 +3156,22 @@ class TreeSequence:
 
     def get_sequence_length(self):
         return self._ll_tree_sequence.get_sequence_length()
+
+    @property
+    def metadata(self) -> Any:
+        """
+        The decoded metadata for this TreeSequence.
+        """
+        return self.metadata_schema.decode_row(self._ll_tree_sequence.get_metadata())
+
+    @property
+    def metadata_schema(self) -> metadata_module.MetadataSchema:
+        """
+        The :class:`tskit.MetadataSchema` for this TreeSequence.
+        """
+        return metadata_module.parse_metadata_schema(
+            self._ll_tree_sequence.get_metadata_schema()
+        )
 
     @property
     def num_edges(self):

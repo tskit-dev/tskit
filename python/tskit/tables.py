@@ -1884,6 +1884,30 @@ class TableCollection:
     def file_uuid(self):
         return self.ll_tables.file_uuid
 
+    @property
+    def metadata_schema(self) -> metadata.MetadataSchema:
+        """
+        The :class:`tskit.MetadataSchema` for this TableCollection.
+        """
+        return metadata.parse_metadata_schema(self.ll_tables.metadata_schema)
+
+    @metadata_schema.setter
+    def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
+        # Check the schema is a valid schema instance by roundtripping it.
+        metadata.parse_metadata_schema(str(schema))
+        self.ll_tables.metadata_schema = str(schema)
+
+    @property
+    def metadata(self) -> Any:
+        """
+        The decoded metadata for this TableCollection.
+        """
+        return self.metadata_schema.decode_row(self.ll_tables.metadata)
+
+    @metadata.setter
+    def metadata(self, metadata: Any) -> None:
+        self.ll_tables.metadata = self.metadata_schema.validate_and_encode_row(metadata)
+
     def asdict(self):
         """
         Returns a dictionary representation of this TableCollection.

@@ -27,6 +27,9 @@ In development
   on calls to ``table[j]`` and e.g. ``tree_sequence.node(j)`` See :ref:`sec_metadata`.
   (:user:`benjeffery`, :pr:`491`, :pr:`542`, :pr:`543`, :pr:`601`)
 
+- The tree-sequence now has top-level metadata with a schema.
+  (:user:`benjeffery`, :pr:`666`, :pr:`644`, :pr:`642`)
+
 - Add classes to SVG drawings to allow easy adjustment and styling, and document the new
   ``tskit.Tree.draw_svg()`` and ``tskit.TreeSequence.draw_svg()`` methods. This also fixes
   :issue:`467` for duplicate SVG entity ``id`` s in Jupyter notebooks.
