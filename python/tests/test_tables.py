@@ -2109,6 +2109,103 @@ class TestTableCollection(unittest.TestCase):
         self.assertEqual(len(tree.parent_dict), 0)
 
 
+class TestTableCollectionMetadata(unittest.TestCase):
+
+    metadata_schema = metadata.MetadataSchema(
+        {
+            "codec": "json",
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {
+                "one": {"type": "string"},
+                "two": {"type": "number"},
+                "three": {"type": "array"},
+                "four": {"type": "boolean"},
+            },
+            "required": ["one", "two", "three", "four"],
+            "additionalProperties": False,
+        },
+    )
+
+    def metadata_example_data(self, val=0):
+        return {
+            "one": "val one",
+            "two": val,
+            "three": list(range(val, val + 10)),
+            "four": True,
+        }
+
+    def test_set_metadata_schema(self):
+        tc = tskit.TableCollection(1)
+        metadata_schema2 = metadata.MetadataSchema({"codec": "json"})
+        # Default is no-op metadata codec
+        self.assertEqual(str(tc.metadata_schema), str(metadata.MetadataSchema(None)))
+        # Set
+        tc.metadata_schema = self.metadata_schema
+        self.assertEqual(str(tc.metadata_schema), str(self.metadata_schema))
+        # Overwrite
+        tc.metadata_schema = metadata_schema2
+        self.assertEqual(str(tc.metadata_schema), str(metadata_schema2))
+        # Remove
+        tc.metadata_schema = ""
+        self.assertEqual(str(tc.metadata_schema), str(metadata.MetadataSchema(None)))
+        # Set after remove
+        tc.metadata_schema = self.metadata_schema
+        self.assertEqual(str(tc.metadata_schema), str(self.metadata_schema))
+        # Del should fail
+        with self.assertRaises(AttributeError):
+            del tc.metadata_schema
+        # None should fail
+        with self.assertRaises(ValueError):
+            tc.metadata_schema = None
+
+    def test_set_metadata(self):
+        tc = tskit.TableCollection(1)
+        # Default is empty bytes
+        self.assertEqual(tc.metadata, b"")
+
+        tc.metadata_schema = self.metadata_schema
+        md1 = self.metadata_example_data()
+        md2 = self.metadata_example_data(val=2)
+        # Set
+        tc.metadata = md1
+        self.assertEqual(tc.metadata, md1)
+        # Overwrite
+        tc.metadata = md2
+        self.assertEqual(tc.metadata, md2)
+        # Del should fail
+        with self.assertRaises(AttributeError):
+            del tc.metadata
+        # None should fail
+        with self.assertRaises(exceptions.MetadataValidationError):
+            tc.metadata = None
+
+    def test_default_metadata_schema(self):
+        # Default should allow bytes
+        tc = tskit.TableCollection(1)
+        tc.metadata = b"acceptable bytes"
+        self.assertEqual(tc.metadata, b"acceptable bytes")
+        # Adding non-bytes metadata should error
+        with self.assertRaises(TypeError):
+            tc.metadata = self.metadata_example_data()
+
+    def test_round_trip_metadata(self):
+        data = self.metadata_example_data()
+        tc = tskit.TableCollection(1)
+        tc.metadata_schema = self.metadata_schema
+        tc.metadata = data
+        self.assertDictEqual(tc.metadata, data)
+
+    def test_bad_metadata(self):
+        metadata = self.metadata_example_data()
+        metadata["I really shouldn't be here"] = 6
+        tc = tskit.TableCollection(1)
+        tc.metadata_schema = self.metadata_schema
+        with self.assertRaises(exceptions.MetadataValidationError):
+            tc.metadata = metadata
+        self.assertEqual(tc.ll_tables.metadata, b"")
+
+
 class TestTableCollectionPickle(unittest.TestCase):
     """
     Tests that we can round-trip table collections through pickle.

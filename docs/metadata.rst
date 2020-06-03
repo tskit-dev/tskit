@@ -4,7 +4,7 @@
 Metadata
 ========
 
-Every entity (nodes, mutations, edges,  etc.) in a tskit tree sequence can have
+The tree-sequence and every entity within it (nodes, mutations, edges,  etc.) can have
 metadata associated with it. This is intended for storing and passing on information
 that tskit itself does not use or interpret. For example information derived from a VCF
 INFO field, or administrative information (such as unique identifiers) relating to
@@ -170,11 +170,17 @@ attribute (e.g. :attr:`tskit.IndividualTable.metadata_schema`). The schemas
 for all tables can be retrieved from a :class:`tskit.TreeSequence` by the
 :attr:`tskit.TreeSequence.table_metadata_schemas` attribute.
 
+The top-level tree sequence metadata schema is set via
+:attr:`tskit.TableCollection.metadata_schema` and can be accessed via
+:attr:`tskit.TreeSequence.metadata_schema`.
+
 Each table's ``add_row`` method (e.g. :meth:`tskit.IndividualTable.add_row`) will
-validate and encode the metadata using the schema.
+validate and encode the metadata using the schema. This encoding will also happen when
+tree sequence metadata is set (e.g. ``table_collection.metadata = {...}``.
 
 Metadata will be lazily decoded if accessed via
-``tables.individuals[0].metadata`` or ``tree_sequence.individual(0).metadata``.
+``tables.individuals[0].metadata``.  ``tree_sequence.individual(0).metadata`` or
+``tree_sequence.metadata``
 
 In the interests of efficiency the bulk methods of ``set_columns``
 (e.g. :meth:`tskit.IndividualTable.set_columns`)

@@ -501,6 +501,8 @@ interchanged, each row is `base 64 encoded <https://en.wikipedia.org/wiki/Base64
 Thus, binary information can be safely printed and exchanged, but may not be
 human readable.
 
+The tree sequence itself also has metadata stored as a byte array.
+
 .. _sec_valid_tree_sequence_requirements:
 
 Valid tree sequence requirements

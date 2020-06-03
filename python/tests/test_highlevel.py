@@ -1368,7 +1368,37 @@ class TestTreeSequenceMetadata(unittest.TestCase):
         },
     )
 
-    def test_metadata_schemas(self):
+    def test_tree_sequence_metadata_schema(self):
+        tc = tskit.TableCollection(1)
+        ts = tc.tree_sequence()
+        self.assertEqual(str(ts.metadata_schema), str(tskit.MetadataSchema(None)))
+        tc.metadata_schema = self.metadata_schema
+        ts = tc.tree_sequence()
+        self.assertEqual(str(ts.metadata_schema), str(self.metadata_schema))
+        with self.assertRaises(AttributeError):
+            del ts.metadata_schema
+        with self.assertRaises(AttributeError):
+            ts.metadata_schema = tskit.MetadataSchema(None)
+
+    def test_tree_sequence_metadata(self):
+        tc = tskit.TableCollection(1)
+        ts = tc.tree_sequence()
+        self.assertEqual(ts.metadata, b"")
+        tc.metadata_schema = self.metadata_schema
+        data = {
+            "table": "tree-sequence",
+            "string_prop": "stringy",
+            "num_prop": 42,
+        }
+        tc.metadata = data
+        ts = tc.tree_sequence()
+        self.assertEqual(ts.metadata, data)
+        with self.assertRaises(AttributeError):
+            ts.metadata = {"should": "fail"}
+        with self.assertRaises(AttributeError):
+            del ts.metadata
+
+    def test_table_metadata_schemas(self):
         ts = msprime.simulate(5)
         for table in self.metadata_tables:
             tables = ts.dump_tables()
@@ -1405,7 +1435,7 @@ class TestTreeSequenceMetadata(unittest.TestCase):
                         tskit.MetadataSchema({"codec": "json"}),
                     )
 
-    def test_metadata_round_trip_via_row_getters(self):
+    def test_table_metadata_round_trip_via_row_getters(self):
         # A tree sequence with all entities
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]
