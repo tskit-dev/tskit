@@ -390,6 +390,122 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
     return A
 
 
+def parse_time_windows(ts, time_windows):
+    if time_windows is None:
+        time_windows = [0.0, ts.max_root_time]
+    return np.array(time_windows)
+
+
+def windowed_genealogical_nearest_neighbours(
+    ts,
+    focal,
+    reference_sets,
+    windows=None,
+    time_windows=None,
+    span_normalise=True,
+    time_normalise=True,
+):
+    """
+    genealogical_nearest_neighbours with support for span- and time-based windows
+    """
+    reference_set_map = np.full(ts.num_nodes, tskit.NULL, dtype=int)
+    for k, reference_set in enumerate(reference_sets):
+        for u in reference_set:
+            if reference_set_map[u] != tskit.NULL:
+                raise ValueError("Duplicate value in reference sets")
+            reference_set_map[u] = k
+
+    windows_used = windows is not None
+    time_windows_used = time_windows is not None
+    windows = ts.parse_windows(windows)
+    num_windows = windows.shape[0] - 1
+    time_windows = parse_time_windows(ts, time_windows)
+    num_time_windows = time_windows.shape[0] - 1
+    A = np.zeros((num_windows, num_time_windows, len(focal), len(reference_sets)))
+    K = len(reference_sets)
+    parent = np.full(ts.num_nodes, tskit.NULL, dtype=int)
+    sample_count = np.zeros((ts.num_nodes, K), dtype=int)
+    time = ts.tables.nodes.time
+    norm = np.zeros((num_windows, num_time_windows, len(focal)))
+
+    # Set the initial conditions.
+    for j in range(K):
+        sample_count[reference_sets[j], j] = 1
+
+    window_index = 0
+    for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
+        for edge in edges_out:
+            parent[edge.child] = tskit.NULL
+            v = edge.parent
+            while v != tskit.NULL:
+                sample_count[v] -= sample_count[edge.child]
+                v = parent[v]
+        for edge in edges_in:
+            parent[edge.child] = edge.parent
+            v = edge.parent
+            while v != tskit.NULL:
+                sample_count[v] += sample_count[edge.child]
+                v = parent[v]
+
+        # Update the windows
+        assert window_index < num_windows
+        while windows[window_index] < t_right and window_index + 1 <= num_windows:
+            w_left = windows[window_index]
+            w_right = windows[window_index + 1]
+            left = max(t_left, w_left)
+            right = min(t_right, w_right)
+            span = right - left
+            # Process this tree.
+            for j, u in enumerate(focal):
+                focal_reference_set = reference_set_map[u]
+                delta = int(focal_reference_set != tskit.NULL)
+                p = u
+                while p != tskit.NULL:
+                    total = np.sum(sample_count[p])
+                    if total > delta:
+                        break
+                    p = parent[p]
+                if p != tskit.NULL:
+                    scale = span / (total - delta)
+                    time_index = np.searchsorted(time_windows, time[p]) - 1
+                    if 0 <= time_index < num_time_windows:
+                        for k in range(len(reference_sets)):
+                            n = sample_count[p, k] - int(focal_reference_set == k)
+                            A[window_index, time_index, j, k] += n * scale
+                        norm[window_index, time_index, j] += span
+            assert span > 0
+            if w_right <= t_right:
+                window_index += 1
+            else:
+                # This interval crosses a tree boundary, so we update it again
+                # in the next tree
+                break
+
+    # Reshape norm depending on normalization selected
+    # Return NaN when normalisation value is 0
+    if span_normalise and time_normalise:
+        reshaped_norm = norm.reshape((num_windows, num_time_windows, len(focal), 1))
+    elif span_normalise and not time_normalise:
+        norm = np.sum(norm, axis=1)
+        reshaped_norm = norm.reshape((num_windows, 1, len(focal), 1))
+    elif time_normalise and not span_normalise:
+        norm = np.sum(norm, axis=0)
+        reshaped_norm = norm.reshape((1, num_time_windows, len(focal), 1))
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        A /= reshaped_norm
+    A[np.all(A == 0, axis=3)] = np.nan
+
+    # Remove dimension for windows and/or time_windows if parameter is None
+    if not windows_used and time_windows_used:
+        A = A.reshape((num_time_windows, len(focal), len(reference_sets)))
+    elif not time_windows_used and windows_used:
+        A = A.reshape((num_windows, len(focal), len(reference_sets)))
+    elif not windows_used and not time_windows_used:
+        A = A.reshape((len(focal), len(reference_sets)))
+    return A
+
+
 class TestGenealogicalNearestNeighbours:
     """
     Tests the TreeSequence.genealogical_nearest_neighbours method.
@@ -432,14 +548,22 @@ class TestGenealogicalNearestNeighbours:
         A2 = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
         A3 = ts.genealogical_nearest_neighbours(focal, reference_sets)
         A4 = ts.genealogical_nearest_neighbours(focal, reference_sets, num_threads=3)
+        A5 = windowed_genealogical_nearest_neighbours(ts, focal, reference_sets)
         assert np.array_equal(A3, A4)
         assert A1.shape == A2.shape
         assert A1.shape == A3.shape
         assert np.allclose(A1, A2)
         assert np.allclose(A1, A3)
+        mask = ~np.isnan(A5)
+        assert np.sum(mask) > 0 or ts.num_edges == 0
+        assert np.allclose(A1[mask], A5[mask])
+        assert np.allclose(A5[mask], A2[mask])
+        assert np.allclose(A5[mask], A3[mask])
+
         if ts.num_edges > 0 and all(ts.node(u).is_sample() for u in focal):
             # When the focal nodes are samples, we can assert some stronger properties.
             assert np.allclose(np.sum(A1, axis=1), 1)
+            assert np.allclose(np.sum(A5, axis=1), 1)
         return A1
 
     def test_simple_example_all_samples(self):
@@ -657,6 +781,285 @@ class TestGenealogicalNearestNeighbours:
         tables.nodes.add_row(1, 0)
         ts = tables.tree_sequence()
         self.verify(ts, [[0], [1]])
+
+
+class TestWindowedGenealogicalNearestNeighbours(TestGenealogicalNearestNeighbours):
+    """
+    Tests the TreeSequence.genealogical_nearest_neighbours method.
+    """
+
+    #               .    5
+    #               .   / \
+    #        4      .  |   4
+    #       / \     .  |   |\
+    #      3   \    .  |   | \
+    #     / \   \   .  |   |  \
+    #   [0] [1] [2] . [0] [1] [2]
+    #
+    two_tree_nodes = """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       0           1
+    4       0           2
+    5       0           3
+    """
+    two_tree_edges = """\
+    left    right   parent  child
+    0       0.2     3       0,1
+    0       1       4       2
+    0       0.2     4       3
+    0.2     1       4       1
+    0.2     1       5       0,4
+    """
+
+    def get_two_tree_ts(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.two_tree_nodes),
+            edges=io.StringIO(self.two_tree_edges),
+            strict=False,
+        )
+        return ts
+
+    def verify(self, ts, reference_sets, focal=None, windows=None, time_windows=None):
+        if focal is None:
+            focal = [u for refset in reference_sets for u in refset]
+        gnn = windowed_genealogical_nearest_neighbours(
+            ts, focal, reference_sets, windows, time_windows
+        )
+        if windows is not None:
+            windows_len = len(windows) - 1
+        if time_windows is not None:
+            time_windows_len = len(time_windows) - 1
+        if windows is None and time_windows is None:
+            assert np.array_equal(gnn.shape, [len(focal), len(reference_sets)])
+        elif windows is None and time_windows is not None:
+            assert np.array_equal(
+                gnn.shape, [time_windows_len, len(focal), len(reference_sets)]
+            )
+        elif windows is not None and time_windows is None:
+            assert np.array_equal(
+                gnn.shape, [windows_len, len(focal), len(reference_sets)]
+            )
+        else:
+            assert np.array_equal(
+                gnn.shape,
+                [windows_len, time_windows_len, len(focal), len(reference_sets)],
+            )
+
+        return gnn
+
+    def test_one_tree_windows(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges),
+            strict=False,
+        )
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], [0, 1])
+        assert np.allclose(A, [[[[1, 0]]]])
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], [0, 0.5, 1])
+        assert np.allclose(A, [[[[1.0, 0.0]]], [[[1.0, 0.0]]]])
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], [0, 0.5, 0.6, 1])
+        assert np.allclose(A, [[[[1.0, 0.0]]], [[[1.0, 0.0]]], [[[1.0, 0.0]]]])
+
+    def test_two_tree_windows(self):
+        ts = self.get_two_tree_ts()
+        A = self.verify(ts, [[0, 1], [2]], [0], [0, 1])
+        assert np.allclose(A, [[[0.6, 0.4]]])
+        A = self.verify(ts, [[0, 1], [2]], [0], [0, 0.2, 1])
+        assert np.allclose(A, [[[1.0, 0.0]], [[0.5, 0.5]]])
+        A = self.verify(ts, [[0, 1], [2]], [0], [0, 0.2, 0.5, 1])
+        assert np.allclose(A, [[[1.0, 0.0]], [[0.5, 0.5]], [[0.5, 0.5]]])
+
+    def test_one_tree_time_windows(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges),
+            strict=False,
+        )
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], None, [0, ts.max_root_time])
+        assert np.allclose(A, [[[1, 0]]])
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], None, [1, 2])
+        assert np.allclose(A, [[[np.nan, np.nan]]], equal_nan=True)
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], None, [0, 0.1])
+        assert np.allclose(A, [[[np.nan, np.nan]]], equal_nan=True)
+
+    def test_two_tree_time_windows(self):
+        ts = self.get_two_tree_ts()
+        A = self.verify(ts, [[0, 1], [2]], [0], None, [0, ts.max_root_time])
+        assert np.allclose(A, [[[0.6, 0.4]]])
+        A = self.verify(ts, [[0, 1], [2]], [0], None, [0, 1.1, ts.max_root_time])
+        assert np.allclose(A, [[[1.0, 0.0]], [[0.5, 0.5]]])
+        A = self.verify(ts, [[0, 1], [2]], [0], None, [0, 0.5, 1])
+        assert np.allclose(A, [[[np.nan, np.nan]], [[1.0, 0.0]]], equal_nan=True)
+        A = self.verify(ts, [[0, 1], [2]], [0], None, [1, ts.max_root_time, 10])
+        assert np.allclose(A, [[[0.5, 0.5]], [[np.nan, np.nan]]], equal_nan=True)
+
+    def test_one_tree_windows_time_windows(self):
+        ts = tskit.load_text(
+            nodes=io.StringIO(self.small_tree_ex_nodes),
+            edges=io.StringIO(self.small_tree_ex_edges),
+            strict=False,
+        )
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], [0, 1], [0, ts.max_root_time])
+        assert np.allclose(A, [[[[1, 0]]]])
+        A = self.verify(
+            ts, [[0, 1], [2, 3, 4]], [0], [0, 0.2, 1], [0, 1.1, ts.max_root_time]
+        )
+        assert np.allclose(
+            A,
+            [
+                [[[1.0, 0.0]], [[np.nan, np.nan]]],
+                [[[1.0, 0.0]], [[np.nan, np.nan]]],
+            ],
+            equal_nan=True,
+        )
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], [0, 0.2], [0, 0.5, 1])
+        assert np.allclose(A, [[[[1.0, 0.0]], [[np.nan, np.nan]]]], equal_nan=True)
+        A = self.verify(
+            ts, [[0, 1], [2, 3, 4]], [0], [0, 0.2, 1, 1.5], [0, ts.max_root_time, 10]
+        )
+        assert np.allclose(
+            A,
+            [
+                [[[1.0, 0.0]], [[np.nan, np.nan]]],
+                [[[1.0, 0.0]], [[np.nan, np.nan]]],
+                [[[np.nan, np.nan]], [[np.nan, np.nan]]],
+            ],
+            equal_nan=True,
+        )
+
+    def test_two_tree_windows_time_windows(self):
+        ts = self.get_two_tree_ts()
+        A = self.verify(ts, [[0, 1], [2]], [0], [0, 1], [0, ts.max_root_time])
+        assert np.allclose(A, [[[[0.6, 0.4]]]])
+        A = self.verify(ts, [[0, 1], [2]], [0], [0, 0.2, 1], [0, 1.1, ts.max_root_time])
+        assert np.allclose(
+            A,
+            [
+                [[[1.0, 0.0]], [[np.nan, np.nan]]],
+                [[[np.nan, np.nan]], [[0.5, 0.5]]],
+            ],
+            equal_nan=True,
+        )
+        A = self.verify(ts, [[0, 1], [2, 3, 4]], [0], [0, 0.2, 1], [0, 0.5, 1])
+        assert np.allclose(
+            A,
+            [
+                [[[np.nan, np.nan]], [[0.5, 0.5]]],
+                [[[np.nan, np.nan]], [[np.nan, np.nan]]],
+            ],
+            equal_nan=True,
+        )
+
+    def test_span_normalise(self):
+        ts = self.get_two_tree_ts()
+        sample_sets = [[0, 1], [2]]
+        focal = [0]
+        np.random.seed(5)
+        windows = ts.sequence_length * np.array([0.2, 0.4, 0.6, 0.8, 1])
+        windows.sort()
+        windows[0] = 0.0
+        windows[-1] = ts.sequence_length
+
+        result1 = windowed_genealogical_nearest_neighbours(
+            ts, focal, sample_sets, windows
+        )
+        result2 = windowed_genealogical_nearest_neighbours(
+            ts, focal, sample_sets, windows, span_normalise=True
+        )
+        result3 = windowed_genealogical_nearest_neighbours(
+            ts, focal, sample_sets, windows, span_normalise=False
+        )
+        denom = np.diff(windows)[:, np.newaxis, np.newaxis]
+
+        # Test the dimensions are correct
+        assert np.array_equal(result1.shape, result2.shape)
+        assert np.array_equal(result2.shape, result3.shape)
+
+        # Test normalisation is correct
+        assert np.allclose(result1, result2)
+        assert np.allclose(result1, result3 / denom)
+
+        # If span_normalised, then sum over all reference sets should be 1
+        assert np.allclose(np.sum(result1, axis=2), 1)
+        assert np.allclose(np.sum(result2, axis=2), 1)
+        # If not span_normalised, then sum over all value is 1
+        assert np.allclose(result3.sum(), 1)
+
+    def test_time_normalise(self):
+        """
+        Testing time_normalise is trickier than span_normalise, as the norm
+        depends on the span of the nearest neighbours found in each time grid.
+        In this small example, we check which grid nodes 3 and 5 fall in, and use their
+        spans to check the time_normalisation.
+        """
+        ts = self.get_two_tree_ts()
+        sample_sets = [[0, 1], [2]]
+        focal = [0]
+        oldest_node = ts.max_root_time
+        time_windows = oldest_node * np.array([0.2, 0.4, 0.6, 0.8, 1])
+        time_windows.sort()
+        time_windows[0] = 0.0
+        time_windows[-1] = oldest_node
+
+        # Determine output_dim of the function
+        result1 = windowed_genealogical_nearest_neighbours(
+            ts, focal, sample_sets, windows=None, time_windows=time_windows
+        )
+        result2 = windowed_genealogical_nearest_neighbours(
+            ts,
+            focal,
+            sample_sets,
+            windows=None,
+            time_windows=time_windows,
+            time_normalise=True,
+        )
+        result3 = windowed_genealogical_nearest_neighbours(
+            ts,
+            focal,
+            sample_sets,
+            windows=None,
+            time_windows=time_windows,
+            time_normalise=False,
+        )
+        denom = np.zeros(len(time_windows) - 1)
+        time_index_3 = np.searchsorted(time_windows, ts.tables.nodes.time[3]) - 1
+        time_index_5 = np.searchsorted(time_windows, ts.tables.nodes.time[5]) - 1
+        denom[time_index_3] += 0.2
+        denom[time_index_5] += 0.8
+
+        # Avoid division by zero
+        denom[denom == 0] = 1
+        denom = denom[:, np.newaxis, np.newaxis]
+
+        # Test the dimensions are correct
+        assert np.array_equal(result1.shape, result2.shape)
+        assert np.array_equal(result2.shape, result3.shape)
+
+        # Test normalisation is correct
+        assert np.allclose(result1, result2, equal_nan=True)
+        assert np.allclose(result1, result3 / denom, equal_nan=True)
+
+        # If time_normalised, then sum over all reference sets should be 1
+        # Mask out time intervals that sum to 0
+        result1_dim_sum = np.sum(result1, axis=2)
+        mask = ~(np.isnan(result1_dim_sum))
+        assert np.allclose(
+            result1_dim_sum[mask],
+            np.ones((len(result1_dim_sum), len(focal)))[mask],
+            equal_nan=True,
+        )
+        result2_dim_sum = np.sum(result2, axis=2)
+        mask = ~(np.isnan(result2_dim_sum))
+        assert np.allclose(
+            result2_dim_sum[mask],
+            np.ones((len(result2_dim_sum), len(focal)))[mask],
+            equal_nan=True,
+        )
+        # If not span_normalised, then sum over all value is 1
+        assert np.allclose(np.nansum(result3), 1)
 
 
 def exact_genealogical_nearest_neighbours(ts, focal, reference_sets):
