@@ -23,6 +23,7 @@
 """
 A collection of utilities to edit and construct tree sequences.
 """
+import collections
 import json
 import random
 import string
@@ -74,6 +75,7 @@ def subsample_sites(ts, num_sites):
                     site=site_id,
                     derived_state=mutation.derived_state,
                     node=mutation.node,
+                    time=mutation.time,
                     parent=mutation.parent,
                 )
     add_provenance(t.provenances, "subsample_sites")
@@ -124,11 +126,14 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
                         mutation[u] = tables.mutations.add_row(
                             site=site,
                             node=u,
+                            time=-1,
                             derived_state=str(state[u]),
                             parent=parent,
                         )
                         parent = mutation[u]
     add_provenance(tables.provenances, "insert_branch_mutations")
+    tables.build_index()
+    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -147,9 +152,11 @@ def insert_branch_sites(ts):
         for u in tree.nodes():
             if tree.parent(u) != tskit.NULL:
                 site = tables.sites.add_row(position=x, ancestral_state="0")
-                tables.mutations.add_row(site=site, node=u, derived_state="1")
+                tables.mutations.add_row(site=site, node=u, time=-1, derived_state="1")
                 x += delta
     add_provenance(tables.provenances, "insert_branch_sites")
+    tables.build_index()
+    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -174,8 +181,12 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
         derived_state = ancestral_state
         while ancestral_state == derived_state:
             derived_state = rng.choice(letters) * rng.randint(0, max_len)
-        tables.mutations.add_row(site=site, node=u, derived_state=derived_state)
+        tables.mutations.add_row(
+            site=site, node=u, time=tables.nodes[u].time, derived_state=derived_state
+        )
     add_provenance(tables.provenances, "insert_multichar_mutations")
+    tables.build_index()
+    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -260,6 +271,7 @@ def permute_nodes(ts, node_map):
         for mutation in site.mutations:
             tables.mutations.add_row(
                 site=site.id,
+                time=mutation.time,
                 derived_state=mutation.derived_state,
                 node=node_map[mutation.node],
                 metadata=mutation.metadata,
@@ -288,12 +300,23 @@ def insert_redundant_breakpoints(ts):
 def single_childify(ts):
     """
     Builds a new equivalent tree sequence which contains an extra node in the
-    middle of all exising branches.
+    middle of all existing branches.
     """
     tables = ts.dump_tables()
 
+    mutations_above_node = collections.defaultdict(list)
+    for mut in tables.mutations:
+        mutations_above_node[mut.node].append(mut)
+
+    mutations_on_edge = collections.defaultdict(list)
+    for edge_idx, edge in enumerate(tables.edges):
+        for mut in mutations_above_node[edge.child]:
+            if edge.left <= tables.sites[mut.site].position < edge.right:
+                mutations_on_edge[edge_idx].append(mut)
+
     time = tables.nodes.time[:]
     tables.edges.reset()
+    tables.mutations.reset()
     for edge in ts.edges():
         # Insert a new node in between the parent and child.
         t = time[edge.child] + (time[edge.parent] - time[edge.child]) / 2
@@ -304,6 +327,20 @@ def single_childify(ts):
         tables.edges.add_row(
             left=edge.left, right=edge.right, parent=edge.parent, child=u
         )
+        for mut in mutations_on_edge[edge.id]:
+            if mut.time < t:
+                tables.mutations.add_row(
+                    mut.site,
+                    mut.node,
+                    mut.time,
+                    mut.derived_state,
+                    mut.parent,
+                    mut.metadata,
+                )
+            else:
+                tables.mutations.add_row(
+                    mut.site, u, mut.time, mut.derived_state, mut.parent, mut.metadata
+                )
     tables.sort()
     add_provenance(tables.provenances, "insert_redundant_breakpoints")
     return tables.tree_sequence()
@@ -351,6 +388,7 @@ def add_random_metadata(ts, seed=1, max_length=10):
     mutations.set_columns(
         site=mutations.site,
         node=mutations.node,
+        time=mutations.time,
         parent=mutations.parent,
         derived_state=mutations.derived_state,
         derived_state_offset=mutations.derived_state_offset,
@@ -424,13 +462,13 @@ def generate_site_mutations(
                 while x < branch_length:
                     new_state = random.choice([s for s in states if s != state])
                     if multiple_per_node and (state != new_state):
-                        mutation_table.add_row(site, u, new_state, parent)
+                        mutation_table.add_row(site, u, -1, new_state, parent)
                         parent = mutation_table.num_rows - 1
                         state = new_state
                     x += random.expovariate(mu)
                 else:
                     if (not multiple_per_node) and (state != new_state):
-                        mutation_table.add_row(site, u, new_state, parent)
+                        mutation_table.add_row(site, u, -1, new_state, parent)
                         parent = mutation_table.num_rows - 1
                         state = new_state
             stack.extend(reversed([(v, state, parent) for v in tree.children(u)]))
@@ -462,6 +500,8 @@ def jukes_cantor(ts, num_sites, mu, multiple_per_node=True, seed=None):
             multiple_per_node=multiple_per_node,
         )
     add_provenance(tables.provenances, "jukes_cantor")
+    tables.build_index()
+    tables.compute_mutation_times()
     new_ts = tables.tree_sequence()
     return new_ts
 
@@ -490,12 +530,15 @@ def caterpillar_tree(n, num_sites=0, num_mutations=1):
         state = 0
         for _ in range(num_mutations):
             state = (state + 1) % 2
-            tables.mutations.add_row(site=j, derived_state=str(state), node=node)
+            tables.mutations.add_row(
+                site=j, time=-1, derived_state=str(state), node=node
+            )
             node -= 1
 
     tables.sort()
     tables.build_index()
     tables.compute_mutation_parents()
+    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -607,6 +650,48 @@ def py_subset(tables, nodes, record_provenance=True):
                 mut.metadata,
             )
             mutation_map[i] = new_mut
+
+
+def compute_mutation_times(ts):
+    """
+    Compute the `time` column of a MutationTable in a TableCollection.
+    Finds the set of mutations on an edge that share a site and spreads
+    the times evenly over the edge.
+
+    :param TreeSequence ts: The tree sequence to compute for.  Need not
+        have a valid mutation time column.
+    """
+    tables = ts.dump_tables()
+    mutations = tables.mutations
+
+    mutations_above_node = collections.defaultdict(list)
+    for mut_idx, mut in enumerate(mutations):
+        mutations_above_node[mut.node].append((mut_idx, mut))
+
+    mutations_at_site_on_edge = collections.defaultdict(list)
+    for edge_idx, edge in enumerate(tables.edges):
+        for mut_idx, mut in mutations_above_node[edge.child]:
+            if edge.left <= tables.sites[mut.site].position < edge.right:
+                mutations_at_site_on_edge[(mut.site, edge_idx)].append(mut_idx)
+
+    edges = tables.edges
+    nodes = tables.nodes
+    times = np.full(len(mutations), -1, dtype=np.float64)
+    for (_, edge_idx), edge_mutations in mutations_at_site_on_edge.items():
+        start_time = nodes[edges[edge_idx].child].time
+        end_time = nodes[edges[edge_idx].parent].time
+        duration = end_time - start_time
+        for i, mut_idx in enumerate(edge_mutations):
+            times[mut_idx] = end_time - (
+                duration * ((i + 1) / (len(edge_mutations) + 1))
+            )
+
+    # Mutations not on a edge (i.e. above a root) get given their node's time
+    for i in range(len(mutations)):
+        if times[i] == -1:
+            times[i] = nodes[mutations[i].node].time
+
+    return times
 
 
 def algorithm_T(ts):

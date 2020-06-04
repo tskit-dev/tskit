@@ -81,6 +81,7 @@ def get_example_tables():
         mut_id = tables.mutations.add_row(
             site=mutation.site,
             node=mutation.node,
+            time=0,
             parent=-1,
             derived_state="C" * mutation.id,
             metadata=b"x" * mutation.id,
@@ -89,6 +90,7 @@ def get_example_tables():
         tables.mutations.add_row(
             site=mutation.site,
             node=mutation.node,
+            time=0,
             parent=mut_id,
             derived_state="G" * mutation.id,
             metadata=b"y" * mutation.id,
@@ -536,7 +538,7 @@ class TestRequiredAndOptionalColumns(unittest.TestCase):
         self.verify_required_columns(
             tables,
             "mutations",
-            ["site", "node", "derived_state", "derived_state_offset"],
+            ["site", "node", "time", "derived_state", "derived_state_offset"],
         )
         self.verify_offset_pair(tables, len(tables.mutations), "mutations", "metadata")
         self.verify_metadata_schema(tables, "mutations")

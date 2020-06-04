@@ -176,7 +176,7 @@ class TestLdCalculator(unittest.TestCase):
         for j in range(self.num_test_sites):
             site_id = len(t.sites)
             t.sites.add_row(position=j, ancestral_state="0")
-            t.mutations.add_row(site=site_id, derived_state="1", node=j)
+            t.mutations.add_row(site=site_id, time=0, derived_state="1", node=j)
         ts = t.tree_sequence()
         self.verify_matrix(ts)
         self.verify_max_distance(ts)

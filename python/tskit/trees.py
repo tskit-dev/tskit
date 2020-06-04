@@ -358,6 +358,7 @@ class Mutation(SimpleContainerWithMetadata):
         id_=NULL,
         site=NULL,
         node=NULL,
+        time=NULL,
         derived_state=None,
         parent=NULL,
         encoded_metadata=b"",
@@ -366,6 +367,7 @@ class Mutation(SimpleContainerWithMetadata):
         self.id = id_
         self.site = site
         self.node = node
+        self.time = time
         self.derived_state = derived_state
         self.parent = parent
         self._encoded_metadata = encoded_metadata
@@ -2240,7 +2242,12 @@ class Tree:
         # Translate back into string alleles
         ancestral_state = alleles[ancestral_state]
         mutations = [
-            Mutation(node=node, derived_state=alleles[derived_state], parent=parent)
+            Mutation(
+                node=node,
+                time=self.tree_sequence.node(node).time,
+                derived_state=alleles[derived_state],
+                parent=parent,
+            )
             for node, parent, derived_state in transitions
         ]
         return ancestral_state, mutations
@@ -2518,7 +2525,8 @@ def parse_mutations(
     instance. See the :ref:`mutation text format <sec_mutation_text_format>` section
     for the details of the required format and the
     :ref:`mutation table definition <sec_mutation_table_definition>` section for the
-    required properties of the contents.
+    required properties of the contents. Note that if the ``time`` column is missing it's
+    entries are filled with 0.
 
     See :func:`tskit.load_text` for a detailed explanation of the ``strict``
     parameter.
@@ -2540,6 +2548,10 @@ def parse_mutations(
     header = source.readline().strip("\n").split(sep)
     site_index = header.index("site")
     node_index = header.index("node")
+    try:
+        time_index = header.index("time")
+    except ValueError:
+        time_index = None
     derived_state_index = header.index("derived_state")
     parent_index = None
     parent = NULL
@@ -2557,6 +2569,7 @@ def parse_mutations(
         if len(tokens) >= 3:
             site = int(tokens[site_index])
             node = int(tokens[node_index])
+            time = float(tokens[time_index]) if time_index is not None else 0
             derived_state = tokens[derived_state_index]
             if parent_index is not None:
                 parent = int(tokens[parent_index])
@@ -2568,6 +2581,7 @@ def parse_mutations(
             table.add_row(
                 site=site,
                 node=node,
+                time=time,
                 derived_state=derived_state,
                 parent=parent,
                 metadata=metadata,
@@ -2628,6 +2642,7 @@ def load_text(
     strict=True,
     encoding="utf8",
     base64_metadata=True,
+    compute_mutation_times=False,
 ):
     """
     Parses the tree sequence data from the specified file-like objects, and
@@ -2686,6 +2701,8 @@ def load_text(
     :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
+    :param bool compute_mutation_times: If True, mutation times are replaced with those
+        from :meth:`TableCollection.compute_mutation_times`
     :return: The tree sequence object containing the information
         stored in the specified file paths.
     :rtype: :class:`tskit.TreeSequence`
@@ -2749,6 +2766,9 @@ def load_text(
             table=tc.populations,
         )
     tc.sort()
+    if compute_mutation_times:
+        tc.build_index()
+        tc.compute_mutation_times()
     return tc.tree_sequence()
 
 
@@ -3044,6 +3064,7 @@ class TreeSequence:
             print(
                 "site",
                 "node",
+                "time",
                 "derived_state",
                 "parent",
                 "metadata",
@@ -3058,12 +3079,14 @@ class TreeSequence:
                     row = (
                         "{site}\t"
                         "{node}\t"
+                        "{time}\t"
                         "{derived_state}\t"
                         "{parent}\t"
                         "{metadata}"
                     ).format(
                         site=mutation.site,
                         node=mutation.node,
+                        time=mutation.time,
                         derived_state=mutation.derived_state,
                         parent=mutation.parent,
                         metadata=metadata,
@@ -3903,6 +3926,7 @@ class TreeSequence:
         (
             site,
             node,
+            time,
             derived_state,
             parent,
             metadata,
@@ -3911,6 +3935,7 @@ class TreeSequence:
             id_=id_,
             site=site,
             node=node,
+            time=time,
             derived_state=derived_state,
             parent=parent,
             encoded_metadata=metadata,

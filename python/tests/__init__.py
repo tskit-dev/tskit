@@ -20,10 +20,112 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import base64
+import json
+import sys
+
+import msprime
+import numpy as np
 
 import tskit
 from . import tsutil
 from .simplify import *  # NOQA
+
+if msprime.__version__ <= "0.7.4":
+    # As mutation time is introduced into tskit but not msprime we need to patch up
+    # msprime to return times, this should be removed once msprime 1.0 is released.
+    def get_tree_sequence(self, mutation_generator=None, provenance_record=None):
+        if mutation_generator is not None:
+            mutation_generator.generate(self.ll_tables)
+        tables_dict = self.ll_tables.asdict()
+        tables_dict["mutations"]["time"] = np.full(
+            tables_dict["mutations"]["node"].shape, -1, np.float64
+        )
+        tables = tskit.TableCollection.fromdict(tables_dict)
+        if provenance_record is not None:
+            tables.provenances.add_row(provenance_record)
+        if self.from_ts is None:
+            # Add the populations with metadata
+            assert len(tables.populations) == len(self.population_configurations)
+            tables.populations.clear()
+            for pop_config in self.population_configurations:
+                tables.populations.add_row(metadata=pop_config.encoded_metadata)
+        tables.build_index()
+        tables.compute_mutation_times()
+        return tables.tree_sequence()
+
+    def mutate(
+        tree_sequence,
+        rate=None,
+        random_seed=None,
+        model=None,
+        keep=False,
+        start_time=None,
+        end_time=None,
+    ):
+        try:
+            tables = tree_sequence.tables
+        except AttributeError:
+            raise ValueError("First argument must be a TreeSequence instance.")
+        if random_seed is None:
+            random_seed = msprime.simulations._get_random_seed()
+        random_seed = int(random_seed)
+
+        rng = msprime.mutations._msprime.RandomGenerator(random_seed)
+        if model is None:
+            model = msprime.InfiniteSites()
+        try:
+            alphabet = model.alphabet
+        except AttributeError:
+            raise TypeError("model must be an InfiniteSites instance")
+        if rate is None:
+            rate = 0
+        rate = float(rate)
+        keep = bool(keep)
+
+        parameters = {
+            "command": "mutate",
+            "rate": rate,
+            "random_seed": random_seed,
+            "keep": keep,
+        }
+
+        if start_time is None:
+            start_time = -sys.float_info.max
+        else:
+            start_time = float(start_time)
+            parameters["start_time"] = start_time
+
+        if end_time is None:
+            end_time = sys.float_info.max
+        else:
+            end_time = float(end_time)
+            parameters["end_time"] = end_time
+        provenance_dict = msprime.provenance.get_provenance_dict(parameters)
+
+        if start_time > end_time:
+            raise ValueError("start_time must be <= end_time")
+
+        mutation_generator = msprime.mutations._msprime.MutationGenerator(
+            rng, rate, alphabet=alphabet, start_time=start_time, end_time=end_time
+        )
+        lwt = msprime.mutations._msprime.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        mutation_generator.generate(lwt, keep=keep)
+
+        tables_dict = lwt.asdict()
+        tables_dict["mutations"]["time"] = np.full(
+            tables_dict["mutations"]["node"].shape, -1, np.float64
+        )
+        tables = tskit.TableCollection.fromdict(tables_dict)
+        tables.provenances.add_row(json.dumps(provenance_dict))
+
+        tables.build_index()
+        tables.compute_mutation_times()
+        return tables.tree_sequence()
+
+    msprime.simulations.Simulator.get_tree_sequence = get_tree_sequence
+    msprime.mutations.mutate = mutate
+    msprime.mutate = mutate
 
 # TODO remove this code and refactor elsewhere.
 
@@ -232,11 +334,12 @@ class PythonTreeSequence:
         ll_ts = self._tree_sequence._ll_tree_sequence
 
         def make_mutation(id_):
-            site, node, derived_state, parent, metadata = ll_ts.get_mutation(id_)
+            site, node, time, derived_state, parent, metadata = ll_ts.get_mutation(id_)
             return tskit.Mutation(
                 id_=id_,
                 site=site,
                 node=node,
+                time=time,
                 derived_state=derived_state,
                 parent=parent,
                 encoded_metadata=metadata,

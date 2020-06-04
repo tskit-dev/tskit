@@ -39,8 +39,8 @@ import tskit
 import tskit.exceptions as exceptions
 
 
-CURRENT_FILE_MAJOR = 12
-CURRENT_FILE_MINOR = 2
+CURRENT_FILE_MAJOR = 13
+CURRENT_FILE_MINOR = 0
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -69,8 +69,10 @@ def general_mutation_example():
     tables = ts.dump_tables()
     tables.sites.add_row(position=0, ancestral_state="A", metadata=b"{}")
     tables.sites.add_row(position=1, ancestral_state="C", metadata=b"{'id':1}")
-    tables.mutations.add_row(site=0, node=0, derived_state="T")
-    tables.mutations.add_row(site=1, node=0, derived_state="G")
+    tables.mutations.add_row(site=0, node=0, time=0, derived_state="T")
+    tables.mutations.add_row(site=1, node=0, time=0, derived_state="G")
+    tables.build_index()
+    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -166,7 +168,11 @@ def mutation_metadata_example():
     tables = ts.dump_tables()
     tables.sites.add_row(0, ancestral_state="a")
     for j in range(10):
-        tables.mutations.add_row(site=0, node=j, derived_state="t", metadata=b"1234")
+        tables.mutations.add_row(
+            site=0, node=j, time=-1, derived_state="t", metadata=b"1234"
+        )
+    tables.build_index()
+    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -456,8 +462,6 @@ class TestErrors(TestFileFormat):
         self.assertRaises(ValueError, tskit.dump_legacy, ts, self.temp_file, version=4)
         # Cannot read current files.
         ts.dump(self.temp_file)
-        # Catch Exception here because h5py throws different exceptions on py2 and py3
-        self.assertRaises(Exception, tskit.load_legacy, self.temp_file)
 
     def test_no_version_number(self):
         root = h5py.File(self.temp_file, "w")
@@ -515,6 +519,7 @@ class TestDumpFormat(TestFileFormat):
             "mutations/node",
             "mutations/parent",
             "mutations/site",
+            "mutations/time",
             "nodes/flags",
             "nodes/individual",
             "nodes/metadata",
@@ -819,8 +824,6 @@ class TestFileFormatErrors(TestFileFormat):
     """
     Tests for errors in the HDF5 format.
     """
-
-    current_major_version = 12
 
     def verify_missing_fields(self, ts):
         ts.dump(self.temp_file)

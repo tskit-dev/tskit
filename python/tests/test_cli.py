@@ -31,7 +31,9 @@ import unittest
 from unittest import mock
 
 import h5py
+import kastore
 import msprime
+import numpy
 
 import tskit
 import tskit.cli as cli
@@ -645,3 +647,47 @@ class TestUpgrade(TestCli):
                         ["upgrade", self.legacy_file_name, self.current_file_name],
                     )
                 self.assertEqual(mocked_exit.call_count, 1)
+
+    def test_12_to_13(self):
+        ts = msprime.simulate(10, mutation_rate=10)
+        tc = ts.tables
+        tc.metadata_schema = tskit.MetadataSchema(
+            {
+                "codec": "struct",
+                "type": "object",
+                "properties": {"top-level": {"type": "string", "binaryFormat": "50p"}},
+            }
+        )
+        tc.metadata = {"top-level": "top-level-metadata"}
+        for table in [
+            "individuals",
+            "nodes",
+            "edges",
+            "migrations",
+            "sites",
+            "mutations",
+            "populations",
+        ]:
+            t = getattr(tc, table)
+            t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
+            t.metadata_schema = tskit.MetadataSchema(
+                {
+                    "codec": "struct",
+                    "type": "object",
+                    "properties": {table: {"type": "string", "binaryFormat": "50p"}},
+                }
+            )
+        ts = tc.tree_sequence()
+        ts.dump(self.legacy_file_name)
+        with kastore.load(self.legacy_file_name) as store:
+            all_data = dict(store)
+        del all_data["mutations/time"]
+        all_data["format/version"] = numpy.asarray([12, 0], dtype=numpy.uint32)
+        kastore.dump(all_data, self.legacy_file_name)
+        stdout, stderr = capture_output(
+            cli.tskit_main, ["upgrade", self.legacy_file_name, self.current_file_name],
+        )
+        ts2 = tskit.load(self.current_file_name)
+        self.assertEqual(stdout, "")
+        self.assertEqual(stderr, "")
+        self.assertEqual(ts.tables, ts2.tables)

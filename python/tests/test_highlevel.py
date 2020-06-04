@@ -64,8 +64,11 @@ def insert_uniform_mutations(tables, num_mutations, nodes):
             site=j,
             derived_state="1",
             node=nodes[j % len(nodes)],
+            time=-1,
             metadata=json.dumps({"index": j}).encode(),
         )
+    tables.build_index()
+    tables.compute_mutation_times()
 
 
 def get_table_collection_copy(tables, sequence_length):
@@ -743,6 +746,16 @@ class TestTreeSequence(HighLevelTestCase):
             parent = ts.tables.mutations.parent
             self.assertTrue(np.array_equal(parent, before))
 
+    def test_compute_mutation_time(self):
+        for ts in get_example_tree_sequences():
+            tables = ts.dump_tables()
+            before = tables.mutations.time[:]
+            tables.compute_mutation_times()
+            time = tables.mutations.time
+            self.assertTrue(np.array_equal(time, before))
+            # Check we have valid times
+            tables.tree_sequence()
+
     def verify_tracked_samples(self, ts):
         # Should be empty list by default.
         for tree in ts.trees():
@@ -1094,6 +1107,7 @@ class TestTreeSequence(HighLevelTestCase):
                     sites=sites,
                     mutations=mutations,
                     strict=False,
+                    compute_mutation_times=True,
                 )
             samples = list(ts.samples())
             self.verify_simplify_equality(ts, samples)
@@ -1656,16 +1670,17 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         self.assertEqual(len(output_mutations) - 1, ts.num_mutations)
         self.assertEqual(
             list(output_mutations[0].split()),
-            ["site", "node", "derived_state", "parent", "metadata"],
+            ["site", "node", "time", "derived_state", "parent", "metadata"],
         )
         mutations = [mut for site in ts.sites() for mut in site.mutations]
         for mutation, line in zip(mutations, output_mutations[1:]):
             splits = line.split("\t")
             self.assertEqual(str(mutation.site), splits[0])
             self.assertEqual(str(mutation.node), splits[1])
-            self.assertEqual(str(mutation.derived_state), splits[2])
-            self.assertEqual(str(mutation.parent), splits[3])
-            self.assertEqual(tests.base64_encode(mutation.metadata), splits[4])
+            self.assertEqual(str(mutation.time), splits[2])
+            self.assertEqual(str(mutation.derived_state), splits[3])
+            self.assertEqual(str(mutation.parent), splits[4])
+            self.assertEqual(tests.base64_encode(mutation.metadata), splits[5])
 
     def test_output_format(self):
         for ts in get_example_tree_sequences():
@@ -1727,6 +1742,17 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             self.assertEqual(s1.metadata, s2.metadata)
             self.assertEqual(s1.mutations, s2.mutations)
         self.assertEqual(ts1.num_sites, checked)
+
+        checked = 0
+        for s1, s2 in zip(ts1.mutations(), ts2.mutations()):
+            checked += 1
+            self.assertEqual(s1.site, s2.site)
+            self.assertEqual(s1.node, s2.node)
+            self.assertAlmostEqual(s1.time, s2.time)
+            self.assertEqual(s1.derived_state, s2.derived_state)
+            self.assertEqual(s1.parent, s2.parent)
+            self.assertEqual(s1.metadata, s2.metadata)
+        self.assertEqual(ts1.num_mutations, checked)
 
         # Check the trees
         check = 0
@@ -2734,6 +2760,7 @@ class TestMutationContainer(
                 id_=j,
                 site=j,
                 node=j,
+                time=j,
                 derived_state="A" * j,
                 parent=j,
                 encoded_metadata=b"x" * j,

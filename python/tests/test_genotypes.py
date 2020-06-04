@@ -248,7 +248,7 @@ class TestVariantGenerator(unittest.TestCase):
                 for u in ts.samples():
                     if u != 0:
                         self.assertEqual(var.alleles[var.genotypes[u]], alleles[0])
-            tables.mutations.add_row(0, 0, allele, parent=parent)
+            tables.mutations.add_row(0, 0, 0, allele, parent=parent)
             parent += 1
             num_alleles += 1
 
@@ -284,7 +284,7 @@ class TestVariantGenerator(unittest.TestCase):
                 for u in samples[:-1]:
                     if u != 0:
                         self.assertEqual(var.alleles[var.genotypes[u]], alleles[0])
-            tables.mutations.add_row(0, 0, allele, parent=parent)
+            tables.mutations.add_row(0, 0, 0, allele, parent=parent)
             parent += 1
             num_alleles += 1
 
@@ -320,7 +320,7 @@ class TestVariantGenerator(unittest.TestCase):
                 position=j * ts.sequence_length / num_sites, ancestral_state="0"
             )
             for u in range(ts.sample_size):
-                tables.mutations.add_row(site=j, node=u, derived_state="1")
+                tables.mutations.add_row(site=j, node=u, time=0, derived_state="1")
         ts = tables.tree_sequence()
         variants = list(ts.variants())
         self.assertEqual(len(variants), num_sites)
@@ -341,8 +341,12 @@ class TestVariantGenerator(unittest.TestCase):
                     tables.sites.clear()
                     tables.mutations.clear()
                     site = tables.sites.add_row(position=0, ancestral_state="0")
-                    tables.mutations.add_row(site=site, node=u, derived_state="1")
-                    tables.mutations.add_row(site=site, node=sample, derived_state="1")
+                    tables.mutations.add_row(
+                        site=site, node=u, time=ts.node(u).time, derived_state="1"
+                    )
+                    tables.mutations.add_row(
+                        site=site, node=sample, time=0, derived_state="1"
+                    )
                     ts_new = tables.tree_sequence()
                     self.assertRaises(exceptions.LibraryError, list, ts_new.variants())
 
@@ -471,7 +475,7 @@ class TestVariantGenerator(unittest.TestCase):
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.sites.add_row(0.5, "A")
-        tables.mutations.add_row(0, 0, "T")
+        tables.mutations.add_row(0, 0, 0, "T")
         ts = tables.tree_sequence()
         variants = list(ts.variants())
         self.assertEqual(len(variants), 1)
@@ -568,6 +572,7 @@ class TestHaplotypeGenerator(unittest.TestCase):
         mutations.set_columns(
             site=mutations.site,
             node=mutations.node,
+            time=mutations.time,
             derived_state=np.zeros(ts.num_sites, dtype=np.int8) + ord("T"),
             derived_state_offset=np.arange(ts.num_sites + 1, dtype=np.uint32),
         )
@@ -605,7 +610,7 @@ class TestHaplotypeGenerator(unittest.TestCase):
                 position=j * ts.sequence_length / num_sites, ancestral_state="0"
             )
             for u in range(ts.sample_size):
-                tables.mutations.add_row(site=j, node=u, derived_state="1")
+                tables.mutations.add_row(site=j, node=u, time=0, derived_state="1")
         ts_new = tables.tree_sequence()
         ones = "1" * num_sites
         for h in ts_new.haplotypes():
@@ -619,8 +624,15 @@ class TestHaplotypeGenerator(unittest.TestCase):
             tables.sites.clear()
             tables.mutations.clear()
             site = tables.sites.add_row(position=0, ancestral_state="0")
-            tables.mutations.add_row(site=site, node=u, derived_state="1")
-            tables.mutations.add_row(site=site, node=tree.root, derived_state="1")
+            tables.mutations.add_row(
+                site=site, node=u, time=ts.node(u).time, derived_state="1"
+            )
+            tables.mutations.add_row(
+                site=site,
+                node=tree.root,
+                time=ts.node(tree.root).time,
+                derived_state="1",
+            )
             ts_new = tables.tree_sequence()
             self.assertRaises(exceptions.LibraryError, list, ts_new.haplotypes())
             ts_new.haplotypes()
@@ -768,7 +780,7 @@ class TestUserAlleles(unittest.TestCase):
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
         tables.sites.add_row(0.5, "0")
-        tables.mutations.add_row(0, 0, "1")
+        tables.mutations.add_row(0, 0, 0, "1")
 
         ts = tables.tree_sequence()
         for impute in [True, False]:

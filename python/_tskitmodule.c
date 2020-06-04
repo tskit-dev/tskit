@@ -287,7 +287,7 @@ make_mutation(tsk_mutation_t *mutation)
     if (metadata == NULL) {
         goto out;
     }
-    ret = Py_BuildValue("iis#iO", mutation->site, mutation->node, mutation->derived_state,
+    ret = Py_BuildValue("iids#iO", mutation->site, mutation->node, mutation->time, mutation->derived_state,
             (Py_ssize_t) mutation->derived_state_length, mutation->parent,
             metadata);
 out:
@@ -1534,6 +1534,9 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     PyArrayObject *derived_state_offset_array = NULL;
     PyObject *node_input = NULL;
     PyArrayObject *node_array = NULL;
+    PyObject *time_input = NULL;
+    PyArrayObject *time_array = NULL;
+    double *time_data;
     PyObject *parent_input = NULL;
     PyArrayObject *parent_array = NULL;
     tsk_id_t *parent_data;
@@ -1558,6 +1561,10 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     }
     parent_input = get_table_dict_value(dict, "parent", false);
     if (parent_input == NULL) {
+        goto out;
+    }
+    time_input = get_table_dict_value(dict, "time", true);
+    if (time_input == NULL) {
         goto out;
     }
     derived_state_input = get_table_dict_value(dict, "derived_state", true);
@@ -1599,6 +1606,14 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     node_array = table_read_column_array(node_input, NPY_INT32, &num_rows, true);
     if (node_array == NULL) {
         goto out;
+    }
+    time_data = NULL;
+    if (time_input != Py_None) {
+        time_array = table_read_column_array(time_input, NPY_FLOAT64, &num_rows, true);
+        if (time_array == NULL) {
+            goto out;
+        }
+        time_data = PyArray_DATA(time_array);
     }
 
     parent_data = NULL;
@@ -1654,7 +1669,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     }
     err = tsk_mutation_table_append_columns(table, num_rows,
             PyArray_DATA(site_array), PyArray_DATA(node_array),
-            parent_data, PyArray_DATA(derived_state_array),
+            parent_data, time_data, PyArray_DATA(derived_state_array),
             PyArray_DATA(derived_state_offset_array),
             metadata_data, metadata_offset_data);
     if (err != 0) {
@@ -1670,6 +1685,7 @@ out:
     Py_XDECREF(metadata_offset_array);
     Py_XDECREF(node_array);
     Py_XDECREF(parent_array);
+    Py_XDECREF(time_array);
     return ret;
 }
 
@@ -2105,6 +2121,8 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
             (void *) tables->mutations.site, tables->mutations.num_rows, NPY_INT32},
         {"node",
             (void *) tables->mutations.node, tables->mutations.num_rows, NPY_INT32},
+        {"time",
+            (void *) tables->mutations.time, tables->mutations.num_rows, NPY_FLOAT64},
         {"parent",
             (void *) tables->mutations.parent, tables->mutations.num_rows, NPY_INT32},
         {"derived_state",
@@ -4876,15 +4894,16 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
     int site;
     int node;
     int parent = TSK_NULL;
+    double time = TSK_NULL;
     char *derived_state;
     Py_ssize_t derived_state_length;
     PyObject *py_metadata = Py_None;
     char *metadata = NULL;
     Py_ssize_t metadata_length = 0;
-    static char *kwlist[] = {"site", "node", "derived_state", "parent", "metadata", NULL};
+    static char *kwlist[] = {"site", "node", "time", "derived_state", "parent", "metadata", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "iis#|iO", kwlist,
-                &site, &node, &derived_state, &derived_state_length, &parent,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "iids#|iO", kwlist,
+                &site, &node, &time, &derived_state, &derived_state_length, &parent,
                 &py_metadata)) {
         goto out;
     }
@@ -4897,7 +4916,7 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
         }
     }
     err = tsk_mutation_table_add_row(self->table, (tsk_id_t) site,
-            (tsk_id_t) node, (tsk_id_t) parent,
+            (tsk_id_t) node, (tsk_id_t) parent, time,
             derived_state, derived_state_length,
             metadata, metadata_length);
     if (err < 0) {
@@ -5115,6 +5134,21 @@ out:
 }
 
 static PyObject *
+MutationTable_get_time(MutationTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(self->table->num_rows, self->table->time,
+            NPY_FLOAT64, sizeof(double));
+out:
+    return ret;
+}
+
+
+static PyObject *
 MutationTable_get_derived_state(MutationTable *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -5227,6 +5261,7 @@ static PyGetSetDef MutationTable_getsetters[] = {
     {"site", (getter) MutationTable_get_site, NULL, "The site array"},
     {"node", (getter) MutationTable_get_node, NULL, "The node array"},
     {"parent", (getter) MutationTable_get_parent, NULL, "The parent array"},
+    {"time", (getter) MutationTable_get_time, NULL, "The time array"},
     {"derived_state", (getter) MutationTable_get_derived_state, NULL,
         "The derived_state array"},
     {"derived_state_offset", (getter) MutationTable_get_derived_state_offset, NULL,
@@ -6580,6 +6615,23 @@ out:
 }
 
 static PyObject *
+TableCollection_compute_mutation_times(TableCollection *self)
+{
+    int err;
+    PyObject *ret = NULL;
+
+    err = tsk_table_collection_compute_mutation_times(self->tables, NULL, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+
+static PyObject *
 TableCollection_deduplicate_sites(TableCollection *self)
 {
     int err;
@@ -6687,7 +6739,9 @@ static PyMethodDef TableCollection_methods[] = {
     {"equals", (PyCFunction) TableCollection_equals, METH_VARARGS,
         "Returns True if the parameter table collection is equal to this one." },
     {"compute_mutation_parents", (PyCFunction) TableCollection_compute_mutation_parents,
-        METH_NOARGS, "Computes the mutation parents for a the tables." },
+        METH_NOARGS, "Computes the mutation parents for the tables." },
+    {"compute_mutation_times", (PyCFunction) TableCollection_compute_mutation_times,
+        METH_NOARGS, "Computes the mutation times for the tables." },
     {"deduplicate_sites", (PyCFunction) TableCollection_deduplicate_sites,
         METH_NOARGS, "Removes sites with duplicate positions." },
     {"build_index", (PyCFunction) TableCollection_build_index,

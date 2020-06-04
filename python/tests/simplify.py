@@ -353,6 +353,7 @@ class Simplifier:
                         self.tables.mutations.add_row(
                             site=len(self.tables.sites),
                             node=self.mutation_node_map[mut.id],
+                            time=mut.time,
                             parent=mapped_parent,
                             derived_state=mut.derived_state,
                             metadata=mut.metadata,

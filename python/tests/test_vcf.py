@@ -514,11 +514,11 @@ class TestLimitations(unittest.TestCase):
         tables.sites.add_row(0.5, "0")
         # 9 alleles should be fine
         for j in range(8):
-            tables.mutations.add_row(0, node=j, derived_state=str(j + 1))
+            tables.mutations.add_row(0, node=j, time=0, derived_state=str(j + 1))
         ts = tables.tree_sequence()
         ts.write_vcf(io.StringIO())
         for j in range(9, 15):
-            tables.mutations.add_row(0, node=j, derived_state=str(j))
+            tables.mutations.add_row(0, node=j, time=0, derived_state=str(j))
             ts = tables.tree_sequence()
             with self.assertRaises(ValueError):
                 ts.write_vcf(io.StringIO())

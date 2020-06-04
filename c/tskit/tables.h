@@ -170,6 +170,8 @@ typedef struct {
     tsk_id_t node;
     /** @brief Parent mutation ID. */
     tsk_id_t parent;
+    /** @brief Mutation time. */
+    double time;
     /** @brief Derived state. */
     const char *derived_state;
     /** @brief Size of the derived state in bytes. */
@@ -482,6 +484,8 @@ typedef struct {
     tsk_id_t *site;
     /** @brief The parent column. */
     tsk_id_t *parent;
+    /** @brief The time column. */
+    double *time;
     /** @brief The derived_state column. */
     char *derived_state;
     /** @brief The derived_state_offset column. */
@@ -645,9 +649,11 @@ typedef struct {
 #define TSK_CHECK_INDEXES (1 << 5)
 #define TSK_CHECK_ALL                                                                   \
     (TSK_CHECK_OFFSETS | TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING              \
-        | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
+        | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES   \
+        | TSK_CHECK_MUTATION_TIME)
 #define TSK_NO_CHECK_MUTATION_PARENTS (1 << 6)
 #define TSK_NO_CHECK_POPULATION_REFS (1 << 7)
+#define TSK_CHECK_MUTATION_TIME (1 << 8)
 
 /* Flags for dump tables */
 #define TSK_NO_BUILD_INDEXES (1 << 0)
@@ -1546,6 +1552,7 @@ for details of the columns in this table.
 @param site The site ID for the new mutation.
 @param node The ID of the node this mutation occurs over.
 @param parent The ID of the parent mutation.
+@param time The time of the mutation.
 @param derived_state The derived_state for the new mutation.
 @param derived_state_length The length of the derived_state in bytes.
 @param metadata The metadata to be associated with the new mutation. This
@@ -1555,7 +1562,7 @@ for details of the columns in this table.
     or a negative value on failure.
 */
 tsk_id_t tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site,
-    tsk_id_t node, tsk_id_t parent, const char *derived_state,
+    tsk_id_t node, tsk_id_t parent, double time, const char *derived_state,
     tsk_size_t derived_state_length, const char *metadata, tsk_size_t metadata_length);
 
 /**
@@ -1665,11 +1672,13 @@ int tsk_mutation_table_set_max_metadata_length_increment(
 int tsk_mutation_table_set_max_derived_state_length_increment(
     tsk_mutation_table_t *self, tsk_size_t max_derived_state_length_increment);
 int tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, const char *derived_state,
-    tsk_size_t *derived_state_length, const char *metadata, tsk_size_t *metadata_length);
+    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time,
+    const char *derived_state, tsk_size_t *derived_state_length, const char *metadata,
+    tsk_size_t *metadata_length);
 int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, const char *derived_state,
-    tsk_size_t *derived_state_length, const char *metadata, tsk_size_t *metadata_length);
+    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time,
+    const char *derived_state, tsk_size_t *derived_state_length, const char *metadata,
+    tsk_size_t *metadata_length);
 bool tsk_mutation_table_equals(tsk_mutation_table_t *self, tsk_mutation_table_t *other);
 int tsk_mutation_table_clear(tsk_mutation_table_t *self);
 int tsk_mutation_table_truncate(tsk_mutation_table_t *self, tsk_size_t num_rows);
@@ -2522,6 +2531,8 @@ int tsk_table_collection_deduplicate_sites(
     tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t options);
+int tsk_table_collection_compute_mutation_times(
+    tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options));
 int tsk_table_collection_check_integrity(
     tsk_table_collection_t *self, tsk_flags_t options);
 

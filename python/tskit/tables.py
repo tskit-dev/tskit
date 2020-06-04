@@ -105,6 +105,7 @@ class SiteTableRow:
 class MutationTableRow:
     site: int
     node: int
+    time: float
     derived_state: str
     parent: int
     metadata: bytes
@@ -1351,6 +1352,8 @@ class MutationTable(BaseTable, MetadataMixin):
     :vartype site: numpy.ndarray, dtype=np.int32
     :ivar node: The array of node IDs.
     :vartype node: numpy.ndarray, dtype=np.int32
+    :ivar time: The array of time values.
+    :vartype time: numpy.ndarray, dtype=np.float64
     :ivar derived_state: The flattened array of derived state strings.
         See :ref:`sec_tables_api_text_columns` for more details.
     :vartype derived_state: numpy.ndarray, dtype=np.int8
@@ -1372,6 +1375,7 @@ class MutationTable(BaseTable, MetadataMixin):
     column_names = [
         "site",
         "node",
+        "time",
         "derived_state",
         "derived_state_offset",
         "parent",
@@ -1388,22 +1392,23 @@ class MutationTable(BaseTable, MetadataMixin):
         site = self.site
         node = self.node
         parent = self.parent
+        time = self.time
         derived_state = util.unpack_strings(
             self.derived_state, self.derived_state_offset
         )
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        headers = ("id", "site", "node", "derived_state", "parent", "metadata")
+        headers = ("id", "site", "node", "time", "derived_state", "parent", "metadata")
         rows = []
         for j in range(self.num_rows):
             md = base64.b64encode(metadata[j]).decode("utf8")
             rows.append(
-                "{}\t{}\t{}\t{}\t{}\t{}".format(
-                    j, site[j], node[j], derived_state[j], parent[j], md
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                    j, site[j], node[j], time[j], derived_state[j], parent[j], md
                 ).split("\t")
             )
         return headers, rows
 
-    def add_row(self, site, node, derived_state, parent=-1, metadata=None):
+    def add_row(self, site, node, time, derived_state, parent=-1, metadata=None):
         """
         Adds a new row to this :class:`MutationTable` and returns the ID of the
         corresponding mutation. Metadata, if specified, will be validated and encoded
@@ -1412,6 +1417,7 @@ class MutationTable(BaseTable, MetadataMixin):
 
         :param int site: The ID of the site that this mutation occurs at.
         :param int node: The ID of the first node inheriting this mutation.
+        :param float time: The occurence time for the new mutation.
         :param str derived_state: The state of the site at this mutation's node.
         :param int parent: The ID of the parent mutation. If not specified,
             defaults to :attr:`NULL`.
@@ -1420,12 +1426,13 @@ class MutationTable(BaseTable, MetadataMixin):
         :rtype: int
         """
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
-        return self.ll_table.add_row(site, node, derived_state, parent, metadata)
+        return self.ll_table.add_row(site, node, time, derived_state, parent, metadata)
 
     def set_columns(
         self,
         site=None,
         node=None,
+        time=None,
         derived_state=None,
         derived_state_offset=None,
         parent=None,
@@ -1437,9 +1444,9 @@ class MutationTable(BaseTable, MetadataMixin):
         Sets the values for each column in this :class:`MutationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
-        The ``site``, ``node``, ``derived_state`` and ``derived_state_offset``
+        The ``site``, ``node``, ``time``, ``derived_state`` and ``derived_state_offset``
         parameters are mandatory, and must be 1D numpy arrays. The
-        ``site`` and ``node`` (also ``parent``, if supplied) arrays
+        ``site``, ``node`` and ``time`` (also ``parent``, if supplied) arrays
         must be of equal length, and determine the number of rows in the table.
         The ``derived_state`` and ``derived_state_offset`` parameters must
         be supplied together, and meet the requirements for
@@ -1455,6 +1462,8 @@ class MutationTable(BaseTable, MetadataMixin):
         :type site: numpy.ndarray, dtype=np.int32
         :param node: The ID of the node each mutation is associated with.
         :type node: numpy.ndarray, dtype=np.int32
+        :param time: The time values for each mutation. Required.
+        :type time: numpy.ndarray, dtype=np.float64
         :param derived_state: The flattened derived_state array. Required.
         :type derived_state: numpy.ndarray, dtype=np.int8
         :param derived_state_offset: The offsets into the ``derived_state`` array.
@@ -1480,6 +1489,7 @@ class MutationTable(BaseTable, MetadataMixin):
                 site=site,
                 node=node,
                 parent=parent,
+                time=time,
                 derived_state=derived_state,
                 derived_state_offset=derived_state_offset,
                 metadata=metadata,
@@ -1492,6 +1502,7 @@ class MutationTable(BaseTable, MetadataMixin):
         self,
         site,
         node,
+        time,
         derived_state,
         derived_state_offset,
         parent=None,
@@ -1502,9 +1513,9 @@ class MutationTable(BaseTable, MetadataMixin):
         Appends the specified arrays to the end of the columns of this
         :class:`MutationTable`. This allows many new rows to be added at once.
 
-        The ``site``, ``node``, ``derived_state`` and ``derived_state_offset``
+        The ``site``, ``node``, ``time``, ``derived_state`` and ``derived_state_offset``
         parameters are mandatory, and must be 1D numpy arrays. The
-        ``site`` and ``node`` (also ``parent``, if supplied) arrays
+        ``site``, ``node`` and ``time`` (also ``parent``, if supplied) arrays
         must be of equal length, and determine the number of additional
         rows to add to the table.
         The ``derived_state`` and ``derived_state_offset`` parameters must
@@ -1521,6 +1532,8 @@ class MutationTable(BaseTable, MetadataMixin):
         :type site: numpy.ndarray, dtype=np.int32
         :param node: The ID of the node each mutation is associated with.
         :type node: numpy.ndarray, dtype=np.int32
+        :param time: The time values for each mutation. Required.
+        :type time: numpy.ndarray, dtype=np.float64
         :param derived_state: The flattened derived_state array. Required.
         :type derived_state: numpy.ndarray, dtype=np.int8
         :param derived_state_offset: The offsets into the ``derived_state`` array.
@@ -1538,6 +1551,7 @@ class MutationTable(BaseTable, MetadataMixin):
             dict(
                 site=site,
                 node=node,
+                time=time,
                 parent=parent,
                 derived_state=derived_state,
                 derived_state_offset=derived_state_offset,
@@ -2282,6 +2296,23 @@ class TableCollection:
         self.ll_tables.compute_mutation_parents()
         # TODO add provenance
 
+    def compute_mutation_times(self):
+        """
+        Modifies the tables in place, computing valid values for the ``time`` column of
+        the mutation table. For this to work, the node and edge tables must be
+        valid, and the site and mutation tables must be sorted and indexed(see
+        :meth:`TableCollection.sort` and :meth:`TableCollection.build_index`).
+
+        For a single mutation on an edge at a site, the ``time`` assigned to a mutation
+        by this method is the mid-point between the times of the nodes above and below
+        the mutation. In the case where there is more than one mutation on an edge for
+        a site, the times are evenly spread along the edge. For mutations that are
+        above a root node, the time of the root node is assigned.
+
+        """
+        self.ll_tables.compute_mutation_times()
+        # TODO add provenance
+
     def deduplicate_sites(self):
         """
         Modifies the tables in place, removing entries in the site table with
@@ -2340,6 +2371,7 @@ class TableCollection:
         self.mutations.set_columns(
             site=site_map[self.mutations.site[keep_mutations]],
             node=self.mutations.node[keep_mutations],
+            time=self.mutations.time[keep_mutations],
             derived_state=new_ds,
             derived_state_offset=new_ds_offset,
             parent=mutation_map[self.mutations.parent[keep_mutations]],

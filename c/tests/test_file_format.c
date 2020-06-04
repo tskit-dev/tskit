@@ -583,6 +583,7 @@ test_missing_required_columns(void)
         "mutations/node",
         "mutations/parent",
         "mutations/site",
+        "mutations/time",
         "nodes/flags",
         "nodes/individual",
         "nodes/population",

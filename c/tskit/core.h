@@ -101,8 +101,8 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11
-#define TSK_FILE_FORMAT_VERSION_MAJOR 12
-#define TSK_FILE_FORMAT_VERSION_MINOR 2
+#define TSK_FILE_FORMAT_VERSION_MAJOR 13
+#define TSK_FILE_FORMAT_VERSION_MINOR 0
 
 /**
 @defgroup GENERAL_ERROR_GROUP General errors.
@@ -207,6 +207,9 @@ not found in the file.
 #define TSK_ERR_INCONSISTENT_MUTATIONS                              -503
 #define TSK_ERR_UNSORTED_MUTATIONS                                  -505
 #define TSK_ERR_NON_SINGLE_CHAR_MUTATION                            -506
+#define TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE                     -507
+#define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION            -508
+#define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE                -509
 
 /* Sample errors */
 #define TSK_ERR_DUPLICATE_SAMPLE                                    -600

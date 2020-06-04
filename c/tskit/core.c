@@ -287,6 +287,18 @@ tsk_strerror_internal(int err)
         case TSK_ERR_UNSORTED_MUTATIONS:
             ret = "Mutations must be provided in non-decreasing site order";
             break;
+        case TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE:
+            ret = "Mutations must have a time equal to or greater than that of their "
+                  "node";
+            break;
+        case TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION:
+            ret = "Mutations must have a time equal to or less than that of their "
+                  "parent mutation";
+            break;
+        case TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE:
+            ret = "Mutations must have a time less than the parent node of "
+                  "the edge they are on";
+            break;
 
         /* Sample errors */
         case TSK_ERR_DUPLICATE_SAMPLE:

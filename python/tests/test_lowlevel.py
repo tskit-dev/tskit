@@ -1643,9 +1643,14 @@ class TestTree(LowLevelTestCase):
                     self.assertEqual(index, j)
                     self.assertEqual(metadata, b"")
                     for mut_id in mutations:
-                        site, node, derived_state, parent, metadata = ts.get_mutation(
-                            mut_id
-                        )
+                        (
+                            site,
+                            node,
+                            time,
+                            derived_state,
+                            parent,
+                            metadata,
+                        ) = ts.get_mutation(mut_id)
                         self.assertEqual(site, index)
                         self.assertEqual(mutation_id, mut_id)
                         self.assertNotEqual(st.get_parent(node), _tskit.NULL)
@@ -1932,6 +1937,7 @@ class TestTree(LowLevelTestCase):
             position = []
             node = []
             site = []
+            time = []
             ancestral_state = []
             ancestral_state_offset = [0]
             derived_state = []
@@ -1939,6 +1945,7 @@ class TestTree(LowLevelTestCase):
             for j, (p, n) in enumerate(mutations):
                 site.append(j)
                 position.append(p)
+                time.append(-1)
                 ancestral_state.append("0")
                 ancestral_state_offset.append(ancestral_state_offset[-1] + 1)
                 derived_state.append("1")
@@ -1957,6 +1964,7 @@ class TestTree(LowLevelTestCase):
                 dict(
                     site=site,
                     node=node,
+                    time=time,
                     derived_state=derived_state,
                     derived_state_offset=derived_state_offset,
                     parent=None,

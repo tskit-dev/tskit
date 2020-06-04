@@ -6,6 +6,16 @@ In development.
 
 **Breaking changes**
 
+- Mutations now have a double-precision floating-point ``time`` column. As this is a
+  mandatory column the file format version has been bumped to 13.0. Pre-existing
+  tree sequences can be upgraded using the ``tskit upgrade`` command-line utility,
+  which will assign times to mutations by spreading them evenly along the edges on
+  which they occur (using ``tsk_table_collection_compute_mutation_times``. For a tree
+  sequence to be considered valid it must meet new criteria for mutation times, see
+  :ref:`sec_mutation_requirements`. Mutation methods such as ``add_row`` now have an
+  additional argument.
+  (:user:`benjeffery`, :pr:`672`)
+
 - Change genotypes from unsigned to signed to accommodate missing data
   (see :issue:`144` for discussion). This only affects users of the
   ``tsk_vargen_t`` class. Genotypes are now stored as int8_t and int16_t
@@ -33,6 +43,12 @@ In development.
   (:user:`benjeffery`, :pr:`493`)
 
 **New features**
+
+- Add ``time`` column to mutations, along with new function
+  ``tsk_table_collection_compute_mutation_times`` and new flag to
+  ``tsk_table_collection_check_integrity``:``TSK_CHECK_MUTATION_TIME``.
+  (:user:`benjeffery`, :pr:`672`)
+
 
 - Add ``metadata`` and ``metadata_schema`` fields to table collection, with accessors on
   tree sequence. These store arbitrary bytes and are optional in the file format.

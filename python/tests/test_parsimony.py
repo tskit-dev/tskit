@@ -154,7 +154,10 @@ def fitch_map_mutations(tree, genotypes, alleles):
             state[root] = np.where(A[root] == 1)[0][0]
             mutations.append(
                 tskit.Mutation(
-                    node=root, parent=tskit.NULL, derived_state=alleles[state[root]]
+                    node=root,
+                    time=tree.tree_sequence.node(root).time,
+                    parent=tskit.NULL,
+                    derived_state=alleles[state[root]],
                 )
             )
             parent = len(mutations) - 1
@@ -168,6 +171,7 @@ def fitch_map_mutations(tree, genotypes, alleles):
                     mutations.append(
                         tskit.Mutation(
                             node=v,
+                            time=tree.tree_sequence.node(v).time,
                             parent=parent_mutation,
                             derived_state=alleles[state[v]],
                         )
@@ -484,6 +488,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
                     tables.mutations.add_row(
                         site_id,
                         node=mutation.node,
+                        time=mutation.time,
                         parent=parent,
                         derived_state=mutation.derived_state,
                     )
@@ -511,6 +516,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
                     tables2.mutations.add_row(
                         site_id,
                         node=mutation.node,
+                        time=mutation.time,
                         derived_state=mutation.derived_state,
                     )
         tables2.sort()
@@ -616,6 +622,7 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
                     tables.mutations.add_row(
                         site_id,
                         node=m.node,
+                        time=m.time,
                         parent=parent,
                         derived_state=m.derived_state,
                     )
@@ -746,7 +753,7 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=0, parent=-1, derived_state="1")
+            transitions[0], tskit.Mutation(node=0, time=0, parent=-1, derived_state="1")
         )
 
     def test_mutation_over_5(self):
@@ -755,7 +762,8 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=5, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=5, time=0.14567111023387, parent=-1, derived_state="1"),
         )
 
     def test_mutation_over_7(self):
@@ -764,7 +772,8 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=7, time=0.43508024345063, parent=-1, derived_state="1"),
         )
 
     def test_mutation_over_7_0(self):
@@ -773,10 +782,11 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 2)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=7, time=0.43508024345063, parent=-1, derived_state="1"),
         )
         self.assertEqual(
-            transitions[1], tskit.Mutation(node=0, parent=0, derived_state="2")
+            transitions[1], tskit.Mutation(node=0, time=0, parent=0, derived_state="2")
         )
 
     def test_mutation_over_7_0_alleles(self):
@@ -788,10 +798,14 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "ANC")
         self.assertEqual(len(transitions), 2)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="ONE")
+            transitions[0],
+            tskit.Mutation(
+                node=7, time=0.43508024345063, parent=-1, derived_state="ONE"
+            ),
         )
         self.assertEqual(
-            transitions[1], tskit.Mutation(node=0, parent=0, derived_state="TWO")
+            transitions[1],
+            tskit.Mutation(node=0, time=0, parent=0, derived_state="TWO"),
         )
 
     def test_mutation_over_7_missing_data_0(self):
@@ -800,7 +814,8 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=7, time=0.43508024345063, parent=-1, derived_state="1"),
         )
 
     def test_mutation_over_leaf_sibling_missing(self):
@@ -814,7 +829,8 @@ class TestParsimonyExamples(TestParsimonyBase):
         # data had the ancestral state. However, the number of *state changes*
         # is the same, which is what the algorithm is minimising.
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=6, time=0.21385545626353, parent=-1, derived_state="1"),
         )
 
         # Reverse is the same
@@ -823,7 +839,8 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=6, time=0.21385545626353, parent=-1, derived_state="1"),
         )
 
     def test_mutation_over_6_missing_data_0(self):
@@ -832,7 +849,8 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=6, time=0.21385545626353, parent=-1, derived_state="1"),
         )
 
     def test_mutation_over_0_missing_data_4(self):
@@ -841,7 +859,7 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 1)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=0, parent=-1, derived_state="1")
+            transitions[0], tskit.Mutation(node=0, time=0, parent=-1, derived_state="1")
         )
 
     def test_multi_mutation_missing_data(self):
@@ -850,10 +868,11 @@ class TestParsimonyExamples(TestParsimonyBase):
         self.assertEqual(ancestral_state, "0")
         self.assertEqual(len(transitions), 2)
         self.assertEqual(
-            transitions[0], tskit.Mutation(node=5, parent=-1, derived_state="1")
+            transitions[0],
+            tskit.Mutation(node=5, time=0.14567111023387, parent=-1, derived_state="1"),
         )
         self.assertEqual(
-            transitions[1], tskit.Mutation(node=1, parent=0, derived_state="2")
+            transitions[1], tskit.Mutation(node=1, time=0, parent=0, derived_state="2")
         )
 
 
@@ -890,6 +909,7 @@ class TestReconstructAllTuples(unittest.TestCase):
                 tables.mutations.add_row(
                     j,
                     node=mutation.node,
+                    time=mutation.time,
                     parent=parent,
                     derived_state=mutation.derived_state,
                 )

@@ -369,6 +369,7 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
     const char *whitespace = " \t";
     char *p;
     tsk_id_t node, site, parent;
+    double time;
     char derived_state[MAX_LINE];
 
     c = 0;
@@ -399,7 +400,12 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
         if (p != NULL) {
             parent = atoi(p);
         }
-        ret = tsk_mutation_table_add_row(mutation_table, site, node, parent,
+        time = 0;
+        p = strtok(NULL, whitespace);
+        if (p != NULL) {
+            time = atof(p);
+        }
+        ret = tsk_mutation_table_add_row(mutation_table, site, node, parent, time,
             derived_state, strlen(derived_state), NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
     }
@@ -512,7 +518,11 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
         }
     }
 
-    ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(ts, &tables, 0);
     /* tsk_treeseq_print_state(ts, stdout); */
     // printf("ret = %s\n", tsk_strerror(ret));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -606,7 +616,8 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
             m = k % num_metadatas;
             state = (state + 1) % 2;
             ret = tsk_mutation_table_add_row(&tables.mutations, j, u, TSK_NULL,
-                states[state], strlen(states[state]), metadata[m], strlen(metadata[m]));
+                tables.nodes.time[u], states[state], strlen(states[state]), metadata[m],
+                strlen(metadata[m]));
             CU_ASSERT_FATAL(ret >= 0);
             u--;
         }

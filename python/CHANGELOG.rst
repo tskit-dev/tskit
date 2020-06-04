@@ -6,6 +6,14 @@ In development
 
 **Breaking changes**
 
+- Mutations now have a double-precision floating-point ``time`` column. As this is a
+  mandatory column the file format version has been bumped to ``13.0``.
+  Pre-existing tree sequences can be upgraded using the ``tskit upgrade`` command-line
+  utility, which will assign times to mutations by spreading them evenly along the
+  edges on which they occur (using ``TableCollection.compute_mutation_times``). For
+  a tree sequence to be considered valid it must meet new criteria for mutation
+  times, see :ref:`sec_mutation_requirements`.
+
 - The default display order for tree visualisations has been changed to ``minlex``
   (see below) to stabilise the node ordering and to make trees more readily
   comparable. The old behaviour is still available with ``order="tree"``.
@@ -15,6 +23,9 @@ In development
   and EOFError.
 
 **New features**
+
+- Add time column to mutations, along with
+  ``TableCollection.compute_mutation_times``. (:user:`benjeffery`, :pr:`672`)
 
 - Add support for trees with internal samples for the Kendall-Colijn tree distance
   metric. (:user:`daniel-goldstein`, :pr:`610`)
