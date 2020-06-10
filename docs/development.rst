@@ -12,6 +12,13 @@ opening an `issue <http://github.com/tskit-dev/tskit/issues>`_ or
 `pull request <http://github.com/tskit-dev/tskit/pulls>`_ if you
 see any problems.
 
+The tskit-dev team strives to create a welcoming and open environment for
+contributors; please see our `code of conduct
+<https://github.com/tskit-dev/.github/blob/master/CODE_OF_CONDUCT.md>`__ for
+details. We wish our code and documentation to be `inclusive
+<https://chromium.googlesource.com/chromium/src/+/master/styleguide/inclusive_code.md>`__
+and in particular to be gender and racially neutral.
+
 .. _sec_development_structure:
 
 *****************
