@@ -40,13 +40,64 @@ import _tskit
 ##############################
 
 
-def naive_ld_matrix(ts, sample_sets, function, windows=None):
-    ns = [len(ss) for ss in sample_sets]
-    # computes statistics based on genotypes of mutations
+## notes 6/11:
+## Question: Do we want to return the LD matrix over variants or over sites?
+##  I think sites, and that's what the naive_ld_matrix returns
+##
+## Other notes: the second ld_matrix function is outdated, and cannot handle polarized
+##  or multiple derived mutations.
+##
+## Because the returned LD matrix might not include every variant, and variants may be
+##  distributed over multiple windows, we probably need to also return information of
+##  which index in each LD matrix corresponds to which mutation in the tree sequence.
+##  Thus, probably want to also return list of lists of site id indexes.
+##
+## Should windows be a list of non-overlapping intervals? Currently, set up so that we
+##  just define window edges, so all windows necessarily have zero separation. We might
+##  instead want to be able to compute LD matrices or LD scores from windows that are
+##  distant. So could look like `windows = [(100, 200), (500, 1000), (1000, 2000)]`
+
+
+def naive_ld_matrix(ts, function, sample_sets=None, windows=None, polarized=True):
+    """
+    This function returns the LD matrix for a given two-locus stats function. This is
+    a simple implementation that loops through sites in the tree sequence, collects
+    genotypes for observed variants at those sites, tallies two-locus genotype counts,
+    and passes those counts to the stats function.
+
+    function: the stats function takes sample_sets, sample_sizes, and polarized as its
+    arguments and returns the scalar statistics.
+
+    sample_sets: a list of lists of samples. Typically, we'd think of each list of
+    samples as the samples that belong to each population we compute the statistics for.
+
+    windows: a list of window break points, so that there are len(windows)-1 total LD
+    matrices, if windows is given. If windows is None, we compute one LD matrix that
+    spans the entire sequence length. Note that windows does not need to span the entire
+    sequence length, but there will not be gaps between consecutive windows if
+    len(windows) is greater than two.
+
+    polarized: if True, we compute statistics over derived variants at each site. If
+    False, we sum statistics over all variants, derived and ancestral, at each site.
+    Note that in the summary function, the standard approach is to return the statistic
+    multiplied by 1/4 to maintain consistency between polarized and unpolarized stats.
+
+    Note: we assume that genotypes coded as `0` are the ancestral state, and all other
+    genotypes are derived.
+    """
     if windows is None:
         windows = [0, ts.sequence_length]
+    else:
+        assert len(windows) > 1, "need to define at least one window interval"
     windows = np.array(windows)
-    
+
+    assert np.all(windows[1:] - windows[:-1] > 0), "windows list must be increasing"
+    assert windows[0] >= 0 and windows[-1] <= ts.sequence_length
+
+    if sample_sets is None:
+        sample_sets = [ts.samples()]
+    ns = [len(ss) for ss in sample_sets]
+
     num_window_mutations = [0 for w in range(len(windows)-1)]
     site_indexes = {}
     for s in ts.sites():
@@ -61,25 +112,43 @@ def naive_ld_matrix(ts, sample_sets, function, windows=None):
     for v1 in ts.variants():
         w1, m1 = site_indexes[v1.site.id]
         for v2 in ts.variants():
-            if v2.position >= v1.position:
+            if v1.position >= v2.position:
                 w2, m2 = site_indexes[v2.site.id]
-                if w1 == w2:
-                    genotypes = list(zip(v1.genotypes, v2.genotypes))
-                    sample_genotypes = [[genotypes[sample_index] for
-                                        sample_index in ss]
-                                        for ss in sample_sets]
-                    two_locus_counts = [(gts.count((1, 1)),
-                                         gts.count((1, 0)),
-                                         gts.count((0, 1)))
-                                        for gts in sample_genotypes]
-                    A[w1][m1, m2] = function(two_locus_counts, ns)
-                    A[w1][m2, m1] = function(two_locus_counts, ns)
+                if w1 == w2: # sites fall within the same window
+                    all_genotypes1 = set(v1.genotypes)
+                    all_genotypes2 = set(v2.genotypes)
+                    for g1 in all_genotypes1:
+                        if polarized is True and g1 == 0:
+                            continue
+                        g_array1 = (v1.genotypes == g1).astype(int)
+                        for g2 in all_genotypes2:
+                            if polarized is True and g2 == 0:
+                                continue
+                            g_array2 = (v2.genotypes == g2).astype(int)
+
+                            two_locus_genotypes = list(zip(g_array1, g_array2))
+                            sample_genotypes = [[two_locus_genotypes[sample_index] for
+                                                sample_index in ss]
+                                                for ss in sample_sets]
+                            two_locus_counts = [(gts.count((1, 1)),
+                                                 gts.count((1, 0)),
+                                                 gts.count((0, 1)))
+                                                for gts in sample_genotypes]
+                            A[w1][m1, m2] += function(two_locus_counts, ns, polarized)
+
+    for i, ld_mat in enumerate(A):
+        idx_upper = np.triu_indices(len(ld_mat), 1)
+        A[i][idx_upper] += A[i].T[idx_upper]
 
     return A
 
 
-def ld_matrix(ts, sample_sets, function, windows=None):
+## old function, probably won't work with multi-allelic sites
+def ld_matrix(ts, function, sample_sets=None, windows=None):
     """
+    Note from 6/11: this function will not generalize well to the case with more than
+    two variants, since I'm getting genotype counts using `tree.samples(node)`.
+
     Returns the two-locus stats matrix for a given tree sequence and statistic
     function. Optionally, we can specify population ids for multi-pop statistics
     or if we want to compute the statistic for just a subset of samples (say
@@ -98,12 +167,16 @@ def ld_matrix(ts, sample_sets, function, windows=None):
 
     sample_sets is a list of lists of sample indexes to compute statistics over.
     The length of sample_sets has to match the number of two-locus counts that
-    the function takes. If the function is for two populations, sample_sets must
-    have length two, for example.. To compute over all samples, can pass
-    [ts.samples()]
+    the function takes. For example, if the function computes some LD statistic
+    for two populations, sample_sets must have length two.
+    If sample_sets is None, we assume we compute a single population statistic and
+    take all samples.
+    
+    This method uses `tree.samples(node_id)` and takes set intersections of samples
+    below pairs of nodes to get counts of AB, Ab, and aB. This is not readily
+    generalizable to weights that aren't 0/1 indicators or for more than two states
+    per site. But it will be useful to compare to the generalized function.
     """
-    ns = [len(ss) for ss in sample_sets]
-
     if windows is None:
         # we take all mutations (careful, could be quite large)
         windows = [0, ts.sequence_length]
@@ -123,11 +196,17 @@ def ld_matrix(ts, sample_sets, function, windows=None):
                                                mut.position < window_arr[1:]))
             ms[w_ind[0][0]] += 1
 
+    if sample_sets is None:
+        sample_sets = [ts.samples()]
+
+    ns = [len(ss) for ss in sample_sets]
+
     # list of empty ld matrices over the specified windows (or entire length, if
     # windows are unspecified)
     A = [np.zeros((m, m), dtype=float) for m in ms]
 
-    # need to keep track of how many mutations within each window we visited
+    # need to keep track of how many mutations within each window we visited, so that
+    # we fill in the correct entry in the LD matrices
     sites_visited = [0 for w in range(len(ms))]
 
     # which leaves are in each population, use sets for set intersections
@@ -197,29 +276,100 @@ def ld_matrix(ts, sample_sets, function, windows=None):
     return A
 
 
+
 ##############################
 # LD score calculator
 ##############################
 
+## Notes from 6/11
+## Question: Should the LD score include `LD` with itself? What is the standard when
+##  computing LD scores? Maybe allow as an option: `include_focal=False`, or something?
 
-def naive_ld_scores(ts, sample_sets, function, window_size=1e5):
+def naive_ld_scores(ts, function, sample_sets=None, windows=None, focal_window_size=1e5,
+                    polarized=True):
+    """
+    This function, as in the naive_ld_matrix function, computes LD scores by simply
+    looping over focal sites, and then considering all linked variants within the
+    focal_window_size.
+
+    function: the two-locus statistic function that takes genotype counts, sample sizes,
+    and polarized.
+
+    sample_sets: list of lists of sample ids. The length of sample_sets is the number
+    of sets that the LD statistic function takes. If None, we assume use all samples
+    as a single set.
+
+    windows: if None, compute LD scores for all sites, using all other variants. If
+    windows are given, we compute LD scores for focal sites within each window with LD
+    scores computed only from variants within the same window.
+
+    focal_window_size: the maximum distance (in units of the sequence length) from the
+    focal site to include other variants in each SNP's score.
+
+    polarized: if True, don't compute statistics over ancestral state (0s). If False,
+    we sum over two-locus statistics computed between all pairs of variants (both
+    derived and ancestral) at the two sites.
+    """
+    if windows is None:
+        windows = [0, ts.sequence_length]
+    else:
+        assert len(windows) > 1, "need to define at least one window interval"
+    windows = np.array(windows)
+
+    assert np.all(windows[1:] - windows[:-1] > 0), "windows list must be increasing"
+    assert windows[0] >= 0 and windows[-1] <= ts.sequence_length
+
+    if sample_sets is None:
+        sample_sets = [ts.samples()]
     ns = [len(ss) for ss in sample_sets]
-    scores = np.zeros(ts.num_mutations)
+
+    # get the number of mutations within each window and store window and site indexes
+    num_window_mutations = [0 for w in range(len(windows)-1)]
+    site_indexes = {}
+    for s in ts.sites():
+        window_index = min(np.argwhere(s.position < windows)[0]) - 1
+        site_indexes[s.id] = (window_index, num_window_mutations[window_index])
+        num_window_mutations[window_index] += 1
+
+    scores = [np.zeros(num_mutations) for num_mutations in num_window_mutations]
+
     for focal_var in ts.variants():
+        if focal_var.site.id not in site_indexes:
+            # this site isn't within the windows we track
+            continue
+        focal_window, focal_index = site_indexes[focal_var.site.id]
         for linked_var in ts.variants():
-            if abs(focal_var.position-linked_var.position) <= window_size:
-                genotypes = list(zip(focal_var.genotypes, linked_var.genotypes))
-                sample_genotypes = [[genotypes[sample_index] for
-                                    sample_index in ss]
-                                    for ss in sample_sets]
-                two_locus_counts = [(gts.count((1, 1)),
-                                     gts.count((1, 0)),
-                                     gts.count((0, 1)))
-                                    for gts in sample_genotypes]
-                scores[focal_var.index] += function(two_locus_counts, ns)
+            if (linked_var.site.id in site_indexes and
+                site_indexes[linked_var.site.id][0] == focal_window):
+                if abs(focal_var.position-linked_var.position) <= focal_window_size:
+                    # a lot of copied logic from the naive ld matrix function
+                    all_genotypes1 = set(focal_var.genotypes)
+                    all_genotypes2 = set(linked_var.genotypes)
+                    for g1 in all_genotypes1:
+                        if polarized is True and g1 == 0:
+                            continue
+                        g_array1 = (focal_var.genotypes == g1).astype(int)
+                        for g2 in all_genotypes2:
+                            if polarized is True and g2 == 0:
+                                continue
+                            g_array2 = (linked_var.genotypes == g2).astype(int)
+
+                            two_locus_genotypes = list(zip(g_array1, g_array2))
+                            sample_genotypes = [[two_locus_genotypes[sample_index] for
+                                                sample_index in ss]
+                                                for ss in sample_sets]
+                            two_locus_counts = [(gts.count((1, 1)),
+                                                 gts.count((1, 0)),
+                                                 gts.count((0, 1)))
+                                                for gts in sample_genotypes]
+                            scores[focal_window][focal_index] += function(
+                                two_locus_counts, ns, polarized
+                            )
+
     return scores
 
 
+## also an old function, probably will not work well with multi-allelic sites
 def ld_scores(ts, sample_sets, function, window_size=1e5):
     """
     Computes LD scores mutations within the tree sequence. The LD score of a
@@ -297,7 +447,7 @@ def ld_scores(ts, sample_sets, function, window_size=1e5):
 ####
 
 
-def r2_function(sample_counts, ns):
+def r2_function(sample_counts, ns, polarized=True):
     """
     To compute r^2, we take the two-locus haplotype counts and sample size to
     compute haplotype frequencies f. Compute r^2 from f's.
@@ -315,10 +465,13 @@ def r2_function(sample_counts, ns):
         r2 = D * D / (fA * (1 - fA) * fB * (1 - fB))
     else:
         r2 = 0
-    return r2
+    if polarized is True:
+        return r2
+    else:
+        return r2 / 4
 
 
-def r_function(sample_counts, ns):
+def r_function(sample_counts, ns, polarized=True):
     assert len(sample_counts) == 1, "compute r^2 for only a single population"
     assert len(ns) == 1, "compute r^2 for only a single population"
     (nAB, nAb, naB) = sample_counts[0]
@@ -331,15 +484,52 @@ def r_function(sample_counts, ns):
         r = D / np.sqrt(fA * (1 - fA) * fB * (1 - fB))
     else:
         r=0
-    return r
+    if polarized is True:
+        return r
+    else:
+        return r / 4
 
+
+def D_unbiased_function(sample_counts, ns, polarized=True):
+    """
+    sample counts: list of length one, with sample counts (nAB, nAb, naB)
+    ns: list of length 1 of sample size
+    """
+    assert len(sample_counts) == 1, "can compute D for only a single population"
+    assert len(ns) == 1, "can compute D for only a single population"
+    (nAB, nAb, naB) = sample_counts[0]
+    n = ns[0]
+    nab = n - nAB - nAb - naB
+    assert nab >= 0, "sum of sample counts larger than given sample size"
+    D = (nAB * nab - nAb * naB) / n / (n-1)
+    if polarized is True:
+        return D
+    else:
+        return D / 4
+
+def D2_unbiased_function(sample_counts, ns, polarized=True):
+    """
+    sample counts: list of length one, with sample counts (nAB, nAb, naB)
+    ns: list of length 1 of sample size
+    """
+    assert len(sample_counts) == 1, "can compute D for only a single population"
+    assert len(ns) == 1, "can compute D for only a single population"
+    (nAB, nAb, naB) = sample_counts[0]
+    n = ns[0]
+    nab = n - nAB - nAb - naB
+    assert nab >= 0, "sum of sample counts larger than given sample size"
+    D2 = 0#(nAB * nab - nAb * naB) / n / (n-1)
+    if polarized is True:
+        return D2
+    else:
+        return D2 / 4
 
 ####
 # Two-populations two-locus functions
 ####
 
 
-def r1_r2_function(sample_counts, ns):
+def r1_r2_function(sample_counts, ns, polarized=True):
     """
     The two population analog to r^2: computes r1 times r2, taking haplotype and
     sample size counts in two populations.
@@ -363,7 +553,11 @@ def r1_r2_function(sample_counts, ns):
         r2 = D2 / np.sqrt(fA2 * (1 - fA2) * fB2 * (1 - fB2))
     else:
         r2 = 0
-    return r1*r2
+    if polarized is True:
+        return r1 * r2
+    else:
+        return r1 * r2 / 4
+
 
 
 ##############################
