@@ -254,6 +254,89 @@ def naive_ld_scores(ts, function, sample_sets=None, windows=None, focal_window_s
     return scores
 
 
+def naive_ld_scores_branch(ts, function, sample_sets=None, windows=None,
+                           focal_window_size=1e5, polarized=True):
+    """
+    Given focal variants (sites), compute expected LD scores based on branch structure
+    of tree sequence. This is a mixture of site and branch statistics. The focal site
+    is compared against branch structure for all trees within the focal window.
+
+    For each site, we sweep through trees from left to right, updating weights, computing
+    functions given those weights, and then adding to the LD score for that focal site.
+    This means that in this naive version, we have to iterate through the trees in the
+    tree sequence once for each site, which is probably expensive.
+
+    NOTE: this function, since it is a branch function, is only designed to work with
+    biallelic sites, but can handle both polarized or unpolarized data.
+    """
+    # a lot is copied from naive_ld_matrix here
+    if windows is None:
+        windows = [(0, ts.sequence_length)]
+    window_edges = np.array(windows)
+
+    assert np.all(window_edges[:,0] < window_edges[:,1]), "windows must specify left/right endpoints"
+    assert np.all(window_edges[1:,0] >= window_edges[:-1,1] ), "windows cannot overlap"
+    assert window_edges[0][0] >= 0 and window_edges[-1][1] <= ts.sequence_length, "windows must be within sequence length"
+
+    if sample_sets is None:
+        sample_sets = [ts.samples()]
+    ns = [len(ss) for ss in sample_sets]
+    
+    # since this dumb algorithm is using sets..
+    sample_sets = [set(ss) for ss in sample_sets]
+
+    num_window_mutations = [0 for _ in windows]
+    site_indexes = {}
+    for s in ts.sites():
+        window_index = np.where(
+            np.logical_and(
+                s.position > window_edges[:,0],
+                s.position < window_edges[:,1]
+            )
+        )[0]
+        if len(window_index) == 0:
+            continue
+        assert len(window_index) == 1
+        site_indexes[s.id] = (window_index[0], num_window_mutations[window_index[0]])
+        num_window_mutations[window_index[0]] += 1
+
+    scores = [np.zeros(num_mutations) for num_mutations in num_window_mutations]
+    # very simple/inefficient approach of just iterating through branches
+    # and getting genotype counts from intersection of samples below nodes
+    for focal_tree in ts.trees():
+        for focal_var in focal_tree.mutations():
+            if focal_var.id not in site_indexes:
+                # this site isn't within the windows we track
+                continue
+            focal_window, focal_index = site_indexes[focal_var.id]
+            focal_position = focal_var.position
+            focal_samples_below = set(focal_tree.samples(focal_var.node))
+            for tree in ts.trees():
+                # ignore trees outside focal window
+                if tree.interval[1] < focal_position - focal_window_size:
+                    continue
+                if tree.interval[0] > focal_position + focal_window_size:
+                    continue
+                tree_weight = (min(focal_position + focal_window_size, tree.interval[1])
+                               - max(focal_position - focal_window_size, tree.interval[0]))
+                for node in tree.nodes():
+                    if tree.parent(node) == -1:
+                        continue
+                    branch_length = tree.time(tree.parent(node)) - tree.time(node)
+                    samples_below = set(tree.samples(node))
+                    AB = focal_samples_below.intersection(samples_below)
+                    Ab = focal_samples_below - samples_below
+                    aB = samples_below - focal_samples_below
+                    two_locus_counts = [(len(AB.intersection(ss)),
+                                         len(Ab.intersection(ss)),
+                                         len(aB.intersection(ss)))
+                                        for ss in sample_sets]
+                    scores[focal_window][focal_index] += branch_length * tree_weight * function(
+                        two_locus_counts, ns, polarized
+                    )
+    return scores
+
+
 ##############################
 # Common/example summary functions
 ##############################
