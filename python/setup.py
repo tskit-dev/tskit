@@ -78,8 +78,7 @@ setup(
     url="https://github.com/tskit-dev/tskit",
     author="tskit developers",
     version=tskit_version,
-    # TODO setup a tskit developers email address.
-    author_email="jerome.kelleher@well.ox.ac.uk",
+    author_email="admin@tskit.dev",
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 4 - Beta",
