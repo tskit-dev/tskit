@@ -255,7 +255,13 @@ class BaseTable:
         Returns a dictionary mapping the names of the columns in this table
         to the corresponding numpy arrays.
         """
-        return {col: getattr(self, col) for col in self.column_names}
+        ret = {col: getattr(self, col) for col in self.column_names}
+        # Not all tables have metadata
+        try:
+            ret["metadata_schema"] = str(self.metadata_schema)
+        except AttributeError:
+            pass
+        return ret
 
     def set_columns(self, **kwargs):
         """
@@ -432,6 +438,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         location_offset=None,
         metadata=None,
         metadata_offset=None,
+        metadata_schema=None,
     ):
         """
         Sets the values for each column in this :class:`IndividualTable` using the
@@ -461,6 +468,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        :param metadata_schema: The encoded metadata schema.
         """
         self._check_required_args(flags=flags)
         self.ll_table.set_columns(
@@ -470,6 +478,7 @@ class IndividualTable(BaseTable, MetadataMixin):
                 location_offset=location_offset,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
             )
         )
 
@@ -627,6 +636,7 @@ class NodeTable(BaseTable, MetadataMixin):
         individual=None,
         metadata=None,
         metadata_offset=None,
+        metadata_schema=None,
     ):
         """
         Sets the values for each column in this :class:`NodeTable` using the values in
@@ -655,6 +665,7 @@ class NodeTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        :param metadata_schema: The encoded metadata schema.
         """
         self._check_required_args(flags=flags, time=time)
         self.ll_table.set_columns(
@@ -665,6 +676,7 @@ class NodeTable(BaseTable, MetadataMixin):
                 individual=individual,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
             )
         )
 
@@ -714,6 +726,7 @@ class NodeTable(BaseTable, MetadataMixin):
                 individual=individual,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=None,
             )
         )
 
@@ -807,6 +820,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         child=None,
         metadata=None,
         metadata_offset=None,
+        metadata_schema=None,
     ):
         """
         Sets the values for each column in this :class:`EdgeTable` using the values
@@ -835,7 +849,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-
+        :param metadata_schema: The encoded metadata schema.
         """
         self._check_required_args(left=left, right=right, parent=parent, child=child)
         self.ll_table.set_columns(
@@ -846,6 +860,7 @@ class EdgeTable(BaseTable, MetadataMixin):
                 child=child,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
             )
         )
 
@@ -1010,6 +1025,7 @@ class MigrationTable(BaseTable, MetadataMixin):
         time=None,
         metadata=None,
         metadata_offset=None,
+        metadata_schema=None,
     ):
         """
         Sets the values for each column in this :class:`MigrationTable` using the values
@@ -1041,6 +1057,7 @@ class MigrationTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        :param metadata_schema: The encoded metadata schema.
         """
         self._check_required_args(
             left=left, right=right, node=node, source=source, dest=dest, time=time
@@ -1055,6 +1072,7 @@ class MigrationTable(BaseTable, MetadataMixin):
                 time=time,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
             )
         )
 
@@ -1200,6 +1218,7 @@ class SiteTable(BaseTable, MetadataMixin):
         ancestral_state_offset=None,
         metadata=None,
         metadata_offset=None,
+        metadata_schema=None,
     ):
         """
         Sets the values for each column in this :class:`SiteTable` using the values
@@ -1230,6 +1249,7 @@ class SiteTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        :param metadata_schema: The encoded metadata schema.
         """
         self._check_required_args(
             position=position,
@@ -1243,6 +1263,7 @@ class SiteTable(BaseTable, MetadataMixin):
                 ancestral_state_offset=ancestral_state_offset,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
             )
         )
 
@@ -1410,6 +1431,7 @@ class MutationTable(BaseTable, MetadataMixin):
         parent=None,
         metadata=None,
         metadata_offset=None,
+        metadata_schema=None,
     ):
         """
         Sets the values for each column in this :class:`MutationTable` using the values
@@ -1445,6 +1467,7 @@ class MutationTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        :param metadata_schema: The encoded metadata schema.
         """
         self._check_required_args(
             site=site,
@@ -1461,6 +1484,7 @@ class MutationTable(BaseTable, MetadataMixin):
                 derived_state_offset=derived_state_offset,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
             )
         )
 
@@ -1593,7 +1617,7 @@ class PopulationTable(BaseTable, MetadataMixin):
             rows.append((str(j), str(md)))
         return headers, rows
 
-    def set_columns(self, metadata=None, metadata_offset=None):
+    def set_columns(self, metadata=None, metadata_offset=None, metadata_schema=None):
         """
         Sets the values for each column in this :class:`PopulationTable` using the
         values in the specified arrays. Overwrites any data currently stored in the
@@ -1611,9 +1635,14 @@ class PopulationTable(BaseTable, MetadataMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
+        :param metadata_schema: The encoded metadata schema.
         """
         self.ll_table.set_columns(
-            dict(metadata=metadata, metadata_offset=metadata_offset)
+            dict(
+                metadata=metadata,
+                metadata_offset=metadata_offset,
+                metadata_schema=metadata_schema,
+            )
         )
 
     def append_columns(self, metadata=None, metadata_offset=None):
@@ -1916,7 +1945,10 @@ class TableCollection:
         map of table names to the tables themselves was returned.
         """
         return {
+            "encoding_version": (1, 1),
             "sequence_length": self.sequence_length,
+            "metadata_schema": str(self.metadata_schema),
+            "metadata": self.metadata_schema.encode_row(self.metadata),
             "individuals": self.individuals.asdict(),
             "nodes": self.nodes.asdict(),
             "edges": self.edges.asdict(),
@@ -1983,6 +2015,8 @@ class TableCollection:
     # Unpickle support
     def __setstate__(self, state):
         self.__init__(state["sequence_length"])
+        self.metadata_schema = tskit.parse_metadata_schema(state["metadata_schema"])
+        self.metadata = self.metadata_schema.decode_row(state["metadata"])
         self.individuals.set_columns(**state["individuals"])
         self.nodes.set_columns(**state["nodes"])
         self.edges.set_columns(**state["edges"])
@@ -1995,6 +2029,17 @@ class TableCollection:
     @classmethod
     def fromdict(self, tables_dict):
         tables = TableCollection(tables_dict["sequence_length"])
+        try:
+            tables.metadata_schema = tskit.parse_metadata_schema(
+                tables_dict["metadata_schema"]
+            )
+        except KeyError:
+            pass
+        try:
+            tables.metadata = tables.metadata_schema.decode_row(tables_dict["metadata"])
+        except KeyError:
+            pass
+
         tables.individuals.set_columns(**tables_dict["individuals"])
         tables.nodes.set_columns(**tables_dict["nodes"])
         tables.edges.set_columns(**tables_dict["edges"])
