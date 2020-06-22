@@ -1,0 +1,256 @@
+name: Build and test wheels
+
+on:
+  push:
+    branches:
+      - master
+      - test
+    tags:
+      - '*'
+  release:
+    types: [published, created]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python: [3.6, 3.7, 3.8]
+        wordsize: [64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+            submodules: true
+      - name: Install deps
+        env:
+          PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
+        shell: bash
+        run: |
+          set -ex
+          ${PYTHON} -m pip install --upgrade pip
+          ${PYTHON} -m pip install setuptools wheel
+          # Instead of letting setup.py install a newer numpy we install it here
+          # using the oldest supported version for ABI compatibility
+          ${PYTHON} -m pip install oldest-supported-numpy
+      - name: Build C extension
+        env:
+          PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
+        shell: bash
+        run: |
+          set -ex
+          # Fix symlinks on windows
+          git config core.symlinks true
+          git reset --hard
+          cd python
+          ${PYTHON} -VV
+          ${PYTHON} setup.py build_ext --inplace
+      - name: Build Wheel
+        env:
+          PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
+        shell: bash
+        run: |
+          set -ex
+          cd python
+          ${PYTHON} setup.py bdist_wheel
+      - name: Setup conda for testing
+        uses: s-weigand/setup-conda@v1
+        with:
+          update-conda: true
+          activate-conda: true
+          conda-channels: conda-forge
+          python-version: ${{ matrix.python }}
+      - name: Install test deps
+        env:
+          PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
+        shell: bash
+        run: |
+            conda install --yes --file=python/requirements/conda-minimal.txt
+            # Remove some conflicting modules
+            conda uninstall --yes --force tskit numpy h5py
+            pip install PyVCF newick python_jsonschema_objects xmlunittest
+      - name: Install wheel and try import
+        shell: bash
+        run: |
+          set -ex
+          # We install in this odd way to make sure we get both deps and a local tskit
+          python -m pip install tskit --only-binary tskit -f python/dist/
+          python -m pip uninstall -y tskit
+          python -m pip install -v tskit --only-binary tskit -f python/dist/ --no-index
+          python -c "import tskit"
+      - name: Run tests
+        shell: bash
+        run: |
+          python -m nose -vs --processes=%NUMBER_OF_PROCESSORS% --process-timeout=5000
+      - name: Upload Wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: win-wheel-${{ matrix.python }}-${{ matrix.wordsize }}
+          path: python/dist
+
+  OSX:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python: [3.6, 3.7, 3.8]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+            submodules: true
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install setuptools wheel
+          # Instead of letting setup.py install a newer numpy we install it here
+          # using the oldest supported version for ABI compatibility
+          pip install oldest-supported-numpy
+      - name: Build C extension
+        run: |
+          cd python
+          python -VV
+          python setup.py build_ext --inplace
+      - name: Build Wheel
+        run: |
+          cd python
+          python setup.py bdist_wheel
+      - name: Setup conda for testing
+        uses: s-weigand/setup-conda@v1
+        with:
+          update-conda: true
+          activate-conda: true
+          conda-channels: conda-forge
+          python-version: ${{ matrix.python }}
+      - name: Install test deps
+        run: |
+          conda install --yes --file=python/requirements/conda-minimal.txt
+          conda uninstall --yes --force tskit
+          pip install PyVCF newick python_jsonschema_objects xmlunittest
+      - name: Install wheel try to import
+        run: |
+          # We install in this odd way to make sure we get both deps and a local tskit
+          pip install tskit --only-binary tskit -f python/dist/
+          pip uninstall -y tskit
+          pip install -v tskit --only-binary tskit -f python/dist/ --no-index
+          python -c "import tskit"
+      - name: Run tests
+        run: |
+          python -m nose -vs --processes=`sysctl -n hw.ncpu` --process-timeout=5000 python
+      - name: Upload Wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: osx-wheel-${{ matrix.python }}
+          path: python/dist
+
+  manylinux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+            submodules: true
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Build sdist
+        shell: bash
+        run: |
+          cd python
+          python setup.py sdist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v2
+        with:
+          name: sdist
+          path: python/dist
+
+      - name: Build wheels in docker
+        shell: bash
+        run: |
+          docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2010_x86_64 bash .github/workflows/docker/buildwheel.sh
+
+      - name: Install libgsl
+        run: sudo apt-get install libgsl-dev
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Run tests (3.8)
+        run: |
+          python -VV
+          # We install in this odd way to make sure we get both deps and a local tskit
+          pip install tskit --only-binary tskit -f python/dist/wheelhouse
+          pip uninstall -y tskit
+          pip install -v tskit --only-binary tskit -f python/dist/wheelhouse --no-index
+          python -c "import tskit"
+          pip install -r python/requirements/CI/requirements.txt
+          python -m nose -vs --processes=`nproc` --process-timeout=5000 python
+
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Run tests (3.7)
+        run: |
+          python -VV
+          # We install in this odd way to make sure we get both deps and a local tskit
+          pip install tskit --only-binary tskit -f python/dist/wheelhouse
+          pip uninstall -y tskit
+          pip install -v tskit --only-binary tskit -f python/dist/wheelhouse --no-index
+          python -c "import tskit"
+          pip install -r python/requirements/CI/requirements.txt
+          python -m nose -vs --processes=`nproc` --process-timeout=5000 python
+
+      - name: Set up Python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: Run tests (3.6)
+        run: |
+          python -VV
+          # We install in this odd way to make sure we get both deps and a local tskit
+          pip install tskit --only-binary tskit -f python/dist/wheelhouse
+          pip uninstall -y tskit
+          pip install -v tskit --only-binary tskit -f python/dist/wheelhouse --no-index
+          python -c "import tskit"
+          pip install -r python/requirements/CI/requirements.txt
+          python -m nose -vs --processes=`nproc` --process-timeout=5000 python
+      - name: Upload Wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux-wheels
+          path: python/dist/wheelhouse
+
+
+  PyPI_Upload:
+    runs-on: ubuntu-latest
+    needs: ['windows', 'OSX', 'manylinux']
+    steps:
+      - name: Download all
+        uses: actions/download-artifact@v2
+      - name: Move to dist
+        run: |
+          mkdir dist
+          cp */*.{whl,gz} dist/.
+      - name: Publish distribution to Test PyPI
+        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') && !contains(github.event.ref, 'C_')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.test_pypi_password }}
+          repository_url: https://test.pypi.org/legacy/
+      - name: Publish distribution to PRODUCTION PyPI
+        if: github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'C_')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.pypi_password }}
