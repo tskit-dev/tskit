@@ -2424,9 +2424,8 @@ each of the tables as follows:
 3. Edges: if both parent and child are retained nodes.
 4. Mutations: if the mutation's node is a retained node.
 5. Sites: if any mutations remain at the site after removing mutations.
-6. Migrations: if the migration's node is a retained node.
 
-Retained edges, mutations, sites, and migrations appear in the same
+Retained edges, mutations, and sites appear in the same
 order as in the original tables.
 
 If ``nodes`` is the entire list of nodes in the tables, then the
