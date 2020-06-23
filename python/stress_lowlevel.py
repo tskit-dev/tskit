@@ -89,7 +89,12 @@ def main(stdscr):
         # We don't want to flood stdout, so we rate-limit to 1 per second.
         if time.time() - last_print > 1:
             stdscr.clear()
-            stdscr.addstr(0, 0, "iter\ttests\terr\tfail\tskip\tRSS\tmin\tmax\tmax@iter")
+            rows, cols = stdscr.getmaxyx()
+            stdscr.addstr(
+                0,
+                0,
+                "iter\ttests\terr\tfail\tskip\tRSS\tmin\tmax\tmax@iter"[: cols - 1],
+            )
             stdscr.addstr(
                 1,
                 0,
@@ -108,12 +113,11 @@ def main(stdscr):
                             max_rss_iter,
                         ],
                     )
-                ),
+                )[: cols - 1],
             )
             stats = memory_current.compare_to(memory_start, "traceback")
-            rows, cols = stdscr.getmaxyx()
             for i, stat in enumerate(stats[: rows - 3], 1):
-                stdscr.addstr(i + 2, 0, str(stat))
+                stdscr.addstr(i + 2, 0, str(stat)[: cols - 1])
             last_print = time.time()
             stdscr.refresh()
 
