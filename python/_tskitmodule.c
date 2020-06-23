@@ -6257,6 +6257,38 @@ out:
 }
 
 static PyObject *
+TableCollection_subset(TableCollection *self, PyObject *args)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *nodes = NULL;
+    PyArrayObject *nodes_array = NULL;
+    npy_intp *shape;
+    size_t num_nodes;
+
+    if (!PyArg_ParseTuple(args, "O", &nodes)) {
+        goto out;
+    }
+    nodes_array = (PyArrayObject *) PyArray_FROMANY(nodes, NPY_INT32, 1, 1,
+            NPY_ARRAY_IN_ARRAY);
+    if (nodes_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(nodes_array);
+    num_nodes = shape[0];
+
+    err = tsk_table_collection_subset(self->tables, PyArray_DATA(nodes_array), num_nodes);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    Py_XDECREF(nodes_array);
+    return ret;
+}
+
+static PyObject *
 TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
@@ -6397,6 +6429,8 @@ static PyMethodDef TableCollection_methods[] = {
     {"link_ancestors", (PyCFunction) TableCollection_link_ancestors,
         METH_VARARGS|METH_KEYWORDS,
         "Returns an edge table linking samples to a set of specified ancestors." },
+    {"subset", (PyCFunction) TableCollection_subset, METH_VARARGS,
+        "Subsets the tree sequence to a set of nodes." },
     {"sort", (PyCFunction) TableCollection_sort, METH_VARARGS|METH_KEYWORDS,
         "Sorts the tables to satisfy tree sequence requirements." },
     {"equals", (PyCFunction) TableCollection_equals, METH_VARARGS,

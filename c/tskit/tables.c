@@ -7799,6 +7799,164 @@ tsk_table_collection_clear(tsk_table_collection_t *self)
     return tsk_table_collection_truncate(self, &start);
 }
 
+int TSK_WARN_UNUSED
+tsk_table_collection_subset(
+    tsk_table_collection_t *self, tsk_id_t *nodes, tsk_size_t num_nodes)
+{
+    int ret = 0;
+    tsk_id_t k, i, new_ind, new_pop, new_parent, new_child, new_node;
+    tsk_node_t node;
+    tsk_individual_t ind;
+    tsk_population_t pop;
+    tsk_edge_t edge;
+    tsk_mutation_t mut;
+    tsk_site_t site;
+    tsk_id_t *node_map = NULL;
+    tsk_id_t *individual_map = NULL;
+    tsk_id_t *population_map = NULL;
+    tsk_id_t *site_map = NULL;
+    tsk_id_t *mutation_map = NULL;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_copy(self, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_clear(self);
+    if (ret != 0) {
+        goto out;
+    }
+
+    node_map = malloc(tables.nodes.num_rows * sizeof(*node_map));
+    individual_map = malloc(tables.individuals.num_rows * sizeof(*individual_map));
+    population_map = malloc(tables.populations.num_rows * sizeof(*population_map));
+    site_map = malloc(tables.sites.num_rows * sizeof(*site_map));
+    mutation_map = malloc(tables.mutations.num_rows * sizeof(*mutation_map));
+    if (node_map == NULL || individual_map == NULL || population_map == NULL
+        || site_map == NULL || mutation_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(node_map, 0xff, tables.nodes.num_rows * sizeof(*node_map));
+    memset(individual_map, 0xff, tables.individuals.num_rows * sizeof(*individual_map));
+    memset(population_map, 0xff, tables.populations.num_rows * sizeof(*population_map));
+    memset(site_map, 0xff, tables.sites.num_rows * sizeof(*site_map));
+    memset(mutation_map, 0xff, tables.mutations.num_rows * sizeof(*mutation_map));
+
+    // nodes, individuals, populations
+    for (k = 0; k < (tsk_id_t) num_nodes; k++) {
+        ret = tsk_node_table_get_row(&tables.nodes, nodes[k], &node);
+        if (ret < 0) {
+            goto out;
+        }
+        new_ind = TSK_NULL;
+        if (node.individual != TSK_NULL) {
+            if (individual_map[node.individual] == TSK_NULL) {
+                tsk_individual_table_get_row(&tables.individuals, node.individual, &ind);
+                ret = tsk_individual_table_add_row(&self->individuals, ind.flags,
+                    ind.location, ind.location_length, ind.metadata,
+                    ind.metadata_length);
+                if (ret < 0) {
+                    goto out;
+                }
+                individual_map[node.individual] = ret;
+            }
+            new_ind = individual_map[node.individual];
+        }
+        new_pop = TSK_NULL;
+        if (node.population != TSK_NULL) {
+            if (population_map[node.population] == TSK_NULL) {
+                tsk_population_table_get_row(&tables.populations, node.population, &pop);
+                ret = tsk_population_table_add_row(
+                    &self->populations, pop.metadata, pop.metadata_length);
+                if (ret < 0) {
+                    goto out;
+                }
+                population_map[node.population] = ret;
+            }
+            new_pop = population_map[node.population];
+        }
+        ret = tsk_node_table_add_row(&self->nodes, node.flags, node.time, new_pop,
+            new_ind, node.metadata, node.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+        node_map[node.id] = ret;
+    }
+
+    // edges
+    for (k = 0; k < (tsk_id_t) tables.edges.num_rows; k++) {
+        tsk_edge_table_get_row(&tables.edges, k, &edge);
+        new_parent = node_map[edge.parent];
+        new_child = node_map[edge.child];
+        if ((new_parent != TSK_NULL) && (new_child != TSK_NULL)) {
+            ret = tsk_edge_table_add_row(&self->edges, edge.left, edge.right, new_parent,
+                new_child, edge.metadata, edge.metadata_length);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+
+    // mutations and sites
+    i = 0;
+    for (k = 0; k < (tsk_id_t) tables.sites.num_rows; k++) {
+        tsk_site_table_get_row(&tables.sites, k, &site);
+        while ((i < (tsk_id_t) tables.mutations.num_rows)
+               && (tables.mutations.site[i] == site.id)) {
+            tsk_mutation_table_get_row(&tables.mutations, i, &mut);
+            new_node = node_map[mut.node];
+            if (new_node != TSK_NULL) {
+                if (site_map[site.id] == TSK_NULL) {
+                    ret = tsk_site_table_add_row(&self->sites, site.position,
+                        site.ancestral_state, site.ancestral_state_length, site.metadata,
+                        site.metadata_length);
+                    if (ret < 0) {
+                        goto out;
+                    }
+                    site_map[site.id] = ret;
+                }
+                new_parent = TSK_NULL;
+                if (mut.parent != TSK_NULL) {
+                    new_parent = mutation_map[mut.parent];
+                }
+                ret = tsk_mutation_table_add_row(&self->mutations, site_map[site.id],
+                    new_node, new_parent, mut.derived_state, mut.derived_state_length,
+                    mut.metadata, mut.metadata_length);
+                if (ret < 0) {
+                    goto out;
+                }
+                mutation_map[mut.id] = ret;
+            }
+            i++;
+        }
+    }
+
+    /* TODO: Subset of the Migrations Table. The way to do this properly is not
+     * well-defined, mostly because migrations might contain events from/to
+     * populations that have not been kept in after the subset. */
+    if (tables.migrations.num_rows != 0) {
+        ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+
+    // provenance (new record is added in python)
+    ret = tsk_provenance_table_copy(
+        &tables.provenances, &self->provenances, TSK_NO_INIT);
+    if (ret < 0) {
+        goto out;
+    }
+
+out:
+    tsk_safe_free(node_map);
+    tsk_safe_free(individual_map);
+    tsk_safe_free(population_map);
+    tsk_safe_free(site_map);
+    tsk_safe_free(mutation_map);
+    tsk_table_collection_free(&tables);
+    return ret;
+}
+
 static int
 cmp_edge_cl(const void *a, const void *b)
 {

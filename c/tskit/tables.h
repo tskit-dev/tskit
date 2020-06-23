@@ -2410,6 +2410,43 @@ int tsk_table_collection_simplify(tsk_table_collection_t *self, tsk_id_t *sample
     tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map);
 
 /**
+@brief Subsets and reorders a table collection according to an array of nodes.
+
+@rst
+Reduces the table collection to contain only the entries referring to
+the provided list of nodes, with nodes reordered according to the order
+they appear in the ``nodes`` argument. Specifically, this subsets and reorders
+each of the tables as follows:
+
+1. Nodes: if in the list of nodes, and in the order provided.
+2. Individuals and Populations: if referred to by a retained node,
+   and in the order first seen when traversing the list of retained nodes.
+3. Edges: if both parent and child are retained nodes.
+4. Mutations: if the mutation's node is a retained node.
+5. Sites: if any mutations remain at the site after removing mutations.
+6. Migrations: if the migration's node is a retained node.
+
+Retained edges, mutations, sites, and migrations appear in the same
+order as in the original tables.
+
+If ``nodes`` is the entire list of nodes in the tables, then the
+resulting tables will be identical to the original tables, but with
+nodes (and individuals and populations) reordered.
+
+.. note:: Migrations are currently not supported by susbset, and an error will
+    be raised if we attempt call subset on a table collection with greater
+    than zero migrations.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param nodes An array of num_nodes valid node IDs.
+@param num_nodes The number of node IDs in the input nodes array.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_subset(
+    tsk_table_collection_t *self, tsk_id_t *nodes, tsk_size_t num_nodes);
+
+/**
 @brief Set the metadata
 @rst
 Copies the metadata string to this table collection, replacing any existing.

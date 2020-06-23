@@ -539,6 +539,76 @@ def compute_mutation_parent(ts):
     return mutation_parent
 
 
+def py_subset(tables, nodes, record_provenance=True):
+    """
+    Naive implementation of the TableCollection.subset method using the Python API.
+    """
+    if np.any(nodes > tables.nodes.num_rows) or np.any(nodes < 0):
+        raise ValueError("Nodes out of bounds.")
+    full = tables.copy()
+    # there is no table collection clear in the py API
+    tables.nodes.clear()
+    tables.individuals.clear()
+    tables.populations.clear()
+    tables.edges.clear()
+    tables.migrations.clear()
+    tables.sites.clear()
+    tables.mutations.clear()
+    # mapping from old to new ids
+    node_map = {}
+    ind_map = {tskit.NULL: tskit.NULL}
+    pop_map = {tskit.NULL: tskit.NULL}
+    for old_id in nodes:
+        node = full.nodes[old_id]
+        if node.individual not in ind_map and node.individual != tskit.NULL:
+            ind = full.individuals[node.individual]
+            new_ind_id = tables.individuals.add_row(
+                ind.flags, ind.location, ind.metadata
+            )
+            ind_map[node.individual] = new_ind_id
+        if node.population not in pop_map and node.population != tskit.NULL:
+            pop = full.populations[node.population]
+            new_pop_id = tables.populations.add_row(pop.metadata)
+            pop_map[node.population] = new_pop_id
+        new_id = tables.nodes.add_row(
+            node.flags,
+            node.time,
+            pop_map[node.population],
+            ind_map[node.individual],
+            node.metadata,
+        )
+        node_map[old_id] = new_id
+    for edge in full.edges:
+        if edge.child in nodes and edge.parent in nodes:
+            tables.edges.add_row(
+                edge.left,
+                edge.right,
+                node_map[edge.parent],
+                node_map[edge.child],
+                edge.metadata,
+            )
+    if full.migrations.num_rows > 0:
+        raise ValueError("Migrations are currently not supported in this operation.")
+    site_map = {}
+    mutation_map = {tskit.NULL: tskit.NULL}
+    for i, mut in enumerate(full.mutations):
+        if mut.node in nodes:
+            if mut.site not in site_map:
+                site = full.sites[mut.site]
+                new_site = tables.sites.add_row(
+                    site.position, site.ancestral_state, site.metadata
+                )
+                site_map[mut.site] = new_site
+            new_mut = tables.mutations.add_row(
+                site_map[mut.site],
+                node_map[mut.node],
+                mut.derived_state,
+                mutation_map.get(mut.parent, tskit.NULL),
+                mut.metadata,
+            )
+            mutation_map[i] = new_mut
+
+
 def algorithm_T(ts):
     """
     Simple implementation of algorithm T from the PLOS paper, taking into

@@ -323,6 +323,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED:
             ret = "Migrations not currently supported by sort";
             break;
+        case TSK_ERR_MIGRATIONS_NOT_SUPPORTED:
+            ret = "Migrations not currently supported by this operation";
+            break;
         case TSK_ERR_SORT_OFFSET_NOT_SUPPORTED:
             ret = "Specifying position for mutation, sites or migrations is not "
                   "supported";

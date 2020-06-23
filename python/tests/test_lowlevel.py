@@ -265,6 +265,18 @@ class TestTableCollection(LowLevelTestCase):
         del edges
         self.assertEqual(tc.edges.num_rows, 2)
 
+    def test_subset_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables.ll_tables
+        with self.assertRaises(TypeError):
+            tc.subset(np.array(["a"]))
+        with self.assertRaises(ValueError):
+            tc.subset(np.array([[1], [2]], dtype="int32"))
+        with self.assertRaises(TypeError):
+            tc.subset()
+        with self.assertRaises(_tskit.LibraryError):
+            tc.subset(np.array([100, 200], dtype="int32"))
+
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     """
