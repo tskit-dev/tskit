@@ -2192,7 +2192,7 @@ class Tree:
         Missing observations can be specified for a sample using the value
         ``tskit.MISSING_DATA`` (-1), in which case the state at this sample does not
         influence the ancestral state or the position of mutations returned. At least
-        one non-missing observation must be provided. A maximum of 63 alleles are
+        one non-missing observation must be provided. A maximum of 64 alleles are
         supported.
 
         The current implementation uses the Fitch parsimony algorithm to determine
