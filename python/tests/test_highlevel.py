@@ -1328,7 +1328,7 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_sequence_iteration(self):
         for ts in get_example_tree_sequences():
-            for table_name, _ in ts.tables:
+            for table_name in ts.tables_dict.keys():
                 sequence = getattr(ts, table_name)()
                 length = getattr(ts, "num_" + table_name)
                 # Test __iter__

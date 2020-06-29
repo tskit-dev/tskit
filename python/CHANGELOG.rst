@@ -19,11 +19,18 @@ In development
   children on an interval. Previously an error was thrown when some operation
   building the trees was attempted. (:user:`jeromekelleher`, :pr:`709`).
 
+- The TableCollection object no longer implements the iterator protocol.
+  Previously ``list(tables)`` returned a sequence of (table_name, table_instance)
+  tuples. This has been replaced with the more intuitive and future-proof
+  TableCollection.name_map and TreeSequence.tables_dict attributes, which
+  perform the same function. (:user:`jeromekelleher`, :issue:`500`,
+  :pr:`694`)
+
 **New features**
 
 - New methods to perform set operations on TableCollections and TreeSequences.
   ``TableCollection.subset`` subsets and reorders table collections by nodes
-  (:user:`mufernando`, :user:`petrelharp`, :pr:`663`, :pr:`690`). 
+  (:user:`mufernando`, :user:`petrelharp`, :pr:`663`, :pr:`690`).
   ``TableCollection.union`` forms the node-wise union of two table collections
   (:user:`mufernando`, :user:`petrelharp`, :issue:`381` :pr:`623`).
 

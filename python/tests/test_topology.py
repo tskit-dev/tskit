@@ -53,8 +53,12 @@ def tables_equal(table_collection_1, table_collection_2, compare_provenances=Tru
     """
     Check equality of tables, ignoring provenance timestamps (but not contents)
     """
-    for (_, table_1), (_, table_2) in zip(table_collection_1, table_collection_2):
-        if isinstance(table_1, tskit.ProvenanceTable):
+    tc_dict_1 = table_collection_1.name_map
+    tc_dict_2 = table_collection_2.name_map
+    for table_name in tc_dict_1.keys():
+        table_1 = tc_dict_1[table_name]
+        table_2 = tc_dict_2[table_name]
+        if table_name == "provenances":
             if compare_provenances:
                 if np.any(table_1.record != table_2.record):
                     return False

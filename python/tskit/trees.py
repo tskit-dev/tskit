@@ -2941,6 +2941,15 @@ class TreeSequence:
         self._ll_tree_sequence.dump(str(path))
 
     @property
+    def tables_dict(self):
+        """
+        Returns a dictionary mapping names to tables in the
+        underlying :class:`.TableCollection`. Equivalent to calling
+        ``ts.tables.name_map``.
+        """
+        return self.tables.name_map
+
+    @property
     def tables(self):
         """
         A copy of the tables underlying this tree sequence. See also
