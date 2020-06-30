@@ -1845,6 +1845,34 @@ class TestTableCollection(unittest.TestCase):
     Tests for the convenience wrapper around a collection of related tables.
     """
 
+    def add_metadata(self, tc):
+        tc.metadata_schema = tskit.MetadataSchema(
+            {
+                "codec": "struct",
+                "type": "object",
+                "properties": {"top-level": {"type": "string", "binaryFormat": "50p"}},
+            }
+        )
+        tc.metadata = {"top-level": "top-level-metadata"}
+        for table in [
+            "individuals",
+            "nodes",
+            "edges",
+            "migrations",
+            "sites",
+            "mutations",
+            "populations",
+        ]:
+            t = getattr(tc, table)
+            t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
+            t.metadata_schema = tskit.MetadataSchema(
+                {
+                    "codec": "struct",
+                    "type": "object",
+                    "properties": {table: {"type": "string", "binaryFormat": "50p"}},
+                }
+            )
+
     def test_table_references(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=1)
         tables = ts.tables
@@ -1883,8 +1911,12 @@ class TestTableCollection(unittest.TestCase):
     def test_asdict(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
         t = ts.tables
+        self.add_metadata(t)
         d1 = {
+            "encoding_version": (1, 1),
             "sequence_length": t.sequence_length,
+            "metadata_schema": str(t.metadata_schema),
+            "metadata": t.metadata_schema.encode_row(t.metadata),
             "individuals": t.individuals.asdict(),
             "populations": t.populations.asdict(),
             "nodes": t.nodes.asdict(),
@@ -1896,12 +1928,19 @@ class TestTableCollection(unittest.TestCase):
         }
         d2 = t.asdict()
         self.assertEqual(set(d1.keys()), set(d2.keys()))
+        t1 = tskit.TableCollection.fromdict(d1)
+        t2 = tskit.TableCollection.fromdict(d2)
+        self.assertEqual(t1, t2)
 
     def test_from_dict(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
         t1 = ts.tables
+        self.add_metadata(t1)
         d = {
+            "encoding_version": (1, 1),
             "sequence_length": t1.sequence_length,
+            "metadata_schema": str(t1.metadata_schema),
+            "metadata": t1.metadata_schema.encode_row(t1.metadata),
             "individuals": t1.individuals.asdict(),
             "populations": t1.populations.asdict(),
             "nodes": t1.nodes.asdict(),
@@ -1913,6 +1952,16 @@ class TestTableCollection(unittest.TestCase):
         }
         t2 = tskit.TableCollection.fromdict(d)
         self.assertEquals(t1, t2)
+
+    def test_roundtrip_dict(self):
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+        t1 = ts.tables
+        t2 = tskit.TableCollection.fromdict(t1.asdict())
+        self.assertEqual(t1, t2)
+
+        self.add_metadata(t1)
+        t2 = tskit.TableCollection.fromdict(t1.asdict())
+        self.assertEqual(t1, t2)
 
     def test_iter(self):
         def test_iter(table_collection):
@@ -2207,12 +2256,13 @@ class TestTableCollectionMetadata(unittest.TestCase):
         self.assertEqual(tc.ll_tables.metadata, b"")
 
 
-class TestTableCollectionPickle(unittest.TestCase):
+class TestTableCollectionPickle(TestTableCollection):
     """
     Tests that we can round-trip table collections through pickle.
     """
 
     def verify(self, tables):
+        self.add_metadata(tables)
         other_tables = pickle.loads(pickle.dumps(tables))
         self.assertEqual(tables, other_tables)
 
