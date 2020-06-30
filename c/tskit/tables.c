@@ -4526,16 +4526,12 @@ table_sorter_free(table_sorter_t *self)
  * segment overlapper
  *************************/
 
-/* TODO: This should be renamed to tsk_segment_t when we move to tskit.
- * msprime can then #include this and also use it. msprime needs a different
- * segment definition, which it can continue to call 'segment_t' as it
- * doesn't export a C API. */
-typedef struct _simplify_segment_t {
+typedef struct _tsk_segment_t {
     double left;
     double right;
-    struct _simplify_segment_t *next;
+    struct _tsk_segment_t *next;
     tsk_id_t node;
-} simplify_segment_t;
+} tsk_segment_t;
 
 typedef struct _interval_list_t {
     double left;
@@ -4552,7 +4548,7 @@ typedef struct _mutation_id_list_t {
 typedef struct {
     /* The input segments. This buffer is sorted by the algorithm and we also
      * assume that there is space for an extra element at the end */
-    simplify_segment_t *segments;
+    tsk_segment_t *segments;
     size_t num_segments;
     size_t index;
     size_t num_overlapping;
@@ -4560,7 +4556,7 @@ typedef struct {
     double right;
     /* Output buffer */
     size_t max_overlapping;
-    simplify_segment_t **overlapping;
+    tsk_segment_t **overlapping;
 } segment_overlapper_t;
 
 typedef struct {
@@ -4571,12 +4567,12 @@ typedef struct {
     /* Keep a copy of the input tables */
     tsk_table_collection_t input_tables;
     /* State for topology */
-    simplify_segment_t **ancestor_map_head;
-    simplify_segment_t **ancestor_map_tail;
+    tsk_segment_t **ancestor_map_head;
+    tsk_segment_t **ancestor_map_tail;
     tsk_id_t *node_id_map;
     bool *is_sample;
     /* Segments for a particular parent that are processed together */
-    simplify_segment_t *segment_queue;
+    tsk_segment_t *segment_queue;
     size_t segment_queue_size;
     size_t max_segment_queue_size;
     segment_overlapper_t segment_overlapper;
@@ -4604,8 +4600,8 @@ typedef struct {
 static int
 cmp_segment(const void *a, const void *b)
 {
-    const simplify_segment_t *ia = (const simplify_segment_t *) a;
-    const simplify_segment_t *ib = (const simplify_segment_t *) b;
+    const tsk_segment_t *ia = (const tsk_segment_t *) a;
+    const tsk_segment_t *ib = (const tsk_segment_t *) b;
     int ret = (ia->left > ib->left) - (ia->left < ib->left);
     /* Break ties using the node */
     if (ret == 0) {
@@ -4642,10 +4638,10 @@ segment_overlapper_free(segment_overlapper_t *self)
  */
 static int TSK_WARN_UNUSED
 segment_overlapper_start(
-    segment_overlapper_t *self, simplify_segment_t *segments, size_t num_segments)
+    segment_overlapper_t *self, tsk_segment_t *segments, size_t num_segments)
 {
     int ret = 0;
-    simplify_segment_t *sentinel;
+    tsk_segment_t *sentinel;
     void *p;
 
     if (self->max_overlapping < num_segments) {
@@ -4666,7 +4662,7 @@ segment_overlapper_start(
     self->right = DBL_MAX;
 
     /* Sort the segments in the buffer by left coordinate */
-    qsort(self->segments, self->num_segments, sizeof(simplify_segment_t), cmp_segment);
+    qsort(self->segments, self->num_segments, sizeof(tsk_segment_t), cmp_segment);
     /* NOTE! We are assuming that there's space for another element on the end
      * here. This is to insert a sentinel which simplifies the logic. */
     sentinel = self->segments + self->num_segments;
@@ -4677,12 +4673,12 @@ out:
 
 static int TSK_WARN_UNUSED
 segment_overlapper_next(segment_overlapper_t *self, double *left, double *right,
-    simplify_segment_t ***overlapping, size_t *num_overlapping)
+    tsk_segment_t ***overlapping, size_t *num_overlapping)
 {
     int ret = 0;
     size_t j, k;
     size_t n = self->num_segments;
-    simplify_segment_t *S = self->segments;
+    tsk_segment_t *S = self->segments;
 
     if (self->index < n) {
         self->left = self->right;
@@ -4760,11 +4756,11 @@ typedef struct {
     size_t num_ancestors;
     tsk_table_collection_t *tables;
     tsk_edge_table_t *result;
-    simplify_segment_t **ancestor_map_head;
-    simplify_segment_t **ancestor_map_tail;
+    tsk_segment_t **ancestor_map_head;
+    tsk_segment_t **ancestor_map_tail;
     bool *is_sample;
     bool *is_ancestor;
-    simplify_segment_t *segment_queue;
+    tsk_segment_t *segment_queue;
     size_t segment_queue_size;
     size_t max_segment_queue_size;
     segment_overlapper_t segment_overlapper;
@@ -4777,11 +4773,11 @@ typedef struct {
     double sequence_length;
 } ancestor_mapper_t;
 
-static simplify_segment_t *TSK_WARN_UNUSED
+static tsk_segment_t *TSK_WARN_UNUSED
 ancestor_mapper_alloc_segment(
     ancestor_mapper_t *self, double left, double right, tsk_id_t node)
 {
-    simplify_segment_t *seg = NULL;
+    tsk_segment_t *seg = NULL;
 
     seg = tsk_blkalloc_get(&self->segment_heap, sizeof(*seg));
     if (seg == NULL) {
@@ -4885,8 +4881,8 @@ ancestor_mapper_add_ancestry(ancestor_mapper_t *self, tsk_id_t input_id, double 
     double right, tsk_id_t output_id)
 {
     int ret = 0;
-    simplify_segment_t *tail = self->ancestor_map_tail[input_id];
-    simplify_segment_t *x;
+    tsk_segment_t *tail = self->ancestor_map_tail[input_id];
+    tsk_segment_t *x;
 
     assert(left < right);
     if (tail == NULL) {
@@ -5002,16 +4998,15 @@ ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, size_t num_samp
     /* Need to avoid malloc(0) so make sure we have at least 1. */
     num_nodes_alloc = 1 + tables->nodes.num_rows;
     /* Make the maps and set the intial state */
-    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(simplify_segment_t *));
-    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(simplify_segment_t *));
+    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
+    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
     self->child_edge_map_head = calloc(num_nodes_alloc, sizeof(interval_list_t *));
     self->child_edge_map_tail = calloc(num_nodes_alloc, sizeof(interval_list_t *));
     self->buffered_children = malloc(num_nodes_alloc * sizeof(tsk_id_t));
     self->is_sample = calloc(num_nodes_alloc, sizeof(bool));
     self->is_ancestor = calloc(num_nodes_alloc, sizeof(bool));
     self->max_segment_queue_size = 64;
-    self->segment_queue
-        = malloc(self->max_segment_queue_size * sizeof(simplify_segment_t));
+    self->segment_queue = malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
         || self->child_edge_map_head == NULL || self->child_edge_map_tail == NULL
         || self->is_sample == NULL || self->is_ancestor == NULL
@@ -5058,7 +5053,7 @@ ancestor_mapper_enqueue_segment(
     ancestor_mapper_t *self, double left, double right, tsk_id_t node)
 {
     int ret = 0;
-    simplify_segment_t *seg;
+    tsk_segment_t *seg;
     void *p;
 
     assert(left < right);
@@ -5087,7 +5082,7 @@ static int TSK_WARN_UNUSED
 ancestor_mapper_merge_ancestors(ancestor_mapper_t *self, tsk_id_t input_id)
 {
     int ret = 0;
-    simplify_segment_t **X, *x;
+    tsk_segment_t **X, *x;
     size_t j, num_overlapping, num_flushed_edges;
     double left, right, prev_right;
     bool is_sample = self->is_sample[input_id];
@@ -5166,7 +5161,7 @@ ancestor_mapper_process_parent_edges(
 {
     int ret = 0;
     size_t j;
-    simplify_segment_t *x;
+    tsk_segment_t *x;
     const tsk_edge_table_t *input_edges = &self->tables->edges;
     tsk_id_t child;
     double left, right;
@@ -5241,7 +5236,7 @@ static void
 simplifier_check_state(simplifier_t *self)
 {
     size_t j, k;
-    simplify_segment_t *u;
+    tsk_segment_t *u;
     mutation_id_list_t *list_node;
     tsk_id_t site;
     interval_list_t *int_list;
@@ -5317,9 +5312,9 @@ simplifier_check_state(simplifier_t *self)
 }
 
 static void
-print_segment_chain(simplify_segment_t *head, FILE *out)
+print_segment_chain(tsk_segment_t *head, FILE *out)
 {
-    simplify_segment_t *u;
+    tsk_segment_t *u;
 
     for (u = head; u != NULL; u = u->next) {
         fprintf(out, "(%f,%f->%d)", u->left, u->right, u->node);
@@ -5330,7 +5325,7 @@ static void
 simplifier_print_state(simplifier_t *self, FILE *out)
 {
     size_t j;
-    simplify_segment_t *u;
+    tsk_segment_t *u;
     mutation_id_list_t *list_node;
     interval_list_t *int_list;
     tsk_id_t child;
@@ -5404,10 +5399,10 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     simplifier_check_state(self);
 }
 
-static simplify_segment_t *TSK_WARN_UNUSED
+static tsk_segment_t *TSK_WARN_UNUSED
 simplifier_alloc_segment(simplifier_t *self, double left, double right, tsk_id_t node)
 {
-    simplify_segment_t *seg = NULL;
+    tsk_segment_t *seg = NULL;
 
     seg = tsk_blkalloc_get(&self->segment_heap, sizeof(*seg));
     if (seg == NULL) {
@@ -5648,8 +5643,8 @@ simplifier_add_ancestry(
     simplifier_t *self, tsk_id_t input_id, double left, double right, tsk_id_t output_id)
 {
     int ret = 0;
-    simplify_segment_t *tail = self->ancestor_map_tail[input_id];
-    simplify_segment_t *x;
+    tsk_segment_t *tail = self->ancestor_map_tail[input_id];
+    tsk_segment_t *x;
 
     assert(left < right);
     if (tail == NULL) {
@@ -5763,16 +5758,15 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
     /* Need to avoid malloc(0) so make sure we have at least 1. */
     num_nodes_alloc = 1 + tables->nodes.num_rows;
     /* Make the maps and set the intial state */
-    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(simplify_segment_t *));
-    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(simplify_segment_t *));
+    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
+    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
     self->child_edge_map_head = calloc(num_nodes_alloc, sizeof(interval_list_t *));
     self->child_edge_map_tail = calloc(num_nodes_alloc, sizeof(interval_list_t *));
     self->node_id_map = malloc(num_nodes_alloc * sizeof(tsk_id_t));
     self->buffered_children = malloc(num_nodes_alloc * sizeof(tsk_id_t));
     self->is_sample = calloc(num_nodes_alloc, sizeof(bool));
     self->max_segment_queue_size = 64;
-    self->segment_queue
-        = malloc(self->max_segment_queue_size * sizeof(simplify_segment_t));
+    self->segment_queue = malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
         || self->child_edge_map_head == NULL || self->child_edge_map_tail == NULL
         || self->node_id_map == NULL || self->is_sample == NULL
@@ -5833,7 +5827,7 @@ static int TSK_WARN_UNUSED
 simplifier_enqueue_segment(simplifier_t *self, double left, double right, tsk_id_t node)
 {
     int ret = 0;
-    simplify_segment_t *seg;
+    tsk_segment_t *seg;
     void *p;
 
     assert(left < right);
@@ -5862,7 +5856,7 @@ static int TSK_WARN_UNUSED
 simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
 {
     int ret = 0;
-    simplify_segment_t **X, *x;
+    tsk_segment_t **X, *x;
     size_t j, num_overlapping, num_flushed_edges;
     double left, right, prev_right;
     tsk_id_t ancestry_node;
@@ -5969,7 +5963,7 @@ simplifier_process_parent_edges(
 {
     int ret = 0;
     size_t j;
-    simplify_segment_t *x;
+    tsk_segment_t *x;
     const tsk_edge_table_t *input_edges = &self->input_tables.edges;
     tsk_id_t child;
     double left, right;
@@ -6005,7 +5999,7 @@ static int TSK_WARN_UNUSED
 simplifier_map_mutation_nodes(simplifier_t *self)
 {
     int ret = 0;
-    simplify_segment_t *seg;
+    tsk_segment_t *seg;
     mutation_id_list_t *m_node;
     size_t input_node;
     tsk_id_t site;
