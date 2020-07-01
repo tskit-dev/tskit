@@ -48,6 +48,8 @@ import tests as tests
 import tests.simplify as simplify
 import tests.tsutil as tsutil
 import tskit
+import tskit.util as util
+from tskit import UNKNOWN_TIME
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -64,11 +66,8 @@ def insert_uniform_mutations(tables, num_mutations, nodes):
             site=j,
             derived_state="1",
             node=nodes[j % len(nodes)],
-            time=-1,
             metadata=json.dumps({"index": j}).encode(),
         )
-    tables.build_index()
-    tables.compute_mutation_times()
 
 
 def get_table_collection_copy(tables, sequence_length):
@@ -749,10 +748,11 @@ class TestTreeSequence(HighLevelTestCase):
     def test_compute_mutation_time(self):
         for ts in get_example_tree_sequences():
             tables = ts.dump_tables()
-            before = tables.mutations.time[:]
+            python_time = tsutil.compute_mutation_times(ts)
             tables.compute_mutation_times()
-            time = tables.mutations.time
-            self.assertTrue(np.array_equal(time, before))
+            self.assertTrue(
+                np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
+            )
             # Check we have valid times
             tables.tree_sequence()
 
@@ -1107,7 +1107,6 @@ class TestTreeSequence(HighLevelTestCase):
                     sites=sites,
                     mutations=mutations,
                     strict=False,
-                    compute_mutation_times=True,
                 )
             samples = list(ts.samples())
             self.verify_simplify_equality(ts, samples)
@@ -1677,7 +1676,12 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             splits = line.split("\t")
             self.assertEqual(str(mutation.site), splits[0])
             self.assertEqual(str(mutation.node), splits[1])
-            self.assertEqual(str(mutation.time), splits[2])
+            self.assertEqual(
+                "unknown"
+                if util.is_unknown_time(mutation.time)
+                else str(mutation.time),
+                splits[2],
+            )
             self.assertEqual(str(mutation.derived_state), splits[3])
             self.assertEqual(str(mutation.parent), splits[4])
             self.assertEqual(tests.base64_encode(mutation.metadata), splits[5])
@@ -1748,7 +1752,8 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             checked += 1
             self.assertEqual(s1.site, s2.site)
             self.assertEqual(s1.node, s2.node)
-            self.assertAlmostEqual(s1.time, s2.time)
+            if not (math.isnan(s1.time) and math.isnan(s2.time)):
+                self.assertAlmostEqual(s1.time, s2.time)
             self.assertEqual(s1.derived_state, s2.derived_state)
             self.assertEqual(s1.parent, s2.parent)
             self.assertEqual(s1.metadata, s2.metadata)
@@ -2768,6 +2773,46 @@ class TestMutationContainer(
             )
             for j in range(n)
         ]
+
+    def test_nan_equality(self):
+        a = tskit.Mutation(
+            id_=42,
+            site=42,
+            node=42,
+            time=UNKNOWN_TIME,
+            derived_state="A" * 42,
+            parent=42,
+            encoded_metadata=b"x" * 42,
+            metadata_decoder=lambda m: m.decode() + "decoded",
+        )
+        b = tskit.Mutation(
+            id_=42,
+            site=42,
+            node=42,
+            derived_state="A" * 42,
+            parent=42,
+            encoded_metadata=b"x" * 42,
+            metadata_decoder=lambda m: m.decode() + "decoded",
+        )
+        c = tskit.Mutation(
+            id_=42,
+            site=42,
+            node=42,
+            time=math.nan,
+            derived_state="A" * 42,
+            parent=42,
+            encoded_metadata=b"x" * 42,
+            metadata_decoder=lambda m: m.decode() + "decoded",
+        )
+        self.assertTrue(a == a)
+        self.assertTrue(a == b)
+        self.assertFalse(a == c)
+        self.assertFalse(b == c)
+        self.assertFalse(a != a)
+        self.assertFalse(a != b)
+        self.assertTrue(a != c)
+        self.assertTrue(c != c)
+        self.assertFalse(c == c)
 
 
 class TestMigrationContainer(

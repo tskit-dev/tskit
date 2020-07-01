@@ -37,10 +37,11 @@ import numpy as np
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
+from tskit import UNKNOWN_TIME
 
 
-CURRENT_FILE_MAJOR = 13
-CURRENT_FILE_MINOR = 0
+CURRENT_FILE_MAJOR = 12
+CURRENT_FILE_MINOR = 3
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -69,10 +70,8 @@ def general_mutation_example():
     tables = ts.dump_tables()
     tables.sites.add_row(position=0, ancestral_state="A", metadata=b"{}")
     tables.sites.add_row(position=1, ancestral_state="C", metadata=b"{'id':1}")
-    tables.mutations.add_row(site=0, node=0, time=0, derived_state="T")
-    tables.mutations.add_row(site=1, node=0, time=0, derived_state="G")
-    tables.build_index()
-    tables.compute_mutation_times()
+    tables.mutations.add_row(site=0, node=0, derived_state="T")
+    tables.mutations.add_row(site=1, node=0, derived_state="G")
     return tables.tree_sequence()
 
 
@@ -168,11 +167,7 @@ def mutation_metadata_example():
     tables = ts.dump_tables()
     tables.sites.add_row(0, ancestral_state="a")
     for j in range(10):
-        tables.mutations.add_row(
-            site=0, node=j, time=-1, derived_state="t", metadata=b"1234"
-        )
-    tables.build_index()
-    tables.compute_mutation_times()
+        tables.mutations.add_row(site=0, node=j, derived_state="t", metadata=b"1234")
     return tables.tree_sequence()
 
 
@@ -462,6 +457,8 @@ class TestErrors(TestFileFormat):
         self.assertRaises(ValueError, tskit.dump_legacy, ts, self.temp_file, version=4)
         # Cannot read current files.
         ts.dump(self.temp_file)
+        # Catch Exception here because h5py throws different exceptions on py2 and py3
+        self.assertRaises(Exception, tskit.load_legacy, self.temp_file)
 
     def test_no_version_number(self):
         root = h5py.File(self.temp_file, "w")
@@ -677,6 +674,11 @@ class TestDumpFormat(TestFileFormat):
 
         self.assertTrue(np.array_equal(tables.mutations.site, store["mutations/site"]))
         self.assertTrue(np.array_equal(tables.mutations.node, store["mutations/node"]))
+        # Default mutation time is a NaN value so we want to check for
+        # bit equality, not numeric equality
+        self.assertEqual(
+            tables.mutations.time.tobytes(), store["mutations/time"].tobytes()
+        )
         self.assertTrue(
             np.array_equal(tables.mutations.parent, store["mutations/parent"])
         )
@@ -819,6 +821,32 @@ class TestOptionalColumns(TestFileFormat):
         ts3 = tskit.load(self.temp_file)
         self.assertEqual(ts1.tables, ts3.tables)
 
+    def test_empty_mutation_time(self):
+        ts1 = migration_example()
+        ts1.dump(self.temp_file)
+        ts2 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts2.tables)
+        self.assertEqual(len(ts1.tables.mutations.metadata), 0)
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        del all_data["mutations/time"]
+        kastore.dump(all_data, self.temp_file)
+        ts3 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts3.tables)
+
+
+class TestMixedUnknownMutation(TestFileFormat):
+    def test_unknown_mutation(self):
+        ts1 = migration_example()
+        tables = ts1.tables
+        tables.compute_mutation_times()
+        mutations = tables.mutations.asdict()
+        mutations["time"][0] = UNKNOWN_TIME
+        tables.mutations.set_columns(**mutations)
+        tables.tree_sequence().dump(self.temp_file)
+        tables2 = tskit.load(self.temp_file).tables
+        self.assertEqual(tables, tables2)
+
 
 class TestFileFormatErrors(TestFileFormat):
     """
@@ -831,7 +859,10 @@ class TestFileFormatErrors(TestFileFormat):
             all_data = dict(store)
         for key in all_data.keys():
             # We skip these keys as they are optional
-            if "metadata_schema" not in key and key != "metadata":
+            if "metadata_schema" not in key and key not in [
+                "metadata",
+                "mutations/time",
+            ]:
                 data = dict(all_data)
                 del data[key]
                 kastore.dump(data, self.temp_file)

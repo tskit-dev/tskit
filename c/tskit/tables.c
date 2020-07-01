@@ -2520,7 +2520,7 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
     int ret = 0;
     tsk_size_t j, derived_state_length, metadata_length;
 
-    if (site == NULL || node == NULL || time == NULL || derived_state == NULL
+    if (site == NULL || node == NULL || derived_state == NULL
         || derived_state_offset == NULL) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
@@ -2542,7 +2542,15 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
     } else {
         memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
     }
-    memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
+    if (time == NULL) {
+        /* If time is NULL, set all times to TSK_UNKNOWN_TIME which is the
+         * default */
+        for (j = 0; j < num_rows; j++) {
+            self->time[self->num_rows + j] = TSK_UNKNOWN_TIME;
+        }
+    } else {
+        memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
+    }
 
     /* Metadata column */
     if (metadata == NULL) {
@@ -2846,7 +2854,8 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
         { "mutations/site", (void **) &site, &num_rows, 0, KAS_INT32, 0 },
         { "mutations/node", (void **) &node, &num_rows, 0, KAS_INT32, 0 },
         { "mutations/parent", (void **) &parent, &num_rows, 0, KAS_INT32, 0 },
-        { "mutations/time", (void **) &time, &num_rows, 0, KAS_FLOAT64, 0 },
+        { "mutations/time", (void **) &time, &num_rows, 0, KAS_FLOAT64,
+            TSK_COL_OPTIONAL },
         { "mutations/derived_state", (void **) &derived_state, &derived_state_length, 0,
             KAS_UINT8, 0 },
         { "mutations/derived_state_offset", (void **) &derived_state_offset, &num_rows,
@@ -6623,18 +6632,20 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
         }
         if (check_mutation_time) {
             mutation_time = self->mutations.time[j];
-            if (!isfinite(mutation_time)) {
-                ret = TSK_ERR_TIME_NONFINITE;
-                goto out;
-            }
-            if (mutation_time < self->nodes.time[self->mutations.node[j]]) {
-                ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
-                goto out;
-            }
-            if (parent_mut != TSK_NULL
-                && self->mutations.time[parent_mut] < mutation_time) {
-                ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
-                goto out;
+            if (!tsk_is_unknown_time(mutation_time)) {
+                if (!isfinite(mutation_time)) {
+                    ret = TSK_ERR_TIME_NONFINITE;
+                    goto out;
+                }
+                if (mutation_time < self->nodes.time[self->mutations.node[j]]) {
+                    ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
+                    goto out;
+                }
+                if (parent_mut != TSK_NULL
+                    && self->mutations.time[parent_mut] < mutation_time) {
+                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
+                    goto out;
+                }
             }
         }
     }
@@ -8059,8 +8070,8 @@ tsk_table_collection_subset(
                     new_parent = mutation_map[mut.parent];
                 }
                 ret = tsk_mutation_table_add_row(&self->mutations, site_map[site.id],
-                    new_node, new_parent, mut.derived_state, mut.derived_state_length,
-                    mut.metadata, mut.metadata_length);
+                    new_node, new_parent, mut.time, mut.derived_state,
+                    mut.derived_state_length, mut.metadata, mut.metadata_length);
                 if (ret < 0) {
                     goto out;
                 }

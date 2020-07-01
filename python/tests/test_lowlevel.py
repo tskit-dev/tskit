@@ -365,6 +365,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     def test_dump_equality(self):
         for ts in self.get_example_tree_sequences():
+            tables = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts.dump_tables(tables)
+            tables.compute_mutation_times()
+            ts = _tskit.TreeSequence()
+            ts.load_tables(tables)
             self.verify_dump_equality(ts)
 
     def verify_mutations(self, ts):
@@ -1646,10 +1651,10 @@ class TestTree(LowLevelTestCase):
                         (
                             site,
                             node,
-                            time,
                             derived_state,
                             parent,
                             metadata,
+                            time,
                         ) = ts.get_mutation(mut_id)
                         self.assertEqual(site, index)
                         self.assertEqual(mutation_id, mut_id)
@@ -1937,7 +1942,6 @@ class TestTree(LowLevelTestCase):
             position = []
             node = []
             site = []
-            time = []
             ancestral_state = []
             ancestral_state_offset = [0]
             derived_state = []
@@ -1945,7 +1949,6 @@ class TestTree(LowLevelTestCase):
             for j, (p, n) in enumerate(mutations):
                 site.append(j)
                 position.append(p)
-                time.append(-1)
                 ancestral_state.append("0")
                 ancestral_state_offset.append(ancestral_state_offset[-1] + 1)
                 derived_state.append("1")
@@ -1964,7 +1967,6 @@ class TestTree(LowLevelTestCase):
                 dict(
                     site=site,
                     node=node,
-                    time=time,
                     derived_state=derived_state,
                     derived_state_offset=derived_state_offset,
                     parent=None,

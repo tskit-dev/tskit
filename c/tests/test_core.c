@@ -334,6 +334,17 @@ test_blkalloc(void)
     tsk_blkalloc_free(&alloc);
 }
 
+static void
+test_unknown_time(void)
+{
+    CU_ASSERT_TRUE(isnan(TSK_UNKNOWN_TIME));
+    CU_ASSERT_TRUE(tsk_is_unknown_time(TSK_UNKNOWN_TIME));
+    CU_ASSERT_FALSE(tsk_is_unknown_time(NAN));
+    CU_ASSERT_FALSE(tsk_is_unknown_time(0));
+    CU_ASSERT_FALSE(tsk_is_unknown_time(INFINITY));
+    CU_ASSERT_FALSE(tsk_is_unknown_time(1));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -343,6 +354,7 @@ main(int argc, char **argv)
         { "test_generate_uuid", test_generate_uuid },
         { "test_double_round", test_double_round },
         { "test_blkalloc", test_blkalloc },
+        { "test_unknown_time", test_unknown_time },
         { NULL, NULL },
     };
 

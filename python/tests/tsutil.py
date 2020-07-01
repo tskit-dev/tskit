@@ -126,14 +126,11 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
                         mutation[u] = tables.mutations.add_row(
                             site=site,
                             node=u,
-                            time=-1,
                             derived_state=str(state[u]),
                             parent=parent,
                         )
                         parent = mutation[u]
     add_provenance(tables.provenances, "insert_branch_mutations")
-    tables.build_index()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -152,11 +149,9 @@ def insert_branch_sites(ts):
         for u in tree.nodes():
             if tree.parent(u) != tskit.NULL:
                 site = tables.sites.add_row(position=x, ancestral_state="0")
-                tables.mutations.add_row(site=site, node=u, time=-1, derived_state="1")
+                tables.mutations.add_row(site=site, node=u, derived_state="1")
                 x += delta
     add_provenance(tables.provenances, "insert_branch_sites")
-    tables.build_index()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -181,12 +176,8 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
         derived_state = ancestral_state
         while ancestral_state == derived_state:
             derived_state = rng.choice(letters) * rng.randint(0, max_len)
-        tables.mutations.add_row(
-            site=site, node=u, time=tables.nodes[u].time, derived_state=derived_state
-        )
+        tables.mutations.add_row(site=site, node=u, derived_state=derived_state)
     add_provenance(tables.provenances, "insert_multichar_mutations")
-    tables.build_index()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -339,7 +330,7 @@ def single_childify(ts):
                 )
             else:
                 tables.mutations.add_row(
-                    mut.site, u, mut.time, mut.derived_state, mut.parent, mut.metadata
+                    mut.site, u, mut.derived_state, mut.parent, mut.metadata, mut.time
                 )
     tables.sort()
     add_provenance(tables.provenances, "insert_redundant_breakpoints")
@@ -462,13 +453,13 @@ def generate_site_mutations(
                 while x < branch_length:
                     new_state = random.choice([s for s in states if s != state])
                     if multiple_per_node and (state != new_state):
-                        mutation_table.add_row(site, u, -1, new_state, parent)
+                        mutation_table.add_row(site, u, new_state, parent)
                         parent = mutation_table.num_rows - 1
                         state = new_state
                     x += random.expovariate(mu)
                 else:
                     if (not multiple_per_node) and (state != new_state):
-                        mutation_table.add_row(site, u, -1, new_state, parent)
+                        mutation_table.add_row(site, u, new_state, parent)
                         parent = mutation_table.num_rows - 1
                         state = new_state
             stack.extend(reversed([(v, state, parent) for v in tree.children(u)]))
@@ -500,8 +491,6 @@ def jukes_cantor(ts, num_sites, mu, multiple_per_node=True, seed=None):
             multiple_per_node=multiple_per_node,
         )
     add_provenance(tables.provenances, "jukes_cantor")
-    tables.build_index()
-    tables.compute_mutation_times()
     new_ts = tables.tree_sequence()
     return new_ts
 
@@ -530,15 +519,12 @@ def caterpillar_tree(n, num_sites=0, num_mutations=1):
         state = 0
         for _ in range(num_mutations):
             state = (state + 1) % 2
-            tables.mutations.add_row(
-                site=j, time=-1, derived_state=str(state), node=node
-            )
+            tables.mutations.add_row(site=j, derived_state=str(state), node=node)
             node -= 1
 
     tables.sort()
     tables.build_index()
     tables.compute_mutation_parents()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 

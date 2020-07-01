@@ -156,9 +156,7 @@ class TestMetadataPickleDecoding(unittest.TestCase):
         pickled = pickle.dumps(metadata)
         tables.nodes.add_row(time=0)
         tables.sites.add_row(position=0.1, ancestral_state="A")
-        tables.mutations.add_row(
-            site=0, node=0, time=0, derived_state="T", metadata=pickled
-        )
+        tables.mutations.add_row(site=0, node=0, derived_state="T", metadata=pickled)
         ts = tables.tree_sequence()
         mutation = ts.site(0).mutations[0]
         self.assertEqual(mutation.site, 0)

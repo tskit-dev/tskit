@@ -3792,6 +3792,7 @@ test_single_tree_compute_mutation_parents(void)
 
     /* Compute the mutation parents */
     verify_compute_mutation_parents(&ts);
+    tsk_treeseq_free(&ts);
 
     /* Bad site reference */
     tables.mutations.site[0] = -1;
@@ -3855,7 +3856,6 @@ test_single_tree_compute_mutation_parents(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 6);
     tsk_treeseq_free(&ts);
 
-    tsk_treeseq_free(&ts);
     tsk_table_collection_free(&tables);
 }
 

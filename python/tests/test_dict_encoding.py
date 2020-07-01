@@ -32,6 +32,7 @@ import numpy as np
 
 import _tskit as c_module
 import tskit
+import tskit.util as util
 
 
 def get_example_tables():
@@ -523,6 +524,7 @@ class TestRequiredAndOptionalColumns(unittest.TestCase):
         self.verify_offset_pair(
             tables, len(tables.migrations), "migrations", "metadata"
         )
+        self.verify_optional_column(tables, len(tables.nodes), "nodes", "individual")
         self.verify_metadata_schema(tables, "migrations")
 
     def test_sites(self):
@@ -538,10 +540,19 @@ class TestRequiredAndOptionalColumns(unittest.TestCase):
         self.verify_required_columns(
             tables,
             "mutations",
-            ["site", "node", "time", "derived_state", "derived_state_offset"],
+            ["site", "node", "derived_state", "derived_state_offset"],
         )
         self.verify_offset_pair(tables, len(tables.mutations), "mutations", "metadata")
         self.verify_metadata_schema(tables, "mutations")
+        # Verify optional time column
+        d = tables.asdict()
+        d["mutations"]["time"] = None
+        lwt = c_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        out = lwt.asdict()
+        self.assertTrue(
+            all(util.is_unknown_time(val) for val in out["mutations"]["time"])
+        )
 
     def test_populations(self):
         tables = get_example_tables()

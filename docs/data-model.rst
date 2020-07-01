@@ -637,9 +637,11 @@ requirements for a valid set of mutations are:
 
 - ``site`` must refer to a valid site ID;
 - ``node`` must refer to a valid node ID;
-- ``time`` must be a finite value which is greater or equal to the mutation ``node``'s
-  ``time``, less than the ``node`` above the mutation's ``time`` and equal to or less
-  than the ``time`` of the ``parent`` mutation if this mutation has one.
+- ``time`` must either be UNKNOWN_TIME (a NAN value which indicates
+  the time is unknown) or be a finite value which is greater or equal to the
+  mutation ``node``'s ``time``, less than the ``node`` above the mutation's
+  ``time`` and equal to or less than the ``time`` of the ``parent`` mutation
+  if this mutation has one.
 - ``parent`` must either be the null ID (-1) or a valid mutation ID within the
   current table
 
@@ -1151,8 +1153,8 @@ Mutation text format
 The mutation text format must contain the columns ``site``,
 ``node`` and ``derived_state``. The ``time``, ``parent`` and ``metadata`` columns
 may also be optionally present (but ``parent`` must be specified if
-more than one mutation occurs at the same site). If ``time`` is absent ``0`` will be
-used to fill the column. See the
+more than one mutation occurs at the same site). If ``time`` is absent
+``UNKNOWN_TIME`` will be used to fill the column. See the
 :ref:`mutation table definitions <sec_mutation_table_definition>`
 for details on these columns.
 

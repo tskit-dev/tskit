@@ -6,14 +6,8 @@ In development.
 
 **Breaking changes**
 
-- Mutations now have a double-precision floating-point ``time`` column. As this is a
-  mandatory column the file format version has been bumped to 13.0. Pre-existing
-  tree sequences can be upgraded using the ``tskit upgrade`` command-line utility,
-  which will assign times to mutations by spreading them evenly along the edges on
-  which they occur (using ``tsk_table_collection_compute_mutation_times``. For a tree
-  sequence to be considered valid it must meet new criteria for mutation times, see
-  :ref:`sec_mutation_requirements`. Mutation methods such as ``add_row`` now have an
-  additional argument.
+- ``tsk_mutation_table_add_row`` has an extra ``time`` argument. If the time
+  is unknown ``TSK_UNKNOWN_TIME`` should be passed.
   (:user:`benjeffery`, :pr:`672`)
 
 - Change genotypes from unsigned to signed to accommodate missing data
@@ -44,11 +38,13 @@ In development.
 
 **New features**
 
-- Add ``time`` column to mutations, along with new function
-  ``tsk_table_collection_compute_mutation_times`` and new flag to
+- Mutations now have an optional double-precision floating-point ``time`` column.
+  If not specified, this defaults to a particular NaN value (``TSK_UNKNOWN_TIME``)
+  indicating that the time is unknown. For a tree sequence to be considered valid
+  it must meet new criteria for mutation times, see :ref:`sec_mutation_requirements`.
+  Add ``tsk_table_collection_compute_mutation_times`` and new flag to
   ``tsk_table_collection_check_integrity``:``TSK_CHECK_MUTATION_TIME``.
   (:user:`benjeffery`, :pr:`672`)
-
 
 - Add ``metadata`` and ``metadata_schema`` fields to table collection, with accessors on
   tree sequence. These store arbitrary bytes and are optional in the file format.

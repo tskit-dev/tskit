@@ -38,6 +38,7 @@ import tskit
 import tskit.metadata as metadata
 import tskit.provenance as provenance
 import tskit.util as util
+from tskit import UNKNOWN_TIME
 
 attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 
@@ -105,10 +106,10 @@ class SiteTableRow:
 class MutationTableRow:
     site: int
     node: int
-    time: float
     derived_state: str
     parent: int
     metadata: bytes
+    time: float
 
 
 @attr.s(**attr_options)
@@ -1408,7 +1409,9 @@ class MutationTable(BaseTable, MetadataMixin):
             )
         return headers, rows
 
-    def add_row(self, site, node, time, derived_state, parent=-1, metadata=None):
+    def add_row(
+        self, site, node, derived_state, parent=-1, metadata=None, time=None,
+    ):
         """
         Adds a new row to this :class:`MutationTable` and returns the ID of the
         corresponding mutation. Metadata, if specified, will be validated and encoded
@@ -1417,16 +1420,24 @@ class MutationTable(BaseTable, MetadataMixin):
 
         :param int site: The ID of the site that this mutation occurs at.
         :param int node: The ID of the first node inheriting this mutation.
-        :param float time: The occurence time for the new mutation.
         :param str derived_state: The state of the site at this mutation's node.
         :param int parent: The ID of the parent mutation. If not specified,
             defaults to :attr:`NULL`.
         :param object metadata: Any object that is valid metadata for the table's schema.
         :return: The ID of the newly added mutation.
+        :param float time: The occurrence time for the new mutation. If not specified,
+            defaults to ``UNKNOWN_TIME``, indicating the time is unknown.
         :rtype: int
         """
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
-        return self.ll_table.add_row(site, node, time, derived_state, parent, metadata)
+        return self.ll_table.add_row(
+            site,
+            node,
+            derived_state,
+            parent,
+            metadata,
+            UNKNOWN_TIME if time is None else time,
+        )
 
     def set_columns(
         self,
@@ -1444,9 +1455,9 @@ class MutationTable(BaseTable, MetadataMixin):
         Sets the values for each column in this :class:`MutationTable` using the values
         in the specified arrays. Overwrites any data currently stored in the table.
 
-        The ``site``, ``node``, ``time``, ``derived_state`` and ``derived_state_offset``
+        The ``site``, ``node``, ``derived_state`` and ``derived_state_offset``
         parameters are mandatory, and must be 1D numpy arrays. The
-        ``site``, ``node`` and ``time`` (also ``parent``, if supplied) arrays
+        ``site`` and ``node`` (also ``parent`` and ``time``, if supplied) arrays
         must be of equal length, and determine the number of rows in the table.
         The ``derived_state`` and ``derived_state_offset`` parameters must
         be supplied together, and meet the requirements for
@@ -1462,7 +1473,7 @@ class MutationTable(BaseTable, MetadataMixin):
         :type site: numpy.ndarray, dtype=np.int32
         :param node: The ID of the node each mutation is associated with.
         :type node: numpy.ndarray, dtype=np.int32
-        :param time: The time values for each mutation. Required.
+        :param time: The time values for each mutation.
         :type time: numpy.ndarray, dtype=np.float64
         :param derived_state: The flattened derived_state array. Required.
         :type derived_state: numpy.ndarray, dtype=np.int8
@@ -1502,10 +1513,10 @@ class MutationTable(BaseTable, MetadataMixin):
         self,
         site,
         node,
-        time,
         derived_state,
         derived_state_offset,
         parent=None,
+        time=None,
         metadata=None,
         metadata_offset=None,
     ):
@@ -1513,9 +1524,9 @@ class MutationTable(BaseTable, MetadataMixin):
         Appends the specified arrays to the end of the columns of this
         :class:`MutationTable`. This allows many new rows to be added at once.
 
-        The ``site``, ``node``, ``time``, ``derived_state`` and ``derived_state_offset``
+        The ``site``, ``node``, ``derived_state`` and ``derived_state_offset``
         parameters are mandatory, and must be 1D numpy arrays. The
-        ``site``, ``node`` and ``time`` (also ``parent``, if supplied) arrays
+        ``site`` and ``node`` (also ``time`` and ``parent``, if supplied) arrays
         must be of equal length, and determine the number of additional
         rows to add to the table.
         The ``derived_state`` and ``derived_state_offset`` parameters must
@@ -1532,7 +1543,7 @@ class MutationTable(BaseTable, MetadataMixin):
         :type site: numpy.ndarray, dtype=np.int32
         :param node: The ID of the node each mutation is associated with.
         :type node: numpy.ndarray, dtype=np.int32
-        :param time: The time values for each mutation. Required.
+        :param time: The time values for each mutation.
         :type time: numpy.ndarray, dtype=np.float64
         :param derived_state: The flattened derived_state array. Required.
         :type derived_state: numpy.ndarray, dtype=np.int8

@@ -27,6 +27,7 @@ Module responsible for managing trees and tree sequences.
 import base64
 import collections
 import concurrent.futures
+import copy
 import functools
 import itertools
 import json
@@ -50,6 +51,7 @@ import tskit.util as util
 import tskit.vcf as vcf
 from tskit import NODE_IS_SAMPLE
 from tskit import NULL
+from tskit import UNKNOWN_TIME
 
 
 CoalescenceRecord = collections.namedtuple(
@@ -337,6 +339,8 @@ class Mutation(SimpleContainerWithMetadata):
         To obtain further information about a node with a given ID, use
         :meth:`TreeSequence.node`.
     :vartype node: int
+    :ivar time: The occurrence time of this mutation.
+    :vartype node: float
     :ivar derived_state: The derived state for this mutation. This is the state
         inherited by nodes in the subtree rooted at this mutation's node, unless
         another mutation occurs.
@@ -358,7 +362,7 @@ class Mutation(SimpleContainerWithMetadata):
         id_=NULL,
         site=NULL,
         node=NULL,
-        time=NULL,
+        time=UNKNOWN_TIME,
         derived_state=None,
         parent=NULL,
         encoded_metadata=b"",
@@ -372,6 +376,24 @@ class Mutation(SimpleContainerWithMetadata):
         self.parent = parent
         self._encoded_metadata = encoded_metadata
         self._metadata_decoder = metadata_decoder
+
+    def __eq__(self, other):
+        # We need to remove metadata and the decoder so we are just comparing
+        # the encoded metadata, along with the other attributes.
+        # We also need to remove time as we have to compare to unknown time.
+        other_ = copy.copy(other.__dict__)
+        other_["metadata"] = None
+        other_["_metadata_decoder"] = None
+        other_["time"] = None
+        self_ = copy.copy(self.__dict__)
+        self_["metadata"] = None
+        self_["_metadata_decoder"] = None
+        self_["time"] = None
+        return self_ == other_ and (
+            self.time == other.time
+            # We need to special case unknown times as they are a nan value.
+            or (util.is_unknown_time(self.time) and util.is_unknown_time(other.time))
+        )
 
 
 class Migration(SimpleContainerWithMetadata):
@@ -2242,12 +2264,7 @@ class Tree:
         # Translate back into string alleles
         ancestral_state = alleles[ancestral_state]
         mutations = [
-            Mutation(
-                node=node,
-                time=self.tree_sequence.node(node).time,
-                derived_state=alleles[derived_state],
-                parent=parent,
-            )
+            Mutation(node=node, derived_state=alleles[derived_state], parent=parent)
             for node, parent, derived_state in transitions
         ]
         return ancestral_state, mutations
@@ -2526,7 +2543,7 @@ def parse_mutations(
     for the details of the required format and the
     :ref:`mutation table definition <sec_mutation_table_definition>` section for the
     required properties of the contents. Note that if the ``time`` column is missing it's
-    entries are filled with 0.
+    entries are filled with ``UNKNOWN_TIME``.
 
     See :func:`tskit.load_text` for a detailed explanation of the ``strict``
     parameter.
@@ -2569,7 +2586,10 @@ def parse_mutations(
         if len(tokens) >= 3:
             site = int(tokens[site_index])
             node = int(tokens[node_index])
-            time = float(tokens[time_index]) if time_index is not None else 0
+            if time_index is None or tokens[time_index] == "unknown":
+                time = UNKNOWN_TIME
+            else:
+                time = float(tokens[time_index])
             derived_state = tokens[derived_state_index]
             if parent_index is not None:
                 parent = int(tokens[parent_index])
@@ -2642,7 +2662,6 @@ def load_text(
     strict=True,
     encoding="utf8",
     base64_metadata=True,
-    compute_mutation_times=False,
 ):
     """
     Parses the tree sequence data from the specified file-like objects, and
@@ -2701,8 +2720,6 @@ def load_text(
     :param str encoding: Encoding used for text representation.
     :param bool base64_metadata: If True, metadata is encoded using Base64
         encoding; otherwise, as plain text.
-    :param bool compute_mutation_times: If True, mutation times are replaced with those
-        from :meth:`TableCollection.compute_mutation_times`
     :return: The tree sequence object containing the information
         stored in the specified file paths.
     :rtype: :class:`tskit.TreeSequence`
@@ -2766,9 +2783,6 @@ def load_text(
             table=tc.populations,
         )
     tc.sort()
-    if compute_mutation_times:
-        tc.build_index()
-        tc.compute_mutation_times()
     return tc.tree_sequence()
 
 
@@ -3086,7 +3100,9 @@ class TreeSequence:
                     ).format(
                         site=mutation.site,
                         node=mutation.node,
-                        time=mutation.time,
+                        time="unknown"
+                        if util.is_unknown_time(mutation.time)
+                        else mutation.time,
                         derived_state=mutation.derived_state,
                         parent=mutation.parent,
                         metadata=metadata,
@@ -3926,20 +3942,20 @@ class TreeSequence:
         (
             site,
             node,
-            time,
             derived_state,
             parent,
             metadata,
+            time,
         ) = self._ll_tree_sequence.get_mutation(id_)
         return Mutation(
             id_=id_,
             site=site,
             node=node,
-            time=time,
             derived_state=derived_state,
             parent=parent,
             encoded_metadata=metadata,
             metadata_decoder=self.table_metadata_schemas.mutation.decode_row,
+            time=time,
         )
 
     def site(self, id_):

@@ -97,7 +97,7 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
                 )
                 for m in site.mutations:
                     tables.mutations.add_row(
-                        site_id, m.node, m.time, m.derived_state, tskit.NULL, m.metadata
+                        site_id, m.node, m.derived_state, tskit.NULL, m.metadata
                     )
     tables.build_index()
     tables.compute_mutation_parents()
@@ -1756,7 +1756,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         tables = tskit.TableCollection(sequence_length=1)
         tables.nodes.add_row(time=0, flags=0)
         tables.sites.add_row(position=0.5, ancestral_state="0")
-        tables.mutations.add_row(node=0, site=0, time=0, derived_state="1")
+        tables.mutations.add_row(site=0, derived_state="1", node=0)
         ts = tables.tree_sequence()
         self.assertEqual(ts.sequence_length, 1)
         self.assertEqual(ts.num_trees, 1)
@@ -1812,7 +1812,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         tables = tskit.TableCollection(sequence_length=1)
         tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
         tables.sites.add_row(position=0.5, ancestral_state="0")
-        tables.mutations.add_row(site=0, time=0, derived_state="1", node=0)
+        tables.mutations.add_row(site=0, derived_state="1", node=0)
         ts = tables.tree_sequence()
         self.assertEqual(ts.sequence_length, 1)
         self.assertEqual(ts.num_trees, 1)
@@ -2230,7 +2230,6 @@ class TestUnaryNodes(TopologyTestCase):
             sites=io.StringIO(sites),
             mutations=io.StringIO(mutations),
             strict=False,
-            compute_mutation_times=True,
         )
 
         self.assertEqual(ts.sample_size, 2)
@@ -2398,11 +2397,11 @@ class TestGeneralSamples(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       2       0       1
-        1       3       0       1
-        2       4       0       1
-        3       1       1       1
+        site    node    derived_state
+        0       2       1
+        1       3       1
+        2       4       1
+        3       1       1
         """
         )
         ts = tskit.load_text(
@@ -2975,9 +2974,9 @@ class TestSimplifyExamples(TopologyTestCase):
         1   0.2         0
         """
         mutations_before = """\
-        site    node    time    derived_state
-        0       6       0       1
-        1       2       0       1
+        site    node    derived_state
+        0       6       1
+        1       2       1
         """
 
         # We sample 0 and 2 and 6, so we get
@@ -2999,8 +2998,8 @@ class TestSimplifyExamples(TopologyTestCase):
         0   0.1         0
         """
         mutations_after = """\
-        site    node    time    derived_state
-        0       2       0       1
+        site    node    derived_state
+        0       2       1
         """
         self.verify_simplify(
             samples=[0, 1, 6],
@@ -3159,11 +3158,11 @@ class TestNonSampleExternalNodes(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       0       0       1
-        1       1       0       1
-        2       3       0       1
-        3       4       0       1
+        site    node    derived_state
+        0       0       1
+        1       1       1
+        2       3       1
+        3       4       1
         """
         )
         ts = tskit.load_text(
@@ -3245,9 +3244,9 @@ class TestMultipleRoots(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       0       0       1
-        1       1       0       1
+        site    node    derived_state
+        0       0         1
+        1       1         1
         """
         )
         ts = tskit.load_text(
@@ -3307,11 +3306,11 @@ class TestMultipleRoots(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       0       0       1
-        1       1       0       1
-        2       2       0       1
-        3       3       0       1
+        site    node    derived_state
+        0       0       1
+        1       1       1
+        2       2       1
+        3       3       1
         """
         )
         ts = tskit.load_text(
@@ -3381,12 +3380,12 @@ class TestMultipleRoots(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       0       0       1
-        1       1       0       1
-        2       2       0       1
-        3       3       0       1
-        4       8       0       1
+        site    node    derived_state
+        0       0       1
+        1       1       1
+        2       2       1
+        3       3       1
+        4       8       1
         """
         )
         ts = tskit.load_text(
@@ -3506,13 +3505,13 @@ class TestMultipleRoots(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       0       0       1
-        1       1       0       1
-        2       3       1       1
-        3       4       2       1
-        4       2       0       1
-        5       5       2       1
+        site    node    derived_state
+        0       0       1
+        1       1       1
+        2       3       1
+        3       4       1
+        4       2       1
+        5       5       1
         """
         )
         ts = tskit.load_text(
@@ -3890,17 +3889,17 @@ class TestWithVisuals(TopologyTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    derived_state   time    parent
-        0       7       1               3       -1
-        0      10       0               1       0
-        0       2       1               0       1
-        1       0       1               0       -1
-        1      10       1               1       -1
-        2       8       1               2       -1
-        2       9       0               1       5
-        2      10       0               1       5
-        2       2       1               0       7
-        3       8       1               2       -1
+        site    node    derived_state   parent
+        0       7       1               -1
+        0      10       0               0
+        0       2       1               1
+        1       0       1               -1
+        1      10       1               -1
+        2       8       1               -1
+        2       9       0               5
+        2      10       0               5
+        2       2       1               7
+        3       8       1               -1
         """
         )
         ts = tskit.load_text(nodes, edges, sites, mutations, strict=False)
@@ -4817,10 +4816,10 @@ class TestSimplify(unittest.TestCase):
         tables.sites.add_row(position=0.5, ancestral_state="0")
         tables.sites.add_row(position=0.75, ancestral_state="0")
         tables.sites.add_row(position=0.8, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=0, time=0, derived_state="1")
-        tables.mutations.add_row(site=1, node=2, time=0, derived_state="1")
-        tables.mutations.add_row(site=2, node=7, time=0.5, derived_state="1")
-        tables.mutations.add_row(site=3, node=0, time=0, derived_state="1")
+        tables.mutations.add_row(site=0, node=0, derived_state="1")
+        tables.mutations.add_row(site=1, node=2, derived_state="1")
+        tables.mutations.add_row(site=2, node=7, derived_state="1")
+        tables.mutations.add_row(site=3, node=0, derived_state="1")
         ts = tables.tree_sequence()
         self.assertEqual(ts.num_sites, 4)
         self.assertEqual(ts.num_mutations, 4)
@@ -4860,9 +4859,9 @@ class TestSimplify(unittest.TestCase):
         tables.sites.add_row(position=0.25, ancestral_state="0")
         tables.sites.add_row(position=0.5, ancestral_state="0")
         tables.sites.add_row(position=0.75, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=2, time=0, derived_state="1")
-        tables.mutations.add_row(site=1, node=3, time=0, derived_state="1")
-        tables.mutations.add_row(site=2, node=6, time=0.22, derived_state="1")
+        tables.mutations.add_row(site=0, node=2, derived_state="1")
+        tables.mutations.add_row(site=1, node=3, derived_state="1")
+        tables.mutations.add_row(site=2, node=6, derived_state="1")
         ts = tables.tree_sequence()
         self.assertEqual(ts.num_sites, 3)
         self.assertEqual(ts.num_mutations, 3)
@@ -4880,7 +4879,7 @@ class TestSimplify(unittest.TestCase):
         )
         tables = ts.dump_tables()
         tables.sites.add_row(position=0.25, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=8, time=1.65, derived_state="1")
+        tables.mutations.add_row(site=0, node=8, derived_state="1")
         ts = tables.tree_sequence()
         self.assertEqual(ts.num_sites, 1)
         self.assertEqual(ts.num_mutations, 1)
@@ -4900,8 +4899,8 @@ class TestSimplify(unittest.TestCase):
         tables = ts.dump_tables()
         # Add recurrent mutation on the root branches
         tables.sites.add_row(position=0.25, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=6, time=0.22, derived_state="1")
-        tables.mutations.add_row(site=0, node=7, time=0.44, derived_state="1")
+        tables.mutations.add_row(site=0, node=6, derived_state="1")
+        tables.mutations.add_row(site=0, node=7, derived_state="1")
         ts = tables.tree_sequence()
         self.assertEqual(ts.num_sites, 1)
         self.assertEqual(ts.num_mutations, 2)
@@ -4921,9 +4920,9 @@ class TestSimplify(unittest.TestCase):
         tables = ts.dump_tables()
         # Add a chain of mutations
         tables.sites.add_row(position=0.25, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=7, time=0.44, derived_state="1")
-        tables.mutations.add_row(site=0, node=5, time=0.15, derived_state="0")
-        tables.mutations.add_row(site=0, node=1, time=0, derived_state="1")
+        tables.mutations.add_row(site=0, node=7, derived_state="1")
+        tables.mutations.add_row(site=0, node=5, derived_state="0")
+        tables.mutations.add_row(site=0, node=1, derived_state="1")
         ts = tables.tree_sequence()
         self.assertEqual(ts.num_sites, 1)
         self.assertEqual(ts.num_mutations, 3)
@@ -5111,9 +5110,9 @@ class TestSimplify(unittest.TestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state   parent
-        0       0       0       1               -1
-        0       0       0       0               0
+        site    node    derived_state   parent
+        0       0       1               -1
+        0       0       0               0
         """
         )
         ts = tskit.load_text(
@@ -5151,10 +5150,10 @@ class TestSimplify(unittest.TestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state   parent
-        0       0       0       1               -1
-        0       0       0       0               0
-        0       0       0       1               1
+        site    node    derived_state   parent
+        0       0       1               -1
+        0       0       0               0
+        0       0       1               1
         """
         )
         ts = tskit.load_text(
@@ -5798,12 +5797,7 @@ class TestMutationParent(unittest.TestCase):
         """
         )
         ts = tskit.load_text(
-            nodes=nodes,
-            edges=edges,
-            sites=sites,
-            mutations=mutations,
-            strict=False,
-            compute_mutation_times=True,
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
         )
         self.verify_parents(ts)
 
@@ -6820,13 +6814,9 @@ class TestDeleteSites(unittest.TestCase):
         ts = msprime.simulate(8, random_seed=3)
         tables = ts.dump_tables()
         tables.sites.set_columns(np.arange(0, 1, 0.25), *tskit.pack_strings(["G"] * 4))
-        tables.mutations.add_row(
-            site=1, node=ts.first().parent(0), time=-1, derived_state="C"
-        )
-        tables.mutations.add_row(site=1, node=0, time=-1, derived_state="T", parent=0)
-        tables.mutations.add_row(site=2, node=1, time=-1, derived_state="A")
-        tables.build_index()
-        tables.compute_mutation_times()
+        tables.mutations.add_row(site=1, node=ts.first().parent(0), derived_state="C")
+        tables.mutations.add_row(site=1, node=0, derived_state="T", parent=0)
+        tables.mutations.add_row(site=2, node=1, derived_state="A")
         return tables.tree_sequence()
 
     def test_remove_by_index(self):
@@ -6873,7 +6863,7 @@ class TestDeleteSites(unittest.TestCase):
         tables = ts.dump_tables()
         tables.delete_sites(remove_sites)
 
-        # Make sure we've computed the mutation parents and times properly.
+        # Make sure we've computed the mutation parents properly.
         mutation_parent = tables.mutations.parent
         tables.compute_mutation_parents()
         self.assertTrue(np.array_equal(mutation_parent, tables.mutations.parent))
@@ -6889,7 +6879,6 @@ class TestDeleteSites(unittest.TestCase):
             self.assertEqual(len(s1.mutations), len(s2.mutations))
             for m1, m2 in zip(s1.mutations, s2.mutations):
                 self.assertEqual(m1.node, m2.node)
-                self.assertEqual(m1.time, m2.time)
                 self.assertEqual(m1.derived_state, m2.derived_state)
                 self.assertEqual(m1.metadata, m2.metadata)
 
@@ -6911,9 +6900,7 @@ class TestDeleteSites(unittest.TestCase):
         tables = ts.dump_tables()
         for j in range(10):
             tables.sites.add_row(j, "X" * j)
-            tables.mutations.add_row(
-                site=j, node=j, time=0, derived_state="X" * (j + 1)
-            )
+            tables.mutations.add_row(site=j, node=j, derived_state="X" * (j + 1))
         ts = tables.tree_sequence()
         self.verify_removal(ts, [9])
 
@@ -7267,11 +7254,10 @@ class TestTrim(unittest.TestCase):
         tables = ts.dump_tables()
         site = tables.sites.add_row(position, ancestral_state)
         for state, node in zip(derived_states, nodes):
-            tables.mutations.add_row(site, node, -1, state)
+            tables.mutations.add_row(site, node, state)
         tables.sort()
         tables.build_index()
         tables.compute_mutation_parents()
-        tables.compute_mutation_times()
         return tables.tree_sequence()
 
     def verify_sites(self, source_tree, trimmed_tree, position_offset):

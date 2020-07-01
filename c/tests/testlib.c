@@ -400,7 +400,7 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
         if (p != NULL) {
             parent = atoi(p);
         }
-        time = 0;
+        time = TSK_UNKNOWN_TIME;
         p = strtok(NULL, whitespace);
         if (p != NULL) {
             time = atof(p);
@@ -518,11 +518,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
         }
     }
 
-    ret = tsk_table_collection_build_index(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(ts, &tables, 0);
+    ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
     // printf("ret = %s\n", tsk_strerror(ret));
     CU_ASSERT_EQUAL_FATAL(ret, 0);

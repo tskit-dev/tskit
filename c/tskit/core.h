@@ -34,7 +34,9 @@
 extern "C" {
 #endif
 
+#include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <limits.h>
 
 #ifdef __GNUC__
@@ -66,6 +68,23 @@ extern "C" {
 #else
 #define TSK_DBL_DECIMAL_DIG (DBL_DIG + 3)
 #endif
+
+/* We define a specific NAN value for default mutation time which indicates
+ * the time is unknown. We use a specific value so that if mutation time is set to
+ * a NAN from a computation we can reject it. This specific value is a non-signalling
+ * NAN with the last six fraction bytes set to the ascii of "tskit!"
+ */
+#define TSK_UNKNOWN_TIME_HEX 0x7FF874736B697421ULL
+static inline double
+__tsk_nan_f(void)
+{
+    const union {
+        uint64_t i;
+        double f;
+    } nan_union = { .i = TSK_UNKNOWN_TIME_HEX };
+    return nan_union.f;
+}
+#define TSK_UNKNOWN_TIME __tsk_nan_f()
 
 // clang-format off
 /**
@@ -101,8 +120,8 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11
-#define TSK_FILE_FORMAT_VERSION_MAJOR 13
-#define TSK_FILE_FORMAT_VERSION_MINOR 0
+#define TSK_FILE_FORMAT_VERSION_MAJOR 12
+#define TSK_FILE_FORMAT_VERSION_MINOR 3
 
 /**
 @defgroup GENERAL_ERROR_GROUP General errors.
@@ -317,6 +336,8 @@ extern void tsk_blkalloc_free(tsk_blkalloc_t *self);
 
 size_t tsk_search_sorted(const double *array, size_t size, double value);
 double tsk_round(double x, unsigned int ndigits);
+
+bool tsk_is_unknown_time(double val);
 
 #define TSK_UUID_SIZE 36
 int tsk_generate_uuid(char *dest, int flags);

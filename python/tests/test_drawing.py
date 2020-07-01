@@ -74,8 +74,8 @@ class TestTreeDraw(unittest.TestCase):
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
         tables.sites.add_row(position=0, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=0, time=0, derived_state="1")
-        tables.mutations.add_row(site=0, node=1, time=0, derived_state="1")
+        tables.mutations.add_row(site=0, node=0, derived_state="1")
+        tables.mutations.add_row(site=0, node=1, derived_state="1")
         return tables.tree_sequence().first()
 
     def get_zero_roots_tree(self):
@@ -117,9 +117,7 @@ class TestTreeDraw(unittest.TestCase):
         for node in range(ts.num_nodes):
             site_id = tables.sites.add_row(x, ancestral_state="0")
             x += delta
-            tables.mutations.add_row(
-                site_id, node=node, time=ts.node(node).time, derived_state="1"
-            )
+            tables.mutations.add_row(site_id, node=node, derived_state="1")
         ts = tables.tree_sequence()
         tree = ts.first()
         assert any(tree.parent(mut.node) == tskit.NULL for mut in tree.mutations())
@@ -195,8 +193,8 @@ class TestTreeDraw(unittest.TestCase):
         )
         mutations = io.StringIO(
             """\
-        site   node    time    derived_state    parent
-        0      4       0.05    T                -1
+        site   node    derived_state    parent
+        0      4       T                -1
         """
         )
         return tskit.load_text(

@@ -405,10 +405,6 @@ class TestSimplify(unittest.TestCase):
                 self.assertEqual(node_map[mrca1], mrca2)
         mut_parent = tsutil.compute_mutation_parent(ts=ts)
         self.assertArrayEqual(mut_parent, ts.tables.mutations.parent)
-        mut_time = tsutil.compute_mutation_times(ts=ts)
-        self.assertTrue(
-            np.allclose(mut_time, ts.tables.mutations.time, rtol=1e-15, atol=1e-15)
-        )
 
     def verify_haplotypes(self, ts, samples):
         """

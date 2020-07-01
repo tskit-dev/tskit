@@ -24,14 +24,11 @@
 Module responsible for converting tree sequence files from older
 formats.
 """
-import collections
 import datetime
 import json
 import logging
 
 import h5py
-import kastore
-import numpy
 import numpy as np
 
 import tskit
@@ -100,7 +97,6 @@ def _convert_hdf5_mutations(
     )
     mutations.set_columns(
         node=node,
-        time=np.full(num_mutations, -1, dtype=np.float64),
         site=np.arange(num_mutations, dtype=np.int32),
         derived_state=ord("1") * np.ones(num_mutations, dtype=np.int8),
         derived_state_offset=np.arange(num_mutations + 1, dtype=np.uint32),
@@ -172,8 +168,6 @@ def _load_legacy_hdf5_v2(root, remove_duplicate_positions):
         )
     tables.provenances.add_row(_get_upgrade_provenance(root))
     tables.sort()
-    tables.build_index()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -228,8 +222,6 @@ def _load_legacy_hdf5_v3(root, remove_duplicate_positions):
             tables.provenances.add_row(timestamp=old_timestamp, record=record)
     tables.provenances.add_row(_get_upgrade_provenance(root))
     tables.sort()
-    tables.build_index()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 
@@ -247,44 +239,16 @@ def load_legacy(filename, remove_duplicate_positions=False):
         3: _load_legacy_hdf5_v3,
         10: _load_legacy_hdf5_v10,
     }
+    root = h5py.File(filename, "r")
+    if "format_version" not in root.attrs:
+        raise ValueError("HDF5 file not in msprime format")
+    format_version = root.attrs["format_version"]
+    if format_version[0] not in loaders:
+        raise ValueError(f"Version {format_version} not supported for loading")
     try:
-        root = h5py.File(filename, "r")
-        if "format_version" not in root.attrs:
-            raise ValueError("HDF5 file not in msprime format")
-        format_version = root.attrs["format_version"]
-        if format_version[0] not in loaders:
-            raise ValueError(f"Version {format_version} not supported for loading")
-        try:
-            ts = loaders[format_version[0]](root, remove_duplicate_positions)
-        finally:
-            root.close()
-    except OSError as e:
-        # An exception like this means we have a kastore
-        if "file signature not found" not in str(e):
-            raise e
-        else:
-            with kastore.load(filename) as store:
-                data = dict(store)
-            # v12 and below have no mutation time
-            if "mutations/time" not in data:
-                data["mutations/time"] = np.full(
-                    data["mutations/node"].shape, -1, dtype=np.float64
-                )
-            table_dict = collections.defaultdict(collections.defaultdict)
-            for key, value in data.items():
-                if "/" in key:
-                    table, col = key.split("/")
-                    # kastore type for string columns doesn't match what `fromdict wants`
-                    if value.dtype == np.uint8:
-                        table_dict[table][col] = value.astype(np.int8)
-                    else:
-                        table_dict[table][col] = value
-                else:
-                    table_dict[key] = value
-            tables = tskit.TableCollection.fromdict(table_dict)
-            tables.build_index()
-            tables.compute_mutation_times()
-            ts = tables.tree_sequence()
+        ts = loaders[format_version[0]](root, remove_duplicate_positions)
+    finally:
+        root.close()
     return ts
 
 
@@ -577,7 +541,6 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
         tables.mutations.set_columns(
             site=mutations_group["site"],
             node=mutations_group["node"],
-            time=np.full(mutations_group["node"].shape, -1, dtype=np.float64),
             parent=mutations_group["parent"],
             derived_state=mutations_group["derived_state"],
             derived_state_offset=mutations_group["derived_state_offset"],
@@ -599,8 +562,6 @@ def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
         )
     tables.provenances.add_row(_get_upgrade_provenance(root))
     _set_populations(tables)
-    tables.build_index()
-    tables.compute_mutation_times()
     return tables.tree_sequence()
 
 

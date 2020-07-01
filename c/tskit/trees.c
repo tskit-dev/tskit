@@ -281,7 +281,8 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
         }
         while (site < num_sites && site_position[site] < tree_right) {
             while (mutation < num_mutations && mutation_site[mutation] == site) {
-                if (parent[mutation_node[mutation]] != TSK_NULL
+                if (!isnan(mutation_time[mutation])
+                    && parent[mutation_node[mutation]] != TSK_NULL
                     && node_time[parent[mutation_node[mutation]]]
                            <= mutation_time[mutation]) {
                     ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE;

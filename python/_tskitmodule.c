@@ -287,9 +287,9 @@ make_mutation(tsk_mutation_t *mutation)
     if (metadata == NULL) {
         goto out;
     }
-    ret = Py_BuildValue("iids#iO", mutation->site, mutation->node, mutation->time, mutation->derived_state,
+    ret = Py_BuildValue("iis#iOd", mutation->site, mutation->node, mutation->derived_state,
             (Py_ssize_t) mutation->derived_state_length, mutation->parent,
-            metadata);
+            metadata, mutation->time);
 out:
     Py_XDECREF(metadata);
     return ret;
@@ -1563,7 +1563,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     if (parent_input == NULL) {
         goto out;
     }
-    time_input = get_table_dict_value(dict, "time", true);
+    time_input = get_table_dict_value(dict, "time", false);
     if (time_input == NULL) {
         goto out;
     }
@@ -1607,6 +1607,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     if (node_array == NULL) {
         goto out;
     }
+    
     time_data = NULL;
     if (time_input != Py_None) {
         time_array = table_read_column_array(time_input, NPY_FLOAT64, &num_rows, true);
@@ -4894,17 +4895,17 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
     int site;
     int node;
     int parent = TSK_NULL;
-    double time = TSK_NULL;
+    double time = TSK_UNKNOWN_TIME;
     char *derived_state;
     Py_ssize_t derived_state_length;
     PyObject *py_metadata = Py_None;
     char *metadata = NULL;
     Py_ssize_t metadata_length = 0;
-    static char *kwlist[] = {"site", "node", "time", "derived_state", "parent", "metadata", NULL};
+    static char *kwlist[] = {"site", "node", "derived_state", "parent", "metadata", "time", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "iids#|iO", kwlist,
-                &site, &node, &time, &derived_state, &derived_state_length, &parent,
-                &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "iis#|iOd", kwlist,
+                &site, &node, &derived_state, &derived_state_length, &parent,
+                &py_metadata, &time)) {
         goto out;
     }
     if (MutationTable_check_state(self) != 0) {
@@ -11168,6 +11169,10 @@ PyInit__tskit(void)
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
     PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);
+
+    PyObject *unknown_time = PyFloat_FromDouble(TSK_UNKNOWN_TIME);
+    PyModule_AddObject(module, "UNKNOWN_TIME", unknown_time);
+    
     /* Node flags */
     PyModule_AddIntConstant(module, "NODE_IS_SAMPLE", TSK_NODE_IS_SAMPLE);
     /* Tree flags */

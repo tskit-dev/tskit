@@ -704,8 +704,8 @@ class MutatedTopologyExamplesMixin:
         tables.nodes.add_row(flags=1, time=0)
         tables.nodes.add_row(flags=1, time=0)
         # The ghost mutation that's never seen in the genotypes
-        tables.mutations.add_row(site=0, node=0, time=0, derived_state="T")
-        tables.mutations.add_row(site=0, node=0, time=0, derived_state="G", parent=0)
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G", parent=0)
         ts = tables.tree_sequence()
         self.verify(ts)
 
@@ -720,9 +720,9 @@ class MutatedTopologyExamplesMixin:
         tables.edges.add_row(0, 1, 2, 0)
         tables.edges.add_row(0, 1, 2, 1)
         tables.sites.add_row(position=0.5, ancestral_state="A")
-        tables.mutations.add_row(site=0, node=0, time=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
         # Mutate back to the ancestral state so that all genotypes are zero
-        tables.mutations.add_row(site=0, node=0, time=0, derived_state="A", parent=0)
+        tables.mutations.add_row(site=0, node=0, derived_state="A", parent=0)
         ts = tables.tree_sequence()
         self.verify(ts)
 
@@ -750,10 +750,8 @@ class MutatedTopologyExamplesMixin:
         # leaf so that samples are fixed at zero.
         tables.sites.add_row(position=0.25, ancestral_state="0")
         tables.sites.add_row(position=0.5, ancestral_state="0")
-        tables.mutations.add_row(site=0, node=4, time=-1, derived_state="1")
-        tables.mutations.add_row(site=1, node=6, time=-1, derived_state="1")
-        tables.build_index()
-        tables.compute_mutation_times()
+        tables.mutations.add_row(site=0, node=4, derived_state="1")
+        tables.mutations.add_row(site=1, node=6, derived_state="1")
         ts = tables.tree_sequence()
         self.verify(ts)
 
@@ -4895,17 +4893,17 @@ class SpecificTreesTestCase(StatsTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state
-        0       4       0.5     1
-        1       0       0       1
-        2       2       0       1
-        3       0       0       1
-        4       1       0       1
-        5       1       0       1
-        6       2       0       1
-        7       0       0       1
-        8       1       0       1
-        9       2       0       1
+        site    node    derived_state
+        0       4       1
+        1       0       1
+        2       2       1
+        3       0       1
+        4       1       1
+        5       1       1
+        6       2       1
+        7       0       1
+        8       1       1
+        9       2       1
         """
         )
         ts = tskit.load_text(
@@ -5103,9 +5101,9 @@ class SpecificTreesTestCase(StatsTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state   parent
-        0       0       0       1               -1
-        0       1       0       2               -1
+        site    node    derived_state   parent
+        0       0       1               -1
+        0       1       2               -1
         """
         )
         ts = tskit.load_text(
@@ -5285,16 +5283,16 @@ class SpecificTreesTestCase(StatsTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state   parent
-        0       0       0       1               -1
-        0       0       0       2               0
-        0       0       0       0               1
-        0       1       0       2               -1
-        1       1       0       1               -1
-        1       2       0       1               -1
-        2       4       0.5     1               -1
-        2       1       0       2               6
-        2       2       0       3               6
+        site    node    derived_state   parent
+        0       0       1               -1
+        0       0       2               0
+        0       0       0               1
+        0       1       2               -1
+        1       1       1               -1
+        1       2       1               -1
+        2       4       1               -1
+        2       1       2               6
+        2       2       3               6
         """
         )
         ts = tskit.load_text(
@@ -5406,14 +5404,14 @@ class SpecificTreesTestCase(StatsTestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    time    derived_state   parent
-        0       0       0       1               -1
-        0       10      1       1               -1
-        0       0       0       0               0
-        1       8       2       1               -1
-        1       2       0       1               -1
-        2       8       2       1               -1
-        2       9       1       0               5
+        site    node    derived_state   parent
+        0       0       1               -1
+        0       10      1               -1
+        0       0       0               0
+        1       8       1               -1
+        1       2       1               -1
+        2       8       1               -1
+        2       9       0               5
         """
         )
         ts = tskit.load_text(
