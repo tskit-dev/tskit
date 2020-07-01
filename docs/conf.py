@@ -124,6 +124,7 @@ extensions = [
     "breathe",
     "sphinxarg.ext",
     "sphinx_issues",
+    "autodocsumm",
 ]
 
 # Github repo
