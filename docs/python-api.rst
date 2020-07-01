@@ -27,6 +27,7 @@ The ``TreeSequence`` class
 ++++++++++++++++++++++++++
 
 .. autoclass:: tskit.TreeSequence()
+    :autosummary:
     :members:
 
 
@@ -42,6 +43,7 @@ class which provides methods, for example, to access information
 about particular nodes in the tree.
 
 .. autoclass:: tskit.Tree()
+    :autosummary:
     :members:
 
 

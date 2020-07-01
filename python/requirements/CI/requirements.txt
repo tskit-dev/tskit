@@ -1,4 +1,5 @@
 attrs==19.3.0
+autodocsumm==0.1.13
 biopython==1.77
 black==19.10b0
 breathe==4.14.2
