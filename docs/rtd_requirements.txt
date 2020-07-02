@@ -1,3 +1,4 @@
+autodocsumm
 numpy
 svgwrite
 jsonschema
