@@ -6,6 +6,7 @@ environment:
 init:
   - cmd: SET PYTHON=C:\\Miniconda37-x64
   - cmd: ECHO Using %PYTHON%
+  - cmd: ECHO Cores %NUMBER_OF_PROCESSORS%
 
 install:
   - cmd: SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
@@ -28,7 +29,7 @@ build_script:
   - cmd: python -m pip install newick
   - cmd: python -m pip install python_jsonschema_objects
   - cmd: python -m pip install xmlunittest
-  - cmd: python -m nose -vs
+  - cmd: python -m nose -vs --processes=%NUMBER_OF_PROCESSORS% --process-timeout=5000
 
 after_test:
   - cmd: python setup.py bdist_wheel

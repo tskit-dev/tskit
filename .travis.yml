@@ -50,4 +50,9 @@ install:
   - pip install -e python
 
 script:
-  - nosetests -vs tests
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      nosetests -vs --processes=`sysctl -n hw.ncpu` --process-timeout=5000 tests;
+    else
+      nosetests -vs --processes=`nproc` --process-timeout=5000 tests;
+    fi
+
