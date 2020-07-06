@@ -569,12 +569,17 @@ class TestDumpFormat(TestFileFormat):
         self.assertEqual(format_version[0], CURRENT_FILE_MAJOR)
         self.assertEqual(format_version[1], CURRENT_FILE_MINOR)
         self.assertEqual(ts.sequence_length, store["sequence_length"][0])
+        self.assertEqual(
+            str(ts.metadata_schema), "".join(store["metadata_schema"].astype("U"))
+        )
+
         # Load another copy from file so we can check the uuid.
         other_ts = tskit.load(self.temp_file)
         self.verify_uuid(other_ts, store["uuid"].tobytes().decode())
 
         tables = ts.tables
 
+        self.assertTrue(np.array_equal(tables.metadata, b"".join(store["metadata"])))
         self.assertTrue(
             np.array_equal(tables.individuals.flags, store["individuals/flags"])
         )
@@ -594,6 +599,10 @@ class TestDumpFormat(TestFileFormat):
                 tables.individuals.metadata_offset, store["individuals/metadata_offset"]
             )
         )
+        self.assertEqual(
+            str(tables.individuals.metadata_schema),
+            "".join(store["individuals/metadata_schema"].astype("U")),
+        )
 
         self.assertTrue(np.array_equal(tables.nodes.flags, store["nodes/flags"]))
         self.assertTrue(np.array_equal(tables.nodes.time, store["nodes/time"]))
@@ -607,11 +616,23 @@ class TestDumpFormat(TestFileFormat):
         self.assertTrue(
             np.array_equal(tables.nodes.metadata_offset, store["nodes/metadata_offset"])
         )
+        self.assertEqual(
+            str(tables.nodes.metadata_schema),
+            "".join(store["nodes/metadata_schema"].astype("U")),
+        )
 
         self.assertTrue(np.array_equal(tables.edges.left, store["edges/left"]))
         self.assertTrue(np.array_equal(tables.edges.right, store["edges/right"]))
         self.assertTrue(np.array_equal(tables.edges.parent, store["edges/parent"]))
         self.assertTrue(np.array_equal(tables.edges.child, store["edges/child"]))
+        self.assertTrue(np.array_equal(tables.edges.metadata, store["edges/metadata"]))
+        self.assertTrue(
+            np.array_equal(tables.edges.metadata_offset, store["edges/metadata_offset"])
+        )
+        self.assertEqual(
+            str(tables.edges.metadata_schema),
+            "".join(store["edges/metadata_schema"].astype("U")),
+        )
 
         left = tables.edges.left
         right = tables.edges.right
@@ -656,6 +677,18 @@ class TestDumpFormat(TestFileFormat):
         self.assertTrue(
             np.array_equal(tables.migrations.time, store["migrations/time"])
         )
+        self.assertTrue(
+            np.array_equal(tables.migrations.metadata, store["migrations/metadata"])
+        )
+        self.assertTrue(
+            np.array_equal(
+                tables.migrations.metadata_offset, store["migrations/metadata_offset"]
+            )
+        )
+        self.assertEqual(
+            str(tables.migrations.metadata_schema),
+            "".join(store["migrations/metadata_schema"].astype("U")),
+        )
 
         self.assertTrue(np.array_equal(tables.sites.position, store["sites/position"]))
         self.assertTrue(
@@ -670,6 +703,10 @@ class TestDumpFormat(TestFileFormat):
         self.assertTrue(np.array_equal(tables.sites.metadata, store["sites/metadata"]))
         self.assertTrue(
             np.array_equal(tables.sites.metadata_offset, store["sites/metadata_offset"])
+        )
+        self.assertEqual(
+            str(tables.sites.metadata_schema),
+            "".join(store["sites/metadata_schema"].astype("U")),
         )
 
         self.assertTrue(np.array_equal(tables.mutations.site, store["mutations/site"]))
@@ -701,6 +738,10 @@ class TestDumpFormat(TestFileFormat):
                 tables.mutations.metadata_offset, store["mutations/metadata_offset"]
             )
         )
+        self.assertEqual(
+            str(tables.mutations.metadata_schema),
+            "".join(store["mutations/metadata_schema"].astype("U")),
+        )
 
         self.assertTrue(
             np.array_equal(tables.populations.metadata, store["populations/metadata"])
@@ -709,6 +750,10 @@ class TestDumpFormat(TestFileFormat):
             np.array_equal(
                 tables.populations.metadata_offset, store["populations/metadata_offset"]
             )
+        )
+        self.assertEqual(
+            str(tables.populations.metadata_schema),
+            "".join(store["populations/metadata_schema"].astype("U")),
         )
 
         self.assertTrue(
