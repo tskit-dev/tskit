@@ -21,6 +21,12 @@ In development
 
 **New features**
 
+- New methods to perform set operations on TableCollections and TreeSequences.
+  ``TableCollection.subset`` subsets and reorders table collections by nodes
+  (:user:`mufernando`, :user:`petrelharp`, :pr:`663`, :pr:`690`). 
+  ``TableCollection.union`` forms the node-wise union of two table collections
+  (:user:`mufernando`, :user:`petrelharp`, :issue:`381` :pr:`623`).
+
 - Mutations now have an optional double-precision floating-point ``time`` column.
   If not specified, this defaults to a particular NaN value (``tskit.UNKNOWN_TIME``)
   indicating that the time is unknown. For a tree sequence to be considered valid

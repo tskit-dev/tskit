@@ -267,6 +267,7 @@ not found in the file.
 #define TSK_ERR_SORT_OFFSET_NOT_SUPPORTED                           -803
 #define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -804
 #define TSK_ERR_MIGRATIONS_NOT_SUPPORTED                            -805
+#define TSK_ERR_UNION_NOT_SUPPORTED                                 -806
 
 /* Stats errors */
 #define TSK_ERR_BAD_NUM_WINDOWS                                     -900
@@ -303,6 +304,11 @@ not found in the file.
 #define TSK_ERR_MATCH_IMPOSSIBLE                                   -1301
 #define TSK_ERR_BAD_COMPRESSED_MATRIX_NODE                         -1302
 #define TSK_ERR_TOO_MANY_VALUES                                    -1303
+
+/* Union errors */
+#define TSK_ERR_UNION_BAD_MAP                                      -1400
+#define TSK_ERR_UNION_DIFF_HISTORIES                               -1401
+
 // clang-format on
 
 /* This bit is 0 for any errors originating from kastore */

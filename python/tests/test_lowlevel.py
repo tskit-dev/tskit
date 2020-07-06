@@ -277,6 +277,28 @@ class TestTableCollection(LowLevelTestCase):
         with self.assertRaises(_tskit.LibraryError):
             tc.subset(np.array([100, 200], dtype="int32"))
 
+    def test_union_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables.ll_tables
+        tc2 = tc
+        with self.assertRaises(TypeError):
+            tc.union(tc2, np.array(["a"]))
+        with self.assertRaises(ValueError):
+            tc.union(tc2, np.array([0], dtype="int32"))
+        with self.assertRaises(TypeError):
+            tc.union(tc2)
+        with self.assertRaises(TypeError):
+            tc.union()
+        node_mapping = np.arange(ts.num_nodes, dtype="int32")
+        node_mapping[0] = 1200
+        with self.assertRaises(_tskit.LibraryError):
+            tc.union(tc2, node_mapping)
+        node_mapping = np.array(
+            [node_mapping.tolist(), node_mapping.tolist()], dtype="int32"
+        )
+        with self.assertRaises(ValueError):
+            tc.union(tc2, np.array([[1], [2]], dtype="int32"))
+
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     """

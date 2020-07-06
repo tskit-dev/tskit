@@ -683,6 +683,10 @@ typedef struct _tsk_table_sorter_t {
 /* Flags for table init. */
 #define TSK_NO_METADATA (1 << 0)
 
+/* Flags for union() */
+#define TSK_UNION_NO_CHECK_SHARED (1 << 0)
+#define TSK_UNION_NO_ADD_POP (1 << 1)
+
 /****************************************************************************/
 /* Function signatures */
 /****************************************************************************/
@@ -2514,6 +2518,61 @@ nodes (and individuals and populations) reordered.
 */
 int tsk_table_collection_subset(
     tsk_table_collection_t *self, tsk_id_t *nodes, tsk_size_t num_nodes);
+
+/**
+@brief Forms the node-wise union of two table collections.
+
+@rst
+Expands this table collection by adding the non-shared portions of another table
+collection to itself. The ``other_node_mapping`` encodes which nodes in ``other`` are
+equivalent to a node in ``self``. The positions in the ``other_node_mapping`` array
+correspond to node ids in ``other``, and the elements encode the equivalent
+node id in ``self`` or TSK_NULL if the node is exclusive to ``other``. Nodes
+that are exclusive ``other`` are added to ``self``, along with:
+
+1. Individuals which are new to ``self``.
+2. Edges whose parent or child are new to ``self``.
+3. Sites which were not present in ``self``.
+4. Mutations whose nodes are new to ``self``.
+
+By default, populations of newly added nodes are assumed to be new populations,
+and added to the population table as well.
+
+This operation will also sort the resulting tables, so the tables may change
+even if nothing new is added, if the original tables were not sorted.
+
+**Options**:
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_UNION_NO_CHECK_SHARED
+    By default, union checks that the portion of shared history between
+    ``self`` and ``other``, as implied by ``other_node_mapping``, are indeed
+    equivalent. It does so by subsetting both ``self`` and ``other`` on the
+    equivalent nodes specified in ``other_node_mapping``, and then checking for
+    equality of the subsets.
+TSK_UNION_NO_ADD_POP
+    By default, all nodes new to ``self`` are assigned new populations. If this
+    option is specified, nodes that are added to ``self`` will retain the
+    population IDs they have in ``other``.
+
+.. note:: Migrations are currently not supported by union, and an error will
+    be raised if we attempt call union on a table collection with migrations.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param other A pointer to a tsk_table_collection_t object.
+@param other_node_mapping An array of node IDs that relate nodes in other to nodes in
+self: the k-th element of other_node_mapping should be the index of the equivalent
+node in self, or TSK_NULL if the node is not present in self (in which case it
+will be added to self).
+@param options Union options; see above for the available bitwise flags.
+    For the default behaviour, a value of 0 should be provided.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_union(tsk_table_collection_t *self,
+    tsk_table_collection_t *other, tsk_id_t *other_node_mapping, tsk_flags_t options);
 
 /**
 @brief Set the metadata

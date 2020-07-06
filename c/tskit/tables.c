@@ -8209,15 +8209,68 @@ tsk_table_collection_clear(tsk_table_collection_t *self)
     return tsk_table_collection_truncate(self, &start);
 }
 
+static int
+tsk_table_collection_add_and_remap_node(tsk_table_collection_t *self,
+    tsk_table_collection_t *other, tsk_id_t node_id, tsk_id_t *individual_map,
+    tsk_id_t *population_map, tsk_id_t *node_map, bool add_populations)
+{
+    int ret = 0;
+    tsk_id_t new_ind, new_pop;
+    tsk_node_t node;
+    tsk_individual_t ind;
+    tsk_population_t pop;
+
+    ret = tsk_node_table_get_row(&other->nodes, node_id, &node);
+    if (ret < 0) {
+        goto out;
+    }
+    new_ind = TSK_NULL;
+    if (node.individual != TSK_NULL) {
+        if (individual_map[node.individual] == TSK_NULL) {
+            tsk_individual_table_get_row(&other->individuals, node.individual, &ind);
+            ret = tsk_individual_table_add_row(&self->individuals, ind.flags,
+                ind.location, ind.location_length, ind.metadata, ind.metadata_length);
+            if (ret < 0) {
+                goto out;
+            }
+            individual_map[node.individual] = ret;
+        }
+        new_ind = individual_map[node.individual];
+    }
+    new_pop = TSK_NULL;
+    if (node.population != TSK_NULL) {
+        // keep same pops if add_populations is False
+        if (!add_populations) {
+            population_map[node.population] = node.population;
+        }
+        if (population_map[node.population] == TSK_NULL) {
+            tsk_population_table_get_row(&other->populations, node.population, &pop);
+            ret = tsk_population_table_add_row(
+                &self->populations, pop.metadata, pop.metadata_length);
+            if (ret < 0) {
+                goto out;
+            }
+            population_map[node.population] = ret;
+        }
+        new_pop = population_map[node.population];
+    }
+    ret = tsk_node_table_add_row(&self->nodes, node.flags, node.time, new_pop, new_ind,
+        node.metadata, node.metadata_length);
+    if (ret < 0) {
+        goto out;
+    }
+    node_map[node.id] = ret;
+
+out:
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_table_collection_subset(
     tsk_table_collection_t *self, tsk_id_t *nodes, tsk_size_t num_nodes)
 {
     int ret = 0;
-    tsk_id_t k, i, new_ind, new_pop, new_parent, new_child, new_node;
-    tsk_node_t node;
-    tsk_individual_t ind;
-    tsk_population_t pop;
+    tsk_id_t k, i, new_parent, new_child, new_node;
     tsk_edge_t edge;
     tsk_mutation_t mut;
     tsk_site_t site;
@@ -8229,6 +8282,10 @@ tsk_table_collection_subset(
     tsk_table_collection_t tables;
 
     ret = tsk_table_collection_copy(self, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_integrity(self, 0);
     if (ret != 0) {
         goto out;
     }
@@ -8255,43 +8312,11 @@ tsk_table_collection_subset(
 
     // nodes, individuals, populations
     for (k = 0; k < (tsk_id_t) num_nodes; k++) {
-        ret = tsk_node_table_get_row(&tables.nodes, nodes[k], &node);
+        ret = tsk_table_collection_add_and_remap_node(
+            self, &tables, nodes[k], individual_map, population_map, node_map, true);
         if (ret < 0) {
             goto out;
         }
-        new_ind = TSK_NULL;
-        if (node.individual != TSK_NULL) {
-            if (individual_map[node.individual] == TSK_NULL) {
-                tsk_individual_table_get_row(&tables.individuals, node.individual, &ind);
-                ret = tsk_individual_table_add_row(&self->individuals, ind.flags,
-                    ind.location, ind.location_length, ind.metadata,
-                    ind.metadata_length);
-                if (ret < 0) {
-                    goto out;
-                }
-                individual_map[node.individual] = ret;
-            }
-            new_ind = individual_map[node.individual];
-        }
-        new_pop = TSK_NULL;
-        if (node.population != TSK_NULL) {
-            if (population_map[node.population] == TSK_NULL) {
-                tsk_population_table_get_row(&tables.populations, node.population, &pop);
-                ret = tsk_population_table_add_row(
-                    &self->populations, pop.metadata, pop.metadata_length);
-                if (ret < 0) {
-                    goto out;
-                }
-                population_map[node.population] = ret;
-            }
-            new_pop = population_map[node.population];
-        }
-        ret = tsk_node_table_add_row(&self->nodes, node.flags, node.time, new_pop,
-            new_ind, node.metadata, node.metadata_length);
-        if (ret < 0) {
-            goto out;
-        }
-        node_map[node.id] = ret;
     }
 
     // edges
@@ -8364,6 +8389,238 @@ out:
     tsk_safe_free(site_map);
     tsk_safe_free(mutation_map);
     tsk_table_collection_free(&tables);
+    return ret;
+}
+
+static int
+tsk_check_subset_equality(tsk_table_collection_t *self, tsk_table_collection_t *other,
+    tsk_id_t *other_node_mapping, tsk_size_t num_shared_nodes)
+{
+    int ret = 0;
+    tsk_id_t k, i;
+    tsk_id_t *self_nodes = NULL;
+    tsk_id_t *other_nodes = NULL;
+    tsk_table_collection_t self_copy;
+    tsk_table_collection_t other_copy;
+
+    memset(&self_copy, 0, sizeof(self_copy));
+    memset(&other_copy, 0, sizeof(other_copy));
+    self_nodes = malloc(num_shared_nodes * sizeof(*self_nodes));
+    other_nodes = malloc(num_shared_nodes * sizeof(*other_nodes));
+    if (self_nodes == NULL || other_nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    i = 0;
+    for (k = 0; k < (tsk_id_t) other->nodes.num_rows; k++) {
+        if (other_node_mapping[k] != TSK_NULL) {
+            self_nodes[i] = other_node_mapping[k];
+            other_nodes[i] = k;
+            i++;
+        }
+    }
+
+    // TODO: strict sort before checking equality
+    ret = tsk_table_collection_copy(self, &self_copy, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_copy(other, &other_copy, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_provenance_table_clear(&other_copy.provenances);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_provenance_table_clear(&self_copy.provenances);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_subset(&self_copy, self_nodes, num_shared_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_subset(&other_copy, other_nodes, num_shared_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    if (!tsk_table_collection_equals(&self_copy, &other_copy)) {
+        ret = TSK_ERR_UNION_DIFF_HISTORIES;
+        goto out;
+    }
+
+out:
+    tsk_table_collection_free(&self_copy);
+    tsk_table_collection_free(&other_copy);
+    tsk_safe_free(other_nodes);
+    tsk_safe_free(self_nodes);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_union(tsk_table_collection_t *self, tsk_table_collection_t *other,
+    tsk_id_t *other_node_mapping, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_id_t k, i, new_parent, new_child;
+    tsk_size_t num_shared_nodes = 0;
+    tsk_edge_t edge;
+    tsk_mutation_t mut;
+    tsk_site_t site;
+    tsk_id_t *node_map = NULL;
+    tsk_id_t *individual_map = NULL;
+    tsk_id_t *population_map = NULL;
+    tsk_id_t *site_map = NULL;
+    bool add_populations = !(options & TSK_UNION_NO_ADD_POP);
+    bool check_shared_portion = !(options & TSK_UNION_NO_CHECK_SHARED);
+
+    ret = tsk_table_collection_check_integrity(self, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_integrity(other, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    for (k = 0; k < (tsk_id_t) other->nodes.num_rows; k++) {
+        if (other_node_mapping[k] >= (tsk_id_t) self->nodes.num_rows
+            || other_node_mapping[k] < TSK_NULL) {
+            ret = TSK_ERR_UNION_BAD_MAP;
+            goto out;
+        }
+        if (other_node_mapping[k] != TSK_NULL) {
+            num_shared_nodes++;
+        }
+    }
+
+    if (check_shared_portion) {
+        ret = tsk_check_subset_equality(
+            self, other, other_node_mapping, num_shared_nodes);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    // Maps relating the IDs in other to the new IDs in self.
+    node_map = malloc(other->nodes.num_rows * sizeof(*node_map));
+    individual_map = malloc(other->individuals.num_rows * sizeof(*individual_map));
+    population_map = malloc(other->populations.num_rows * sizeof(*population_map));
+    site_map = malloc(other->sites.num_rows * sizeof(*site_map));
+    if (node_map == NULL || individual_map == NULL || population_map == NULL
+        || site_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(node_map, 0xff, other->nodes.num_rows * sizeof(*node_map));
+    memset(individual_map, 0xff, other->individuals.num_rows * sizeof(*individual_map));
+    memset(population_map, 0xff, other->populations.num_rows * sizeof(*population_map));
+    memset(site_map, 0xff, other->sites.num_rows * sizeof(*site_map));
+
+    // nodes, individuals, populations
+    for (k = 0; k < (tsk_id_t) other->nodes.num_rows; k++) {
+        if (other_node_mapping[k] != TSK_NULL) {
+            node_map[k] = other_node_mapping[k];
+        } else {
+            ret = tsk_table_collection_add_and_remap_node(self, other, k, individual_map,
+                population_map, node_map, add_populations);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+
+    // edges
+    for (k = 0; k < (tsk_id_t) other->edges.num_rows; k++) {
+        tsk_edge_table_get_row(&other->edges, k, &edge);
+        if ((other_node_mapping[edge.parent] == TSK_NULL)
+            || (other_node_mapping[edge.child] == TSK_NULL)) {
+            /* TODO: union does not support case where non-shared bits of
+             * other are above the shared bits of self and other. This will be
+             * resolved when the Mutation Table has a time attribute and
+             * the Mutation Table is sorted on time. */
+            if (other_node_mapping[edge.parent] == TSK_NULL
+                && other_node_mapping[edge.child] != TSK_NULL) {
+                ret = TSK_ERR_UNION_NOT_SUPPORTED;
+                goto out;
+            }
+            new_parent = node_map[edge.parent];
+            new_child = node_map[edge.child];
+            ret = tsk_edge_table_add_row(&self->edges, edge.left, edge.right, new_parent,
+                new_child, edge.metadata, edge.metadata_length);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+
+    // mutations and sites
+    i = 0;
+    for (k = 0; k < (tsk_id_t) other->sites.num_rows; k++) {
+        tsk_site_table_get_row(&other->sites, k, &site);
+        while ((i < (tsk_id_t) other->mutations.num_rows)
+               && (other->mutations.site[i] == site.id)) {
+            tsk_mutation_table_get_row(&other->mutations, i, &mut);
+            if (other_node_mapping[mut.node] == TSK_NULL) {
+                if (site_map[site.id] == TSK_NULL) {
+                    ret = tsk_site_table_add_row(&self->sites, site.position,
+                        site.ancestral_state, site.ancestral_state_length, site.metadata,
+                        site.metadata_length);
+                    if (ret < 0) {
+                        goto out;
+                    }
+                    site_map[site.id] = ret;
+                }
+                // the parents will be recomputed later
+                new_parent = TSK_NULL;
+                ret = tsk_mutation_table_add_row(&self->mutations, site_map[site.id],
+                    node_map[mut.node], new_parent, mut.time, mut.derived_state,
+                    mut.derived_state_length, mut.metadata, mut.metadata_length);
+                if (ret < 0) {
+                    goto out;
+                }
+            }
+            i++;
+        }
+    }
+
+    /* TODO: Union of the Migrations Table. The only hindrance to performing the
+     * union operation on Migrations Tables is that tsk_table_collection_sort
+     * does not sort migrations by time, and instead throws an error. */
+    if (self->migrations.num_rows != 0 || other->migrations.num_rows != 0) {
+        ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+
+    // provenance (new record is added in python)
+
+    // deduplicating, sorting, and computing parents
+    ret = tsk_table_collection_sort(self, 0, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = tsk_table_collection_deduplicate_sites(self, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = tsk_table_collection_build_index(self, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = tsk_table_collection_compute_mutation_parents(self, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
+out:
+    tsk_safe_free(node_map);
+    tsk_safe_free(individual_map);
+    tsk_safe_free(population_map);
+    tsk_safe_free(site_map);
     return ret;
 }
 
