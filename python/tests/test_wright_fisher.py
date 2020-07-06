@@ -371,7 +371,7 @@ class TestSimplify(unittest.TestCase):
         """
         Check that trees in `ts` match `new_ts` using the specified node_map.
         Modified from `verify_simplify_topology`.  Also check that the `parent`
-        column in the MutationTable is correct.
+        and `time` column in the MutationTable is correct.
         """
         # check trees agree at these points
         locs = [random.random() for _ in range(20)]

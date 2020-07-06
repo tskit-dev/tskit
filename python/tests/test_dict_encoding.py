@@ -32,6 +32,7 @@ import numpy as np
 
 import _tskit as c_module
 import tskit
+import tskit.util as util
 
 
 def get_example_tables():
@@ -81,6 +82,7 @@ def get_example_tables():
         mut_id = tables.mutations.add_row(
             site=mutation.site,
             node=mutation.node,
+            time=0,
             parent=-1,
             derived_state="C" * mutation.id,
             metadata=b"x" * mutation.id,
@@ -89,6 +91,7 @@ def get_example_tables():
         tables.mutations.add_row(
             site=mutation.site,
             node=mutation.node,
+            time=0,
             parent=mut_id,
             derived_state="G" * mutation.id,
             metadata=b"y" * mutation.id,
@@ -521,6 +524,7 @@ class TestRequiredAndOptionalColumns(unittest.TestCase):
         self.verify_offset_pair(
             tables, len(tables.migrations), "migrations", "metadata"
         )
+        self.verify_optional_column(tables, len(tables.nodes), "nodes", "individual")
         self.verify_metadata_schema(tables, "migrations")
 
     def test_sites(self):
@@ -540,6 +544,15 @@ class TestRequiredAndOptionalColumns(unittest.TestCase):
         )
         self.verify_offset_pair(tables, len(tables.mutations), "mutations", "metadata")
         self.verify_metadata_schema(tables, "mutations")
+        # Verify optional time column
+        d = tables.asdict()
+        d["mutations"]["time"] = None
+        lwt = c_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        out = lwt.asdict()
+        self.assertTrue(
+            all(util.is_unknown_time(val) for val in out["mutations"]["time"])
+        )
 
     def test_populations(self):
         tables = get_example_tables()

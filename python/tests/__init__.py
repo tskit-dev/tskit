@@ -232,11 +232,12 @@ class PythonTreeSequence:
         ll_ts = self._tree_sequence._ll_tree_sequence
 
         def make_mutation(id_):
-            site, node, derived_state, parent, metadata = ll_ts.get_mutation(id_)
+            site, node, derived_state, parent, metadata, time = ll_ts.get_mutation(id_)
             return tskit.Mutation(
                 id_=id_,
                 site=site,
                 node=node,
+                time=time,
                 derived_state=derived_state,
                 parent=parent,
                 encoded_metadata=metadata,

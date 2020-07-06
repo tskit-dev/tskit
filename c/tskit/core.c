@@ -287,6 +287,18 @@ tsk_strerror_internal(int err)
         case TSK_ERR_UNSORTED_MUTATIONS:
             ret = "Mutations must be provided in non-decreasing site order";
             break;
+        case TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE:
+            ret = "A mutation's time must be >= the node time, or be marked as "
+                  "'unknown'";
+            break;
+        case TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION:
+            ret = "A mutation's time must be <= the parent mutation time (if known), or "
+                  "be marked as 'unknown'";
+            break;
+        case TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE:
+            ret = "A mutation's time must be < the parent node of the edge on which it "
+                  "occurs, or be marked as 'unknown'";
+            break;
 
         /* Sample errors */
         case TSK_ERR_DUPLICATE_SAMPLE:
@@ -624,4 +636,16 @@ tsk_round(double x, unsigned int ndigits)
         z = z / pow1;
     }
     return z;
+}
+
+/* As NANs are not equal, use this function to check for equality to TSK_UNKNOWN_TIME */
+bool
+tsk_is_unknown_time(double val)
+{
+    union {
+        uint64_t i;
+        double f;
+    } nan_union;
+    nan_union.f = val;
+    return nan_union.i == TSK_UNKNOWN_TIME_HEX;
 }

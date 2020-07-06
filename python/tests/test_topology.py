@@ -5858,6 +5858,151 @@ class TestMutationParent(unittest.TestCase):
             self.verify_branch_mutations(ts, mutations_per_branch)
 
 
+class TestMutationTime(unittest.TestCase):
+    """
+    Tests that mutation time is correctly specified, and that we correctly
+    recompute it with compute_mutation_times.
+    """
+
+    seed = 42
+
+    def verify_times(self, ts):
+        tables = ts.tables
+        # Clear out the existing mutations as they come from msprime
+        tables.mutations.time = np.full(
+            tables.mutations.time.shape, -1, dtype=np.float64
+        )
+        self.assertTrue(np.all(tables.mutations.time == -1))
+        # Compute times with C method and dumb python method
+        tables.compute_mutation_times()
+        python_time = tsutil.compute_mutation_times(ts)
+        self.assertTrue(
+            np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
+        )
+
+    def test_example(self):
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       0           2.0
+        1       0           1.0
+        2       0           1.0
+        3       1           0
+        4       1           0
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.0    0.5   2  3
+        0.0    0.8   2  4
+        0.5    1.0   1  3
+        0.0    1.0   0  1
+        0.0    1.0   0  2
+        0.8    1.0   0  4
+        """
+        )
+        sites = io.StringIO(
+            """\
+        position    ancestral_state
+        0.1     0
+        0.5     0
+        0.9     0
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site	node	time	derived_state	parent
+        0       1       1.5     1               -1
+        0       2       1.5     1               -1
+        0       3       0.5     2               1
+        1       0       2.0     1               -1
+        1       1       1.5     1               3
+        1       3       0.5     2               4
+        1       2       1.5     1               3
+        1       4       0.5     2               6
+        2       0       2.0     1               -1
+        2       1       1.5     1               8
+        2       2       1.5     1               8
+        2       4       1.0     1               8
+        """
+        )
+        ts = tskit.load_text(
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False,
+        )
+        # ts.dump_text(mutations=sys.stdout)
+        # self.assertFalse(True)
+        tables = ts.tables
+        python_time = tsutil.compute_mutation_times(ts)
+        self.assertTrue(
+            np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
+        )
+        tables.mutations.time = np.full(
+            tables.mutations.time.shape, -1, dtype=np.float64
+        )
+        self.assertTrue(np.all(tables.mutations.time == -1))
+        tables.compute_mutation_times()
+        self.assertTrue(
+            np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
+        )
+
+    def test_single_muts(self):
+        ts = msprime.simulate(
+            10, random_seed=self.seed, mutation_rate=3.0, recombination_rate=1.0
+        )
+        self.verify_times(ts)
+
+    def test_with_jukes_cantor(self):
+        ts = msprime.simulate(
+            10, random_seed=self.seed, mutation_rate=0.0, recombination_rate=1.0
+        )
+        # make *lots* of recurrent mutations
+        mut_ts = tsutil.jukes_cantor(
+            ts, num_sites=10, mu=1, multiple_per_node=False, seed=self.seed
+        )
+        self.verify_times(mut_ts)
+
+    def test_with_jukes_cantor_multiple_per_node(self):
+        ts = msprime.simulate(
+            10, random_seed=self.seed, mutation_rate=0.0, recombination_rate=1.0
+        )
+        # make *lots* of recurrent mutations
+        mut_ts = tsutil.jukes_cantor(
+            ts, num_sites=10, mu=1, multiple_per_node=True, seed=self.seed
+        )
+        self.verify_times(mut_ts)
+
+    def verify_branch_mutations(self, ts, mutations_per_branch):
+        ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
+        self.assertGreater(ts.num_mutations, 1)
+        self.verify_times(ts)
+
+    def test_single_tree_one_mutation_per_branch(self):
+        ts = msprime.simulate(6, random_seed=10)
+        self.verify_branch_mutations(ts, 1)
+
+    def test_single_tree_two_mutations_per_branch(self):
+        ts = msprime.simulate(10, random_seed=9)
+        self.verify_branch_mutations(ts, 2)
+
+    def test_single_tree_three_mutations_per_branch(self):
+        ts = msprime.simulate(8, random_seed=9)
+        self.verify_branch_mutations(ts, 3)
+
+    def test_single_multiroot_tree_recurrent_mutations(self):
+        ts = msprime.simulate(6, random_seed=10)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for mutations_per_branch in [1, 2, 3]:
+            self.verify_branch_mutations(ts, mutations_per_branch)
+
+    def test_many_multiroot_trees_recurrent_mutations(self):
+        ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
+        self.assertGreater(ts.num_trees, 3)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for mutations_per_branch in [1, 2, 3]:
+            self.verify_branch_mutations(ts, mutations_per_branch)
+
+
 class TestSimpleTreeAlgorithm(unittest.TestCase):
     """
     Tests for the direct implementation of Algorithm T in tsutil.py.

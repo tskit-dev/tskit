@@ -23,6 +23,7 @@
 Tests for functions in util.py
 """
 import itertools
+import math
 import pickle
 import unittest
 
@@ -30,6 +31,18 @@ import numpy as np
 
 import tests.tsutil as tsutil
 import tskit.util as util
+from tskit import UNKNOWN_TIME
+
+
+class TestUnknownTime(unittest.TestCase):
+    def test_unknown_time(self):
+        self.assertTrue(math.isnan(UNKNOWN_TIME))
+        self.assertTrue(util.is_unknown_time(UNKNOWN_TIME))
+        self.assertFalse(util.is_unknown_time(math.nan))
+        self.assertFalse(util.is_unknown_time(np.nan))
+        self.assertFalse(util.is_unknown_time(0))
+        self.assertFalse(util.is_unknown_time(math.inf))
+        self.assertFalse(util.is_unknown_time(1))
 
 
 class TestNumpyArrayCasting(unittest.TestCase):

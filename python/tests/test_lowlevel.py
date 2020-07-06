@@ -365,6 +365,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     def test_dump_equality(self):
         for ts in self.get_example_tree_sequences():
+            tables = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts.dump_tables(tables)
+            tables.compute_mutation_times()
+            ts = _tskit.TreeSequence()
+            ts.load_tables(tables)
             self.verify_dump_equality(ts)
 
     def verify_mutations(self, ts):
@@ -1643,9 +1648,14 @@ class TestTree(LowLevelTestCase):
                     self.assertEqual(index, j)
                     self.assertEqual(metadata, b"")
                     for mut_id in mutations:
-                        site, node, derived_state, parent, metadata = ts.get_mutation(
-                            mut_id
-                        )
+                        (
+                            site,
+                            node,
+                            derived_state,
+                            parent,
+                            metadata,
+                            time,
+                        ) = ts.get_mutation(mut_id)
                         self.assertEqual(site, index)
                         self.assertEqual(mutation_id, mut_id)
                         self.assertNotEqual(st.get_parent(node), _tskit.NULL)

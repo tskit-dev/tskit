@@ -1051,6 +1051,7 @@ test_mutation_table(void)
     tsk_id_t *node;
     tsk_id_t *parent;
     tsk_id_t *site;
+    double *time;
     char *derived_state, *metadata;
     char c[max_len + 1];
     tsk_size_t *derived_state_offset, *metadata_offset;
@@ -1071,11 +1072,12 @@ test_mutation_table(void)
     len = 0;
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         k = TSK_MIN((tsk_size_t) j + 1, max_len);
-        ret = tsk_mutation_table_add_row(&table, j, j, j, c, k, c, k);
+        ret = tsk_mutation_table_add_row(&table, j, j, j, j, c, k, c, k);
         CU_ASSERT_EQUAL_FATAL(ret, j);
         CU_ASSERT_EQUAL(table.site[j], j);
         CU_ASSERT_EQUAL(table.node[j], j);
         CU_ASSERT_EQUAL(table.parent[j], j);
+        CU_ASSERT_EQUAL(table.time[j], j);
         CU_ASSERT_EQUAL(table.derived_state_offset[j], len);
         CU_ASSERT_EQUAL(table.metadata_offset[j], len);
         CU_ASSERT_EQUAL(table.num_rows, (tsk_size_t) j + 1);
@@ -1091,6 +1093,7 @@ test_mutation_table(void)
         CU_ASSERT_EQUAL(mutation.site, j);
         CU_ASSERT_EQUAL(mutation.node, j);
         CU_ASSERT_EQUAL(mutation.parent, j);
+        CU_ASSERT_EQUAL(mutation.time, j);
         CU_ASSERT_EQUAL(mutation.metadata_length, k);
         CU_ASSERT_NSTRING_EQUAL(mutation.metadata, c, k);
         CU_ASSERT_EQUAL(mutation.derived_state_length, k);
@@ -1108,6 +1111,8 @@ test_mutation_table(void)
     CU_ASSERT_FATAL(node != NULL);
     parent = malloc(num_rows * sizeof(tsk_id_t));
     CU_ASSERT_FATAL(parent != NULL);
+    time = malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(time != NULL);
     derived_state = malloc(num_rows * sizeof(char));
     CU_ASSERT_FATAL(derived_state != NULL);
     derived_state_offset = malloc((num_rows + 1) * sizeof(tsk_size_t));
@@ -1121,6 +1126,7 @@ test_mutation_table(void)
         node[j] = j;
         site[j] = j + 1;
         parent[j] = j + 2;
+        time[j] = j + 3;
         derived_state[j] = 'Y';
         derived_state_offset[j] = (tsk_size_t) j;
         metadata[j] = 'M';
@@ -1129,12 +1135,13 @@ test_mutation_table(void)
 
     derived_state_offset[num_rows] = num_rows;
     metadata_offset[num_rows] = num_rows;
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(memcmp(table.node, node, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time, time, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.derived_state, derived_state, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(memcmp(table.metadata, metadata, num_rows * sizeof(char)), 0);
@@ -1143,7 +1150,7 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(table.metadata_length, num_rows);
 
     /* Append another num_rows */
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
@@ -1153,6 +1160,8 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.parent + num_rows, parent, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time, time, num_rows * sizeof(double)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time + num_rows, time, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.derived_state, derived_state, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(
@@ -1169,6 +1178,7 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(memcmp(table.node, node, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time, time, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.derived_state, derived_state, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(memcmp(table.metadata, metadata, num_rows * sizeof(char)), 0);
@@ -1179,15 +1189,20 @@ test_mutation_table(void)
     ret = tsk_mutation_table_truncate(&table, num_rows + 1);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_TABLE_POSITION);
 
-    /* Check all this again, except with parent == NULL and metadata == NULL. */
+    /* Check all this again, except with parent == NULL, time == NULL
+     * and metadata == NULL. */
     memset(parent, 0xff, num_rows * sizeof(tsk_id_t));
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        time[j] = TSK_UNKNOWN_TIME;
+    }
     memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, NULL,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, NULL, NULL,
         derived_state, derived_state_offset, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(memcmp(table.node, node, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time, time, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.derived_state, derived_state, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(memcmp(table.derived_state_offset, derived_state_offset,
@@ -1201,7 +1216,7 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(table.metadata_length, 0);
 
     /* Append another num_rows */
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, NULL,
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, NULL, NULL,
         derived_state, derived_state_offset, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
@@ -1211,6 +1226,8 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.parent + num_rows, parent, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time, time, num_rows * sizeof(double)), 0);
+    CU_ASSERT_EQUAL(memcmp(table.time + num_rows, time, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.derived_state, derived_state, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(
@@ -1220,54 +1237,54 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(table.derived_state_length, 2 * num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
 
-    /* Inputs except parent, metadata and metadata_offset cannot be NULL*/
-    ret = tsk_mutation_table_set_columns(&table, num_rows, NULL, node, parent,
+    /* Inputs except parent, time, metadata and metadata_offset cannot be NULL*/
+    ret = tsk_mutation_table_set_columns(&table, num_rows, NULL, node, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, NULL, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, NULL, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, NULL,
-        derived_state_offset, metadata, metadata_offset);
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
+        NULL, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
         derived_state, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, NULL, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, metadata, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
-    /* Inputs except parent, metadata and metadata_offset cannot be NULL*/
-    ret = tsk_mutation_table_append_columns(&table, num_rows, NULL, node, parent,
+    /* Inputs except parent, time, metadata and metadata_offset cannot be NULL*/
+    ret = tsk_mutation_table_append_columns(&table, num_rows, NULL, node, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, NULL, parent,
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, NULL, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, NULL,
-        derived_state_offset, metadata, metadata_offset);
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
+        NULL, derived_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
         derived_state, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, NULL, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, metadata, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Test for bad offsets */
     derived_state_offset[0] = 1;
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, NULL, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     derived_state_offset[0] = 0;
     derived_state_offset[num_rows] = 0;
-    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, NULL, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
 
@@ -1305,6 +1322,7 @@ test_mutation_table(void)
     free(site);
     free(node);
     free(parent);
+    free(time);
     free(derived_state);
     free(derived_state_offset);
     free(metadata);
@@ -2825,7 +2843,7 @@ test_table_overflow(void)
 
     tables.mutations.max_rows = max_rows;
     tables.mutations.num_rows = max_rows;
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, 0, 0, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, 0, 0, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
 
     tables.provenances.max_rows = max_rows;
@@ -2876,11 +2894,13 @@ test_column_overflow(void)
     ret = tsk_site_table_add_row(&tables.sites, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, zeros, 1, zeros, 1);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, zeros, 1, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, 0, NULL, too_big);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, 0, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, too_big, NULL, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, 0, 0, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
     ret = tsk_provenance_table_add_row(&tables.provenances, zeros, 1, zeros, 1);
@@ -3060,7 +3080,7 @@ test_table_collection_check_integrity(void)
 
     /* mutations */
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 2, 0, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 2, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
@@ -3068,31 +3088,31 @@ test_table_collection_check_integrity(void)
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 2, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 2, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 2, NULL, 0, NULL, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 2, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 0, NULL, 0, NULL, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 0, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_EQUAL);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 1, NULL, 0, NULL, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 1, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 1, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3105,9 +3125,9 @@ test_table_collection_check_integrity(void)
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 1, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 1, 1, 0, NULL, 0, NULL, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 1, 1, 0, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3119,10 +3139,10 @@ test_table_collection_check_integrity(void)
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 1, 1, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 1, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 1, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3131,20 +3151,65 @@ test_table_collection_check_integrity(void)
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_FATAL(ret >= 0);
-
-    /* migrations */
-    ret = tsk_migration_table_add_row(
-        &tables.migrations, 0.0, 0.5, 2, 0, 1, 1.5, NULL, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_TIME);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, NAN, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_TIME);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, INFINITY, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_TIME);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_TIME);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 1, TSK_NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 1, 1, 0, 2, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_TIME);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
+
+    /* Note that we do not test for TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE as
+       that is only checked for tree sequences not tables */
 
     /* migrations */
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
     ret = tsk_migration_table_clear(&tables.migrations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_migration_table_add_row(
@@ -3257,12 +3322,12 @@ test_table_collection_subset(void)
     ret = tsk_site_table_add_row(&tables.sites, 0.4, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 0, TSK_NULL, NAN, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NULL, 0, NULL, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NAN, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 1, 1, TSK_NULL, NULL, 0, NULL, 0);
+        &tables.mutations, 1, 1, TSK_NULL, NAN, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
 
     // empty nodes should get empty tables

@@ -649,8 +649,8 @@ test_single_tree_many_alleles(void)
     /* Add j mutations over a single node. */
     for (j = 0; j < (tsk_id_t) num_alleles; j++) {
         /* When j = 0 we get a parent of -1, which is the NULL_NODE */
-        ret = tsk_mutation_table_add_row(
-            &tables.mutations, 0, 0, j - 1, alleles, (tsk_size_t) j, NULL, 0);
+        ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, j - 1,
+            TSK_UNKNOWN_TIME, alleles, (tsk_size_t) j, NULL, 0);
         CU_ASSERT_FATAL(ret >= 0);
         ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
         CU_ASSERT_EQUAL_FATAL(ret, 0);

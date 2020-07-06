@@ -46,6 +46,12 @@ ALLELES_01 = ("0", "1")
 #: the genotype integers 0, 1, 2, and 3, respectively.
 ALLELES_ACGT = ("A", "C", "G", "T")
 
+#: Special NAN value used to indicate unknown mutation times
+"""
+Say what
+"""
+UNKNOWN_TIME = _tskit.UNKNOWN_TIME
+
 from tskit.provenance import __version__  # NOQA
 from tskit.provenance import validate_provenance  # NOQA
 from tskit.formats import *  # NOQA

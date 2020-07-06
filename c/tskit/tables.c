@@ -2332,6 +2332,10 @@ tsk_mutation_table_expand_main_columns(
         if (ret != 0) {
             goto out;
         }
+        ret = expand_column((void **) &self->time, new_size, sizeof(double));
+        if (ret != 0) {
+            goto out;
+        }
         ret = expand_column(
             (void **) &self->derived_state_offset, new_size + 1, sizeof(tsk_size_t));
         if (ret != 0) {
@@ -2465,8 +2469,8 @@ out:
 
 tsk_id_t
 tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site, tsk_id_t node,
-    tsk_id_t parent, const char *derived_state, tsk_size_t derived_state_length,
-    const char *metadata, tsk_size_t metadata_length)
+    tsk_id_t parent, double time, const char *derived_state,
+    tsk_size_t derived_state_length, const char *metadata, tsk_size_t metadata_length)
 {
     tsk_size_t derived_state_offset, metadata_offset;
     int ret;
@@ -2478,6 +2482,7 @@ tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site, tsk_id_t n
     self->site[self->num_rows] = site;
     self->node[self->num_rows] = node;
     self->parent[self->num_rows] = parent;
+    self->time[self->num_rows] = time;
 
     derived_state_offset = self->derived_state_length;
     assert(self->derived_state_offset[self->num_rows] == derived_state_offset);
@@ -2508,8 +2513,9 @@ out:
 
 int
 tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, const char *derived_state,
-    tsk_size_t *derived_state_offset, const char *metadata, tsk_size_t *metadata_offset)
+    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time,
+    const char *derived_state, tsk_size_t *derived_state_offset, const char *metadata,
+    tsk_size_t *metadata_offset)
 {
     int ret = 0;
     tsk_size_t j, derived_state_length, metadata_length;
@@ -2535,6 +2541,15 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
         memset(self->parent + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
     } else {
         memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
+    }
+    if (time == NULL) {
+        /* If time is NULL, set all times to TSK_UNKNOWN_TIME which is the
+         * default */
+        for (j = 0; j < num_rows; j++) {
+            self->time[self->num_rows + j] = TSK_UNKNOWN_TIME;
+        }
+    } else {
+        memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
     }
 
     /* Metadata column */
@@ -2599,8 +2614,8 @@ tsk_mutation_table_copy(
         }
     }
     ret = tsk_mutation_table_set_columns(dest, self->num_rows, self->site, self->node,
-        self->parent, self->derived_state, self->derived_state_offset, self->metadata,
-        self->metadata_offset);
+        self->parent, self->time, self->derived_state, self->derived_state_offset,
+        self->metadata, self->metadata_offset);
     if (ret != 0) {
         goto out;
     }
@@ -2612,8 +2627,9 @@ out:
 
 int
 tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, const char *derived_state,
-    tsk_size_t *derived_state_offset, const char *metadata, tsk_size_t *metadata_offset)
+    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time,
+    const char *derived_state, tsk_size_t *derived_state_offset, const char *metadata,
+    tsk_size_t *metadata_offset)
 {
     int ret = 0;
 
@@ -2621,7 +2637,7 @@ tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_mutation_table_append_columns(self, num_rows, site, node, parent,
+    ret = tsk_mutation_table_append_columns(self, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
 out:
     return ret;
@@ -2639,6 +2655,7 @@ tsk_mutation_table_equals(tsk_mutation_table_t *self, tsk_mutation_table_t *othe
               && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
               && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t))
                      == 0
+              && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
               && memcmp(self->derived_state_offset, other->derived_state_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
@@ -2689,6 +2706,7 @@ tsk_mutation_table_free(tsk_mutation_table_t *self)
     tsk_safe_free(self->node);
     tsk_safe_free(self->site);
     tsk_safe_free(self->parent);
+    tsk_safe_free(self->time);
     tsk_safe_free(self->derived_state);
     tsk_safe_free(self->derived_state_offset);
     tsk_safe_free(self->metadata);
@@ -2735,6 +2753,7 @@ tsk_mutation_table_get_row(
     row->site = self->site[index];
     row->node = self->node[index];
     row->parent = self->parent[index];
+    row->time = self->time[index];
     row->derived_state_length
         = self->derived_state_offset[index + 1] - self->derived_state_offset[index];
     row->derived_state = self->derived_state + self->derived_state_offset[index];
@@ -2772,7 +2791,7 @@ tsk_mutation_table_dump_text(tsk_mutation_table_t *self, FILE *out)
     if (err < 0) {
         goto out;
     }
-    err = fprintf(out, "id\tsite\tnode\tparent\tderived_state\tmetadata\n");
+    err = fprintf(out, "id\tsite\tnode\tparent\ttime\tderived_state\tmetadata\n");
     if (err < 0) {
         goto out;
     }
@@ -2780,8 +2799,8 @@ tsk_mutation_table_dump_text(tsk_mutation_table_t *self, FILE *out)
         derived_state_len
             = self->derived_state_offset[j + 1] - self->derived_state_offset[j];
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%d\t%d\t%d\t%d\t%.*s\t%.*s\n", (int) j, self->site[j],
-            self->node[j], self->parent[j], derived_state_len,
+        err = fprintf(out, "%d\t%d\t%d\t%d\t%f\t%.*s\t%.*s\n", (int) j, self->site[j],
+            self->node[j], self->parent[j], self->time[j], derived_state_len,
             self->derived_state + self->derived_state_offset[j], metadata_len,
             self->metadata + self->metadata_offset[j]);
         if (err < 0) {
@@ -2800,6 +2819,7 @@ tsk_mutation_table_dump(tsk_mutation_table_t *self, kastore_t *store)
         { "mutations/site", (void *) self->site, self->num_rows, KAS_INT32 },
         { "mutations/node", (void *) self->node, self->num_rows, KAS_INT32 },
         { "mutations/parent", (void *) self->parent, self->num_rows, KAS_INT32 },
+        { "mutations/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
         { "mutations/derived_state", (void *) self->derived_state,
             self->derived_state_length, KAS_UINT8 },
         { "mutations/derived_state_offset", (void *) self->derived_state_offset,
@@ -2822,6 +2842,7 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     tsk_id_t *node = NULL;
     tsk_id_t *site = NULL;
     tsk_id_t *parent = NULL;
+    double *time = NULL;
     char *derived_state = NULL;
     tsk_size_t *derived_state_offset = NULL;
     char *metadata = NULL;
@@ -2833,6 +2854,8 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
         { "mutations/site", (void **) &site, &num_rows, 0, KAS_INT32, 0 },
         { "mutations/node", (void **) &node, &num_rows, 0, KAS_INT32, 0 },
         { "mutations/parent", (void **) &parent, &num_rows, 0, KAS_INT32, 0 },
+        { "mutations/time", (void **) &time, &num_rows, 0, KAS_FLOAT64,
+            TSK_COL_OPTIONAL },
         { "mutations/derived_state", (void **) &derived_state, &derived_state_length, 0,
             KAS_UINT8, 0 },
         { "mutations/derived_state_offset", (void **) &derived_state_offset, &num_rows,
@@ -2856,7 +2879,7 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
         ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    ret = tsk_mutation_table_set_columns(self, num_rows, site, node, parent,
+    ret = tsk_mutation_table_set_columns(self, num_rows, site, node, parent, time,
         derived_state, derived_state_offset, metadata, metadata_offset);
     if (ret != 0) {
         goto out;
@@ -4479,9 +4502,9 @@ table_sorter_sort_mutations(table_sorter_t *self)
             mapped_parent = mutation_id_map[parent];
         }
         ret = tsk_mutation_table_add_row(self->mutations, sorted_mutations[j].site,
-            sorted_mutations[j].node, mapped_parent, sorted_mutations[j].derived_state,
-            sorted_mutations[j].derived_state_length, sorted_mutations[j].metadata,
-            sorted_mutations[j].metadata_length);
+            sorted_mutations[j].node, mapped_parent, sorted_mutations[j].time,
+            sorted_mutations[j].derived_state, sorted_mutations[j].derived_state_length,
+            sorted_mutations[j].metadata, sorted_mutations[j].metadata_length);
         if (ret < 0) {
             goto out;
         }
@@ -6092,7 +6115,7 @@ simplifier_output_sites(simplifier_t *self)
                     }
                     ret = tsk_mutation_table_add_row(&self->tables->mutations,
                         (tsk_id_t) self->tables->sites.num_rows, mapped_node,
-                        mapped_parent, mutation.derived_state,
+                        mapped_parent, mutation.time, mutation.derived_state,
                         mutation.derived_state_length, mutation.metadata,
                         mutation.metadata_length);
                     if (ret < 0) {
@@ -6437,6 +6460,7 @@ out:
  * TSK_CHECK_SITE_ORDERING       Check that sites are in nondecreasing position order.
  * TSK_CHECK_SITE_DUPLICATES     Check for any duplicate site positions.
  * TSK_CHECK_MUTATION_ORDERING   Check mutation ordering contraints for a tree sequence.
+ * TSK_CHECK_MUTATION_TIME       Check contraints on mutation 'time' column.
  * TSK_CHECK_INDEXES             Check indexes exist & reference integrity.
  * TSK_CHECK_ALL                 All above checks.
  * TSK_NO_CHECK_MUTATION_PARENTS Do not check contraints on mutation 'parent' column.
@@ -6447,7 +6471,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
 {
     int ret = TSK_ERR_GENERIC;
     tsk_size_t j;
-    double node_time, left, right, position;
+    double node_time, left, right, position, mutation_time;
     double L = self->sequence_length;
     double *time = self->nodes.time;
     tsk_id_t parent, child;
@@ -6465,6 +6489,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
     bool check_mutation_ordering = !!(options & TSK_CHECK_MUTATION_ORDERING);
     bool check_mutation_parents
         = (check_mutation_ordering & !(options & TSK_NO_CHECK_MUTATION_PARENTS));
+    bool check_mutation_time = !!(options & TSK_CHECK_MUTATION_TIME);
     bool check_populations = !(options & TSK_NO_CHECK_POPULATION_REFS);
     bool check_indexes = !!(options & TSK_CHECK_INDEXES);
 
@@ -6605,6 +6630,24 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
                 }
             }
         }
+        if (check_mutation_time) {
+            mutation_time = self->mutations.time[j];
+            if (!tsk_is_unknown_time(mutation_time)) {
+                if (!isfinite(mutation_time)) {
+                    ret = TSK_ERR_TIME_NONFINITE;
+                    goto out;
+                }
+                if (mutation_time < self->nodes.time[self->mutations.node[j]]) {
+                    ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
+                    goto out;
+                }
+                if (parent_mut != TSK_NULL
+                    && self->mutations.time[parent_mut] < mutation_time) {
+                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
+                    goto out;
+                }
+            }
+        }
     }
 
     /* Migrations */
@@ -6681,6 +6724,7 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
     }
+
 out:
     return ret;
 }
@@ -7560,9 +7604,10 @@ tsk_table_collection_deduplicate_sites(
         goto out;
     }
     /* Check everything except site duplicates (which we expect) and
-     * edge indexes (which we don't use) */
+     * edge indexes and mutation times (which we don't use) */
     ret = tsk_table_collection_check_integrity(
-        self, TSK_CHECK_ALL & ~TSK_CHECK_SITE_DUPLICATES & ~TSK_CHECK_INDEXES);
+        self, TSK_CHECK_ALL & ~TSK_CHECK_SITE_DUPLICATES & ~TSK_CHECK_INDEXES
+                  & ~TSK_CHECK_MUTATION_TIME);
     if (ret != 0) {
         goto out;
     }
@@ -7627,13 +7672,14 @@ tsk_table_collection_compute_mutation_parents(
     double left, right;
     tsk_id_t site;
     /* Using unsigned values here avoids potentially undefined behaviour */
-    uint32_t j, mutation, first_mutation;
+    tsk_size_t j, mutation, first_mutation;
 
     /* Note that because we check everything here, any non-null mutation parents
      * will also be checked, even though they are about to be overwritten. To
-     * ensure that his function always succeeds we must ensure that the
+     * ensure that this function always succeeds we must ensure that the
      * parent field is set to -1 first. */
-    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_ALL);
+    ret = tsk_table_collection_check_integrity(
+        self, TSK_CHECK_ALL & ~TSK_CHECK_MUTATION_TIME);
     if (ret != 0) {
         goto out;
     }
@@ -7721,6 +7767,115 @@ tsk_table_collection_compute_mutation_parents(
 out:
     tsk_safe_free(parent);
     tsk_safe_free(bottom_mutation);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_compute_mutation_times(
+    tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    const tsk_id_t *restrict I = self->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->indexes.edge_removal_order;
+    const tsk_edge_table_t edges = self->edges;
+    const tsk_node_table_t nodes = self->nodes;
+    const tsk_site_table_t sites = self->sites;
+    const tsk_mutation_table_t mutations = self->mutations;
+    const tsk_id_t M = (tsk_id_t) edges.num_rows;
+    tsk_id_t tj, tk;
+    tsk_id_t *parent = NULL;
+    tsk_size_t *numerator = NULL;
+    tsk_size_t *denominator = NULL;
+    tsk_id_t u;
+    double left, right, parent_time;
+    tsk_id_t site;
+    /* Using unsigned values here avoids potentially undefined behaviour */
+    tsk_size_t j, mutation, first_mutation;
+
+    /* The random param is for future usage */
+    if (random != NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
+    ret = tsk_table_collection_check_integrity(
+        self, TSK_CHECK_ALL & ~TSK_CHECK_MUTATION_TIME);
+    if (ret != 0) {
+        goto out;
+    }
+    parent = malloc(nodes.num_rows * sizeof(*parent));
+    numerator = malloc(nodes.num_rows * sizeof(*numerator));
+    denominator = malloc(nodes.num_rows * sizeof(*denominator));
+    if (parent == NULL || numerator == NULL || denominator == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, nodes.num_rows * sizeof(*parent));
+    memset(numerator, 0, nodes.num_rows * sizeof(*numerator));
+    memset(denominator, 0, nodes.num_rows * sizeof(*denominator));
+
+    tj = 0;
+    tk = 0;
+    site = 0;
+    mutation = 0;
+    left = 0;
+    while (tj < M || left < self->sequence_length) {
+        while (tk < M && edges.right[O[tk]] == left) {
+            parent[edges.child[O[tk]]] = TSK_NULL;
+            tk++;
+        }
+        while (tj < M && edges.left[I[tj]] == left) {
+            parent[edges.child[I[tj]]] = edges.parent[I[tj]];
+            tj++;
+        }
+        right = self->sequence_length;
+        if (tj < M) {
+            right = TSK_MIN(right, edges.left[I[tj]]);
+        }
+        if (tk < M) {
+            right = TSK_MIN(right, edges.right[O[tk]]);
+        }
+
+        /* Tree is now ready. We look at each site on this tree in turn */
+        while (site < (tsk_id_t) sites.num_rows && sites.position[site] < right) {
+            first_mutation = mutation;
+            /* Count how many mutations each edge has to get our
+               denominator */
+            while (mutation < mutations.num_rows && mutations.site[mutation] == site) {
+                denominator[mutations.node[mutation]]++;
+                mutation++;
+            }
+            /* Go over the mutations again assigning times. As the sorting requirements
+               guarantee that parents are before children, we assign oldest first */
+            for (j = first_mutation; j < mutation; j++) {
+                u = mutations.node[j];
+                numerator[u]++;
+                if (parent[u] == TSK_NULL) {
+                    /* This mutation is above a root */
+                    mutations.time[j] = nodes.time[u];
+                } else {
+                    parent_time = nodes.time[parent[u]];
+                    mutations.time[j] = parent_time
+                                        - (parent_time - nodes.time[u]) * numerator[u]
+                                              / (denominator[u] + 1);
+                }
+            }
+            /* Reset the book-keeping for the next site */
+            for (j = first_mutation; j < mutation; j++) {
+                u = mutations.node[j];
+                numerator[u] = 0;
+                denominator[u] = 0;
+            }
+            site++;
+        }
+        /* Move on to the next tree */
+        left = right;
+    }
+
+out:
+    tsk_safe_free(parent);
+    tsk_safe_free(numerator);
+    tsk_safe_free(denominator);
     return ret;
 }
 
@@ -7915,8 +8070,8 @@ tsk_table_collection_subset(
                     new_parent = mutation_map[mut.parent];
                 }
                 ret = tsk_mutation_table_add_row(&self->mutations, site_map[site.id],
-                    new_node, new_parent, mut.derived_state, mut.derived_state_length,
-                    mut.metadata, mut.metadata_length);
+                    new_node, new_parent, mut.time, mut.derived_state,
+                    mut.derived_state_length, mut.metadata, mut.metadata_length);
                 if (ret < 0) {
                     goto out;
                 }

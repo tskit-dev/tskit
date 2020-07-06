@@ -22,7 +22,19 @@
 """
 Module responsible for various utility functions used in other modules.
 """
+import struct
+
 import numpy as np
+
+from tskit import UNKNOWN_TIME
+
+
+def is_unknown_time(time):
+    """
+    As the default unknown mutation time is NAN equality always fails. This
+    method compares the bitfield.
+    """
+    return struct.pack(">d", UNKNOWN_TIME) == struct.pack(">d", time)
 
 
 def safe_np_int_cast(int_array, dtype, copy=False):

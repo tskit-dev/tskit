@@ -484,6 +484,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
                     tables.mutations.add_row(
                         site_id,
                         node=mutation.node,
+                        time=mutation.time,
                         parent=parent,
                         derived_state=mutation.derived_state,
                     )
@@ -511,6 +512,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
                     tables2.mutations.add_row(
                         site_id,
                         node=mutation.node,
+                        time=mutation.time,
                         derived_state=mutation.derived_state,
                     )
         tables2.sort()
@@ -616,6 +618,7 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
                     tables.mutations.add_row(
                         site_id,
                         node=m.node,
+                        time=m.time,
                         parent=parent,
                         derived_state=m.derived_state,
                     )
@@ -890,6 +893,7 @@ class TestReconstructAllTuples(unittest.TestCase):
                 tables.mutations.add_row(
                     j,
                     node=mutation.node,
+                    time=mutation.time,
                     parent=parent,
                     derived_state=mutation.derived_state,
                 )

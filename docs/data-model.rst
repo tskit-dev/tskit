@@ -374,6 +374,7 @@ Column              Type                Description
 site                int32               The ID of the site the mutation occurs at.
 node                int32               The node this mutation occurs at.
 parent              int32               The ID of the parent mutation.
+time                double              Time at which the mutation occurred.
 derived_state       char                The allelic state resulting from the mutation.
 metadata            binary              Mutation :ref:`sec_metadata_definition`.
 ================    ==============      ===========
@@ -383,6 +384,9 @@ The ``site`` column is an integer value defining the ID of the
 
 The ``node`` column is an integer value defining the ID of the
 first :ref:`node <sec_node_table_definition>` in the tree below this mutation.
+
+The  ``time`` column is a double precision floating point value recording how long ago
+the mutation happened.
 
 The ``derived_state`` column specifies the allelic state resulting from the mutation,
 thus defining the state that the ``node`` and any descendant nodes in the
@@ -633,6 +637,11 @@ requirements for a valid set of mutations are:
 
 - ``site`` must refer to a valid site ID;
 - ``node`` must refer to a valid node ID;
+- ``time`` must either be UNKNOWN_TIME (a NAN value which indicates
+  the time is unknown) or be a finite value which is greater or equal to the
+  mutation ``node``'s ``time``, less than the ``node`` above the mutation's
+  ``time`` and equal to or less than the ``time`` of the ``parent`` mutation
+  if this mutation has one.
 - ``parent`` must either be the null ID (-1) or a valid mutation ID within the
   current table
 
@@ -813,6 +822,17 @@ even for mutations occurring on the same branch. The
 :meth:`TableCollection.compute_mutation_parents` method will take advantage
 of this fact to compute the ``parent`` column of a mutation table, if all
 other information is valid.
+
+
+Computing mutation times
+------------------------
+
+In the case where the method generating a tree sequence does not generate mutation
+times, valid times can be provided by :meth:`TableCollection.compute_mutation_parents`.
+If all other information is valid this method will assign times to the mutations by
+placing them at evenly spaced intervals along their edge (for instance, a single
+mutation on an edge between a node at time 1.0 and a node at time 4.0 would be given
+time 2.5; while two mutations on that edge would be given times 2.0 and 3.0).
 
 
 Recording tables in forwards time
@@ -1131,18 +1151,19 @@ Mutation text format
 ====================
 
 The mutation text format must contain the columns ``site``,
-``node`` and ``derived_state``. The ``parent`` and ``metadata`` columns
+``node`` and ``derived_state``. The ``time``, ``parent`` and ``metadata`` columns
 may also be optionally present (but ``parent`` must be specified if
-more than one mutation occurs at the same site). See the
+more than one mutation occurs at the same site). If ``time`` is absent
+``UNKNOWN_TIME`` will be used to fill the column. See the
 :ref:`mutation table definitions <sec_mutation_table_definition>`
 for details on these columns.
 
 mutations::
 
-    site   node    derived_state    parent
-    0      0       A                -1
-    1      0       T                -1
-    1      1       A                1
+    site   node    derived_state    time    parent
+    0      0       A                0       -1
+    1      0       T                0.5     -1
+    1      1       A                1       1
 
 
 .. _sec_migration_text_format:

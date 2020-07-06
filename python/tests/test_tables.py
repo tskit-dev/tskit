@@ -26,6 +26,7 @@ between simulations and the tree sequence.
 """
 import io
 import itertools
+import math
 import pickle
 import random
 import unittest
@@ -1033,12 +1034,17 @@ class TestSiteTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
 
 
 class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
-    columns = [Int32Column("site"), Int32Column("node"), Int32Column("parent")]
+    columns = [
+        Int32Column("site"),
+        Int32Column("node"),
+        DoubleColumn("time"),
+        Int32Column("parent"),
+    ]
     ragged_list_columns = [
         (CharColumn("derived_state"), UInt32Column("derived_state_offset")),
         (CharColumn("metadata"), UInt32Column("metadata_offset")),
     ]
-    equal_len_columns = [["site", "node"]]
+    equal_len_columns = [["site", "node", "time"]]
     string_colnames = ["derived_state"]
     binary_colnames = ["metadata"]
     input_parameters = [("max_rows_increment", 1024)]
@@ -1046,18 +1052,19 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
 
     def test_simple_example(self):
         t = tskit.MutationTable()
-        t.add_row(site=0, node=1, derived_state="2", parent=3, metadata=b"4")
-        t.add_row(1, 2, "3", 4, b"\xf0")
+        t.add_row(site=0, node=1, derived_state="2", parent=3, metadata=b"4", time=5)
+        t.add_row(1, 2, "3", 4, b"\xf0", 6)
         s = str(t)
         self.assertGreater(len(s), 0)
         self.assertEqual(len(t), 2)
-        self.assertEqual(attr.astuple(t[0]), (0, 1, "2", 3, b"4"))
-        self.assertEqual(attr.astuple(t[1]), (1, 2, "3", 4, b"\xf0"))
+        self.assertEqual(attr.astuple(t[0]), (0, 1, "2", 3, b"4", 5))
+        self.assertEqual(attr.astuple(t[1]), (1, 2, "3", 4, b"\xf0", 6))
         self.assertEqual(t[0].site, 0)
         self.assertEqual(t[0].node, 1)
         self.assertEqual(t[0].derived_state, "2")
         self.assertEqual(t[0].parent, 3)
         self.assertEqual(t[0].metadata, b"4")
+        self.assertEqual(t[0].time, 5)
         self.assertEqual(t[0], t[-2])
         self.assertEqual(t[1], t[-1])
         self.assertRaises(IndexError, t.__getitem__, -3)
@@ -1068,9 +1075,13 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
         with self.assertRaises(TypeError):
             t.add_row("0", 0, "A")
         with self.assertRaises(TypeError):
+            t.add_row(0, "0", "A")
+        with self.assertRaises(TypeError):
             t.add_row(0, 0, "A", parent=None)
         with self.assertRaises(TypeError):
             t.add_row(0, 0, "A", metadata=[0])
+        with self.assertRaises(TypeError):
+            t.add_row(0, 0, "A", time="A")
 
     def test_packset_derived_state(self):
         for num_rows in [0, 10, 100]:
@@ -1257,6 +1268,7 @@ class TestSortTables(unittest.TestCase):
                 derived_state=m.derived_state,
                 parent=m.parent,
                 metadata=m.metadata,
+                time=m.time,
             )
         if ts.num_sites > 1:
             # Verify that import fails for randomised sites
@@ -1508,13 +1520,13 @@ class TestSortMutations(unittest.TestCase):
         )
         mutations = io.StringIO(
             """\
-        site    node    derived_state   parent
-        1       0       1               -1
-        1       0       0               0
-        1       0       1               1
-        0       0       1               -1
-        0       0       0               3
-        0       0       1               4
+        site    node    time    derived_state   parent
+        1       0       0.5     1               -1
+        1       0       0.25    0               0
+        1       0       0       1               1
+        0       0       0.5     1               -1
+        0       0       0.125   0               3
+        0       0       0       1               4
         """
         )
         ts = tskit.load_text(
@@ -1533,6 +1545,7 @@ class TestSortMutations(unittest.TestCase):
         self.assertEqual(len(mutations), 6)
         self.assertEqual(list(mutations.site), [0, 0, 0, 1, 1, 1])
         self.assertEqual(list(mutations.node), [0, 0, 0, 0, 0, 0])
+        self.assertEqual(list(mutations.time), [0.5, 0.125, 0.0, 0.5, 0.25, 0.0])
         self.assertEqual(list(mutations.parent), [-1, 0, 1, -1, 3, 4])
 
     def test_sort_mutations_bad_parent_id(self):
@@ -1587,6 +1600,50 @@ class TestTablesToTreeSequence(unittest.TestCase):
         )
 
 
+class TestMutationTimeErrors(unittest.TestCase):
+    def test_younger_than_node_below(self):
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
+        tables = ts.dump_tables()
+        tables.mutations.time = np.zeros(len(tables.mutations.time), dtype=np.float64)
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "A mutation's time must be >= the node time, or be marked as 'unknown'",
+        ):
+            tables.tree_sequence()
+
+    def test_older_than_node_above(self):
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
+        tables = ts.dump_tables()
+        tables.mutations.time = (
+            np.ones(len(tables.mutations.time), dtype=np.float64) * 42
+        )
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "A mutation's time must be < the parent node of the edge on which it"
+            " occurs, or be marked as 'unknown'",
+        ):
+            tables.tree_sequence()
+
+    def test_older_than_parent(self):
+        ts = msprime.simulate(
+            10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
+        )
+        ts = tsutil.jukes_cantor(
+            ts, num_sites=10, mu=1, multiple_per_node=False, seed=42
+        )
+        tables = ts.dump_tables()
+        self.assertNotEqual(sum(tables.mutations.parent != -1), 0)
+        as_dict = tables.mutations.asdict()
+        as_dict["time"][tables.mutations.parent != -1] = 64
+        tables.mutations.set_columns(**as_dict)
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "A mutation's time must be < the parent node of the edge on which it"
+            " occurs, or be marked as 'unknown'",
+        ):
+            tables.tree_sequence()
+
+
 class TestNanDoubleValues(unittest.TestCase):
     """
     In some tables we need to guard against NaN/infinite values in the input.
@@ -1637,7 +1694,26 @@ class TestNanDoubleValues(unittest.TestCase):
         bad_times = tables.nodes.time.copy()
         bad_times[-1] = np.inf
         tables.nodes.time = bad_times
-        self.assertRaises(_tskit.LibraryError, tables.tree_sequence)
+        with self.assertRaisesRegex(_tskit.LibraryError, "Times must be finite"):
+            tables.tree_sequence()
+        bad_times[-1] = math.nan
+        tables.nodes.time = bad_times
+        with self.assertRaisesRegex(_tskit.LibraryError, "Times must be finite"):
+            tables.tree_sequence()
+
+    def test_mutation_times(self):
+        ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
+        tables = ts.dump_tables()
+        bad_times = tables.mutations.time.copy()
+        bad_times[-1] = np.inf
+        tables.mutations.time = bad_times
+        with self.assertRaisesRegex(_tskit.LibraryError, "Times must be finite"):
+            tables.tree_sequence()
+        bad_times = tables.mutations.time.copy()
+        bad_times[-1] = math.nan
+        tables.mutations.time = bad_times
+        with self.assertRaisesRegex(_tskit.LibraryError, "Times must be finite"):
+            tables.tree_sequence()
 
     def test_individual(self):
         ts = msprime.simulate(12, mutation_rate=1, random_seed=42)
@@ -2372,7 +2448,7 @@ class TestDeduplicateSites(unittest.TestCase):
             tables.sites.add_row(position=site.position, ancestral_state="0")
             for mutation in site.mutations:
                 tables.mutations.add_row(
-                    site=site_id, node=mutation.node, derived_state="T" * site.id
+                    site=site_id, node=mutation.node, derived_state="T" * site.id,
                 )
         tables.deduplicate_sites()
         new_ts = tables.tree_sequence()

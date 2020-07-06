@@ -16,6 +16,13 @@ In development
 
 **New features**
 
+- Mutations now have an optional double-precision floating-point ``time`` column.
+  If not specified, this defaults to a particular NaN value (``tskit.UNKNOWN_TIME``)
+  indicating that the time is unknown. For a tree sequence to be considered valid
+  it must meet new criteria for mutation times, see :ref:`sec_mutation_requirements`.
+  Also added function ``TableCollection.compute_mutation_times``.
+  (:user:`benjeffery`, :pr:`672`)
+
 - Add support for trees with internal samples for the Kendall-Colijn tree distance
   metric. (:user:`daniel-goldstein`, :pr:`610`)
 

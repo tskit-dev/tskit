@@ -37,10 +37,11 @@ import numpy as np
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
+from tskit import UNKNOWN_TIME
 
 
 CURRENT_FILE_MAJOR = 12
-CURRENT_FILE_MINOR = 2
+CURRENT_FILE_MINOR = 3
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -515,6 +516,7 @@ class TestDumpFormat(TestFileFormat):
             "mutations/node",
             "mutations/parent",
             "mutations/site",
+            "mutations/time",
             "nodes/flags",
             "nodes/individual",
             "nodes/metadata",
@@ -672,6 +674,11 @@ class TestDumpFormat(TestFileFormat):
 
         self.assertTrue(np.array_equal(tables.mutations.site, store["mutations/site"]))
         self.assertTrue(np.array_equal(tables.mutations.node, store["mutations/node"]))
+        # Default mutation time is a NaN value so we want to check for
+        # bit equality, not numeric equality
+        self.assertEqual(
+            tables.mutations.time.tobytes(), store["mutations/time"].tobytes()
+        )
         self.assertTrue(
             np.array_equal(tables.mutations.parent, store["mutations/parent"])
         )
@@ -814,13 +821,37 @@ class TestOptionalColumns(TestFileFormat):
         ts3 = tskit.load(self.temp_file)
         self.assertEqual(ts1.tables, ts3.tables)
 
+    def test_empty_mutation_time(self):
+        ts1 = migration_example()
+        ts1.dump(self.temp_file)
+        ts2 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts2.tables)
+        self.assertEqual(len(ts1.tables.mutations.metadata), 0)
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        del all_data["mutations/time"]
+        kastore.dump(all_data, self.temp_file)
+        ts3 = tskit.load(self.temp_file)
+        self.assertEqual(ts1.tables, ts3.tables)
+
+
+class TestMixedUnknownMutation(TestFileFormat):
+    def test_unknown_mutation(self):
+        ts1 = migration_example()
+        tables = ts1.tables
+        tables.compute_mutation_times()
+        mutations = tables.mutations.asdict()
+        mutations["time"][0] = UNKNOWN_TIME
+        tables.mutations.set_columns(**mutations)
+        tables.tree_sequence().dump(self.temp_file)
+        tables2 = tskit.load(self.temp_file).tables
+        self.assertEqual(tables, tables2)
+
 
 class TestFileFormatErrors(TestFileFormat):
     """
     Tests for errors in the HDF5 format.
     """
-
-    current_major_version = 12
 
     def verify_missing_fields(self, ts):
         ts.dump(self.temp_file)
@@ -828,7 +859,10 @@ class TestFileFormatErrors(TestFileFormat):
             all_data = dict(store)
         for key in all_data.keys():
             # We skip these keys as they are optional
-            if "metadata_schema" not in key and key != "metadata":
+            if "metadata_schema" not in key and key not in [
+                "metadata",
+                "mutations/time",
+            ]:
                 data = dict(all_data)
                 del data[key]
                 kastore.dump(data, self.temp_file)

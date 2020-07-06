@@ -129,6 +129,29 @@ verify_compute_mutation_parents(tsk_treeseq_t *ts)
 }
 
 static void
+verify_compute_mutation_times(tsk_treeseq_t *ts)
+{
+    int ret;
+    size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
+    tsk_id_t *time = malloc(size);
+    tsk_table_collection_t tables;
+
+    CU_ASSERT_FATAL(time != NULL);
+    ret = tsk_treeseq_copy_tables(ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    memcpy(time, tables.mutations.time, size);
+    /* Make sure the tables are actually updated */
+    memset(tables.mutations.time, 0, size);
+
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(memcmp(time, tables.mutations.time, size), 0);
+
+    free(time);
+    tsk_table_collection_free(&tables);
+}
+
+static void
 verify_individual_nodes(tsk_treeseq_t *ts)
 {
     int ret;
@@ -3140,12 +3163,12 @@ test_single_tree_bad_mutations(void)
     const char *sites = "0       0\n"
                         "0.1     0\n"
                         "0.2     0\n";
-    const char *mutations = "0   0  1  -1\n"
-                            "1   1  1  -1\n"
-                            "2   4  1  -1\n"
-                            "2   1  0  2\n"
-                            "2   1  1  3\n"
-                            "2   2  1  -1\n";
+    const char *mutations = "0   0  1  -1  0\n"
+                            "1   1  1  -1  0\n"
+                            "2   4  1  -1  1\n"
+                            "2   1  0  2   0\n"
+                            "2   1  1  3   0\n"
+                            "2   2  1  -1  0\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
@@ -3281,6 +3304,27 @@ test_single_tree_bad_mutations(void)
     CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
     tsk_treeseq_free(&ts);
     tables.mutations.parent[2] = TSK_NULL;
+
+    /* time < node time */
+    tables.mutations.time[2] = 0;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE);
+    tsk_treeseq_free(&ts);
+    tables.mutations.time[2] = 1;
+
+    /* time > parent mutation */
+    tables.mutations.time[4] = 0.5;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
+    tsk_treeseq_free(&ts);
+    tables.mutations.time[4] = 0;
+
+    /* time > parent node */
+    tables.mutations.time[0] = 1.5;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE);
+    tsk_treeseq_free(&ts);
+    tables.mutations.time[0] = 0;
 
     /* Check to make sure we've maintained legal mutations */
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
@@ -3714,12 +3758,12 @@ test_single_tree_compute_mutation_parents(void)
     const char *sites = "0       0\n"
                         "0.1     0\n"
                         "0.2     0\n";
-    const char *mutations = "0   0  1  -1\n"
-                            "1   1  1  -1\n"
-                            "2   4  1  -1\n"
-                            "2   1  0  2\n"
-                            "2   1  1  3\n"
-                            "2   2  1  -1\n";
+    const char *mutations = "0   0  1  -1  0\n"
+                            "1   1  1  -1  0\n"
+                            "2   4  1  -1  1\n"
+                            "2   1  0  2   0\n"
+                            "2   1  1  3   0\n"
+                            "2   2  1  -1  0\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
 
@@ -3748,9 +3792,6 @@ test_single_tree_compute_mutation_parents(void)
 
     /* Compute the mutation parents */
     verify_compute_mutation_parents(&ts);
-
-    /* Verify consistency of individuals */
-    verify_individual_nodes(&ts);
     tsk_treeseq_free(&ts);
 
     /* Bad site reference */
@@ -3813,6 +3854,123 @@ test_single_tree_compute_mutation_parents(void)
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 6);
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_single_tree_compute_mutation_times(void)
+{
+    int ret = 0;
+    const char *sites = "0       0\n"
+                        "0.1     0\n"
+                        "0.2     0\n"
+                        "0.3     0\n";
+    const char *mutations = "0   0  1  -1  3\n"
+                            "1   1  1  -1  3\n"
+                            "2   4  1  -1  8\n"
+                            "2   1  0  2   4\n"
+                            "2   1  1  3   2\n"
+                            "2   2  1  -1  4\n"
+                            "3   6  1  -1  10\n";
+    /*          6          */
+    /*          6          */
+    /*         / \         */
+    /*        /   \        */
+    /*       2     \       */
+    /*      /       5      */
+    /*     4       / \     */
+    /*    0 1,3,4 5   \    */
+    /*   0   1   2     3   */
+
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.sequence_length = 1;
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
+    tables.nodes.time[4] = 6;
+    tables.nodes.time[5] = 8;
+    tables.nodes.time[6] = 10;
+    parse_edges(single_tree_ex_edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
+    parse_sites(sites, &tables.sites);
+    parse_mutations(mutations, &tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.num_rows, 4);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.num_rows, 7);
+    tables.sequence_length = 1.0;
+
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Check to make sure we have legal mutations */
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 4);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 7);
+
+    /* Compute the mutation times */
+    verify_compute_mutation_times(&ts);
+
+    /* Verify consistency of individuals */
+    verify_individual_nodes(&ts);
+    tsk_treeseq_free(&ts);
+
+    /* Bad random param */
+    ret = tsk_table_collection_compute_mutation_times(&tables, (double *) 1, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Bad site reference */
+    tables.mutations.site[0] = -1;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    tables.mutations.site[0] = 0;
+
+    /* Bad site reference */
+    tables.mutations.site[0] = -1;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    tables.mutations.site[0] = 0;
+
+    /* mutation sites out of order */
+    tables.mutations.site[0] = 2;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
+    tables.mutations.site[0] = 0;
+
+    /* sites out of order */
+    tables.sites.position[0] = 0.11;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_UNSORTED_SITES);
+    tables.sites.position[0] = 0;
+
+    /* Bad node reference */
+    tables.mutations.node[0] = -1;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tables.mutations.node[0] = 0;
+
+    /* Bad node reference */
+    tables.mutations.node[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tables.mutations.node[0] = 0;
+
+    /* Mutations not ordered by site */
+    tables.mutations.site[2] = 0;
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
+    tables.mutations.site[2] = 2;
+
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 4);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 7);
     tsk_treeseq_free(&ts);
 
     tsk_treeseq_free(&ts);
@@ -5350,7 +5508,7 @@ test_deduplicate_sites_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_site_table_add_row(&tables.sites, 2, "TT", 2, "MM", 2);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, -1, "T", 1, NULL, 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, -1, 0, "T", 1, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_node_table_add_row(&tables.nodes, 0, 0, TSK_NULL, TSK_NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5732,6 +5890,8 @@ main(int argc, char **argv)
             test_single_tree_simplify_null_samples },
         { "test_single_tree_compute_mutation_parents",
             test_single_tree_compute_mutation_parents },
+        { "test_single_tree_compute_mutation_times",
+            test_single_tree_compute_mutation_times },
         { "test_single_tree_is_descendant", test_single_tree_is_descendant },
         { "test_single_tree_map_mutations", test_single_tree_map_mutations },
         { "test_single_tree_map_mutations_internal_samples",

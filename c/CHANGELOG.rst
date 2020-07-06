@@ -6,6 +6,10 @@ In development.
 
 **Breaking changes**
 
+- ``tsk_mutation_table_add_row`` has an extra ``time`` argument. If the time
+  is unknown ``TSK_UNKNOWN_TIME`` should be passed.
+  (:user:`benjeffery`, :pr:`672`)
+
 - Change genotypes from unsigned to signed to accommodate missing data
   (see :issue:`144` for discussion). This only affects users of the
   ``tsk_vargen_t`` class. Genotypes are now stored as int8_t and int16_t
@@ -33,6 +37,14 @@ In development.
   (:user:`benjeffery`, :pr:`493`)
 
 **New features**
+
+- Mutations now have an optional double-precision floating-point ``time`` column.
+  If not specified, this defaults to a particular NaN value (``TSK_UNKNOWN_TIME``)
+  indicating that the time is unknown. For a tree sequence to be considered valid
+  it must meet new criteria for mutation times, see :ref:`sec_mutation_requirements`.
+  Add ``tsk_table_collection_compute_mutation_times`` and new flag to
+  ``tsk_table_collection_check_integrity``:``TSK_CHECK_MUTATION_TIME``.
+  (:user:`benjeffery`, :pr:`672`)
 
 - Add ``metadata`` and ``metadata_schema`` fields to table collection, with accessors on
   tree sequence. These store arbitrary bytes and are optional in the file format.

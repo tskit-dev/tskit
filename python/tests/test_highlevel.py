@@ -48,6 +48,8 @@ import tests as tests
 import tests.simplify as simplify
 import tests.tsutil as tsutil
 import tskit
+import tskit.util as util
+from tskit import UNKNOWN_TIME
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -742,6 +744,17 @@ class TestTreeSequence(HighLevelTestCase):
             tables.compute_mutation_parents()
             parent = ts.tables.mutations.parent
             self.assertTrue(np.array_equal(parent, before))
+
+    def test_compute_mutation_time(self):
+        for ts in get_example_tree_sequences():
+            tables = ts.dump_tables()
+            python_time = tsutil.compute_mutation_times(ts)
+            tables.compute_mutation_times()
+            self.assertTrue(
+                np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
+            )
+            # Check we have valid times
+            tables.tree_sequence()
 
     def verify_tracked_samples(self, ts):
         # Should be empty list by default.
@@ -1656,16 +1669,22 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         self.assertEqual(len(output_mutations) - 1, ts.num_mutations)
         self.assertEqual(
             list(output_mutations[0].split()),
-            ["site", "node", "derived_state", "parent", "metadata"],
+            ["site", "node", "time", "derived_state", "parent", "metadata"],
         )
         mutations = [mut for site in ts.sites() for mut in site.mutations]
         for mutation, line in zip(mutations, output_mutations[1:]):
             splits = line.split("\t")
             self.assertEqual(str(mutation.site), splits[0])
             self.assertEqual(str(mutation.node), splits[1])
-            self.assertEqual(str(mutation.derived_state), splits[2])
-            self.assertEqual(str(mutation.parent), splits[3])
-            self.assertEqual(tests.base64_encode(mutation.metadata), splits[4])
+            self.assertEqual(
+                "unknown"
+                if util.is_unknown_time(mutation.time)
+                else str(mutation.time),
+                splits[2],
+            )
+            self.assertEqual(str(mutation.derived_state), splits[3])
+            self.assertEqual(str(mutation.parent), splits[4])
+            self.assertEqual(tests.base64_encode(mutation.metadata), splits[5])
 
     def test_output_format(self):
         for ts in get_example_tree_sequences():
@@ -1727,6 +1746,18 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             self.assertEqual(s1.metadata, s2.metadata)
             self.assertEqual(s1.mutations, s2.mutations)
         self.assertEqual(ts1.num_sites, checked)
+
+        checked = 0
+        for s1, s2 in zip(ts1.mutations(), ts2.mutations()):
+            checked += 1
+            self.assertEqual(s1.site, s2.site)
+            self.assertEqual(s1.node, s2.node)
+            if not (math.isnan(s1.time) and math.isnan(s2.time)):
+                self.assertAlmostEqual(s1.time, s2.time)
+            self.assertEqual(s1.derived_state, s2.derived_state)
+            self.assertEqual(s1.parent, s2.parent)
+            self.assertEqual(s1.metadata, s2.metadata)
+        self.assertEqual(ts1.num_mutations, checked)
 
         # Check the trees
         check = 0
@@ -2734,6 +2765,7 @@ class TestMutationContainer(
                 id_=j,
                 site=j,
                 node=j,
+                time=j,
                 derived_state="A" * j,
                 parent=j,
                 encoded_metadata=b"x" * j,
@@ -2741,6 +2773,46 @@ class TestMutationContainer(
             )
             for j in range(n)
         ]
+
+    def test_nan_equality(self):
+        a = tskit.Mutation(
+            id_=42,
+            site=42,
+            node=42,
+            time=UNKNOWN_TIME,
+            derived_state="A" * 42,
+            parent=42,
+            encoded_metadata=b"x" * 42,
+            metadata_decoder=lambda m: m.decode() + "decoded",
+        )
+        b = tskit.Mutation(
+            id_=42,
+            site=42,
+            node=42,
+            derived_state="A" * 42,
+            parent=42,
+            encoded_metadata=b"x" * 42,
+            metadata_decoder=lambda m: m.decode() + "decoded",
+        )
+        c = tskit.Mutation(
+            id_=42,
+            site=42,
+            node=42,
+            time=math.nan,
+            derived_state="A" * 42,
+            parent=42,
+            encoded_metadata=b"x" * 42,
+            metadata_decoder=lambda m: m.decode() + "decoded",
+        )
+        self.assertTrue(a == a)
+        self.assertTrue(a == b)
+        self.assertFalse(a == c)
+        self.assertFalse(b == c)
+        self.assertFalse(a != a)
+        self.assertFalse(a != b)
+        self.assertTrue(a != c)
+        self.assertTrue(c != c)
+        self.assertFalse(c == c)
 
 
 class TestMigrationContainer(

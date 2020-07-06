@@ -228,28 +228,48 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
 {
     int ret = TSK_ERR_GENERIC;
     size_t j, k, tree_index;
-    tsk_id_t site;
+    tsk_id_t site, mutation;
     double tree_left, tree_right;
     const double sequence_length = self->tables->sequence_length;
     const tsk_id_t num_sites = (tsk_id_t) self->tables->sites.num_rows;
+    const tsk_id_t num_mutations = (tsk_id_t) self->tables->mutations.num_rows;
     const size_t num_edges = self->tables->edges.num_rows;
     const double *restrict site_position = self->tables->sites.position;
+    const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
+    const tsk_id_t *restrict mutation_node = self->tables->mutations.node;
+    const double *restrict mutation_time = self->tables->mutations.time;
+    const double *restrict node_time = self->tables->nodes.time;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
+    const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
+    tsk_id_t *parent = NULL;
+
+    parent = malloc(self->tables->nodes.num_rows * sizeof(*parent));
+    if (parent == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, self->tables->nodes.num_rows * sizeof(*parent));
 
     tree_left = 0;
     tree_right = sequence_length;
     self->num_trees = 0;
     j = 0;
     k = 0;
+    site = 0;
+    mutation = 0;
     assert(I != NULL && O != NULL);
+    /* Iterate through the trees in order to count them and check mutation times */
     while (j < num_edges || tree_left < sequence_length) {
         while (k < num_edges && edge_right[O[k]] == tree_left) {
+            parent[edge_child[O[k]]] = TSK_NULL;
             k++;
         }
         while (j < num_edges && edge_left[I[j]] == tree_left) {
+            parent[edge_child[I[j]]] = edge_parent[I[j]];
             j++;
         }
         tree_right = sequence_length;
@@ -258,6 +278,19 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
         }
         if (k < num_edges) {
             tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
+        }
+        while (site < num_sites && site_position[site] < tree_right) {
+            while (mutation < num_mutations && mutation_site[mutation] == site) {
+                if (!isnan(mutation_time[mutation])
+                    && parent[mutation_node[mutation]] != TSK_NULL
+                    && node_time[parent[mutation_node[mutation]]]
+                           <= mutation_time[mutation]) {
+                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE;
+                    goto out;
+                }
+                mutation++;
+            }
+            site++;
         }
         tree_left = tree_right;
         self->num_trees++;
@@ -309,6 +342,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     self->breakpoints[tree_index] = tree_right;
     ret = 0;
 out:
+    tsk_safe_free(parent);
     return ret;
 }
 
