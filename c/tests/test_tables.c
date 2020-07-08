@@ -2427,7 +2427,7 @@ test_simplify_empty_tables(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
-    // ret = tsk_table_collection_simplify(&tables, NULL, 0, 0, NULL);
+    ret = tsk_table_collection_simplify(&tables, NULL, 0, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 0);
@@ -2564,6 +2564,99 @@ test_sort_tables_errors(void)
     CU_ASSERT_EQUAL_FATAL(tables.migrations.num_rows, 1);
     ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+reverse_edges(tsk_table_collection_t *tables)
+{
+    int ret;
+    tsk_edge_table_t edges;
+    tsk_edge_t edge;
+    tsk_id_t j;
+
+    ret = tsk_edge_table_init(&edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = (tsk_id_t) tables->edges.num_rows - 1; j >= 0; j--) {
+        ret = tsk_edge_table_get_row(&tables->edges, j, &edge);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_add_row(&edges, edge.left, edge.right, edge.parent,
+            edge.child, edge.metadata, edge.metadata_length);
+        CU_ASSERT_FATAL(ret >= 0);
+    }
+
+    ret = tsk_edge_table_copy(&edges, &tables->edges, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_edge_table_free(&edges);
+}
+
+static void
+test_sorter_interface(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_table_sorter_t sorter;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, &tables));
+
+    /* Nominal case */
+    reverse_edges(&tables);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(ts.tables, &tables));
+    ret = tsk_table_sorter_init(&sorter, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_sorter_run(&sorter, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, &tables));
+    CU_ASSERT_EQUAL(sorter.user_data, NULL);
+    tsk_table_sorter_free(&sorter);
+
+    /* If we set the sort_edges function to NULL then we should leave the
+     * node table as is. */
+    reverse_edges(&tables);
+    CU_ASSERT_FALSE(tsk_edge_table_equals(&ts.tables->edges, &tables.edges));
+    ret = tsk_table_sorter_init(&sorter, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    sorter.sort_edges = NULL;
+    ret = tsk_table_sorter_run(&sorter, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_edge_table_equals(&ts.tables->edges, &tables.edges));
+    tsk_table_sorter_free(&sorter);
+
+    /* Reversing again should make them equal */
+    reverse_edges(&tables);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&ts.tables->edges, &tables.edges));
+
+    /* Do not check integrity before sorting */
+    reverse_edges(&tables);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(ts.tables, &tables));
+    ret = tsk_table_sorter_init(&sorter, &tables, TSK_NO_CHECK_INTEGRITY);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_sorter_run(&sorter, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, &tables));
+    tsk_table_sorter_free(&sorter);
+
+    /* The user_data shouldn't be touched */
+    reverse_edges(&tables);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(ts.tables, &tables));
+    ret = tsk_table_sorter_init(&sorter, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    sorter.user_data = (void *) &ts;
+    ret = tsk_table_sorter_run(&sorter, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, &tables));
+    CU_ASSERT_EQUAL_FATAL(sorter.user_data, &ts);
+    tsk_table_sorter_free(&sorter);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -3453,6 +3546,7 @@ main(int argc, char **argv)
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
         { "test_copy_table_collection", test_copy_table_collection },
         { "test_sort_tables_errors", test_sort_tables_errors },
+        { "test_sorter_interface", test_sorter_interface },
         { "test_dump_unindexed", test_dump_unindexed },
         { "test_dump_load_empty", test_dump_load_empty },
         { "test_dump_load_unsorted", test_dump_load_unsorted },

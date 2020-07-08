@@ -71,6 +71,9 @@ In development.
   variants for tree sequence and table collection load/dump
   (:user:`jeromekelleher`, :user:`grahamgower`, :issue:`565`, :pr:`599`).
 
+- Add low-level sorting API and ``TSK_NO_CHECK_INTEGRITY`` flag
+  (:user:`jeromekelleher`, :pr:`627`, :issue:`626`).
+
 **Deprecated**
 
 - The ``TSK_SAMPLE_COUNTS`` options is now ignored and  will print out a warning
