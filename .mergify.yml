@@ -19,6 +19,7 @@ pull_request_rules:
         strict: smart
         strict_method: rebase
         method: merge
+        bot_account: AdminBot-tskit
 
   - name: Remove label after merge
     conditions:
