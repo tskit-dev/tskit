@@ -132,6 +132,7 @@ static void
 verify_compute_mutation_times(tsk_treeseq_t *ts)
 {
     int ret;
+    size_t j;
     size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
     tsk_id_t *time = malloc(size);
     tsk_table_collection_t tables;
@@ -140,8 +141,10 @@ verify_compute_mutation_times(tsk_treeseq_t *ts)
     ret = tsk_treeseq_copy_tables(ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     memcpy(time, tables.mutations.time, size);
-    /* Make sure the tables are actually updated */
-    memset(tables.mutations.time, 0, size);
+    /* Time should be set to TSK_UNKNOWN_TIME before computing */
+    for (j = 0; j < size; j++) {
+        tables.mutations.time[j] = TSK_UNKNOWN_TIME;
+    }
 
     ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3758,12 +3761,12 @@ test_single_tree_compute_mutation_parents(void)
     const char *sites = "0       0\n"
                         "0.1     0\n"
                         "0.2     0\n";
-    const char *mutations = "0   0  1  -1  0\n"
-                            "1   1  1  -1  0\n"
-                            "2   4  1  -1  1\n"
-                            "2   1  0  2   0\n"
-                            "2   1  1  3   0\n"
-                            "2   2  1  -1  0\n";
+    const char *mutations = "0   0  1  -1\n"
+                            "1   1  1  -1\n"
+                            "2   4  1  -1\n"
+                            "2   1  0  2 \n"
+                            "2   1  1  3 \n"
+                            "2   2  1  -1\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
 

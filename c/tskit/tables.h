@@ -660,19 +660,16 @@ typedef struct _tsk_table_sorter_t {
 #define TSK_KEEP_UNARY (1 << 4)
 
 /* Flags for check_integrity */
-#define TSK_CHECK_OFFSETS (1 << 0)
-#define TSK_CHECK_EDGE_ORDERING (1 << 1)
-#define TSK_CHECK_SITE_ORDERING (1 << 2)
-#define TSK_CHECK_SITE_DUPLICATES (1 << 3)
-#define TSK_CHECK_MUTATION_ORDERING (1 << 4)
-#define TSK_CHECK_INDEXES (1 << 5)
+#define TSK_CHECK_EDGE_ORDERING (1 << 0)
+#define TSK_CHECK_SITE_ORDERING (1 << 1)
+#define TSK_CHECK_SITE_DUPLICATES (1 << 2)
+#define TSK_CHECK_MUTATION_ORDERING (1 << 3)
+#define TSK_CHECK_INDEXES (1 << 4)
 #define TSK_CHECK_ALL                                                                   \
-    (TSK_CHECK_OFFSETS | TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING              \
-        | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES   \
-        | TSK_CHECK_MUTATION_TIME)
-#define TSK_NO_CHECK_MUTATION_PARENTS (1 << 6)
-#define TSK_NO_CHECK_POPULATION_REFS (1 << 7)
-#define TSK_CHECK_MUTATION_TIME (1 << 8)
+    (TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING | TSK_CHECK_SITE_DUPLICATES      \
+        | TSK_CHECK_MUTATION_ORDERING | TSK_CHECK_INDEXES)
+/* Leave room for more positive check flags */
+#define TSK_NO_CHECK_POPULATION_REFS (1 << 10)
 
 /* Flags for dump tables */
 #define TSK_NO_BUILD_INDEXES (1 << 0)
@@ -2588,7 +2585,51 @@ int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t o
 @brief Runs integrity checks on this table collection.
 
 @rst
-TODO: document me. https://github.com/tskit-dev/tskit/issues/592
+
+Checks the integrity of this table collection. The default checks (i.e., with
+options = 0) guarantee the integrity of memory and references within the
+table collection. All spatial values (along the genome) are checked
+to see if they are finite values and within the required bounds. Time values
+are checked to see if they are finite or marked as unknown.
+
+To check if a set of tables fulfills the requirements needed
+for a valid tree sequence, use the TSK_CHECK_ALL option. Note that
+if is possible for :c:func:`tsk_treeseq_init` to fail even if
+TSK_CHECK_ALL integrity checks pass. This is because some properties
+can only be verified when we build the trees along the genome,
+and which we do not check here.
+
+More fine-grained checks can be achieved using bitwise combinations of the
+other options.
+
+**Options**:
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_CHECK_EDGE_ORDERING
+    Check edge ordering constraints for a tree sequence.
+TSK_CHECK_SITE_ORDERING
+    Check that sites are in nondecreasing position order.
+TSK_CHECK_SITE_DUPLICATES
+    Check for any duplicate site positions.
+TSK_CHECK_MUTATION_ORDERING
+    Check contraints on the ordering of mutations. Any non-null
+    mutation parents and known times are checked for ordering
+    constraints.
+TSK_CHECK_INDEXES
+    Check that the table indexes exist, and contain valid edge
+    references.
+TSK_CHECK_ALL
+    All checks needed to define a valid tree sequence that
+    can be determined without building the individual trees.
+
+It is sometimes useful to disregard some parts of the data model
+when performing checks:
+
+TSK_NO_CHECK_POPULATION_REFS
+    Do not check integrity of references to populations. This
+    can be safely combined with TSK_CHECK_ALL.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
