@@ -479,7 +479,7 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
 void
 tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nodes,
     const char *edges, const char *migrations, const char *sites, const char *mutations,
-    const char *individuals, const char *provenance)
+    const char *individuals, const char *provenance, tsk_flags_t tc_options)
 {
     int ret;
     tsk_table_collection_t tables;
@@ -492,7 +492,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
     /* Not supporting provenance here for now */
     CU_ASSERT_FATAL(provenance == NULL);
 
-    ret = tsk_table_collection_init(&tables, 0);
+    ret = tsk_table_collection_init(&tables, tc_options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = sequence_length;
     parse_nodes(nodes, &tables.nodes);
@@ -547,7 +547,7 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     const char *prov_record = "Produced by caterpillar_tree for testing purposes";
 
     CU_ASSERT_FATAL(ts != NULL);
-    ret = tsk_table_collection_init(&tables, 1.0);
+    ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     CU_ASSERT_FATAL(num_sites > 0 && num_mutations < n - 1);

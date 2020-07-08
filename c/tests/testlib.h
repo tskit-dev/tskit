@@ -42,7 +42,7 @@ int test_main(CU_TestInfo *tests, int argc, char **argv);
 
 void tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nodes,
     const char *edges, const char *migrations, const char *sites, const char *mutations,
-    const char *individuals, const char *provenance);
+    const char *individuals, const char *provenance, tsk_flags_t tc_options);
 tsk_treeseq_t *caterpillar_tree(
     tsk_size_t num_samples, tsk_size_t num_sites, tsk_size_t num_mutations);
 

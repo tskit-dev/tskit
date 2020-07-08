@@ -407,7 +407,11 @@ tsk_treeseq_init(
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+
+    /* Note that this copy reinstates metadata for a table collection with
+     * TSK_NO_EDGE_METADATA a table without metadata will crash tsk_diff_iter_next*/
     ret = tsk_table_collection_copy(tables, self->tables, 0);
+
     if (ret != 0) {
         goto out;
     }

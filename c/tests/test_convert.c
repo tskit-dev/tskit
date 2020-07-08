@@ -38,7 +38,7 @@ test_single_tree_newick(void)
     char newick[buffer_size];
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL);
+        NULL, NULL, NULL, 0);
 
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
@@ -74,7 +74,7 @@ test_single_tree_newick_errors(void)
     char newick[buffer_size];
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL);
+        NULL, NULL, NULL, 0);
 
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)

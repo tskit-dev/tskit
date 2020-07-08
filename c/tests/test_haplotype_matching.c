@@ -82,7 +82,7 @@ test_single_tree_missing_alleles(void)
     int8_t h[] = { 0, 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, TSK_ALLELES_ACGT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -114,7 +114,7 @@ test_single_tree_exact_match(void)
     unsigned int precision;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -172,7 +172,7 @@ test_single_tree_missing_haplotype_data(void)
     double decoded_compressed_matrix[12];
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -214,7 +214,7 @@ test_single_tree_match_impossible(void)
     int8_t h[] = { 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -250,7 +250,7 @@ test_single_tree_errors(void)
     int8_t h[] = { 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_viterbi_matrix_init(&viterbi, &ts, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -312,7 +312,7 @@ test_single_tree_compressed_matrix(void)
     int8_t h[] = { 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_compressed_matrix_init(&matrix, &ts, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -380,7 +380,7 @@ test_single_tree_viterbi_matrix(void)
     int j;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     ret = tsk_viterbi_matrix_init(&viterbi, &ts, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -454,7 +454,7 @@ test_multi_tree_exact_match(void)
     unsigned int precision;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_ls_hmm_init(&ls_hmm, &ts, rho, mu, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -506,7 +506,7 @@ test_multi_tree_errors(void)
     double decoded[3][4];
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_compressed_matrix_init(&forward, &ts, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);

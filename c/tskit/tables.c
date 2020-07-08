@@ -1270,6 +1270,12 @@ out:
  *************************/
 
 static int
+tsk_edge_table_has_metadata(tsk_edge_table_t *self)
+{
+    return !(self->options & TSK_NO_METADATA);
+}
+
+static int
 tsk_edge_table_expand_main_columns(tsk_edge_table_t *self, size_t additional_rows)
 {
     int ret = 0;
@@ -1298,10 +1304,12 @@ tsk_edge_table_expand_main_columns(tsk_edge_table_t *self, size_t additional_row
         if (ret != 0) {
             goto out;
         }
-        ret = expand_column(
-            (void **) &self->metadata_offset, new_size + 1, sizeof(tsk_size_t));
-        if (ret != 0) {
-            goto out;
+        if (tsk_edge_table_has_metadata(self)) {
+            ret = expand_column(
+                (void **) &self->metadata_offset, new_size + 1, sizeof(tsk_size_t));
+            if (ret != 0) {
+                goto out;
+            }
         }
         self->max_rows = new_size;
     }
@@ -1355,11 +1363,12 @@ tsk_edge_table_set_max_metadata_length_increment(
 }
 
 int
-tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options)
 {
     int ret = 0;
 
     memset(self, 0, sizeof(tsk_edge_table_t));
+    self->options = options;
 
     /* Allocate space for one row initially, ensuring we always have valid
      * pointers even if the table is empty */
@@ -1369,11 +1378,13 @@ tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t TSK_UNUSED(options))
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_expand_metadata(self, 1);
-    if (ret != 0) {
-        goto out;
+    if (tsk_edge_table_has_metadata(self)) {
+        ret = tsk_edge_table_expand_metadata(self, 1);
+        if (ret != 0) {
+            goto out;
+        }
+        self->metadata_offset[0] = 0;
     }
-    self->metadata_offset[0] = 0;
     self->max_rows_increment = DEFAULT_SIZE_INCREMENT;
     self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
     tsk_edge_table_set_metadata_schema(self, NULL, 0);
@@ -1387,25 +1398,33 @@ tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double right,
 {
     int ret = 0;
 
-    ret = tsk_edge_table_expand_main_columns(self, 1);
-    if (ret != 0) {
+    if (metadata_length > 0 && !tsk_edge_table_has_metadata(self)) {
+        ret = TSK_ERR_METADATA_DISABLED;
         goto out;
     }
-    ret = tsk_edge_table_expand_metadata(self, metadata_length);
+
+    ret = tsk_edge_table_expand_main_columns(self, 1);
     if (ret != 0) {
         goto out;
     }
 
     assert(self->num_rows < self->max_rows);
-    assert(self->metadata_length + metadata_length <= self->max_metadata_length);
-    memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
     self->left[self->num_rows] = left;
     self->right[self->num_rows] = right;
     self->parent[self->num_rows] = parent;
     self->child[self->num_rows] = child;
-    self->metadata_offset[self->num_rows + 1] = self->metadata_length + metadata_length;
-    self->metadata_length += metadata_length;
 
+    if (tsk_edge_table_has_metadata(self)) {
+        ret = tsk_edge_table_expand_metadata(self, metadata_length);
+        if (ret != 0) {
+            goto out;
+        }
+        assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+        memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
+        self->metadata_offset[self->num_rows + 1]
+            = self->metadata_length + metadata_length;
+        self->metadata_length += metadata_length;
+    }
     ret = (tsk_id_t) self->num_rows;
     self->num_rows++;
 out:
@@ -1418,11 +1437,20 @@ tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t 
     int ret = 0;
 
     if (!(options & TSK_NO_INIT)) {
-        ret = tsk_edge_table_init(dest, 0);
+        ret = tsk_edge_table_init(dest, options);
         if (ret != 0) {
             goto out;
         }
     }
+
+    /* We can't change to use metadata if it was disabled when the table was init'd
+     */
+    if (!tsk_edge_table_has_metadata(dest) && !(options & TSK_NO_METADATA)) {
+        ret = TSK_ERR_METADATA_DISABLED;
+        goto out;
+    }
+    dest->options = options;
+
     ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
         self->parent, self->child, self->metadata, self->metadata_offset);
     if (ret != 0) {
@@ -1467,6 +1495,10 @@ tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows, doubl
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
+    if (metadata != NULL && !tsk_edge_table_has_metadata(self)) {
+        ret = TSK_ERR_METADATA_DISABLED;
+        goto out;
+    }
 
     ret = tsk_edge_table_expand_main_columns(self, num_rows);
     if (ret != 0) {
@@ -1476,30 +1508,34 @@ tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows, doubl
     memcpy(self->right + self->num_rows, right, num_rows * sizeof(double));
     memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
     memcpy(self->child + self->num_rows, child, num_rows * sizeof(tsk_id_t));
-    if (metadata == NULL) {
-        for (j = 0; j < num_rows; j++) {
-            self->metadata_offset[self->num_rows + j + 1] = self->metadata_length;
+    if (tsk_edge_table_has_metadata(self)) {
+        if (metadata == NULL) {
+            for (j = 0; j < num_rows; j++) {
+                self->metadata_offset[self->num_rows + j + 1] = self->metadata_length;
+            }
+        } else {
+            ret = check_offsets(num_rows, metadata_offset, 0, false);
+            if (ret != 0) {
+                goto out;
+            }
+            for (j = 0; j < num_rows; j++) {
+                self->metadata_offset[self->num_rows + j]
+                    = (tsk_size_t) self->metadata_length + metadata_offset[j];
+            }
+            metadata_length = metadata_offset[num_rows];
+            ret = tsk_edge_table_expand_metadata(self, metadata_length);
+            if (ret != 0) {
+                goto out;
+            }
+            memcpy(self->metadata + self->metadata_length, metadata,
+                metadata_length * sizeof(char));
+            self->metadata_length += metadata_length;
         }
+        self->num_rows += num_rows;
+        self->metadata_offset[self->num_rows] = self->metadata_length;
     } else {
-        ret = check_offsets(num_rows, metadata_offset, 0, false);
-        if (ret != 0) {
-            goto out;
-        }
-        for (j = 0; j < num_rows; j++) {
-            self->metadata_offset[self->num_rows + j]
-                = (tsk_size_t) self->metadata_length + metadata_offset[j];
-        }
-        metadata_length = metadata_offset[num_rows];
-        ret = tsk_edge_table_expand_metadata(self, metadata_length);
-        if (ret != 0) {
-            goto out;
-        }
-        memcpy(self->metadata + self->metadata_length, metadata,
-            metadata_length * sizeof(char));
-        self->metadata_length += metadata_length;
+        self->num_rows += num_rows;
     }
-    self->num_rows += num_rows;
-    self->metadata_offset[self->num_rows] = self->metadata_length;
 out:
     return ret;
 }
@@ -1520,7 +1556,9 @@ tsk_edge_table_truncate(tsk_edge_table_t *self, tsk_size_t num_rows)
         goto out;
     }
     self->num_rows = num_rows;
-    self->metadata_length = self->metadata_offset[num_rows];
+    if (tsk_edge_table_has_metadata(self)) {
+        self->metadata_length = self->metadata_offset[num_rows];
+    }
 out:
     return ret;
 }
@@ -1566,9 +1604,9 @@ tsk_edge_table_set_metadata_schema(tsk_edge_table_t *self, const char *metadata_
 int
 tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out)
 {
-    tsk_size_t j;
+    tsk_id_t j;
     int ret = TSK_ERR_IO;
-    tsk_size_t metadata_len;
+    tsk_edge_t row;
     int err;
 
     err = fprintf(out, "#metadata_schema#\n");
@@ -1587,11 +1625,10 @@ tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out)
     if (err < 0) {
         goto out;
     }
-    for (j = 0; j < self->num_rows; j++) {
-        metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%d\t%.3f\t%.3f\t%d\t%d\t%.*s\n", j, self->left[j],
-            self->right[j], self->parent[j], self->child[j], metadata_len,
-            self->metadata + self->metadata_offset[j]);
+    for (j = 0; j < (tsk_id_t) self->num_rows; j++) {
+        tsk_edge_table_get_row(self, j, &row);
+        err = fprintf(out, "%d\t%.3f\t%.3f\t%d\t%d\t%.*s\n", j, row.left, row.right,
+            row.parent, row.child, row.metadata_length, row.metadata);
         if (err < 0) {
             goto out;
         }
@@ -1614,12 +1651,13 @@ tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other)
                      == 0
               && memcmp(self->child, other->child, self->num_rows * sizeof(tsk_id_t))
                      == 0
-              && memcmp(self->metadata_offset, other->metadata_offset,
-                     (self->num_rows + 1) * sizeof(tsk_size_t))
-                     == 0
-              && memcmp(self->metadata, other->metadata,
-                     self->metadata_length * sizeof(char))
-                     == 0
+              && (!tsk_edge_table_has_metadata(self)
+                     || (memcmp(self->metadata_offset, other->metadata_offset,
+                             (self->num_rows + 1) * sizeof(tsk_size_t))
+                                == 0
+                            && memcmp(self->metadata, other->metadata,
+                                   self->metadata_length * sizeof(char))
+                                   == 0))
               && memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
@@ -1641,9 +1679,14 @@ tsk_edge_table_get_row(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row)
     row->right = self->right[index];
     row->parent = self->parent[index];
     row->child = self->child[index];
-    row->metadata_length
-        = self->metadata_offset[index + 1] - self->metadata_offset[index];
-    row->metadata = self->metadata + self->metadata_offset[index];
+    if (tsk_edge_table_has_metadata(self)) {
+        row->metadata_length
+            = self->metadata_offset[index + 1] - self->metadata_offset[index];
+        row->metadata = self->metadata + self->metadata_offset[index];
+    } else {
+        row->metadata_length = 0;
+        row->metadata = NULL;
+    }
 out:
     return ret;
 }
@@ -1651,19 +1694,35 @@ out:
 static int
 tsk_edge_table_dump(tsk_edge_table_t *self, kastore_t *store)
 {
+    int ret = TSK_ERR_IO;
+
     write_table_col_t write_cols[] = {
         { "edges/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
         { "edges/right", (void *) self->right, self->num_rows, KAS_FLOAT64 },
         { "edges/parent", (void *) self->parent, self->num_rows, KAS_INT32 },
         { "edges/child", (void *) self->child, self->num_rows, KAS_INT32 },
-        { "edges/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
-        { "edges/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            KAS_UINT32 },
         { "edges/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
     };
+    write_table_col_t write_cols_metadata[] = {
+        { "edges/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
+        { "edges/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
+            KAS_UINT32 },
+    };
 
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    if (ret != 0) {
+        goto out;
+    }
+    if (tsk_edge_table_has_metadata(self)) {
+        ret = write_table_cols(store, write_cols_metadata,
+            sizeof(write_cols_metadata) / sizeof(*write_cols_metadata));
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
 }
 
 static int
@@ -6769,7 +6828,7 @@ tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     memset(self, 0, sizeof(*self));
@@ -6778,7 +6837,11 @@ tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(o
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_init(&self->edges, 0);
+    if (options & TSK_NO_EDGE_METADATA) {
+        ret = tsk_edge_table_init(&self->edges, TSK_NO_METADATA);
+    } else {
+        ret = tsk_edge_table_init(&self->edges, 0);
+    }
     if (ret != 0) {
         goto out;
     }
@@ -6980,7 +7043,7 @@ tsk_table_collection_copy(
     int ret = 0;
 
     if (!(options & TSK_NO_INIT)) {
-        ret = tsk_table_collection_init(dest, 0);
+        ret = tsk_table_collection_init(dest, options);
         if (ret != 0) {
             goto out;
         }
@@ -6989,7 +7052,12 @@ tsk_table_collection_copy(
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_copy(&self->edges, &dest->edges, TSK_NO_INIT);
+    if (options & TSK_NO_EDGE_METADATA) {
+        ret = tsk_edge_table_copy(
+            &self->edges, &dest->edges, TSK_NO_INIT | TSK_NO_METADATA);
+    } else {
+        ret = tsk_edge_table_copy(&self->edges, &dest->edges, TSK_NO_INIT);
+    }
     if (ret != 0) {
         goto out;
     }
