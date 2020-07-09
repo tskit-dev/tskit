@@ -715,7 +715,7 @@ def disorder_ts(ts, seed):
             derived_state=m.derived_state,
             parent=m.parent,
             metadata=m.metadata,
-            # time=m.time,
+            time=m.time,
         )
     return tables
 
@@ -735,10 +735,12 @@ def orig_mut_keys(i, tables, sorted_sites):
     return sorted_sites.index(orig_site)
 
 
-def new_mut_keys(i, tables, sorted_sites):
+def new_mut_keys(i, tables, sorted_sites, time_in_key):
     orig_site = tables.mutations.site[i]
+    time = tables.mutations.time[i] if time_in_key else 0
     return (
         sorted_sites.index(orig_site),
+        time,
         tables.mutations.parent[i],
         tables.mutations.node[i],
     )
@@ -751,6 +753,7 @@ def py_sort(
     tables.edges.clear()
     tables.sites.clear()
     tables.mutations.clear()
+    time_in_key = np.all(~np.isnan(copy.mutations.time))
     sorted_edges = sorted(
         range(copy.edges.num_rows), key=lambda x: edge_keys(x, tables=copy)
     )
@@ -759,7 +762,9 @@ def py_sort(
     )
     sorted_muts = sorted(
         range(copy.mutations.num_rows),
-        key=lambda x: mut_keys(x, tables=copy, sorted_sites=sorted_sites),
+        key=lambda x: mut_keys(
+            x, tables=copy, sorted_sites=sorted_sites, time_in_key=time_in_key
+        ),
     )
     for edge_id in sorted_edges:
         tables.edges.add_row(
@@ -781,7 +786,7 @@ def py_sort(
             copy.mutations[mut_id].derived_state,
             copy.mutations[mut_id].parent,
             copy.mutations[mut_id].metadata,
-            # copy.mutations[mut_id].time,
+            copy.mutations[mut_id].time,
         )
 
 
