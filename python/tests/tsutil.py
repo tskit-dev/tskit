@@ -680,6 +680,111 @@ def compute_mutation_times(ts):
     return times
 
 
+def disorder_ts(ts, seed):
+    """
+    Randomizes the order the Edge, Site and Mutation Tables rows.
+    :param TreeSequence ts: The tree sequence to disorders the tables from.
+        Need not have a valid mutation time column.
+    :return: Table Collection based off of `ts` in which edges, sites and
+        mutations were randomly shuffled.
+    """
+    rng = random.Random(seed)
+    tables = ts.dump_tables()
+    randomised_edges = list(ts.edges())
+    rng.shuffle(randomised_edges)
+    tables.edges.clear()
+    for e in randomised_edges:
+        tables.edges.add_row(e.left, e.right, e.parent, e.child)
+    tables.sites.clear()
+    tables.mutations.clear()
+    randomised_sites = list(ts.sites())
+    rng.shuffle(randomised_sites)
+    # Maps original IDs into their indexes in the randomised table.
+    site_id_map = {}
+    randomised_mutations = []
+    for s in randomised_sites:
+        site_id_map[s.id] = tables.sites.add_row(
+            s.position, ancestral_state=s.ancestral_state, metadata=s.metadata
+        )
+        randomised_mutations.extend(s.mutations)
+    rng.shuffle(randomised_mutations)
+    for m in randomised_mutations:
+        tables.mutations.add_row(
+            site=site_id_map[m.site],
+            node=m.node,
+            derived_state=m.derived_state,
+            parent=m.parent,
+            metadata=m.metadata,
+            # time=m.time,
+        )
+    return tables
+
+
+def orig_edge_keys(i, tables):
+    edge = tables.edges[i]
+    parent_time = tables.nodes.time[edge.parent]
+    return parent_time, edge.parent, edge.child, edge.left
+
+
+def orig_site_keys(i, tables):
+    return tables.sites.position[i]
+
+
+def orig_mut_keys(i, tables, sorted_sites):
+    orig_site = tables.mutations.site[i]
+    return sorted_sites.index(orig_site)
+
+
+def new_mut_keys(i, tables, sorted_sites):
+    orig_site = tables.mutations.site[i]
+    return (
+        sorted_sites.index(orig_site),
+        tables.mutations.parent[i],
+        tables.mutations.node[i],
+    )
+
+
+def py_sort(
+    tables, edge_keys=orig_edge_keys, site_keys=orig_site_keys, mut_keys=orig_mut_keys
+):
+    copy = tables.copy()
+    tables.edges.clear()
+    tables.sites.clear()
+    tables.mutations.clear()
+    sorted_edges = sorted(
+        range(copy.edges.num_rows), key=lambda x: edge_keys(x, tables=copy)
+    )
+    sorted_sites = sorted(
+        range(copy.sites.num_rows), key=lambda x: site_keys(x, tables=copy)
+    )
+    sorted_muts = sorted(
+        range(copy.mutations.num_rows),
+        key=lambda x: mut_keys(x, tables=copy, sorted_sites=sorted_sites),
+    )
+    for edge_id in sorted_edges:
+        tables.edges.add_row(
+            copy.edges[edge_id].left,
+            copy.edges[edge_id].right,
+            copy.edges[edge_id].parent,
+            copy.edges[edge_id].child,
+        )
+    for site_id in sorted_sites:
+        tables.sites.add_row(
+            copy.sites[site_id].position,
+            copy.sites[site_id].ancestral_state,
+            copy.sites[site_id].metadata,
+        )
+    for mut_id in sorted_muts:
+        tables.mutations.add_row(
+            sorted_sites.index(copy.mutations[mut_id].site),
+            copy.mutations[mut_id].node,
+            copy.mutations[mut_id].derived_state,
+            copy.mutations[mut_id].parent,
+            copy.mutations[mut_id].metadata,
+            # copy.mutations[mut_id].time,
+        )
+
+
 def algorithm_T(ts):
     """
     Simple implementation of algorithm T from the PLOS paper, taking into
