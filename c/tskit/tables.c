@@ -1270,7 +1270,7 @@ out:
  *************************/
 
 static int
-tsk_edge_table_has_metadata(tsk_edge_table_t *self)
+tsk_edge_table_has_metadata(const tsk_edge_table_t *self)
 {
     return !(self->options & TSK_NO_METADATA);
 }
@@ -1443,7 +1443,7 @@ tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t 
         }
     }
 
-    /* We can't change to use metadata if it was disabled when the table was init'd
+    /* We can't change to use metadata if it was disabled when the dest table was init'd
      */
     if (!tsk_edge_table_has_metadata(dest) && !(options & TSK_NO_METADATA)) {
         ret = TSK_ERR_METADATA_DISABLED;
@@ -1451,8 +1451,13 @@ tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t 
     }
     dest->options = options;
 
-    ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
-        self->parent, self->child, self->metadata, self->metadata_offset);
+    if (tsk_edge_table_has_metadata(dest)) {
+        ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
+            self->parent, self->child, self->metadata, self->metadata_offset);
+    } else {
+        ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
+            self->parent, self->child, NULL, NULL);
+    }
     if (ret != 0) {
         goto out;
     }
@@ -4345,6 +4350,8 @@ typedef struct {
     tsk_id_t parent;
     tsk_id_t child;
     double time;
+    tsk_size_t metadata_offset;
+    tsk_size_t metadata_length;
 } edge_sort_t;
 
 static int
@@ -4409,14 +4416,16 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
     const tsk_edge_table_t *edges = &self->tables->edges;
     const double *restrict node_time = self->tables->nodes.time;
     edge_sort_t *e;
-    tsk_size_t j, k;
-    tsk_size_t n = self->tables->edges.num_rows - start;
+    tsk_size_t j, k, metadata_offset;
+    tsk_size_t n = edges->num_rows - start;
     edge_sort_t *sorted_edges = malloc(n * sizeof(*sorted_edges));
+    char *old_metadata = malloc(edges->metadata_length + sizeof(char));
 
-    if (sorted_edges == NULL) {
+    if (sorted_edges == NULL || old_metadata == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+    memcpy(old_metadata, edges->metadata, edges->metadata_length);
     for (j = 0; j < n; j++) {
         e = sorted_edges + j;
         k = start + j;
@@ -4425,9 +4434,15 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
         e->parent = edges->parent[k];
         e->child = edges->child[k];
         e->time = node_time[e->parent];
+        if (tsk_edge_table_has_metadata(edges)) {
+            e->metadata_offset = edges->metadata_offset[k];
+            e->metadata_length
+                = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
+        }
     }
     qsort(sorted_edges, n, sizeof(edge_sort_t), cmp_edge);
     /* Copy the edges back into the table. */
+    metadata_offset = 0;
     for (j = 0; j < n; j++) {
         e = sorted_edges + j;
         k = start + j;
@@ -4435,9 +4450,16 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
         edges->right[k] = e->right;
         edges->parent[k] = e->parent;
         edges->child[k] = e->child;
+        if (tsk_edge_table_has_metadata(edges)) {
+            memcpy(edges->metadata + metadata_offset, old_metadata + e->metadata_offset,
+                e->metadata_length);
+            edges->metadata_offset[k] = metadata_offset;
+            metadata_offset += e->metadata_length;
+        }
     }
 out:
     tsk_safe_free(sorted_edges);
+    tsk_safe_free(old_metadata);
     return ret;
 }
 
@@ -7577,6 +7599,14 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, tsk_id_t *samples,
     tsk_id_t *local_samples = NULL;
     tsk_id_t u;
 
+    /* Avoid calling to simplifier_free with uninit'd memory on error branches */
+    memset(&simplifier, 0, sizeof(simplifier_t));
+
+    if (self->edges.metadata_length > 0) {
+        ret = TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA;
+        goto out;
+    }
+
     if (samples == NULL) {
         /* Avoid issue with mallocing zero bytes */
         local_samples = malloc((1 + self->nodes.num_rows) * sizeof(*local_samples));
@@ -7620,6 +7650,13 @@ tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samp
 {
     int ret = 0;
     ancestor_mapper_t ancestor_mapper;
+
+    memset(&ancestor_mapper, 0, sizeof(ancestor_mapper_t));
+
+    if (self->edges.metadata_length > 0) {
+        ret = TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA;
+        goto out;
+    }
 
     ret = ancestor_mapper_init(&ancestor_mapper, samples, (size_t) num_samples,
         ancestors, (size_t) num_ancestors, self, result);
