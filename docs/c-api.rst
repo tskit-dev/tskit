@@ -315,6 +315,44 @@ Provenances
     :content-only:
 
 
+.. _sec_c_api_table_indexes:
+
+*************
+Table indexes
+*************
+
+Along with the tree sequence :ref:`ordering requirements
+<sec_valid_tree_sequence_requirements>`, the :ref:`sec_table_indexes`
+allow us to take a table collection and efficiently operate
+on the trees defined within it. This section defines the rules
+for safely operating on table indexes and their life-cycle.
+
+The edge index used for tree generation consists of two arrays,
+each holding ``N`` edge IDs (where ``N`` is the size of the edge
+table). When the index is computed using
+:c:func:`tsk_table_collection_build_index`, we store the current size
+of the edge table along with the two arrays of edge IDs. The
+function :c:func:`tsk_table_collection_has_index` then returns true
+iff (a) both of these arrays are not NULL and (b) the stored
+number of edges is the same as the current size of the edge table.
+
+Updating the edge table does not automatically invalidate the indexes.
+Thus, if we call :c:func:`tsk_edge_table_clear` on an edge table
+which has an index, this index will still exist. However, it will
+not be considered a valid index by
+:c:func:`tsk_table_collection_has_index` because of the size mismatch.
+Similarly for functions that increase the size of the table.
+Note that it is possible then to have
+:c:func:`tsk_table_collection_has_index` return true, but the index
+is not actually valid, if, for example, the user has manipulated the
+node and edge tables to describe a different topology, which happens
+to have the same number of edges. The behaviour of methods that
+use the indexes will be undefined in this case.
+
+Thus, if you are manipulating an existing table collection that may
+be indexed, it is always recommended to call
+:c:func:`tsk_table_collection_drop_index` first.
+
 .. _sec_c_api_tree_sequences:
 
 **************

@@ -7128,6 +7128,7 @@ tsk_table_collection_set_index(tsk_table_collection_t *self,
     }
     memcpy(self->indexes.edge_insertion_order, edge_insertion_order, index_size);
     memcpy(self->indexes.edge_removal_order, edge_removal_order, index_size);
+    self->indexes.num_edges = self->edges.num_rows;
 out:
     return ret;
 }
@@ -7137,7 +7138,8 @@ tsk_table_collection_has_index(
     tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     return self->indexes.edge_insertion_order != NULL
-           && self->indexes.edge_removal_order != NULL;
+           && self->indexes.edge_removal_order != NULL
+           && self->indexes.num_edges == self->edges.num_rows;
 }
 
 int
@@ -7148,6 +7150,7 @@ tsk_table_collection_drop_index(
     tsk_safe_free(self->indexes.edge_removal_order);
     self->indexes.edge_insertion_order = NULL;
     self->indexes.edge_removal_order = NULL;
+    self->indexes.num_edges = 0;
     return 0;
 }
 
@@ -7206,6 +7209,7 @@ tsk_table_collection_build_index(
     for (j = 0; j < self->edges.num_rows; j++) {
         self->indexes.edge_removal_order[j] = sort_buff[j].index;
     }
+    self->indexes.num_edges = self->edges.num_rows;
     ret = 0;
 out:
     tsk_safe_free(sort_buff);
@@ -7410,8 +7414,8 @@ tsk_table_collection_dump_indexes(tsk_table_collection_t *self, kastore_t *store
 {
     int ret = 0;
     write_table_col_t write_cols[] = {
-        { "indexes/edge_insertion_order", NULL, self->edges.num_rows, KAS_INT32 },
-        { "indexes/edge_removal_order", NULL, self->edges.num_rows, KAS_INT32 },
+        { "indexes/edge_insertion_order", NULL, self->indexes.num_edges, KAS_INT32 },
+        { "indexes/edge_removal_order", NULL, self->indexes.num_edges, KAS_INT32 },
     };
 
     if (tsk_table_collection_has_index(self, 0)) {
