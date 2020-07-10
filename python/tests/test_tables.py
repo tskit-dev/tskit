@@ -1233,6 +1233,13 @@ class TestSortTables(unittest.TestCase):
 
     random_seed = 12345
 
+    def verify_sort_equality(self, ts, seed):
+        tables = tsutil.disorder_ts(ts, seed)
+        copy = tables.copy()
+        tables.sort()
+        tsutil.py_sort(copy)
+        self.assertEqual(tables, copy)
+
     def verify_randomise_tables(self, ts):
         tables = ts.dump_tables()
 
@@ -1318,40 +1325,47 @@ class TestSortTables(unittest.TestCase):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort_equality(ts, 432)
 
     def test_single_tree_no_mutations_metadata(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
         self.verify_randomise_tables(ts)
+        self.verify_sort_equality(ts, 12)
 
     def test_many_trees_no_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         self.assertGreater(ts.num_trees, 2)
         self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort_equality(ts, 31)
 
     def test_single_tree_mutations(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         self.assertGreater(ts.num_sites, 2)
         self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort_equality(ts, 83)
 
     def test_single_tree_mutations_metadata(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         self.assertGreater(ts.num_sites, 2)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
         self.verify_randomise_tables(ts)
+        self.verify_sort_equality(ts, 923)
 
     def test_single_tree_multichar_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         self.verify_randomise_tables(ts)
+        self.verify_sort_equality(ts, 35)
 
     def test_single_tree_multichar_mutations_metadata(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
         self.verify_randomise_tables(ts)
+        self.verify_sort_equality(ts, 2175)
 
     def test_many_trees_mutations(self):
         ts = msprime.simulate(
@@ -1361,12 +1375,14 @@ class TestSortTables(unittest.TestCase):
         self.assertGreater(ts.num_sites, 2)
         self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort_equality(ts, 173)
 
     def test_many_trees_multichar_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         self.assertGreater(ts.num_trees, 2)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         self.verify_randomise_tables(ts)
+        self.verify_sort_equality(ts, 16)
 
     def test_many_trees_multichar_mutations_metadata(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
@@ -1374,6 +1390,7 @@ class TestSortTables(unittest.TestCase):
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
         self.verify_randomise_tables(ts)
+        self.verify_sort_equality(ts, 91)
 
     def get_nonbinary_example(self, mutation_rate):
         ts = msprime.simulate(
@@ -1399,6 +1416,7 @@ class TestSortTables(unittest.TestCase):
         self.assertGreater(ts.num_trees, 2)
         self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort_equality(ts, 9182)
 
     def test_nonbinary_trees_mutations(self):
         ts = self.get_nonbinary_example(mutation_rate=2)
@@ -1406,6 +1424,7 @@ class TestSortTables(unittest.TestCase):
         self.assertGreater(ts.num_sites, 2)
         self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort_equality(ts, 44)
 
     def test_incompatible_edges(self):
         ts1 = msprime.simulate(10, random_seed=self.random_seed)
