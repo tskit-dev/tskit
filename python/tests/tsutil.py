@@ -730,7 +730,7 @@ def orig_site_keys(i, tables):
     return tables.sites.position[i]
 
 
-def orig_mut_keys(i, tables, sorted_sites):
+def orig_mut_keys(i, tables, sorted_sites, **kwargs):
     orig_site = tables.mutations.site[i]
     return sorted_sites.index(orig_site)
 
