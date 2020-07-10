@@ -3877,7 +3877,6 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     tsk_table_collection_free(&tables);
 }
 
-
 static void
 test_table_collection_check_integrity_no_populations(void)
 {
@@ -3899,8 +3898,8 @@ test_table_collection_check_integrity_no_populations(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables,
-            TSK_CHECK_ALL | TSK_NO_CHECK_POPULATION_REFS);
+    ret = tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_ALL | TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.nodes.population[0] = TSK_NULL;
 
@@ -3915,8 +3914,8 @@ test_table_collection_check_integrity_no_populations(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables,
-            TSK_CHECK_ALL|TSK_NO_CHECK_POPULATION_REFS);
+    ret = tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_ALL | TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_table_collection_free(&tables);

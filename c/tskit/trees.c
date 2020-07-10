@@ -228,7 +228,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
 {
     int ret = TSK_ERR_GENERIC;
     size_t j, k, tree_index;
-    tsk_id_t site, mutation;
+    tsk_id_t u, site, mutation;
     double tree_left, tree_right;
     const double sequence_length = self->tables->sequence_length;
     const tsk_id_t num_sites = (tsk_id_t) self->tables->sites.num_rows;
@@ -269,7 +269,12 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
             k++;
         }
         while (j < num_edges && edge_left[I[j]] == tree_left) {
-            parent[edge_child[I[j]]] = edge_parent[I[j]];
+            u = edge_child[I[j]];
+            if (parent[u] != TSK_NULL) {
+                ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
+                goto out;
+            }
+            parent[u] = edge_parent[I[j]];
             j++;
         }
         tree_right = sequence_length;
@@ -3873,7 +3878,7 @@ tsk_tree_update_sample_lists(tsk_tree_t *self, const tsk_id_t *restrict parent,
     }
 }
 
-static int
+static void
 tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 {
     tsk_id_t *restrict parent = self->parent;
@@ -3954,14 +3959,11 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     if (self->options & TSK_SAMPLE_LISTS) {
         tsk_tree_update_sample_lists(self, parent, left_child, right_sib, p);
     }
-
-    return 0;
 }
 
-static int
+static void
 tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 {
-    int ret = 0;
     tsk_id_t *restrict parent = self->parent;
     tsk_id_t *restrict left_child = self->left_child;
     tsk_id_t *restrict right_child = self->right_child;
@@ -3977,10 +3979,6 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 
 #define IS_ROOT(U) (num_samples[U] >= root_threshold)
 
-    if (parent[c] != TSK_NULL) {
-        ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
-        goto out;
-    }
     parent[c] = p;
     u = right_child[p];
     lsib = left_sib[c];
@@ -4055,8 +4053,6 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     if (self->options & TSK_SAMPLE_LISTS) {
         tsk_tree_update_sample_lists(self, parent, left_child, right_sib, p);
     }
-out:
-    return ret;
 }
 
 static int
@@ -4086,19 +4082,13 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
         assert(out < num_edges);
         k = out_order[out];
         out += direction;
-        ret = tsk_tree_remove_edge(self, edge_parent[k], edge_child[k]);
-        if (ret != 0) {
-            goto out;
-        }
+        tsk_tree_remove_edge(self, edge_parent[k], edge_child[k]);
     }
 
     while (in >= 0 && in < num_edges && in_breakpoints[in_order[in]] == x) {
         k = in_order[in];
         in += direction;
-        ret = tsk_tree_insert_edge(self, edge_parent[k], edge_child[k]);
-        if (ret != 0) {
-            goto out;
-        }
+        tsk_tree_insert_edge(self, edge_parent[k], edge_child[k]);
     }
 
     if (self->left_root != TSK_NULL) {
@@ -4137,7 +4127,6 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
         self->sites_length = self->tree_sequence->tree_sites_length[self->index];
     }
     ret = 1;
-out:
     return ret;
 }
 

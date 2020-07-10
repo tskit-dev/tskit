@@ -1,5 +1,5 @@
 --------------------
-[0.2.4] - 20XX-XX-XX
+[0.3.0] - 20XX-XX-XX
 --------------------
 
 In development
@@ -13,6 +13,11 @@ In development
 - File system operations such as dump/load now raise an appropriate OSError
   instead of tskit.FileFormatError. Loading from an empty file now raises
   and EOFError.
+
+- Bad tree topologies are detected earlier, so that it is no longer possible
+  to create a TreeSequence object which contains a parent with contradictory
+  children on an interval. Previously an error was thrown when some operation
+  building the trees was attempted. (:user:`jeromekelleher`, :pr:`709`).
 
 **New features**
 

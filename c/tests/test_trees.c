@@ -2364,7 +2364,6 @@ test_simplest_contradictory_children(void)
                         "0  1   2   0\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
-    tsk_tree_t tree;
     int ret;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
@@ -2378,13 +2377,8 @@ test_simplest_contradictory_children(void)
     tables.sequence_length = 1.0;
 
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
-    CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_tree_init(&tree, &ts, 0);
-    CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_tree_first(&tree);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN);
 
-    tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
     tsk_table_collection_free(&tables);
 }
@@ -5131,51 +5125,6 @@ test_offset_trees_with_errors_kc(void)
     tsk_treeseq_free(&other);
 }
 
-static void
-test_invalid_first_tree_errors_kc(void)
-{
-    const char *nodes = "1  0   -1\n"
-                        "1  0   -1\n"
-                        "0  1   -1\n";
-    const char *edges = "0  1   2   0\n"
-                        "0  1   2   1\n";
-
-    const char *bad_nodes = "1  0   -1\n"
-                            "1  1   -1\n"
-                            "0  1   -1\n";
-    const char *bad_edges = "0  1   1   0\n"
-                            "0  1   2   0\n";
-    tsk_treeseq_t ts, other;
-    tsk_table_collection_t tables;
-    double result;
-    int ret;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
-
-    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
-
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    parse_nodes(bad_nodes, &tables.nodes);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 3);
-    parse_edges(bad_edges, &tables.edges);
-    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 2);
-    tables.sequence_length = 1.0;
-
-    ret = tsk_treeseq_init(&other, &tables, load_flags);
-    CU_ASSERT_EQUAL(ret, 0);
-
-    ret = tsk_treeseq_kc_distance(&ts, &other, 0, &result);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN);
-
-    ret = tsk_treeseq_kc_distance(&other, &ts, 0, &result);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN);
-
-    tsk_treeseq_free(&ts);
-    tsk_treeseq_free(&other);
-    tsk_table_collection_free(&tables);
-}
-
 /*=======================================================
  * Miscellaneous tests.
  *======================================================*/
@@ -5941,7 +5890,6 @@ main(int argc, char **argv)
         { "test_unequal_sequence_lengths_kc", test_unequal_sequence_lengths_kc },
         { "test_different_number_trees_kc", test_different_number_trees_kc },
         { "test_offset_trees_with_errors_kc", test_offset_trees_with_errors_kc },
-        { "test_invalid_first_tree_errors_kc", test_invalid_first_tree_errors_kc },
 
         /* Misc */
         { "test_tree_errors", test_tree_errors },
