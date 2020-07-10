@@ -6805,47 +6805,143 @@ out:
     return ret;
 }
 
+static tsk_id_t TSK_WARN_UNUSED
+tsk_table_collection_check_tree_integrity(tsk_table_collection_t *self)
+{
+    tsk_id_t ret = 0;
+    size_t j, k;
+    tsk_id_t u, site, mutation;
+    double tree_left, tree_right;
+    const double sequence_length = self->sequence_length;
+    const tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
+    const tsk_id_t num_mutations = (tsk_id_t) self->mutations.num_rows;
+    const size_t num_edges = self->edges.num_rows;
+    const double *restrict site_position = self->sites.position;
+    const tsk_id_t *restrict mutation_site = self->mutations.site;
+    const tsk_id_t *restrict mutation_node = self->mutations.node;
+    const double *restrict mutation_time = self->mutations.time;
+    const double *restrict node_time = self->nodes.time;
+    const tsk_id_t *restrict I = self->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->indexes.edge_removal_order;
+    const double *restrict edge_right = self->edges.right;
+    const double *restrict edge_left = self->edges.left;
+    const tsk_id_t *restrict edge_child = self->edges.child;
+    const tsk_id_t *restrict edge_parent = self->edges.parent;
+    tsk_id_t *restrict parent = NULL;
+    tsk_id_t num_trees = 0;
+
+    parent = malloc(self->nodes.num_rows * sizeof(*parent));
+    if (parent == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
+
+    tree_left = 0;
+    tree_right = sequence_length;
+    num_trees = 0;
+    j = 0;
+    k = 0;
+    site = 0;
+    mutation = 0;
+    assert(I != NULL && O != NULL);
+
+    while (j < num_edges || tree_left < sequence_length) {
+        while (k < num_edges && edge_right[O[k]] == tree_left) {
+            parent[edge_child[O[k]]] = TSK_NULL;
+            k++;
+        }
+        while (j < num_edges && edge_left[I[j]] == tree_left) {
+            u = edge_child[I[j]];
+            if (parent[u] != TSK_NULL) {
+                ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
+                goto out;
+            }
+            parent[u] = edge_parent[I[j]];
+            j++;
+        }
+        tree_right = sequence_length;
+        if (j < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_left[I[j]]);
+        }
+        if (k < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
+        }
+        while (site < num_sites && site_position[site] < tree_right) {
+            while (mutation < num_mutations && mutation_site[mutation] == site) {
+                if (!tsk_is_unknown_time(mutation_time[mutation])
+                    && parent[mutation_node[mutation]] != TSK_NULL
+                    && node_time[parent[mutation_node[mutation]]]
+                           <= mutation_time[mutation]) {
+                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE;
+                    goto out;
+                }
+                mutation++;
+            }
+            site++;
+        }
+        tree_left = tree_right;
+        /* This is technically possible; if we have 2**31 edges each defining
+         * a single tree, and there's a gap between each of these edges we
+         * would overflow this counter. */
+        if (num_trees == INT32_MAX) {
+            ret = TSK_ERR_TREE_OVERFLOW;
+            goto out;
+        }
+        num_trees++;
+    }
+    ret = num_trees;
+out:
+    /* Can't use tsk_safe_free because of restrict*/
+    if (parent != NULL) {
+        free(parent);
+    }
+    return ret;
+}
+
 static int TSK_WARN_UNUSED
-tsk_table_collection_check_index_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options)
+tsk_table_collection_check_index_integrity(tsk_table_collection_t *self)
 {
     int ret = 0;
     tsk_id_t j;
     const tsk_id_t num_edges = (tsk_id_t) self->edges.num_rows;
     const tsk_id_t *edge_insertion_order = self->indexes.edge_insertion_order;
     const tsk_id_t *edge_removal_order = self->indexes.edge_removal_order;
-    const bool check_indexes = !!(options & TSK_CHECK_INDEXES);
 
-    if (check_indexes) {
-        if (!tsk_table_collection_has_index(self, 0)) {
-            ret = TSK_ERR_TABLES_NOT_INDEXED;
+    if (!tsk_table_collection_has_index(self, 0)) {
+        ret = TSK_ERR_TABLES_NOT_INDEXED;
+        goto out;
+    }
+    for (j = 0; j < num_edges; j++) {
+        if (edge_insertion_order[j] < 0 || edge_insertion_order[j] >= num_edges) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
             goto out;
         }
-        for (j = 0; j < num_edges; j++) {
-            if (edge_insertion_order[j] < 0 || edge_insertion_order[j] >= num_edges) {
-                ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
-                goto out;
-            }
-            if (edge_removal_order[j] < 0 || edge_removal_order[j] >= num_edges) {
-                ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
-                goto out;
-            }
+        if (edge_removal_order[j] < 0 || edge_removal_order[j] >= num_edges) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
+            goto out;
         }
     }
 out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
+tsk_id_t TSK_WARN_UNUSED
 tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
+
+    if (options & TSK_CHECK_TREES) {
+        /* Checking the trees implies all the other checks */
+        options |= TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING
+                   | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING
+                   | TSK_CHECK_INDEXES;
+    }
 
     if (self->sequence_length <= 0) {
         ret = TSK_ERR_BAD_SEQUENCE_LENGTH;
         goto out;
     }
-
     ret = tsk_table_collection_check_offsets(self);
     if (ret != 0) {
         goto out;
@@ -6870,9 +6966,17 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_check_index_integrity(self, options);
-    if (ret != 0) {
-        goto out;
+    if (options & TSK_CHECK_INDEXES) {
+        ret = tsk_table_collection_check_index_integrity(self);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (options & TSK_CHECK_TREES) {
+        ret = tsk_table_collection_check_tree_integrity(self);
+        if (ret < 0) {
+            goto out;
+        }
     }
 out:
     return ret;
@@ -7754,10 +7858,7 @@ tsk_table_collection_deduplicate_sites(
     if (ret != 0) {
         goto out;
     }
-    /* Check everything except site duplicates (which we expect) and
-     * edge indexes */
-    ret = tsk_table_collection_check_integrity(
-        self, TSK_CHECK_ALL & ~TSK_CHECK_SITE_DUPLICATES & ~TSK_CHECK_INDEXES);
+    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_SITE_ORDERING);
 
     if (ret != 0) {
         goto out;
@@ -7810,6 +7911,7 @@ tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
+    tsk_id_t num_trees;
     const tsk_id_t *I, *O;
     const tsk_edge_table_t edges = self->edges;
     const tsk_node_table_t nodes = self->nodes;
@@ -7828,8 +7930,9 @@ tsk_table_collection_compute_mutation_parents(
     /* Set the mutation parent to TSK_NULL so that we don't check the
      * parent values we are about to write over. */
     memset(mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
-    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_ALL);
-    if (ret != 0) {
+    num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
+    if (num_trees < 0) {
+        ret = num_trees;
         goto out;
     }
     parent = malloc(nodes.num_rows * sizeof(*parent));
@@ -7924,6 +8027,7 @@ tsk_table_collection_compute_mutation_times(
     tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
+    tsk_id_t num_trees;
     const tsk_id_t *restrict I = self->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->indexes.edge_removal_order;
     const tsk_edge_table_t edges = self->edges;
@@ -7951,8 +8055,9 @@ tsk_table_collection_compute_mutation_times(
     for (j = 0; j < mutations.num_rows; j++) {
         mutations.time[j] = TSK_UNKNOWN_TIME;
     }
-    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_ALL);
-    if (ret != 0) {
+    num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
+    if (num_trees < 0) {
+        ret = num_trees;
         goto out;
     }
     parent = malloc(nodes.num_rows * sizeof(*parent));

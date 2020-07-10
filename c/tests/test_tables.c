@@ -3801,9 +3801,6 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
 
-    /* Note that we do not test for TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE as
-       that is only checked for tree sequences not tables */
-
     /* migrations */
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -3885,22 +3882,23 @@ test_table_collection_check_integrity_no_populations(void)
     tsk_table_collection_t tables;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Add in some bad population references and check that we can use
-     * TSK_NO_CHECK_POPULATION_REFS with TSK_CHECK_ALL */
+     * TSK_NO_CHECK_POPULATION_REFS with TSK_CHECK_TREES */
     tables.nodes.population[0] = 10;
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_ALL);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_check_integrity(
-        &tables, TSK_CHECK_ALL | TSK_NO_CHECK_POPULATION_REFS);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+        &tables, TSK_CHECK_TREES | TSK_NO_CHECK_POPULATION_REFS);
+    /* CHECK_TREES returns the number of trees */
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
     tables.nodes.population[0] = TSK_NULL;
 
     ret = tsk_table_collection_check_integrity(&tables, 0);
@@ -3910,13 +3908,13 @@ test_table_collection_check_integrity_no_populations(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_ALL);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_check_integrity(
-        &tables, TSK_CHECK_ALL | TSK_NO_CHECK_POPULATION_REFS);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+        &tables, TSK_CHECK_TREES | TSK_NO_CHECK_POPULATION_REFS);
+    CU_ASSERT_EQUAL_FATAL(ret, 3);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);

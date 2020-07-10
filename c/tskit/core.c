@@ -325,6 +325,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_COLUMN_OVERFLOW:
             ret = "Table column too large; cannot be more than 2**32 bytes.";
             break;
+        case TSK_ERR_TREE_OVERFLOW:
+            ret = "Too many trees; cannot be more than 2**31.";
+            break;
         case TSK_ERR_METADATA_DISABLED:
             ret = "Metadata is disabled for this table, so cannot be set";
             break;

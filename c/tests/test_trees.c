@@ -2139,17 +2139,18 @@ test_simplest_bad_indexes(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLES_NOT_INDEXED);
     ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_ALL);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    /* TSK_CHECK_TREES returns the number of trees */
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
 
     for (j = 0; j < sizeof(bad_indexes) / sizeof(*bad_indexes); j++) {
         tables.indexes.edge_insertion_order[0] = bad_indexes[j];
-        ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_ALL);
+        ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
         tables.indexes.edge_insertion_order[0] = 0;
 
         tables.indexes.edge_removal_order[0] = bad_indexes[j];
-        ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_ALL);
+        ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
         tables.indexes.edge_removal_order[0] = 0;
     }

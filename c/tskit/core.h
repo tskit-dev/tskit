@@ -257,7 +257,9 @@ not found in the file.
 #define TSK_ERR_TABLES_NOT_INDEXED                                  -702
 #define TSK_ERR_TABLE_OVERFLOW                                      -703
 #define TSK_ERR_COLUMN_OVERFLOW                                     -704
-#define TSK_ERR_METADATA_DISABLED                                   -705
+#define TSK_ERR_TREE_OVERFLOW                                       -705
+#define TSK_ERR_METADATA_DISABLED                                   -706
+
 /* Limitations */
 #define TSK_ERR_ONLY_INFINITE_SITES                                 -800
 #define TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED                   -801
