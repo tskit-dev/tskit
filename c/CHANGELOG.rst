@@ -25,8 +25,9 @@ In development.
 
 - Edges can now have metadata. Hence edge methods now take two extra arguments:
   metadata and metadata length. The file format has also changed to accommodate this,
-  but is backwards compatible.
-  (:user:`benjeffery`, :pr:`496`)
+  but is backwards compatible. Edge metadata can be disabled for a table collection with
+  the TSK_NO_EDGE_METADATA flag.
+  (:user:`benjeffery`, :pr:`496`, :pr:`712`)
 
 - Migrations can now have metadata. Hence migration methods now take two extra arguments:
   metadata and metadata length. The file format has also changed to accommodate this,

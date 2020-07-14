@@ -382,6 +382,8 @@ typedef struct {
     tsk_size_t *metadata_offset;
     /** @brief The metadata schema */
     char *metadata_schema;
+    /** @brief Flags for this table */
+    tsk_flags_t options;
 } tsk_edge_table_t;
 
 /**
@@ -677,6 +679,12 @@ typedef struct _tsk_table_sorter_t {
 
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES (1 << 0)
+
+/* Flags for init table collection */
+#define TSK_NO_EDGE_METADATA (1 << 0)
+
+/* Flags for init tables */
+#define TSK_NO_METADATA (1 << 0)
 
 /****************************************************************************/
 /* Function signatures */

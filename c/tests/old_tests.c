@@ -1468,7 +1468,7 @@ test_node_metadata(void)
     int ret;
     tsk_node_t node;
 
-    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL);
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 5);
 

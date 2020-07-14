@@ -874,7 +874,7 @@ test_general_stat_input_errors(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     /* Bad input dimensions */
     ret = tsk_treeseq_general_stat(
@@ -905,7 +905,7 @@ test_empty_ts_ld(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(
-        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL, 0);
 
     verify_ld(&ts);
     tsk_treeseq_free(&ts);
@@ -917,7 +917,7 @@ test_empty_ts_mean_descendants(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(
-        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL, 0);
     verify_mean_descendants(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -928,7 +928,7 @@ test_empty_ts_genealogical_nearest_neighbours(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(
-        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL, 0);
     verify_genealogical_nearest_neighbours(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -939,7 +939,7 @@ test_empty_ts_general_stat(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(
-        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL, 0);
     verify_branch_general_stat_identity(&ts);
     verify_default_general_stat(&ts);
     verify_general_stat(&ts, TSK_STAT_BRANCH);
@@ -954,7 +954,7 @@ test_empty_ts_afs(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(
-        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL);
+        &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL, 0);
     verify_afs(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -965,7 +965,7 @@ test_single_tree_ld(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     verify_ld(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -976,7 +976,7 @@ test_single_tree_mean_descendants(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     verify_mean_descendants(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -987,7 +987,7 @@ test_single_tree_genealogical_nearest_neighbours(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     verify_genealogical_nearest_neighbours(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -998,7 +998,7 @@ test_single_tree_general_stat(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     verify_branch_general_stat_identity(&ts);
     verify_default_general_stat(&ts);
     verify_general_stat(&ts, TSK_STAT_BRANCH);
@@ -1013,7 +1013,7 @@ test_single_tree_general_stat_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     verify_branch_general_stat_errors(&ts);
     verify_site_general_stat_errors(&ts);
     verify_node_general_stat_errors(&ts);
@@ -1026,7 +1026,7 @@ test_paper_ex_ld(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_ld(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -1037,7 +1037,7 @@ test_paper_ex_mean_descendants(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_mean_descendants(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -1048,7 +1048,7 @@ test_paper_ex_genealogical_nearest_neighbours(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_genealogical_nearest_neighbours(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -1059,7 +1059,7 @@ test_paper_ex_general_stat(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_branch_general_stat_identity(&ts);
     verify_default_general_stat(&ts);
     verify_general_stat(&ts, TSK_STAT_BRANCH);
@@ -1074,7 +1074,7 @@ test_paper_ex_general_stat_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_branch_general_stat_errors(&ts);
     verify_site_general_stat_errors(&ts);
     verify_node_general_stat_errors(&ts);
@@ -1087,7 +1087,7 @@ test_paper_ex_diversity_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_one_way_stat_func_errors(&ts, tsk_treeseq_diversity);
     tsk_treeseq_free(&ts);
 }
@@ -1102,7 +1102,7 @@ test_paper_ex_diversity(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_diversity(
         &ts, 1, &sample_set_sizes, samples, 0, NULL, &pi, TSK_STAT_SITE);
@@ -1125,7 +1125,7 @@ test_paper_ex_trait_covariance_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_one_way_weighted_func_errors(&ts, tsk_treeseq_trait_covariance);
     tsk_treeseq_free(&ts);
 }
@@ -1140,7 +1140,7 @@ test_paper_ex_trait_covariance(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     weights = malloc(4 * sizeof(double));
     weights[0] = weights[1] = 0.0;
     weights[2] = weights[3] = 1.0;
@@ -1167,7 +1167,7 @@ test_paper_ex_trait_correlation_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_one_way_weighted_func_errors(&ts, tsk_treeseq_trait_correlation);
     tsk_treeseq_free(&ts);
 }
@@ -1181,7 +1181,7 @@ test_paper_ex_trait_correlation(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     weights = malloc(4 * sizeof(double));
     weights[0] = weights[1] = 0.0;
     weights[2] = weights[3] = 1.0;
@@ -1201,7 +1201,7 @@ test_paper_ex_trait_regression_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_one_way_weighted_covariate_func_errors(&ts, tsk_treeseq_trait_regression);
     tsk_treeseq_free(&ts);
 }
@@ -1216,7 +1216,7 @@ test_paper_ex_trait_regression(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     weights = malloc(4 * sizeof(double));
     covariates = malloc(8 * sizeof(double));
     weights[0] = weights[1] = 0.0;
@@ -1242,7 +1242,7 @@ test_paper_ex_segregating_sites_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_one_way_stat_func_errors(&ts, tsk_treeseq_segregating_sites);
     tsk_treeseq_free(&ts);
 }
@@ -1257,7 +1257,7 @@ test_paper_ex_segregating_sites(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_segregating_sites(
         &ts, 1, &sample_set_sizes, samples, 0, NULL, &segsites, TSK_STAT_SITE);
@@ -1280,7 +1280,7 @@ test_paper_ex_Y1_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_one_way_stat_func_errors(&ts, tsk_treeseq_Y1);
     tsk_treeseq_free(&ts);
 }
@@ -1295,7 +1295,7 @@ test_paper_ex_Y1(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1315,7 +1315,7 @@ test_paper_ex_divergence_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_two_way_stat_func_errors(&ts, tsk_treeseq_divergence);
     tsk_treeseq_free(&ts);
 }
@@ -1331,7 +1331,7 @@ test_paper_ex_divergence(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_divergence(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0,
         NULL, &result, TSK_STAT_SITE);
@@ -1354,7 +1354,7 @@ test_paper_ex_Y2_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_two_way_stat_func_errors(&ts, tsk_treeseq_Y2);
     tsk_treeseq_free(&ts);
 }
@@ -1370,7 +1370,7 @@ test_paper_ex_Y2(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_Y2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         &result, TSK_STAT_SITE);
@@ -1392,7 +1392,7 @@ test_paper_ex_f2_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_two_way_stat_func_errors(&ts, tsk_treeseq_f2);
     tsk_treeseq_free(&ts);
 }
@@ -1408,7 +1408,7 @@ test_paper_ex_f2(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         &result, TSK_STAT_SITE);
@@ -1438,7 +1438,7 @@ test_paper_ex_Y3_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_three_way_stat_func_errors(&ts, tsk_treeseq_Y3);
     tsk_treeseq_free(&ts);
 }
@@ -1454,7 +1454,7 @@ test_paper_ex_Y3(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_Y3(&ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         &result, TSK_STAT_SITE);
@@ -1469,7 +1469,7 @@ test_paper_ex_f3_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_three_way_stat_func_errors(&ts, tsk_treeseq_f3);
     tsk_treeseq_free(&ts);
 }
@@ -1485,7 +1485,7 @@ test_paper_ex_f3(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_f3(&ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         &result, TSK_STAT_SITE);
@@ -1507,7 +1507,7 @@ test_paper_ex_f4_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_four_way_stat_func_errors(&ts, tsk_treeseq_f4);
     tsk_treeseq_free(&ts);
 }
@@ -1523,7 +1523,7 @@ test_paper_ex_f4(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_f4(&ts, 4, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         &result, TSK_STAT_SITE);
@@ -1541,7 +1541,7 @@ test_paper_ex_afs_errors(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     verify_one_way_stat_func_errors(&ts, tsk_treeseq_allele_frequency_spectrum);
 
@@ -1566,7 +1566,7 @@ test_paper_ex_afs(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     /* we have two singletons and one tripleton */
 
     ret = tsk_treeseq_allele_frequency_spectrum(
@@ -1595,7 +1595,7 @@ test_nonbinary_ex_ld(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
-        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_ld(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -1606,7 +1606,7 @@ test_nonbinary_ex_mean_descendants(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
-        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_mean_descendants(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -1617,7 +1617,7 @@ test_nonbinary_ex_genealogical_nearest_neighbours(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
-        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_genealogical_nearest_neighbours(&ts);
     tsk_treeseq_free(&ts);
 }
@@ -1628,7 +1628,7 @@ test_nonbinary_ex_general_stat(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
-        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_branch_general_stat_identity(&ts);
     verify_default_general_stat(&ts);
     verify_general_stat(&ts, TSK_STAT_BRANCH);
@@ -1643,7 +1643,7 @@ test_nonbinary_ex_general_stat_errors(void)
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
-        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL);
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_branch_general_stat_errors(&ts);
     verify_site_general_stat_errors(&ts);
     verify_node_general_stat_errors(&ts);

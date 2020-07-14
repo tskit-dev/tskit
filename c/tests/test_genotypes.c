@@ -39,7 +39,7 @@ test_simplest_missing_data(void)
     tsk_variant_t *var;
     int ret;
 
-    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL);
+    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 1);
 
@@ -94,7 +94,7 @@ test_simplest_missing_data_user_alleles(void)
     const char *alleles[] = { "A", NULL };
     int ret;
 
-    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL);
+    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 1);
 
@@ -159,7 +159,7 @@ test_single_tree_user_alleles(void)
     const char *alleles[] = { "A", "C", "G", "T", NULL };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        sites, mutations, NULL, NULL);
+        sites, mutations, NULL, NULL, 0);
     ret = tsk_vargen_init(&vargen, &ts, NULL, 0, alleles, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -265,7 +265,7 @@ test_single_tree_char_alphabet(void)
     tsk_variant_t *var;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        sites, mutations, NULL, NULL);
+        sites, mutations, NULL, NULL, 0);
     ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -345,7 +345,7 @@ test_single_tree_binary_alphabet(void)
     tsk_variant_t *var;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_print_state(&vargen, _devnull);
@@ -405,7 +405,7 @@ test_single_tree_non_samples(void)
     tsk_id_t samples[] = { 4, 5 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     /* It's an error to hand in non-samples without imputation turned on */
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUST_IMPUTE_NON_SAMPLES);
@@ -462,7 +462,7 @@ test_single_tree_errors(void)
     tsk_id_t samples[] = { 0, 3 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_free(&vargen);
@@ -503,7 +503,7 @@ test_single_tree_user_alleles_errors(void)
     tsk_id_t samples[] = { 0, 3 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
     /* these are 0/1 alleles */
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, acct_alleles, 0);
@@ -545,7 +545,7 @@ test_single_tree_subsample(void)
     tsk_id_t samples[] = { 0, 3 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL);
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_print_state(&vargen, _devnull);
@@ -638,7 +638,7 @@ test_single_tree_many_alleles(void)
     tsk_table_collection_t tables;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL);
+        NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_FATAL(ret == 0);
     tsk_treeseq_free(&ts);
@@ -706,7 +706,7 @@ test_single_tree_inconsistent_mutations(void)
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
-        sites, mutations, NULL, NULL);
+        sites, mutations, NULL, NULL, 0);
 
     for (s = 0; s < 2; s++) {
         for (f = 0; f < sizeof(options) / sizeof(*options); f++) {
