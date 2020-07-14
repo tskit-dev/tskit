@@ -29,6 +29,56 @@
 #include <stdlib.h>
 
 static void
+reverse_edges(tsk_table_collection_t *tables)
+{
+    int ret;
+    tsk_edge_table_t edges;
+    tsk_edge_t edge;
+    tsk_id_t j;
+
+    ret = tsk_edge_table_init(&edges, tables->edges.options);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = (tsk_id_t) tables->edges.num_rows - 1; j >= 0; j--) {
+        ret = tsk_edge_table_get_row(&tables->edges, j, &edge);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_add_row(&edges, edge.left, edge.right, edge.parent,
+            edge.child, edge.metadata, edge.metadata_length);
+        CU_ASSERT_FATAL(ret >= 0);
+    }
+
+    ret = tsk_edge_table_copy(&edges, &tables->edges, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_edge_table_free(&edges);
+}
+
+static void
+insert_edge_metadata(tsk_table_collection_t *tables)
+{
+    int ret;
+    tsk_edge_table_t edges;
+    tsk_edge_t edge;
+    tsk_id_t j;
+    char metadata[100];
+
+    ret = tsk_edge_table_init(&edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) tables->edges.num_rows; j++) {
+        ret = tsk_edge_table_get_row(&tables->edges, j, &edge);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        snprintf(metadata, sizeof(metadata), "md_%d\n", j);
+        ret = tsk_edge_table_add_row(&edges, edge.left, edge.right, edge.parent,
+            edge.child, metadata, (tsk_size_t) strlen(metadata));
+        CU_ASSERT_FATAL(ret >= 0);
+    }
+    ret = tsk_edge_table_copy(&edges, &tables->edges, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_edge_table_free(&edges);
+}
+
+static void
 test_table_collection_simplify_errors(void)
 {
     int ret;
@@ -664,10 +714,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
     ret = tsk_edge_table_init(&table2, options);
-    if (options & TSK_NO_METADATA) {
-        ret = tsk_edge_table_copy(&table, &table2, TSK_NO_INIT);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_METADATA_DISABLED);
-    }
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_copy(&table, &table2, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
@@ -705,6 +752,50 @@ test_edge_table(void)
 }
 
 static void
+test_edge_table_copy_semantics(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t1, t2;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    insert_edge_metadata(&t1);
+
+    /* t1 now has metadata. We should be able to copy to another table with metadata */
+    ret = tsk_table_collection_copy(&t1, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+
+    /* We should not be able to copy into a table with no metadata */
+    ret = tsk_table_collection_copy(&t1, &t2, TSK_NO_EDGE_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_METADATA_DISABLED);
+    tsk_table_collection_free(&t2);
+
+    tsk_table_collection_free(&t1);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* t1 has no metadata, but metadata is enabled. We should be able to copy
+     * into a table with either metadata enabled or disabled.
+     */
+    ret = tsk_table_collection_copy(&t1, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+
+    ret = tsk_table_collection_copy(&t1, &t2, TSK_NO_EDGE_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+
+    tsk_table_collection_free(&t1);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_edge_table_squash(void)
 {
     int ret;
@@ -723,8 +814,7 @@ test_edge_table_squash(void)
      / \
     0   1
     */
-    /* Squashing doesn't support metadata */
-    ret = tsk_table_collection_init(&tables, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 10;
 
@@ -768,7 +858,7 @@ test_edge_table_squash_multiple_parents(void)
                / \     / \
               0   1   2   3
     */
-    ret = tsk_table_collection_init(&tables, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 10;
 
@@ -823,7 +913,7 @@ test_edge_table_squash_single_edge(void)
     const char *nodes_ex = "1  0   -1   -1\n"
                            "0  0   -1   -1\n";
     const char *edges_ex = "0  1   1   0\n";
-    ret = tsk_table_collection_init(&tables, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
@@ -2257,6 +2347,13 @@ test_link_ancestors_input_errors(void)
         NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add an edge with some metadata */
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 7);
+    ret = tsk_edge_table_add_row(&tables.edges, 0, 1, 7, 6, "metadata", 8);
+    CU_ASSERT_FATAL(ret > 0);
+
     ret = tsk_edge_table_init(&result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_link_ancestors(
@@ -2267,7 +2364,7 @@ test_link_ancestors_input_errors(void)
     tsk_edge_table_free(&result);
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, TSK_NO_EDGE_METADATA);
+        NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&result, 0);
@@ -2325,7 +2422,7 @@ test_link_ancestors_single_tree(void)
     double res_right = 1;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, TSK_NO_EDGE_METADATA);
+        NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&result, 0);
@@ -2362,7 +2459,7 @@ test_link_ancestors_no_edges(void)
     tsk_id_t ancestors[] = { 4 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, TSK_NO_EDGE_METADATA);
+        NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&result, 0);
@@ -2388,7 +2485,7 @@ test_link_ancestors_samples_and_ancestors_overlap(void)
     tsk_id_t ancestors[] = { 4 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, TSK_NO_EDGE_METADATA);
+        NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&result, 0);
@@ -2430,7 +2527,7 @@ test_link_ancestors_paper(void)
     tsk_id_t ancestors[] = { 5, 6, 7 };
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL, TSK_NO_EDGE_METADATA);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&result, 0);
@@ -2471,7 +2568,7 @@ test_link_ancestors_multiple_to_single_tree(void)
     tsk_id_t ancestors[] = { 5 };
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL, TSK_NO_EDGE_METADATA);
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&result, 0);
@@ -2510,7 +2607,7 @@ test_simplify_tables_drops_indexes(void)
     tsk_id_t samples[] = { 0, 1 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, TSK_NO_EDGE_METADATA);
+        NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -2558,34 +2655,6 @@ test_simplify_metadata(void)
 }
 
 static void
-test_sort_tables_drops_indexes_with_options(tsk_flags_t tc_options)
-{
-    int ret;
-    tsk_treeseq_t ts;
-    tsk_table_collection_t tables;
-
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, tc_options);
-    ret = tsk_treeseq_copy_tables(&ts, &tables, tc_options);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0))
-
-    tsk_table_collection_free(&tables);
-    tsk_treeseq_free(&ts);
-}
-
-static void
-test_sort_tables_drops_indexes(void)
-{
-    test_sort_tables_drops_indexes_with_options(0);
-    test_sort_tables_drops_indexes_with_options(TSK_NO_EDGE_METADATA);
-}
-
-static void
 test_copy_table_collection(void)
 {
     int ret;
@@ -2616,6 +2685,99 @@ test_copy_table_collection(void)
 
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&tables_copy);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_sort_tables_drops_indexes_with_options(tsk_flags_t tc_options)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, tc_options);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0))
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_sort_tables_drops_indexes(void)
+{
+    test_sort_tables_drops_indexes_with_options(0);
+    test_sort_tables_drops_indexes_with_options(TSK_NO_EDGE_METADATA);
+}
+
+static void
+test_sort_tables_edge_metadata(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t1, t2;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    insert_edge_metadata(&t1);
+    ret = tsk_table_collection_copy(&t1, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    reverse_edges(&t1);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2));
+    ret = tsk_table_collection_sort(&t1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_sort_tables_no_edge_metadata(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t1, t2;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, TSK_NO_EDGE_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(t1.edges.options & TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_copy(&t1, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(t2.edges.options & TSK_NO_EDGE_METADATA);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    reverse_edges(&t1);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2));
+    ret = tsk_table_collection_sort(&t1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+
+    ret = tsk_table_collection_copy(&t1, &t2, TSK_NO_EDGE_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(t1.edges.options & TSK_NO_EDGE_METADATA);
+    CU_ASSERT_TRUE(t2.edges.options & TSK_NO_EDGE_METADATA);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    reverse_edges(&t1);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2));
+    ret = tsk_table_collection_sort(&t1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+
+    tsk_table_collection_free(&t1);
     tsk_treeseq_free(&ts);
 }
 
@@ -2696,31 +2858,6 @@ test_sort_tables_errors(void)
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
-}
-
-static void
-reverse_edges(tsk_table_collection_t *tables)
-{
-    int ret;
-    tsk_edge_table_t edges;
-    tsk_edge_t edge;
-    tsk_id_t j;
-
-    ret = tsk_edge_table_init(&edges, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    for (j = (tsk_id_t) tables->edges.num_rows - 1; j >= 0; j--) {
-        ret = tsk_edge_table_get_row(&tables->edges, j, &edge);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_edge_table_add_row(&edges, edge.left, edge.right, edge.parent,
-            edge.child, edge.metadata, edge.metadata_length);
-        CU_ASSERT_FATAL(ret >= 0);
-    }
-
-    ret = tsk_edge_table_copy(&edges, &tables->edges, TSK_NO_INIT);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    tsk_edge_table_free(&edges);
 }
 
 static void
@@ -3681,6 +3818,7 @@ main(int argc, char **argv)
     CU_TestInfo tests[] = {
         { "test_node_table", test_node_table },
         { "test_edge_table", test_edge_table },
+        { "test_edge_table_copy_semantics", test_edge_table_copy_semantics },
         { "test_edge_table_squash", test_edge_table_squash },
         { "test_edge_table_squash_multiple_parents",
             test_edge_table_squash_multiple_parents },
@@ -3709,6 +3847,8 @@ main(int argc, char **argv)
         { "test_link_ancestors_multiple_to_single_tree",
             test_link_ancestors_multiple_to_single_tree },
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
+        { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
+        { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
         { "test_copy_table_collection", test_copy_table_collection },
         { "test_sort_tables_errors", test_sort_tables_errors },
         { "test_sorter_interface", test_sorter_interface },

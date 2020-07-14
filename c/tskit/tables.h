@@ -648,7 +648,7 @@ typedef struct _tsk_table_sorter_t {
 #define TSK_NO_INIT (1u << 30)
 
 /** @brief Do not run integrity checks before performing an operation. */
-#define TSK_NO_CHECK_INTEGRITY (1u << 30)
+#define TSK_NO_CHECK_INTEGRITY (1u << 29)
 
 /**@} */
 
@@ -680,10 +680,10 @@ typedef struct _tsk_table_sorter_t {
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES (1 << 0)
 
-/* Flags for init table collection */
+/* Flags for table collection init */
 #define TSK_NO_EDGE_METADATA (1 << 0)
 
-/* Flags for init tables */
+/* Flags for table init. */
 #define TSK_NO_METADATA (1 << 0)
 
 /****************************************************************************/
@@ -1043,6 +1043,17 @@ int tsk_node_table_dump_text(tsk_node_table_t *self, FILE *out);
 This must be called before any operations are performed on the table.
 See the :ref:`sec_c_api_overview_structure` for details on how objects
 are initialised and freed.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_METADATA
+    Do not allocate space to store metadata in this table. Operations
+    attempting to add non-empty metadata to the table will fail
+    with error TSK_ERR_METADATA_DISABLED.
+
 @endrst
 
 @param self A pointer to an uninitialised tsk_edge_table_t object.
@@ -2050,6 +2061,17 @@ int tsk_provenance_table_get_row(
 This must be called before any operations are performed on the table
 collection. See the :ref:`sec_c_api_overview_structure` for details on how objects
 are initialised and freed.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_EDGE_METADATA
+    Do not allocate space to store metadata in the edge table. Operations
+    attempting to add non-empty metadata to the edge table will fail
+    with error TSK_ERR_METADATA_DISABLED.
+
 @endrst
 
 @param self A pointer to an uninitialised tsk_table_collection_t object.

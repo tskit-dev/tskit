@@ -270,13 +270,6 @@ parse_edges(const char *text, tsk_edge_table_t *edge_table)
     double left, right;
     tsk_id_t parent, child;
     uint32_t num_children;
-    char *metadata_str = malloc(255 * sizeof(char));
-
-    if (metadata_str == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    memset(metadata_str, 0, 255 * sizeof(char));
 
     c = 0;
     while (text[c] != '\0') {
@@ -319,22 +312,13 @@ parse_edges(const char *text, tsk_edge_table_t *edge_table)
         for (k = 0; k < num_children; k++) {
             CU_ASSERT_FATAL(q != NULL);
             child = atoi(q);
-            if (edge_table->options & TSK_NO_METADATA) {
-                ret = tsk_edge_table_add_row(
-                    edge_table, left, right, parent, child, NULL, 0);
-            } else {
-                /* Add some unique metadata to each edge */
-                sprintf(metadata_str, "m%ld_%ld", c, k);
-                ret = tsk_edge_table_add_row(edge_table, left, right, parent, child,
-                    (const char *) metadata_str, 255);
-            }
+            ret = tsk_edge_table_add_row(
+                edge_table, left, right, parent, child, NULL, 0);
             CU_ASSERT_FATAL(ret >= 0);
             q = strtok(NULL, ",");
         }
         CU_ASSERT_FATAL(q == NULL);
     }
-out:
-    tsk_safe_free(metadata_str);
 }
 
 void

@@ -1367,7 +1367,7 @@ tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options)
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_edge_table_t));
+    memset(self, 0, sizeof(*self));
     self->options = options;
 
     /* Allocate space for one row initially, ensuring we always have valid
@@ -1435,6 +1435,8 @@ int TSK_WARN_UNUSED
 tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
+    char *metadata = NULL;
+    tsk_size_t *metadata_offset = NULL;
 
     if (!(options & TSK_NO_INIT)) {
         ret = tsk_edge_table_init(dest, options);
@@ -1443,21 +1445,19 @@ tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t 
         }
     }
 
-    /* We can't change to use metadata if it was disabled when the dest table was init'd
+    /* We can't use TSK_NO_METADATA in dest if metadata_length is non-zero.
+     * This also captures the case where TSK_NO_METADATA is set on this table.
      */
-    if (!tsk_edge_table_has_metadata(dest) && !(options & TSK_NO_METADATA)) {
+    if (self->metadata_length > 0 && !tsk_edge_table_has_metadata(dest)) {
         ret = TSK_ERR_METADATA_DISABLED;
         goto out;
     }
-    dest->options = options;
-
     if (tsk_edge_table_has_metadata(dest)) {
-        ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
-            self->parent, self->child, self->metadata, self->metadata_offset);
-    } else {
-        ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
-            self->parent, self->child, NULL, NULL);
+        metadata = self->metadata;
+        metadata_offset = self->metadata_offset;
     }
+    ret = tsk_edge_table_set_columns(dest, self->num_rows, self->left, self->right,
+        self->parent, self->child, metadata, metadata_offset);
     if (ret != 0) {
         goto out;
     }
@@ -1588,7 +1588,8 @@ tsk_edge_table_print_state(tsk_edge_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "edge_table: %p:\n", (void *) self);
-    fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
+    fprintf(out, "options         = 0x%X\n", self->options);
+    fprintf(out, "num_rows        = %d\tmax= %d\tincrement = %d)\n",
         (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
         (int) self->metadata_length, (int) self->max_metadata_length,
@@ -4350,6 +4351,11 @@ typedef struct {
     tsk_id_t parent;
     tsk_id_t child;
     double time;
+    /* It would be a little bit more convenient to store a pointer to the
+     * metadata here in the struct rather than an offset back into the
+     * original array. However, this would increase the size of the struct
+     * from 40 bytes to 48 and we will allocate very large numbers of these.
+     */
     tsk_size_t metadata_offset;
     tsk_size_t metadata_length;
 } edge_sort_t;
@@ -4419,7 +4425,8 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
     tsk_size_t j, k, metadata_offset;
     tsk_size_t n = edges->num_rows - start;
     edge_sort_t *sorted_edges = malloc(n * sizeof(*sorted_edges));
-    char *old_metadata = malloc(edges->metadata_length + sizeof(char));
+    char *old_metadata = malloc(edges->metadata_length);
+    bool has_metadata = tsk_edge_table_has_metadata(edges);
 
     if (sorted_edges == NULL || old_metadata == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -4434,7 +4441,7 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
         e->parent = edges->parent[k];
         e->child = edges->child[k];
         e->time = node_time[e->parent];
-        if (tsk_edge_table_has_metadata(edges)) {
+        if (has_metadata) {
             e->metadata_offset = edges->metadata_offset[k];
             e->metadata_length
                 = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
@@ -4450,7 +4457,7 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
         edges->right[k] = e->right;
         edges->parent[k] = e->parent;
         edges->child[k] = e->child;
-        if (tsk_edge_table_has_metadata(edges)) {
+        if (has_metadata) {
             memcpy(edges->metadata + metadata_offset, old_metadata + e->metadata_offset,
                 e->metadata_length);
             edges->metadata_offset[k] = metadata_offset;
@@ -6864,17 +6871,17 @@ int TSK_WARN_UNUSED
 tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
+    tsk_flags_t edge_options = 0;
+
     memset(self, 0, sizeof(*self));
-    /* Allocate all the tables with their default increments */
+    if (options & TSK_NO_EDGE_METADATA) {
+        edge_options |= TSK_NO_METADATA;
+    }
     ret = tsk_node_table_init(&self->nodes, 0);
     if (ret != 0) {
         goto out;
     }
-    if (options & TSK_NO_EDGE_METADATA) {
-        ret = tsk_edge_table_init(&self->edges, TSK_NO_METADATA);
-    } else {
-        ret = tsk_edge_table_init(&self->edges, 0);
-    }
+    ret = tsk_edge_table_init(&self->edges, edge_options);
     if (ret != 0) {
         goto out;
     }
@@ -7085,12 +7092,7 @@ tsk_table_collection_copy(
     if (ret != 0) {
         goto out;
     }
-    if (options & TSK_NO_EDGE_METADATA) {
-        ret = tsk_edge_table_copy(
-            &self->edges, &dest->edges, TSK_NO_INIT | TSK_NO_METADATA);
-    } else {
-        ret = tsk_edge_table_copy(&self->edges, &dest->edges, TSK_NO_INIT);
-    }
+    ret = tsk_edge_table_copy(&self->edges, &dest->edges, TSK_NO_INIT);
     if (ret != 0) {
         goto out;
     }
@@ -7602,6 +7604,8 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, tsk_id_t *samples,
     /* Avoid calling to simplifier_free with uninit'd memory on error branches */
     memset(&simplifier, 0, sizeof(simplifier_t));
 
+    /* For now we don't bother with edge metadata, but it can easily be
+     * implemented. */
     if (self->edges.metadata_length > 0) {
         ret = TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA;
         goto out;
