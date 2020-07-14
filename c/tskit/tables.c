@@ -1642,22 +1642,33 @@ bool
 tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other)
 {
     bool ret = false;
+    bool metadata_equal;
+
     if (self->num_rows == other->num_rows
         && self->metadata_length == other->metadata_length
         && self->metadata_schema_length == other->metadata_schema_length) {
+        if (tsk_edge_table_has_metadata(self) && tsk_edge_table_has_metadata(other)) {
+            metadata_equal = memcmp(self->metadata_offset, other->metadata_offset,
+                                 (self->num_rows + 1) * sizeof(tsk_size_t))
+                                 == 0
+                             && memcmp(self->metadata, other->metadata,
+                                    self->metadata_length * sizeof(char))
+                                    == 0;
+
+        } else {
+            /* The only way that the metadata lengths can be equal (which
+             * we've already tests) if either one or the other of the tables
+             * hasn't got metadata is if they are both zero. */
+            assert(self->metadata_length == 0);
+            metadata_equal = true;
+        }
         ret = memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
               && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
               && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t))
                      == 0
               && memcmp(self->child, other->child, self->num_rows * sizeof(tsk_id_t))
                      == 0
-              && (!tsk_edge_table_has_metadata(self)
-                     || (memcmp(self->metadata_offset, other->metadata_offset,
-                             (self->num_rows + 1) * sizeof(tsk_size_t))
-                                == 0
-                            && memcmp(self->metadata, other->metadata,
-                                   self->metadata_length * sizeof(char))
-                                   == 0))
+              && metadata_equal
               && memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;

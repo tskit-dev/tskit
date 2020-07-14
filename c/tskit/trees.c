@@ -409,7 +409,10 @@ tsk_treeseq_init(
     }
 
     /* Note that this copy reinstates metadata for a table collection with
-     * TSK_NO_EDGE_METADATA a table without metadata will crash tsk_diff_iter_next*/
+     * TSK_NO_EDGE_METADATA. Otherwise a table without metadata would
+     * crash tsk_diff_iter_next. This is something we will need to
+     * watch out for when we take a read-only view of the input table
+     * rather than a copy. */
     ret = tsk_table_collection_copy(tables, self->tables, 0);
 
     if (ret != 0) {
