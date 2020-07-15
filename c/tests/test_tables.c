@@ -757,6 +757,7 @@ test_edge_table_copy_semantics(void)
     int ret;
     tsk_treeseq_t ts;
     tsk_table_collection_t t1, t2;
+    tsk_edge_table_t edges;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -790,6 +791,12 @@ test_edge_table_copy_semantics(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
     tsk_table_collection_free(&t2);
+
+    /* Try copying into a table directly */
+    ret = tsk_edge_table_copy(&t1.edges, &edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&t1.edges, &edges));
+    tsk_edge_table_free(&edges);
 
     tsk_table_collection_free(&t1);
     tsk_treeseq_free(&ts);
@@ -2334,6 +2341,205 @@ test_provenance_table(void)
 }
 
 static void
+test_table_size_increments(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_size_t default_size = 1024;
+    tsk_size_t new_size;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.individuals.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.individuals.max_location_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.sites.max_ancestral_state_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.mutations.max_derived_state_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.populations.max_metadata_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.provenances.max_timestamp_length_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_record_length_increment, default_size);
+
+    /* Setting to zero sets to the default size */
+    new_size = 0;
+    ret = tsk_individual_table_set_max_rows_increment(&tables.individuals, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows_increment, default_size);
+    ret = tsk_individual_table_set_max_metadata_length_increment(
+        &tables.individuals, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.individuals.max_metadata_length_increment, default_size);
+    ret = tsk_individual_table_set_max_location_length_increment(
+        &tables.individuals, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.individuals.max_location_length_increment, default_size);
+
+    ret = tsk_node_table_set_max_rows_increment(&tables.nodes, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows_increment, default_size);
+    ret = tsk_node_table_set_max_metadata_length_increment(&tables.nodes, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_metadata_length_increment, default_size);
+
+    ret = tsk_edge_table_set_max_rows_increment(&tables.edges, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows_increment, default_size);
+    ret = tsk_edge_table_set_max_metadata_length_increment(&tables.edges, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_metadata_length_increment, default_size);
+
+    ret = tsk_site_table_set_max_rows_increment(&tables.sites, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows_increment, default_size);
+    ret = tsk_site_table_set_max_metadata_length_increment(&tables.sites, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_metadata_length_increment, default_size);
+    ret = tsk_site_table_set_max_ancestral_state_length_increment(
+        &tables.sites, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.sites.max_ancestral_state_length_increment, default_size);
+
+    ret = tsk_mutation_table_set_max_rows_increment(&tables.mutations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows_increment, default_size);
+    ret = tsk_mutation_table_set_max_metadata_length_increment(
+        &tables.mutations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_metadata_length_increment, default_size);
+    ret = tsk_mutation_table_set_max_derived_state_length_increment(
+        &tables.mutations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.mutations.max_derived_state_length_increment, default_size);
+
+    ret = tsk_migration_table_set_max_rows_increment(&tables.migrations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows_increment, default_size);
+    ret = tsk_migration_table_set_max_metadata_length_increment(
+        &tables.migrations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_metadata_length_increment, default_size);
+
+    ret = tsk_population_table_set_max_rows_increment(&tables.populations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows_increment, default_size);
+    ret = tsk_population_table_set_max_metadata_length_increment(
+        &tables.populations, new_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.populations.max_metadata_length_increment, default_size);
+
+    ret = tsk_provenance_table_set_max_rows_increment(&tables.provenances, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows_increment, default_size);
+    ret = tsk_provenance_table_set_max_timestamp_length_increment(
+        &tables.provenances, new_size);
+    CU_ASSERT_EQUAL_FATAL(
+        tables.provenances.max_timestamp_length_increment, default_size);
+    ret = tsk_provenance_table_set_max_record_length_increment(
+        &tables.provenances, new_size);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_record_length_increment, default_size);
+
+    /* Setting to non-zero sets to thatsize */
+    new_size = 1;
+    ret = tsk_individual_table_set_max_rows_increment(&tables.individuals, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows_increment, new_size);
+    ret = tsk_individual_table_set_max_metadata_length_increment(
+        &tables.individuals, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_metadata_length_increment, new_size);
+    ret = tsk_individual_table_set_max_location_length_increment(
+        &tables.individuals, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_location_length_increment, new_size);
+
+    ret = tsk_node_table_set_max_rows_increment(&tables.nodes, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows_increment, new_size);
+    ret = tsk_node_table_set_max_metadata_length_increment(&tables.nodes, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_metadata_length_increment, new_size);
+
+    ret = tsk_edge_table_set_max_rows_increment(&tables.edges, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows_increment, new_size);
+    ret = tsk_edge_table_set_max_metadata_length_increment(&tables.edges, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_metadata_length_increment, new_size);
+
+    ret = tsk_site_table_set_max_rows_increment(&tables.sites, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows_increment, new_size);
+    ret = tsk_site_table_set_max_metadata_length_increment(&tables.sites, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_metadata_length_increment, new_size);
+    ret = tsk_site_table_set_max_ancestral_state_length_increment(
+        &tables.sites, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_ancestral_state_length_increment, new_size);
+
+    ret = tsk_mutation_table_set_max_rows_increment(&tables.mutations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows_increment, new_size);
+    ret = tsk_mutation_table_set_max_metadata_length_increment(
+        &tables.mutations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_metadata_length_increment, new_size);
+    ret = tsk_mutation_table_set_max_derived_state_length_increment(
+        &tables.mutations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_derived_state_length_increment, new_size);
+
+    ret = tsk_migration_table_set_max_rows_increment(&tables.migrations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows_increment, new_size);
+    ret = tsk_migration_table_set_max_metadata_length_increment(
+        &tables.migrations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_metadata_length_increment, new_size);
+
+    ret = tsk_population_table_set_max_rows_increment(&tables.populations, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows_increment, new_size);
+    ret = tsk_population_table_set_max_metadata_length_increment(
+        &tables.populations, new_size);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_metadata_length_increment, new_size);
+
+    ret = tsk_provenance_table_set_max_rows_increment(&tables.provenances, new_size);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows_increment, new_size);
+    ret = tsk_provenance_table_set_max_timestamp_length_increment(
+        &tables.provenances, new_size);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_timestamp_length_increment, new_size);
+    ret = tsk_provenance_table_set_max_record_length_increment(
+        &tables.provenances, new_size);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_record_length_increment, new_size);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_link_ancestors_input_errors(void)
 {
     int ret;
@@ -3832,6 +4038,7 @@ main(int argc, char **argv)
         { "test_individual_table", test_individual_table },
         { "test_population_table", test_population_table },
         { "test_provenance_table", test_provenance_table },
+        { "test_table_size_increments", test_table_size_increments },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
         { "test_table_collection_metadata", test_table_collection_metadata },

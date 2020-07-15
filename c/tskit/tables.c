@@ -205,6 +205,16 @@ out:
     return ret;
 }
 
+static int
+write_metadata_schema_header(
+    FILE *out, char *metadata_schema, tsk_size_t metadata_schema_length)
+{
+    const char *fmt = "#metadata_schema#\n"
+                      "%.*s\n"
+                      "#end#metadata_schema\n";
+    return fprintf(out, fmt, metadata_schema_length, metadata_schema);
+}
+
 /*************************
  * individual table
  *************************/
@@ -569,9 +579,8 @@ tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
     fprintf(out, TABLE_SEP);
     /* We duplicate the dump_text code here because we want to output
      * the offset columns. */
-    fprintf(out, "#metadata_schema#\n");
-    fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    fprintf(out, "#end#metadata_schema\n");
+    write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "id\tflags\tlocation_offset\tlocation\t");
     fprintf(out, "metadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
@@ -634,15 +643,8 @@ tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out)
     tsk_size_t metadata_len;
     int err;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     if (err < 0) {
         goto out;
     }
@@ -1085,9 +1087,8 @@ tsk_node_table_print_state(tsk_node_table_t *self, FILE *out)
     fprintf(out, TABLE_SEP);
     /* We duplicate the dump_text code here for simplicity because we want to output
      * the flags column directly. */
-    fprintf(out, "#metadata_schema#\n");
-    fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    fprintf(out, "#end#metadata_schema\n");
+    write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "id\tflags\ttime\tpopulation\tindividual\tmetadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
         fprintf(out, "%d\t%d\t%f\t%d\t%d\t%d\t", (int) j, self->flags[j], self->time[j],
@@ -1117,15 +1118,8 @@ tsk_node_table_dump_text(tsk_node_table_t *self, FILE *out)
     tsk_size_t metadata_len;
     int err;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     if (err < 0) {
         goto out;
     }
@@ -1615,15 +1609,8 @@ tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out)
     tsk_edge_t row;
     int err;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     if (err < 0) {
         goto out;
     }
@@ -2274,15 +2261,8 @@ tsk_site_table_dump_text(tsk_site_table_t *self, FILE *out)
     int err;
     tsk_size_t ancestral_state_len, metadata_len;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     if (err < 0) {
         goto out;
     }
@@ -2855,15 +2835,8 @@ tsk_mutation_table_dump_text(tsk_mutation_table_t *self, FILE *out)
     int err;
     tsk_size_t j, derived_state_len, metadata_len;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     if (err < 0) {
         goto out;
     }
@@ -3323,15 +3296,8 @@ tsk_migration_table_dump_text(tsk_migration_table_t *self, FILE *out)
     tsk_size_t metadata_len;
     int err;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     if (err < 0) {
         goto out;
     }
@@ -3715,9 +3681,8 @@ tsk_population_table_print_state(tsk_population_table_t *self, FILE *out)
         (int) self->metadata_length, (int) self->max_metadata_length,
         (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
-    fprintf(out, "#metadata_schema#\n");
-    fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    fprintf(out, "#end#metadata_schema\n");
+    write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "index\tmetadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
         fprintf(out, "%d\t%d\t", (int) j, self->metadata_offset[j]);
@@ -3764,16 +3729,9 @@ tsk_population_table_dump_text(tsk_population_table_t *self, FILE *out)
     tsk_size_t j;
     tsk_size_t metadata_len;
 
-    err = fprintf(out, "#metadata_schema#\n");
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    if (err < 0) {
-        goto out;
-    }
-    err = fprintf(out, "#end#metadata_schema\n");
-    if (err < 0) {
+    err = write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
+    if (err != 0) {
         goto out;
     }
     err = fprintf(out, "metadata\n");
@@ -6851,9 +6809,9 @@ tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
 {
     fprintf(out, "Table collection state\n");
     fprintf(out, "sequence_length = %f\n", self->sequence_length);
-    fprintf(out, "#metadata_schema#\n");
-    fprintf(out, "%.*s\n", self->metadata_schema_length, self->metadata_schema);
-    fprintf(out, "#end#metadata_schema\n");
+
+    write_metadata_schema_header(
+        out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "#metadata#\n");
     fprintf(out, "%.*s\n", self->metadata_length, self->metadata);
     fprintf(out, "#end#metadata\n");
