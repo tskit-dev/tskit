@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2020 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,6 +38,23 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <limits.h>
+
+#ifdef __clang__
+/* Work around bug in clang >= 6.0, https://github.com/tskit-dev/tskit/issues/721
+ */
+#if __has_builtin(__builtin_isnan)
+#undef isnan
+#define isnan __builtin_isnan
+#else
+abort();
+#endif
+#if __has_builtin(__builtin_isfinite)
+#undef isfinite
+#define isfinite __builtin_isfinite
+#else
+abort();
+#endif
+#endif
 
 #ifdef __GNUC__
 #define TSK_WARN_UNUSED __attribute__((warn_unused_result))

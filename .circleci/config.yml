@@ -41,45 +41,6 @@ jobs:
             pre-commit run --all-files --show-diff-on-failure
 
       - run:
-          name: Run Python tests
-          command: |
-            PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
-              --cover-branches --cover-erase --cover-xml \
-              --cover-inclusive python/tests
-
-      - run:
-          name: Upload Python coverage
-          command: |
-            codecov --required -X gcov -F python_tests
-            # Clean up reports so we don't upload them twice.
-            rm -f coverage.xml
-
-            # Upload coverage for the Python C API.
-            cd python
-            gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
-            cd ..
-            codecov --required -X gcov -F python_c_tests
-            # Clean up reports so we don't upload them twice.
-            rm -f python/*.gcov
-
-      - run:
-          name: Build Python package
-          command: |
-            cd python
-            rm -fR build
-            python setup.py sdist
-            python setup.py check
-            python -m twine check dist/*.tar.gz
-            python -m venv venv
-            source venv/bin/activate
-            pip install --upgrade setuptools pip wheel
-            python setup.py build_ext
-            python setup.py egg_info
-            python setup.py bdist_wheel
-            pip install dist/*.tar.gz
-            tskit --help
-
-      - run:
           name: Compile C with gcc
           command: |
             meson build-gcc c -D b_coverage=true
@@ -155,3 +116,42 @@ jobs:
           name: Build docs
           command: |
             cd docs && make
+
+      - run:
+          name: Run Python tests
+          command: |
+            PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
+              --cover-branches --cover-erase --cover-xml \
+              --cover-inclusive python/tests
+
+      - run:
+          name: Upload Python coverage
+          command: |
+            codecov --required -X gcov -F python_tests
+            # Clean up reports so we don't upload them twice.
+            rm -f coverage.xml
+
+            # Upload coverage for the Python C API.
+            cd python
+            gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
+            cd ..
+            codecov --required -X gcov -F python_c_tests
+            # Clean up reports so we don't upload them twice.
+            rm -f python/*.gcov
+
+      - run:
+          name: Build Python package
+          command: |
+            cd python
+            rm -fR build
+            python setup.py sdist
+            python setup.py check
+            python -m twine check dist/*.tar.gz
+            python -m venv venv
+            source venv/bin/activate
+            pip install --upgrade setuptools pip wheel
+            python setup.py build_ext
+            python setup.py egg_info
+            python setup.py bdist_wheel
+            pip install dist/*.tar.gz
+            tskit --help
