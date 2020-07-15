@@ -4594,7 +4594,7 @@ tsk_table_sorter_init(
         goto out;
     }
     if (!(options & TSK_NO_CHECK_INTEGRITY)) {
-        ret = tsk_table_collection_check_integrity(tables, TSK_CHECK_OFFSETS);
+        ret = tsk_table_collection_check_integrity(tables, 0);
         if (ret != 0) {
             goto out;
         }
@@ -5820,9 +5820,8 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
      * debateable whether we need it. If we remove, we definitely need explicit
      * tests to ensure we're doing sensible things with duplicate sites.
      * (Particularly, re TSK_REDUCE_TO_SITE_TOPOLOGY.) */
-    ret = tsk_table_collection_check_integrity(
-        tables, TSK_CHECK_OFFSETS | TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING
-                    | TSK_CHECK_SITE_DUPLICATES);
+    ret = tsk_table_collection_check_integrity(tables,
+        TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING | TSK_CHECK_SITE_DUPLICATES);
     if (ret != 0) {
         goto out;
     }
@@ -6467,120 +6466,24 @@ out:
 }
 
 static int
-tsk_table_collection_check_edge_ordering(tsk_table_collection_t *self)
+tsk_table_collection_check_node_integrity(
+    tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t j;
-    tsk_id_t parent, last_parent, child, last_child;
-    double left, last_left;
-    const double *time = self->nodes.time;
-    bool *parent_seen = calloc(self->nodes.num_rows, sizeof(bool));
-
-    if (parent_seen == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    /* Just keeping compiler happy; these values don't matter. */
-    last_left = 0;
-    last_parent = 0;
-    last_child = 0;
-    for (j = 0; j < self->edges.num_rows; j++) {
-        left = self->edges.left[j];
-        parent = self->edges.parent[j];
-        child = self->edges.child[j];
-        if (parent_seen[parent]) {
-            ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
-            goto out;
-        }
-        if (j > 0) {
-            /* Input data must sorted by (time[parent], parent, child, left). */
-            if (time[parent] < time[last_parent]) {
-                ret = TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME;
-                goto out;
-            }
-            if (time[parent] == time[last_parent]) {
-                if (parent == last_parent) {
-                    if (child < last_child) {
-                        ret = TSK_ERR_EDGES_NOT_SORTED_CHILD;
-                        goto out;
-                    }
-                    if (child == last_child) {
-                        if (left == last_left) {
-                            ret = TSK_ERR_DUPLICATE_EDGES;
-                            goto out;
-                        } else if (left < last_left) {
-                            ret = TSK_ERR_EDGES_NOT_SORTED_LEFT;
-                            goto out;
-                        }
-                    }
-                } else {
-                    parent_seen[last_parent] = true;
-                }
-            }
-        }
-        last_parent = parent;
-        last_child = child;
-        last_left = left;
-    }
-out:
-    tsk_safe_free(parent_seen);
-    return ret;
-}
-
-/* Checks the integrity of the table collection. What gets checked depends
- * on the flags values:
- * 0                             Check the integrity of ID & spatial references.
- * TSK_CHECK_OFFSETS             Check offsets for ragged columns.
- * TSK_CHECK_EDGE_ORDERING       Check edge ordering contraints for a tree sequence.
- * TSK_CHECK_SITE_ORDERING       Check that sites are in nondecreasing position order.
- * TSK_CHECK_SITE_DUPLICATES     Check for any duplicate site positions.
- * TSK_CHECK_MUTATION_ORDERING   Check mutation ordering contraints for a tree sequence.
- * TSK_CHECK_MUTATION_TIME       Check contraints on mutation 'time' column.
- * TSK_CHECK_INDEXES             Check indexes exist & reference integrity.
- * TSK_CHECK_ALL                 All above checks.
- * TSK_NO_CHECK_MUTATION_PARENTS Do not check contraints on mutation 'parent' column.
- * TSK_NO_CHECK_POPULATION_REFS  Do not check integrity of references to populations.
- */
-int TSK_WARN_UNUSED
-tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options)
-{
-    int ret = TSK_ERR_GENERIC;
-    tsk_size_t j;
-    double node_time, left, right, position, mutation_time;
-    double L = self->sequence_length;
-    double *time = self->nodes.time;
-    tsk_id_t parent, child;
-    tsk_id_t parent_mut;
-    tsk_id_t population;
-    tsk_id_t individual;
-    tsk_id_t num_nodes = (tsk_id_t) self->nodes.num_rows;
-    tsk_id_t num_edges = (tsk_id_t) self->edges.num_rows;
-    tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
-    tsk_id_t num_mutations = (tsk_id_t) self->mutations.num_rows;
+    double node_time;
+    tsk_id_t population, individual;
     tsk_id_t num_populations = (tsk_id_t) self->populations.num_rows;
     tsk_id_t num_individuals = (tsk_id_t) self->individuals.num_rows;
-    bool check_site_ordering = !!(options & TSK_CHECK_SITE_ORDERING);
-    bool check_site_duplicates = !!(options & TSK_CHECK_SITE_DUPLICATES);
-    bool check_mutation_ordering = !!(options & TSK_CHECK_MUTATION_ORDERING);
-    bool check_mutation_parents
-        = (check_mutation_ordering & !(options & TSK_NO_CHECK_MUTATION_PARENTS));
-    bool check_mutation_time = !!(options & TSK_CHECK_MUTATION_TIME);
-    bool check_populations = !(options & TSK_NO_CHECK_POPULATION_REFS);
-    bool check_indexes = !!(options & TSK_CHECK_INDEXES);
+    const bool check_population_refs = !(options & TSK_NO_CHECK_POPULATION_REFS);
 
-    if (self->sequence_length <= 0) {
-        ret = TSK_ERR_BAD_SEQUENCE_LENGTH;
-        goto out;
-    }
-
-    /* Nodes */
     for (j = 0; j < self->nodes.num_rows; j++) {
         node_time = self->nodes.time[j];
         if (!isfinite(node_time)) {
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
         }
-        if (check_populations) {
+        if (check_population_refs) {
             population = self->nodes.population[j];
             if (population < TSK_NULL || population >= num_populations) {
                 ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
@@ -6593,13 +6496,42 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
     }
+out:
+    return ret;
+}
 
-    /* Edges */
-    for (j = 0; j < self->edges.num_rows; j++) {
-        parent = self->edges.parent[j];
-        child = self->edges.child[j];
-        left = self->edges.left[j];
-        right = self->edges.right[j];
+static int
+tsk_table_collection_check_edge_integrity(
+    tsk_table_collection_t *self, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_id_t parent, last_parent, child, last_child;
+    double left, last_left, right;
+    const double *time = self->nodes.time;
+    const double L = self->sequence_length;
+    const tsk_edge_table_t edges = self->edges;
+    const tsk_id_t num_nodes = (tsk_id_t) self->nodes.num_rows;
+    const bool check_ordering = !!(options & TSK_CHECK_EDGE_ORDERING);
+    bool *parent_seen = NULL;
+
+    if (check_ordering) {
+        parent_seen = calloc((size_t) num_nodes, sizeof(*parent_seen));
+        if (parent_seen == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    }
+
+    /* Just keeping compiler happy; these values don't matter. */
+    last_left = 0;
+    last_parent = 0;
+    last_child = 0;
+    for (j = 0; j < edges.num_rows; j++) {
+        parent = edges.parent[j];
+        child = edges.child[j];
+        left = edges.left[j];
+        right = edges.right[j];
         /* Node ID integrity */
         if (parent == TSK_NULL) {
             ret = TSK_ERR_NULL_PARENT;
@@ -6639,11 +6571,62 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             ret = TSK_ERR_BAD_NODE_TIME_ORDERING;
             goto out;
         }
-    }
 
-    /* Sites */
-    for (j = 0; j < self->sites.num_rows; j++) {
-        position = self->sites.position[j];
+        if (check_ordering) {
+            if (parent_seen[parent]) {
+                ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
+                goto out;
+            }
+            if (j > 0) {
+                /* Input data must sorted by (time[parent], parent, child, left). */
+                if (time[parent] < time[last_parent]) {
+                    ret = TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME;
+                    goto out;
+                }
+                if (time[parent] == time[last_parent]) {
+                    if (parent == last_parent) {
+                        if (child < last_child) {
+                            ret = TSK_ERR_EDGES_NOT_SORTED_CHILD;
+                            goto out;
+                        }
+                        if (child == last_child) {
+                            if (left == last_left) {
+                                ret = TSK_ERR_DUPLICATE_EDGES;
+                                goto out;
+                            } else if (left < last_left) {
+                                ret = TSK_ERR_EDGES_NOT_SORTED_LEFT;
+                                goto out;
+                            }
+                        }
+                    } else {
+                        parent_seen[last_parent] = true;
+                    }
+                }
+            }
+            last_parent = parent;
+            last_child = child;
+            last_left = left;
+        }
+    }
+out:
+    tsk_safe_free(parent_seen);
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+tsk_table_collection_check_site_integrity(
+    tsk_table_collection_t *self, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t j;
+    double position;
+    const double L = self->sequence_length;
+    const tsk_site_table_t sites = self->sites;
+    const bool check_site_ordering = !!(options & TSK_CHECK_SITE_ORDERING);
+    const bool check_site_duplicates = !!(options & TSK_CHECK_SITE_DUPLICATES);
+
+    for (j = 0; j < sites.num_rows; j++) {
+        position = sites.position[j];
         /* Spatial requirements */
         if (!isfinite(position)) {
             ret = TSK_ERR_BAD_SITE_POSITION;
@@ -6654,28 +6637,48 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
         if (j > 0) {
-            if (check_site_duplicates && self->sites.position[j - 1] == position) {
+            if (check_site_duplicates && sites.position[j - 1] == position) {
                 ret = TSK_ERR_DUPLICATE_SITE_POSITION;
                 goto out;
             }
-            if (check_site_ordering && self->sites.position[j - 1] > position) {
+            if (check_site_ordering && sites.position[j - 1] > position) {
                 ret = TSK_ERR_UNSORTED_SITES;
                 goto out;
             }
         }
     }
+out:
+    return ret;
+}
 
-    /* Mutations */
-    for (j = 0; j < self->mutations.num_rows; j++) {
-        if (self->mutations.site[j] < 0 || self->mutations.site[j] >= num_sites) {
+static int TSK_WARN_UNUSED
+tsk_table_collection_check_mutation_integrity(
+    tsk_table_collection_t *self, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_id_t parent_mut;
+    double mutation_time, parent_mutation_time;
+    const tsk_mutation_table_t mutations = self->mutations;
+    const tsk_id_t num_nodes = (tsk_id_t) self->nodes.num_rows;
+    const tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
+    const tsk_id_t num_mutations = (tsk_id_t) self->mutations.num_rows;
+    const double *node_time = self->nodes.time;
+    const bool check_mutation_ordering = !!(options & TSK_CHECK_MUTATION_ORDERING);
+    bool unknown_time;
+
+    for (j = 0; j < mutations.num_rows; j++) {
+        /* Basic reference integrity */
+        if (mutations.site[j] < 0 || mutations.site[j] >= num_sites) {
             ret = TSK_ERR_SITE_OUT_OF_BOUNDS;
             goto out;
         }
-        if (self->mutations.node[j] < 0 || self->mutations.node[j] >= num_nodes) {
+        if (mutations.node[j] < 0 || mutations.node[j] >= num_nodes) {
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-        parent_mut = self->mutations.parent[j];
+        /* Integrity check for mutation parent */
+        parent_mut = mutations.parent[j];
         if (parent_mut < TSK_NULL || parent_mut >= num_mutations) {
             ret = TSK_ERR_MUTATION_OUT_OF_BOUNDS;
             goto out;
@@ -6684,69 +6687,101 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             ret = TSK_ERR_MUTATION_PARENT_EQUAL;
             goto out;
         }
-        if (check_mutation_parents) {
+        /* Check if time is nonfinite */
+        mutation_time = mutations.time[j];
+        unknown_time = tsk_is_unknown_time(mutation_time);
+        if (!unknown_time) {
+            if (!isfinite(mutation_time)) {
+                ret = TSK_ERR_TIME_NONFINITE;
+                goto out;
+            }
+        }
+
+        if (check_mutation_ordering) {
+            if (j > 0) {
+                if (mutations.site[j - 1] > mutations.site[j]) {
+                    ret = TSK_ERR_UNSORTED_MUTATIONS;
+                    goto out;
+                }
+            }
+
+            /* Check the mutation parents for ordering */
+            /* We can only check parent properties if it is non-null */
             if (parent_mut != TSK_NULL) {
                 /* Parents must be listed before their children */
                 if (parent_mut > (tsk_id_t) j) {
                     ret = TSK_ERR_MUTATION_PARENT_AFTER_CHILD;
                     goto out;
                 }
-                if (self->mutations.site[parent_mut] != self->mutations.site[j]) {
+                if (mutations.site[parent_mut] != mutations.site[j]) {
                     ret = TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE;
                     goto out;
                 }
             }
-        }
-        if (check_mutation_ordering) {
-            if (j > 0) {
-                if (self->mutations.site[j - 1] > self->mutations.site[j]) {
-                    ret = TSK_ERR_UNSORTED_MUTATIONS;
-                    goto out;
-                }
-            }
-        }
-        if (check_mutation_time) {
-            mutation_time = self->mutations.time[j];
-            if (!tsk_is_unknown_time(mutation_time)) {
-                if (!isfinite(mutation_time)) {
-                    ret = TSK_ERR_TIME_NONFINITE;
-                    goto out;
-                }
-                if (mutation_time < self->nodes.time[self->mutations.node[j]]) {
+
+            /* Check time value ordering */
+            if (!unknown_time) {
+                if (mutation_time < node_time[mutations.node[j]]) {
                     ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
                     goto out;
                 }
-                if (parent_mut != TSK_NULL
-                    && self->mutations.time[parent_mut] < mutation_time) {
-                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
-                    goto out;
+                /* We may be on chain of mutations in which the
+                 * intermediate parents have unknown times, but the
+                 * mutations at either end have known times. So, we
+                 * must skip back until either we find a NULL parent
+                 * or a known time. */
+                while (parent_mut != TSK_NULL) {
+                    parent_mutation_time = mutations.time[parent_mut];
+                    if (!tsk_is_unknown_time(parent_mutation_time)) {
+                        if (mutation_time > parent_mutation_time) {
+                            ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
+                            goto out;
+                        }
+                        break;
+                    }
+                    parent_mut = mutations.parent[parent_mut];
                 }
             }
         }
     }
+out:
+    return ret;
+}
 
-    /* Migrations */
-    for (j = 0; j < self->migrations.num_rows; j++) {
-        if (self->migrations.node[j] < 0 || self->migrations.node[j] >= num_nodes) {
+static int TSK_WARN_UNUSED
+tsk_table_collection_check_migration_integrity(
+    tsk_table_collection_t *self, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t j;
+    double left, right;
+    const double L = self->sequence_length;
+    const tsk_migration_table_t migrations = self->migrations;
+    const tsk_id_t num_nodes = (tsk_id_t) self->nodes.num_rows;
+    const tsk_id_t num_populations = (tsk_id_t) self->populations.num_rows;
+    const bool check_population_refs = !(options & TSK_NO_CHECK_POPULATION_REFS);
+
+    for (j = 0; j < migrations.num_rows; j++) {
+        if (migrations.node[j] < 0 || migrations.node[j] >= num_nodes) {
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-        if (self->migrations.source[j] < 0
-            || self->migrations.source[j] >= num_populations) {
-            ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
-            goto out;
+        if (check_population_refs) {
+            if (migrations.source[j] < 0 || migrations.source[j] >= num_populations) {
+                ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
+                goto out;
+            }
+            if (migrations.dest[j] < 0 || migrations.dest[j] >= num_populations) {
+                ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
+                goto out;
+            }
         }
-        if (self->migrations.dest[j] < 0
-            || self->migrations.dest[j] >= num_populations) {
-            ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
-            goto out;
-        }
-        if (!isfinite(self->migrations.time[j])) {
+        if (!isfinite(migrations.time[j])) {
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
         }
-        left = self->migrations.left[j];
-        right = self->migrations.right[j];
+        left = migrations.left[j];
+        right = migrations.right[j];
         /* Spatial requirements */
         /* TODO it's a bit misleading to use the edge-specific errors here. */
         if (!(isfinite(left) && isfinite(right))) {
@@ -6766,40 +6801,183 @@ tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t o
             goto out;
         }
     }
+out:
+    return ret;
+}
 
-    if (check_indexes) {
-        if (!tsk_table_collection_has_index(self, 0)) {
-            ret = TSK_ERR_TABLES_NOT_INDEXED;
+static tsk_id_t TSK_WARN_UNUSED
+tsk_table_collection_check_tree_integrity(tsk_table_collection_t *self)
+{
+    tsk_id_t ret = 0;
+    size_t j, k;
+    tsk_id_t u, site, mutation;
+    double tree_left, tree_right;
+    const double sequence_length = self->sequence_length;
+    const tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
+    const tsk_id_t num_mutations = (tsk_id_t) self->mutations.num_rows;
+    const size_t num_edges = self->edges.num_rows;
+    const double *restrict site_position = self->sites.position;
+    const tsk_id_t *restrict mutation_site = self->mutations.site;
+    const tsk_id_t *restrict mutation_node = self->mutations.node;
+    const double *restrict mutation_time = self->mutations.time;
+    const double *restrict node_time = self->nodes.time;
+    const tsk_id_t *restrict I = self->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->indexes.edge_removal_order;
+    const double *restrict edge_right = self->edges.right;
+    const double *restrict edge_left = self->edges.left;
+    const tsk_id_t *restrict edge_child = self->edges.child;
+    const tsk_id_t *restrict edge_parent = self->edges.parent;
+    tsk_id_t *restrict parent = NULL;
+    tsk_id_t num_trees = 0;
+
+    parent = malloc(self->nodes.num_rows * sizeof(*parent));
+    if (parent == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
+
+    tree_left = 0;
+    tree_right = sequence_length;
+    num_trees = 0;
+    j = 0;
+    k = 0;
+    site = 0;
+    mutation = 0;
+    assert(I != NULL && O != NULL);
+
+    while (j < num_edges || tree_left < sequence_length) {
+        while (k < num_edges && edge_right[O[k]] == tree_left) {
+            parent[edge_child[O[k]]] = TSK_NULL;
+            k++;
+        }
+        while (j < num_edges && edge_left[I[j]] == tree_left) {
+            u = edge_child[I[j]];
+            if (parent[u] != TSK_NULL) {
+                ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
+                goto out;
+            }
+            parent[u] = edge_parent[I[j]];
+            j++;
+        }
+        tree_right = sequence_length;
+        if (j < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_left[I[j]]);
+        }
+        if (k < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
+        }
+        while (site < num_sites && site_position[site] < tree_right) {
+            while (mutation < num_mutations && mutation_site[mutation] == site) {
+                if (!tsk_is_unknown_time(mutation_time[mutation])
+                    && parent[mutation_node[mutation]] != TSK_NULL
+                    && node_time[parent[mutation_node[mutation]]]
+                           <= mutation_time[mutation]) {
+                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE;
+                    goto out;
+                }
+                mutation++;
+            }
+            site++;
+        }
+        tree_left = tree_right;
+        /* This is technically possible; if we have 2**31 edges each defining
+         * a single tree, and there's a gap between each of these edges we
+         * would overflow this counter. */
+        if (num_trees == INT32_MAX) {
+            ret = TSK_ERR_TREE_OVERFLOW;
             goto out;
         }
-        for (j = 0; j < self->edges.num_rows; j++) {
-            if (self->indexes.edge_insertion_order[j] < 0
-                || self->indexes.edge_insertion_order[j] >= num_edges) {
-                ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
-                goto out;
-            }
-            if (self->indexes.edge_removal_order[j] < 0
-                || self->indexes.edge_removal_order[j] >= num_edges) {
-                ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
-                goto out;
-            }
+        num_trees++;
+    }
+    ret = num_trees;
+out:
+    /* Can't use tsk_safe_free because of restrict*/
+    if (parent != NULL) {
+        free(parent);
+    }
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+tsk_table_collection_check_index_integrity(tsk_table_collection_t *self)
+{
+    int ret = 0;
+    tsk_id_t j;
+    const tsk_id_t num_edges = (tsk_id_t) self->edges.num_rows;
+    const tsk_id_t *edge_insertion_order = self->indexes.edge_insertion_order;
+    const tsk_id_t *edge_removal_order = self->indexes.edge_removal_order;
+
+    if (!tsk_table_collection_has_index(self, 0)) {
+        ret = TSK_ERR_TABLES_NOT_INDEXED;
+        goto out;
+    }
+    for (j = 0; j < num_edges; j++) {
+        if (edge_insertion_order[j] < 0 || edge_insertion_order[j] >= num_edges) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
+            goto out;
+        }
+        if (edge_removal_order[j] < 0 || edge_removal_order[j] >= num_edges) {
+            ret = TSK_ERR_EDGE_OUT_OF_BOUNDS;
+            goto out;
         }
     }
+out:
+    return ret;
+}
 
-    ret = 0;
-    if (!!(options & TSK_CHECK_OFFSETS)) {
-        ret = tsk_table_collection_check_offsets(self);
+tsk_id_t TSK_WARN_UNUSED
+tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options)
+{
+    int ret = 0;
+
+    if (options & TSK_CHECK_TREES) {
+        /* Checking the trees implies all the other checks */
+        options |= TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING
+                   | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING
+                   | TSK_CHECK_INDEXES;
+    }
+
+    if (self->sequence_length <= 0) {
+        ret = TSK_ERR_BAD_SEQUENCE_LENGTH;
+        goto out;
+    }
+    ret = tsk_table_collection_check_offsets(self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_node_integrity(self, options);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_edge_integrity(self, options);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_site_integrity(self, options);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_mutation_integrity(self, options);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_check_migration_integrity(self, options);
+    if (ret != 0) {
+        goto out;
+    }
+    if (options & TSK_CHECK_INDEXES) {
+        ret = tsk_table_collection_check_index_integrity(self);
         if (ret != 0) {
             goto out;
         }
     }
-    if (!!(options & TSK_CHECK_EDGE_ORDERING)) {
-        ret = tsk_table_collection_check_edge_ordering(self);
-        if (ret != 0) {
+    if (options & TSK_CHECK_TREES) {
+        ret = tsk_table_collection_check_tree_integrity(self);
+        if (ret < 0) {
             goto out;
         }
     }
-
 out:
     return ret;
 }
@@ -7680,11 +7858,8 @@ tsk_table_collection_deduplicate_sites(
     if (ret != 0) {
         goto out;
     }
-    /* Check everything except site duplicates (which we expect) and
-     * edge indexes and mutation times (which we don't use) */
-    ret = tsk_table_collection_check_integrity(
-        self, TSK_CHECK_ALL & ~TSK_CHECK_SITE_DUPLICATES & ~TSK_CHECK_INDEXES
-                  & ~TSK_CHECK_MUTATION_TIME);
+    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_SITE_ORDERING);
+
     if (ret != 0) {
         goto out;
     }
@@ -7736,6 +7911,7 @@ tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
+    tsk_id_t num_trees;
     const tsk_id_t *I, *O;
     const tsk_edge_table_t edges = self->edges;
     const tsk_node_table_t nodes = self->nodes;
@@ -7751,13 +7927,12 @@ tsk_table_collection_compute_mutation_parents(
     /* Using unsigned values here avoids potentially undefined behaviour */
     tsk_size_t j, mutation, first_mutation;
 
-    /* Note that because we check everything here, any non-null mutation parents
-     * will also be checked, even though they are about to be overwritten. To
-     * ensure that this function always succeeds we must ensure that the
-     * parent field is set to -1 first. */
-    ret = tsk_table_collection_check_integrity(
-        self, TSK_CHECK_ALL & ~TSK_CHECK_MUTATION_TIME);
-    if (ret != 0) {
+    /* Set the mutation parent to TSK_NULL so that we don't check the
+     * parent values we are about to write over. */
+    memset(mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
+    num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
+    if (num_trees < 0) {
+        ret = num_trees;
         goto out;
     }
     parent = malloc(nodes.num_rows * sizeof(*parent));
@@ -7852,6 +8027,7 @@ tsk_table_collection_compute_mutation_times(
     tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
+    tsk_id_t num_trees;
     const tsk_id_t *restrict I = self->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->indexes.edge_removal_order;
     const tsk_edge_table_t edges = self->edges;
@@ -7875,9 +8051,13 @@ tsk_table_collection_compute_mutation_times(
         goto out;
     }
 
-    ret = tsk_table_collection_check_integrity(
-        self, TSK_CHECK_ALL & ~TSK_CHECK_MUTATION_TIME);
-    if (ret != 0) {
+    /* First set the times to TSK_UNKNOWN_TIME so that check will succeed */
+    for (j = 0; j < mutations.num_rows; j++) {
+        mutations.time[j] = TSK_UNKNOWN_TIME;
+    }
+    num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
+    if (num_trees < 0) {
+        ret = num_trees;
         goto out;
     }
     parent = malloc(nodes.num_rows * sizeof(*parent));

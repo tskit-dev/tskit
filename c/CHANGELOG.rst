@@ -37,6 +37,11 @@ In development.
 - The text dump of tables with metadata now includes the metadata schema as a header.
   (:user:`benjeffery`, :pr:`493`)
 
+- Bad tree topologies are detected earlier, so that it is no longer possible
+  to create a tsk_treeseq_t object which contains a parent with contradictory
+  children on an interval. Previously an error occured when some operation
+  building the trees was attempted (:user:`jeromekelleher`, :pr:`709`).
+
 **New features**
 
 - Mutations now have an optional double-precision floating-point ``time`` column.

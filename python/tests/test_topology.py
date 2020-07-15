@@ -4477,8 +4477,8 @@ class TestBadTrees(unittest.TestCase):
         0.0     1.0     3       0
         """
         )
-        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        self.assertRaises(_tskit.LibraryError, list, ts.trees())
+        with self.assertRaises(_tskit.LibraryError):
+            tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_partial_overlap_contradictory_children(self):
         nodes = io.StringIO(
@@ -4497,8 +4497,8 @@ class TestBadTrees(unittest.TestCase):
         0.5     1.0     3       0
         """
         )
-        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        self.assertRaises(_tskit.LibraryError, list, ts.trees())
+        with self.assertRaises(_tskit.LibraryError):
+            tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
 
 class TestSimplify(unittest.TestCase):
@@ -6410,10 +6410,8 @@ class TestSquashEdges(unittest.TestCase):
         2       0.60            1.00            1       0
         """
         )
-        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-
         with self.assertRaises(tskit.LibraryError):
-            self.do_squash(ts)
+            tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def verify_slice_and_squash(self, ts):
         """
