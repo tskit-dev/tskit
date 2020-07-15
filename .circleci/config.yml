@@ -19,7 +19,7 @@ jobs:
             sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen \
             libgsl-dev
             # Install meson to the system packages so we can run it as root
-            sudo pip install meson
+            sudo pip install meson==0.55
             pip install --user -r python/requirements/CI/requirements.txt
             pip install twine --user
             # Remove tskit installed by msprime
@@ -39,6 +39,7 @@ jobs:
           name: Lint Python (pre-commit)
           command: |
             pre-commit run --all-files --show-diff-on-failure
+
 
       - run:
           name: Compile C with gcc
@@ -62,15 +63,15 @@ jobs:
           command: |
             cd build-gcc
             # TODO should be able to do this with 'find', but it's tricky and opaque.
-            gcov -pb tskit@sta/tskit_core.c.gcno ../c/tskit/core.c
-            gcov -pb tskit@sta/tskit_tables.c.gcno ../c/tskit/tables.c
-            gcov -pb tskit@sta/tskit_trees.c.gcno ../c/tskit/trees.c
-            gcov -pb tskit@sta/tskit_genotypes.c.gcno ../c/tskit/genotypes.c
-            gcov -pb tskit@sta/tskit_core.c.gcno ../c/tskit/core.c
-            gcov -pb tskit@sta/tskit_convert.c.gcno ../c/tskit/convert.c
-            gcov -pb tskit@sta/tskit_stats.c.gcno ../c/tskit/stats.c
-            gcov -pb tskit@sta/tskit_haplotype_matching.c.gcno ../c/tskit/haplotype_matching.c
-            gcov -pb tskit@sta/tskit_file_format.c.gcno ../c/tskit/file_format.c
+            gcov -pb libtskit.a.p/tskit_core.c.gcno ../c/tskit/core.c
+            gcov -pb libtskit.a.p/tskit_tables.c.gcno ../c/tskit/tables.c
+            gcov -pb libtskit.a.p/tskit_trees.c.gcno ../c/tskit/trees.c
+            gcov -pb libtskit.a.p/tskit_genotypes.c.gcno ../c/tskit/genotypes.c
+            gcov -pb libtskit.a.p/tskit_core.c.gcno ../c/tskit/core.c
+            gcov -pb libtskit.a.p/tskit_convert.c.gcno ../c/tskit/convert.c
+            gcov -pb libtskit.a.p/tskit_stats.c.gcno ../c/tskit/stats.c
+            gcov -pb libtskit.a.p/tskit_haplotype_matching.c.gcno ../c/tskit/haplotype_matching.c
+            gcov -pb libtskit.a.p/tskit_file_format.c.gcno ../c/tskit/file_format.c
             cd ..
             codecov --required -X gcov -F c_tests
 
@@ -127,6 +128,8 @@ jobs:
       - run:
           name: Upload Python coverage
           command: |
+            # Make sure the C coverage reports aren't lying around
+            rm -fR build-gcc
             codecov --required -X gcov -F python_tests
             # Clean up reports so we don't upload them twice.
             rm -f coverage.xml
