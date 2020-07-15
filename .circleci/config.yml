@@ -1,8 +1,8 @@
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6-stretch
+      - image: circleci/python:3.6-buster
     working_directory: /home/circleci/tskit
     steps:
       - checkout
@@ -50,7 +50,7 @@ jobs:
       - run:
           name: Upload Python coverage
           command: |
-            codecov -X gcov -F python_tests
+            codecov --required -X gcov -F python_tests
             # Clean up reports so we don't upload them twice.
             rm -f coverage.xml
 
@@ -58,7 +58,7 @@ jobs:
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
             cd ..
-            codecov -X gcov -F python_c_tests
+            codecov --required -X gcov -F python_c_tests
             # Clean up reports so we don't upload them twice.
             rm -f python/*.gcov
 
@@ -111,7 +111,7 @@ jobs:
             gcov -pb tskit@sta/tskit_haplotype_matching.c.gcno ../c/tskit/haplotype_matching.c
             gcov -pb tskit@sta/tskit_file_format.c.gcno ../c/tskit/file_format.c
             cd ..
-            codecov -X gcov -F c_tests
+            codecov --required -X gcov -F c_tests
 
       - run:
           name: Valgrind for C tests.
