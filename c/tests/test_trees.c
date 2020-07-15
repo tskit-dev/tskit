@@ -4424,24 +4424,18 @@ test_tsk_treeseq_bad_records(void)
  *======================================================*/
 
 static void
-test_simple_diff_iter_with_options(tsk_flags_t tc_options)
+test_simple_diff_iter(void)
 {
     int ret;
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
-        paper_ex_individuals, NULL, tc_options);
+        paper_ex_individuals, NULL, 0);
+
     verify_tree_diffs(&ts);
 
     ret = tsk_treeseq_free(&ts);
     CU_ASSERT_EQUAL(ret, 0);
-}
-
-static void
-test_simple_diff_iter(void)
-{
-    test_simple_diff_iter_with_options(0);
-    test_simple_diff_iter_with_options(TSK_NO_EDGE_METADATA);
 }
 
 static void

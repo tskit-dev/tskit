@@ -257,7 +257,8 @@ tsk_strerror_internal(int err)
                   "an interval";
             break;
         case TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA:
-            ret = "Can't squash or flush edges that have non-empty metadata";
+            ret = "Can't squash, flush, simplify or link ancestors with edges that have "
+                  "non-empty metadata";
             break;
 
         /* Site errors */
