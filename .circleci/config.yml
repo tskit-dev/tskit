@@ -8,7 +8,10 @@ jobs:
       - checkout
       - run: sudo chown -R circleci:circleci *
       - restore_cache:
-          key: tskit-{{ .Branch }}
+          # It's sometimes necessary to nuke the cache, and the simplest
+          # way to do it is to change the key. We can increment this
+          # version number when we want to do this.
+          key: tskit-{{ .Branch }}-v1
       - run:
           name: Checkout submodules
           command: |
@@ -26,7 +29,7 @@ jobs:
             pip uninstall tskit -y
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
       - save_cache:
-          key: tskit-{{ .Branch }}
+          key: tskit-{{ .Branch }}-v1
           paths:
             - "/home/circleci/.local"
 
