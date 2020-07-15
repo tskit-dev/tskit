@@ -589,6 +589,7 @@ typedef struct {
     struct {
         tsk_id_t *edge_insertion_order;
         tsk_id_t *edge_removal_order;
+        tsk_size_t num_edges;
     } indexes;
 } tsk_table_collection_t;
 
@@ -2247,7 +2248,7 @@ Writes the data from this table collection to the specified file.
 Usually we expect that data written to a file will be in a form that
 can be read directly and used to create a tree sequence; that is, we
 assume that by default the tables are :ref:`sorted <sec_table_sorting>`
-and should be :ref:`indexed <sec_table_indexing>`. Following these
+and :ref:`indexed <sec_table_indexes>`. Following these
 assumptions, if the tables are not already indexed, we index the tables
 before writing to file to save the cost of building these indexes at
 load time. This behaviour requires that the tables are sorted.
@@ -2543,6 +2544,17 @@ int tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
 /**
 @brief Returns true if this table collection is indexed.
 
+@rst
+This method returns true if the table collection has an index
+for the edge table. It guarantees that the index exists, and that
+it is for the same number of edges that are in the edge table. It
+does *not* guarantee that the index is valid (i.e., if the rows
+in the edge have been permuted in some way since the index was built).
+
+See the :ref:`sec_c_api_table_indexes` section for details on the index
+life-cycle.
+@endrst
+
 @param self A pointer to a tsk_table_collection_t object.
 @param options Bitwise options. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
@@ -2556,6 +2568,8 @@ bool tsk_table_collection_has_index(tsk_table_collection_t *self, tsk_flags_t op
 @rst
 Unconditionally drop the indexes that may be present for this table collection. It
 is not an error to call this method on an unindexed table collection.
+See the :ref:`sec_c_api_table_indexes` section for details on the index
+life-cycle.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
@@ -2569,8 +2583,10 @@ int tsk_table_collection_drop_index(tsk_table_collection_t *self, tsk_flags_t op
 @brief Builds indexes for this table collection.
 
 @rst
-Builds the tree traversal :ref:`indexes <sec_table_indexing>` for this table collection.
-Any existing index is first dropped using :c:func:`tsk_table_collection_drop_index`.
+Builds the tree traversal :ref:`indexes <sec_table_indexes>` for this table
+collection. Any existing index is first dropped using
+:c:func:`tsk_table_collection_drop_index`. See the
+:ref:`sec_c_api_table_indexes` section for details on the index life-cycle.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.

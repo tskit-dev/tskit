@@ -2861,6 +2861,43 @@ test_simplify_metadata(void)
 }
 
 static void
+test_edge_update_invalidates_index(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+
+    /* Any operations on the edge table should now invalidate the index */
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
+    ret = tsk_edge_table_clear(&tables.edges);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
+    /* Even though the actual indexes still exist */
+    CU_ASSERT_FALSE(tables.indexes.edge_insertion_order == NULL);
+    CU_ASSERT_FALSE(tables.indexes.edge_removal_order == NULL);
+    CU_ASSERT_EQUAL_FATAL(tables.indexes.num_edges, tsk_treeseq_get_num_edges(&ts));
+
+    ret = tsk_treeseq_copy_tables(&ts, &tables, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0))
+    ret = tsk_edge_table_add_row(&tables.edges, 0, 1, 0, 1, NULL, 0);
+    CU_ASSERT_TRUE(ret > 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
+    /* Even though the actual indexes still exist */
+    CU_ASSERT_FALSE(tables.indexes.edge_insertion_order == NULL);
+    CU_ASSERT_FALSE(tables.indexes.edge_removal_order == NULL);
+    CU_ASSERT_EQUAL_FATAL(tables.indexes.num_edges, tsk_treeseq_get_num_edges(&ts));
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_copy_table_collection(void)
 {
     int ret;
@@ -4113,6 +4150,7 @@ main(int argc, char **argv)
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
         { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
         { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
+        { "test_edge_update_invalidates_index", test_edge_update_invalidates_index },
         { "test_copy_table_collection", test_copy_table_collection },
         { "test_sort_tables_errors", test_sort_tables_errors },
         { "test_sorter_interface", test_sorter_interface },
