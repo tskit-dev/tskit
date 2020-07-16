@@ -4798,7 +4798,7 @@ class TreeSequence:
             sequence ancestral to none or all of the samples, respectively.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param f: A function that takes a one-dimensional array of length
             equal to the number of sample sets and returns a one-dimensional array.
         :param int output_dim: The length of ``f``'s return value.
@@ -5001,7 +5001,7 @@ class TreeSequence:
             only one of a random pair from the sample set, averaged over choices of pair.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -5057,7 +5057,7 @@ class TreeSequence:
             choices of pair.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5361,7 +5361,7 @@ class TreeSequence:
             but not all, of the samples in ``A``.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -5505,7 +5505,7 @@ class TreeSequence:
         see those functions for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5563,7 +5563,7 @@ class TreeSequence:
         see those functions for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5649,7 +5649,7 @@ class TreeSequence:
             inherits from that node but ``b`` and ``c`` do not, or vice-versa.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 3-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5691,7 +5691,7 @@ class TreeSequence:
         See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5730,7 +5730,7 @@ class TreeSequence:
         sample set. See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -5784,7 +5784,7 @@ class TreeSequence:
             inherit from that node but ``b`` and ``c`` do not, or vice-versa.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 4-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5827,7 +5827,7 @@ class TreeSequence:
         :meth:`f4 <.TreeSequence.f4>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 3-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5871,7 +5871,7 @@ class TreeSequence:
         set. See :meth:`f4 <.TreeSequence.f4>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
@@ -5999,7 +5999,7 @@ class TreeSequence:
             backwards incompatible changes in the near future.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of individuals to compute the statistic with.
+            groups of nodes to compute the statistic with.
         :rtype: iter(:class:`tskit.TopologyCounter`)
         :raises ValueError: If nodes in ``sample_sets`` are invalid or are
             internal samples.
