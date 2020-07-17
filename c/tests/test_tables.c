@@ -3986,10 +3986,10 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     // four nodes from two diploids; the first is from pop 0
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 1.0, 0, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(
-        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 2.0, TSK_NULL, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
@@ -4009,13 +4009,16 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     ret = tsk_site_table_add_row(&tables.sites, 0.4, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, TSK_NULL, NAN, NULL, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, NAN, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 1, 1, TSK_NULL, NAN, NULL, 0, NULL, 0);
+        &tables.mutations, 0, 0, 0, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 1, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // empty nodes should get empty tables
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
@@ -4069,16 +4072,17 @@ test_table_collection_subset_errors(void)
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
     ret = tsk_table_collection_init(&tables_copy, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // four nodes from two diploids; the first is from pop 0
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 1.0, 0, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(
-        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 2.0, TSK_NULL, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
@@ -4091,6 +4095,8 @@ test_table_collection_subset_errors(void)
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Migrations are not supported */
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
@@ -4101,15 +4107,248 @@ test_table_collection_subset_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
 
     // test out of bounds nodes
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     nodes[0] = -1;
-    ret = tsk_table_collection_subset(&tables, nodes, 4);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     nodes[0] = 6;
-    ret = tsk_table_collection_subset(&tables, nodes, 4);
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    // check integrity
+    nodes[0] = 0;
+    nodes[1] = 1;
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_truncate(&tables_copy.nodes, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(
+        &tables_copy.nodes, TSK_NODE_IS_SAMPLE, 0.0, -2, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
 
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&tables_copy);
+}
+
+static void
+test_table_collection_union(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_table_collection_t tables_empty;
+    tsk_table_collection_t tables_copy;
+    tsk_id_t node_mapping[3];
+
+    memset(node_mapping, 0xff, sizeof(node_mapping));
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    ret = tsk_table_collection_init(&tables_empty, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables_empty.sequence_length = 1;
+    ret = tsk_table_collection_init(&tables_copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // does not error on empty tables
+    ret = tsk_table_collection_union(
+        &tables, &tables_empty, node_mapping, TSK_UNION_NO_CHECK_SHARED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // three nodes, two pop, three ind, two edge, two site, two mut
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 1, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 2, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 2, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 2, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.4, "T", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.2, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 1, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // union with empty should not change
+    // other is empty
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_union(
+        &tables_copy, &tables_empty, node_mapping, TSK_UNION_NO_CHECK_SHARED);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy));
+    // self is empty
+    ret = tsk_table_collection_clear(&tables_copy);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_union(
+        &tables_copy, &tables, node_mapping, TSK_UNION_NO_CHECK_SHARED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy));
+
+    // union all shared nodes + subset original nodes = original table
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_union(
+        &tables_copy, &tables, node_mapping, TSK_UNION_NO_CHECK_SHARED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    node_mapping[0] = 0;
+    node_mapping[1] = 1;
+    node_mapping[2] = 2;
+    ret = tsk_table_collection_subset(&tables_copy, node_mapping, 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy));
+
+    // union with one shared node
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    node_mapping[0] = TSK_NULL;
+    node_mapping[1] = TSK_NULL;
+    node_mapping[2] = 2;
+    ret = tsk_table_collection_union(&tables_copy, &tables, node_mapping, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(
+        tables_copy.populations.num_rows, tables.populations.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(
+        tables_copy.individuals.num_rows, tables.individuals.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, tables.nodes.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.edges.num_rows, tables.edges.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.sites.num_rows, tables.sites.num_rows);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, tables.mutations.num_rows + 2);
+
+    // union with one shared node, but no add pop
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    node_mapping[0] = TSK_NULL;
+    node_mapping[1] = TSK_NULL;
+    node_mapping[2] = 2;
+    ret = tsk_table_collection_union(
+        &tables_copy, &tables, node_mapping, TSK_UNION_NO_ADD_POP);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.populations.num_rows, tables.populations.num_rows);
+    CU_ASSERT_EQUAL_FATAL(
+        tables_copy.individuals.num_rows, tables.individuals.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, tables.nodes.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.edges.num_rows, tables.edges.num_rows + 2);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.sites.num_rows, tables.sites.num_rows);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, tables.mutations.num_rows + 2);
+
+    tsk_table_collection_free(&tables_copy);
+    tsk_table_collection_free(&tables_empty);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_table_collection_union_errors(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_table_collection_t tables_copy;
+    tsk_id_t node_mapping[] = { 0, 1 };
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    ret = tsk_table_collection_init(&tables_copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // two nodes, two pop, two ind, one edge, one site, one mut
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.2, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    // trigger diff histories error
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables_copy.mutations, 0, 1, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_union(&tables_copy, &tables, node_mapping, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNION_DIFF_HISTORIES);
+
+    // Migrations are not supported
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_migration_table_add_row(&tables_copy.migrations, 0, 1, 0, 0, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.migrations.num_rows, 1);
+    ret = tsk_table_collection_union(
+        &tables_copy, &tables, node_mapping, TSK_UNION_NO_CHECK_SHARED);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
+
+    // unsuported union - child shared parent not shared
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    node_mapping[0] = 0;
+    node_mapping[1] = TSK_NULL;
+    ret = tsk_table_collection_union(
+        &tables_copy, &tables, node_mapping, TSK_UNION_NO_ADD_POP);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNION_NOT_SUPPORTED);
+
+    // test out of bounds node_mapping
+    node_mapping[0] = -4;
+    node_mapping[1] = 6;
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_union(&tables_copy, &tables, node_mapping, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNION_BAD_MAP);
+
+    // check integrity
+    node_mapping[0] = 0;
+    node_mapping[1] = 1;
+    ret = tsk_node_table_add_row(
+        &tables_copy.nodes, TSK_NODE_IS_SAMPLE, 0.0, -2, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_union(&tables_copy, &tables, node_mapping, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, -2, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_union(&tables, &tables_copy, node_mapping, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+
+    tsk_table_collection_free(&tables_copy);
+    tsk_table_collection_free(&tables);
 }
 
 int
@@ -4168,6 +4407,8 @@ main(int argc, char **argv)
             test_table_collection_check_integrity_no_populations },
         { "test_table_collection_subset", test_table_collection_subset },
         { "test_table_collection_subset_errors", test_table_collection_subset_errors },
+        { "test_table_collection_union", test_table_collection_union },
+        { "test_table_collection_union_errors", test_table_collection_union_errors },
         { NULL, NULL },
     };
 

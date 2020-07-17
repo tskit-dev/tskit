@@ -38,12 +38,16 @@ import tskit
 
 class WrightFisherSimulator:
     """
-    SIMPLE simulation of a bisexual, haploid Wright-Fisher population of size N
-    for ngens generations, in which each individual survives with probability
-    survival and only those who die are replaced.  If num_loci is None,
-    the chromosome is 1.0 Morgans long, and the mutation rate is in units of
-    mutations/Morgan/generation. If num_loci not None, a discrete recombination
-    model is used where breakpoints are chosen uniformly from 1 to num_loci - 1.
+    SIMPLE simulation of `num_pops` bisexual, haploid Wright-Fisher populations
+    of size `N` for `ngens` generations, in which each individual survives with
+    probability `survival` and only those who die are replaced. If `num_pops` is
+    greater than 1, the individual to be replaced has a chance `mig_rate` of
+    being the offspring of nodes from a different and randomly chosen
+    population. If `num_loci` is None, the chromosome is 1.0 Morgans long. If
+    `num_loci` not None, a discrete recombination model is used where
+    breakpoints are chosen uniformly from 1 to `num_loci` - 1. If
+    `deep_history` is True, a history to coalescence of just one population of
+    `self.N` samples is added at the beginning.
     """
 
     def __init__(
@@ -55,10 +59,16 @@ class WrightFisherSimulator:
         debug=False,
         initial_generation_samples=False,
         num_loci=None,
+        num_pops=1,
+        mig_rate=0.0,
+        record_migrations=False,
     ):
         self.N = N
+        self.num_pops = num_pops
         self.num_loci = num_loci
         self.survival = survival
+        self.mig_rate = mig_rate
+        self.record_migrations = record_migrations
         self.deep_history = deep_history
         self.debug = debug
         self.initial_generation_samples = initial_generation_samples
@@ -76,11 +86,18 @@ class WrightFisherSimulator:
         if self.num_loci is not None:
             L = self.num_loci
         tables = tskit.TableCollection(sequence_length=L)
-        tables.populations.add_row()
+        for _ in range(self.num_pops):
+            tables.populations.add_row()
         if self.deep_history:
             # initial population
+            population_configurations = [
+                msprime.PopulationConfiguration(sample_size=self.N)
+            ]
             init_ts = msprime.simulate(
-                self.N, recombination_rate=1.0, length=L, random_seed=self.seed
+                population_configurations=population_configurations,
+                recombination_rate=1.0,
+                length=L,
+                random_seed=self.seed,
             )
             init_tables = init_ts.dump_tables()
             flags = init_tables.nodes.flags
@@ -97,48 +114,74 @@ class WrightFisherSimulator:
             flags = 0
             if self.initial_generation_samples:
                 flags = tskit.NODE_IS_SAMPLE
-            for _ in range(self.N):
-                tables.nodes.add_row(flags=flags, time=ngens, population=0)
+            for p in range(self.num_pops):
+                for _ in range(self.N):
+                    tables.nodes.add_row(flags=flags, time=ngens, population=p)
 
-        pop = list(range(self.N))
+        pops = [
+            list(range(p * self.N, (p * self.N) + self.N)) for p in range(self.num_pops)
+        ]
+        pop_ids = list(range(self.num_pops))
         for t in range(ngens - 1, -1, -1):
             if self.debug:
                 print("t:", t)
-                print("pop:", pop)
-
-            dead = [self.rng.random() > self.survival for k in pop]
+                print("pops:", pops)
+            dead = [[self.rng.random() > self.survival for _ in pop] for pop in pops]
             # sample these first so that all parents are from the previous gen
-            new_parents = [
-                (self.rng.choice(pop), self.rng.choice(pop)) for k in range(sum(dead))
-            ]
-            k = 0
+            parent_pop = []
+            new_parents = []
+            for p in pop_ids:
+                w = [
+                    1 - self.mig_rate if i == p else self.mig_rate / (self.num_pops - 1)
+                    for i in pop_ids
+                ]
+                parent_pop.append(self.rng.choices(pop_ids, w, k=sum(dead[p])))
+                new_parents.append(
+                    [
+                        self.rng.choices(pops[parent_pop[p][k]], k=2)
+                        for k in range(sum(dead[p]))
+                    ]
+                )
+
             if self.debug:
-                print("Replacing", sum(dead), "individuals.")
-            for j in range(self.N):
-                if dead[j]:
-                    # this is: offspring ID, lparent, rparent, breakpoint
-                    offspring = len(tables.nodes)
-                    tables.nodes.add_row(time=t, population=0)
-                    lparent, rparent = new_parents[k]
-                    k += 1
-                    bp = self.random_breakpoint()
-                    if self.debug:
-                        print("--->", offspring, lparent, rparent, bp)
-                    pop[j] = offspring
-                    if bp > 0.0:
-                        tables.edges.add_row(
-                            left=0.0, right=bp, parent=lparent, child=offspring
-                        )
-                    if bp < L:
-                        tables.edges.add_row(
-                            left=bp, right=L, parent=rparent, child=offspring
-                        )
+                for p in pop_ids:
+                    print("Replacing", sum(dead[p]), "individuals from pop", p)
+            for p in pop_ids:
+                k = 0
+                for j in range(self.N):
+                    if dead[p][j]:
+                        # this is: offspring ID, lparent, rparent, breakpoint
+                        offspring = tables.nodes.add_row(time=t, population=p)
+                        if parent_pop[p][k] != p and self.record_migrations:
+                            tables.migrations.add_row(
+                                left=0.0,
+                                right=L,
+                                node=offspring,
+                                source=parent_pop[p][k],
+                                dest=p,
+                                time=t,
+                            )
+                        lparent, rparent = new_parents[p][k]
+                        k += 1
+                        bp = self.random_breakpoint()
+                        if self.debug:
+                            print("--->", offspring, lparent, rparent, bp)
+                        pops[p][j] = offspring
+                        if bp > 0.0:
+                            tables.edges.add_row(
+                                left=0.0, right=bp, parent=lparent, child=offspring
+                            )
+                        if bp < L:
+                            tables.edges.add_row(
+                                left=bp, right=L, parent=rparent, child=offspring
+                            )
 
         if self.debug:
             print("Done! Final pop:")
-            print(pop)
+            print(pops)
         flags = tables.nodes.flags
-        flags[pop] = tskit.NODE_IS_SAMPLE
+        flattened = [n for pop in pops for n in pop]
+        flags[flattened] = tskit.NODE_IS_SAMPLE
         tables.nodes.set_columns(
             flags=flags, time=tables.nodes.time, population=tables.nodes.population
         )
@@ -154,6 +197,9 @@ def wf_sim(
     seed=None,
     initial_generation_samples=False,
     num_loci=None,
+    num_pops=1,
+    mig_rate=0.0,
+    record_migrations=False,
 ):
     sim = WrightFisherSimulator(
         N,
@@ -163,6 +209,9 @@ def wf_sim(
         seed=seed,
         initial_generation_samples=initial_generation_samples,
         num_loci=num_loci,
+        num_pops=num_pops,
+        mig_rate=mig_rate,
+        record_migrations=record_migrations,
     )
     return sim.run(ngens)
 
@@ -173,6 +222,75 @@ class TestSimulation(unittest.TestCase):
     """
 
     random_seed = 5678
+
+    def test_one_gen_multipop_mig_no_deep(self):
+        tables = wf_sim(
+            N=5,
+            ngens=1,
+            num_pops=4,
+            mig_rate=1.0,
+            deep_history=False,
+            seed=self.random_seed,
+            record_migrations=True,
+        )
+        self.assertEqual(tables.nodes.num_rows, 5 * 4 * (1 + 1))
+        self.assertGreater(tables.edges.num_rows, 0)
+        self.assertEqual(tables.migrations.num_rows, 5 * 4)
+
+    def test_multipop_mig_deep(self):
+        N = 10
+        ngens = 20
+        num_pops = 3
+        tables = wf_sim(
+            N=N,
+            ngens=ngens,
+            num_pops=num_pops,
+            mig_rate=1.0,
+            seed=self.random_seed,
+            record_migrations=True,
+        )
+        self.assertGreater(tables.nodes.num_rows, (num_pops * N * ngens) + N)
+        self.assertGreater(tables.edges.num_rows, 0)
+        self.assertEqual(tables.sites.num_rows, 0)
+        self.assertEqual(tables.mutations.num_rows, 0)
+        self.assertGreaterEqual(tables.migrations.num_rows, N * num_pops * ngens)
+        self.assertEqual(tables.populations.num_rows, num_pops)
+        # sort does not support mig
+        tables.migrations.clear()
+        # making sure trees are valid
+        tables.sort()
+        tables.simplify()
+        ts = tables.tree_sequence()
+        sample_pops = tables.nodes.population[ts.samples()]
+        self.assertEqual(np.unique(sample_pops).size, num_pops)
+
+    def test_multipop_mig_no_deep(self):
+        N = 5
+        ngens = 5
+        num_pops = 2
+        tables = wf_sim(
+            N=N,
+            ngens=ngens,
+            num_pops=num_pops,
+            mig_rate=1.0,
+            deep_history=False,
+            seed=self.random_seed,
+            record_migrations=True,
+        )
+        self.assertEqual(tables.nodes.num_rows, num_pops * N * (ngens + 1))
+        self.assertGreater(tables.edges.num_rows, 0)
+        self.assertEqual(tables.sites.num_rows, 0)
+        self.assertEqual(tables.mutations.num_rows, 0)
+        self.assertEqual(tables.migrations.num_rows, N * num_pops * ngens)
+        self.assertEqual(tables.populations.num_rows, num_pops)
+        # sort does not support mig
+        tables.migrations.clear()
+        # making sure trees are valid
+        tables.sort()
+        tables.simplify()
+        ts = tables.tree_sequence()
+        sample_pops = tables.nodes.population[ts.samples()]
+        self.assertEqual(np.unique(sample_pops).size, num_pops)
 
     def test_non_overlapping_generations(self):
         tables = wf_sim(N=10, ngens=10, survival=0.0, seed=self.random_seed)

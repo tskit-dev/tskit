@@ -638,6 +638,84 @@ def py_subset(tables, nodes, record_provenance=True):
             mutation_map[i] = new_mut
 
 
+def py_union(tables, other, nodes, record_provenance=True, add_populations=True):
+    """
+    Python implementation of TableCollection.union().
+    """
+    # mappings of id in other to new id in tables
+    # the +1 is to take care of mapping tskit.NULL(-1) to tskit.NULL
+    pop_map = [tskit.NULL for _ in range(other.populations.num_rows + 1)]
+    ind_map = [tskit.NULL for _ in range(other.individuals.num_rows + 1)]
+    node_map = [tskit.NULL for _ in range(other.nodes.num_rows + 1)]
+    site_map = [tskit.NULL for _ in range(other.sites.num_rows + 1)]
+    mut_map = [tskit.NULL for _ in range(other.mutations.num_rows + 1)]
+    for other_id, node in enumerate(other.nodes):
+        if nodes[other_id] != tskit.NULL:
+            node_map[other_id] = nodes[other_id]
+        else:
+            if ind_map[node.individual] == tskit.NULL and node.individual != tskit.NULL:
+                ind = other.individuals[node.individual]
+                ind_id = tables.individuals.add_row(
+                    flags=ind.flags, location=ind.location, metadata=ind.metadata
+                )
+                ind_map[node.individual] = ind_id
+            if pop_map[node.population] == tskit.NULL and node.population != tskit.NULL:
+                if not add_populations:
+                    pop_map[node.population] = node.population
+                else:
+                    pop = other.populations[node.population]
+                    pop_id = tables.populations.add_row(metadata=pop.metadata)
+                    pop_map[node.population] = pop_id
+            node_id = tables.nodes.add_row(
+                time=node.time,
+                population=pop_map[node.population],
+                individual=ind_map[node.individual],
+                metadata=node.metadata,
+                flags=node.flags,
+            )
+            node_map[other_id] = node_id
+    for edge in other.edges:
+        if (nodes[edge.parent] == tskit.NULL) or (nodes[edge.child] == tskit.NULL):
+            # can't do this right not because of sorting of mutations
+            if (nodes[edge.parent] == tskit.NULL) and (nodes[edge.child] != tskit.NULL):
+                raise ValueError("Cannot graft nodes above existing nodes.")
+            tables.edges.add_row(
+                left=edge.left,
+                right=edge.right,
+                parent=node_map[edge.parent],
+                child=node_map[edge.child],
+                metadata=edge.metadata,
+            )
+    for other_id, mut in enumerate(other.mutations):
+        if nodes[mut.node] == tskit.NULL:
+            # add site: may already be in tables, but we deduplicate
+            if site_map[mut.site] == tskit.NULL:
+                site = other.sites[mut.site]
+                site_id = tables.sites.add_row(
+                    position=site.position,
+                    ancestral_state=site.ancestral_state,
+                    metadata=site.metadata,
+                )
+                site_map[mut.site] = site_id
+            mut_id = tables.mutations.add_row(
+                site=site_map[mut.site],
+                node=node_map[mut.node],
+                derived_state=mut.derived_state,
+                parent=tskit.NULL,
+                metadata=mut.metadata,
+            )
+            mut_map[other_id] = mut_id
+    # migration table
+    # grafting provenance table
+    if record_provenance:
+        pass
+    # sorting, deduplicating sites, and re-computing mutation parents
+    tables.sort()
+    tables.deduplicate_sites()
+    tables.build_index()
+    tables.compute_mutation_parents()
+
+
 def compute_mutation_times(ts):
     """
     Compute the `time` column of a MutationTable in a TableCollection.

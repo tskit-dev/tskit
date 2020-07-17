@@ -26,6 +26,7 @@ between simulations and the tree sequence.
 """
 import io
 import itertools
+import json
 import math
 import pickle
 import random
@@ -2655,3 +2656,142 @@ class TestSubsetTables(unittest.TestCase):
             self.assertEqual(subset.sites.num_rows, 0)
             self.assertEqual(subset.mutations.num_rows, 0)
             self.assertEqual(subset.provenances, tables.provenances)
+
+
+class TestUnion(unittest.TestCase):
+    """
+    Tests for the TableCollection.union method
+    """
+
+    def get_msprime_example(self, sample_size=3, T=5, seed=1239):
+        # we assume after the split the ts are completely independent
+        M = [[0, 0], [0, 0]]
+        population_configurations = [
+            msprime.PopulationConfiguration(sample_size=sample_size),
+            msprime.PopulationConfiguration(sample_size=sample_size),
+        ]
+        demographic_events = [
+            msprime.CensusEvent(time=T),
+            msprime.MassMigration(T, source=1, dest=0, proportion=1),
+        ]
+        ts = msprime.simulate(
+            population_configurations=population_configurations,
+            demographic_events=demographic_events,
+            migration_matrix=M,
+            length=2e5,
+            recombination_rate=1e-8,
+            mutation_rate=1e-7,
+            record_migrations=False,
+            random_seed=seed,
+        )
+        ts = tsutil.add_random_metadata(ts, seed)
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1)
+        return ts
+
+    def get_wf_example(self, N=5, T=5, seed=1249):
+        twopop_tables = wf.wf_sim(N, T, num_pops=2, seed=seed, deep_history=True)
+        twopop_tables.sort()
+        ts = twopop_tables.tree_sequence()
+        ts = ts.simplify()
+        # adding muts
+        ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
+        ts = tsutil.add_random_metadata(ts, seed)
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
+        return ts
+
+    def split_example(self, ts, T):
+        # splitting two pop ts into disjoint ts
+        shared_nodes = [n.id for n in ts.nodes() if n.time >= T]
+        pop1 = list(ts.samples(population=0))
+        pop2 = list(ts.samples(population=1))
+        tables1 = ts.simplify(shared_nodes + pop1, record_provenance=False).tables
+        tables2 = ts.simplify(shared_nodes + pop2, record_provenance=False).tables
+        node_mapping = [
+            i if i < len(shared_nodes) else tskit.NULL
+            for i in range(tables2.nodes.num_rows)
+        ]
+        return tables1, tables2, node_mapping
+
+    def verify_union_equality(self, tables, other, node_mapping, add_populations=True):
+        # verifying against py impl
+        uni1 = tables.copy()
+        uni2 = tables.copy()
+        uni1.union(
+            other,
+            node_mapping,
+            record_provenance=False,
+            add_populations=add_populations,
+        )
+        tsutil.py_union(
+            uni2,
+            other,
+            node_mapping,
+            record_provenance=False,
+            add_populations=add_populations,
+        )
+        self.assertEqual(uni1, uni2)
+        # verifying that subsetting to original nodes return the same table
+        orig_nodes = [j for i, j in enumerate(node_mapping) if j != tskit.NULL]
+        uni1.subset(orig_nodes)
+        # subsetting tables just to make sure order is the same
+        tables.subset(orig_nodes)
+        uni1.provenances.clear()
+        tables.provenances.clear()
+        self.assertEqual(uni1, tables)
+
+    def test_noshared_example(self):
+        ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
+        ts2 = self.get_msprime_example(sample_size=3, T=2, seed=2125)
+        node_mapping = np.full(ts2.num_nodes, tskit.NULL, dtype="int32")
+        uni1 = ts1.union(ts2, node_mapping, record_provenance=False)
+        uni2_tables = ts1.dump_tables()
+        tsutil.py_union(uni2_tables, ts2.tables, node_mapping, record_provenance=False)
+        self.assertEqual(uni1.tables, uni2_tables)
+
+    def test_all_shared_example(self):
+        tables = self.get_wf_example(N=5, T=5, seed=11349).dump_tables()
+        uni = tables.copy()
+        node_mapping = np.arange(tables.nodes.num_rows)
+        uni.union(tables, node_mapping, record_provenance=False)
+        self.assertEqual(uni, tables)
+
+    def test_no_add_pop(self):
+        self.verify_union_equality(
+            *self.split_example(self.get_msprime_example(10, 10), 10),
+            add_populations=False,
+        )
+        self.verify_union_equality(
+            *self.split_example(self.get_wf_example(10, 10), 10), add_populations=False
+        )
+
+    def test_provenance(self):
+        tables, other, node_mapping = self.split_example(
+            self.get_msprime_example(5, 2, seed=928), 2
+        )
+        tables_copy = tables.copy()
+        tables.union(other, node_mapping)
+        uni_other_dict = json.loads(tables.provenances[-1].record)["parameters"][
+            "other"
+        ]
+        recovered_prov_table = tskit.ProvenanceTable()
+        self.assertEqual(
+            len(uni_other_dict["timestamp"]), len(uni_other_dict["record"])
+        )
+        for timestamp, record in zip(
+            uni_other_dict["timestamp"], uni_other_dict["record"]
+        ):
+            recovered_prov_table.add_row(record, timestamp)
+        self.assertEqual(recovered_prov_table, other.provenances)
+        tables.provenances.truncate(tables.provenances.num_rows - 1)
+        self.assertEqual(tables.provenances, tables_copy.provenances)
+
+    def test_examples(self):
+        for N in [2, 4, 5]:
+            for T in [2, 5, 20]:
+                with self.subTest(N=N, T=T):
+                    self.verify_union_equality(
+                        *self.split_example(self.get_msprime_example(N, T), T)
+                    )
+                    self.verify_union_equality(
+                        *self.split_example(self.get_wf_example(N, T), T)
+                    )

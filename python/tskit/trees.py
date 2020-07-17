@@ -4549,6 +4549,62 @@ class TreeSequence:
         tables.subset(nodes, record_provenance)
         return tables.tree_sequence()
 
+    def union(
+        self,
+        other,
+        node_mapping,
+        check_shared_equality=True,
+        add_populations=True,
+        record_provenance=True,
+    ):
+        """
+        Returns an expanded tree sequence which contains the node-wise union of
+        ``self`` and ``other``, obtained by adding the non-shared portions of
+        ``other`` onto ``self``. The "shared" portions are specified using a
+        map that specifies which nodes in ``other`` are equivalent to those in
+        ``self``: the ``node_mapping`` argument should be an array of length
+        equal to the number of nodes in ``other`` and whose entries are the ID
+        of the matching node in ``self``, or ``tskit.NULL`` if there is no
+        matching node. Those nodes in ``other`` that map to ``tskit.NULL`` will
+        be added to ``self``, along with:
+
+        1. Individuals whose nodes are new to ``self``.
+        2. Edges whose parent or child are new to ``self``.
+        3. Mutations whose nodes are new to ``self``.
+        4. Sites which were not present in ``self``, if the site contains a newly
+           added mutation.
+
+        By default, populations of newly added nodes are assumed to be new
+        populations, and added to the population table as well.
+
+        Note that this operation also sorts the resulting tables, so the
+        resulting tree sequence may not be equal to ``self`` even if nothing
+        new was added (although it would differ only in ordering of the tables).
+
+        :param TableCollection other: Another table collection.
+        :param list node_mapping: An array of node IDs that relate nodes in
+            ``other`` to nodes in ``self``.
+        :param bool check_shared_equality: If True, the shared portions of the
+            tree sequences will be checked for equality. It does so by
+            subsetting both ``self`` and ``other`` on the equivalent nodes
+            specified in ``node_mapping``, and then checking for equality of
+            the subsets.
+        :param bool add_populations: If True, nodes new to ``self`` will be
+            assigned new population IDs.
+        :param bool record_provenance: Whether to record a provenance entry
+            in the provenance table for this operation.
+        """
+        tables = self.dump_tables()
+        other_tables = other.dump_tables()
+        tables.union(
+            other_tables,
+            node_mapping,
+            check_shared_equality=check_shared_equality,
+            add_populations=add_populations,
+            record_provenance=record_provenance,
+        )
+        return tables.tree_sequence()
+
     def draw_svg(
         self,
         path=None,

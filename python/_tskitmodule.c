@@ -6575,6 +6575,59 @@ out:
     return ret;
 }
 
+/* Forward declaration */
+static PyTypeObject TableCollectionType;
+
+static PyObject *
+TableCollection_union(TableCollection *self, PyObject *args, PyObject *kwds) {
+    int err;
+    TableCollection *other = NULL;
+    PyObject *ret = NULL;
+    PyObject *other_node_mapping = NULL;
+    PyArrayObject *nmap_array = NULL;
+    npy_intp *shape;
+    tsk_flags_t options = 0;
+    int check_shared = true;
+    int add_populations = true;
+    static char *kwlist[] = {"other", "other_node_mapping", "check_shared_equality",
+        "add_populations", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "O!O|ii", kwlist, &TableCollectionType, &other,
+          &other_node_mapping, &check_shared, &add_populations)) {
+        goto out;
+    }
+    nmap_array = (PyArrayObject *)PyArray_FROMANY(other_node_mapping, NPY_INT32,
+                                                1, 1, NPY_ARRAY_IN_ARRAY);
+    if (nmap_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(nmap_array);
+    if (other->tables->nodes.num_rows != (tsk_size_t) shape[0]) {
+        PyErr_SetString(
+            PyExc_ValueError,
+            "The length of the node mapping array should be equal to the"
+            " number of nodes in the other tree sequence.");
+        goto out;
+    }
+    if (!check_shared) {
+        options |= TSK_UNION_NO_CHECK_SHARED;
+    }
+    if (!add_populations) {
+        options |= TSK_UNION_NO_ADD_POP;
+    }
+    err = tsk_table_collection_union(self->tables, other->tables,
+                                   PyArray_DATA(nmap_array), options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    Py_XDECREF(nmap_array);
+    return ret;
+}
+
 static PyObject *
 TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
 {
@@ -6687,9 +6740,6 @@ TableCollection_has_index(TableCollection *self)
     return Py_BuildValue("i", (int) has_index);
 }
 
-/* Forward declaration */
-static PyTypeObject TableCollectionType;
-
 static PyObject *
 TableCollection_equals(TableCollection *self, PyObject *args)
 {
@@ -6734,7 +6784,9 @@ static PyMethodDef TableCollection_methods[] = {
         METH_VARARGS|METH_KEYWORDS,
         "Returns an edge table linking samples to a set of specified ancestors." },
     {"subset", (PyCFunction) TableCollection_subset, METH_VARARGS,
-        "Subsets the tree sequence to a set of nodes." },
+        "Subsets the table collection to a set of nodes." },
+    {"union", (PyCFunction) TableCollection_union, METH_VARARGS|METH_KEYWORDS,
+        "Adds to this table collection the portions of another table collection that are not shared with this one." },
     {"sort", (PyCFunction) TableCollection_sort, METH_VARARGS|METH_KEYWORDS,
         "Sorts the tables to satisfy tree sequence requirements." },
     {"equals", (PyCFunction) TableCollection_equals, METH_VARARGS,
