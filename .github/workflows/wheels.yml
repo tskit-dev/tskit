@@ -33,17 +33,21 @@ jobs:
           # Instead of letting setup.py install a newer numpy we install it here
           # using the oldest supported version for ABI compatibility
           ${PYTHON} -m pip install oldest-supported-numpy
-      - name: Build C extension
+      - name: Build C Extension
         env:
           PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
         shell: bash
         run: |
           set -ex
-          # Fix symlinks on windows
-          git config core.symlinks true
           git reset --hard
           cd python
           ${PYTHON} -VV
+          # For some reason I can't work out the C compiler is not following symlinks
+          rm -r lib
+          mkdir lib
+          cp -r --dereference ../c/subprojects lib/.
+          cp -r --dereference ../c/tskit lib/.
+          cp ../c/tskit.h lib/.
           ${PYTHON} setup.py build_ext --inplace
       - name: Build Wheel
         env:
