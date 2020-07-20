@@ -54,6 +54,32 @@ reverse_edges(tsk_table_collection_t *tables)
 }
 
 static void
+reverse_mutations(tsk_table_collection_t *tables)
+{
+    int ret;
+    tsk_mutation_table_t mutations;
+    tsk_mutation_t mutation;
+    tsk_id_t j;
+
+    ret = tsk_mutation_table_init(&mutations, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = (tsk_id_t) tables->mutations.num_rows - 1; j >= 0; j--) {
+        ret = tsk_mutation_table_get_row(&tables->mutations, j, &mutation);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_mutation_table_add_row(&mutations, mutation.site, mutation.node,
+            mutation.parent, mutation.time, mutation.derived_state,
+            mutation.derived_state_length, mutation.metadata, mutation.metadata_length);
+        CU_ASSERT_FATAL(ret >= 0);
+    }
+
+    ret = tsk_mutation_table_copy(&mutations, &tables->mutations, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_mutation_table_free(&mutations);
+}
+
+static void
 insert_edge_metadata(tsk_table_collection_t *tables)
 {
     int ret;
@@ -3104,6 +3130,66 @@ test_sort_tables_errors(void)
 }
 
 static void
+test_sort_tables_mutation_times(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables, t1, t2;
+    const char *sites = "0       0\n"
+                        "0.1     0\n"
+                        "0.2     0\n"
+                        "0.3     0\n";
+    const char *mutations = "0   0  1  -1  3\n"
+                            "1   1  1  -1  3\n"
+                            "2   4  1  -1  8\n"
+                            "2   1  0  -1   4\n"
+                            "2   2  1  -1  3\n"
+                            "2   1  1  -1   2\n"
+                            "3   6  1  -1  10\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.sequence_length = 1;
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
+    tables.nodes.time[4] = 6;
+    tables.nodes.time[5] = 8;
+    tables.nodes.time[6] = 10;
+    parse_edges(single_tree_ex_edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
+    parse_sites(sites, &tables.sites);
+    parse_mutations(mutations, &tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.num_rows, 4);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.num_rows, 7);
+    tables.sequence_length = 1.0;
+
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Check to make sure we have legal mutations */
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_copy(&t1, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    reverse_mutations(&t1);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2));
+    ret = tsk_table_collection_sort(&t1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    tsk_table_collection_free(&t2);
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_sorter_interface(void)
 {
     int ret;
@@ -3714,6 +3800,18 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
+    /* A mixture of known and unknown times fails */
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN);
+
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 2, 0, NULL, 0, NULL, 0);
@@ -3770,8 +3868,12 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
 
+    /* Unknown times pass */
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -3780,25 +3882,56 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    /* Add a chain of unknown times in between a mutation and one with a
-     * younger time. */
+    /* Correctly ordered times pass */
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, TSK_NULL, 1.0, NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+        &tables.mutations, 0, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, 0, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+        &tables.mutations, 0, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, 1, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 2.0, NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 3);
+        &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Incorrectly ordered times fail */
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
+
+    /* Putting incorrectly ordered times on diff sites passes */
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 0, TSK_NULL, 2, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4389,6 +4522,7 @@ main(int argc, char **argv)
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
         { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
         { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
+        { "test_sort_tables_mutation_times", test_sort_tables_mutation_times },
         { "test_edge_update_invalidates_index", test_edge_update_invalidates_index },
         { "test_copy_table_collection", test_copy_table_collection },
         { "test_sort_tables_errors", test_sort_tables_errors },

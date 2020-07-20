@@ -754,8 +754,9 @@ def compute_mutation_times(ts):
     for i in range(len(mutations)):
         if times[i] == -1:
             times[i] = nodes[mutations[i].node].time
-
-    return times
+    tables.mutations.time = times
+    tables.sort()
+    return tables.mutations.time
 
 
 def algorithm_T(ts):

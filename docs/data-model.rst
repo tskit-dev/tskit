@@ -641,7 +641,8 @@ requirements for a valid set of mutations are:
   the time is unknown) or be a finite value which is greater or equal to the
   mutation ``node``'s ``time``, less than the ``node`` above the mutation's
   ``time`` and equal to or less than the ``time`` of the ``parent`` mutation
-  if this mutation has one.
+  if this mutation has one. If one mutation has UNKNOWN_TIME then all mutations
+  must, a mixture of known and unknown is not valid.
 - ``parent`` must either be the null ID (-1) or a valid mutation ID within the
   current table
 
@@ -653,7 +654,8 @@ Furthermore,
 For simplicity and algorithmic efficiency, mutations must also:
 
 - be sorted by site ID;
-- when there are multiple mutations per site, parent mutations must occur
+- when there are multiple mutations per site, mutations should be ordered by
+  decreasing time, if known, and parent mutations must occur
   **before** their children (i.e. if a mutation with ID :math:`x` has
   ``parent`` with ID :math:`y`, then we must have :math:`y < x`).
 

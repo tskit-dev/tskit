@@ -1235,8 +1235,10 @@ class TestSortTables(unittest.TestCase):
 
     def verify_randomise_tables(self, ts):
         tables = ts.dump_tables()
+        tables.compute_mutation_times()
+        ts = tables.tree_sequence()
 
-        # Randomise the tables.
+        # Randomise the tables
         random.seed(self.random_seed)
         randomised_edges = list(ts.edges())
         random.shuffle(randomised_edges)
@@ -1583,6 +1585,66 @@ class TestSortMutations(unittest.TestCase):
             strict=False,
         )
 
+    def test_sort_mutations_time(self):
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           -6
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        """
+        )
+        sites = io.StringIO(
+            """\
+        position    ancestral_state
+        0.1     0
+        0.2     0
+        0.3     0
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site    node    time    derived_state   parent
+        2       0       4       a              -1
+        2       0       -5      b              -1
+        2       0       6       c              -1
+        1       0       0.5     d              -1
+        1       0       0.5     e              -1
+        1       0       0.5     f              -1
+        0       0       1       g              -1
+        0       0       2       h              -1
+        0       0       3       i              -1
+        """
+        )
+        ts = tskit.load_text(
+            nodes=nodes,
+            edges=edges,
+            sites=sites,
+            mutations=mutations,
+            sequence_length=1,
+            strict=False,
+        )
+        # Load text automatically calls sort tables, so we can test the
+        # output directly.
+        sites = ts.tables.sites
+        mutations = ts.tables.mutations
+        self.assertEqual(len(sites), 3)
+        self.assertEqual(len(mutations), 9)
+        self.assertEqual(list(mutations.site), [0, 0, 0, 1, 1, 1, 2, 2, 2])
+        self.assertEqual(list(mutations.node), [0, 0, 0, 0, 0, 0, 0, 0, 0])
+        # Nans are not equal so swap in -1
+        times = mutations.time
+        times[np.isnan(times)] = -1
+        self.assertEqual(list(times), [3.0, 2.0, 1.0, 0.5, 0.5, 0.5, 6.0, 4.0, -5.0])
+        self.assertEqual(
+            list(mutations.derived_state),
+            list(map(ord, ["i", "h", "g", "d", "e", "f", "c", "a", "b"])),
+        )
+        self.assertEqual(list(mutations.parent), [-1, -1, -1, -1, -1, -1, -1, -1, -1])
+
 
 class TestTablesToTreeSequence(unittest.TestCase):
     """
@@ -1620,7 +1682,7 @@ class TestMutationTimeErrors(unittest.TestCase):
         ):
             tables.tree_sequence()
 
-    def test_older_than_parent(self):
+    def test_older_than_parent_node(self):
         ts = msprime.simulate(
             10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
         )
@@ -1629,13 +1691,80 @@ class TestMutationTimeErrors(unittest.TestCase):
         )
         tables = ts.dump_tables()
         self.assertNotEqual(sum(tables.mutations.parent != -1), 0)
-        as_dict = tables.mutations.asdict()
-        as_dict["time"][tables.mutations.parent != -1] = 64
-        tables.mutations.set_columns(**as_dict)
+        # Make all times the node time
+        times = tables.nodes.time[tables.mutations.node]
+        # Then make mutations without a parent really old
+        times[tables.mutations.parent == -1] = 64.0
+        tables.mutations.time = times
+        tables.sort()
         with self.assertRaisesRegex(
             _tskit.LibraryError,
             "A mutation's time must be < the parent node of the edge on which it"
             " occurs, or be marked as 'unknown'",
+        ):
+            tables.tree_sequence()
+
+    def test_older_than_parent_mutation(self):
+        ts = msprime.simulate(
+            10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
+        )
+        ts = tsutil.jukes_cantor(
+            ts, num_sites=10, mu=1, multiple_per_node=False, seed=42
+        )
+        tables = ts.dump_tables()
+        tables.compute_mutation_times()
+        self.assertNotEqual(sum(tables.mutations.parent != -1), 0)
+        times = tables.mutations.time
+        # Then make mutations without a parent really old
+        times[tables.mutations.parent != -1] = 64.0
+        tables.mutations.time = times
+        with self.assertRaises(
+            _tskit.LibraryError,
+            msg="A mutation's time must be <= the parent mutation time (if known),"
+            " or be marked as 'unknown'",
+        ):
+            tables.tree_sequence()
+
+    def test_unsorted_times(self):
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        """
+        )
+        sites = io.StringIO(
+            """\
+        position    ancestral_state
+        0.1     0
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site    node    time    derived_state   parent
+        0       0       1       0              -1
+        0       0       2       0              -1
+        0       0       3       0              -1
+        """
+        )
+        ts = tskit.load_text(
+            nodes=nodes,
+            edges=edges,
+            sites=sites,
+            mutations=mutations,
+            sequence_length=1,
+            strict=False,
+        )
+        tables = ts.dump_tables()
+        tables.mutations.time = tables.mutations.time[::-1]
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "Mutations must be provided in non-decreasing site order and non-increasing"
+            " time order within each site",
         ):
             tables.tree_sequence()
 

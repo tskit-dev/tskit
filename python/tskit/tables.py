@@ -2279,10 +2279,10 @@ class TableCollection:
         Sites are sorted by position, and sites with the same position retain
         their relative ordering.
 
-        Mutations are sorted by site ID, and mutations with the same site retain
-        their relative ordering. This does not currently rearrange tables so that
-        mutations occur after their mutation parents, which is a requirement for
-        valid tree sequences.
+        Mutations are sorted by site ID, and within the same site are sorted by time.
+        Those with equal or unknown time retain their relative ordering. This does not
+        currently rearrange tables so that mutations occur after their mutation parents,
+        which is a requirement for valid tree sequences.
 
         :param int edge_start: The index in the edge table where sorting starts
             (default=0; must be <= len(edges)).
@@ -2323,6 +2323,9 @@ class TableCollection:
         the mutation. In the case where there is more than one mutation on an edge for
         a site, the times are evenly spread along the edge. For mutations that are
         above a root node, the time of the root node is assigned.
+
+        The mutation table will be sorted if the new times mean that the original order
+        is no longer valid.
 
         """
         self.ll_tables.compute_mutation_times()

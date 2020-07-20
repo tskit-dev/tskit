@@ -286,7 +286,8 @@ tsk_strerror_internal(int err)
             ret = "Inconsistent mutations: state already equal to derived state";
             break;
         case TSK_ERR_UNSORTED_MUTATIONS:
-            ret = "Mutations must be provided in non-decreasing site order";
+            ret = "Mutations must be provided in non-decreasing site order and "
+                  "non-increasing time order within each site";
             break;
         case TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE:
             ret = "A mutation's time must be >= the node time, or be marked as "
@@ -299,6 +300,10 @@ tsk_strerror_internal(int err)
         case TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE:
             ret = "A mutation's time must be < the parent node of the edge on which it "
                   "occurs, or be marked as 'unknown'";
+            break;
+        case TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN:
+            ret = "Mutation times must either be all marked 'unknown', or all be known "
+                  "values";
             break;
 
         /* Sample errors */

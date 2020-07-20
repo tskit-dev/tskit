@@ -55,7 +55,9 @@ In development.
   indicating that the time is unknown. For a tree sequence to be considered valid
   it must meet new criteria for mutation times, see :ref:`sec_mutation_requirements`.
   Add ``tsk_table_collection_compute_mutation_times`` and new flag to
-  ``tsk_table_collection_check_integrity``:``TSK_CHECK_MUTATION_TIME``.
+  ``tsk_table_collection_check_integrity``:``TSK_CHECK_MUTATION_TIME``. Table sorting
+  orders mutations by non-increasing time per-site, which is also a requirement for a
+  valid tree sequence.
   (:user:`benjeffery`, :pr:`672`)
 
 - Add ``metadata`` and ``metadata_schema`` fields to table collection, with accessors on
