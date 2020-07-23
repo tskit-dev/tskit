@@ -353,6 +353,17 @@ class TestMetadataModule(unittest.TestCase):
             with self.assertRaises(exceptions.MetadataSchemaValidationError):
                 metadata.MetadataSchema(schema)
 
+    def test_null_union_top_level(self):
+        schema = {
+            "codec": "json",
+            "type": ["object", "null"],
+            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+        }
+        ms = metadata.MetadataSchema(schema)
+        row_data = {"one": "tree", "two": 5}
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(None)), None)
+
     def test_null_codec(self):
         ms = metadata.MetadataSchema(None)
         self.assertEqual(str(ms), "")
@@ -886,6 +897,26 @@ class TestStructCodec(unittest.TestCase):
             "make_numeric", {"type": "integer", "binaryFormat": "b"}, 42, b"*",
         )
 
+    def test_null_union_top_level(self):
+        # This nested with mutiple values tests that the buffer length check has not
+        # caused a list to past to sub-decoders
+        schema = {
+            "codec": "struct",
+            "type": ["object", "null"],
+            "properties": {
+                "o": {
+                    "type": "object",
+                    "properties": {"x": {"type": "number", "binaryFormat": "d"}},
+                },
+                "a": {"type": "number", "binaryFormat": "d"},
+                "b": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        ms = metadata.MetadataSchema(schema)
+        row_data = {"o": {"x": 5.5}, "a": 4, "b": 7}
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(None)), None)
+
 
 class TestStructCodecRoundTrip(unittest.TestCase):
     def round_trip(self, schema, row_data):
@@ -1376,7 +1407,7 @@ class TestSLiMDecoding(unittest.TestCase):
     def test_individual(self):
         schema = {
             "codec": "struct",
-            "type": "object",
+            "type": ["object", "null"],
             "properties": {
                 "pedigreeID": {"type": "integer", "binaryFormat": "q", "index": 1},
                 "age": {"type": "integer", "binaryFormat": "i", "index": 2},
@@ -1401,6 +1432,7 @@ class TestSLiMDecoding(unittest.TestCase):
                     "subpopulationID": 3,
                 },
             ),
+            (b"", None),
             (
                 b"\x18\x99\x07\x00\x00\x00\x00\x00\x05\x00\x00\x00\x01\x00\x00\x00\x01"
                 b"\x00\x00\x00\x00\x00\x00\x00",
@@ -1413,7 +1445,7 @@ class TestSLiMDecoding(unittest.TestCase):
                 },
             ),
         ]:
-            self.assertDictEqual(
+            self.assertEqual(
                 metadata.MetadataSchema(schema).decode_row(example), expected
             )
 

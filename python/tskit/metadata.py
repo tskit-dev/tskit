@@ -61,8 +61,9 @@ META_SCHEMA = replace_root_refs(META_SCHEMA)
 META_SCHEMA["definitions"]["root"] = copy.deepcopy(META_SCHEMA)
 META_SCHEMA["codec"] = {"type": "string"}
 META_SCHEMA["required"] = ["codec"]
-# For interoperability reasons, force the top-level to be an object
-META_SCHEMA["properties"]["type"] = {"enum": ["object"]}
+# For interoperability reasons, force the top-level to be an object or union
+# of object and null
+META_SCHEMA["properties"]["type"] = {"enum": ["object", ["object", "null"]]}
 TSKITMetadataSchemaValidator.META_SCHEMA = META_SCHEMA
 
 
@@ -140,7 +141,10 @@ def binary_format_validator(validator, types, instance, schema):
     # Non-composite types must have a binaryFormat
     if (
         validator.is_type(instance, "object")
-        and (instance.get("type") not in (None, "object", "array", "null"))
+        and (
+            instance.get("type")
+            not in (None, "object", "array", "null", ["object", "null"])
+        )
         and "binaryFormat" not in instance
     ):
         yield jsonschema.ValidationError(
@@ -163,10 +167,9 @@ StructCodecSchemaValidator = jsonschema.validators.extend(
 )
 META_SCHEMA: Mapping[str, Any] = copy.deepcopy(StructCodecSchemaValidator.META_SCHEMA)
 # No union types
-META_SCHEMA["properties"]["type"] = {"$ref": "#/definitions/simpleTypes"}
-META_SCHEMA["definitions"]["root"]["properties"]["type"] = META_SCHEMA["properties"][
-    "type"
-]
+META_SCHEMA["definitions"]["root"]["properties"]["type"] = {
+    "$ref": "#/definitions/simpleTypes"
+}
 # No hetrogeneous arrays
 META_SCHEMA["properties"]["items"] = {"$ref": "#/definitions/root"}
 META_SCHEMA["definitions"]["root"]["properties"]["items"] = META_SCHEMA["properties"][
@@ -246,15 +249,18 @@ class StructCodec(AbstractMetadataCodec):
         """
         Create a function that can decode objects of this schema
         """
-        return {
-            "array": StructCodec.make_array_decode,
-            "object": StructCodec.make_object_decode,
-            "string": StructCodec.make_string_decode,
-            "null": StructCodec.make_null_decode,
-            "number": StructCodec.make_numeric_decode,
-            "integer": StructCodec.make_numeric_decode,
-            "boolean": StructCodec.make_numeric_decode,
-        }[sub_schema["type"]](sub_schema)
+        if set(sub_schema["type"]) == {"object", "null"}:
+            return StructCodec.make_object_or_null_decode(sub_schema)
+        else:
+            return {
+                "array": StructCodec.make_array_decode,
+                "object": StructCodec.make_object_decode,
+                "string": StructCodec.make_string_decode,
+                "null": StructCodec.make_null_decode,
+                "number": StructCodec.make_numeric_decode,
+                "integer": StructCodec.make_numeric_decode,
+                "boolean": StructCodec.make_numeric_decode,
+            }[sub_schema["type"]](sub_schema)
 
     @classmethod
     def make_array_decode(cls, sub_schema):
@@ -295,6 +301,28 @@ class StructCodec(AbstractMetadataCodec):
         return lambda buffer: {
             key: sub_decoder(buffer) for key, sub_decoder in sub_decoders.items()
         }
+
+    @classmethod
+    def make_object_or_null_decode(cls, sub_schema):
+        sub_decoders = {
+            key: StructCodec.make_decode(prop)
+            for key, prop in sub_schema["properties"].items()
+        }
+
+        def decode_object_or_null(buffer):
+            # We have to check the buffer length for null, as the islices in
+            # sub-decoders won't raise StopIteration
+            buffer = list(buffer)
+            if len(buffer) == 0:
+                return None
+            else:
+                buffer = iter(buffer)
+                return {
+                    key: sub_decoder(buffer)
+                    for key, sub_decoder in sub_decoders.items()
+                }
+
+        return decode_object_or_null
 
     @classmethod
     def make_string_decode(cls, sub_schema):
@@ -341,15 +369,18 @@ class StructCodec(AbstractMetadataCodec):
         """
         Create a function that can encode objects of this schema
         """
-        return {
-            "array": StructCodec.make_array_encode,
-            "object": StructCodec.make_object_encode,
-            "string": StructCodec.make_string_encode,
-            "null": StructCodec.make_null_encode,
-            "number": StructCodec.make_numeric_encode,
-            "integer": StructCodec.make_numeric_encode,
-            "boolean": StructCodec.make_numeric_encode,
-        }[sub_schema["type"]](sub_schema)
+        if set(sub_schema["type"]) == {"object", "null"}:
+            return StructCodec.make_object_or_null_encode(sub_schema)
+        else:
+            return {
+                "array": StructCodec.make_array_encode,
+                "object": StructCodec.make_object_encode,
+                "string": StructCodec.make_string_encode,
+                "null": StructCodec.make_null_encode,
+                "number": StructCodec.make_numeric_encode,
+                "integer": StructCodec.make_numeric_encode,
+                "boolean": StructCodec.make_numeric_encode,
+            }[sub_schema["type"]](sub_schema)
 
     @classmethod
     def make_array_encode(cls, sub_schema):
@@ -371,6 +402,20 @@ class StructCodec(AbstractMetadataCodec):
         }
         return lambda obj: b"".join(
             sub_encoder(obj[key]) for key, sub_encoder in sub_encoders.items()
+        )
+
+    @classmethod
+    def make_object_or_null_encode(cls, sub_schema):
+        sub_encoders = {
+            key: StructCodec.make_encode(prop)
+            for key, prop in sub_schema["properties"].items()
+        }
+        return (
+            lambda obj: b""
+            if obj is None
+            else b"".join(
+                sub_encoder(obj[key]) for key, sub_encoder in sub_encoders.items()
+            )
         )
 
     @classmethod
