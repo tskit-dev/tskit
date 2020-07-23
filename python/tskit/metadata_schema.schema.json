@@ -190,7 +190,7 @@
     "properties": {
       "additionalProperties": {"$ref": "#/definitions/root"},
       "default": {},
-      "type": "object",
+      "type": {"enum": ["object", ["object", "null"]]},
     },
     "propertyNames": {"$ref": "#/definitions/root"},
     "readOnly": {"default": false, "type": "boolean"},
