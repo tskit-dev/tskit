@@ -86,6 +86,10 @@ In development.
 - Add low-level sorting API and ``TSK_NO_CHECK_INTEGRITY`` flag
   (:user:`jeromekelleher`, :pr:`627`, :issue:`626`).
 
+- Add extension of Kendall-Colijn tree distance metric for tree sequences
+  computed by ``tsk_treeseq_kc_distance``
+  (:user:`daniel-goldstein`, :pr:`548`)
+
 **Deprecated**
 
 - The ``TSK_SAMPLE_COUNTS`` options is now ignored and  will print out a warning
