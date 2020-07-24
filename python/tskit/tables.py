@@ -1966,7 +1966,7 @@ class TableCollection:
         """
         Returns a dictionary representation of this TableCollection.
 
-        Note: the semantics of this method changed at tskit 1.0.0. Previously a
+        Note: the semantics of this method changed at tskit 0.1.0. Previously a
         map of table names to the tables themselves was returned.
         """
         return {
@@ -1984,6 +1984,24 @@ class TableCollection:
             "provenances": self.provenances.asdict(),
         }
 
+    @property
+    def name_map(self):
+        """
+        Returns a dictionary mapping table names to the corresponding
+        table instances. For example, the returned dictionary will contain the
+        key "edges" that maps to an :class:`.EdgeTable` instance.
+        """
+        return {
+            "edges": self.edges,
+            "individuals": self.individuals,
+            "migrations": self.migrations,
+            "mutations": self.mutations,
+            "nodes": self.nodes,
+            "populations": self.populations,
+            "provenances": self.provenances,
+            "sites": self.sites,
+        }
+
     def __banner(self, title):
         width = 60
         line = "#" * width
@@ -1991,20 +2009,6 @@ class TableCollection:
         title_line += " " * (width - len(title_line) - 1)
         title_line += "#"
         return line + "\n" + title_line + "\n" + line + "\n"
-
-    def __iter__(self):
-        """
-        Iterate over all the tables in this TableCollection, ordered by table name
-        (i.e. deterministically), returning a tuple of (table_name, table_object)
-        """
-        yield "edges", self.edges
-        yield "individuals", self.individuals
-        yield "migrations", self.migrations
-        yield "mutations", self.mutations
-        yield "nodes", self.nodes
-        yield "populations", self.populations
-        yield "provenances", self.provenances
-        yield "sites", self.sites
 
     def __str__(self):
         s = self.__banner("Individuals")

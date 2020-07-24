@@ -25,7 +25,6 @@ Test cases for the low-level tables used to transfer information
 between simulations and the tree sequence.
 """
 import io
-import itertools
 import json
 import math
 import pickle
@@ -1590,15 +1589,11 @@ class TestTablesToTreeSequence(unittest.TestCase):
     Tests for the .tree_sequence() method of a TableCollection.
     """
 
-    random_seed = 42
-
     def test_round_trip(self):
-        a = msprime.simulate(5, mutation_rate=1, random_seed=self.random_seed)
+        a = msprime.simulate(5, mutation_rate=1, random_seed=42)
         tables = a.dump_tables()
         b = tables.tree_sequence()
-        self.assertTrue(
-            all(a == b for a, b in zip(a.tables, b.tables) if a[0] != "provenances")
-        )
+        self.assertEqual(a.tables, b.tables)
 
 
 class TestMutationTimeErrors(unittest.TestCase):
@@ -2040,19 +2035,25 @@ class TestTableCollection(unittest.TestCase):
         t2 = tskit.TableCollection.fromdict(t1.asdict())
         self.assertEqual(t1, t2)
 
-    def test_iter(self):
-        def test_iter(table_collection):
-            table_names = [
-                attr_name
-                for attr_name in sorted(dir(table_collection))
-                if isinstance(getattr(table_collection, attr_name), tskit.BaseTable)
-            ]
-            for n in table_names:
-                yield n, getattr(table_collection, n)
-
+    def test_name_map(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        for t1, t2 in itertools.zip_longest(test_iter(ts.tables), ts.tables):
-            self.assertEquals(t1, t2)
+        tables = ts.tables
+        td1 = {
+            "individuals": tables.individuals,
+            "populations": tables.populations,
+            "nodes": tables.nodes,
+            "edges": tables.edges,
+            "sites": tables.sites,
+            "mutations": tables.mutations,
+            "migrations": tables.migrations,
+            "provenances": tables.provenances,
+        }
+        td2 = tables.name_map
+        self.assertIsInstance(td2, dict)
+        self.assertEqual(set(td1.keys()), set(td2.keys()))
+        for name in td2.keys():
+            self.assertEqual(td1[name], td2[name])
+        self.assertEqual(td1, td2)
 
     def test_equals_empty(self):
         self.assertEqual(tskit.TableCollection(), tskit.TableCollection())
