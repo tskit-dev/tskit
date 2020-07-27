@@ -3869,8 +3869,8 @@ test_single_tree_compute_mutation_times(void)
                             "1   1  1  -1  3\n"
                             "2   4  1  -1  8\n"
                             "2   1  0  2   4\n"
-                            "2   1  1  3   2\n"
                             "2   2  1  -1  4\n"
+                            "2   1  1  3   2\n"
                             "3   6  1  -1  10\n";
     /*          6          */
     /*          6          */

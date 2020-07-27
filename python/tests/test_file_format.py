@@ -37,7 +37,6 @@ import numpy as np
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
-from tskit import UNKNOWN_TIME
 
 
 CURRENT_FILE_MAJOR = 12
@@ -878,19 +877,6 @@ class TestOptionalColumns(TestFileFormat):
         kastore.dump(all_data, self.temp_file)
         ts3 = tskit.load(self.temp_file)
         self.assertEqual(ts1.tables, ts3.tables)
-
-
-class TestMixedUnknownMutation(TestFileFormat):
-    def test_unknown_mutation(self):
-        ts1 = migration_example()
-        tables = ts1.tables
-        tables.compute_mutation_times()
-        mutations = tables.mutations.asdict()
-        mutations["time"][0] = UNKNOWN_TIME
-        tables.mutations.set_columns(**mutations)
-        tables.tree_sequence().dump(self.temp_file)
-        tables2 = tskit.load(self.temp_file).tables
-        self.assertEqual(tables, tables2)
 
 
 class TestFileFormatErrors(TestFileFormat):

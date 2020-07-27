@@ -4343,9 +4343,12 @@ cmp_mutation(const void *a, const void *b)
     const tsk_mutation_t *ib = (const tsk_mutation_t *) b;
     /* Compare mutations by site */
     int ret = (ia->site > ib->site) - (ia->site < ib->site);
+    /* Within a particular site sort by time if known, then ID. This ensures that
+     * relative ordering within a site is maintained */
+    if (ret == 0 && !tsk_is_unknown_time(ia->time) && !tsk_is_unknown_time(ib->time)) {
+        ret = (ia->time < ib->time) - (ia->time > ib->time);
+    }
     if (ret == 0) {
-        /* Within a particular site sort by ID. This ensures that relative ordering
-         * within a site is maintained */
         ret = (ia->id > ib->id) - (ia->id < ib->id);
     }
     return ret;
@@ -6658,7 +6661,8 @@ tsk_table_collection_check_mutation_integrity(
     int ret = 0;
     tsk_size_t j;
     tsk_id_t parent_mut;
-    double mutation_time, parent_mutation_time;
+    double mutation_time;
+    double last_known_time = INFINITY;
     const tsk_mutation_table_t mutations = self->mutations;
     const tsk_id_t num_nodes = (tsk_id_t) self->nodes.num_rows;
     const tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
@@ -6666,6 +6670,7 @@ tsk_table_collection_check_mutation_integrity(
     const double *node_time = self->nodes.time;
     const bool check_mutation_ordering = !!(options & TSK_CHECK_MUTATION_ORDERING);
     bool unknown_time;
+    bool unknown_times_seen = false;
 
     for (j = 0; j < mutations.num_rows; j++) {
         /* Basic reference integrity */
@@ -6696,12 +6701,23 @@ tsk_table_collection_check_mutation_integrity(
                 goto out;
             }
         }
+        /* Check known/unknown times are not both present */
+        if (unknown_time) {
+            unknown_times_seen = true;
+        } else if (unknown_times_seen) {
+            ret = TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN;
+            goto out;
+        }
 
         if (check_mutation_ordering) {
+            /* Check site ordering and reset time check if needed*/
             if (j > 0) {
                 if (mutations.site[j - 1] > mutations.site[j]) {
                     ret = TSK_ERR_UNSORTED_MUTATIONS;
                     goto out;
+                }
+                if (mutations.site[j - 1] != mutations.site[j]) {
+                    last_known_time = INFINITY;
                 }
             }
 
@@ -6725,22 +6741,22 @@ tsk_table_collection_check_mutation_integrity(
                     ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
                     goto out;
                 }
-                /* We may be on chain of mutations in which the
-                 * intermediate parents have unknown times, but the
-                 * mutations at either end have known times. So, we
-                 * must skip back until either we find a NULL parent
-                 * or a known time. */
-                while (parent_mut != TSK_NULL) {
-                    parent_mutation_time = mutations.time[parent_mut];
-                    if (!tsk_is_unknown_time(parent_mutation_time)) {
-                        if (mutation_time > parent_mutation_time) {
-                            ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
-                            goto out;
-                        }
-                        break;
-                    }
-                    parent_mut = mutations.parent[parent_mut];
+                /* If this mutation time is known, then the parent time
+                 * must also be as the
+                 * TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN check
+                 * above would otherwise fail. */
+                if (parent_mut != TSK_NULL
+                    && mutation_time > mutations.time[parent_mut]) {
+                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
+                    goto out;
                 }
+                /* Check time ordering, we do this after the time checks above, so that
+                more specific errors trigger first */
+                if (mutation_time > last_known_time) {
+                    ret = TSK_ERR_UNSORTED_MUTATIONS;
+                    goto out;
+                }
+                last_known_time = mutation_time;
             }
         }
     }
@@ -8048,6 +8064,7 @@ tsk_table_collection_compute_mutation_times(
     tsk_id_t site;
     /* Using unsigned values here avoids potentially undefined behaviour */
     tsk_size_t j, mutation, first_mutation;
+    tsk_bookmark_t skip_edges = { 0, 0, self->edges.num_rows, 0, 0, 0, 0, 0 };
 
     /* The random param is for future usage */
     if (random != NULL) {
@@ -8131,6 +8148,18 @@ tsk_table_collection_compute_mutation_times(
         }
         /* Move on to the next tree */
         left = right;
+    }
+
+    /* Now that mutations have times their sort order may have been invalidated, so
+     * re-sort */
+    ret = tsk_table_collection_check_integrity(self, TSK_CHECK_MUTATION_ORDERING);
+    if (ret == TSK_ERR_UNSORTED_MUTATIONS) {
+        ret = tsk_table_collection_sort(self, &skip_edges, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    } else if (ret < 0) {
+        goto out;
     }
 
 out:
