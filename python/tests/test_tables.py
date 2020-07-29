@@ -477,7 +477,7 @@ class CommonTestsMixin:
             self.assertEqual(len(s.splitlines()), num_rows + 1)
 
     def test_repr_html(self):
-        for num_rows in [0, 10]:
+        for num_rows in [0, 10, 40, 50]:
             input_data = {col.name: col.get_input(num_rows) for col in self.columns}
             for list_col, offset_col in self.ragged_list_columns:
                 value = list_col.get_input(num_rows)
@@ -486,7 +486,14 @@ class CommonTestsMixin:
             table = self.table_class()
             table.set_columns(**input_data)
             html = table._repr_html_()
-            self.assertEqual(len(html.splitlines()), num_rows + 19)
+            if num_rows == 50:
+                self.assertEqual(len(html.splitlines()), num_rows + 10)
+                self.assertEqual(
+                    html.split("</tr>")[21],
+                    "\n<tr><td><em>... skipped 10 rows ...</em></td>",
+                )
+            else:
+                self.assertEqual(len(html.splitlines()), num_rows + 19)
 
     def test_copy(self):
         for num_rows in [0, 10]:
