@@ -25,6 +25,7 @@ Tree sequence IO via the tables API.
 """
 import base64
 import datetime
+import itertools
 import json
 import warnings
 from typing import Any
@@ -281,9 +282,14 @@ class BaseTable:
         """
         Called by jupyter notebooks to render tables
         """
-        headers, rows = self._text_header_and_rows()
+        headers, rows = self._text_header_and_rows(limit=40)
         headers = "".join(f"<th>{header}</th>" for header in headers)
-        rows = ("".join(f"<td>{cell}</td>" for cell in row) for row in rows)
+        rows = (
+            f"<td><em>... skipped {row[11:]} rows ...</em></td>"
+            if "__skipped__" in row
+            else "".join(f"<td>{cell}</td>" for cell in row)
+            for row in rows
+        )
         rows = "".join(f"<tr>{row}</tr>\n" for row in rows)
         return f"""
             <div>
@@ -401,18 +407,29 @@ class IndividualTable(BaseTable, MetadataMixin):
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, IndividualTableRow)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         flags = self.flags
         location = util.unpack_arrays(self.location, self.location_offset)
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "flags", "location", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            location_str = ",".join(map(str, location[j]))
-            rows.append(
-                "{}\t{}\t{}\t{}".format(j, flags[j], location_str, md).split("\t")
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                location_str = ",".join(map(str, location[j]))
+                rows.append(
+                    "{}\t{}\t{}\t{}".format(j, flags[j], location_str, md).split("\t")
+                )
         return headers, rows
 
     def add_row(self, flags=0, location=None, metadata=None):
@@ -593,7 +610,7 @@ class NodeTable(BaseTable, MetadataMixin):
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, NodeTableRow)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         time = self.time
         flags = self.flags
         population = self.population
@@ -601,13 +618,24 @@ class NodeTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "flags", "population", "individual", "time", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            rows.append(
-                "{}\t{}\t{}\t{}\t{:.14f}\t{}".format(
-                    j, flags[j], population[j], individual[j], time[j], md
-                ).split("\t")
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                rows.append(
+                    "{}\t{}\t{}\t{}\t{:.14f}\t{}".format(
+                        j, flags[j], population[j], individual[j], time[j], md
+                    ).split("\t")
+                )
         return headers, rows
 
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
@@ -779,7 +807,7 @@ class EdgeTable(BaseTable, MetadataMixin):
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, EdgeTableRow)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         left = self.left
         right = self.right
         parent = self.parent
@@ -787,13 +815,24 @@ class EdgeTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "left\t", "right\t", "parent", "child", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            rows.append(
-                "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}".format(
-                    j, left[j], right[j], parent[j], child[j], md
-                ).split("\t")
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                rows.append(
+                    "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}".format(
+                        j, left[j], right[j], parent[j], child[j], md
+                    ).split("\t")
+                )
         return headers, rows
 
     def add_row(self, left, right, parent, child, metadata=None):
@@ -978,7 +1017,7 @@ class MigrationTable(BaseTable, MetadataMixin):
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MigrationTableRow)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         left = self.left
         right = self.right
         node = self.node
@@ -988,13 +1027,24 @@ class MigrationTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "left", "right", "node", "source", "dest", "time", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            rows.append(
-                "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}".format(
-                    j, left[j], right[j], node[j], source[j], dest[j], time[j], md
-                ).split("\t")
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                rows.append(
+                    "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}".format(
+                        j, left[j], right[j], node[j], source[j], dest[j], time[j], md
+                    ).split("\t")
+                )
         return headers, rows
 
     def add_row(self, left, right, node, source, dest, time, metadata=None):
@@ -1180,7 +1230,7 @@ class SiteTable(BaseTable, MetadataMixin):
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, SiteTableRow)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         position = self.position
         ancestral_state = util.unpack_strings(
             self.ancestral_state, self.ancestral_state_offset
@@ -1188,13 +1238,24 @@ class SiteTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "position", "ancestral_state", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            rows.append(
-                "{}\t{:.8f}\t{}\t{}".format(
-                    j, position[j], ancestral_state[j], md
-                ).split("\t")
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                rows.append(
+                    "{}\t{:.8f}\t{}\t{}".format(
+                        j, position[j], ancestral_state[j], md
+                    ).split("\t")
+                )
         return headers, rows
 
     def add_row(self, position, ancestral_state, metadata=None):
@@ -1389,7 +1450,7 @@ class MutationTable(BaseTable, MetadataMixin):
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MutationTableRow)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         site = self.site
         node = self.node
         parent = self.parent
@@ -1400,13 +1461,24 @@ class MutationTable(BaseTable, MetadataMixin):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "site", "node", "time", "derived_state", "parent", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            rows.append(
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                    j, site[j], node[j], time[j], derived_state[j], parent[j], md
-                ).split("\t")
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                rows.append(
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+                        j, site[j], node[j], time[j], derived_state[j], parent[j], md
+                    ).split("\t")
+                )
         return headers, rows
 
     def add_row(
@@ -1633,13 +1705,24 @@ class PopulationTable(BaseTable, MetadataMixin):
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "metadata")
         rows = []
-        for j in range(self.num_rows):
-            md = base64.b64encode(metadata[j]).decode("utf8")
-            rows.append((str(j), str(md)))
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
+            )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                md = base64.b64encode(metadata[j]).decode("utf8")
+                rows.append((str(j), str(md)))
         return headers, rows
 
     def set_columns(self, metadata=None, metadata_offset=None, metadata_schema=None):
@@ -1814,13 +1897,24 @@ class ProvenanceTable(BaseTable):
             )
         )
 
-    def _text_header_and_rows(self):
+    def _text_header_and_rows(self, limit=None):
         timestamp = util.unpack_strings(self.timestamp, self.timestamp_offset)
         record = util.unpack_strings(self.record, self.record_offset)
         headers = ("id", "timestamp", "record")
         rows = []
-        for j in range(self.num_rows):
-            rows.append((str(j), str(timestamp[j]), str(record[j])))
+        if limit is None or self.num_rows <= limit:
+            indexes = range(self.num_rows)
+        else:
+            indexes = itertools.chain(
+                range(limit // 2),
+                [-1],
+                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
+            )
+        for j in indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows-limit}")
+            else:
+                rows.append((str(j), str(timestamp[j]), str(record[j])))
         return headers, rows
 
     def packset_record(self, records):
