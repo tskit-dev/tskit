@@ -1,8 +1,9 @@
 --------------------
-[0.3.0] - 20XX-XX-XX
+[0.3.0] - 2020-07-29
 --------------------
 
-In development
+Major feature release for metadata schemas, set-like operations, mutation times,
+SVG drawing improvements and many others.
 
 **Breaking changes**
 
@@ -11,20 +12,20 @@ In development
   comparable. The old behaviour is still available with ``order="tree"``.
 
 - File system operations such as dump/load now raise an appropriate OSError
-  instead of tskit.FileFormatError. Loading from an empty file now raises
-  and EOFError.
+  instead of ``tskit.FileFormatError``. Loading from an empty file now raises
+  and ``EOFError``.
 
 - Bad tree topologies are detected earlier, so that it is no longer possible
-  to create a TreeSequence object which contains a parent with contradictory
+  to create a ``TreeSequence`` object which contains a parent with contradictory
   children on an interval. Previously an error was thrown when some operation
-  building the trees was attempted. (:user:`jeromekelleher`, :pr:`709`).
+  building the trees was attempted (:user:`jeromekelleher`, :pr:`709`).
 
-- The TableCollection object no longer implements the iterator protocol.
+- The ``TableCollection object`` no longer implements the iterator protocol.
   Previously ``list(tables)`` returned a sequence of (table_name, table_instance)
   tuples. This has been replaced with the more intuitive and future-proof
-  TableCollection.name_map and TreeSequence.tables_dict attributes, which
-  perform the same function. (:user:`jeromekelleher`, :issue:`500`,
-  :pr:`694`)
+  ``TableCollection.name_map`` and ``TreeSequence.tables_dict`` attributes, which
+  perform the same function (:user:`jeromekelleher`, :issue:`500`,
+  :pr:`694`).
 
 **New features**
 
@@ -35,39 +36,38 @@ In development
   (:user:`mufernando`, :user:`petrelharp`, :issue:`381` :pr:`623`).
 
 - Mutations now have an optional double-precision floating-point ``time`` column.
-  If not specified, this defaults to a particular NaN value (``tskit.UNKNOWN_TIME``)
+  If not specified, this defaults to a particular ``NaN`` value (``tskit.UNKNOWN_TIME``)
   indicating that the time is unknown. For a tree sequence to be considered valid
   it must meet new criteria for mutation times, see :ref:`sec_mutation_requirements`.
   Also added function ``TableCollection.compute_mutation_times``. Table sorting orders
   mutations by non-increasing time per-site, which is also a requirement for a valid tree
-  sequence.
-  (:user:`benjeffery`, :pr:`672`)
+  sequence (:user:`benjeffery`, :pr:`672`).
 
 - Add support for trees with internal samples for the Kendall-Colijn tree distance
   metric. (:user:`daniel-goldstein`, :pr:`610`)
 
 - Add background shading to SVG tree sequences to reflect tree position along the
-  sequence (:user:`hyanwong`, :pr:`563`)
+  sequence (:user:`hyanwong`, :pr:`563`).
 
 - Tables with a metadata column now have a ``metadata_schema`` that is used to
   validate and encode metadata that is passed to ``add_row`` and decode metadata
-  on calls to ``table[j]`` and e.g. ``tree_sequence.node(j)`` See :ref:`sec_metadata`.
-  (:user:`benjeffery`, :pr:`491`, :pr:`542`, :pr:`543`, :pr:`601`)
+  on calls to ``table[j]`` and e.g. ``tree_sequence.node(j)`` See :ref:`sec_metadata`
+  (:user:`benjeffery`, :pr:`491`, :pr:`542`, :pr:`543`, :pr:`601`).
 
-- The tree-sequence now has top-level metadata with a schema.
-  (:user:`benjeffery`, :pr:`666`, :pr:`644`, :pr:`642`)
+- The tree-sequence now has top-level metadata with a schema
+  (:user:`benjeffery`, :pr:`666`, :pr:`644`, :pr:`642`).
 
 - Add classes to SVG drawings to allow easy adjustment and styling, and document the new
   ``tskit.Tree.draw_svg()`` and ``tskit.TreeSequence.draw_svg()`` methods. This also fixes
-  :issue:`467` for duplicate SVG entity ``id`` s in Jupyter notebooks.
-  (:user:`hyanwong`, :pr:`555`)
+  :issue:`467` for duplicate SVG entity ``id`` s in Jupyter notebooks
+  (:user:`hyanwong`, :pr:`555`).
 
 - Add a ``nexus`` function that outputs a tree sequence in Nexus format
   (:user:`saunack`, :pr:`550`).
 
 - Add extension of Kendall-Colijn tree distance metric for tree sequences
   computed by ``TreeSequence.kc_distance``
-  (:user:`daniel-goldstein`, :pr:`548`)
+  (:user:`daniel-goldstein`, :pr:`548`).
 
 - Add an optional node traversal order in ``tskit.Tree`` that uses the minimum
   lexicographic order of leaf nodes visited. This ordering (``"minlex_postorder"``)
@@ -77,24 +77,24 @@ In development
 - Add an ``order`` argument to the tree visualisation functions which supports
   two node orderings: ``"tree"`` (the previous default) and ``"minlex"``
   which stabilises the node ordering (making it easier to compare trees).
-  The default node ordering is changed to ``"minlex"``.
+  The default node ordering is changed to ``"minlex"``
   (:user:`brianzhang01`, :user:`jeromekelleher`, :issue:`389`, :pr:`566`).
 
 - Add ``_repr_html_`` to tables, so that jupyter notebooks render them as
-  html tables (:user:`benjeffery`, :pr:`514`)
+  html tables (:user:`benjeffery`, :pr:`514`).
 
 - Remove support for ``kc_distance`` on trees with unary nodes
-  (:user:`daniel-goldstein`, :pr:`508`)
+  (:user:`daniel-goldstein`, :pr:`508`).
 
 - Improve Kendall-Colijn tree distance algorithm to operate in O(n^2) time
   instead of O(n^2 * log(n)) where n is the number of samples
-  (:user:`daniel-goldstein`, :pr:`490`)
+  (:user:`daniel-goldstein`, :pr:`490`).
 
 - Add a metadata column to the migrations table. Works similarly to existing
-  metadata columns on other tables(:user:`benjeffery`, :pr:`505`).
+  metadata columns on other tables (:user:`benjeffery`, :pr:`505`).
 
 - Add a metadata column to the edges table. Works similarly to existing
-  metadata columns on other tables(:user:`benjeffery`, :pr:`496`).
+  metadata columns on other tables (:user:`benjeffery`, :pr:`496`).
 
 - Allow sites with missing data to be output by the ``haplotypes`` method, by
   default replacing with ``-``. Errors are no longer raised for missing data
@@ -114,6 +114,9 @@ In development
   missing data (:user:`jeromekelleher`, :pr:`462`).
 
 - Add pickle support for ``TreeSequence`` (:user:`terhorst`, :pr:`473`).
+
+- Add ``tree.as_dict_of_dicts()`` function to enable use with networkx. See
+  :ref:`sec_tutorial_networkx` (:user:`winni2k`, :pr:`457`).
 
 **Bugfixes**
 
