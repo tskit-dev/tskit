@@ -460,6 +460,24 @@ haploid Wright-Fisher simulator. Because this simple example
 repeatedly sorts the edge data, it is quite inefficient and
 should not be used as the basis of a large-scale simulator.
 
+.. note::
+
+   This example uses the C function ``rand`` and constant
+   ``RAND_MAX`` for random number generation.  These methods
+   are used for example purposes only and a high-quality
+   random number library should be preferred for code
+   used for research.  Examples include, but are not
+   limited to:
+
+   1. The `GNU Scientific Library <https://www.gnu.org/software/gsl>`_,
+      which is licensed under the GNU General Public License, version
+      3 (`GPL3+ <https://www.gnu.org/licenses/gpl-3.0.en.html>`_.
+   2. For C++ projects using C++11 or later,
+      the built-in `random <https://en.cppreference.com/w/cpp/numeric/random>`_
+      number library.
+   3. The `numpy C API <https://numpy.org/devdocs/reference/random/c-api.html>`_
+      may be useful for those writing Python extension modules in C/C++.
+
 .. todo::
     Give a pointer to an example that caches and flushes edge data efficiently.
     Probably using the C++ API?
