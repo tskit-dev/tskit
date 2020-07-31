@@ -103,13 +103,8 @@ if not meson.is_subproject()
         sources: ['examples/streaming.c'], link_with: [tskit_lib], dependencies: lib_deps)
     executable('cpp_sorting_example',
         sources: ['examples/cpp_sorting_example.cpp'], link_with: [tskit_lib], dependencies: lib_deps)
-
-    gsl_dep = dependency('gsl', required: false)
-    if gsl_dep.found()
-        executable('haploid_wright_fisher',
-            sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib],
-            dependencies: [gsl_dep, lib_deps])
-    endif
+     executable('haploid_wright_fisher',
+        sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib], dependencies: lib_deps)
 endif
 
 # TMP: until we've ported all the tests, keep this compilable.

@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <err.h>
 
-#include <gsl/gsl_rng.h>
 #include <tskit/tables.h>
 
 #define check_tsk_error(val)                                                            \
@@ -13,7 +12,7 @@
 
 void
 simulate(
-    tsk_table_collection_t *tables, int N, int T, int simplify_interval, gsl_rng *rng)
+    tsk_table_collection_t *tables, int N, int T, int simplify_interval)
 {
     tsk_id_t *buffer, *parents, *children, child, left_parent, right_parent;
     double breakpoint;
@@ -41,10 +40,14 @@ simulate(
             child = tsk_node_table_add_row(
                 &tables->nodes, 0, t, TSK_NULL, TSK_NULL, NULL, 0);
             check_tsk_error(child);
-            left_parent = parents[gsl_rng_uniform_int(rng, N)];
-            right_parent = parents[gsl_rng_uniform_int(rng, N)];
+            /* NOTE: the use of rand() is discouraged for
+             * research code and proper random number generator
+             * libraries should be preferred.
+             */
+            left_parent = parents[(size_t)((rand()/(1.+RAND_MAX))*N)];
+            right_parent = parents[(size_t)((rand()/(1.+RAND_MAX))*N)];
             do {
-                breakpoint = gsl_rng_uniform(rng);
+                breakpoint = rand()/(1.+RAND_MAX);
             } while (breakpoint == 0); /* tiny proba of breakpoint being 0 */
             ret = tsk_edge_table_add_row(
                 &tables->edges, 0, breakpoint, left_parent, child, NULL, 0);
@@ -81,18 +84,17 @@ main(int argc, char **argv)
 {
     int ret;
     tsk_table_collection_t tables;
-    gsl_rng *rng = gsl_rng_alloc(gsl_rng_default);
 
-    if (argc != 5) {
-        errx(EXIT_FAILURE, "usage: N T simplify-interval output-file");
+    if (argc != 6) {
+        errx(EXIT_FAILURE, "usage: N T simplify-interval output-file seed");
     }
     ret = tsk_table_collection_init(&tables, 0);
     check_tsk_error(ret);
-    simulate(&tables, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), rng);
+    srand((unsigned)atoi(argv[5]));
+    simulate(&tables, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
     ret = tsk_table_collection_dump(&tables, argv[4], 0);
     check_tsk_error(ret);
 
     tsk_table_collection_free(&tables);
-    gsl_rng_free(rng);
     return 0;
 }

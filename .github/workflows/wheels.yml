@@ -180,9 +180,6 @@ jobs:
         run: |
           docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2010_x86_64 bash .github/workflows/docker/buildwheel.sh
 
-      - name: Install libgsl
-        run: sudo apt-get install libgsl-dev
-
       - name: Set up Python 3.8
         uses: actions/setup-python@v2
         with:

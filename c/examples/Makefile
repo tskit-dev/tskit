@@ -31,9 +31,8 @@ tree_traversal: tree_traversal.c
 streaming: streaming.c
 	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
 
-# This needs GSL
 haploid_wright_fisher: haploid_wright_fisher.c
-	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lgsl -lgslcblas -lm
+	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
 
 clean:
 	rm -f haploid_wright_fisher tree_iteration
