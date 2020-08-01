@@ -3,7 +3,7 @@ autodocsumm==0.1.13
 biopython==1.77
 black==19.10b0
 breathe==4.14.2
-codecov==2.1.7
+codecov==2.1.8
 coverage==5.2.1
 flake8==3.8.3
 h5py==2.10.0
