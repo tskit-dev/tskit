@@ -1082,7 +1082,7 @@ class TestTreeSequence(HighLevelTestCase):
             if n > 2:
                 sample_sizes |= {2, max(2, n // 2), n - 1}
             for k in sample_sizes:
-                subset = random.sample(list(ts.samples()), k)
+                subset = sorted(random.sample(list(ts.samples()), k))
                 self.verify_simplify_topology(ts, subset)
                 self.verify_simplify_equality(ts, subset)
                 self.verify_simplify_variants(ts, subset)

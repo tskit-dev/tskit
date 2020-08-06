@@ -6474,11 +6474,17 @@ tsk_table_collection_check_node_integrity(
 {
     int ret = 0;
     tsk_size_t j;
-    double node_time;
-    tsk_id_t population, individual;
+    double node_time, prev_node_time;
+    tsk_id_t population, individual, prev_individual, prev_population;
+    bool *individual_completed=NULL;
     tsk_id_t num_populations = (tsk_id_t) self->populations.num_rows;
     tsk_id_t num_individuals = (tsk_id_t) self->individuals.num_rows;
     const bool check_population_refs = !(options & TSK_NO_CHECK_POPULATION_REFS);
+
+    individual_completed = calloc((size_t) num_individuals, sizeof(bool));
+    prev_node_time = INFINITY;
+    prev_individual = TSK_NULL;
+    prev_population = TSK_NULL;
 
     for (j = 0; j < self->nodes.num_rows; j++) {
         node_time = self->nodes.time[j];
@@ -6486,20 +6492,45 @@ tsk_table_collection_check_node_integrity(
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
         }
+        population = self->nodes.population[j];
         if (check_population_refs) {
-            population = self->nodes.population[j];
-            if (population < TSK_NULL || population >= num_populations) {
+            if ((population != TSK_NULL) && (population < 0 || population >= num_populations)) {
                 ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
                 goto out;
             }
         }
         individual = self->nodes.individual[j];
-        if (individual < TSK_NULL || individual >= num_individuals) {
+        if ((individual != TSK_NULL) && (individual < 0 || individual >= num_individuals)) {
             ret = TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS;
             goto out;
         }
+        if (individual == prev_individual) {
+            if (individual != TSK_NULL) {
+                if (population != prev_population) {
+                    ret = TSK_ERR_MULTIPLE_POPS_FOR_INDIVIDUAL;
+                    goto out;
+                }
+                if (node_time != prev_node_time) {
+                    ret = TSK_ERR_MULTIPLE_TIMES_FOR_INDIVIDUAL;
+                    goto out;
+                }
+            }
+        } else {
+            if (individual != TSK_NULL && individual_completed[individual]) {
+                ret = TSK_ERR_INDIVIDUAL_NODES_NOT_CONTIGUOUS;
+                goto out;
+            }
+            if (prev_individual != TSK_NULL) {
+                individual_completed[prev_individual] = true;
+            }
+        }
+        prev_node_time = node_time;
+        prev_individual = individual;
+        prev_population = population;
+        
     }
 out:
+    tsk_safe_free(individual_completed);
     return ret;
 }
 

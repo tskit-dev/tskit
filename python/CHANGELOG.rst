@@ -27,6 +27,12 @@ SVG drawing improvements and many others.
   perform the same function (:user:`jeromekelleher`, :issue:`500`,
   :pr:`694`).
 
+- When converting a `TableCollection`` with individuals to a tree sequence, the
+  collection of nodes pointing to a single individual must have the same time,
+  belong to the same population, and be contiguous in the table. Contiguity was
+  previously noted as a requirement in the docs, but not enforced
+  (:user:`hyanwong`, :issue:`749`, :issue:`750`,  :pr:`751`).
+
 **New features**
 
 - New methods to perform set operations on TableCollections and TreeSequences.

@@ -260,6 +260,9 @@ not found in the file.
 #define TSK_ERR_COLUMN_OVERFLOW                                     -704
 #define TSK_ERR_TREE_OVERFLOW                                       -705
 #define TSK_ERR_METADATA_DISABLED                                   -706
+#define TSK_ERR_INDIVIDUAL_NODES_NOT_CONTIGUOUS                     -707
+#define TSK_ERR_MULTIPLE_POPS_FOR_INDIVIDUAL                        -708
+#define TSK_ERR_MULTIPLE_TIMES_FOR_INDIVIDUAL                       -709
 
 /* Limitations */
 #define TSK_ERR_ONLY_INFINITE_SITES                                 -800

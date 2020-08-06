@@ -216,13 +216,6 @@ class ExamplesMixin:
         self.assertGreater(ts.num_sites, 2)
         self.verify(ts)
 
-    def test_simple_infinite_sites_ploidy_2_even_samples(self):
-        ts = msprime.simulate(20, mutation_rate=1, random_seed=2)
-        samples = ts.samples()[0::2]
-        ts = tsutil.insert_individuals(ts, samples=samples, ploidy=2)
-        self.assertGreater(ts.num_sites, 2)
-        self.verify(ts)
-
     def test_simple_jukes_cantor_random_ploidy(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, seed=2)

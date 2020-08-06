@@ -5290,27 +5290,6 @@ class TestSimplify(unittest.TestCase):
         tss, _ = self.do_simplify(tables.tree_sequence(), filter_individuals=False)
         self.assertEqual(tss.tables.individuals, tables.individuals)
 
-    def test_interleaved_individual_filter(self):
-        tables = tskit.TableCollection(1)
-        tables.individuals.add_row(flags=0)
-        tables.individuals.add_row(flags=1)
-        tables.individuals.add_row(flags=2)
-        tables.nodes.add_row(flags=1, individual=1)
-        tables.nodes.add_row(flags=1, individual=-1)
-        tables.nodes.add_row(flags=1, individual=1)
-        for keep in [True, False]:
-            tss, _ = self.do_simplify(
-                tables.tree_sequence(), filter_individuals=True, keep_unary=keep
-            )
-            self.assertEqual(tss.num_nodes, 3)
-            self.assertEqual(tss.num_individuals, 1)
-            self.assertEqual(tss.individual(0).flags, 1)
-
-            tss, _ = self.do_simplify(
-                tables.tree_sequence(), filter_individuals=False, keep_unary=keep
-            )
-            self.assertEqual(tss.tables.individuals, tables.individuals)
-
     def test_removed_node_individual_filter(self):
         tables = tskit.TableCollection(1)
         tables.individuals.add_row(flags=0)

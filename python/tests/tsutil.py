@@ -183,24 +183,27 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
 
 def insert_random_ploidy_individuals(ts, max_ploidy=5, max_dimension=3, seed=1):
     """
-    Takes random contiguous subsets of the samples an assigns them to individuals.
-    Also creates random locations in variable dimensions in the unit interval.
+    Takes random contiguous subsets of the samples in each tree sequence population and
+    assigns them to individuals. Also creates random locations in variable dimensions in
+    the unit interval.
     """
     rng = random.Random(seed)
-    samples = np.array(ts.samples(), dtype=int)
-    j = 0
     tables = ts.dump_tables()
     tables.individuals.clear()
     individual = tables.nodes.individual[:]
     individual[:] = tskit.NULL
-    while j < len(samples):
-        ploidy = rng.randint(0, max_ploidy)
-        nodes = samples[j : min(j + ploidy, len(samples))]
-        dimension = rng.randint(0, max_dimension)
-        location = [rng.random() for _ in range(dimension)]
-        ind_id = tables.individuals.add_row(location=location)
-        individual[nodes] = ind_id
-        j += ploidy
+    for p in range(ts.num_populations):
+        j = 0
+        samples = ts.samples(population=p)
+        assert np.all(np.diff(samples) == 1)  # Ensure samples in a pop are contiguous
+        while j < len(samples):
+            ploidy = rng.randint(0, max_ploidy)
+            nodes = samples[j : min(j + ploidy, len(samples))]
+            dimension = rng.randint(0, max_dimension)
+            location = [rng.random() for _ in range(dimension)]
+            ind_id = tables.individuals.add_row(location=location)
+            individual[nodes] = ind_id
+            j += ploidy
     tables.nodes.individual = individual
     return tables.tree_sequence()
 

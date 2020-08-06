@@ -1664,6 +1664,57 @@ class TestTablesToTreeSequence(unittest.TestCase):
         b = tables.tree_sequence()
         self.assertEqual(a.tables, b.tables)
 
+    def test_non_consecutive_individuals(self):
+        ts = msprime.simulate(4, random_seed=1)
+        tables = ts.tables
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        ind = tables.nodes.individual
+        ind[ts.samples()] = [0, 1, 0, 1]  # nodes from same individual non-contiguous
+        tables.nodes.individual = ind
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "Nodes belonging to the same individual must be contiguous",
+        ):
+            tables.tree_sequence()
+
+    def test_individual_with_multiple_populations(self):
+        ts = msprime.simulate(4, random_seed=1)
+        tables = ts.tables
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        ind = tables.nodes.individual
+        pop = tables.nodes.population
+        ind[ts.samples()] = np.arange(ts.num_samples) // 2
+        tables.nodes.individual = ind
+        pop = np.full(ts.num_nodes, tskit.NULL, dtype=tables.nodes.population.dtype)
+        self.assertIn(0, ts.samples())
+        pop[0] = 0  # only sample 0 has a population, but sample 1 is in the same ind.
+        tables.nodes.population = pop
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "Nodes belonging to one individual must be in the same population",
+        ):
+            tables.tree_sequence()
+
+    def test_individual_with_multiple_times(self):
+        ts = msprime.simulate(4, random_seed=1)
+        tables = ts.tables
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        ind = tables.nodes.individual
+        times = tables.nodes.time
+        ind[ts.samples()] = np.arange(ts.num_samples) // 2
+        tables.nodes.individual = ind
+        self.assertIn(0, ts.samples())
+        times[0] = np.min(times[times != 0] / 2)
+        tables.nodes.time = times
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "Nodes belonging to one individual must occur at the some time",
+        ):
+            tables.tree_sequence()
+
 
 class TestMutationTimeErrors(unittest.TestCase):
     def test_younger_than_node_below(self):

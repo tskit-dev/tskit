@@ -336,6 +336,15 @@ tsk_strerror_internal(int err)
         case TSK_ERR_METADATA_DISABLED:
             ret = "Metadata is disabled for this table, so cannot be set";
             break;
+        case TSK_ERR_INDIVIDUAL_NODES_NOT_CONTIGUOUS:
+            ret = "Nodes belonging to the same individual must be contiguous";
+            break;
+        case TSK_ERR_MULTIPLE_POPS_FOR_INDIVIDUAL:
+            ret = "Nodes belonging to one individual must be in the same population";
+            break;
+        case TSK_ERR_MULTIPLE_TIMES_FOR_INDIVIDUAL:
+            ret = "Nodes belonging to one individual must occur at the some time";
+            break;
 
         /* Limitations */
         case TSK_ERR_ONLY_INFINITE_SITES:
