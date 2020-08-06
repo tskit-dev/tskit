@@ -559,9 +559,6 @@ and so is "valid" if is between 0 and one less than the number of rows in the re
 
 There are no requirements regarding the ordering of nodes with respect to time.
 
-For simplicity and algorithmic efficiency, all nodes referring to the same
-(non-null) individual must be contiguous.
-
 Sorting a set of tables using :meth:`TableCollection.sort`
 has no effect on nodes.
 
