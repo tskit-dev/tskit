@@ -1960,6 +1960,38 @@ class TestTree(HighLevelTestCase):
                 newick_c = tree.newick(precision=precision)
                 self.assertEqual(newick_c, newick_py)
 
+    def test_newick_buffer_too_small_bug(self):
+        nodes = io.StringIO(
+            """\
+        id  is_sample   population individual time
+        0       1       0       -1      0.00000000000000
+        1       1       0       -1      0.00000000000000
+        2       1       0       -1      0.00000000000000
+        3       1       0       -1      0.00000000000000
+        4       0       0       -1      0.21204940078588
+        5       0       0       -1      0.38445004304611
+        6       0       0       -1      0.83130278081275
+        """
+        )
+        edges = io.StringIO(
+            """\
+        id      left            right           parent  child
+        0       0.00000000      1.00000000      4       0
+        1       0.00000000      1.00000000      4       2
+        2       0.00000000      1.00000000      5       1
+        3       0.00000000      1.00000000      5       3
+        4       0.00000000      1.00000000      6       4
+        5       0.00000000      1.00000000      6       5
+        """
+        )
+        ts = tskit.load_text(nodes, edges, sequence_length=1, strict=False,)
+        tree = ts.first()
+        for precision in range(17):
+            newick_c = tree.newick(precision=precision)
+            node_labels = {u: str(u + 1) for u in ts.samples()}
+            newick_py = tree.newick(precision=precision, node_labels=node_labels)
+            self.assertEqual(newick_c, newick_py)
+
     def test_as_dict_of_dicts(self):
         for ts in get_example_tree_sequences():
             tree = next(ts.trees())
