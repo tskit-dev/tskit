@@ -2152,13 +2152,12 @@ class Tree:
                 )
             root = self.root
         if node_labels is None:
-            # This should be a safe over-estimate.
             root_time = max(1, self.time(root))
             max_label_size = math.ceil(math.log10(self.tree_sequence.num_nodes))
             single_node_size = (
-                3 + max_label_size + math.ceil(math.log10(root_time)) + precision
+                4 + max_label_size + math.ceil(math.log10(root_time)) + precision
             )
-            buffer_size = single_node_size * self.num_nodes
+            buffer_size = 1 + single_node_size * self.num_nodes
             s = self._ll_tree.get_newick(
                 precision=precision, root=root, buffer_size=buffer_size
             )
