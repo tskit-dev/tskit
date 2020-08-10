@@ -300,6 +300,9 @@ breathe_show_define_initializer = True
 
 nitpicky = True
 nitpick_ignore = [
+    ("c:identifier", "int32_t"),
+    ("c:identifier", "uint32_t"),
+    ("c:identifier", "FILE"),
     ("c:type", "int32_t"),
     ("c:type", "uint32_t"),
     ("c:type", "bool"),
