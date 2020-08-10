@@ -3800,7 +3800,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
-    /* A mixture of known and unknown times fails */
+    /* A mixture of known and unknown times on a site fails */
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_mutation_table_add_row(
@@ -3809,8 +3809,20 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN);
+
+    /* But on different sites, passes */
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tables.mutations, 1, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
