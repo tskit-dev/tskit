@@ -877,3 +877,55 @@ the C and Python APIs.
 11. Update your Pull Request (`rebasing <https://stdpopsim.readthedocs.io/en/
     latest/development.html#rebasing>`_ if necessary!) and let the community check
     your work.
+
+***********************
+Releasing a new version
+***********************
+
+Tskit maintains separate visioning for the C API and Python package, each has its own
+release process.
+
+-----
+C API
+-----
+
+To release the C API, the ``TSK_VERSION_*`` macros should be updated, and the changelog
+updated with the release date and version. The changelog should also be checked for
+completeness. Comparing  ``git log --follow --oneline -- c`` with
+``git log --follow --oneline -- c/CHANGELOG.rst`` may help here.
+After the commit including these changes has been merged, tag a
+release on GitHub using the pattern ``C_MAJOR.MINOR.PATCH``, with::
+
+    git tag -a C_MAJOR.MINOR.PATCH -m "C API version C_MAJOR.MINOR.PATCH"
+    git push upstream --tags
+
+Then prepare a release for the tag on GitHub, copying across the changelog.
+After release, start a section in the changelog for new developments.
+
+------
+Python
+------
+
+To make a release first prepare a pull request that sets the correct version
+number in ``tskit/_version.py``  following PEP440 format. For a normal release
+this should be MAJOR.MINOR.PATCH, for a beta release use MAJOR.MINOR.PATCHbX
+e.g. 1.0.0b1. Update the Python CHANGELOG.rst, ensuring that all significant
+changes since the last release have been listed. Comparing
+``git log --follow --oneline -- python``
+with ``git log --follow --oneline -- python/CHANGELOG.rst`` may help here.
+Once this PR is merged, push a tag to github::
+
+    git tag -a MAJOR.MINOR.PATCH -m "Python version MAJOR.MINOR.PATCH"
+    git push upstream --tags
+
+This will trigger a build of the distribution artifacts for Python
+on `Github Actions <https://github.com/tskit-dev/tskit/actions>`_. and deploy
+them to the `test PyPI <https://test.pypi.org/project/tskit/>`_. Check
+the release looks good there, then create a release on Github based on the tag you
+pushed. Copy the changelog into the release. Publishing this release will cause
+the github action to deploy to the
+`production PyPI <https://pypi.org/project/tskit/>`_.
+After release, start a section in the changelog for new developments.
+
+
+
