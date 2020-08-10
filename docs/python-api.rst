@@ -126,9 +126,41 @@ using the :ref:`Tables API <sec_tables_api>`.
 
 .. _sec_tables_api:
 
-******
+****************************
+Tables and Table Collections
+****************************
+
+The information required to construct a tree sequence is stored in a collection
+of *tables*, each defining a different aspect of the structure of a tree
+sequence. These tables are described individually in :ref:`the next section
+<sec_tables_api_tables>`. However, these are interrelated, and so many operations work
+on the entire collection of tables, known as a ``TableCollection``.
+The :class:`TableCollection` and :class:`TreeSequence` classes are
+deeply related. A ``TreeSequence`` instance is based on the information
+encoded in a ``TableCollection``. Tree sequences are **immutable**, and
+provide methods for obtaining trees from the sequence. A ``TableCollection``
+is **mutable**, and does not have any methods for obtaining trees.
+The ``TableCollection`` class thus allows dynamic creation and modification of
+tree sequences.
+
++++++++++++++++++++++++++++++
+The ``TableCollection`` class
++++++++++++++++++++++++++++++
+
+Many of the ``TreeSequence`` methods that return a modified tree sequence
+are in fact wrappers around a corresponding ``TableCollection`` method
+that modifies a copy of the origin tree sequence's table collection.
+
+.. autoclass:: tskit.TableCollection(sequence_length=0)
+    :autosummary:
+    :members:
+
+
+.. _sec_tables_api_tables:
+
+++++++
 Tables
-******
+++++++
 
 The :ref:`tables API <sec_binary_interchange>` provides an efficient way of working
 with and interchanging :ref:`tree sequence data <sec_data_model>`. Each table
@@ -426,26 +458,6 @@ and use, see :ref:`the table definitions <sec_table_definitions>`.
 .. autoclass:: tskit.ProvenanceTable()
     :members:
     :inherited-members:
-
-+++++++++++++++++
-Table Collections
-+++++++++++++++++
-
-Each of the table classes defines a different aspect of the structure of
-a tree sequence. It is convenient to be able to refer to a set of these
-tables which together define a tree sequence. We
-refer to this grouping of related tables as a ``TableCollection``.
-The :class:`TableCollection` and :class:`TreeSequence` classes are
-deeply related. A ``TreeSequence`` instance is based on the information
-encoded in a ``TableCollection``. Tree sequences are **immutable**, and
-provide methods for obtaining trees from the sequence. A ``TableCollection``
-is **mutable**, and does not have any methods for obtaining trees.
-The ``TableCollection`` class essentially exists to allow the
-dynamic creation of tree sequences.
-
-.. autoclass:: tskit.TableCollection(sequence_length=0)
-    :members:
-
 
 +++++++++++++++
 Table functions
