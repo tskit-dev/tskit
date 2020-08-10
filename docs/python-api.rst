@@ -133,7 +133,7 @@ Tables and Table Collections
 The information required to construct a tree sequence is stored in a collection
 of *tables*, each defining a different aspect of the structure of a tree
 sequence. These tables are described individually in :ref:`the next section
-<sec_tables_docs>`. However, these are interrelated, and so many operations work
+<sec_tables_api_tables>`. However, these are interrelated, and so many operations work
 on the entire collection of tables, known as a ``TableCollection``.
 The :class:`TableCollection` and :class:`TreeSequence` classes are
 deeply related. A ``TreeSequence`` instance is based on the information
@@ -156,7 +156,7 @@ that modifies a copy of the origin tree sequence's table collection.
     :members:
 
 
-.. _sec_tables_docs:
+.. _sec_tables_api_tables:
 
 ++++++
 Tables
