@@ -31,6 +31,7 @@
 #include <stdlib.h>
 
 #include <CUnit/Basic.h>
+#define _TSK_WORKAROUND_FALSE_CLANG_WARNING
 #include <tskit/trees.h>
 
 /* Global variables used in the test suite */

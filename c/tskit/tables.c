@@ -32,6 +32,7 @@
 #include <float.h>
 #include <math.h>
 
+#define _TSK_WORKAROUND_FALSE_CLANG_WARNING
 #include <tskit/tables.h>
 
 #define DEFAULT_SIZE_INCREMENT 1024
