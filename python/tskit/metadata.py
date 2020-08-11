@@ -35,6 +35,7 @@ from typing import Type
 
 import jsonschema
 
+import tskit
 import tskit.exceptions as exceptions
 
 
@@ -111,7 +112,7 @@ class JSONCodec(AbstractMetadataCodec):
         pass
 
     def encode(self, obj: Any) -> bytes:
-        return json.dumps(obj).encode()
+        return tskit.canonical_json(obj).encode()
 
     def decode(self, encoded: bytes) -> Any:
         return json.loads(encoded.decode())
@@ -516,13 +517,16 @@ class MetadataSchema:
             # does not.
             schema = codec_cls.modify_schema(schema)
             codec_instance = codec_cls(schema)
-            self._string = json.dumps(schema)
+            self._string = tskit.canonical_json(schema)
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
 
     def __str__(self) -> str:
         return self._string
+
+    def __eq__(self, other) -> bool:
+        return self._string == other._string
 
     @property
     def schema(self) -> Optional[Mapping[str, Any]]:
@@ -567,7 +571,9 @@ def parse_metadata_schema(encoded_schema: str) -> MetadataSchema:
         return MetadataSchema(schema=None)
     else:
         try:
-            decoded = json.loads(encoded_schema)
+            decoded = json.loads(
+                encoded_schema, object_pairs_hook=collections.OrderedDict
+            )
         except json.decoder.JSONDecodeError:
             raise ValueError(f"Metadata schema is not JSON, found {encoded_schema}")
         return MetadataSchema(decoded)

@@ -22,11 +22,24 @@
 """
 Module responsible for various utility functions used in other modules.
 """
+import json
 import struct
 
 import numpy as np
 
 from tskit import UNKNOWN_TIME
+
+
+def canonical_json(obj):
+    """
+    Returns string of encoded JSON with keys sorted and whitespace removed to enable
+    byte-level comparison of encoded data.
+
+    :param Any obj: Python object to encode
+    :return: The encoded string
+    :rtype: str
+    """
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
 
 
 def is_unknown_time(time):
