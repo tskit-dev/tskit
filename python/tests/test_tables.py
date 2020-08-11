@@ -1775,6 +1775,31 @@ class TestMutationTimeErrors(unittest.TestCase):
         ):
             tables.tree_sequence()
 
+    def test_mixed_known_and_unknown(self):
+        ts = msprime.simulate(
+            10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
+        )
+        ts = tsutil.jukes_cantor(
+            ts, num_sites=10, mu=1, multiple_per_node=False, seed=42
+        )
+        tables = ts.dump_tables()
+        tables.compute_mutation_times()
+        tables.sort()
+        times = tables.mutations.time
+        # Unknown times on diff sites pass
+        times[(tables.mutations.site % 2) == 0] = tskit.UNKNOWN_TIME
+        tables.mutations.time = times
+        tables.tree_sequence()
+        # Mixed known/unknown times on sites fail
+        times[::2] = tskit.UNKNOWN_TIME
+        tables.mutations.time = times
+        with self.assertRaisesRegex(
+            _tskit.LibraryError,
+            "Mutation times must either be all marked 'unknown', or all be known "
+            "values for any single site.",
+        ):
+            tables.tree_sequence()
+
 
 class TestNanDoubleValues(unittest.TestCase):
     """

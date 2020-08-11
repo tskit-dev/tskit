@@ -638,8 +638,8 @@ requirements for a valid set of mutations are:
   the time is unknown) or be a finite value which is greater or equal to the
   mutation ``node``'s ``time``, less than the ``node`` above the mutation's
   ``time`` and equal to or less than the ``time`` of the ``parent`` mutation
-  if this mutation has one. If one mutation has UNKNOWN_TIME then all mutations
-  must, a mixture of known and unknown is not valid.
+  if this mutation has one. If one mutation on a site has UNKNOWN_TIME then all mutations
+  at that site must, a mixture of known and unknown is not valid.
 - ``parent`` must either be the null ID (-1) or a valid mutation ID within the
   current table
 
