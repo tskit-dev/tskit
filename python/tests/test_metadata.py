@@ -317,7 +317,7 @@ class TestMetadataModule(unittest.TestCase):
             "additionalProperties": False,
         }
         ms = metadata.MetadataSchema(schema)
-        self.assertEqual(str(ms), json.dumps(schema))
+        self.assertEqual(str(ms), tskit.canonical_json(schema))
         # Missing required properties
         with self.assertRaises(exceptions.MetadataValidationError):
             ms.validate_and_encode_row({})
@@ -343,6 +343,72 @@ class TestMetadataModule(unittest.TestCase):
         # Bad JSON gives error
         with self.assertRaises(ValueError):
             metadata.parse_metadata_schema(json.dumps({"codec": "json"})[:-1])
+
+    def test_canonical_string(self):
+        schema = collections.OrderedDict(
+            codec="json",
+            title="Example Metadata",
+            type="object",
+            properties=collections.OrderedDict(
+                one={"type": "string"}, two={"type": "number"}
+            ),
+            required=["one", "two"],
+            additionalProperties=False,
+        )
+        schema2 = collections.OrderedDict(
+            type="object",
+            properties=collections.OrderedDict(
+                two={"type": "number"}, one={"type": "string"}
+            ),
+            required=["one", "two"],
+            additionalProperties=False,
+            title="Example Metadata",
+            codec="json",
+        )
+        self.assertNotEqual(json.dumps(schema), json.dumps(schema2))
+        self.assertEqual(
+            str(metadata.MetadataSchema(schema)), str(metadata.MetadataSchema(schema2))
+        )
+
+    def test_equality(self):
+        schema = metadata.MetadataSchema(
+            {
+                "codec": "json",
+                "title": "Example Metadata",
+                "type": "object",
+                "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+                "required": ["one", "two"],
+                "additionalProperties": False,
+            }
+        )
+        schema_same = metadata.MetadataSchema(
+            collections.OrderedDict(
+                type="object",
+                properties=collections.OrderedDict(
+                    two={"type": "number"}, one={"type": "string"}
+                ),
+                required=["one", "two"],
+                additionalProperties=False,
+                title="Example Metadata",
+                codec="json",
+            )
+        )
+        schema_diff = metadata.MetadataSchema(
+            {
+                "codec": "json",
+                "title": "Example Metadata",
+                "type": "object",
+                "properties": {"one": {"type": "string"}, "two": {"type": "string"}},
+                "required": ["one", "two"],
+                "additionalProperties": False,
+            }
+        )
+        self.assertTrue(schema == schema)
+        self.assertFalse(schema != schema)
+        self.assertTrue(schema == schema_same)
+        self.assertFalse(schema != schema_same)
+        self.assertTrue(schema != schema_diff)
+        self.assertFalse(schema == schema_diff)
 
     def test_bad_top_level_type(self):
         for bad_type in ["array", "boolean", "integer", "null", "number", "string"]:
@@ -388,11 +454,19 @@ class TestMetadataModule(unittest.TestCase):
         # Valid row data
         row_data = {"one": "tree", "two": 5}
         self.assertEqual(
-            ms.validate_and_encode_row(row_data), json.dumps(row_data).encode()
+            ms.validate_and_encode_row(row_data),
+            tskit.canonical_json(row_data).encode(),
         )
         self.assertEqual(ms.decode_row(json.dumps(row_data).encode()), row_data)
         # Round trip
         self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+        # Test canonical encoding
+        row_data = collections.OrderedDict(one="tree", two=5)
+        row_data2 = collections.OrderedDict(two=5, one="tree")
+        self.assertNotEqual(json.dumps(row_data), json.dumps(row_data2))
+        self.assertEqual(
+            ms.validate_and_encode_row(row_data), ms.validate_and_encode_row(row_data2)
+        )
 
     def test_msgpack_codec(self):
         class MsgPackCodec(metadata.AbstractMetadataCodec):
@@ -1625,4 +1699,62 @@ class TestSLiMDecoding(unittest.TestCase):
         }
         self.assertDictEqual(
             metadata.MetadataSchema(schema).decode_row(example), expected
+        )
+
+
+class TestTableCollectionEquality(unittest.TestCase):
+    def test_equality(self):
+        ts = msprime.simulate(10, random_seed=42)
+        tables = ts.dump_tables()
+        tables2 = ts.dump_tables()
+        schema = collections.OrderedDict(
+            codec="json",
+            title="Example Metadata",
+            type="object",
+            properties=collections.OrderedDict(
+                one={"type": "string"}, two={"type": "number"}
+            ),
+            required=["one", "two"],
+            additionalProperties=False,
+        )
+        schema2 = collections.OrderedDict(
+            type="object",
+            properties=collections.OrderedDict(
+                two={"type": "number"}, one={"type": "string"}
+            ),
+            required=["one", "two"],
+            additionalProperties=False,
+            title="Example Metadata",
+            codec="json",
+        )
+        tables.metadata_schema = metadata.MetadataSchema(schema)
+        self.assertNotEqual(tables, tables2)
+        tables2.metadata_schema = metadata.MetadataSchema(schema2)
+        self.assertEqual(tables, tables2)
+        tables.metadata = collections.OrderedDict(one="tree", two=5)
+        self.assertNotEqual(tables, tables2)
+        tables2.metadata = collections.OrderedDict(two=5, one="tree")
+        self.assertEqual(tables, tables2)
+
+    def test_fixing_uncanonical(self):
+        ts = msprime.simulate(10, random_seed=42)
+        tables = ts.dump_tables()
+        schema = collections.OrderedDict(
+            codec="json",
+            title="Example Metadata",
+            type="object",
+            properties=collections.OrderedDict(
+                one={"type": "string"}, two={"type": "number"}
+            ),
+            required=["one", "two"],
+            additionalProperties=False,
+        )
+        # Set with low-level to emulate loading.
+        tables.ll_tables.metadata_schema = json.dumps(schema)
+        self.assertNotEqual(
+            tables.ll_tables.metadata_schema, tskit.canonical_json(schema),
+        )
+        tables.metadata_schema = tables.metadata_schema
+        self.assertEqual(
+            tables.ll_tables.metadata_schema, tskit.canonical_json(schema),
         )

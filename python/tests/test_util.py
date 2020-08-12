@@ -22,6 +22,7 @@
 """
 Tests for functions in util.py
 """
+import collections
 import itertools
 import math
 import pickle
@@ -32,6 +33,34 @@ import numpy as np
 import tests.tsutil as tsutil
 import tskit.util as util
 from tskit import UNKNOWN_TIME
+
+
+class TestCanonicalJSON(unittest.TestCase):
+    def test_canonical_json(self):
+        self.assertEqual(util.canonical_json([3, 2, 1]), "[3,2,1]")
+        self.assertEqual(
+            util.canonical_json(collections.OrderedDict(c=3, b=2, a=1)),
+            '{"a":1,"b":2,"c":3}',
+        )
+        self.assertEqual(
+            util.canonical_json(
+                collections.OrderedDict(
+                    c="3",
+                    b=collections.OrderedDict(
+                        {
+                            "b": 1,
+                            "z": {},
+                            " space": 42,
+                            "1": "number",
+                            "_": "underscore",
+                        }
+                    ),
+                    a="1",
+                )
+            ),
+            '{"a":"1","b":{" space":42,"1":"number",'
+            '"_":"underscore","b":1,"z":{}},"c":"3"}',
+        )
 
 
 class TestUnknownTime(unittest.TestCase):
