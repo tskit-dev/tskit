@@ -1,4 +1,22 @@
 ---------------------
+[0.99.4] - 2020-08-12
+---------------------
+
+**Note**
+
+- The ``TSK_VERSION_PATCH`` macro was incorrectly set to ``4`` for 0.99.3, so both 
+  0.99.4 and 0.99.3 have the same value.
+
+**Changes**
+
+- Mutation times can be a mixture of known and unkown as long as for each
+  individual site  they are either all known or all unknown (:user:`benjeffery`, :pr:`761`).
+
+**Bugfixes**
+
+- Fix for including core.h under C++ (:user:`petrelharp`, :pr:`755`).
+
+---------------------
 [0.99.3] - 2020-07-27
 ---------------------
 
