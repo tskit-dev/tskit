@@ -8,7 +8,7 @@ on:
     tags:
       - '*'
   release:
-    types: [published, created]
+    types: [published]
 
 jobs:
   windows:
