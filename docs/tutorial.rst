@@ -742,42 +742,69 @@ Working with Metadata
 Metadata is information associated with entities that tskit doesn't use or interpret,
 but which is useful to pass on to downstream analysis such as sample ids, dates etc. See
 :ref:`sec_metadata` for a full discussion. Each table has a
-``metadata_schema`` which details the
+:class:`tskit.MetadataSchema` accessed as ``table.metadata_schema``. which details the
 contents and encoding of the metadata for each row. A metadata schema is a JSON document
 that conforms to `JSON Schema <https://json-schema.org/understanding-json-schema/>`_
 (The full schema for tskit is at :ref:`sec_metadata_schema_schema`).
-Here's a simple example schema, which we'll apply to the individuals table:
+
+++++++++++++++++++++++++++++
+Reading metadata and schemas
+++++++++++++++++++++++++++++
+
+Metadata is automatically decoded using the schema when accessed via a
+:class:`TreeSequence` or :class:`TableCollection` Python API. For example:
 
 .. code-block:: python
 
-    raw_schema = {
-        "codec": "json",
-        "type": "object",
-        "properties": {
-            "accession": {"type": "string"},
-            "pcr": {
-                "name": "PCR Used",
-                "description": "Was PCR used on this sample",
-                "type": "boolean",
-            },
-        },
-        "required": ["accession", "pcr"],
-        "additionalProperties": False,
-    }
+    >>> ts.individual(0).metadata
+    {'accession': 'ERS0001', 'pcr': True}
+    >>> ts.tables.individuals[0].metadata
+    {'accession': 'ERS0001', 'pcr': True}
 
-The ``codec`` entry in the schema specifies how the metadata should be stored.
-See :ref:`sec_metadata_codecs` for details on the supported codecs. This schema
-defines two properties, both of which are mandatory as they are in the ``required``
-list. To avoid errors we set ``additionalProperties`` to false, as this causes any
-unexpected properties in the metadata to fail validation.
-
-Schemas in tskit are held in :class:`tskit.MetadataSchema`:
+Viewing the :class:`tskit.MetadataSchema` for a table can help with understanding
+its metadata as it can contain descriptions and constraints:
 
 .. code-block:: python
 
-    schema = tskit.MetadataSchema(raw_schema)
+    >>> pprint.pprint(ts.table_metadata_schemas.individual)
+    {'additionalProperties': False,
+     'codec': 'json',
+     'properties': {'accession': {'description': 'ENA accession number',
+                                  'type': 'string'},
+                    'pcr': {'description': 'Was PCR used on this sample',
+                            'name': 'PCR Used',
+                            'type': 'boolean'}},
+     'required': ['accession', 'pcr'],
+     'type': 'object'}
 
-Which can be assigned to a table's
+    >>> pprint.pprint(ts.tables.individuals.metadata_schema)
+    (.... as above)
+
+The top-level metadata and schemas for the entire tree sequence is similarly
+accessed with ``ts.metadata`` and ``ts.metadata_schema``.
+
+If there is no schema (i.e. it is equal to ``MetadataSchema(None)``) for a table
+or top-level metadata, then no decoding is performed and ``bytes`` will be returned.
+
+
+++++++++++++++++++++++++++++++
+Modifying metadata and schemas
+++++++++++++++++++++++++++++++
+
+If you are creating or modifying a tree sequence you may want to record or add to the
+metadata. When doing so the schema must be modified first, as it is then used to
+validate and encode the metadata.
+
+Schemas in tskit are held in a :class:`tskit.MetadataSchema`.
+A Python dict representation of the schema is passed to its constructor, which
+will validate the schema:
+
+.. code-block:: python
+
+    schema = tskit.MetadataSchema({"codec": "json" ...... })
+
+This :class:`tskit.MetadataSchema` can then be assigned to a table or the top-level
+tree sequence e.g.
 :attr:`metadata_schema <tskit.IndividualTable.metadata_schema>`:
 
 .. code-block:: python
@@ -785,7 +812,8 @@ Which can be assigned to a table's
     tables = tskit.TableCollection(sequence_length=1)
     tables.individuals.metadata_schema = schema
 
-Now that the table has a schema calls to
+This will overwrite any existing schema. Note that this will not validate any existing
+metadata against the new schema. Now that the table has a schema calls to
 :meth:`add_row <tskit.IndividualTable.add_row>` will validate and encode the metadata:
 
 .. code-block:: python
@@ -826,34 +854,40 @@ string instead of a proper Python boolean, we'll get an error:
         raise exceptions.MetadataValidationError from ve
     tskit.exceptions.MetadataValidationError
 
-The metadata on the rows can be accessed directly:
+To set the top-level metadata, just assign it. Validation and encoding happen as specified by the
+top-level metadata schema (Note that provenance info should go in :ref:`sec_provenance`
+not metadata):
 
 .. code-block:: python
 
-    tables.individuals[0].metadata["accession"]
+    ts.metadata = {"mean_coverage": 200.5}
 
-::
-
-    'Bob1234'
-
-Both the schema and the metadata can be retrieved from a :class:`tskit.TreeSequence`:
+To modify a schema, for example to add a key; first get the dict representation, modify
+then write back:
 
 .. code-block:: python
 
-    ts = tables.tree_sequence()
-    ts.table_metadata_schemas.individual.schema
+    schema_dict = tables.individuals.metadata_schema.schema
+    schema_dict["properties"]["newKey"] = {"type": "integer"}
+    tables.individuals.metadata_schema = tskit.MetadataSchema(schema_dict)
 
-::
+To modify the metadata of rows in tables use the :ref:`sec_tutorial_metadata_bulk`.
 
-    {'codec': 'json', 'type': 'object', 'properties': {'accession': {...}}}
+++++++++++++++++++++
+Viewing raw metadata
+++++++++++++++++++++
 
-.. code-block:: python
+If you need to see the raw (i.e., bytes) metadata, you just need to remove the
+schema, for instance:
 
-    ts.individual(0).metadata["accession"]
+..  code-block:: python
 
-::
-
-    'Bob1234'
+    tables.individuals.add_row(metadata={'accession': 'abc123', 'newKey':25}})
+    tables.individuals[0].metadata
+    # {'accession': 'abc123', 'newKey': '25'}
+    tables.individuals.MetadataSchema = tskit.MetadataSchema(None)
+    tables.individuals[0].metadata
+    # b'abc123\x00\x00\x19'
 
 .. _sec_tutorial_metadata_bulk:
 
@@ -882,6 +916,15 @@ directly to prepare metadata for these methods:
     metadata, metadata_offset = tskit.pack_bytes(encoded_metadata_column)
     table.set_columns(flags=[0, 0, 0], metadata=metadata, metadata_offset=metadata_offset)
 
+Or if all columns do not need to be set:
+
+.. code-block:: python
+
+    table.packset_metadata(
+        [table.metadata_schema.validate_and_encode_row(r) for r in metadata_column]
+    )
+
+
 .. _sec_tutorial_metadata_binary:
 
 +++++++++++++++
@@ -900,45 +943,6 @@ To disable the validation and encoding of metadata and store raw bytes pass ``No
 ::
 
     b'SOME CUSTOM BYTES #!@'
-
-.. _sec_tutorial_metadata_custom_codec:
-
-+++++++++++++++++++++
-Custom Metadata Codec
-+++++++++++++++++++++
-
-It is possible to use your own encoding for metadata using
-:meth:`tskit.register_metadata_codec`, although this will reduce the portability of
-the resulting file.
-
-.. code-block:: python
-
-        class MsgPackCodec(tskit.AbstractMetadataCodec):
-            def __init__(self, schema):
-                pass
-
-            def encode(self, obj):
-                return msgpack.dumps(obj)
-
-            def decode(self, encoded):
-                return msgpack.loads(encoded)
-
-
-        tskit.register_metadata_codec(MsgPackCodec, "msgpack")
-
-This can then be referred to in a schema:
-
-.. code-block:: python
-
-        raw_schema = {
-            "codec": "msgpack",
-            "title": "Example Metadata",
-            "type": "object",
-            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
-            "required": ["one", "two"],
-            "additionalProperties": False,
-        }
-        schema = metadata.MetadataSchema(schema)
 
 **************
 Calculating LD

@@ -100,7 +100,6 @@ def register_metadata_codec(
     This function maintains a mapping from metadata codec identifiers used in schemas
     to codec classes. When a codec class is registered, it will replace any class
     previously registered under the same codec identifier, if present.
-    See :ref:`sec_tutorial_metadata_custom_codec` for example usage.
 
     :param str codec_id: String to use to refer to the codec in the schema.
     """
@@ -535,8 +534,8 @@ class MetadataSchema:
 
     def validate_and_encode_row(self, row: Any) -> bytes:
         """
-        Validate a row of metadata against this schema and return the encoded
-        representation.
+        Validate a row (dict) of metadata against this schema and return the encoded
+        representation (bytes) using the codec specified in the schema.
         """
         try:
             self._validate_row(row)
@@ -546,14 +545,19 @@ class MetadataSchema:
 
     def decode_row(self, row: bytes) -> Any:
         """
-        Decode an encoded row of metadata, note that no validation is performed.
+        Decode an encoded row (bytes) of metadata, using the codec specifed in the schema
+        and return a python dict. Note that no validation of the metadata against the
+        schema is performed.
         """
         # Set by __init__
         pass  # pragma: no cover
 
-    def encode_row(self, row: bytes) -> Any:
+    def encode_row(self, row: Any) -> bytes:
         """
-        Encode an encoded row of metadata, note that no validation is performed.
+        Encode a row (dict) of metadata to its binary representation (bytes)
+        using the codec specified in the schema. Note that unlike
+        :meth:`validate_and_encode_row` no validation against the schema is performed.
+        This should only be used for performance if a validation check is not needed.
         """
         # Set by __init__
         pass  # pragma: no cover
