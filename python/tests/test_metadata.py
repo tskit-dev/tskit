@@ -1448,6 +1448,28 @@ class TestStructCodecErrors(unittest.TestCase):
         ):
             metadata.MetadataSchema(schema)
 
+    def test_too_long_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "arrayLengthFormat": "B",
+                    "items": {"type": "number", "binaryFormat": "I"},
+                },
+            },
+        }
+        data = {"array": list(range(255))}
+        metadata.MetadataSchema(schema).validate_and_encode_row(data)
+        data2 = {"array": list(range(256))}
+        with self.assertRaisesRegex(
+            ValueError,
+            "Couldn't pack array size - it is likely too long for the"
+            " specified arrayLengthFormat",
+        ):
+            metadata.MetadataSchema(schema).validate_and_encode_row(data2)
+
 
 class TestSLiMDecoding(unittest.TestCase):
     """

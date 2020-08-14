@@ -234,7 +234,7 @@ Arrays
 The codec stores the length of the array before the array data. The format used for the
 length of the array can be chosen with ``arrayLengthFormat`` which must be one
 of ``B``, ``H``, ``I``, ``L`` or ``Q`` which have the same meaning as in the numeric
-types above. ``Q`` is the default. As an example::
+types above. ``L`` is the default. As an example::
 
     {"type": "array", {"items": {"type":"number", "binaryFormat":"h"}}, "arrayLengthFormat":"B"}
 

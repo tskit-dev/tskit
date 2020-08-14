@@ -390,9 +390,18 @@ class StructCodec(AbstractMetadataCodec):
         if exhaust_buffer:
             return lambda array: b"".join(element_encoder(ele) for ele in array)
         else:
-            return lambda array: struct.pack(array_length_f, len(array)) + b"".join(
-                element_encoder(ele) for ele in array
-            )
+
+            def array_encode_with_length(array):
+                try:
+                    packed_length = struct.pack(array_length_f, len(array))
+                except struct.error:
+                    raise ValueError(
+                        "Couldn't pack array size - it is likely too long"
+                        " for the specified arrayLengthFormat"
+                    )
+                return packed_length + b"".join(element_encoder(ele) for ele in array)
+
+            return array_encode_with_length
 
     @classmethod
     def make_object_encode(cls, sub_schema):
