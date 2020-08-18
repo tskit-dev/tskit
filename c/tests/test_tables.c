@@ -251,7 +251,8 @@ test_node_table(void)
     tsk_node_table_set_max_rows_increment(&table, 1);
     tsk_node_table_set_max_metadata_length_increment(&table, 1);
     tsk_node_table_print_state(&table, _devnull);
-    tsk_node_table_dump_text(&table, _devnull);
+    ret = tsk_node_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         ret = tsk_node_table_add_row(
@@ -282,7 +283,8 @@ test_node_table(void)
     CU_ASSERT_EQUAL(tsk_node_table_get_row(&table, (tsk_id_t) num_rows, &node),
         TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_node_table_print_state(&table, _devnull);
-    tsk_node_table_dump_text(&table, _devnull);
+    ret = tsk_node_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_node_table_clear(&table);
     CU_ASSERT_EQUAL(table.num_rows, 0);
@@ -325,7 +327,8 @@ test_node_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, num_rows);
     tsk_node_table_print_state(&table, _devnull);
-    tsk_node_table_dump_text(&table, _devnull);
+    ret = tsk_node_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Append another num_rows onto the end */
     ret = tsk_node_table_append_columns(&table, num_rows, flags, time, population,
@@ -350,7 +353,8 @@ test_node_table(void)
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 2 * num_rows);
     tsk_node_table_print_state(&table, _devnull);
-    tsk_node_table_dump_text(&table, _devnull);
+    ret = tsk_node_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Truncate back to the original number of rows. */
     ret = tsk_node_table_truncate(&table, num_rows);
@@ -436,7 +440,8 @@ test_node_table(void)
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     tsk_node_table_print_state(&table, _devnull);
-    tsk_node_table_dump_text(&table, _devnull);
+    ret = tsk_node_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_node_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -498,7 +503,8 @@ test_edge_table_with_options(tsk_flags_t options)
     tsk_edge_table_set_max_rows_increment(&table, 1);
     tsk_edge_table_set_max_metadata_length_increment(&table, 1);
     tsk_edge_table_print_state(&table, _devnull);
-    tsk_edge_table_dump_text(&table, _devnull);
+    ret = tsk_edge_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         if (options & TSK_NO_METADATA) {
@@ -548,7 +554,8 @@ test_edge_table_with_options(tsk_flags_t options)
     ret = tsk_edge_table_get_row(&table, (tsk_id_t) num_rows, &edge);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
     tsk_edge_table_print_state(&table, _devnull);
-    tsk_edge_table_dump_text(&table, _devnull);
+    ret = tsk_edge_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     num_rows *= 2;
     left = malloc(num_rows * sizeof(double));
@@ -724,7 +731,8 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     tsk_edge_table_print_state(&table, _devnull);
-    tsk_edge_table_dump_text(&table, _devnull);
+    ret = tsk_edge_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_edge_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1037,7 +1045,8 @@ test_site_table(void)
     tsk_site_table_set_max_metadata_length_increment(&table, 1);
     tsk_site_table_set_max_ancestral_state_length_increment(&table, 1);
     tsk_site_table_print_state(&table, _devnull);
-    tsk_site_table_dump_text(&table, _devnull);
+    ret = tsk_site_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_site_table_add_row(&table, 0, "A", 1, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1087,7 +1096,8 @@ test_site_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
 
     tsk_site_table_print_state(&table, _devnull);
-    tsk_site_table_dump_text(&table, _devnull);
+    ret = tsk_site_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_site_table_clear(&table);
     CU_ASSERT_EQUAL(table.num_rows, 0);
     CU_ASSERT_EQUAL(table.ancestral_state_length, 0);
@@ -1282,7 +1292,8 @@ test_mutation_table(void)
     tsk_mutation_table_set_max_metadata_length_increment(&table, 1);
     tsk_mutation_table_set_max_derived_state_length_increment(&table, 1);
     tsk_mutation_table_print_state(&table, _devnull);
-    tsk_mutation_table_dump_text(&table, _devnull);
+    ret = tsk_mutation_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     len = 0;
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
@@ -1317,7 +1328,8 @@ test_mutation_table(void)
     ret = tsk_mutation_table_get_row(&table, (tsk_id_t) num_rows, &mutation);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
     tsk_mutation_table_print_state(&table, _devnull);
-    tsk_mutation_table_dump_text(&table, _devnull);
+    ret = tsk_mutation_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     num_rows *= 2;
     site = malloc(num_rows * sizeof(tsk_id_t));
@@ -1566,7 +1578,8 @@ test_migration_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_migration_table_set_max_rows_increment(&table, 1);
     tsk_migration_table_print_state(&table, _devnull);
-    tsk_migration_table_dump_text(&table, _devnull);
+    ret = tsk_migration_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         ret = tsk_migration_table_add_row(
@@ -1602,7 +1615,8 @@ test_migration_table(void)
     ret = tsk_migration_table_get_row(&table, (tsk_id_t) num_rows, &migration);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
     tsk_migration_table_print_state(&table, _devnull);
-    tsk_migration_table_dump_text(&table, _devnull);
+    ret = tsk_migration_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     num_rows *= 2;
     left = malloc(num_rows * sizeof(double));
@@ -1760,7 +1774,8 @@ test_migration_table(void)
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     tsk_migration_table_print_state(&table, _devnull);
-    tsk_migration_table_dump_text(&table, _devnull);
+    ret = tsk_migration_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_migration_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1930,7 +1945,8 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 2 * num_rows);
     tsk_individual_table_print_state(&table, _devnull);
-    tsk_individual_table_dump_text(&table, _devnull);
+    ret = tsk_individual_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Truncate back to num_rows */
     ret = tsk_individual_table_truncate(&table, num_rows);
@@ -1996,7 +2012,8 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.location_length, 0);
     tsk_individual_table_print_state(&table, _devnull);
-    tsk_individual_table_dump_text(&table, _devnull);
+    ret = tsk_individual_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* if metadata and metadata_offset are both null, all metadatas are zero length */
     num_rows = 10;
@@ -2093,7 +2110,8 @@ test_population_table(void)
     tsk_population_table_set_max_rows_increment(&table, 1);
     tsk_population_table_set_max_metadata_length_increment(&table, 1);
     tsk_population_table_print_state(&table, _devnull);
-    tsk_population_table_dump_text(&table, _devnull);
+    ret = tsk_population_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Adding zero length metadata with NULL should be fine */
 
     ret = tsk_population_table_add_row(&table, NULL, 0);
@@ -2126,7 +2144,8 @@ test_population_table(void)
     ret = tsk_population_table_get_row(&table, (tsk_id_t) num_rows, &population);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     tsk_population_table_print_state(&table, _devnull);
-    tsk_population_table_dump_text(&table, _devnull);
+    ret = tsk_population_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     num_rows *= 2;
     metadata = malloc(num_rows * sizeof(char));
@@ -2245,7 +2264,8 @@ test_provenance_table(void)
     tsk_provenance_table_set_max_timestamp_length_increment(&table, 1);
     tsk_provenance_table_set_max_record_length_increment(&table, 1);
     tsk_provenance_table_print_state(&table, _devnull);
-    tsk_provenance_table_dump_text(&table, _devnull);
+    ret = tsk_provenance_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < num_rows; j++) {
         ret = tsk_provenance_table_add_row(&table, test_timestamp, test_timestamp_length,
@@ -2275,7 +2295,8 @@ test_provenance_table(void)
     ret = tsk_provenance_table_get_row(&table, (tsk_id_t) num_rows, &provenance);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
     tsk_provenance_table_print_state(&table, _devnull);
-    tsk_provenance_table_dump_text(&table, _devnull);
+    ret = tsk_provenance_table_dump_text(&table, _devnull);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_provenance_table_clear(&table);
     CU_ASSERT_EQUAL(table.num_rows, 0);
     CU_ASSERT_EQUAL(table.timestamp_length, 0);
