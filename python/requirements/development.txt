@@ -15,6 +15,7 @@ networkx
 newick
 nose
 numpy
+portion
 pre-commit
 pyparsing 
 pysam

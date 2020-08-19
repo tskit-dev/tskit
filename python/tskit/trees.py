@@ -4420,6 +4420,7 @@ class TreeSequence:
         filter_sites=True,
         record_provenance=True,
         keep_unary=False,
+        keep_input_roots=False,
     ):
         """
         Returns a simplified tree sequence that retains only the history of
@@ -4482,6 +4483,9 @@ class TreeSequence:
         :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
             one child) that exist on the path from samples to root will be preserved
             in the output. (Default: False)
+        :param bool keep_input_roots: If True, insert edges from the MRCAs of the
+            samples to the roots in the input trees. If False, no topology older
+            than the MRCAs of the samples will be included. (Default: False)
         :return: The simplified tree sequence, or (if ``map_nodes`` is True)
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
@@ -4500,6 +4504,7 @@ class TreeSequence:
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
             keep_unary=keep_unary,
+            keep_input_roots=keep_input_roots,
         )
         if record_provenance:
             # TODO move this into tables.simplify. See issue #374

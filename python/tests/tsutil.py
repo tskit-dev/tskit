@@ -123,11 +123,13 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
                     parent = mutation[v]
                     for _ in range(mutations_per_branch):
                         state[u] = (state[u] + 1) % 2
+                        metadata = f"{len(tables.mutations)}".encode()
                         mutation[u] = tables.mutations.add_row(
                             site=site,
                             node=u,
                             derived_state=str(state[u]),
                             parent=parent,
+                            metadata=metadata,
                         )
                         parent = mutation[u]
     add_provenance(tables.provenances, "insert_branch_mutations")
@@ -1288,3 +1290,27 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
     L[L == 0] = 1
     A /= L.reshape((len(focal), 1))
     return A
+
+
+def coiterate(ts1, ts2, **kwargs):
+    """
+    Returns an iterator over the pairs of trees for each distinct
+    interval in the specified pair of tree sequences.
+    """
+    if ts1.sequence_length != ts2.sequence_length:
+        raise ValueError("Tree sequences must be equal length.")
+    L = ts1.sequence_length
+    trees1 = ts1.trees(**kwargs)
+    trees2 = ts2.trees(**kwargs)
+    tree1 = next(trees1)
+    tree2 = next(trees2)
+    right = 0
+    while right != L:
+        left = right
+        right = min(tree1.interval[1], tree2.interval[1])
+        yield (left, right), tree1, tree2
+        # Advance
+        if tree1.interval[1] == right:
+            tree1 = next(trees1, None)
+        if tree2.interval[1] == right:
+            tree2 = next(trees2, None)

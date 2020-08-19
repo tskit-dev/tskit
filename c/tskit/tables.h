@@ -659,6 +659,7 @@ typedef struct _tsk_table_sorter_t {
 #define TSK_FILTER_INDIVIDUALS (1 << 2)
 #define TSK_REDUCE_TO_SITE_TOPOLOGY (1 << 3)
 #define TSK_KEEP_UNARY (1 << 4)
+#define TSK_KEEP_INPUT_ROOTS (1 << 5)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_EDGE_ORDERING (1 << 0)
@@ -2456,6 +2457,10 @@ TSK_KEEP_UNARY
     By default simplify removes unary nodes (i.e., nodes with exactly one child)
     along the path from samples to root. If this option is specified such unary
     nodes will be preserved in the output.
+TSK_KEEP_INPUT_ROOTS
+    By default simplify removes all topology ancestral the MRCAs of the samples.
+    This option inserts edges from these MRCAs back to the roots of the input
+    trees.
 
 .. note:: Migrations are currently not supported by simplify, and an error will
     be raised if we attempt call simplify on a table collection with greater

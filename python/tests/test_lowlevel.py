@@ -237,6 +237,10 @@ class TestTableCollection(LowLevelTestCase):
         with self.assertRaises(ValueError):
             tc.simplify("asdf")
         with self.assertRaises(TypeError):
+            tc.simplify([0, 1], keep_unary="sdf")
+        with self.assertRaises(TypeError):
+            tc.simplify([0, 1], keep_input_roots="sdf")
+        with self.assertRaises(TypeError):
             tc.simplify([0, 1], filter_populations="x")
         with self.assertRaises(_tskit.LibraryError):
             tc.simplify([0, -1])
