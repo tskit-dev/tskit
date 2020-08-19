@@ -194,7 +194,7 @@ class TestNexus(TreeExamples):
         self.assertEqual(len(bio_node_map), 0)
 
     def verify_nexus_topology(self, treeseq):
-        nexus = treeseq.nexus(precision=16)
+        nexus = treeseq.to_nexus(precision=16)
         nexus_treeseq = Nexus.Nexus(nexus)
         self.assertEqual(treeseq.num_trees, len(nexus_treeseq.trees))
         for tree, nexus_tree in itertools.zip_longest(
@@ -224,7 +224,7 @@ class TestNexus(TreeExamples):
 
     def test_multiroot(self):
         ts = self.get_multiroot_example()
-        self.assertRaises(ValueError, ts.nexus)
+        self.assertRaises(ValueError, ts.to_nexus)
 
     def test_many_trees(self):
         ts = msprime.simulate(4, recombination_rate=2, random_seed=123)

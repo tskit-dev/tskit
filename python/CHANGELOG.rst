@@ -62,7 +62,7 @@ SVG drawing improvements and many others.
   :issue:`467` for duplicate SVG entity ``id`` s in Jupyter notebooks
   (:user:`hyanwong`, :pr:`555`).
 
-- Add a ``nexus`` function that outputs a tree sequence in Nexus format
+- Add a ``to_nexus`` function that outputs a tree sequence in Nexus format
   (:user:`saunack`, :pr:`550`).
 
 - Add extension of Kendall-Colijn tree distance metric for tree sequences
