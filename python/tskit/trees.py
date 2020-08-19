@@ -3446,14 +3446,21 @@ class TreeSequence:
         The iterator yields a sequence of 3-tuples, ``(interval, edges_out,
         edges_in)``. The ``interval`` is a pair ``(left, right)`` representing
         the genomic interval (see :attr:`Tree.interval`). The ``edges_out``
-        value is a tuple of the edges that were just-removed to create the tree
+        value is a list of the edges that were just-removed to create the tree
         covering the interval (hence ``edges_out`` will always be empty for the
-        first tree). The ``edges_in`` value is a tuple of edges that were just
-        inserted to construct the tree convering the current interval. The
-        iterator terminates after the final interval in the tree sequence (i.e.
-        it does not report a final removal of all remaining edges); the number
-        of iterations is thus always equal to the number of trees in the tree
-        sequence.
+        first tree). The ``edges_in`` value is a list of edges that were just
+        inserted to construct the tree covering the current interval.
+
+        The edges returned within each ``edges_in`` list are ordered by ascending
+        time of the parent node, then ascending parent id, then ascending child id.
+        The edges within each ``edges_out`` list are the reverse order (e.g.
+        descending parent time, parent id, then child_id). This means that within
+        each list, edges with the same parent appear consecutively.
+
+        This iterator terminates after the final interval in the tree sequence
+        (i.e. it does not report a final removal of all remaining edges); the
+        number of iterations is thus always equal to the number of trees in the
+        tree sequence.
 
         :return: An iterator over the (interval, edges_out, edges_in) tuples.
         :rtype: :class:`collections.abc.Iterable`
