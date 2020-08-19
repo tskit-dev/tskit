@@ -93,6 +93,7 @@ test_simplest_missing_data_user_alleles(void)
     tsk_variant_t *var;
     const char *alleles[] = { "A", NULL };
     int ret;
+    tsk_id_t samples[] = { 0 };
 
     tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
@@ -110,6 +111,17 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_free(&vargen);
 
+    ret = tsk_vargen_init(&vargen, &ts, samples, 1, alleles, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
     ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_16_BIT_GENOTYPES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
@@ -122,6 +134,17 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_free(&vargen);
 
+    ret = tsk_vargen_init(&vargen, &ts, samples, 1, alleles, TSK_16_BIT_GENOTYPES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
     ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
@@ -130,6 +153,161 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
     CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_missing_data_mutations(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n";
+    const char *sites = "0.0    A\n";
+    const char *mutations = "0    0     T   -1\n";
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+    const char *alleles[] = { "A", "T", NULL };
+    int ret;
+    tsk_id_t samples[] = { 0 };
+
+    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 1);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 1);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, alleles, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, alleles, TSK_16_BIT_GENOTYPES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i16[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i16[1], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, samples, 1, alleles, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, samples, 1, alleles, TSK_16_BIT_GENOTYPES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i16[0], 1);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_ISOLATED_NOT_MISSING);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_missing_data_mutations_all_samples(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n";
+    const char *sites = "0.0    A\n";
+    const char *mutations = "0    0     T   -1\n"
+                            "0    1     T   -1\n";
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+    const char *alleles[] = { "A", "T", NULL };
+    int ret;
+    tsk_id_t samples[] = { 0, 1 };
+
+    tsk_treeseq_from_text(&ts, 1, nodes, "", NULL, sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 1);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 2);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, alleles, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, samples, 2, alleles, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, samples, 2, alleles, TSK_16_BIT_GENOTYPES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i16[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i16[1], 1);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_ISOLATED_NOT_MISSING);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_free(&vargen);
@@ -733,6 +911,9 @@ main(int argc, char **argv)
         { "test_simplest_missing_data", test_simplest_missing_data },
         { "test_simplest_missing_data_user_alleles",
             test_simplest_missing_data_user_alleles },
+        { "test_simplest_missing_data_mutations", test_simplest_missing_data_mutations },
+        { "test_simplest_missing_data_mutations_all_samples",
+            test_simplest_missing_data_mutations_all_samples },
         { "test_single_tree_user_alleles", test_single_tree_user_alleles },
         { "test_single_tree_char_alphabet", test_single_tree_char_alphabet },
         { "test_single_tree_binary_alphabet", test_single_tree_binary_alphabet },

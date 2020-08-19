@@ -135,6 +135,12 @@ SVG drawing improvements and many others.
 - :issue:`453` - Fix LibraryError when ``tree.newick()`` is called with large node time
   values (:user:`jeromekelleher`, :pr:`637`).
 
+- :issue:`777` - Mutations over isolated samples were incorrectly decoded as
+  missing data. (:user:`jeromekelleher`, :pr:`778`)
+
+- :issue:`776` - Fix a segfault when a partial list of samples
+  was provided to the ``variants`` iterator. (:user:`jeromekelleher`, :pr:`778`)
+
 **Deprecated**
 
 - The ``sample_counts`` feature has been deprecated and is now

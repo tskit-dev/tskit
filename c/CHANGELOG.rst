@@ -12,6 +12,14 @@
   from the MRCAs of samples in the simplified tree sequence back to the roots
   in the input tree sequence (:user:`jeromekelleher`, :issue:`775`, :pr:`782`).
 
+**Bugfixes**
+
+- :issue:`777` - Mutations over isolated samples were incorrectly decoded as
+  missing data. (:user:`jeromekelleher`, :pr:`778`)
+
+- :issue:`776` - Fix a segfault when a partial list of samples
+  was provided to the ``variants`` iterator. (:user:`jeromekelleher`, :pr:`778`)
+
 ---------------------
 [0.99.4] - 2020-08-12
 ---------------------
