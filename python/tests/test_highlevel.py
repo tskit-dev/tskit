@@ -2902,3 +2902,45 @@ class TestVariantContainer(unittest.TestCase, SimpleContainersMixin):
             )
             for j in range(n)
         ]
+
+
+class TestTskitConversionOutput(unittest.TestCase):
+    """
+    Tests conversion output to ensure it is correct.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        ts = msprime.simulate(
+            length=1,
+            recombination_rate=2,
+            mutation_rate=2,
+            random_seed=1,
+            migration_matrix=[[0, 1], [1, 0]],
+            population_configurations=[
+                msprime.PopulationConfiguration(5) for _ in range(2)
+            ],
+            record_migrations=True,
+        )
+        assert ts.num_migrations > 0
+        cls._tree_sequence = tsutil.insert_random_ploidy_individuals(ts)
+
+    def test_macs(self):
+        output = self._tree_sequence.to_macs().splitlines()
+        self.assertTrue(output[0].startswith("COMMAND:"))
+        self.assertTrue(output[1].startswith("SEED:"))
+        self.assertEqual(len(output), 2 + self._tree_sequence.get_num_mutations())
+        n = self._tree_sequence.get_sample_size()
+        m = self._tree_sequence.get_sequence_length()
+        sites = list(self._tree_sequence.sites())
+        haplotypes = list(self._tree_sequence.haplotypes())
+        for site_id, line in enumerate(output[2:]):
+            splits = line.split()
+            self.assertEqual(splits[0], "SITE:")
+            self.assertEqual(int(splits[1]), site_id)
+            position = sites[site_id].position / m
+            self.assertAlmostEqual(float(splits[2]), position)
+            col = splits[4]
+            self.assertEqual(len(col), n)
+            for j in range(n):
+                self.assertEqual(col[j], haplotypes[j][site_id])

@@ -118,6 +118,9 @@ SVG drawing improvements and many others.
 - Add ``tree.as_dict_of_dicts()`` function to enable use with networkx. See
   :ref:`sec_tutorial_networkx` (:user:`winni2k`, :pr:`457`).
 
+- Add ``tree_sequence.to_macs()`` function to convert tree sequence to MACS
+  format (:user:`winni2k`, :pr:`727`)
+
 **Bugfixes**
 
 - :issue:`453` - Fix LibraryError when ``tree.newick()`` is called with large node time
