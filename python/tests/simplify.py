@@ -108,6 +108,7 @@ class Simplifier:
         filter_populations=True,
         filter_individuals=True,
         keep_unary=False,
+        founders=None,
     ):
         self.ts = ts
         self.n = len(sample)
@@ -140,6 +141,11 @@ class Simplifier:
         self.position_lookup = None
         if self.reduce_to_site_topology:
             self.position_lookup = np.hstack([[0], position, [self.sequence_length]])
+        self.founders = founders
+        if self.founders is not None:
+            self.keep_founders = True
+        else:
+            self.keep_founders = False
 
     def record_node(self, input_id, is_sample=False):
         """
@@ -263,6 +269,8 @@ class Simplifier:
         """
         output_id = self.node_id_map[input_id]
         is_sample = output_id != -1
+        if self.keep_founders:
+            is_founder = input_id in self.founders
         if is_sample:
             # Free up the existing ancestry mapping.
             x = self.A_tail[input_id]
@@ -281,6 +289,11 @@ class Simplifier:
                     if output_id == -1:
                         output_id = self.record_node(input_id)
                     self.record_edge(left, right, output_id, ancestry_node)
+                elif self.keep_founders and is_founder:
+                    if output_id == -1:
+                        output_id = self.record_node(input_id)
+                    self.record_edge(left, right, output_id, ancestry_node)
+
             else:
                 if output_id == -1:
                     output_id = self.record_node(input_id)
