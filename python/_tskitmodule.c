@@ -9888,7 +9888,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
     PyObject *value = NULL;
     int err;
     double left, right;
-    size_t list_size, j;
+    tsk_size_t list_size, j;
     tsk_edge_list_node_t *record;
     tsk_edge_list_t records_out, records_in;
 

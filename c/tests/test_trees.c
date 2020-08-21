@@ -175,7 +175,7 @@ verify_individual_nodes(tsk_treeseq_t *ts)
 }
 
 static void
-verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t *parents)
+verify_trees(tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *parents)
 {
     int ret;
     tsk_id_t u, j, v;
