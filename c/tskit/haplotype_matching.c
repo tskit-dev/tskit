@@ -240,7 +240,7 @@ tsk_ls_hmm_reset(tsk_ls_hmm_t *self)
 
     /* This is safe because we've already zero'd out the memory. */
     tsk_diff_iter_free(&self->diffs);
-    ret = tsk_diff_iter_init(&self->diffs, self->tree_sequence);
+    ret = tsk_diff_iter_init(&self->diffs, self->tree_sequence, false);
     if (ret != 0) {
         goto out;
     }

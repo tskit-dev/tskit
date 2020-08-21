@@ -75,6 +75,14 @@ extern const char *internal_sample_ex_edges;
 extern const char *internal_sample_ex_sites;
 extern const char *internal_sample_ex_mutations;
 
+extern const char *multiroot_ex_nodes;
+extern const char *multiroot_ex_edges;
+extern const char *multiroot_ex_sites;
+extern const char *multiroot_ex_mutations;
+
+extern const char *empty_ex_nodes;
+extern const char *empty_ex_edges;
+
 extern const char *paper_ex_nodes;
 extern const char *paper_ex_edges;
 extern const char *paper_ex_sites;

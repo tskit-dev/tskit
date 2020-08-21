@@ -56,6 +56,9 @@ extern "C" {
 
 #define TSK_DIR_FORWARD 1
 #define TSK_DIR_REVERSE -1
+
+/* For the edge diff iterator */
+#define TSK_INCLUDE_TERMINAL        (1 << 0)
 // clang-format on
 
 /**
@@ -205,6 +208,7 @@ typedef struct {
     tsk_id_t insertion_index;
     tsk_id_t removal_index;
     tsk_id_t tree_index;
+    tsk_id_t last_index;
     tsk_edge_list_node_t *edge_list_nodes;
 } tsk_diff_iter_t;
 
@@ -412,7 +416,8 @@ int tsk_tree_kc_distance(
 /* Diff iterator */
 /****************************************************************************/
 
-int tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence);
+int tsk_diff_iter_init(
+    tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options);
 int tsk_diff_iter_free(tsk_diff_iter_t *self);
 int tsk_diff_iter_next(tsk_diff_iter_t *self, double *left, double *right,
     tsk_edge_list_t *edges_out, tsk_edge_list_t *edges_in);

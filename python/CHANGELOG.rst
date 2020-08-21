@@ -7,6 +7,9 @@
 - Genomic intervals returned by python functions are now namedtuples, allowing ``.left``
   ``.right`` and ``.span`` usage (:user:`hyanwong`, :issue:`784`, :pr:`786`, :pr:`811`)
 
+- Added ``include_terminal`` parameter to edge diffs iterator, to output the last edges
+  at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`)
+
 - :issue:`832` - Add ``metadata_bytes`` method to allow access to raw
   TableCollection metadata (:user:`benjeffery`, :pr:`842`)
 

@@ -27,7 +27,7 @@
 char *_tmp_file_name;
 FILE *_devnull;
 
-/* Simple single tree example. */
+/*** Simple single tree example. ***/
 const char *single_tree_ex_nodes = /*          6          */
     "1  0   -1   -1\n"             /*         / \         */
     "1  0   -1   -1\n"             /*        /   \        */
@@ -51,7 +51,21 @@ const char *single_tree_ex_mutations
       "2    2     1   -1\n"
       "2    3     1   -1\n";
 
-/* Example from the PLOS paper */
+/*** Example from the PLOS paper ***/
+/*
+0.25┊     8   ┊         ┊         ┊
+    ┊   ┏━┻━┓ ┊         ┊         ┊
+0.20┊   ┃   ┃ ┊         ┊   7     ┊
+    ┊   ┃   ┃ ┊         ┊ ┏━┻━┓   ┊
+0.17┊   6   ┃ ┊   6     ┊ ┃   ┃   ┊
+    ┊ ┏━┻┓  ┃ ┊ ┏━┻━┓   ┊ ┃   ┃   ┊
+0.09┊ ┃  5  ┃ ┊ ┃   5   ┊ ┃   5   ┊
+    ┊ ┃ ┏┻┓ ┃ ┊ ┃ ┏━┻┓  ┊ ┃ ┏━┻┓  ┊
+0.07┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃  4  ┊ ┃ ┃  4  ┊
+    ┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊ ┃ ┃ ┏┻┓ ┊
+0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+  0.00      2.00      7.00      10.00
+*/
 const char *paper_ex_nodes = "1  0       -1   0\n"
                              "1  0       -1   0\n"
                              "1  0       -1   1\n"
@@ -80,7 +94,20 @@ const char *paper_ex_mutations = "0      2   1\n"
 const char *paper_ex_individuals = "0      0.2,1.5\n"
                                    "0      0.0,0.0\n";
 
-/* An example of a nonbinary tree sequence */
+/*** An example of a nonbinary tree sequence ***/
+/*
+0.41┊          12     ┊         12      ┊
+    ┊           ┃     ┊          ┃      ┊
+0.28┊           ┃     ┊          ┃      ┊
+    ┊           ┃     ┊          ┃      ┊
+0.13┊          10     ┊         10      ┊
+    ┊         ┏━╋━┓   ┊         ┏┻┓     ┊
+0.07┊         ┃ ┃ ┃   ┊         ┃ ┃     ┊
+    ┊         ┃ ┃ ┃   ┊         ┃ ┃     ┊
+0.01┊         ┃ ┃ ┃   ┊         ┃ ┃     ┊
+    ┊         ┃ ┃ ┃   ┊         ┃ ┃     ┊
+0.00┊ 0 1 2 3 4 5 7 6 ┊ 0 1 2 3 4 7 5 6 ┊
+*/
 const char *nonbinary_ex_nodes = "1  0       0   -1\n"
                                  "1  0       0   -1\n"
                                  "1  0       0   -1\n"
@@ -108,7 +135,21 @@ const char *nonbinary_ex_sites = "1  0\n"
 const char *nonbinary_ex_mutations = "0    2   1\n"
                                      "1    11  1";
 
-/* An example of a tree sequence with unary nodes. */
+/*** An example of a tree sequence with unary nodes. ***/
+/*
+0.25┊     8   ┊   8     ┊         ┊
+    ┊   ┏━┻━┓ ┊   ┃     ┊         ┊
+0.20┊   ┃   7 ┊   ┃     ┊   7     ┊
+    ┊   ┃   ┃ ┊   ┃     ┊ ┏━┻━┓   ┊
+0.17┊   6   ┃ ┊   6     ┊ ┃   ┃   ┊
+    ┊ ┏━┻┓  ┃ ┊ ┏━┻━┓   ┊ ┃   ┃   ┊
+0.09┊ ┃  5  ┃ ┊ ┃   5   ┊ ┃   5   ┊
+    ┊ ┃ ┏┻┓ ┃ ┊ ┃ ┏━┻┓  ┊ ┃ ┏━┻┓  ┊
+0.07┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃  4  ┊ ┃ ┃  4  ┊
+    ┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊ ┃ ┃ ┏┻┓ ┊
+0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+  0.00      2.00      7.00      10.00
+*/
 const char *unary_ex_nodes = "1  0       0  -1\n"
                              "1  0       0  -1\n"
                              "1  0       0  -1\n"
@@ -129,7 +170,7 @@ const char *unary_ex_edges = "2 10 4 2,3\n"
                              "0 7  8 6\n"
                              "0 2  8 7\n";
 
-/* We make one mutation for each tree, over unary nodes if this exist */
+/* We make one mutation for each tree, over unary nodes if they exist */
 const char *unary_ex_sites = "1.0    0\n"
                              "4.5    0\n"
                              "8.5    0\n";
@@ -137,45 +178,25 @@ const char *unary_ex_mutations = "0    2   1\n"
                                  "1    6   1\n"
                                  "2    5   1\n";
 
-/* An example of a tree sequence with internally sampled nodes. */
+/*** An example of a tree sequence with internally sampled nodes. ***/
 
-/* TODO: find a way to draw these side-by-side */
 /*
-  7
-+-+-+
-|   5
-| +-++
-| |  4
-| | +++
-| | | 3
-| | |
-| 1 2
-|
-0
-
-  8
-+-+-+
-|   5
-| +-++
-| |  4
-| | +++
-3 | | |
-  | | |
-  1 2 |
-      |
-      0
-
-  6
-+-+-+
-|   5
-| +-++
-| |  4
-| | +++
-| | | 3
-| | |
-| 1 2
-|
-0
+1.20┊         ┊     8   ┊         ┊
+    ┊         ┊   ┏━┻━┓ ┊         ┊
+1.00┊   7     ┊   ┃   ┃ ┊         ┊
+    ┊ ┏━┻━┓   ┊   ┃   ┃ ┊         ┊
+0.70┊ ┃   ┃   ┊   ┃   ┃ ┊   6     ┊
+    ┊ ┃   ┃   ┊   ┃   ┃ ┊ ┏━┻━┓   ┊
+0.50┊ ┃   5   ┊   5   ┃ ┊ ┃   5   ┊
+    ┊ ┃ ┏━┻┓  ┊  ┏┻━┓ ┃ ┊ ┃ ┏━┻┓  ┊
+0.40┊ ┃ ┃  4  ┊  4  ┃ ┃ ┊ ┃ ┃  4  ┊
+    ┊ ┃ ┃ ┏┻┓ ┊ ┏┻┓ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊
+0.20┊ ┃ ┃ ┃ 3 ┊ ┃ ┃ ┃ 3 ┊ ┃ ┃ ┃ 3 ┊
+    ┊ ┃ ┃ ┃   ┊ ┃ ┃ ┃   ┊ ┃ ┃ ┃   ┊
+0.10┊ ┃ 1 2   ┊ ┃ 2 1   ┊ ┃ 1 2   ┊
+    ┊ ┃       ┊ ┃       ┊ ┃       ┊
+0.00┊ 0       ┊ 0       ┊ 0       ┊
+  0.00      2.00      8.00      10.00
 */
 
 const char *internal_sample_ex_nodes = "1  0.0   0   -1\n"
@@ -202,6 +223,71 @@ const char *internal_sample_ex_sites = "1.0    0\n"
 const char *internal_sample_ex_mutations = "0    2   1\n"
                                            "1    5   1\n"
                                            "2    5   1\n";
+
+/*** An example of a tree sequence with multiple roots. ***/
+/*
+0.90┊             ┊ 11          ┊             ┊
+    ┊             ┊ ┏┻┓         ┊             ┊
+0.80┊ 10          ┊ ┃ ┃         ┊             ┊
+    ┊ ┏┻┓         ┊ ┃ ┃         ┊             ┊
+0.40┊ ┃ ┃   9     ┊ ┃ ┃    9    ┊     9       ┊
+    ┊ ┃ ┃ ┏━┻┓    ┊ ┃ ┃  ┏━┻━┓  ┊   ┏━┻━━┓    ┊
+0.30┊ ┃ ┃ ┃  ┃    ┊ ┃ ┃  8   ┃  ┊   ┃    8    ┊
+    ┊ ┃ ┃ ┃  ┃    ┊ ┃ ┃ ┏┻┓  ┃  ┊   ┃   ┏┻┓   ┊
+0.20┊ ┃ ┃ ┃  7    ┊ ┃ ┃ ┃ ┃  7  ┊   7   ┃ ┃   ┊
+    ┊ ┃ ┃ ┃ ┏┻┓   ┊ ┃ ┃ ┃ ┃ ┏┻┓ ┊  ┏┻━┓ ┃ ┃   ┊
+0.10┊ ┃ ┃ ┃ ┃ ┃   ┊ ┃ ┃ ┃ ┃ ┃ ┃ ┊  6  ┃ ┃ ┃   ┊
+    ┊ ┃ ┃ ┃ ┃ ┃   ┊ ┃ ┃ ┃ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┃   ┊
+0.00┊ 0 1 2 3 4 5 ┊ 0 5 1 2 3 4 ┊ 0 3 4 1 2 5 ┊
+  0.00          4.00          8.00          10.00
+*/
+const char *multiroot_ex_nodes = "1  0.0  0  -1\n"
+                                 "1  0.0  0  -1\n"
+                                 "1  0.0  0  -1\n"
+                                 "1  0.0  0  -1\n"
+                                 "1  0.0  0  -1\n"
+                                 "1  0.0  0  -1\n"
+                                 "0  0.1  0  -1\n"
+                                 "0  0.2  0  -1\n"
+                                 "0  0.3  0  -1\n"
+                                 "0  0.4  0  -1\n"
+                                 "0  0.8  0  -1\n"
+                                 "0  0.9  0  -1\n";
+const char *multiroot_ex_edges = "8  10  6   0,3\n"
+                                 "0  8   7   3\n"
+                                 "0  10  7   4\n"
+                                 "8  10  7   6\n"
+                                 "4  10  8   1,2\n"
+                                 "0  4   9   2\n"
+                                 "0  10  9   7\n"
+                                 "4  10  9   8\n"
+                                 "0  4   10  0,1\n"
+                                 "4  8   11  0,5\n";
+
+/* We make one mutation over each root node */
+const char *multiroot_ex_sites = "1.0    0\n"
+                                 "2.0    0\n"
+                                 "3.0    0\n"
+                                 "5.0    0\n"
+                                 "6.0    0\n"
+                                 "8.0    0\n"
+                                 "9.0    0\n";
+const char *multiroot_ex_mutations = "0    10  1\n"
+                                     "1    9   1\n"
+                                     "2    5   1\n"
+                                     "3    11  1\n"
+                                     "4    9   1\n"
+                                     "5    9   1\n"
+                                     "6    5   1\n";
+
+/*** An example of a empty tree sequence. ***/
+const char *empty_ex_nodes = "1  0.0  0  -1\n"
+                             "1  0.0  0  -1\n"
+                             "1  0.0  0  -1\n"
+                             "1  0.0  0  -1\n"
+                             "1  0.0  0  -1\n"
+                             "1  0.0  0  -1\n";
+const char *empty_ex_edges = "";
 
 /* Simple utilities to parse text so we can write declaritive
  * tests. This is not intended as a robust general input mechanism.

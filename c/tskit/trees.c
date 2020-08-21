@@ -4371,7 +4371,8 @@ out:
  * ======================================================== */
 
 int TSK_WARN_UNUSED
-tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence)
+tsk_diff_iter_init(
+    tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -4384,6 +4385,10 @@ tsk_diff_iter_init(tsk_diff_iter_t *self, tsk_treeseq_t *tree_sequence)
     self->removal_index = 0;
     self->tree_left = 0;
     self->tree_index = -1;
+    self->last_index = (tsk_id_t) tsk_treeseq_get_num_trees(tree_sequence);
+    if (options & TSK_INCLUDE_TERMINAL) {
+        self->last_index = self->last_index + 1;
+    }
     self->edge_list_nodes = malloc(self->num_edges * sizeof(*self->edge_list_nodes));
     if (self->edge_list_nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -4429,7 +4434,6 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     tsk_edge_list_node_t *w = NULL;
     tsk_edge_list_t edges_out;
     tsk_edge_list_t edges_in;
-    tsk_size_t num_trees = tsk_treeseq_get_num_trees(s);
     const tsk_edge_table_t *edges = &s->tables->edges;
     const tsk_id_t *insertion_order = s->tables->indexes.edge_insertion_order;
     const tsk_id_t *removal_order = s->tables->indexes.edge_removal_order;
@@ -4437,7 +4441,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     memset(&edges_out, 0, sizeof(edges_out));
     memset(&edges_in, 0, sizeof(edges_in));
 
-    if (self->tree_index + 1 < (tsk_id_t) num_trees) {
+    if (self->tree_index + 1 < self->last_index) {
         /* First we remove the stale records */
         while (self->removal_index < (tsk_id_t) self->num_edges
                && left == edges->right[removal_order[self->removal_index]]) {
@@ -4943,7 +4947,7 @@ tsk_treeseq_kc_distance(
         if (ret != 0) {
             goto out;
         }
-        ret = tsk_diff_iter_init(&diff_iters[i], treeseqs[i]);
+        ret = tsk_diff_iter_init(&diff_iters[i], treeseqs[i], false);
         if (ret != 0) {
             goto out;
         }
