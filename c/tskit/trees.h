@@ -198,13 +198,13 @@ typedef struct {
 } tsk_edge_list_t;
 
 typedef struct {
-    size_t num_nodes;
-    size_t num_edges;
+    tsk_size_t num_nodes;
+    tsk_size_t num_edges;
     double tree_left;
     tsk_treeseq_t *tree_sequence;
-    size_t insertion_index;
-    size_t removal_index;
-    size_t tree_index;
+    tsk_id_t insertion_index;
+    tsk_id_t removal_index;
+    tsk_id_t tree_index;
     tsk_edge_list_node_t *edge_list_nodes;
 } tsk_diff_iter_t;
 
