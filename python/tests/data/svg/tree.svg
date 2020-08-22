@@ -1,1 +1,43 @@
-<svg baseProfile="full" height="200" id="XYZ" version="1.1" width="200" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><style type="text/css"><![CDATA[.axis {font-weight: bold}.tree, .axis {font-size: 14px; text-anchor:middle}.edge {stroke: black; fill: none}.node > circle {fill: black; stroke: none}.tree text {dominant-baseline: middle}text.lft {text-anchor: end}text.rgt {text-anchor: start}.mut {fill: red; font-style: italic}.edges {stroke: blue}]]></style></defs><g class="tree t1"><g class="node n7 root" transform="translate(100.0 30.0)"><g class="node n4 p7" transform="translate(-36.0 138.519)"><g class="leaf node n0 p4 sample" transform="translate(-18.0 1.4814)"><path class="edge" d="M 0 0 V -1.4814 H 18.0" /><circle cx="0" cy="0" r="3.0" /><text transform="translate(0 12)">0</text></g><g class="leaf node n1 p4 sample" transform="translate(18.0 1.4814)"><path class="edge" d="M 0 0 V -1.4814 H -18.0" /><circle cx="0" cy="0" r="3.0" /><text transform="translate(0 12)">1</text></g><path class="edge" d="M 0 0 V -138.519 H 36.0" /><circle cx="0" cy="0" r="3.0" /><text class="lft" transform="translate(-3 -6)">4</text></g><g class="node n5 p7" transform="translate(36.0 133.294)"><g class="leaf node n2 p5 sample" transform="translate(-18.0 6.70591)"><path class="edge" d="M 0 0 V -6.70591 H 18.0" /><circle cx="0" cy="0" r="3.0" /><text transform="translate(0 12)">2</text></g><g class="leaf node n3 p5 sample" transform="translate(18.0 6.70591)"><path class="edge" d="M 0 0 V -6.70591 H -18.0" /><circle cx="0" cy="0" r="3.0" /><text transform="translate(0 12)">3</text></g><path class="edge" d="M 0 0 V -133.294 H -36.0" /><circle cx="0" cy="0" r="3.0" /><text class="rgt" transform="translate(3 -6)">5</text></g><circle cx="0" cy="0" r="3.0" /><text transform="translate(0 -10)">7</text></g></g></svg>
+<?xml version="1.0" ?>
+<svg baseProfile="full" height="200" id="XYZ" version="1.1" width="200" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<defs>
+		<style type="text/css">
+<![CDATA[.axis {font-weight: bold}.tree, .axis {font-size: 14px; text-anchor:middle}.edge {stroke: black; fill: none}.node > .sym {fill: black; stroke: none}.tree text {dominant-baseline: middle}text.lft {text-anchor: end}text.rgt {text-anchor: start}.mut {fill: red; font-style: italic}.edge {stroke: blue}]]>		</style>
+	</defs>
+	<g class="tree t1">
+		<g class="node n7 p0 root" transform="translate(100.0 30.0)">
+			<g class="a7 node n4 p0" transform="translate(-36.0 138.519)">
+				<g class="a4 leaf node n0 p0 sample" transform="translate(-18.0 1.4814)">
+					<path class="edge" d="M 0 0 V -1.4814 H 18.0"/>
+					<circle class="sym" cx="0" cy="0" r="3"/>
+					<text class="lab" transform="translate(0 12)">0</text>
+				</g>
+				<g class="a4 leaf node n1 p0 sample" transform="translate(18.0 1.4814)">
+					<path class="edge" d="M 0 0 V -1.4814 H -18.0"/>
+					<circle class="sym" cx="0" cy="0" r="3"/>
+					<text class="lab" transform="translate(0 12)">1</text>
+				</g>
+				<path class="edge" d="M 0 0 V -138.519 H 36.0"/>
+				<circle class="sym" cx="0" cy="0" r="3"/>
+				<text class="lab lft" transform="translate(-3 -6)">4</text>
+			</g>
+			<g class="a7 node n5 p0" transform="translate(36.0 133.294)">
+				<g class="a5 leaf node n2 p0 sample" transform="translate(-18.0 6.70591)">
+					<path class="edge" d="M 0 0 V -6.70591 H 18.0"/>
+					<circle class="sym" cx="0" cy="0" r="3"/>
+					<text class="lab" transform="translate(0 12)">2</text>
+				</g>
+				<g class="a5 leaf node n3 p0 sample" transform="translate(18.0 6.70591)">
+					<path class="edge" d="M 0 0 V -6.70591 H -18.0"/>
+					<circle class="sym" cx="0" cy="0" r="3"/>
+					<text class="lab" transform="translate(0 12)">3</text>
+				</g>
+				<path class="edge" d="M 0 0 V -133.294 H -36.0"/>
+				<circle class="sym" cx="0" cy="0" r="3"/>
+				<text class="lab rgt" transform="translate(3 -6)">5</text>
+			</g>
+			<circle class="sym" cx="0" cy="0" r="3"/>
+			<text class="lab" transform="translate(0 -10)">7</text>
+		</g>
+	</g>
+</svg>
