@@ -245,6 +245,8 @@ class SvgTreeSequence:
         root_svg_attributes=None,
         style=None,
         order=None,
+        force_root_branch=None,
+        symbol_size=None,
     ):
         self.ts = ts
         if size is None:
@@ -267,7 +269,13 @@ class SvgTreeSequence:
         else:
             axis_top_padding = 5
             tick_len = (5, 5)
-        self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
+        if node_labels is None:
+            node_labels = {u: str(u) for u in range(ts.num_nodes)}
+        if force_root_branch is None:
+            force_root_branch = any(
+                any(tree.parent(mut.node) == NULL for mut in tree.mutations())
+                for tree in ts.trees()
+            )
         # TODO add general padding arguments following matplotlib's terminology.
         self.axes_x_offset = 15
         self.axes_y_offset = 10
@@ -290,6 +298,8 @@ class SvgTreeSequence:
                 mutation_attrs=mutation_attrs,
                 mutation_label_attrs=mutation_label_attrs,
                 order=order,
+                force_root_branch=force_root_branch,
+                symbol_size=symbol_size,
             )
             for tree in ts.trees()
         ]
@@ -375,7 +385,7 @@ class SvgTree:
     """
     A class to draw a tree in SVG format.
 
-    See :meth:`Tree.draw_svg` for a description of usage and parameters.
+    See :meth:`Tree.draw_svg` for a description of usage and frequently used parameters.
     """
 
     standard_style = (
@@ -413,6 +423,7 @@ class SvgTree:
         root_svg_attributes=None,
         style=None,
         order=None,
+        force_root_branch=None,
         symbol_size=None,
     ):
         self.tree = tree
@@ -427,19 +438,20 @@ class SvgTree:
             symbol_size = 6
         self.symbol_size = symbol_size
         self.drawing = self.setup_drawing(style)
-        self.treebox_x_offset = 10
-        self.treebox_y_offset = 10
-        self.root_branch_length = 0
-        self.treebox_width = size[0] - 2 * self.treebox_x_offset
-        self.assign_y_coordinates(tree_height_scale, max_tree_height)
-        self.node_x_coord_map = self.assign_x_coordinates(
-            tree, self.treebox_x_offset, self.treebox_width
-        )
         self.node_mutations = collections.defaultdict(list)
+        self.mutations_over_root = False
         for site in tree.sites():
             for mutation in site.mutations:
                 self.node_mutations[mutation.node].append(mutation)
-
+                if tree.parent(mutation.node) == NULL:
+                    self.mutations_over_root = True
+        self.treebox_x_offset = 10
+        self.treebox_y_offset = 10
+        self.treebox_width = size[0] - 2 * self.treebox_x_offset
+        self.assign_y_coordinates(tree_height_scale, max_tree_height, force_root_branch)
+        self.node_x_coord_map = self.assign_x_coordinates(
+            tree, self.treebox_x_offset, self.treebox_width
+        )
         self.edge_attrs = {}
         self.node_attrs = {}
         self.node_label_attrs = {}
@@ -496,7 +508,9 @@ class SvgTree:
         self.root_group = dwg.add(dwg.g(class_=tree_class))
         return dwg
 
-    def assign_y_coordinates(self, tree_height_scale, max_tree_height):
+    def assign_y_coordinates(
+        self, tree_height_scale, max_tree_height, force_root_branch
+    ):
         tree_height_scale = check_tree_height_scale(tree_height_scale)
         max_tree_height = check_max_tree_height(
             max_tree_height, tree_height_scale != "rank"
@@ -539,15 +553,10 @@ class SvgTree:
         # node labels within the treebox
         label_padding = 10
         y_padding = self.treebox_y_offset + 2 * label_padding
-        mutations_over_root = any(
-            any(tree.parent(mut.node) == NULL for mut in tree.mutations())
-            for tree in ts.trees()
-        )
         height = self.image_size[1]
-        if mutations_over_root:
-            # Allocate a fixed about of space to show the mutations on the
-            # 'root branch'
-            self.root_branch_length = height / 10  # FIXME just draw branch??
+        self.root_branch_length = 0
+        if self.mutations_over_root or force_root_branch:
+            self.root_branch_length = height / 10  # FIXME what scaling to use?
         # y scaling
         padding_numerator = height - self.root_branch_length - 2 * y_padding
         if tree_height_scale == "log_time":
@@ -595,7 +604,7 @@ class SvgTree:
         classes.add(f"node n{focal_node}")
         v = self.tree.parent(focal_node)
         if v == NULL:
-            classes.add(f"root")
+            classes.add("root")
         else:
             classes.add(f"p{v}")
         if self.tree.is_sample(focal_node):

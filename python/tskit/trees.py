@@ -1412,6 +1412,8 @@ class Tree:
         mutation_labels=None,
         root_svg_attributes=None,
         style=None,
+        order=None,
+        force_root_branch=None,
         **kwargs,
     ):
         """
@@ -1541,7 +1543,15 @@ class Tree:
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A
             `css style string <https://www.w3.org/TR/CSS22/syndata.html>`_ that will be
-            included in the ``<style>`` tag of the generated svg.
+            included in the ``<style>`` tag of the generated svg. Note that certain
+            styles, in particular transformations and changes in geometrical properties
+            of objects, will only be recognised by SVG2-compatible viewers.
+        :param str order: A string specifying the traversal type used to order the tips
+            in the tree, as detailed in :meth:`Tree.nodes`. If None (default), use
+            the default order as described in that method.
+        :param bool force_root_branch: If true always plot a branch (edge) above the
+            root(s) in the tree. If None (default) then only plot such root branches
+            if there is a mutation above a root of the tree.
 
         :return: An SVG representation of a tree.
         :rtype: str
@@ -1555,6 +1565,8 @@ class Tree:
             mutation_labels=mutation_labels,
             root_svg_attributes=root_svg_attributes,
             style=style,
+            order=order,
+            force_root_branch=force_root_branch,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -4657,6 +4669,8 @@ class TreeSequence:
         mutation_labels=None,
         root_svg_attributes=None,
         style=None,
+        order=None,
+        force_root_branch=None,
         **kwargs,
     ):
         """
@@ -4713,6 +4727,12 @@ class TreeSequence:
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A `css string <https://www.w3.org/TR/CSS21/syndata.htm>`_
             that will be included in the ``<style>`` tag of the generated svg.
+        :param str order: A string specifying the traversal type used to order the tips
+            in each tree, as detailed in :meth:`Tree.nodes`. If None (default), use
+            the default order as described in that method.
+        :param bool force_root_branch: If true plot a branch (edge) above every tree
+            root in the tree sequence. If None (default) then only plot such
+            root branches if any root in the tree sequence has a mutation above it.
 
         :return: An SVG representation of a tree.
         :rtype: str
@@ -4726,6 +4746,8 @@ class TreeSequence:
             mutation_labels=mutation_labels,
             root_svg_attributes=root_svg_attributes,
             style=style,
+            order=order,
+            force_root_branch=force_root_branch,
             **kwargs,
         )
         output = draw.drawing.tostring()
