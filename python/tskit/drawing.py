@@ -312,8 +312,13 @@ class SvgTreeSequence:
         break_x = self.treebox_x_offset
 
         for svg_tree, tree in zip(svg_trees, ts.trees()):
-            svg_tree.root_group["transform"] = f"translate({rnd(tree_x)} {rnd(y)})"
-            trees.add(svg_tree.root_group)
+            treebox = trees.add(
+                dwg.g(
+                    class_=f"treebox t{tree.index}",
+                    transform=f"translate({rnd(tree_x)} {rnd(y)})",
+                )
+            )
+            treebox.add(svg_tree.root_group)
             ticks.append((tree_x, break_x, tree.interval[0]))
             tree_x += tree_width
             break_x += tree.span * drawing_scale
@@ -394,8 +399,8 @@ class SvgTree:
         ".edge {stroke: black; fill: none}"
         ".node > .sym {fill: black; stroke: none}"
         ".tree text {dominant-baseline: middle}"  # NB: not inherited in css 1.1
-        "text.lft {text-anchor: end}"
-        "text.rgt {text-anchor: start}"
+        ".tree .lab.lft {text-anchor: end}"
+        ".tree .lab.rgt {text-anchor: start}"
         ".mut {fill: red; font-style: italic}"
     )
 

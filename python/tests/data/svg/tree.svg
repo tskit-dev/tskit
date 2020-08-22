@@ -2,7 +2,7 @@
 <svg baseProfile="full" height="200" id="XYZ" version="1.1" width="200" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
 	<defs>
 		<style type="text/css">
-<![CDATA[.axis {font-weight: bold}.tree, .axis {font-size: 14px; text-anchor:middle}.edge {stroke: black; fill: none}.node > .sym {fill: black; stroke: none}.tree text {dominant-baseline: middle}text.lft {text-anchor: end}text.rgt {text-anchor: start}.mut {fill: red; font-style: italic}.edge {stroke: blue}]]>		</style>
+<![CDATA[.axis {font-weight: bold}.tree, .axis {font-size: 14px; text-anchor:middle}.edge {stroke: black; fill: none}.node > .sym {fill: black; stroke: none}.tree text {dominant-baseline: middle}.tree .lab.lft {text-anchor: end}.tree .lab.rgt {text-anchor: start}.mut {fill: red; font-style: italic}.edge {stroke: blue}]]>		</style>
 	</defs>
 	<g class="tree t1">
 		<g class="node n7 p0 root" transform="translate(100.0 30.0)">

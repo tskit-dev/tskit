@@ -1423,7 +1423,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
                     trees = g
                     break
             self.assertIsNotNone(trees)  # Must have found a trees group
-            first_tree = trees.find(prefix + "g")
+            first_treebox = trees.find(prefix + "g")
+            self.assertIn("class", first_treebox.attrib)
+            self.assertRegexpMatches(first_treebox.attrib["class"], r"\btreebox\b")
+            first_tree = first_treebox.find(prefix + "g")
             self.assertIn("class", first_tree.attrib)
             self.assertRegexpMatches(first_tree.attrib["class"], r"\btree\b")
         else:
@@ -1777,9 +1780,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         self.assertGreater(ts.num_trees, 2)
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        axis_pos = svg.find('class="axis"')
         for b in ts.breakpoints():
             self.assertEqual(b, round(b))
-            self.assertIn(f">{b:.0f}<", svg)
+            self.assertNotEqual(svg.find(f">{b:.0f}<", axis_pos), -1)
 
     def test_draw_even_height_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
