@@ -1814,6 +1814,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
         )
         svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "tree.svg")
+        with open(svg_fn, "wt") as file:
+            file.write(svg)
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
@@ -1824,6 +1826,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
         )
         svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "ts.svg")
+        with open(svg_fn, "wt") as file:
+            file.write(svg)
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()

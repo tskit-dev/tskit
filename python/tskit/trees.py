@@ -1473,9 +1473,13 @@ class Tree:
 
             .tree text {visibility: hidden}
 
-        You can also change the format of various items: the following styles will
-        rotate the leaf nodes labels by 90 degrees, colour the leaf nodes (which are
-        adjacent siblings to the edge lines) blue, and hide the non-sample node labels:
+        You can also change the format of various items: in SVG2-compatible viewers,
+        the following styles will rotate the leaf nodes labels by 90 degrees, colour
+        the leaf nodes (which are adjacent siblings to the edge lines) blue, and
+        hide the non-sample node labels. Note that SVG1.1 does not recognize the
+        ``transform`` style, so in some SVG viewers, the labels will not appear rotated:
+        a workaround is to convert the SVG to PDF first, using e.g. the programmable
+        chromium engine: ``chromium --headless --print-to-pdf=out.pdf in.svg``)
 
         .. code-block:: css
 
@@ -1486,7 +1490,10 @@ class Tree:
 
         Specific nodes can be targetted by number. The following style will display
         a large symbol for node 10, coloured red with a black border, and will also use
-        thick red lines for all the edges that have it as a direct or indirect parent:
+        thick red lines for all the edges that have it as a direct or indirect parent
+        (note that, as with the ``transform`` style, changing the geometrical size of
+        symbols is only possible in SVG2 and above and therefore not all SVG viewers
+        will render symbol size changes correctly).
 
         .. code-block:: css
 
