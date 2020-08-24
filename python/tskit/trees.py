@@ -4302,6 +4302,25 @@ class TreeSequence:
         s += "END;\n"
         return s
 
+    def to_macs(self):
+        """
+        Return a `macs encoding <https://github.com/gchen98/macs>`_
+        of this tree sequence.
+
+        :return: The macs representation of this TreeSequence as a string.
+        :rtype: str
+        """
+        n = self.get_sample_size()
+        m = self.get_sequence_length()
+        output = [f"COMMAND:\tnot_macs {n} {m}"]
+        output.append("SEED:\tASEED")
+        for variant in self.variants(as_bytes=True):
+            output.append(
+                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t"
+                f"{variant.genotypes.decode()}"
+            )
+        return "\n".join(output) + "\n"
+
     def simplify(
         self,
         samples=None,
