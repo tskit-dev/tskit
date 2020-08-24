@@ -4264,7 +4264,7 @@ class TreeSequence:
         )
         writer.write(output)
 
-    def nexus(self, precision=14):
+    def to_nexus(self, precision=14):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
         of this tree sequence. Trees along the sequence are listed sequentially in
