@@ -224,6 +224,9 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
     ts = tsutil.insert_multichar_mutations(ts)
     yield ts
     yield tsutil.add_random_metadata(ts)
+    tables = ts.dump_tables()
+    tables.edges.clear()
+    yield tables.tree_sequence()  # empty tree sequence
 
 
 def get_bottleneck_examples():
@@ -672,21 +675,22 @@ class TestTreeSequence(HighLevelTestCase):
         new_edges.sort(key=lambda e: (t[e.parent], e.parent, e.child, e.left))
 
         squashed = []
-        last_e = new_edges[0]
-        for e in new_edges[1:]:
-            condition = (
-                e.parent != last_e.parent
-                or e.child != last_e.child
-                or e.left != last_e.right
-            )
-            if condition:
-                squashed.append(last_e)
-                last_e = e
-            last_e.right = e.right
-        squashed.append(last_e)
-        # reset the IDs
-        for i, e in enumerate(squashed):
-            e.id = i
+        if len(new_edges) > 0:
+            last_e = new_edges[0]
+            for e in new_edges[1:]:
+                condition = (
+                    e.parent != last_e.parent
+                    or e.child != last_e.child
+                    or e.left != last_e.right
+                )
+                if condition:
+                    squashed.append(last_e)
+                    last_e = e
+                last_e.right = e.right
+            squashed.append(last_e)
+            # reset the IDs
+            for i, e in enumerate(squashed):
+                e.id = i
         edges = list(ts.edges())
         self.assertEqual(len(squashed), len(edges))
         self.assertEqual(edges, squashed)
