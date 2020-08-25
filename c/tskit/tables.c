@@ -4566,7 +4566,8 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, tsk_bookmark_t *start)
         if (start->sites == self->tables->sites.num_rows
             && start->mutations == self->tables->mutations.num_rows) {
             skip_sites = true;
-        } else {
+        } else if (start->sites != 0
+                   || start->mutations != 0) {
             ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
             goto out;
         }

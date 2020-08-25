@@ -3223,6 +3223,76 @@ class TestSimplifyExamples(TopologyTestCase):
             keep_input_roots=True,
         )
 
+    def test_map_mutations_with_and_without_roots(self):
+        nodes_before = """\
+        id      is_sample   time
+        0       1           0
+        1       0           1
+        """
+        edges_before = """\
+        left    right   parent  child
+        0       2       1       0
+        """
+        sites = """\
+        id  position    ancestral_state
+        0   1.0         0
+        """
+        mutations_before = """\
+        site    node    derived_state
+        0       0       2
+        0       1       1
+        """
+        # expected result without keep_input_roots
+        nodes_after = """\
+        id      is_sample   time
+        0       1           0
+        """
+        edges_after = """\
+        left    right   parent  child
+        """
+        mutations_after = """\
+        site    node    derived_state
+        0       0       2
+        0       0       1
+        """
+        # expected result with keep_input_roots
+        nodes_after_keep = nodes_before
+        edges_after_keep = """\
+        left    right   parent  child
+        0       2       1       0
+        """
+        mutations_after_keep = """\
+        site    node    derived_state
+        0       0       2
+        0       0       1
+        """
+        self.verify_simplify(
+            samples=[0],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            sites_before=sites,
+            mutations_before=mutations_before,
+            nodes_after=nodes_after,
+            edges_after=edges_after,
+            sites_after=sites,
+            mutations_after=mutations_after,
+            keep_input_roots=False,
+            debug=True
+        )
+        self.verify_simplify(
+            samples=[0],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            sites_before=sites,
+            mutations_before=mutations_before,
+            nodes_after=nodes_after_keep,
+            edges_after=edges_after_keep,
+            sites_after=sites,
+            mutations_after=mutations_after_keep,
+            keep_input_roots=True,
+            debug=True
+        )
+
     def test_overlapping_edges(self):
         nodes = """\
         id      is_sample   time
