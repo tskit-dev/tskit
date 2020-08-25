@@ -245,6 +245,8 @@ class SvgTreeSequence:
         root_svg_attributes=None,
         style=None,
         order=None,
+        force_root_branch=None,
+        symbol_size=None,
     ):
         self.ts = ts
         if size is None:
@@ -257,9 +259,8 @@ class SvgTreeSequence:
         self.image_size = size
         dwg = svgwrite.Drawing(size=self.image_size, debug=True, **root_svg_attributes)
         self.drawing = dwg
-        dwg.defs.add(dwg.style(SvgTree.standard_style))
-        if style is not None:
-            dwg.defs.add(dwg.style(style))
+        style = SvgTree.standard_style + ("" if style is None else style)
+        dwg.defs.add(dwg.style(style))
         root_group = dwg.add(dwg.g(class_="tree-sequence"))
         if x_scale == "physical":
             background = root_group.add(dwg.g(class_="background"))
@@ -268,7 +269,13 @@ class SvgTreeSequence:
         else:
             axis_top_padding = 5
             tick_len = (5, 5)
-        self.node_labels = {u: str(u) for u in range(ts.num_nodes)}
+        if node_labels is None:
+            node_labels = {u: str(u) for u in range(ts.num_nodes)}
+        if force_root_branch is None:
+            force_root_branch = any(
+                any(tree.parent(mut.node) == NULL for mut in tree.mutations())
+                for tree in ts.trees()
+            )
         # TODO add general padding arguments following matplotlib's terminology.
         self.axes_x_offset = 15
         self.axes_y_offset = 10
@@ -291,6 +298,8 @@ class SvgTreeSequence:
                 mutation_attrs=mutation_attrs,
                 mutation_label_attrs=mutation_label_attrs,
                 order=order,
+                force_root_branch=force_root_branch,
+                symbol_size=symbol_size,
             )
             for tree in ts.trees()
         ]
@@ -303,8 +312,13 @@ class SvgTreeSequence:
         break_x = self.treebox_x_offset
 
         for svg_tree, tree in zip(svg_trees, ts.trees()):
-            svg_tree.root_group["transform"] = f"translate({rnd(tree_x)} {rnd(y)})"
-            trees.add(svg_tree.root_group)
+            treebox = trees.add(
+                dwg.g(
+                    class_=f"treebox t{tree.index}",
+                    transform=f"translate({rnd(tree_x)} {rnd(y)})",
+                )
+            )
+            treebox.add(svg_tree.root_group)
             ticks.append((tree_x, break_x, tree.interval[0]))
             tree_x += tree_width
             break_x += tree.span * drawing_scale
@@ -376,21 +390,17 @@ class SvgTree:
     """
     A class to draw a tree in SVG format.
 
-    See :meth:`Tree.draw_svg` for a description of usage and parameters.
+    See :meth:`Tree.draw_svg` for a description of usage and frequently used parameters.
     """
 
     standard_style = (
         ".axis {font-weight: bold}"
-        ".tree, .axis {font-size: 14px; text-anchor:middle;}"
+        ".tree, .axis {font-size: 14px; text-anchor:middle}"
         ".edge {stroke: black; fill: none}"
-        ".node > circle {r: 3px; fill: black; stroke: none}"
-        ".tree text {dominant-baseline: middle}"  # not inherited in css 1.1
-        ".mut > text.lft {transform: translateX(0.5em); text-anchor: start}"
-        ".mut > text.rgt {transform: translateX(-0.5em); text-anchor: end}"
-        ".root > text {transform: translateY(-0.8em)}"  # Root
-        ".leaf > text {transform: translateY(1em)}"  # Leaves
-        ".node > text.lft {transform: translate(0.5em, -0.5em); text-anchor: start}"
-        ".node > text.rgt {transform: translate(-0.5em, -0.5em); text-anchor: end}"
+        ".node > .sym {fill: black; stroke: none}"
+        ".tree text {dominant-baseline: middle}"  # NB: not inherited in css 1.1
+        ".tree .lab.lft {text-anchor: end}"
+        ".tree .lab.rgt {text-anchor: start}"
         ".mut {fill: red; font-style: italic}"
     )
 
@@ -418,6 +428,8 @@ class SvgTree:
         root_svg_attributes=None,
         style=None,
         order=None,
+        force_root_branch=None,
+        symbol_size=None,
     ):
         self.tree = tree
         self.traversal_order = check_order(order)
@@ -427,21 +439,24 @@ class SvgTree:
         if root_svg_attributes is None:
             root_svg_attributes = {}
         self.root_svg_attributes = root_svg_attributes
-        self.drawing = self.setup_drawing()
-        if style is not None:
-            self.drawing.defs.add(self.drawing.style(style))
-        self.treebox_x_offset = 10
-        self.treebox_y_offset = 10
-        self.treebox_width = size[0] - 2 * self.treebox_x_offset
-        self.assign_y_coordinates(tree_height_scale, max_tree_height)
-        self.node_x_coord_map = self.assign_x_coordinates(
-            tree, self.treebox_x_offset, self.treebox_width
-        )
+        if symbol_size is None:
+            symbol_size = 6
+        self.symbol_size = symbol_size
+        self.drawing = self.setup_drawing(style)
         self.node_mutations = collections.defaultdict(list)
+        self.mutations_over_root = False
         for site in tree.sites():
             for mutation in site.mutations:
                 self.node_mutations[mutation.node].append(mutation)
-
+                if tree.parent(mutation.node) == NULL:
+                    self.mutations_over_root = True
+        self.treebox_x_offset = 10
+        self.treebox_y_offset = 10
+        self.treebox_width = size[0] - 2 * self.treebox_x_offset
+        self.assign_y_coordinates(tree_height_scale, max_tree_height, force_root_branch)
+        self.node_x_coord_map = self.assign_x_coordinates(
+            tree, self.treebox_x_offset, self.treebox_width
+        )
         self.edge_attrs = {}
         self.node_attrs = {}
         self.node_label_attrs = {}
@@ -449,15 +464,17 @@ class SvgTree:
             self.edge_attrs[u] = {}
             if edge_attrs is not None and u in edge_attrs:
                 self.edge_attrs[u].update(edge_attrs[u])
-            self.node_attrs[u] = {}
+            self.node_attrs[u] = {"r": "{:g}".format(rnd(self.symbol_size / 2))}
             if node_attrs is not None and u in node_attrs:
                 self.node_attrs[u].update(node_attrs[u])
+            self.add_class(self.node_attrs[u], "sym")  # class 'sym' for symbol
             label = ""
             if node_labels is None:
                 label = str(u)
             elif u in node_labels:
                 label = str(node_labels[u])
             self.node_label_attrs[u] = {"text": label}
+            self.add_class(self.node_label_attrs[u], "lab")  # class 'lab' for label
             if node_label_attrs is not None and u in node_label_attrs:
                 self.node_label_attrs[u].update(node_label_attrs[u])
 
@@ -468,11 +485,14 @@ class SvgTree:
                 m = mutation.id
                 # We need to offset the rectangle so that it's centred
                 self.mutation_attrs[m] = {
-                    "size": (6, 6),
-                    "transform": "translate(-3 -3)",
+                    "size": (self.symbol_size, self.symbol_size),
+                    "transform": "translate(-{0:g} -{0:g})".format(
+                        rnd(self.symbol_size / 2)
+                    ),
                 }
                 if mutation_attrs is not None and m in mutation_attrs:
                     self.mutation_attrs[m].update(mutation_attrs[m])
+                self.add_class(self.mutation_attrs[m], "sym")  # class 'sym' for symbol
                 label = ""
                 if mutation_labels is None:
                     label = str(m)
@@ -481,20 +501,24 @@ class SvgTree:
                 self.mutation_label_attrs[m] = {"text": label}
                 if mutation_label_attrs is not None and m in mutation_label_attrs:
                     self.mutation_label_attrs[m].update(mutation_label_attrs[m])
-
+                self.add_class(self.mutation_label_attrs[m], "lab")
         self.draw()
 
-    def setup_drawing(self):
+    def setup_drawing(self, style):
         "Return an svgwrite.Drawing object for further use"
         dwg = svgwrite.Drawing(
             size=self.image_size, debug=True, **self.root_svg_attributes
         )
-        dwg.defs.add(dwg.style(self.standard_style))
+        # Put all styles in a single stylesheet (required for Inkscape 0.92)
+        style = SvgTree.standard_style + ("" if style is None else style)
+        dwg.defs.add(dwg.style(style))
         tree_class = f"tree t{self.tree.index}"
         self.root_group = dwg.add(dwg.g(class_=tree_class))
         return dwg
 
-    def assign_y_coordinates(self, tree_height_scale, max_tree_height):
+    def assign_y_coordinates(
+        self, tree_height_scale, max_tree_height, force_root_branch
+    ):
         tree_height_scale = check_tree_height_scale(tree_height_scale)
         max_tree_height = check_max_tree_height(
             max_tree_height, tree_height_scale != "rank"
@@ -537,18 +561,12 @@ class SvgTree:
         # node labels within the treebox
         label_padding = 10
         y_padding = self.treebox_y_offset + 2 * label_padding
-        mutations_over_root = any(
-            any(tree.parent(mut.node) == NULL for mut in tree.mutations())
-            for tree in ts.trees()
-        )
-        root_branch_length = 0
         height = self.image_size[1]
-        if mutations_over_root:
-            # Allocate a fixed about of space to show the mutations on the
-            # 'root branch'
-            root_branch_length = height / 10  # FIXME just draw branch??
+        self.root_branch_length = 0
+        if self.mutations_over_root or force_root_branch:
+            self.root_branch_length = height / 10  # FIXME what scaling to use?
         # y scaling
-        padding_numerator = height - root_branch_length - 2 * y_padding
+        padding_numerator = height - self.root_branch_length - 2 * y_padding
         if tree_height_scale == "log_time":
             # again shift time by 1 in log(max_tree_height), so consistent
             y_scale = padding_numerator / (np.log(max_tree_height + 1))
@@ -578,30 +596,32 @@ class SvgTree:
                         node_x_coord_map[u] = a + (b - a) / 2
         return node_x_coord_map
 
-    def info_classes(self, focal_node):
+    def info_classes(self, focal_node_id):
         """
         For a focal node id, return a set of classes that encode this useful information:
-        "nA":           where A == focal node id
-        "pB" or "root": where B == parent id (or "root" if the focal node is a root)
-        "sample":       a class present if the focal node is a sample
-        "leaf":         a class present if the focal node is a leaf
-        "mC":           where C == mutation id of all mutations above this focal node
-        "sD":           where D == site id of the sites associated with all mutations
-                            above this focal node
+            "a<X>" or "root": where <X> == id of immediate ancestor (parent) node
+            "n<Y>":           where <Y> == focal node id
+            "m<A>":           where <A> == mutation id
+            "s<B>":           where <B> == site id of all mutations
         """
         # Add a new group for each node, and give it classes for css targetting
+        focal_node = self.tree.tree_sequence.node(focal_node_id)
         classes = set()
-        classes.add(f"node n{focal_node}")
-        v = self.tree.parent(focal_node)
+        classes.add(f"node n{focal_node_id}")
+        if focal_node.individual != NULL:
+            classes.add(f"i{focal_node.individual}")
+        if focal_node.population != NULL:
+            classes.add(f"p{focal_node.population}")
+        v = self.tree.parent(focal_node_id)
         if v == NULL:
-            classes.add(f"root")
+            classes.add("root")
         else:
-            classes.add(f"p{v}")
-        if self.tree.is_sample(focal_node):
+            classes.add(f"a{v}")
+        if self.tree.is_sample(focal_node_id):
             classes.add("sample")
-        if self.tree.is_leaf(focal_node):
+        if self.tree.is_leaf(focal_node_id):
             classes.add("leaf")
-        for mutation in self.node_mutations[focal_node]:
+        for mutation in self.node_mutations[focal_node_id]:
             # Adding mutations and sites above this node allows identification
             # of the tree under any specific mutation
             classes.add(f"m{mutation.id}")
@@ -641,7 +661,7 @@ class SvgTree:
             o = (0, 0)
             v = tree.parent(u)
 
-            # Add edge first => below
+            # Add edge first => on layer underneath anything else
             if v != NULL:
                 self.add_class(self.edge_attrs[u], "edge")
                 pv = node_x_coord_map[v], node_y_coord_map[v]
@@ -650,20 +670,32 @@ class SvgTree:
                 path = dwg.path(
                     [("M", o), ("V", rnd(dy)), ("H", rnd(dx))], **self.edge_attrs[u]
                 )
-                curr_svg_group.add(path)  # Edges in parent group, so
+                curr_svg_group.add(path)
             else:
-                # FIXME this is pretty crappy for spacing mutations over a root.
-                pv = (pu[0], pu[1] - 20)
+                if self.root_branch_length > 0:
+                    self.add_class(self.edge_attrs[u], "edge")
+                    path = dwg.path(
+                        [("M", o), ("V", rnd(-self.root_branch_length)), ("H", 0)],
+                        **self.edge_attrs[u],
+                    )
+                    curr_svg_group.add(path)
+                pv = (pu[0], pu[1] - self.root_branch_length)
 
             # Add node symbol + label next (visually above the edge subtending this node)
             # Symbols
             curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
             # Labels
-            if not tree.is_leaf(u) and tree.parent(u) != NULL:
+            if tree.is_leaf(u):
+                self.node_label_attrs[u]["transform"] = "translate(0 12)"
+            elif tree.parent(u) == NULL and self.root_branch_length == 0:
+                self.node_label_attrs[u]["transform"] = "translate(0 -10)"
+            else:
                 if u == left_child[tree.parent(u)]:
-                    self.add_class(self.node_label_attrs[u], "rgt")
-                else:
                     self.add_class(self.node_label_attrs[u], "lft")
+                    self.node_label_attrs[u]["transform"] = "translate(-3 -6)"
+                else:
+                    self.add_class(self.node_label_attrs[u], "rgt")
+                    self.node_label_attrs[u]["transform"] = "translate(3 -6)"
             curr_svg_group.add(dwg.text(**self.node_label_attrs[u]))
 
             # Add mutation symbols + labels
@@ -680,10 +712,13 @@ class SvgTree:
                 mut_group.add(dwg.rect(insert=o, **self.mutation_attrs[mutation.id]))
                 # Labels
                 if mutation.node == left_child[tree.parent(mutation.node)]:
-                    mut_label_class = "rgt"
-                else:
                     mut_label_class = "lft"
+                    transform = "translate(-5 0)"
+                else:
+                    mut_label_class = "rgt"
+                    transform = "translate(5 0)"
                 self.add_class(self.mutation_label_attrs[mutation.id], mut_label_class)
+                self.mutation_label_attrs[mutation.id]["transform"] = transform
                 mut_group.add(dwg.text(**self.mutation_label_attrs[mutation.id]))
 
 
@@ -914,7 +949,7 @@ class TextTree:
                 # If we don't specify node_labels, default to node ID
                 self.node_labels[u] = str(u)
             else:
-                # If we do specify node_labels, default an empty line
+                # If we do specify node_labels, default to an empty line
                 self.node_labels[u] = self.default_node_label
         if node_labels is not None:
             for node, label in node_labels.items():

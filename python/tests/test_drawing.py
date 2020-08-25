@@ -29,6 +29,7 @@ import math
 import os
 import tempfile
 import unittest
+import xml.dom.minidom
 import xml.etree
 
 import msprime
@@ -188,13 +189,16 @@ class TestTreeDraw(unittest.TestCase):
         sites = io.StringIO(
             """\
         position      ancestral_state
-        0.01          A
+        0.05          A
+        0.06          0
         """
         )
         mutations = io.StringIO(
             """\
         site   node    derived_state    parent
-        0      4       T                -1
+        0      9       T                -1
+        0      9       G                0
+        0      4       1                -1
         """
         )
         return tskit.load_text(
@@ -1419,7 +1423,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
                     trees = g
                     break
             self.assertIsNotNone(trees)  # Must have found a trees group
-            first_tree = trees.find(prefix + "g")
+            first_treebox = trees.find(prefix + "g")
+            self.assertIn("class", first_treebox.attrib)
+            self.assertRegexpMatches(first_treebox.attrib["class"], r"\btreebox\b")
+            first_tree = first_treebox.find(prefix + "g")
             self.assertIn("class", first_tree.attrib)
             self.assertRegexpMatches(first_tree.attrib["class"], r"\btree\b")
         else:
@@ -1744,8 +1751,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
 
         svg1 = ts.at_index(0).draw(max_tree_height="ts")
         svg2 = ts.at_index(1).draw(max_tree_height="ts")
-        # when scaled, node 3 should be at the *same* height in both trees, so the label
-        # should be the same
+        # when scaled, node 3 should be at the *same* height in both trees, so the edge
+        # definition should be the same
         self.verify_basic_svg(svg1)
         self.verify_basic_svg(svg2)
         str_pos = svg1.find(">0<")
@@ -1765,13 +1772,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_integer_breaks_ts(self):
-        r_map = msprime.RecombinationMap.uniform_map(1000, 0.001, num_loci=1000)
-        r_map = msprime.RecombinationMap.uniform_map(1000, 0.005, num_loci=1000)
-        ts = msprime.simulate(5, recombination_map=r_map, random_seed=1)
+        # NB: msprime 1.0 will mean updating this to `simulate(... discrete_genome=True)
+        recomb_map = msprime.RecombinationMap.uniform_map(
+            length=1000, rate=0.005, num_loci=1000
+        )
+        ts = msprime.simulate(5, recombination_map=recomb_map, random_seed=1)
+        self.assertGreater(ts.num_trees, 2)
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        axis_pos = svg.find('class="axis"')
         for b in ts.breakpoints():
-            self.assertNotEqual(svg.find(f">{b:.0f}<"), -1)
+            self.assertEqual(b, round(b))
+            self.assertNotEqual(svg.find(f">{b:.0f}<", axis_pos), -1)
 
     def test_draw_even_height_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
@@ -1808,12 +1820,81 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             with self.assertRaises(ValueError):
                 ts.draw_svg(x_scale=bad_x_scale)
 
-    def test_known_svg_tree(self):
-        tree = self.get_simple_ts().first()
+    def test_no_edges(self):
+        ts = msprime.simulate(10, random_seed=2)
+        tables = ts.dump_tables()
+        tables.edges.clear()
+        ts_no_edges = tables.tree_sequence()
+        svg = ts_no_edges.draw_svg()  # This should just be a row of 10 circles
+        self.verify_basic_svg(svg)
+        self.assertEqual(svg.count("circle"), 10)
+        self.assertEqual(svg.count("path"), 0)
+
+        svg = ts_no_edges.draw_svg(force_root_branch=True)
+        self.verify_basic_svg(svg)
+        self.assertEqual(svg.count("circle"), 10)
+        self.assertEqual(svg.count("path"), 10)
+
+        # If there is a mutation, the root branches should be there too
+        ts = msprime.mutate(ts, rate=1, random_seed=1)
+        tables = ts.dump_tables()
+        tables.edges.clear()
+        ts_no_edges = tables.tree_sequence().simplify()
+        self.assertGreater(ts_no_edges.num_mutations, 0)  # Should have some singletons
+        svg = ts_no_edges.draw_svg()
+        self.verify_basic_svg(svg)
+        self.assertEqual(svg.count("circle"), 10)
+        self.assertEqual(svg.count("path"), 10)
+        self.assertEqual(svg.count("rect"), ts_no_edges.num_mutations)
+
+    def test_tree_root_branch(self):
+        # in the simple_ts, there are root mutations in the first tree but not the second
+        ts = self.get_simple_ts()
+        tree_with_root_mutations = ts.at_index(0)
+        root1 = tree_with_root_mutations.root
+        tree_without_root_mutations = ts.at_index(1)
+        root2 = tree_without_root_mutations.root
+        svg1 = tree_with_root_mutations.draw_svg()
+        svg2a = tree_without_root_mutations.draw_svg()
+        svg2b = tree_without_root_mutations.draw_svg(force_root_branch=True)
+        self.verify_basic_svg(svg1)
+        self.verify_basic_svg(svg2a)
+        self.verify_basic_svg(svg2b)
+        # Last <path> should be the root branch, if it exists
+        edge_str = '<path class="edge" d='
+        str_pos1 = svg1.rfind(edge_str, 0, svg1.find(f">{root1}<"))
+        str_pos2a = svg2a.rfind(edge_str, 0, svg2a.find(f">{root2}<"))
+        str_pos2b = svg2b.rfind(edge_str, 0, svg2b.find(f">{root2}<"))
+        snippet1 = svg1[str_pos1 + len(edge_str) : svg1.find(">", str_pos1)]
+        snippet2a = svg2a[str_pos2a + len(edge_str) : svg2a.find(">", str_pos2a)]
+        snippet2b = svg2b[str_pos2b + len(edge_str) : svg2b.find(">", str_pos2b)]
+        self.assertTrue(snippet1.startswith('"M 0 0'))
+        self.assertTrue(snippet2a.startswith('"M 0 0'))
+        self.assertTrue(snippet2b.startswith('"M 0 0'))
+        self.assertTrue("H 0" in snippet1)
+        self.assertFalse("H 0" in snippet2a)  # No root branch
+        self.assertTrue("H 0" in snippet2b)
+
+    def test_known_svg_tree_no_mut(self):
+        tree = self.get_simple_ts().at_index(1)
         svg = tree.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
+            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
+        # Prettify the SVG code for easy inspection
+        svg = xml.dom.minidom.parseString(svg).toprettyxml()
         svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "tree.svg")
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)
+
+    def test_known_svg_tree_root_mut(self):
+        tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
+        svg = tree.draw_svg(
+            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
+        )
+        # Prettify the SVG code for easy inspection
+        svg = xml.dom.minidom.parseString(svg).toprettyxml()
+        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "mut_tree.svg")
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
@@ -1821,8 +1902,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
     def test_known_svg_ts(self):
         ts = self.get_simple_ts()
         svg = ts.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edges {stroke: blue}"
+            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}",
         )
+        # Prettify the SVG code for easy inspection
+        svg = xml.dom.minidom.parseString(svg).toprettyxml()
         svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "ts.svg")
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
         with open(svg_fn, "rb") as file:
