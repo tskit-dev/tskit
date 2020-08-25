@@ -3277,7 +3277,6 @@ class TestSimplifyExamples(TopologyTestCase):
             sites_after=sites,
             mutations_after=mutations_after,
             keep_input_roots=False,
-            debug=True
         )
         self.verify_simplify(
             samples=[0],
@@ -3290,7 +3289,6 @@ class TestSimplifyExamples(TopologyTestCase):
             sites_after=sites,
             mutations_after=mutations_after_keep,
             keep_input_roots=True,
-            debug=True
         )
 
     def test_overlapping_edges(self):
@@ -5745,11 +5743,18 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                     while u != tskit.NULL:
                         root_path.append(u)
                         u = input_tree.parent(u)
-                    input_sites = {site.position: site for site in input_tree.sites()}
-                    new_sites = {
-                        site.position: site for site in tree_with_roots.sites()
+                    input_sites = {
+                        site.position: site
+                        for site in input_tree.sites()
+                        if site.position >= left and site.position < right
                     }
-                    positions = set(input_sites.keys()) & set(new_sites.keys())
+                    new_sites = {
+                        site.position: site
+                        for site in tree_with_roots.sites()
+                        if site.position >= left and site.position < right
+                    }
+                    self.assertEqual(set(input_sites.keys()), set(new_sites.keys()))
+                    positions = input_sites.keys()
                     for position in positions:
                         self.assertTrue(left <= position < right)
                         new_site = new_sites[position]
