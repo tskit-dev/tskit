@@ -993,7 +993,7 @@ is ``7``.
 Missing data
 ************
 
-Missing data is encoding in tskit using the idea of *isolated samples*.
+Missing data is encoded in tskit using the idea of *isolated samples*.
 A sample's genotype is missing at a position if it is *isolated* and if it has
 no mutations directly above it at that position. An isolated sample is a sample
 node (see :ref:`sec_data_model_definitions`) that has no children and no
