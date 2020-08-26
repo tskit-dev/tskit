@@ -1,4 +1,12 @@
 ---------------------
+[0.99.5] - 2020-08-27
+---------------------
+
+**Breaking changes**
+
+- The macro ``TSK_IMPUTE_MISSING_DATA`` is renamed to ``TSK_ISOLATED_NOT_MISSING``
+
+---------------------
 [0.99.4] - 2020-08-12
 ---------------------
 
@@ -9,7 +17,7 @@
 
 **Changes**
 
-- Mutation times can be a mixture of known and unkown as long as for each
+- Mutation times can be a mixture of known and unknown as long as for each
   individual site  they are either all known or all unknown (:user:`benjeffery`, :pr:`761`).
 
 **Bugfixes**

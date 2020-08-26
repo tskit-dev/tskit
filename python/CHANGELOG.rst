@@ -27,6 +27,11 @@ SVG drawing improvements and many others.
   perform the same function (:user:`jeromekelleher`, :issue:`500`,
   :pr:`694`).
 
+- The arguments to ``TreeSequence.genotype_matrix``, ``TreeSequence.haplotypes``
+  and ``TreeSequence.variants`` must now be keyword arguments, not positional. This
+  is to support the change from ``impute_missing_data`` to ``isolated_as_missing``
+  in the arguments to these methods
+
 **New features**
 
 - New methods to perform set operations on TableCollections and TreeSequences.
@@ -98,7 +103,7 @@ SVG drawing improvements and many others.
 
 - Allow sites with missing data to be output by the ``haplotypes`` method, by
   default replacing with ``-``. Errors are no longer raised for missing data
-  with ``impute_missing_data=False``; the error types returned for bad alleles
+  with ``isolated_as_missing=True``; the error types returned for bad alleles
   (e.g. multiletter or non-ascii) have also changed from ``_tskit.LibraryError``
   to TypeError, or ValueError if the missing data character clashes
   (:user:`hyanwong`, :pr:`426`).
@@ -131,6 +136,10 @@ SVG drawing improvements and many others.
 - The ``sample_counts`` feature has been deprecated and is now
   ignored. Sample counts are now always computed.
 
+- For ``TreeSequence.genotype_matrix``, ``TreeSequence.haplotypes``
+  and ``TreeSequence.variants`` the ``impute_missing_data`` argument is deprecated
+  and replaced with ``isolated_as_missing``. Note that to get the same behaviour
+  ``impute_missing_data=True`` should be replaced with ``isolated_as_missing=False``.
 
 --------------------
 [0.2.3] - 2019-11-22

@@ -602,7 +602,7 @@ class TestTreeSequence(HighLevelTestCase):
             self.verify_mutations(ts)
 
     def verify_pairwise_diversity(self, ts):
-        haplotypes = ts.genotype_matrix(impute_missing_data=True).T
+        haplotypes = ts.genotype_matrix(isolated_as_missing=False).T
         pi1 = ts.get_pairwise_diversity()
         pi2 = simple_get_pairwise_diversity(haplotypes)
         self.assertAlmostEqual(pi1, pi2)
@@ -1067,10 +1067,10 @@ class TestTreeSequence(HighLevelTestCase):
         s = np.array([sample_map[u] for u in sample])
         # Build a map of genotypes by position
         full_genotypes = {}
-        for variant in ts.variants(impute_missing_data=True):
+        for variant in ts.variants(isolated_as_missing=False):
             alleles = [variant.alleles[g] for g in variant.genotypes]
             full_genotypes[variant.position] = alleles
-        for variant in subset.variants(impute_missing_data=True):
+        for variant in subset.variants(isolated_as_missing=False):
             if variant.position in full_genotypes:
                 a1 = [full_genotypes[variant.position][u] for u in s]
                 a2 = [variant.alleles[g] for g in variant.genotypes]

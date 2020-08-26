@@ -438,12 +438,26 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             G = ts.get_genotype_matrix()
             self.assertEqual(G.shape, (num_sites, num_samples))
             self.assertRaises(
-                TypeError, ts.get_genotype_matrix, impute_missing_data=None
+                TypeError, ts.get_genotype_matrix, isolated_as_missing=None
             )
             self.assertRaises(TypeError, ts.get_genotype_matrix, alleles="XYZ")
             self.assertRaises(ValueError, ts.get_genotype_matrix, alleles=tuple())
-            G = ts.get_genotype_matrix(impute_missing_data=True)
+            G = ts.get_genotype_matrix(isolated_as_missing=False)
             self.assertEqual(G.shape, (num_sites, num_samples))
+
+    def test_get_genotype_matrix_missing_data(self):
+        tables = _tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.sites.add_row(0.1, "A")
+        ts = _tskit.TreeSequence(0)
+        ts.load_tables(tables)
+        G = ts.get_genotype_matrix(isolated_as_missing=False)
+        self.assertTrue(np.all(G == 0))
+        G = ts.get_genotype_matrix(isolated_as_missing=True)
+        self.assertTrue(np.all(G == -1))
+        G = ts.get_genotype_matrix()
+        self.assertTrue(np.all(G == -1))
 
     def test_get_migration_interface(self):
         ts = self.get_example_migration_tree_sequence()

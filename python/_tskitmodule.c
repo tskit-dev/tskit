@@ -8494,7 +8494,7 @@ static PyObject *
 TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = {"impute_missing_data", "alleles", NULL};
+    static char *kwlist[] = {"isolated_as_missing", "alleles", NULL};
     int err;
     size_t num_sites;
     size_t num_samples;
@@ -8505,7 +8505,7 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     char *V;
     tsk_variant_t *variant;
     size_t j;
-    int impute_missing_data = 0;
+    int isolated_as_missing = 1;
     const char **alleles = NULL;
     tsk_flags_t options = 0;
 
@@ -8515,11 +8515,11 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
 
     /* TODO add option for 16 bit genotypes */
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iO", kwlist,
-                &impute_missing_data, &py_alleles)) {
+                &isolated_as_missing, &py_alleles)) {
         goto out;
     }
-    if (impute_missing_data) {
-        options |= TSK_IMPUTE_MISSING_DATA;
+    if (!isolated_as_missing) {
+        options |= TSK_ISOLATED_NOT_MISSING;
     }
 
     if (py_alleles != Py_None) {
@@ -10035,7 +10035,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", "samples", "impute_missing_data",
+    static char *kwlist[] = {"tree_sequence", "samples", "isolated_as_missing",
         "alleles", NULL};
     TreeSequence *tree_sequence = NULL;
     PyObject *samples_input = Py_None;
@@ -10043,7 +10043,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
     PyArrayObject *samples_array = NULL;
     tsk_id_t *samples = NULL;
     size_t num_samples = 0;
-    int impute_missing_data = 0;
+    int isolated_as_missing = 1;
     const char **alleles = NULL;
     npy_intp *shape;
     tsk_flags_t options = 0;
@@ -10053,11 +10053,11 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
     self->tree_sequence = NULL;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|OiO", kwlist,
             &TreeSequenceType, &tree_sequence, &samples_input,
-            &impute_missing_data, &py_alleles)) {
+            &isolated_as_missing, &py_alleles)) {
         goto out;
     }
-    if (impute_missing_data) {
-        options |= TSK_IMPUTE_MISSING_DATA;
+    if (!isolated_as_missing) {
+        options |= TSK_ISOLATED_NOT_MISSING;
     }
     self->tree_sequence = tree_sequence;
     Py_INCREF(self->tree_sequence);
