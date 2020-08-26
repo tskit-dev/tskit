@@ -5698,9 +5698,9 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
         # Called by the examples in ExampleTopologyMixin
         samples = ts.samples()
         self.verify_keep_input_roots(ts, samples[:2])
-        # self.verify_keep_input_roots(ts, samples[:3])
-        # self.verify_keep_input_roots(ts, samples[:-1])
-        # self.verify_keep_input_roots(ts, samples)
+        self.verify_keep_input_roots(ts, samples[:3])
+        self.verify_keep_input_roots(ts, samples[:-1])
+        self.verify_keep_input_roots(ts, samples)
 
     def verify_keep_input_roots(self, ts, samples):
         ts_with_roots, node_map = self.do_simplify(
@@ -5762,6 +5762,8 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                         new_mutations = {
                             mut.metadata: mut for mut in new_site.mutations
                         }
+                        # Just make sure the metadata is actually unique.
+                        self.assertEqual(len(new_mutations), len(new_site.mutations))
                         input_site = input_sites[position]
                         for input_mutation in input_site.mutations:
                             if input_mutation.node in root_path:

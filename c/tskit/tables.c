@@ -4557,7 +4557,7 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, tsk_bookmark_t *start)
         edge_start = start->edges;
 
         if (start->migrations != 0) {
-            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
+            ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
             goto out;
         }
         /* We only allow sites and mutations to be specified as a way to

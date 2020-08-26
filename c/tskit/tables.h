@@ -2383,8 +2383,12 @@ Positions in tables that are not sorted (``individual``, ``node``, ``population`
 and ``provenance``) are ignored and can be set to arbitrary values.
 
 .. warning:: The current implementation only supports specifying a start
-    position for the ``edge`` table. Specifying a non-zero ``migration``,
-    ``site`` or ``mutation`` start position results in an error.
+    position for the ``edge`` table and in a limited form for the
+    ``site`` and ``mutation`` tables. Specifying a non-zero ``migration``,
+    start position results in an error. The start positions for the
+    ``site`` and ``mutation`` tables can either be 0 or the length of the
+    respective tables, allowing these tables to either be fully sorted, or
+    not sorted at all.
 
 The table collection will always be unindexed after sort successfully completes.
 
