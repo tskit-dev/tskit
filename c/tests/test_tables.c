@@ -3052,7 +3052,6 @@ test_sort_tables_offsets(void)
     free(ts);
 }
 
-
 static void
 test_sort_tables_drops_indexes_with_options(tsk_flags_t tc_options)
 {

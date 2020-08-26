@@ -6102,7 +6102,7 @@ simplifier_extract_ancestry(
     int ret = 0;
     tsk_segment_t *x = self->ancestor_map_head[input_id];
     tsk_segment_t y; /* y is the segment that has been removed */
-    tsk_segment_t *x_head, *x_tail, *x_prev, *seg_left, *seg_right;
+    tsk_segment_t *x_head, *x_prev, *seg_left, *seg_right;
 
     x_head = NULL;
     x_prev = NULL;
@@ -6152,22 +6152,8 @@ simplifier_extract_ancestry(
         }
     }
 
-    x = x_head;
-    x_tail = x_head;
-    while (x != NULL) {
-        x_tail = x;
-        if (x->next != NULL) {
-            assert(x->right <= x->next->left);
-            if (x->next->left == x->right && x->node == x->next->node) {
-                // Squash out (and free) the x.next segment.
-                x->right = x->next->right;
-                x->next = x->next->next;
-            }
-        }
-        x = x->next;
-    }
     self->ancestor_map_head[input_id] = x_head;
-    self->ancestor_map_tail[input_id] = x_tail;
+    self->ancestor_map_tail[input_id] = x_prev;
 out:
     return ret;
 }

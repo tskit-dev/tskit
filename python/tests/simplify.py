@@ -359,23 +359,11 @@ class Simplifier:
                     x_head = x
                 x_prev = x
                 x = x.next
-
-        # We could probably do the squashing and tail tracking
-        # as part of the pass above, but keeping it simpler for now.
+        # Note - we had some code to defragment segments in the output
+        # chain here, but couldn't find an example where it needed to
+        # be called. So, looks like squashing isn't necessary here.
         self.A_head[edge.child] = x_head
-        x = x_head
-        x_tail = x_head
-        while x is not None:
-            x_tail = x
-            if x.next is not None:
-                assert x.right <= x.next.left
-                if x.next.left == x.right and x.node == x.next.node:
-                    # Squash out the x.next segment
-                    x.right = x.next.right
-                    x.next = x.next.next
-            x = x.next
-        self.A_tail[edge.child] = x_tail
-
+        self.A_tail[edge.child] = x_prev
         return S
 
     def process_parent_edges(self, edges):

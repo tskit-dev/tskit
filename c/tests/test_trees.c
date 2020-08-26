@@ -2567,6 +2567,69 @@ test_simplest_reduce_site_topology(void)
 }
 
 static void
+test_simplest_simplify_defragment(void)
+{
+    const char *nodes = "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n";
+    const char *edges = "0.00000000      0.20784841      8       12\n"
+                        "0.00000000      0.42202433      8       15\n"
+                        "0.00000000      0.63541014      8       16\n"
+                        "0.42202433      1.00000000      9       15\n"
+                        "0.00000000      1.00000000      9       17\n"
+                        "0.00000000      1.00000000      10      14\n"
+                        "0.20784841      1.00000000      11      12\n"
+                        "0.00000000      1.00000000      11      13\n"
+                        "0.63541014      1.00000000      11      16\n"
+                        "0.00000000      1.00000000      0       10\n"
+                        "0.62102072      1.00000000      1       9\n"
+                        "0.00000000      1.00000000      1       11\n"
+                        "0.00000000      0.26002984      2       6\n"
+                        "0.26002984      1.00000000      2       6\n"
+                        "0.00000000      0.62102072      2       9\n"
+                        "0.55150554      1.00000000      3       8\n"
+                        "0.00000000      1.00000000      4       7\n"
+                        "0.00000000      0.55150554      5       8\n";
+
+    tsk_id_t samples[] = { 12, 13, 14, 15, 16, 17 };
+    tsk_table_collection_t tables;
+    int ret;
+
+    /* This was the simplest example I could find that exercised the
+     * inner loops of the simplifier_extract_ancestry function */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    parse_nodes(nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 18);
+    parse_edges(edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 18);
+
+    ret = tsk_table_collection_simplify(&tables, samples, 6, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tables.nodes.num_rows, 10);
+    CU_ASSERT_EQUAL(tables.edges.num_rows, 10);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_simplest_population_filter(void)
 {
     tsk_table_collection_t tables;
@@ -5915,6 +5978,7 @@ main(int argc, char **argv)
         { "test_simplest_overlapping_unary_edges_internal_samples_simplify",
             test_simplest_overlapping_unary_edges_internal_samples_simplify },
         { "test_simplest_reduce_site_topology", test_simplest_reduce_site_topology },
+        { "test_simplest_simplify_defragment", test_simplest_simplify_defragment },
         { "test_simplest_population_filter", test_simplest_population_filter },
         { "test_simplest_individual_filter", test_simplest_individual_filter },
         { "test_simplest_map_mutations", test_simplest_map_mutations },
