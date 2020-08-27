@@ -72,7 +72,7 @@ jobs:
             conda install --yes --file=python/requirements/conda-minimal.txt
             # Remove some conflicting modules
             conda uninstall --yes --force tskit numpy h5py
-            pip install PyVCF newick python_jsonschema_objects xmlunittest
+            pip install PyVCF newick python_jsonschema_objects xmlunittest portion
       - name: Install wheel and try import
         shell: bash
         run: |
