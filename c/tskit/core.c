@@ -411,8 +411,8 @@ tsk_strerror_internal(int err)
             ret = "Must have at least one allele when specifying an allele map";
             break;
         case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
-            ret = "Cannot generate genotypes for non-samples unless missing data "
-                  "imputation is enabled";
+            ret = "Cannot generate genotypes for non-samples when isolated nodes are "
+                  "considered as missing";
             break;
         case TSK_ERR_ALLELE_NOT_FOUND:
             ret = "An allele was not found in the user-specified allele map";

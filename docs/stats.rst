@@ -23,7 +23,7 @@ statistics API in use.
 
 .. warning:: :ref:`sec_data_model_missing_data` is not currently
    handled correctly by site statistics defined here, as we always
-   impute missing data to be equal to the ancestral state. Later
+   assign missing data to be equal to the ancestral state. Later
    versions will add this behaviour as an option and will account
    for the presence of missing data by default.
 
