@@ -2250,14 +2250,15 @@ class Tree:
 
         The state reconstruction is returned as two-tuple, ``(ancestral_state,
         mutations)``, where ``ancestral_state`` is the allele assigned to the
-        tree root(s) and ``mutations`` is a list of :class:`Mutation` objects.
+        tree root(s) and ``mutations`` is a list of :class:`Mutation` objects,
+        ordered as :ref:`required in a mutation table<sec_mutation_requirements>`.
         For each mutation, ``node`` is the tree node at the bottom of the branch
         on which the transition occurred, and ``derived_state`` is the new state
-        after this mutation. When multiple mutations are returned the ``parent``
-        property contains the index of the previous mutation on the path to root
-        (see the :ref:`sec_mutation_table_definition` for more information on the
-        concept of mutation parents). All other attributes of the :class:`Mutation`
-        object are undefined and should not be used.
+        after this mutation. The ``parent`` property contains the index in the
+        returned list of the previous mutation on the path to root, or ``tskit.NULL``
+        if there are no previous mutations (see the :ref:`sec_mutation_table_definition`
+        for more information on the concept of mutation parents). All other attributes
+        of the :class:`Mutation` object are undefined and should not be used.
 
         .. note::
             Sample states observed as missing in the input ``genotypes`` need
