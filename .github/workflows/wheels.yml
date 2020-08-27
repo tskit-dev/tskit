@@ -133,7 +133,7 @@ jobs:
         run: |
           conda install --yes --file=python/requirements/conda-minimal.txt
           conda uninstall --yes --force tskit
-          pip install PyVCF newick python_jsonschema_objects xmlunittest
+          pip install PyVCF newick python_jsonschema_objects xmlunittest portion
       - name: Install wheel try to import
         run: |
           # We install in this odd way to make sure we get both deps and a local tskit
