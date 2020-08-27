@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 Tskit Developers
+# Copyright (c) 2019-2020 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -373,6 +373,31 @@ class TestVariantGenerator(unittest.TestCase):
                     count += 1
                 self.assertEqual(count, ts.num_sites)
 
+    def test_samples_missing_data(self):
+        n = 4
+        ts = msprime.simulate(
+            n, length=5, recombination_rate=1, mutation_rate=5, random_seed=2
+        )
+        self.assertGreater(ts.num_sites, 1)
+        tables = ts.dump_tables()
+        tables.delete_intervals([[0.5, 0.6]])
+        tables.sites.add_row(0.5, ancestral_state="0")
+        tables.sort()
+        ts = tables.tree_sequence()
+        samples = list(range(n))
+        # Generate all possible sample lists.
+        for j in range(1, n + 1):
+            for s in itertools.permutations(samples, j):
+                s = np.array(s, dtype=np.int32)
+                count = 0
+                for var1, var2 in zip(ts.variants(), ts.variants(samples=s)):
+                    self.assertEqual(var1.site, var2.site)
+                    self.assertEqual(var1.alleles, var2.alleles)
+                    self.assertEqual(var2.genotypes.shape, (len(s),))
+                    self.assertTrue(np.array_equal(var1.genotypes[s], var2.genotypes))
+                    count += 1
+                self.assertEqual(count, ts.num_sites)
+
     def test_non_sample_samples(self):
         # We don't have to use sample nodes. This does make the terminology confusing
         # but it's probably still the best option.
@@ -474,10 +499,49 @@ class TestVariantGenerator(unittest.TestCase):
         self.assertEqual(var.num_alleles, 1)
         self.assertTrue(np.all(var.genotypes == -1))
 
-    def test_mutation_over_isolated_sample_missing(self):
-        # This is a somewhat pathological case: isolated samples are still missing
-        # *even if* there is a mutation directly over them, and this mutation will
-        # be listed in the alleles.
+    def test_empty_ts_incomplete_samples(self):
+        # https://github.com/tskit-dev/tskit/issues/776
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.sites.add_row(0.5, "A")
+        ts = tables.tree_sequence()
+        variants = list(ts.variants(samples=[0]))
+        self.assertEqual(list(variants[0].genotypes), [-1])
+        variants = list(ts.variants(samples=[1]))
+        self.assertEqual(list(variants[0].genotypes), [-1])
+
+    def test_missing_data_samples(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(0, 0, "T")
+        ts = tables.tree_sequence()
+
+        # If we have no samples we still get a list of variants.
+        variants = list(ts.variants(samples=[]))
+        self.assertEqual(len(variants[0].genotypes), 0)
+        self.assertFalse(variants[0].has_missing_data)
+        self.assertEqual(variants[0].alleles, ("A", "T"))
+
+        # If we have a single sample that's not missing, there's no
+        # missing data.
+        variants = list(ts.variants(samples=[0]))
+        self.assertEqual(len(variants[0].genotypes), 1)
+        self.assertEqual(variants[0].genotypes[0], 1)
+        self.assertFalse(variants[0].has_missing_data)
+        self.assertEqual(variants[0].alleles, ("A", "T"))
+
+        # If we have a single sample that is missing, there is
+        # missing data.
+        variants = list(ts.variants(samples=[1]))
+        self.assertEqual(len(variants[0].genotypes), 1)
+        self.assertEqual(variants[0].genotypes[0], -1)
+        self.assertTrue(variants[0].has_missing_data)
+        self.assertEqual(variants[0].alleles, ("A", "T", None))
+
+    def test_mutation_over_isolated_sample_not_missing(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
@@ -489,7 +553,94 @@ class TestVariantGenerator(unittest.TestCase):
         var = variants[0]
         self.assertEqual(var.alleles, ("A", "T", None))
         self.assertEqual(var.num_alleles, 2)
-        self.assertTrue(np.all(var.genotypes == -1))
+        self.assertEqual(list(var.genotypes), [1, -1])
+
+    def test_multiple_mutations_over_isolated_sample(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(0, 0, "T")
+        tables.mutations.add_row(0, 0, "G", parent=0)
+        ts = tables.tree_sequence()
+        variants = list(ts.variants())
+        self.assertEqual(len(variants), 1)
+        var = variants[0]
+        self.assertEqual(var.alleles, ("A", "T", "G", None))
+        self.assertEqual(var.num_alleles, 3)
+        self.assertEqual(len(var.site.mutations), 2)
+        self.assertEqual(list(var.genotypes), [2, -1])
+
+    def test_snipped_tree_sequence_missing_data(self):
+        ts = msprime.simulate(
+            10, length=10, recombination_rate=0.1, mutation_rate=10, random_seed=3
+        )
+        tables = ts.dump_tables()
+        tables.delete_intervals([[4, 6]], simplify=False)
+        tables.sites.add_row(4, ancestral_state="0")
+        tables.sites.add_row(5, ancestral_state="0")
+        tables.sites.add_row(5.999999, ancestral_state="0")
+        tables.sort()
+        ts = tables.tree_sequence()
+        G = ts.genotype_matrix()
+        num_missing = 0
+        for var in ts.variants():
+            if 4 <= var.site.position < 6:
+                self.assertTrue(var.has_missing_data)
+                self.assertTrue(np.all(var.genotypes == tskit.MISSING_DATA))
+                num_missing += 1
+            else:
+                self.assertFalse(var.has_missing_data)
+                self.assertTrue(np.all(var.genotypes != tskit.MISSING_DATA))
+            self.assertTrue(np.array_equal(var.genotypes, G[var.site.id]))
+        self.assertEqual(num_missing, 3)
+
+        G = ts.genotype_matrix(isolated_as_missing=False)
+        for var in ts.variants(isolated_as_missing=False):
+            if 4 <= var.site.position < 6:
+                self.assertFalse(var.has_missing_data)
+                self.assertTrue(np.all(var.genotypes == 0))
+            else:
+                self.assertFalse(var.has_missing_data)
+                self.assertTrue(np.all(var.genotypes != tskit.MISSING_DATA))
+            self.assertTrue(np.array_equal(var.genotypes, G[var.site.id]))
+
+    def test_snipped_tree_sequence_mutations_over_isolated(self):
+        ts = msprime.simulate(
+            10, length=10, recombination_rate=0.1, mutation_rate=10, random_seed=3
+        )
+        tables = ts.dump_tables()
+        tables.delete_intervals([[4, 6]], simplify=False)
+        missing_site = tables.sites.add_row(4, ancestral_state="0")
+        tables.mutations.add_row(missing_site, node=0, derived_state="1")
+        # Add another site in which all the samples are marked with a mutation
+        # to the ancestral state. Note: this would normally not be allowed because
+        # there's not state change. However, this allows us to mark a sample
+        # as not-missing, so it's an important feature.
+        missing_site = tables.sites.add_row(5, ancestral_state="0")
+        for u in range(10):
+            tables.mutations.add_row(missing_site, node=u, derived_state="0")
+        tables.sort()
+        ts = tables.tree_sequence()
+        G = ts.genotype_matrix()
+        missing_found = False
+        non_missing_found = False
+        for var in ts.variants():
+            if var.site.position == 4:
+                self.assertTrue(var.has_missing_data)
+                self.assertEqual(var.genotypes[0], 1)
+                self.assertTrue(np.all(var.genotypes[1:] == tskit.MISSING_DATA))
+                missing_found += 1
+            elif var.site.position == 5:
+                self.assertFalse(var.has_missing_data)
+                self.assertTrue(np.all(var.genotypes == 0))
+                non_missing_found = 1
+            else:
+                self.assertFalse(var.has_missing_data)
+                self.assertTrue(np.all(var.genotypes != tskit.MISSING_DATA))
+            self.assertTrue(np.array_equal(var.genotypes, G[var.site.id]))
+        self.assertTrue(non_missing_found)
+        self.assertTrue(missing_found)
 
 
 class TestHaplotypeGenerator(unittest.TestCase):
