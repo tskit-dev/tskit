@@ -1,5 +1,5 @@
 --------------------
-[0.3.0] - 2020-07-29
+[0.3.0] - 2020-08-27
 --------------------
 
 Major feature release for metadata schemas, set-like operations, mutation times,
@@ -30,7 +30,7 @@ SVG drawing improvements and many others.
 - The arguments to ``TreeSequence.genotype_matrix``, ``TreeSequence.haplotypes``
   and ``TreeSequence.variants`` must now be keyword arguments, not positional. This
   is to support the change from ``impute_missing_data`` to ``isolated_as_missing``
-  in the arguments to these methods
+  in the arguments to these methods. (:user:`benjeffery`, :issue:`716`, :pr:`794`)
 
 **New features**
 
@@ -150,6 +150,7 @@ SVG drawing improvements and many others.
   and ``TreeSequence.variants`` the ``impute_missing_data`` argument is deprecated
   and replaced with ``isolated_as_missing``. Note that to get the same behaviour
   ``impute_missing_data=True`` should be replaced with ``isolated_as_missing=False``.
+  (:user:`benjeffery`, :issue:`716`, :pr:`794`)
 
 --------------------
 [0.2.3] - 2019-11-22
