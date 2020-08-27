@@ -76,7 +76,7 @@ jobs:
             gcov -pb libtskit.a.p/tskit_haplotype_matching.c.gcno ../c/tskit/haplotype_matching.c
             gcov -pb libtskit.a.p/tskit_file_format.c.gcno ../c/tskit/file_format.c
             cd ..
-            codecov --required -X gcov -F c_tests
+            bash <(curl -s https://codecov.io/bash) -X gcov -n c_tests
 
       - run:
           name: Valgrind for C tests.
@@ -133,7 +133,7 @@ jobs:
           command: |
             # Make sure the C coverage reports aren't lying around
             rm -fR build-gcc
-            codecov --required -X gcov -F python_tests
+            bash <(curl -s https://codecov.io/bash) -X gcov -n python_tests
             # Clean up reports so we don't upload them twice.
             rm -f coverage.xml
 
@@ -141,7 +141,7 @@ jobs:
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
             cd ..
-            codecov --required -X gcov -F python_c_tests
+            bash <(curl -s https://codecov.io/bash) -X gcov -n python_c_tests
             # Clean up reports so we don't upload them twice.
             rm -f python/*.gcov
 
