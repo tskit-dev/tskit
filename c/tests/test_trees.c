@@ -478,7 +478,7 @@ verify_simplify_genotypes(
     ret = tsk_vargen_init(&vargen, ts, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_init(
-        &subset_vargen, subset, NULL, 0, NULL, TSK_IMPUTE_MISSING_DATA);
+        &subset_vargen, subset, NULL, 0, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(m, tsk_treeseq_get_num_sites(subset));
 

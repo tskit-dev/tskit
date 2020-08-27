@@ -390,8 +390,8 @@ class TestVariantGenerator(unittest.TestCase):
         count = 0
         samples = range(ts.num_nodes)
         for var1, var2 in zip(
-            all_samples_ts.variants(impute_missing_data=True),
-            ts.variants(samples=samples, impute_missing_data=True),
+            all_samples_ts.variants(isolated_as_missing=False),
+            ts.variants(samples=samples, isolated_as_missing=False),
         ):
             self.assertEqual(var1.site, var2.site)
             self.assertEqual(var1.alleles, var2.alleles)
@@ -437,18 +437,29 @@ class TestVariantGenerator(unittest.TestCase):
         tables.sites.add_row(0.9, "A")
         tables.sort()
         ts = tables.tree_sequence()
-        G = ts.genotype_matrix(impute_missing_data=True)
-        self.assertTrue(np.all(G[0] == 0))
-        self.assertTrue(np.all(G[1] == 0))
-        self.assertTrue(np.all(G[-1] == 0))
-        self.assertTrue(np.all(G[-2] == 0))
-        G = isolated_samples_genotype_matrix(ts)
-        self.assertTrue(np.all(G[0] == -1))
-        self.assertTrue(np.all(G[1] == -1))
-        self.assertTrue(np.all(G[-1] == -1))
-        self.assertTrue(np.all(G[-2] == -1))
-        Gp = ts.genotype_matrix(impute_missing_data=False)
-        self.assertTrue(np.array_equal(G, Gp))
+        Gnm = ts.genotype_matrix(isolated_as_missing=False)
+        self.assertTrue(np.all(Gnm[0] == 0))
+        self.assertTrue(np.all(Gnm[1] == 0))
+        self.assertTrue(np.all(Gnm[-1] == 0))
+        self.assertTrue(np.all(Gnm[-2] == 0))
+        Gm = isolated_samples_genotype_matrix(ts)
+        self.assertTrue(np.all(Gm[0] == -1))
+        self.assertTrue(np.all(Gm[1] == -1))
+        self.assertTrue(np.all(Gm[-1] == -1))
+        self.assertTrue(np.all(Gm[-2] == -1))
+        Gm2 = ts.genotype_matrix(isolated_as_missing=True)
+        self.assertTrue(np.array_equal(Gm, Gm2))
+
+        # Test deprecated param
+        Gi = ts.genotype_matrix(impute_missing_data=True)
+        self.assertTrue(np.array_equal(Gnm, Gi))
+        Gni = ts.genotype_matrix(impute_missing_data=False)
+        self.assertTrue(np.array_equal(Gm, Gni))
+
+        G = ts.genotype_matrix(isolated_as_missing=False, impute_missing_data=True)
+        self.assertTrue(np.array_equal(Gnm, G))
+        G = ts.genotype_matrix(isolated_as_missing=True, impute_missing_data=False)
+        self.assertTrue(np.array_equal(Gm, G))
 
     def test_empty_ts_missing_data(self):
         tables = tskit.TableCollection(1.0)
@@ -641,7 +652,24 @@ class TestHaplotypeGenerator(unittest.TestCase):
         for c in ("-", ".", "a"):
             h = list(ts.haplotypes(missing_data_character=c))
             self.assertEqual(h, [c, c])
+        h = list(ts.haplotypes(isolated_as_missing=True))
+        self.assertEqual(h, ["-", "-"])
+        h = list(ts.haplotypes(isolated_as_missing=False))
+        self.assertEqual(h, ["A", "A"])
+        h = list(ts.haplotypes())
+        self.assertEqual(h, ["-", "-"])
+        # Test deprecated method
         h = list(ts.haplotypes(impute_missing_data=True))
+        self.assertEqual(h, ["A", "A"])
+        h = list(ts.haplotypes(impute_missing_data=False))
+        self.assertEqual(h, ["-", "-"])
+        h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
+        self.assertEqual(h, ["-", "-"])
+        h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
+        self.assertEqual(h, ["-", "-"])
+        h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
+        self.assertEqual(h, ["A", "A"])
+        h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=False))
         self.assertEqual(h, ["A", "A"])
 
 
@@ -771,14 +799,16 @@ class TestUserAlleles(unittest.TestCase):
         tables.mutations.add_row(0, 0, "1")
 
         ts = tables.tree_sequence()
-        for impute in [True, False]:
-            G1 = ts.genotype_matrix(impute_missing_data=impute)
+        for isolated_as_missing in [True, False]:
+            G1 = ts.genotype_matrix(isolated_as_missing=isolated_as_missing)
             G2 = ts.genotype_matrix(
-                impute_missing_data=impute, alleles=tskit.ALLELES_01
+                isolated_as_missing=isolated_as_missing, alleles=tskit.ALLELES_01
             )
             self.assertTrue(np.array_equal(G1, G2))
-            vars1 = ts.variants(impute_missing_data=impute)
-            vars2 = ts.variants(impute_missing_data=impute, alleles=tskit.ALLELES_01)
+            vars1 = ts.variants(isolated_as_missing=isolated_as_missing)
+            vars2 = ts.variants(
+                isolated_as_missing=isolated_as_missing, alleles=tskit.ALLELES_01
+            )
             for v1, v2 in itertools.zip_longest(vars1, vars2):
                 self.assertEqual(v2.alleles, v1.alleles)
                 self.assertEqual(v1.site, v2.site)

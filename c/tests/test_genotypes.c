@@ -67,7 +67,7 @@ test_simplest_missing_data(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_free(&vargen);
 
-    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_IMPUTE_MISSING_DATA);
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -122,7 +122,7 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_free(&vargen);
 
-    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_IMPUTE_MISSING_DATA);
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -411,7 +411,7 @@ test_single_tree_non_samples(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUST_IMPUTE_NON_SAMPLES);
     tsk_vargen_free(&vargen);
 
-    ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, TSK_IMPUTE_MISSING_DATA);
+    ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_vargen_print_state(&vargen, _devnull);
 

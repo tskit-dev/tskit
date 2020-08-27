@@ -107,7 +107,7 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence, tsk_id_t *samp
     tsk_flags_t tree_options;
     const tsk_flags_t *flags = tree_sequence->tables->nodes.flags;
     size_t j, num_nodes, num_samples_alloc, max_alleles_limit;
-    bool impute_missing = !!(options & TSK_IMPUTE_MISSING_DATA);
+    bool impute_missing = !!(options & TSK_ISOLATED_NOT_MISSING);
     tsk_size_t max_alleles;
     tsk_id_t u;
 
@@ -504,7 +504,7 @@ tsk_vargen_update_site(tsk_vargen_t *self)
     tsk_site_t *site = var->site;
     tsk_mutation_t mutation;
     bool genotypes16 = !!(self->options & TSK_16_BIT_GENOTYPES);
-    bool impute_missing = !!(self->options & TSK_IMPUTE_MISSING_DATA);
+    bool impute_missing = !!(self->options & TSK_ISOLATED_NOT_MISSING);
     bool by_traversal = self->samples != NULL;
     int (*update_genotypes)(tsk_vargen_t *, tsk_id_t, tsk_id_t);
     bool (*mark_missing)(tsk_vargen_t *);
