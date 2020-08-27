@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,6 +26,7 @@ Python implementation of the simplify algorithm.
 import sys
 
 import numpy as np
+import portion
 
 import tskit
 
@@ -108,6 +109,7 @@ class Simplifier:
         filter_populations=True,
         filter_individuals=True,
         keep_unary=False,
+        keep_input_roots=False,
     ):
         self.ts = ts
         self.n = len(sample)
@@ -117,6 +119,7 @@ class Simplifier:
         self.filter_populations = filter_populations
         self.filter_individuals = filter_individuals
         self.keep_unary = keep_unary
+        self.keep_input_roots = keep_input_roots
         self.num_mutations = ts.num_mutations
         self.input_sites = list(ts.sites())
         self.A_head = [None for _ in range(ts.num_nodes)]
@@ -126,9 +129,7 @@ class Simplifier:
         self.node_id_map = np.zeros(ts.num_nodes, dtype=np.int32) - 1
         self.mutation_node_map = [-1 for _ in range(self.num_mutations)]
         self.samples = set(sample)
-        for sample_id in sample:
-            output_id = self.record_node(sample_id, is_sample=True)
-            self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
+        self.sort_offset = -1
         # We keep a map of input nodes to mutations.
         self.mutation_map = [[] for _ in range(ts.num_nodes)]
         position = ts.tables.sites.position
@@ -137,6 +138,9 @@ class Simplifier:
         for mutation_id in range(ts.num_mutations):
             site_position = position[site[mutation_id]]
             self.mutation_map[node[mutation_id]].append((site_position, mutation_id))
+        for sample_id in sample:
+            output_id = self.record_node(sample_id, is_sample=True)
+            self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
         self.position_lookup = None
         if self.reduce_to_site_topology:
             self.position_lookup = np.hstack([[0], position, [self.sequence_length]])
@@ -242,6 +246,18 @@ class Simplifier:
         print(self.tables)
         self.check_state()
 
+    def map_mutations(self, left, right, input_id, output_id):
+        """
+        Map any mutations for the input node ID on the
+        interval to it's output ID.
+        """
+        assert output_id != -1
+        # TODO we should probably remove these as they are used.
+        # Or else, binary search the list so it's quick.
+        for x, mutation_id in self.mutation_map[input_id]:
+            if left <= x < right:
+                self.mutation_node_map[mutation_id] = output_id
+
     def add_ancestry(self, input_id, left, right, node):
         tail = self.A_tail[input_id]
         if tail is None:
@@ -255,6 +271,8 @@ class Simplifier:
                 x = Segment(left, right, node)
                 tail.next = x
                 self.A_tail[input_id] = x
+
+        self.map_mutations(left, right, input_id, node)
 
     def merge_labeled_ancestors(self, S, input_id):
         """
@@ -303,6 +321,51 @@ class Simplifier:
             if num_edges == 0 and not is_sample:
                 self.rewind_node(input_id, output_id)
 
+    def extract_ancestry(self, edge):
+        S = []
+        x = self.A_head[edge.child]
+
+        x_head = None
+        x_prev = None
+        while x is not None:
+            if x.right > edge.left and edge.right > x.left:
+                y = Segment(max(x.left, edge.left), min(x.right, edge.right), x.node)
+                # print("snip", y)
+                S.append(y)
+                assert x.left <= y.left
+                assert x.right >= y.right
+                seg_left = None
+                seg_right = None
+                if x.left != y.left:
+                    seg_left = Segment(x.left, y.left, x.node)
+                    if x_prev is None:
+                        x_head = seg_left
+                    else:
+                        x_prev.next = seg_left
+                    x_prev = seg_left
+                if x.right != y.right:
+                    x.left = y.right
+                    seg_right = x
+                else:
+                    # Free x
+                    seg_right = x.next
+                if x_prev is None:
+                    x_head = seg_right
+                else:
+                    x_prev.next = seg_right
+                x = seg_right
+            else:
+                if x_prev is None:
+                    x_head = x
+                x_prev = x
+                x = x.next
+        # Note - we had some code to defragment segments in the output
+        # chain here, but couldn't find an example where it needed to
+        # be called. So, looks like squashing isn't necessary here.
+        self.A_head[edge.child] = x_head
+        self.A_tail[edge.child] = x_prev
+        return S
+
     def process_parent_edges(self, edges):
         """
         Process all of the edges for a given parent.
@@ -311,17 +374,9 @@ class Simplifier:
         parent = edges[0].parent
         S = []
         for edge in edges:
-            x = self.A_head[edge.child]
-            while x is not None:
-                if x.right > edge.left and edge.right > x.left:
-                    y = Segment(
-                        max(x.left, edge.left), min(x.right, edge.right), x.node
-                    )
-                    S.append(y)
-                x = x.next
+            S.extend(self.extract_ancestry(edge))
         self.merge_labeled_ancestors(S, parent)
         self.check_state()
-        # self.print_state()
 
     def finalise_sites(self):
         # Build a map from the old mutation IDs to new IDs. Any mutation that
@@ -363,22 +418,6 @@ class Simplifier:
                     ancestral_state=site.ancestral_state,
                     metadata=site.metadata,
                 )
-
-    def map_mutation_nodes(self):
-        for input_node in range(len(self.mutation_map)):
-            mutations = self.mutation_map[input_node]
-            seg = self.A_head[input_node]
-            m_index = 0
-            while seg is not None and m_index < len(mutations):
-                x, mutation_id = mutations[m_index]
-                if seg.left <= x < seg.right:
-                    self.mutation_node_map[mutation_id] = seg.node
-                    m_index += 1
-                elif x >= seg.right:
-                    seg = seg.next
-                else:
-                    assert x < seg.left
-                    m_index += 1
 
     def finalise_references(self):
         input_populations = self.ts.tables.populations
@@ -432,8 +471,39 @@ class Simplifier:
         # We don't support migrations for now. We'll need to remap these as well.
         assert self.ts.num_migrations == 0
 
+    def insert_input_roots(self):
+        youngest_root_time = np.inf
+        for input_id in range(len(self.node_id_map)):
+            x = self.A_head[input_id]
+            if x is not None:
+                output_id = self.node_id_map[input_id]
+                if output_id == -1:
+                    output_id = self.record_node(input_id)
+                while x is not None:
+                    if x.node != output_id:
+                        self.record_edge(x.left, x.right, output_id, x.node)
+                        self.map_mutations(x.left, x.right, input_id, x.node)
+                    x = x.next
+                self.flush_edges()
+                root_time = self.tables.nodes.time[output_id]
+                if root_time < youngest_root_time:
+                    youngest_root_time = root_time
+        # We have to sort the edge table from the point where the edges
+        # for the youngest root would be inserted.
+        # Note: it would be nicer to do the sort here, but we have to
+        # wait until the finalise_references method has been called to
+        # make sure all the populations etc have been setup.
+        node_time = self.tables.nodes.time
+        edge_parent = self.tables.edges.parent
+        offset = 0
+        while (
+            offset < len(self.tables.edges)
+            and node_time[edge_parent[offset]] < youngest_root_time
+        ):
+            offset += 1
+        self.sort_offset = offset
+
     def simplify(self):
-        # self.print_state()
         if self.ts.num_edges > 0:
             all_edges = list(self.ts.edges())
             edges = all_edges[:1]
@@ -443,14 +513,18 @@ class Simplifier:
                     edges = []
                 edges.append(e)
             self.process_parent_edges(edges)
-        # self.print_state()
-        self.map_mutation_nodes()
+        if self.keep_input_roots:
+            self.insert_input_roots()
         self.finalise_sites()
         self.finalise_references()
+        if self.sort_offset != -1:
+            self.tables.sort(edge_start=self.sort_offset)
         ts = self.tables.tree_sequence()
         return ts, self.node_id_map
 
     def check_state(self):
+        # print("CHECK_STATE")
+        all_ancestry = []
         num_nodes = len(self.A_head)
         for j in range(num_nodes):
             head = self.A_head[j]
@@ -460,17 +534,27 @@ class Simplifier:
             else:
                 x = head
                 while x.next is not None:
+                    assert x.right <= x.next.left
                     x = x.next
                 assert x == tail
-                x = head.next
+                x = head
                 while x is not None:
                     assert x.left < x.right
+                    all_ancestry.append(portion.openclosed(x.left, x.right))
                     if x.next is not None:
                         assert x.right <= x.next.left
                         # We should also not have any squashable segments.
                         if x.right == x.next.left:
                             assert x.node != x.next.node
                     x = x.next
+        # Make sure we haven't lost ancestry.
+        if len(all_ancestry) > 0:
+            union = all_ancestry[0]
+            for interval in all_ancestry[1:]:
+                union = union.union(interval)
+            assert union.atomic
+            assert union.lower == 0
+            assert union.upper == self.sequence_length
 
 
 class AncestorMap:
@@ -604,6 +688,7 @@ class AncestorMap:
         return num_edges
 
     def check_state(self):
+
         num_nodes = len(self.A_head)
         for j in range(num_nodes):
             head = self.A_head[j]

@@ -2567,6 +2567,69 @@ test_simplest_reduce_site_topology(void)
 }
 
 static void
+test_simplest_simplify_defragment(void)
+{
+    const char *nodes = "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        2     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "0        1     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n"
+                        "1        0     -1\n";
+    const char *edges = "0.00000000      0.20784841      8       12\n"
+                        "0.00000000      0.42202433      8       15\n"
+                        "0.00000000      0.63541014      8       16\n"
+                        "0.42202433      1.00000000      9       15\n"
+                        "0.00000000      1.00000000      9       17\n"
+                        "0.00000000      1.00000000      10      14\n"
+                        "0.20784841      1.00000000      11      12\n"
+                        "0.00000000      1.00000000      11      13\n"
+                        "0.63541014      1.00000000      11      16\n"
+                        "0.00000000      1.00000000      0       10\n"
+                        "0.62102072      1.00000000      1       9\n"
+                        "0.00000000      1.00000000      1       11\n"
+                        "0.00000000      0.26002984      2       6\n"
+                        "0.26002984      1.00000000      2       6\n"
+                        "0.00000000      0.62102072      2       9\n"
+                        "0.55150554      1.00000000      3       8\n"
+                        "0.00000000      1.00000000      4       7\n"
+                        "0.00000000      0.55150554      5       8\n";
+
+    tsk_id_t samples[] = { 12, 13, 14, 15, 16, 17 };
+    tsk_table_collection_t tables;
+    int ret;
+
+    /* This was the simplest example I could find that exercised the
+     * inner loops of the simplifier_extract_ancestry function */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    parse_nodes(nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 18);
+    parse_edges(edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 18);
+
+    ret = tsk_table_collection_simplify(&tables, samples, 6, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tables.nodes.num_rows, 10);
+    CU_ASSERT_EQUAL(tables.edges.num_rows, 10);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_simplest_population_filter(void)
 {
     tsk_table_collection_t tables;
@@ -3640,6 +3703,7 @@ test_single_tree_iter_depths(void)
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
 }
+
 static void
 test_single_tree_simplify(void)
 {
@@ -3692,6 +3756,55 @@ test_single_tree_simplify(void)
     tables.edges.child[0] = tables.edges.parent[0];
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_single_tree_simplify_debug(void)
+{
+    tsk_treeseq_t ts, simplified;
+    tsk_id_t samples[] = { 0, 1 };
+    int ret;
+    FILE *save_stdout = stdout;
+    FILE *tmp = fopen(_tmp_file_name, "w");
+
+    CU_ASSERT_FATAL(tmp != NULL);
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
+
+    stdout = tmp;
+    ret = tsk_treeseq_simplify(&ts, samples, 2, TSK_DEBUG, &simplified, NULL);
+    stdout = save_stdout;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(ftell(tmp) > 0);
+
+    fclose(tmp);
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&simplified);
+}
+
+static void
+test_single_tree_simplify_keep_input_roots(void)
+{
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1 };
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
+    verify_simplify(&ts);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_simplify(&tables, samples, 2, TSK_KEEP_INPUT_ROOTS, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tables.nodes.num_rows, 4);
+    CU_ASSERT_EQUAL(tables.edges.num_rows, 3);
+    CU_ASSERT_EQUAL(tables.sites.num_rows, 3);
+    CU_ASSERT_EQUAL(tables.mutations.num_rows, 4);
 
     tsk_treeseq_free(&ts);
     tsk_table_collection_free(&tables);
@@ -4281,6 +4394,60 @@ test_nonbinary_multi_tree(void)
         nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_trees(&ts, num_trees, parents);
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplify_keep_input_roots_multi_tree(void)
+{
+
+    /*
+    0.25┊     8   ┊         ┊         ┊
+        ┊   ┏━┻━┓ ┊         ┊         ┊
+    0.20┊   ┃   ┃ ┊         ┊   7     ┊
+        ┊   ┃   ┃ ┊         ┊ ┏━┻━┓   ┊
+    0.17┊   6   ┃ ┊   6     ┊ ┃   ┃   ┊
+        ┊ ┏━┻┓  ┃ ┊ ┏━┻━┓   ┊ ┃   ┃   ┊
+    0.09┊ ┃  5  ┃ ┊ ┃   5   ┊ ┃   5   ┊
+        ┊ ┃ ┏┻┓ ┃ ┊ ┃ ┏━┻┓  ┊ ┃ ┏━┻┓  ┊
+    0.07┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃  4  ┊ ┃ ┃  4  ┊
+        ┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊ ┃ ┃ ┏┻┓ ┊
+    0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+      0.00      2.00      7.00      10.00
+
+    Simplifies to
+
+    0.25┊  4  ┊     ┊     ┊
+        ┊  ┃  ┊     ┊     ┊
+    0.20┊  ┃  ┊     ┊  3  ┊
+        ┊  ┃  ┊     ┊ ┏┻┓ ┊
+    0.17┊  2  ┊  2  ┊ ┃ ┃ ┊
+        ┊ ┏┻┓ ┊ ┏┻┓ ┊ ┃ ┃ ┊
+    0.00┊ 0 1 ┊ 0 1 ┊ 0 1 ┊
+      0.00  2.00  7.00  10.00
+
+    */
+    int ret = 0;
+    // clang-format off
+    tsk_id_t parents[] = {
+        2, 2, 4, -1, -1,
+        2, 2, -1, -1, -1,
+        3, 3, -1, -1, -1,
+    };
+    // clang-format on
+    uint32_t num_trees = 3;
+
+    tsk_id_t samples[] = { 0, 3 };
+    tsk_treeseq_t ts, simplified;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    tsk_treeseq_dump(&ts, "tmp.trees", 0);
+    ret = tsk_treeseq_simplify(&ts, samples, 2, TSK_KEEP_INPUT_ROOTS, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    verify_trees(&simplified, num_trees, parents);
+
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&simplified);
 }
 
 static void
@@ -5811,6 +5978,7 @@ main(int argc, char **argv)
         { "test_simplest_overlapping_unary_edges_internal_samples_simplify",
             test_simplest_overlapping_unary_edges_internal_samples_simplify },
         { "test_simplest_reduce_site_topology", test_simplest_reduce_site_topology },
+        { "test_simplest_simplify_defragment", test_simplest_simplify_defragment },
         { "test_simplest_population_filter", test_simplest_population_filter },
         { "test_simplest_individual_filter", test_simplest_individual_filter },
         { "test_simplest_map_mutations", test_simplest_map_mutations },
@@ -5839,6 +6007,9 @@ main(int argc, char **argv)
         { "test_single_tree_iter_times", test_single_tree_iter_times },
         { "test_single_tree_iter_depths", test_single_tree_iter_depths },
         { "test_single_tree_simplify", test_single_tree_simplify },
+        { "test_single_tree_simplify_debug", test_single_tree_simplify_debug },
+        { "test_single_tree_simplify_keep_input_roots",
+            test_single_tree_simplify_keep_input_roots },
         { "test_single_tree_simplify_no_sample_nodes",
             test_single_tree_simplify_no_sample_nodes },
         { "test_single_tree_simplify_null_samples",
@@ -5859,6 +6030,8 @@ main(int argc, char **argv)
         { "test_internal_sample_multi_tree", test_internal_sample_multi_tree },
         { "test_internal_sample_simplified_multi_tree",
             test_internal_sample_simplified_multi_tree },
+        { "test_simplify_keep_input_roots_multi_tree",
+            test_simplify_keep_input_roots_multi_tree },
         { "test_left_to_right_multi_tree", test_left_to_right_multi_tree },
         { "test_gappy_multi_tree", test_gappy_multi_tree },
         { "test_tsk_treeseq_bad_records", test_tsk_treeseq_bad_records },

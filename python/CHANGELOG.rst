@@ -126,6 +126,10 @@ SVG drawing improvements and many others.
 - Add ``tree_sequence.to_macs()`` function to convert tree sequence to MACS
   format (:user:`winni2k`, :pr:`727`)
 
+- Add a ``keep_input_roots`` option to simplify which, if enabled, adds edges
+  from the MRCAs of samples in the simplified tree sequence back to the roots
+  in the input tree sequence (:user:`jeromekelleher`, :issue:`775`, :pr:`782`).
+
 **Bugfixes**
 
 - :issue:`453` - Fix LibraryError when ``tree.newick()`` is called with large node time

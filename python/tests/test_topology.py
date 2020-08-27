@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Test cases for the supported topological variations and operations.
 """
+import functools
 import io
 import itertools
 import json
@@ -274,6 +275,83 @@ def c_kc_distance(tree1, tree2, lambda_=0):
     vecs2 = KCVectors(n)
     fill_kc_vectors(tree2, vecs2)
     return norm_kc_vectors(vecs1, vecs2, lambda_)
+
+
+class ExampleTopologyMixin:
+    """
+    Some example topologies for tests cases.
+    """
+
+    def test_single_coalescent_tree(self):
+        ts = msprime.simulate(10, random_seed=1, length=10)
+        self.verify(ts)
+
+    def test_coalescent_trees(self):
+        ts = msprime.simulate(8, recombination_rate=5, random_seed=1, length=2)
+        self.assertGreater(ts.num_trees, 2)
+        self.verify(ts)
+
+    def test_coalescent_trees_internal_samples(self):
+        ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
+        self.assertGreater(ts.num_trees, 2)
+        self.verify(tsutil.jiggle_samples(ts))
+
+    def test_coalescent_trees_all_samples(self):
+        ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
+        self.assertGreater(ts.num_trees, 2)
+        tables = ts.dump_tables()
+        flags = np.zeros_like(tables.nodes.flags) + tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = flags
+        self.verify(tables.tree_sequence())
+
+    def test_wright_fisher_trees_unsimplified(self):
+        tables = wf.wf_sim(10, 5, deep_history=False, seed=2)
+        tables.sort()
+        ts = tables.tree_sequence()
+        self.verify(ts)
+
+    def test_wright_fisher_trees_simplified(self):
+        tables = wf.wf_sim(10, 5, deep_history=False, seed=1)
+        tables.sort()
+        ts = tables.tree_sequence()
+        ts = ts.simplify()
+        self.verify(ts)
+
+    def test_wright_fisher_trees_simplified_one_gen(self):
+        tables = wf.wf_sim(10, 1, deep_history=False, seed=1)
+        tables.sort()
+        ts = tables.tree_sequence()
+        ts = ts.simplify()
+        self.verify(ts)
+
+    def test_nonbinary_trees(self):
+        demographic_events = [
+            msprime.SimpleBottleneck(time=1.0, population=0, proportion=0.95)
+        ]
+        ts = msprime.simulate(
+            20,
+            recombination_rate=10,
+            mutation_rate=5,
+            demographic_events=demographic_events,
+            random_seed=7,
+        )
+        found = False
+        for e in ts.edgesets():
+            if len(e.children) > 2:
+                found = True
+        self.assertTrue(found)
+        self.verify(ts)
+
+    def test_many_multiroot_trees(self):
+        ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
+        self.assertGreater(ts.num_trees, 3)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        self.verify(ts)
+
+    def test_multiroot_tree(self):
+        ts = msprime.simulate(15, random_seed=10)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        self.verify(ts)
 
 
 class TestKCMetric(unittest.TestCase):
@@ -1234,6 +1312,7 @@ class TestKCSequenceMetric(unittest.TestCase):
         for seed in range(1, 10):
             ts1 = msprime.simulate(n, random_seed=seed, recombination_rate=1)
             ts2 = msprime.simulate(n, random_seed=seed + 1, recombination_rate=1)
+            self.verify_same_kc(ts2, ts1)
             self.verify_same_kc(ts1, ts2)
             self.verify_same_kc(ts1, ts1)  # Test sequences with equal breakpoints
 
@@ -2711,6 +2790,7 @@ class TestSimplifyExamples(TopologyTestCase):
         self,
         samples,
         filter_sites=True,
+        keep_input_roots=False,
         nodes_before=None,
         edges_before=None,
         sites_before=None,
@@ -2747,18 +2827,20 @@ class TestSimplifyExamples(TopologyTestCase):
             sequence_length=before.sequence_length,
         )
         after = ts.dump_tables()
-
+        # Make sure it's a valid tree sequence
         ts = before.tree_sequence()
-        # Make sure it's a valid topology. We want to be sure we evaluate the
-        # whole iterator
-        for t in ts.trees():
-            self.assertTrue(t is not None)
-        before.simplify(samples=samples, filter_sites=filter_sites)
+        before.simplify(
+            samples=samples,
+            filter_sites=filter_sites,
+            keep_input_roots=keep_input_roots,
+        )
         if debug:
             print("before")
             print(before)
+            print(before.tree_sequence().draw_text())
             print("after")
             print(after)
+            print(after.tree_sequence().draw_text())
         self.assertEqual(before, after)
 
     def test_unsorted_edges(self):
@@ -2863,6 +2945,47 @@ class TestSimplifyExamples(TopologyTestCase):
             edges_before=edges_before,
             nodes_after=nodes_after,
             edges_after=edges_after,
+        )
+
+    def test_single_binary_tree_keep_input_root(self):
+        #
+        # 2        4
+        #         / \
+        # 1      3   \
+        #       / \   \
+        # 0   (0)(1)  (2)
+        nodes_before = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       0           1
+        4       0           2
+        """
+        edges_before = """\
+        left    right   parent  child
+        0       1       3       0,1
+        0       1       4       2,3
+        """
+        nodes_after = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           1
+        3       0           2
+        """
+        edges_after = """\
+        left    right   parent  child
+        0       1       2       0,1
+        0       1       3       2
+        """
+        self.verify_simplify(
+            samples=[0, 1],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            nodes_after=nodes_after,
+            edges_after=edges_after,
+            keep_input_roots=True,
         )
 
     def test_single_binary_tree_internal_sample(self):
@@ -3029,6 +3152,143 @@ class TestSimplifyExamples(TopologyTestCase):
             edges_after=edges_after,
             sites_after=sites_before,
             mutations_after=mutations_after,
+        )
+
+    def test_single_binary_tree_keep_roots_mutations(self):
+        # 3          5
+        #        m0 / \
+        # 2        4   \
+        #      m1 / \   \
+        # 1      3   \   \
+        #       / \   \   \
+        # 0   (0) (1)  2   6
+        nodes_before = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           0
+        3       0           1
+        4       0           2
+        5       0           3
+        6       0           0
+        """
+        edges_before = """\
+        left    right   parent  child
+        0       1       3       0,1
+        0       1       4       2,3
+        0       1       5       4,6
+        """
+        sites_before = """\
+        id  position    ancestral_state
+        0   0.1         0
+        """
+        mutations_before = """\
+        site    node    derived_state
+        0       3       2
+        0       4       1
+        """
+
+        # We sample 0 and 2
+        nodes_after = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           1
+        3       0           3
+        """
+        edges_after = """\
+        left    right   parent  child
+        0       1       2       0,1
+        0       1       3       2
+        """
+        sites_after = """\
+        id  position    ancestral_state
+        0   0.1         0
+        """
+        mutations_after = """\
+        site    node    derived_state
+        0       2       2
+        0       2       1
+        """
+        self.verify_simplify(
+            samples=[0, 1],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            sites_before=sites_before,
+            mutations_before=mutations_before,
+            nodes_after=nodes_after,
+            edges_after=edges_after,
+            sites_after=sites_after,
+            mutations_after=mutations_after,
+            keep_input_roots=True,
+        )
+
+    def test_map_mutations_with_and_without_roots(self):
+        nodes_before = """\
+        id      is_sample   time
+        0       1           0
+        1       0           1
+        """
+        edges_before = """\
+        left    right   parent  child
+        0       2       1       0
+        """
+        sites = """\
+        id  position    ancestral_state
+        0   1.0         0
+        """
+        mutations_before = """\
+        site    node    derived_state
+        0       0       2
+        0       1       1
+        """
+        # expected result without keep_input_roots
+        nodes_after = """\
+        id      is_sample   time
+        0       1           0
+        """
+        edges_after = """\
+        left    right   parent  child
+        """
+        mutations_after = """\
+        site    node    derived_state
+        0       0       2
+        0       0       1
+        """
+        # expected result with keep_input_roots
+        nodes_after_keep = nodes_before
+        edges_after_keep = """\
+        left    right   parent  child
+        0       2       1       0
+        """
+        mutations_after_keep = """\
+        site    node    derived_state
+        0       0       2
+        0       0       1
+        """
+        self.verify_simplify(
+            samples=[0],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            sites_before=sites,
+            mutations_before=mutations_before,
+            nodes_after=nodes_after,
+            edges_after=edges_after,
+            sites_after=sites,
+            mutations_after=mutations_after,
+            keep_input_roots=False,
+        )
+        self.verify_simplify(
+            samples=[0],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            sites_before=sites,
+            mutations_before=mutations_before,
+            nodes_after=nodes_after_keep,
+            edges_after=edges_after_keep,
+            sites_after=sites,
+            mutations_after=mutations_after_keep,
+            keep_input_roots=True,
         )
 
     def test_overlapping_edges(self):
@@ -4510,7 +4770,77 @@ class TestBadTrees(unittest.TestCase):
             tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
 
-class TestSimplify(unittest.TestCase):
+class SimplifyTestBase(unittest.TestCase):
+    """
+    Base class for simplify tests.
+    """
+
+    def do_simplify(
+        self,
+        ts,
+        samples=None,
+        compare_lib=True,
+        filter_sites=True,
+        filter_populations=True,
+        filter_individuals=True,
+        keep_unary=False,
+        keep_input_roots=False,
+    ):
+        """
+        Runs the Python test implementation of simplify.
+        """
+        if samples is None:
+            samples = ts.samples()
+        s = tests.Simplifier(
+            ts,
+            samples,
+            filter_sites=filter_sites,
+            filter_populations=filter_populations,
+            filter_individuals=filter_individuals,
+            keep_unary=keep_unary,
+            keep_input_roots=keep_input_roots,
+        )
+        new_ts, node_map = s.simplify()
+        if compare_lib:
+            sts, lib_node_map1 = ts.simplify(
+                samples,
+                filter_sites=filter_sites,
+                filter_individuals=filter_individuals,
+                filter_populations=filter_populations,
+                keep_unary=keep_unary,
+                keep_input_roots=keep_input_roots,
+                map_nodes=True,
+            )
+            lib_tables1 = sts.dump_tables()
+
+            lib_tables2 = ts.dump_tables()
+            lib_node_map2 = lib_tables2.simplify(
+                samples,
+                filter_sites=filter_sites,
+                keep_unary=keep_unary,
+                keep_input_roots=keep_input_roots,
+                filter_individuals=filter_individuals,
+                filter_populations=filter_populations,
+            )
+
+            py_tables = new_ts.dump_tables()
+            for lib_tables, lib_node_map in [
+                (lib_tables1, lib_node_map1),
+                (lib_tables2, lib_node_map2),
+            ]:
+
+                self.assertEqual(lib_tables.nodes, py_tables.nodes)
+                self.assertEqual(lib_tables.edges, py_tables.edges)
+                self.assertEqual(lib_tables.migrations, py_tables.migrations)
+                self.assertEqual(lib_tables.sites, py_tables.sites)
+                self.assertEqual(lib_tables.mutations, py_tables.mutations)
+                self.assertEqual(lib_tables.individuals, py_tables.individuals)
+                self.assertEqual(lib_tables.populations, py_tables.populations)
+                self.assertTrue(all(node_map == lib_node_map))
+        return new_ts, node_map
+
+
+class TestSimplify(SimplifyTestBase):
     """
     Tests that the implementations of simplify() do what they are supposed to.
     """
@@ -4545,66 +4875,6 @@ class TestSimplify(unittest.TestCase):
     2       0.00000000      1.00000000      7       4,5
     3       0.00000000      1.00000000      8       6,7
     """
-
-    def do_simplify(
-        self,
-        ts,
-        samples=None,
-        compare_lib=True,
-        filter_sites=True,
-        filter_populations=True,
-        filter_individuals=True,
-        keep_unary=False,
-    ):
-        """
-        Runs the Python test implementation of simplify.
-        """
-        if samples is None:
-            samples = ts.samples()
-        s = tests.Simplifier(
-            ts,
-            samples,
-            filter_sites=filter_sites,
-            filter_populations=filter_populations,
-            filter_individuals=filter_individuals,
-            keep_unary=keep_unary,
-        )
-        new_ts, node_map = s.simplify()
-        if compare_lib:
-            sts, lib_node_map1 = ts.simplify(
-                samples,
-                filter_sites=filter_sites,
-                filter_individuals=filter_individuals,
-                filter_populations=filter_populations,
-                keep_unary=keep_unary,
-                map_nodes=True,
-            )
-            lib_tables1 = sts.dump_tables()
-
-            lib_tables2 = ts.dump_tables()
-            lib_node_map2 = lib_tables2.simplify(
-                samples,
-                filter_sites=filter_sites,
-                keep_unary=keep_unary,
-                filter_individuals=filter_individuals,
-                filter_populations=filter_populations,
-            )
-
-            py_tables = new_ts.dump_tables()
-            for lib_tables, lib_node_map in [
-                (lib_tables1, lib_node_map1),
-                (lib_tables2, lib_node_map2),
-            ]:
-
-                self.assertEqual(lib_tables.nodes, py_tables.nodes)
-                self.assertEqual(lib_tables.edges, py_tables.edges)
-                self.assertEqual(lib_tables.migrations, py_tables.migrations)
-                self.assertEqual(lib_tables.sites, py_tables.sites)
-                self.assertEqual(lib_tables.mutations, py_tables.mutations)
-                self.assertEqual(lib_tables.individuals, py_tables.individuals)
-                self.assertEqual(lib_tables.populations, py_tables.populations)
-                self.assertTrue(all(node_map == lib_node_map))
-        return new_ts, node_map
 
     def verify_no_samples(self, ts, keep_unary=False):
         """
@@ -5419,6 +5689,152 @@ class TestSimplify(unittest.TestCase):
                         self.verify_simplify_haplotypes(ts, samples, keep_unary=keep)
 
 
+class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
+    """
+    Tests for the keep_input_roots option to simplify.
+    """
+
+    def verify(self, ts):
+        # Called by the examples in ExampleTopologyMixin
+        samples = ts.samples()
+        self.verify_keep_input_roots(ts, samples[:2])
+        self.verify_keep_input_roots(ts, samples[:3])
+        self.verify_keep_input_roots(ts, samples[:-1])
+        self.verify_keep_input_roots(ts, samples)
+
+    def verify_keep_input_roots(self, ts, samples):
+        ts_with_roots, node_map = self.do_simplify(
+            ts, samples, keep_input_roots=True, filter_sites=False, compare_lib=True
+        )
+        new_to_input_map = {
+            value: key for key, value in enumerate(node_map) if value != tskit.NULL
+        }
+        for (left, right), input_tree, tree_with_roots in tsutil.coiterate(
+            ts, ts_with_roots
+        ):
+            input_roots = input_tree.roots
+            self.assertGreater(len(tree_with_roots.roots), 0)
+            for root in tree_with_roots.roots:
+                # Check that the roots in the current
+                input_root = new_to_input_map[root]
+                self.assertIn(input_root, input_roots)
+                input_node = ts.node(input_root)
+                new_node = ts_with_roots.node(root)
+                self.assertEqual(new_node.time, input_node.time)
+                self.assertEqual(new_node.population, input_node.population)
+                self.assertEqual(new_node.individual, input_node.individual)
+                self.assertEqual(new_node.metadata, input_node.metadata)
+                # This should only be marked as a sample if it's an
+                # element of the samples list.
+                self.assertEqual(new_node.is_sample(), input_root in samples)
+                # Find the MRCA of the samples below this root.
+                root_samples = list(tree_with_roots.samples(root))
+                mrca = functools.reduce(tree_with_roots.mrca, root_samples)
+                if mrca != root:
+                    # If the MRCA is not equal to the root, then there should
+                    # be a unary branch joining them.
+                    self.assertEqual(tree_with_roots.parent(mrca), root)
+                    self.assertEqual(tree_with_roots.children(root), (mrca,))
+
+                    # Any mutations that were on the path from the old MRCA
+                    # to the root should be mapped to this node.
+                    u = new_to_input_map[mrca]
+                    root_path = []
+                    while u != tskit.NULL:
+                        root_path.append(u)
+                        u = input_tree.parent(u)
+                    input_sites = {
+                        site.position: site
+                        for site in input_tree.sites()
+                        if site.position >= left and site.position < right
+                    }
+                    new_sites = {
+                        site.position: site
+                        for site in tree_with_roots.sites()
+                        if site.position >= left and site.position < right
+                    }
+                    self.assertEqual(set(input_sites.keys()), set(new_sites.keys()))
+                    positions = input_sites.keys()
+                    for position in positions:
+                        self.assertTrue(left <= position < right)
+                        new_site = new_sites[position]
+                        # We assume the metadata contains a unique key for each mutation.
+                        new_mutations = {
+                            mut.metadata: mut for mut in new_site.mutations
+                        }
+                        # Just make sure the metadata is actually unique.
+                        self.assertEqual(len(new_mutations), len(new_site.mutations))
+                        input_site = input_sites[position]
+                        for input_mutation in input_site.mutations:
+                            if input_mutation.node in root_path:
+                                # The same mutation should exist and be mapped to the
+                                # mrca
+                                new_mutation = new_mutations[input_mutation.metadata]
+                                # We have turned filter sites off, so sites should
+                                # be comparable
+                                self.assertEqual(new_mutation.site, input_mutation.site)
+                                self.assertEqual(
+                                    new_mutation.derived_state,
+                                    input_mutation.derived_state,
+                                )
+                                self.assertEqual(new_mutation.node, mrca)
+        return ts_with_roots
+
+    def test_many_trees(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=10)
+        self.assertGreater(ts.num_trees, 3)
+        for num_samples in range(1, ts.num_samples):
+            for samples in itertools.combinations(ts.samples(), num_samples):
+                self.verify_keep_input_roots(ts, samples)
+
+    def test_many_trees_internal_samples(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=10)
+        ts = tsutil.jiggle_samples(ts)
+        self.assertGreater(ts.num_trees, 3)
+        for num_samples in range(1, ts.num_samples):
+            for samples in itertools.combinations(ts.samples(), num_samples):
+                self.verify_keep_input_roots(ts, samples)
+
+    def test_many_multiroot_trees(self):
+        ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
+        self.assertGreater(ts.num_trees, 3)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for num_samples in range(1, ts.num_samples):
+            for samples in itertools.combinations(ts.samples(), num_samples):
+                self.verify_keep_input_roots(ts, samples)
+
+    def test_wright_fisher_unsimplified(self):
+        num_generations = 10
+        tables = wf.wf_sim(10, num_generations, deep_history=False, seed=2)
+        tables.sort()
+        ts = tables.tree_sequence()
+        simplified = self.verify_keep_input_roots(ts, ts.samples())
+        roots = set()
+        for tree in simplified.trees():
+            for root in tree.roots:
+                roots.add(root)
+                self.assertEqual(tree.time(root), num_generations)
+        init_nodes = np.where(simplified.tables.nodes.time == num_generations)[0]
+        self.assertEqual(set(init_nodes), roots)
+
+    def test_single_tree_recurrent_mutations(self):
+        ts = msprime.simulate(6, random_seed=10)
+        for mutations_per_branch in [1, 2, 3]:
+            ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
+            for num_samples in range(1, ts.num_samples):
+                for samples in itertools.combinations(ts.samples(), num_samples):
+                    self.verify_keep_input_roots(ts, samples)
+
+    def test_many_trees_recurrent_mutations(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=8)
+        self.assertGreater(ts.num_trees, 2)
+        for mutations_per_branch in [1, 2, 3]:
+            ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
+            for num_samples in range(1, ts.num_samples):
+                for samples in itertools.combinations(ts.samples(), num_samples):
+                    self.verify_keep_input_roots(ts, samples)
+
+
 class TestMapToAncestors(unittest.TestCase):
     """
     Tests the AncestorMap class.
@@ -6064,83 +6480,6 @@ class TestSimpleTreeAlgorithm(unittest.TestCase):
             self.assertEqual(interval, tree.interval)
             self.assertEqual(p1, p2)
         self.assertRaises(StopIteration, next, new_trees)
-
-
-class ExampleTopologyMixin:
-    """
-    Some example topologies for tests cases.
-    """
-
-    def test_single_coalescent_tree(self):
-        ts = msprime.simulate(10, random_seed=1, length=10)
-        self.verify(ts)
-
-    def test_coalescent_trees(self):
-        ts = msprime.simulate(8, recombination_rate=5, random_seed=1, length=2)
-        self.assertGreater(ts.num_trees, 2)
-        self.verify(ts)
-
-    def test_coalescent_trees_internal_samples(self):
-        ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
-        self.assertGreater(ts.num_trees, 2)
-        self.verify(tsutil.jiggle_samples(ts))
-
-    def test_coalescent_trees_all_samples(self):
-        ts = msprime.simulate(8, recombination_rate=5, random_seed=10, length=2)
-        self.assertGreater(ts.num_trees, 2)
-        tables = ts.dump_tables()
-        flags = np.zeros_like(tables.nodes.flags) + tskit.NODE_IS_SAMPLE
-        tables.nodes.flags = flags
-        self.verify(tables.tree_sequence())
-
-    def test_wright_fisher_trees_unsimplified(self):
-        tables = wf.wf_sim(10, 5, deep_history=False, seed=2)
-        tables.sort()
-        ts = tables.tree_sequence()
-        self.verify(ts)
-
-    def test_wright_fisher_trees_simplified(self):
-        tables = wf.wf_sim(10, 5, deep_history=False, seed=1)
-        tables.sort()
-        ts = tables.tree_sequence()
-        ts = ts.simplify()
-        self.verify(ts)
-
-    def test_wright_fisher_trees_simplified_one_gen(self):
-        tables = wf.wf_sim(10, 1, deep_history=False, seed=1)
-        tables.sort()
-        ts = tables.tree_sequence()
-        ts = ts.simplify()
-        self.verify(ts)
-
-    def test_nonbinary_trees(self):
-        demographic_events = [
-            msprime.SimpleBottleneck(time=1.0, population=0, proportion=0.95)
-        ]
-        ts = msprime.simulate(
-            20,
-            recombination_rate=10,
-            mutation_rate=5,
-            demographic_events=demographic_events,
-            random_seed=7,
-        )
-        found = False
-        for e in ts.edgesets():
-            if len(e.children) > 2:
-                found = True
-        self.assertTrue(found)
-        self.verify(ts)
-
-    def test_many_multiroot_trees(self):
-        ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
-        self.assertGreater(ts.num_trees, 3)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
-        self.verify(ts)
-
-    def test_multiroot_tree(self):
-        ts = msprime.simulate(15, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
-        self.verify(ts)
 
 
 class TestSampleLists(unittest.TestCase, ExampleTopologyMixin):

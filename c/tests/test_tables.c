@@ -2979,6 +2979,80 @@ test_copy_table_collection(void)
 }
 
 static void
+test_sort_tables_offsets(void)
+{
+    int ret;
+    tsk_treeseq_t *ts;
+    tsk_table_collection_t tables, copy;
+    tsk_bookmark_t bookmark;
+
+    ts = caterpillar_tree(10, 5, 5);
+    ret = tsk_treeseq_copy_tables(ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED);
+
+    tsk_migration_table_clear(&tables.migrations);
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Check that setting edge offset = len(edges) does nothing */
+    reverse_edges(&tables);
+    ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.edges = tables.edges.num_rows;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy));
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tables.sites.num_rows > 2);
+    CU_ASSERT_FATAL(tables.mutations.num_rows > 2);
+
+    /* Check that setting mutation and site offset = to the len
+     * of the tables leaves them untouched. */
+    reverse_mutations(&tables);
+    /* Swap the positions of the first two sites, as a quick way
+     * to disorder the site table */
+    tables.sites.position[0] = tables.sites.position[1];
+    tables.sites.position[1] = 0;
+    ret = tsk_table_collection_copy(&tables, &copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.sites = tables.sites.num_rows;
+    bookmark.mutations = tables.mutations.num_rows;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy));
+
+    /* Anything other than len(table) leads to an error for sites
+     * and mutations, and we can't specify one without the other. */
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.sites = tables.sites.num_rows;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.mutations = tables.mutations.num_rows;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.sites = tables.sites.num_rows - 1;
+    bookmark.mutations = tables.mutations.num_rows - 1;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
+    tsk_table_collection_free(&tables);
+    tsk_table_collection_free(&copy);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
 test_sort_tables_drops_indexes_with_options(tsk_flags_t tc_options)
 {
     int ret;
@@ -3128,7 +3202,7 @@ test_sort_tables_errors(void)
     memset(&pos, 0, sizeof(pos));
     pos.migrations = 1;
     ret = tsk_table_collection_sort(&tables, &pos, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
 
     memset(&pos, 0, sizeof(pos));
     pos.sites = 1;
@@ -4552,6 +4626,7 @@ main(int argc, char **argv)
             test_link_ancestors_samples_and_ancestors_overlap },
         { "test_link_ancestors_multiple_to_single_tree",
             test_link_ancestors_multiple_to_single_tree },
+        { "test_sort_tables_offsets", test_sort_tables_offsets },
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
         { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
         { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },

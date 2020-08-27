@@ -818,7 +818,7 @@ out:
 }
 
 static const char *
-parse_metadata_schema_arg(PyObject *arg, Py_ssize_t* metadata_schema_length) 
+parse_metadata_schema_arg(PyObject *arg, Py_ssize_t* metadata_schema_length)
 {
     const char *ret = NULL;
     if (arg == NULL) {
@@ -1607,7 +1607,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     if (node_array == NULL) {
         goto out;
     }
-    
+
     time_data = NULL;
     if (time_input != Py_None) {
         time_array = table_read_column_array(time_input, NPY_FLOAT64, &num_rows, true);
@@ -6427,14 +6427,15 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     int filter_individuals = false;
     int filter_populations = false;
     int keep_unary = false;
+    int keep_input_roots = false;
     int reduce_to_site_topology = false;
     static char *kwlist[] = {
         "samples", "filter_sites", "filter_populations", "filter_individuals",
-        "reduce_to_site_topology", "keep_unary", NULL};
+        "reduce_to_site_topology", "keep_unary", "keep_input_roots", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiii", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiii", kwlist,
             &samples, &filter_sites, &filter_populations, &filter_individuals,
-            &reduce_to_site_topology, &keep_unary)) {
+            &reduce_to_site_topology, &keep_unary, &keep_input_roots)) {
         goto out;
     }
     samples_array = (PyArrayObject *) PyArray_FROMANY(samples, NPY_INT32, 1, 1,
@@ -6458,6 +6459,9 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     if (keep_unary) {
         options |= TSK_KEEP_UNARY;
+    }
+    if (keep_input_roots) {
+        options |= TSK_KEEP_INPUT_ROOTS;
     }
 
     /* Allocate a new array to hold the node map. */
@@ -7120,17 +7124,17 @@ out:
     return ret;
 }
 
-static PyObject * 
+static PyObject *
 TreeSequence_get_metadata(TreeSequence * self) {
     return PyBytes_FromStringAndSize(
-        self->tree_sequence->tables->metadata, 
+        self->tree_sequence->tables->metadata,
         self->tree_sequence->tables->metadata_length);
 }
 
-static PyObject * 
+static PyObject *
 TreeSequence_get_metadata_schema(TreeSequence * self) {
     return make_Py_Unicode_FromStringAndLength(
-        self->tree_sequence->tables->metadata_schema, 
+        self->tree_sequence->tables->metadata_schema,
         self->tree_sequence->tables->metadata_schema_length);
 }
 
@@ -11224,7 +11228,7 @@ PyInit__tskit(void)
 
     PyObject *unknown_time = PyFloat_FromDouble(TSK_UNKNOWN_TIME);
     PyModule_AddObject(module, "UNKNOWN_TIME", unknown_time);
-    
+
     /* Node flags */
     PyModule_AddIntConstant(module, "NODE_IS_SAMPLE", TSK_NODE_IS_SAMPLE);
     /* Tree flags */

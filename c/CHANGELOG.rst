@@ -6,13 +6,19 @@
 
 - The macro ``TSK_IMPUTE_MISSING_DATA`` is renamed to ``TSK_ISOLATED_NOT_MISSING``
 
+**New features**
+
+- Add a ``TSK_KEEP_INPUT_ROOTS`` option to simplify which, if enabled, adds edges
+  from the MRCAs of samples in the simplified tree sequence back to the roots
+  in the input tree sequence (:user:`jeromekelleher`, :issue:`775`, :pr:`782`).
+
 ---------------------
 [0.99.4] - 2020-08-12
 ---------------------
 
 **Note**
 
-- The ``TSK_VERSION_PATCH`` macro was incorrectly set to ``4`` for 0.99.3, so both 
+- The ``TSK_VERSION_PATCH`` macro was incorrectly set to ``4`` for 0.99.3, so both
   0.99.4 and 0.99.3 have the same value.
 
 **Changes**
@@ -70,7 +76,7 @@
 
 - New methods to perform set operations on table collections.
   ``tsk_table_collection_subset`` subsets and reorders table collections by nodes
-  (:user:`mufernando`, :user:`petrelharp`, :pr:`663`, :pr:`690`). 
+  (:user:`mufernando`, :user:`petrelharp`, :pr:`663`, :pr:`690`).
   ``tsk_table_collection_union`` forms the node-wise union of two table collections
   (:user:`mufernando`, :user:`petrelharp`, :issue:`381`, :pr:`623`).
 
