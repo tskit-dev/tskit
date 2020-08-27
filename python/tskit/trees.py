@@ -1723,6 +1723,36 @@ class Tree:
             draw.drawing.saveas(path, pretty=True)
         return output
 
+    def draw_tikz(
+        self,
+        path,
+        *,
+        node_labels=None,
+        tree_height_scale=None,
+        order=None,
+        aspect=None,
+        scale=None,
+        style=None,
+        standalone=False,
+    ):
+        """
+        TODO: docstrings.
+        """
+        output = drawing.draw_tikz(
+            self,
+            node_labels=node_labels,
+            tree_height_scale=tree_height_scale,
+            order=order,
+            aspect=aspect,
+            scale=scale,
+            style=style,
+            standalone=standalone,
+        )
+        if path is not None:
+            with open(path, "w") as f:
+                f.write(output)
+        return output
+
     def draw(
         self,
         path=None,

@@ -29,6 +29,8 @@ import logging
 import math
 import numbers
 import operator
+import string
+import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import List
@@ -94,7 +96,7 @@ def check_format(format):  # noqa A002
     if format is None:
         format = "SVG"  # noqa A001
     fmt = format.lower()
-    supported_formats = ["svg", "ascii", "unicode"]
+    supported_formats = ["svg", "ascii", "unicode", "tikz"]
     if fmt not in supported_formats:
         raise ValueError(
             "Unknown format '{}'. Supported formats are {}".format(
@@ -350,6 +352,29 @@ def draw_tree(
         )
         return tree.drawing.tostring()
 
+    elif fmt == "tikz":
+        if width is not None:
+            raise ValueError("Tikz trees do not support width")
+        if height is not None:
+            raise ValueError("Tikz trees do not support height")
+        if mutation_labels is not None:
+            raise ValueError("Tikz trees do not support mutation_labels")
+        if mutation_colours is not None:
+            raise ValueError("Tikz trees do not support mutation_colours")
+        if node_colours is not None:
+            raise ValueError("Tikz trees do not support node_colours")
+        if edge_colours is not None:
+            raise ValueError("Tikz trees do not support edge_colours")
+        if max_tree_height is not None:
+            raise ValueError("Tikz trees do not support max_tree_height")
+
+        return draw_tikz(
+            tree,
+            node_labels=node_labels,
+            tree_height_scale=tree_height_scale,
+            order=order,
+        )
+
     else:
         if width is not None:
             raise ValueError("Text trees do not support width")
@@ -376,6 +401,129 @@ def draw_tree(
             order=order,
         )
         return str(text_tree)
+
+
+def draw_tikz(
+    tree,
+    node_labels=None,
+    tree_height_scale=None,
+    order=None,
+    aspect=None,
+    scale=None,
+    style=None,
+    standalone=False,
+):
+    """
+    Return a string containing latex/tikz commands to draw a tskit.Tree.
+
+    Save the string to a file (e.g. tree.tex) and include it in your latex
+    document with ``\input{tree.tex}``.
+    """
+    if node_labels is None:
+        node_labels = {node: str(node) for node in tree.nodes()}
+    if tree_height_scale is None:
+        tree_height_scale = "rank"
+    if aspect is None:
+        aspect = 1
+    if style is None:
+        # We use a tex comment to avoid an empty line in the tikz options field
+        # (as that would be a syntax error).
+        style = "%"
+    order = check_order(order)
+
+    template = textwrap.dedent(
+        r"""
+        \begin{tikzpicture}[
+            scale=$scale,
+            edge/.style = {
+                draw=black,
+            },
+            node/.style = {
+                circle,
+                inner sep=0,
+            },
+            empty node/.style = {
+                node,
+                fill=black,
+                line width=0,  % border
+                % radius
+                minimum size=2,
+            },
+            % User customisation goes here.
+            $user_style_text
+        ]
+            \foreach \name/\x/\y/\text in {
+                $node_coords%
+            } {
+                \ifx\empty\text{
+                    \node[empty node] (\name) at (\x, \y) {};
+                }\else{
+                    \node[node] (\name) at (\x, \y) {\text};
+                }\fi
+            }
+            \foreach \child/\parent in {
+                $edges%
+            }
+                \path[edge] (\child) |- (\parent);
+        \end{tikzpicture}"""
+    )
+
+    root_time = tree.time(tree.root)
+    num_leaves = sum(1 for _ in tree.leaves())
+    leaf_x_inc = aspect / num_leaves
+    leaf_x = 0
+    edges = []
+    x_coords = dict()
+    y_coords = dict()
+    for node in tree.nodes(order=order):
+        if tree.is_leaf(node):
+            x = leaf_x
+            leaf_x += leaf_x_inc
+        else:
+            edges.extend([f"n{u}/n{node}" for u in tree.children(node)])
+            children_x = [x_coords[u] for u in tree.children(node)]
+            x = (children_x[0] + children_x[-1]) / 2
+        x_coords[node] = x
+        y_coords[node] = tree.time(node) / root_time
+
+    if tree_height_scale == "rank":
+        nodes = sorted(y_coords.keys(), key=y_coords.__getitem__)
+        y_coords = {
+            node: (i - num_leaves) / num_leaves if i > num_leaves else 0
+            for i, node in enumerate(nodes, 1)
+        }
+    elif tree_height_scale == "log_time":
+        y_coords = {node: math.log(1 + y) for node, y in y_coords.items()}
+    elif tree_height_scale != "time":
+        raise ValueError(f"unknown tree_height_scale={tree_height_scale}")
+
+    node_coords = []
+    for node in tree.nodes():
+        x = rnd(x_coords[node])
+        y = rnd(y_coords[node])
+        text = node_labels.get(node, "")
+        node_coords.append(f"n{node}/{x}/{y}/{text}")
+
+    if scale is None:
+        # XXX: this is a bad heuristic when using node labels on internal nodes
+        scale = 4 * math.log(num_leaves)
+
+    wrapper = textwrap.TextWrapper(subsequent_indent=" " * 8)
+
+    output = string.Template(template).substitute(
+        scale=scale,
+        node_coords=wrapper.fill(", ".join(node_coords)),
+        edges=wrapper.fill(", ".join(edges)),
+        user_style_text=style,
+    )
+
+    if standalone:
+        output = (
+            "\\documentclass[tikz,border=1mm]{standalone}\n"
+            "\\begin{document}\n" + output + "\n\\end{document}\n"
+        )
+
+    return output
 
 
 def add_class(attrs_dict, classes_str):
