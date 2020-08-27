@@ -5,6 +5,7 @@
 **Breaking changes**
 
 - The macro ``TSK_IMPUTE_MISSING_DATA`` is renamed to ``TSK_ISOLATED_NOT_MISSING``
+  (:user:`benjeffery`, :issue:`716`, :pr:`794`)  
 
 **New features**
 
