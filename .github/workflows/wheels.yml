@@ -169,11 +169,12 @@ jobs:
     strategy:
       matrix:
         python: [3.6, 3.7, 3.8]
+        wordsize: [64]
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
         with:
-          name: osx-wheel-${{ matrix.python }}
+          name: win-wheel-${{ matrix.python }}-${{ matrix.wordsize }}
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v2
         with:
