@@ -1752,7 +1752,10 @@ class Tree:
         """
         Returns an iterator over all the
         :ref:`mutations <sec_mutation_table_definition>` in this tree.
-        Mutations are returned in order of nondecreasing site ID.
+        Mutations are returned in their
+        :ref:`order in the mutations table<sec_mutation_requirements>`,
+        that is, by nondecreasing site ID, and within a site, by decreasing
+        mutation time with parent mutations before their children.
         See the :class:`Mutation` class for details on the available fields for
         each mutation.
 
