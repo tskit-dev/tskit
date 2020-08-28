@@ -645,8 +645,8 @@ class TestTreeSequence(HighLevelTestCase):
                 children[edge.parent].add(edge.child)
             while tree.interval[1] <= left:
                 tree = next(trees)
-            self.assertTrue(left >= tree.interval[0])
-            self.assertTrue(right <= tree.interval[1])
+            self.assertTrue(left >= tree.interval.left)
+            self.assertTrue(right <= tree.interval.right)
             for u in tree.nodes():
                 if tree.is_internal(u):
                     self.assertIn(u, children)
@@ -2361,6 +2361,14 @@ class TestTree(HighLevelTestCase):
                 self.assertTrue(tree.interval[0] <= j < tree.interval[1])
         for bad_position in [-1, L, L + 1, -L]:
             self.assertRaises(ValueError, tree.seek, bad_position)
+
+    def test_interval(self):
+        ts = msprime.simulate(10)
+        tree = ts.first()
+        self.assertEqual(tree.interval[0], 0)
+        self.assertEqual(tree.interval.left, 0)
+        self.assertEqual(tree.interval[1], 1)
+        self.assertEqual(tree.interval.right, 1)
 
     def verify_empty_tree(self, tree):
         ts = tree.tree_sequence

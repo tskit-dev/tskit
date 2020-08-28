@@ -58,6 +58,8 @@ CoalescenceRecord = collections.namedtuple(
     "CoalescenceRecord", ["left", "right", "node", "children", "time", "population"]
 )
 
+Interval = collections.namedtuple("Interval", ["left", "right"])
+
 
 # TODO this interface is rubbish. Should have much better printing options.
 # TODO we should be use __slots__ here probably.
@@ -810,8 +812,8 @@ class Tree:
         """
         Sets the state to represent the tree that covers the specified
         position in the parent tree sequence. After a successful return
-        of this method we have ``tree.interval[0]`` <= ``position``
-        < ``tree.interval[1]``.
+        of this method we have ``tree.interval.left`` <= ``position``
+        < ``tree.interval.right``.
 
         :param float position: The position along the sequence length to
             seek to.
@@ -824,7 +826,7 @@ class Tree:
         # No point in complicating the current implementation by trying
         # to seek from the correct direction.
         self.first()
-        while self.interval[1] <= position:
+        while self.interval.right <= position:
             self.next()
 
     def rank(self):
@@ -1336,12 +1338,13 @@ class Tree:
         tree therefore applies to all genomic locations :math:`x` such that
         :math:`l \\leq x < r`.
 
-        :return: A tuple (l, r) representing the left-most (inclusive)
+        :return: A named tuple (l, r) representing the left-most (inclusive)
             and right-most (exclusive) coordinates of the genomic region
-            covered by this tree.
+            covered by this tree. The coordinates can be accessed by index
+            (``0`` or ``1``) or equivalently by name (``.left`` or ``.right``)
         :rtype: tuple
         """
-        return self._ll_tree.get_left(), self._ll_tree.get_right()
+        return Interval(self._ll_tree.get_left(), self._ll_tree.get_right())
 
     def get_length(self):
         # Deprecated alias for self.span
@@ -3493,7 +3496,7 @@ class TreeSequence:
         for interval, edge_tuples_out, edge_tuples_in in iterator:
             edges_out = [Edge(*(e + (metadata_decoder,))) for e in edge_tuples_out]
             edges_in = [Edge(*(e + (metadata_decoder,))) for e in edge_tuples_in]
-            yield interval, edges_out, edges_in
+            yield Interval(*interval), edges_out, edges_in
 
     def sites(self):
         """
@@ -3554,7 +3557,7 @@ class TreeSequence:
         Returns the breakpoints along the chromosome, including the two extreme points
         0 and L. This is equivalent to
 
-        >>> iter([0] + [t.interval[1] for t in self.trees()])
+        >>> iter([0] + [t.interval.right for t in self.trees()])
 
         By default we return an iterator over the breakpoints as Python float objects;
         if ``as_array`` is True we return them as a numpy array.
@@ -3576,7 +3579,7 @@ class TreeSequence:
     def at(self, position):
         """
         Returns the tree covering the specified genomic location. The returned tree
-        will have ``tree.interval[0]`` <= ``position`` < ``tree.interval[1]``.
+        will have ``tree.interval.left`` <= ``position`` < ``tree.interval.right``.
         See also :meth:`Tree.seek`.
 
         :return: A new instance of :class:`Tree` positioned to cover the specified
@@ -4383,8 +4386,8 @@ class TreeSequence:
 
         s += "BEGIN TREES;\n"
         for tree in self.trees():
-            start_interval = "{0:.{1}f}".format(tree.interval[0], precision)
-            end_interval = "{0:.{1}f}".format(tree.interval[1], precision)
+            start_interval = "{0:.{1}f}".format(tree.interval.left, precision)
+            end_interval = "{0:.{1}f}".format(tree.interval.right, precision)
             newick = tree.newick(precision, node_labels=node_labels)
             s += f"\tTREE tree{start_interval}_{end_interval} = {newick}\n"
 
