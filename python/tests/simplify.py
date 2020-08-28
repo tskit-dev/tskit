@@ -249,7 +249,7 @@ class Simplifier:
     def map_mutations(self, left, right, input_id, output_id):
         """
         Map any mutations for the input node ID on the
-        interval to it's output ID.
+        interval to its output ID.
         """
         assert output_id != -1
         # TODO we should probably remove these as they are used.
