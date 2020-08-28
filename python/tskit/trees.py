@@ -2567,7 +2567,7 @@ def parse_mutations(
     instance. See the :ref:`mutation text format <sec_mutation_text_format>` section
     for the details of the required format and the
     :ref:`mutation table definition <sec_mutation_table_definition>` section for the
-    required properties of the contents. Note that if the ``time`` column is missing it's
+    required properties of the contents. Note that if the ``time`` column is missing its
     entries are filled with ``UNKNOWN_TIME``.
 
     See :func:`tskit.load_text` for a detailed explanation of the ``strict``
