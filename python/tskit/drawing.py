@@ -402,7 +402,6 @@ def draw_tree(
         )
         return str(text_tree)
 
-
 def draw_tikz(
     tree,
     node_labels=None,
@@ -412,6 +411,7 @@ def draw_tikz(
     scale=None,
     style=None,
     standalone=False,
+    to_terminal=False
 ):
     """
     Return a string containing latex/tikz commands to draw a tskit.Tree.
@@ -449,9 +449,20 @@ def draw_tikz(
                 % radius
                 minimum size=2,
             },
+            mutations/.style = {
+                circle,
+                inner sep=1.5,
+                fill=red,
+            },
+            mutationlabels/.style = {
+                    font=\scriptsize,
+                    anchor=east,
+                    color=red,
+            }
             % User customisation goes here.
             $user_style_text
         ]
+            % Nodes.
             \foreach \name/\x/\y/\text in {
                 $node_coords%
             } {
@@ -461,10 +472,20 @@ def draw_tikz(
                     \node[node] (\name) at (\x, \y) {\text};
                 }\fi
             }
+
+            % Edges.
             \foreach \child/\parent in {
                 $edges%
             }
                 \path[edge] (\child) |- (\parent);
+
+            % Mutations.
+            \foreach \name/\x/\y\text in {
+                $mutation_coords%
+            } {
+                \node[mutations] (\name) at (\x, \y) {};
+                \node[mutationlabels] at  (\x, \y) {\text};
+            }
         \end{tikzpicture}"""
     )
 
@@ -475,6 +496,7 @@ def draw_tikz(
     edges = []
     x_coords = dict()
     y_coords = dict()
+
     for node in tree.nodes(order=order):
         if tree.is_leaf(node):
             x = leaf_x
@@ -504,6 +526,25 @@ def draw_tikz(
         text = node_labels.get(node, "")
         node_coords.append(f"n{node}/{x}/{y}/{text}")
 
+    # Calculate the edge lengths.
+    edge_lengths = dict()
+    for node in tree.nodes():
+        p = tree.parent(node)
+        if p != -1:
+            edge_lengths[node] = y_coords[p] - y_coords[node]
+
+    # Calculate the mutation coordinates.
+    mutations_on_edges = [[] for _ in range(0, max(tree.roots))]
+    mutation_coords = []
+    for mut in tree.mutations():
+        mutations_on_edges[mut.node].append(mut.id)
+    for child, muts in enumerate(mutations_on_edges):
+        num_muts = len(muts)
+        for ind, mut in enumerate(muts):
+            x = rnd(x_coords[child])
+            y = rnd(y_coords[child] + ((ind + 1)/(num_muts + 1) * edge_lengths[child]))
+            mutation_coords.append(f"m{mut}/{x}/{y}/{mut}")
+
     if scale is None:
         # XXX: this is a bad heuristic when using node labels on internal nodes
         scale = 4 * math.log(num_leaves)
@@ -514,6 +555,7 @@ def draw_tikz(
         scale=scale,
         node_coords=wrapper.fill(", ".join(node_coords)),
         edges=wrapper.fill(", ".join(edges)),
+        mutation_coords=wrapper.fill(", ".join(mutation_coords)),
         user_style_text=style,
     )
 
@@ -522,6 +564,9 @@ def draw_tikz(
             "\\documentclass[tikz,border=1mm]{standalone}\n"
             "\\begin{document}\n" + output + "\n\\end{document}\n"
         )
+
+    if to_terminal:
+        print(output)
 
     return output
 
