@@ -28,6 +28,7 @@ import collections
 import functools
 import heapq
 import itertools
+import json
 
 import numpy as np
 
@@ -718,6 +719,202 @@ class RankTree:
         all_same_rank = len({c.shape_rank() for c in self.children}) == 1
 
         return even_split_leaves and all_same_rank
+
+
+def randomly_resolve_polytomy(parent, children, intermediate_nodes, rng):
+    """
+    Take a parent node id and the :math:`n` node ids of its direct childen, and return
+    a list of new [parent, child] relationships in which intermediate nodes have been
+    inserted. This list of relationships describes a bifurcating tree whose root is the
+    original parent node id and whose tips are the original children. The random
+    algorithm that determines the insertion of the intermediate nodes results in the
+    returned topology being chosen with equal probability from all possible bifurcating
+    topologies for a tree with :math:`n` leaves. This is acheived by building
+    up the tree from scratch by iterative addition of new edges.
+
+    :param int parent: A parent node id.
+    :param list children: A list of :math:`n` node ids specifying the immediate children
+        of ``parent``. This function is only of any use when :math:`n > 2` (i.e. the
+        ``parent`` node is a polytomy)
+    :param list intermediate_nodes: A list of :math:`n-2` time-ordered new node ids
+        which will appear as nodes "inserted" between the ``parent`` and ``children`` in
+        the returned list. In order to ensure that the returned order has parents
+        strictly older than their children, the ids should correspond to nodes that
+        have non-identical times and should be listed in descending time order (greatest
+        time first). Moreover, the time of the first intermediate node should be
+        younger than the time of the passed-in ``parent``, and the time of the last
+        intermediate node should be older than the oldest of the passed-in ``children``.
+    :param int numpy.random.Generator: A numpy random number generator object, e.g. as
+        returned by `np.random.default_rng(seed=...)`.
+
+    :returns: a list of pairs of [parent, child] integers, which define a tree structure.
+    :rtype: list
+    """
+    if len(children) != len(intermediate_nodes) + 2:
+        raise ValueError("There must be two more children than intermedate nodes")
+    # Polytomies broken by sequentially splicing onto edges, so an initial edge
+    # is required. This will always remain above the top node & is removed later
+    edges = [
+        [None, children[0]],
+    ]
+    # We know beforehand how many random ints are needed: generate them all now
+    edge_choice = rng.integers(0, np.arange(1, len(children) * 2 - 1, 2))
+    tmp_lab = [parent] + intermediate_nodes
+    assert len(edge_choice) == len(children) - 1
+    for node_lab, child_id, target_edge_id in zip(tmp_lab, children[1:], edge_choice):
+        target_edge = edges[target_edge_id]
+        # Insert in the right place, to keep edges in parent time order
+        edges.insert(target_edge_id, [node_lab, child_id])
+        edges.insert(target_edge_id, [node_lab, target_edge[1]])
+        target_edge[1] = node_lab
+    top_edge = edges.pop()  # remove the edge above the top node
+    assert top_edge[0] is None
+
+    # Re-map the internal nodes IDs so they are used in time order
+    real_node = iter(intermediate_nodes)
+    node_map = {c: c for c in children}
+    node_map[edges[-1][0]] = parent  # last edge == oldest parent
+    for e in reversed(edges):
+        # Reversing along the edges, parents are in inverse time order
+        for idx in (0, 1):  # look at parent (0) then child (1)
+            if e[idx] not in node_map:
+                node_map[e[idx]] = next(real_node)
+            e[idx] = node_map[e[idx]]
+    assert len(node_map) == len(intermediate_nodes) + len(children) + 1
+    return edges
+
+
+def split_polytomies(
+    ts,
+    *,
+    epsilon=None,
+    method=None,
+    record_provenance=True,
+    random_seed=None,
+):
+    """
+    Return a new tree sequence where extra nodes and edges have been inserted
+    so that any any node ``u`` with greater than 2 children (i.e. a multifurcation
+    or "polytomy") is resolved into successive bifurcations. Where ``method`` is
+    "random" the newly generated bifurcating topologies will be produced equiprobably,
+    by successive addition of edges to an initially empty list.
+
+    For further documentation, please refer to the :meth:`TreeSequence.split_polytomies`
+    method, which is the usual route through which this function is called.
+    """
+    allowed_methods = ["random"]
+    if epsilon is None:
+        epsilon = 1e-10
+    if method is None:
+        method = "random"
+    if method not in allowed_methods:
+        raise ValueError(f"Method must be chosen from {allowed_methods}")
+    rng = np.random.default_rng(seed=random_seed)
+    tables = ts.dump_tables()
+    # Store existing table data before clearing
+    old_edges_left = tables.edges.left.copy()  # Will be changed if the edge is split
+    old_edges_right = tables.edges.right.copy()  # Read only copy for efficiency
+    old_edges_parent = tables.edges.parent.copy()  # Read only copy for efficiency
+    old_edges_child = tables.edges.child.copy()  # Read only copy for efficiency
+    node_time = tables.nodes.time
+    tables.edges.clear()
+
+    edges_from_node = collections.defaultdict(set)  # Active descendant edge ids
+    nodes_changed = set()
+
+    for interval, e_out, e_in in ts.edge_diffs(include_terminal=True):
+        for edge in itertools.chain(e_out, e_in):
+            nodes_changed.add(edge.parent)
+        pos = interval[0]
+        for parent in nodes_changed:
+            if len(edges_from_node[parent]) >= 3:
+                child_edges = list(edges_from_node[parent])
+                # We have a previous polytomy to break
+                parent_time = node_time[parent]
+                children = old_edges_child[child_edges]
+                max_child_time = np.max(node_time[children])
+                if epsilon > (parent_time - max_child_time) / (len(children) - 1):
+                    min_val = (parent_time - max_child_time) / (len(children) - 1)
+                    raise ValueError(
+                        f"Epsilon={epsilon} not small enough to create new nodes under "
+                        f"node {parent} just before pos {pos}: must be < {min_val}."
+                    )
+                left = old_edges_left[child_edges[0]]
+                assert np.all(old_edges_left[child_edges] == left)
+                # Split previous edges
+                for edge_id in child_edges:
+                    if old_edges_right[edge_id] > interval[0]:
+                        # make sure we carry on the edge after this polytomy
+                        old_edges_left[edge_id] = pos
+                # Break this N-degree polytomy. This requires N-2 extra nodes to be
+                # introduced: create them here in order of decreasing time
+                new_nodes = [
+                    tables.nodes.add_row(time=parent_time - (i * epsilon))
+                    for i in range(1, len(children) - 1)
+                ]
+                for new_parent, new_child in randomly_resolve_polytomy(
+                    parent, children, new_nodes, rng
+                ):
+                    tables.edges.add_row(
+                        left=left, right=pos, parent=new_parent, child=new_child
+                    )
+            else:
+                # Previous node was not a polytomy - just add the edges_out
+                for edge_id in edges_from_node[parent]:
+                    if old_edges_right[edge_id] == pos:  # is an out edge
+                        tables.edges.add_row(
+                            left=old_edges_left[edge_id],
+                            right=pos,
+                            parent=parent,
+                            child=old_edges_child[edge_id],
+                        )
+
+        for edge in e_out:
+            edges_from_node[edge.parent].remove(edge.id)
+        for edge in e_in:
+            edges_from_node[edge.parent].add(edge.id)
+
+        # Chop if we have created a polytomy: the polytomy itself will be resolved
+        # at a future iteration, when any edges move into or out of the polytomy
+        while len(nodes_changed) > 0:
+            node = nodes_changed.pop()
+            edge_ids = edges_from_node[node]
+            if len(edge_ids) == 0:
+                del edges_from_node[node]
+            # if this node has changed *to* a polytomy, we need to cut all of the
+            # child edges that were previously present by adding the previous
+            # segment and left-truncating
+            elif len(edge_ids) >= 3:
+                for edge_id in edge_ids:
+                    if old_edges_left[edge_id] < interval[0]:
+                        tables.edges.add_row(
+                            left=old_edges_left[edge_id],
+                            right=interval[0],
+                            parent=old_edges_parent[edge_id],
+                            child=old_edges_child[edge_id],
+                        )
+                    old_edges_left[edge_id] = interval[0]
+    assert len(edges_from_node) == 0
+    tables.sort()
+    tables.edges.squash()
+    tables.sort()  # Must re-sort, see https://github.com/tskit-dev/tskit/issues/808
+
+    if record_provenance:
+        parameters = {"command": "split_polytomies"}
+        tables.provenances.add_row(
+            record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
+        )
+    try:
+        return tables.tree_sequence()
+    except tskit.LibraryError as e:
+        if str(e).startswith(
+            "A mutation's time must be < the parent node of the edge on which it occurs"
+        ):
+            e.args += (
+                f"Epsilon={epsilon} not small enough to create new nodes below a "
+                "polytomy, due to the time of a mutation above a child of the polytomy.",
+            )
+        raise e
 
 
 # TODO This is called repeatedly in ranking and unranking and has a perfect

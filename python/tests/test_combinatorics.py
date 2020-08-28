@@ -976,3 +976,38 @@ class TestCountTopologies:
         ts = tables.tree_sequence()
         samples = ts.samples()
         self.verify_topologies(ts, sample_sets=[samples[:10], samples[10:]])
+
+
+class TestPolytomySplitting:
+    rng = np.random.default_rng(seed=123)
+
+    def test_randomly_resolve_polytomy(self):
+        relations = comb.randomly_resolve_polytomy(4, [0, 1, 2, 3], [5, 6], self.rng)
+        assert len(relations) == 6
+        parents = [r[0] for r in relations]
+        children = [r[1] for r in relations]
+        assert set(parents) == set(range(4, 7))
+        assert set(children) == set(range(0, 7)) - {4}
+        # all internal nodes (including the root) are parents twice only
+        for internal_node in [4, 5, 6]:
+            assert parents.count(internal_node) == 2
+        # all nodes except root are children once only
+        for child_node in [0, 1, 2, 3, 5, 6]:
+            assert children.count(child_node) == 1
+
+    def test_noop(self):
+        relations = comb.randomly_resolve_polytomy(2, [0, 1], [], self.rng)
+        assert {tuple(r) for r in relations} == {(2, 0), (2, 1)}
+
+    def test_bad_intermediate_nodes(self):
+        for bad in ["Hi", None]:
+            with pytest.raises(TypeError):
+                comb.randomly_resolve_polytomy(4, [0, 1, 2, 3], bad, self.rng)
+
+    def test_too_many_intermediate_nodes(self):
+        with pytest.raises(ValueError):
+            comb.randomly_resolve_polytomy(4, [0, 1, 2, 3], [5, 6, 7], self.rng)
+
+    def test_too_few_intermediate_nodes(self):
+        with pytest.raises(ValueError):
+            comb.randomly_resolve_polytomy(4, [0, 1, 2, 3], [5], self.rng)
