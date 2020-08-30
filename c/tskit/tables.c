@@ -8405,7 +8405,11 @@ tsk_table_collection_add_and_remap_node(tsk_table_collection_t *self,
     new_ind = TSK_NULL;
     if (node.individual != TSK_NULL) {
         if (individual_map[node.individual] == TSK_NULL) {
-            tsk_individual_table_get_row(&other->individuals, node.individual, &ind);
+            ret = tsk_individual_table_get_row(
+                &other->individuals, node.individual, &ind);
+            if (ret < 0) {
+                goto out;
+            }
             ret = tsk_individual_table_add_row(&self->individuals, ind.flags,
                 ind.location, ind.location_length, ind.metadata, ind.metadata_length);
             if (ret < 0) {
@@ -8422,7 +8426,11 @@ tsk_table_collection_add_and_remap_node(tsk_table_collection_t *self,
             population_map[node.population] = node.population;
         }
         if (population_map[node.population] == TSK_NULL) {
-            tsk_population_table_get_row(&other->populations, node.population, &pop);
+            ret = tsk_population_table_get_row(
+                &other->populations, node.population, &pop);
+            if (ret < 0) {
+                goto out;
+            }
             ret = tsk_population_table_add_row(
                 &self->populations, pop.metadata, pop.metadata_length);
             if (ret < 0) {
