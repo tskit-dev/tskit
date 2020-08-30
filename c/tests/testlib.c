@@ -24,6 +24,9 @@
 
 #include "testlib.h"
 
+char *_tmp_file_name;
+FILE *_devnull;
+
 /* Simple single tree example. */
 const char *single_tree_ex_nodes = /*          6          */
     "1  0   -1   -1\n"             /*         / \         */
