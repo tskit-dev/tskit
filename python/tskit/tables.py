@@ -103,7 +103,7 @@ class SiteTableRow:
     metadata: bytes
 
 
-@attr.s(**attr_options)
+@attr.s(eq=False, **attr_options)
 class MutationTableRow:
     site: int
     node: int
@@ -111,6 +111,22 @@ class MutationTableRow:
     parent: int
     metadata: bytes
     time: float
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, MutationTableRow)
+            and self.site == other.site
+            and self.node == other.node
+            and self.derived_state == other.derived_state
+            and self.parent == other.parent
+            and self.metadata == other.metadata
+            and (
+                self.time == other.time
+                or (
+                    util.is_unknown_time(self.time) and util.is_unknown_time(other.time)
+                )
+            )
+        )
 
 
 @attr.s(**attr_options)

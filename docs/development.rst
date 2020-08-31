@@ -197,7 +197,9 @@ To include the changes that the hooks made, ``git add`` any
 files that were modified and run ``git commit`` (or, use ``git commit -a``
 to commit all changed files.)
 
-If you would like to run the checks without committing, use ``pre-commit run``.
+If you would like to run the checks without committing, use ``pre-commit run``
+(but, note that this will *only* check changes that have been *staged*;
+do ``pre-commit run --all`` to check unstaged changes as well).
 To bypass the checks (to save or get feedback on work-in-progress) use
 ``git commit --no-verify``
 
