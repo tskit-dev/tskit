@@ -36,8 +36,8 @@
 
 /* Global variables used in the test suite */
 
-char *_tmp_file_name;
-FILE *_devnull;
+extern char *_tmp_file_name;
+extern FILE *_devnull;
 
 int test_main(CU_TestInfo *tests, int argc, char **argv);
 
