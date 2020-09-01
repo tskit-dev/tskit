@@ -3223,24 +3223,27 @@ class TestSimplifyExamples(TopologyTestCase):
             keep_input_roots=True,
         )
 
-    def test_map_mutations_with_and_without_roots(self):
+    def test_place_mutations_with_and_without_roots(self):
         nodes_before = """\
         id      is_sample   time
         0       1           0
         1       0           1
+        2       0           2
         """
         edges_before = """\
         left    right   parent  child
         0       2       1       0
+        0       2       2       1
         """
         sites = """\
         id  position    ancestral_state
         0   1.0         0
         """
         mutations_before = """\
-        site    node    derived_state
-        0       0       2
-        0       1       1
+        site    node    derived_state time
+        0       0       2             0
+        0       1       1             1
+        0       2       3             2
         """
         # expected result without keep_input_roots
         nodes_after = """\
@@ -3251,20 +3254,26 @@ class TestSimplifyExamples(TopologyTestCase):
         left    right   parent  child
         """
         mutations_after = """\
-        site    node    derived_state
-        0       0       2
-        0       0       1
+        site    node    derived_state time
+        0       0       2             0
+        0       0       1             1
+        0       0       3             2
         """
         # expected result with keep_input_roots
-        nodes_after_keep = nodes_before
+        nodes_after_keep = """\
+        id      is_sample   time
+        0       1           0
+        1       0           2
+        """
         edges_after_keep = """\
         left    right   parent  child
         0       2       1       0
         """
         mutations_after_keep = """\
-        site    node    derived_state
-        0       0       2
-        0       0       1
+        site    node    derived_state time
+        0       0       2             0
+        0       0       1             1
+        0       1       3             2
         """
         self.verify_simplify(
             samples=[0],
@@ -5737,7 +5746,8 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                     self.assertEqual(tree_with_roots.children(root), (mrca,))
 
                     # Any mutations that were on the path from the old MRCA
-                    # to the root should be mapped to this node.
+                    # to the root should be mapped to this node, and any mutations
+                    # above the root should still be there.
                     u = new_to_input_map[mrca]
                     root_path = []
                     while u != tskit.NULL:
@@ -5767,8 +5777,11 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                         input_site = input_sites[position]
                         for input_mutation in input_site.mutations:
                             if input_mutation.node in root_path:
-                                # The same mutation should exist and be mapped to the
-                                # mrca
+                                new_node = (
+                                    mrca if input_mutation.node != input_root else root
+                                )
+                                # The same mutation should exist and be mapped to
+                                # new_node
                                 new_mutation = new_mutations[input_mutation.metadata]
                                 # We have turned filter sites off, so sites should
                                 # be comparable
@@ -5777,7 +5790,8 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                                     new_mutation.derived_state,
                                     input_mutation.derived_state,
                                 )
-                                self.assertEqual(new_mutation.node, mrca)
+                                self.assertEqual(new_mutation.node, new_node)
+
         return ts_with_roots
 
     def test_many_trees(self):
