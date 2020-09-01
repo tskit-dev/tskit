@@ -482,7 +482,7 @@ class Simplifier:
                 while x is not None:
                     if x.node != output_id:
                         self.record_edge(x.left, x.right, output_id, x.node)
-                        self.map_mutations(x.left, x.right, input_id, x.node)
+                        self.map_mutations(x.left, x.right, input_id, output_id)
                     x = x.next
                 self.flush_edges()
                 root_time = self.tables.nodes.time[output_id]

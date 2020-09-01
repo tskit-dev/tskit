@@ -111,27 +111,26 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
     for tree in ts.trees():
         site = tables.sites.add_row(position=tree.interval[0], ancestral_state="0")
         for root in tree.roots:
-            state = {root: 0}
-            mutation = {root: -1}
+            state = {tskit.NULL: 0}
+            mutation = {tskit.NULL: -1}
             stack = [root]
             while len(stack) > 0:
                 u = stack.pop()
                 stack.extend(tree.children(u))
                 v = tree.parent(u)
-                if v != tskit.NULL:
-                    state[u] = state[v]
-                    parent = mutation[v]
-                    for _ in range(mutations_per_branch):
-                        state[u] = (state[u] + 1) % 2
-                        metadata = f"{len(tables.mutations)}".encode()
-                        mutation[u] = tables.mutations.add_row(
-                            site=site,
-                            node=u,
-                            derived_state=str(state[u]),
-                            parent=parent,
-                            metadata=metadata,
-                        )
-                        parent = mutation[u]
+                state[u] = state[v]
+                parent = mutation[v]
+                for _ in range(mutations_per_branch):
+                    state[u] = (state[u] + 1) % 2
+                    metadata = f"{len(tables.mutations)}".encode()
+                    mutation[u] = tables.mutations.add_row(
+                        site=site,
+                        node=u,
+                        derived_state=str(state[u]),
+                        parent=parent,
+                        metadata=metadata,
+                    )
+                    parent = mutation[u]
     add_provenance(tables.provenances, "insert_branch_mutations")
     return tables.tree_sequence()
 
