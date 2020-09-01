@@ -1,4 +1,4 @@
-attrs==19.3.0
+attrs==20.1.0
 autodocsumm==0.1.13
 biopython==1.77
 black==20.8b1
