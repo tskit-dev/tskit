@@ -857,6 +857,57 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
         self.assertEqual(list(t[0].location), [0])
         self.assertEqual(list(t[1].location), [1, 2, 3])
 
+    def test_missing_time_equal_to_self(self):
+        t = tskit.TableCollection(sequence_length=10)
+        t.sites.add_row(position=1, ancestral_state="0")
+        t.mutations.add_row(site=0, node=0, derived_state="1", time=tskit.UNKNOWN_TIME)
+        self.assertEqual(t.mutations[0], t.mutations[0])
+
+    def test_various_not_equals(self):
+        args = {
+            "site": 0,
+            "node": 0,
+            "derived_state": "a",
+            "parent": 0,
+            "metadata": b"abc",
+            "time": 0,
+        }
+        a = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, [])
+        self.assertNotEqual(a, 12)
+        self.assertNotEqual(a, None)
+        b = tskit.MutationTableRow(**args)
+        self.assertEqual(a, b)
+        args["site"] = 2
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        args["site"] = 0
+        args["node"] = 2
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        args["node"] = 0
+        args["derived_state"] = "b"
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        args["derived_state"] = "a"
+        args["parent"] = 2
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        args["parent"] = 0
+        args["metadata"] = b""
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        args["metadata"] = b"abc"
+        args["time"] = 1
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        args["time"] = 0
+        args["time"] = tskit.UNKNOWN_TIME
+        b = tskit.MutationTableRow(**args)
+        self.assertNotEqual(a, b)
+        a = tskit.MutationTableRow(**args)
+        self.assertEqual(a, b)
+
 
 class TestNodeTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin):
 
@@ -1061,9 +1112,17 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
         t = tskit.MutationTable()
         t.add_row(site=0, node=1, derived_state="2", parent=3, metadata=b"4", time=5)
         t.add_row(1, 2, "3", 4, b"\xf0", 6)
+        t.add_row(
+            site=0,
+            node=1,
+            derived_state="2",
+            parent=3,
+            metadata=b"4",
+            time=tskit.UNKNOWN_TIME,
+        )
         s = str(t)
         self.assertGreater(len(s), 0)
-        self.assertEqual(len(t), 2)
+        self.assertEqual(len(t), 3)
         self.assertEqual(attr.astuple(t[0]), (0, 1, "2", 3, b"4", 5))
         self.assertEqual(attr.astuple(t[1]), (1, 2, "3", 4, b"\xf0", 6))
         self.assertEqual(t[0].site, 0)
@@ -1072,9 +1131,10 @@ class TestMutationTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixin)
         self.assertEqual(t[0].parent, 3)
         self.assertEqual(t[0].metadata, b"4")
         self.assertEqual(t[0].time, 5)
-        self.assertEqual(t[0], t[-2])
-        self.assertEqual(t[1], t[-1])
-        self.assertRaises(IndexError, t.__getitem__, -3)
+        self.assertEqual(t[0], t[-3])
+        self.assertEqual(t[1], t[-2])
+        self.assertEqual(t[2], t[-1])
+        self.assertRaises(IndexError, t.__getitem__, -4)
 
     def test_add_row_bad_data(self):
         t = tskit.MutationTable()
