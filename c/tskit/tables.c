@@ -5688,7 +5688,7 @@ out:
     return ret;
 }
 
-static void
+void
 ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
 {
     size_t j, k, ind;
@@ -5833,8 +5833,6 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
     }
 
 out:
-    printf("\nFINAL STATE:\n");
-    ibd_finder_print_state(self, stdout);
     return ret;
 }
 

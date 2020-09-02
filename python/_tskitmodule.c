@@ -6636,6 +6636,134 @@ out:
 }
 
 static PyObject *
+convert_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t *samples,
+        tsk_size_t num_samples)
+{
+    PyObject *ret = NULL;
+    PyObject *key = NULL;
+    PyObject *value = NULL;
+    PyArrayObject *left_array = NULL;
+    PyArrayObject *right_array = NULL;
+    PyArrayObject *node_array = NULL;
+    double *left, *right;
+    tsk_id_t *node;
+    tsk_size_t j, k, ind, seg_index;
+    tsk_segment_t *u;
+    PyObject *pair_dict = PyDict_New();
+    npy_intp num_segments;
+
+    if (pair_dict == NULL) {
+        goto out;
+    }
+    /* When we're working with the pair indexes, this will be simplified
+     * because we can just iterate from 0 to num_pairs and call
+     * tsk_ibd_finder_get_ibd_segments for each index. We'll probably
+     * pass the samples array to this function to make pulling out the
+     * samples a bit easier, but we could also add a method to tsk_ibd_finder
+     * to get the samples for a given index. */
+
+    ind = 0;
+    for (j = 0; j < num_samples - 1; j++) {
+        for (k = j + 1; k < num_samples; k++) {
+            /* For each pair we return an array of left, right, node values */
+            num_segments = 0;
+            for (u = ibd_finder->ibd_segments_head[ind]; u != NULL; u = u->next) {
+                num_segments++;
+            }
+            left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+            right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+            node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
+            if (left_array == NULL || right_array == NULL || node_array == NULL) {
+                goto out;
+            }
+            left = (double *) PyArray_DATA(left_array);
+            right = (double *) PyArray_DATA(right_array);
+            node = (tsk_id_t *) PyArray_DATA(node_array);
+            seg_index = 0;
+            for (u = ibd_finder->ibd_segments_head[ind]; u != NULL; u = u->next) {
+                left[seg_index] = u->left;
+                right[seg_index] = u->right;
+                node[seg_index] = u->node;
+                seg_index++;
+            }
+            key = Py_BuildValue("(ii)", samples[j], samples[k]);
+            value = Py_BuildValue("{s:O,s:O,s:O}",
+                "left", left_array, "right", right_array, "node", node_array);
+            if (key == NULL || value == NULL) {
+                goto out;
+            }
+            if (PyDict_SetItem(pair_dict, key, value) != 0) {
+                goto out;
+            }
+            Py_DECREF(key);
+            Py_DECREF(value);
+            Py_DECREF(left_array);
+            Py_DECREF(right_array);
+            Py_DECREF(node_array);
+            key = NULL;
+            value = NULL;
+            left_array = NULL;
+            right_array = NULL;
+            node_array = NULL;
+            ind++;
+        }
+    }
+
+    ret = pair_dict;
+    pair_dict = NULL;
+out:
+    Py_XDECREF(key);
+    Py_XDECREF(value);
+    Py_XDECREF(left_array);
+    Py_XDECREF(right_array);
+    Py_XDECREF(node_array);
+    Py_XDECREF(pair_dict);
+    return ret;
+}
+
+static PyObject *
+TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    tsk_ibd_finder_t ibd_finder;
+    PyObject *samples;
+    PyArrayObject *samples_array = NULL;
+    double min_length = 0;
+    double max_time = DBL_MAX;
+    npy_intp *shape;
+    static char *kwlist[] = {"samples", "min_length", "max_time", NULL};
+
+    memset(&ibd_finder, 0, sizeof(ibd_finder));
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|dd", kwlist, &samples,
+                &min_length, &max_time)) {
+        goto out;
+    }
+    /* NOTE: This will be a 2D array when we read in the pairs explicity */
+    samples_array = (PyArrayObject *) PyArray_FROMANY(samples, NPY_INT32,
+            1, 1, NPY_ARRAY_IN_ARRAY);
+    if (samples_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(samples_array);
+
+    err = tsk_ibd_finder_init_and_run(&ibd_finder, self->tables,
+            self->tables->sequence_length,
+            PyArray_DATA(samples_array), (tsk_size_t) shape[0],
+            min_length, max_time);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = convert_ibd_segments(&ibd_finder, PyArray_DATA(samples_array),
+            (tsk_size_t) shape[0]);
+out:
+    Py_XDECREF(samples_array);
+    tsk_ibd_finder_free(&ibd_finder);
+    return ret;
+}
+
+static PyObject *
 TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
@@ -6790,11 +6918,14 @@ static PyMethodDef TableCollection_methods[] = {
     {"link_ancestors", (PyCFunction) TableCollection_link_ancestors,
         METH_VARARGS|METH_KEYWORDS,
         "Returns an edge table linking samples to a set of specified ancestors." },
-    // IBD: add an entry for find_ibd here.
     {"subset", (PyCFunction) TableCollection_subset, METH_VARARGS,
         "Subsets the table collection to a set of nodes." },
     {"union", (PyCFunction) TableCollection_union, METH_VARARGS|METH_KEYWORDS,
-        "Adds to this table collection the portions of another table collection that are not shared with this one." },
+        "Adds to this table collection the portions of another table collection "
+        "that are not shared with this one." },
+    {"find_ibd", (PyCFunction) TableCollection_find_ibd,
+        METH_VARARGS|METH_KEYWORDS,
+        "Returns IBD segments for the specified sample pairs."},
     {"sort", (PyCFunction) TableCollection_sort, METH_VARARGS|METH_KEYWORDS,
         "Sorts the tables to satisfy tree sequence requirements." },
     {"equals", (PyCFunction) TableCollection_equals, METH_VARARGS,

@@ -2797,3 +2797,8 @@ class TableCollection:
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
+
+    # TODO fixup the interface here. Just putting this in as the bare-bones
+    # needed to hook in with the low-level code.
+    def find_ibd(self, samples):
+        return self.ll_tables.find_ibd(samples)

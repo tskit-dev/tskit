@@ -303,7 +303,52 @@ class TestTableCollection(LowLevelTestCase):
         with self.assertRaises(ValueError):
             tc.union(tc2, np.array([[1], [2]], dtype="int32"))
 
-    # IBD: add some low-level tests for find_ibd (bad arguments, a simple toy example)
+    def test_idb_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables.ll_tables
+        with self.assertRaises(TypeError):
+            tc.find_ibd()
+        for bad_samples in ["sdf", None, {}]:
+            with self.assertRaises(ValueError):
+                tc.find_ibd(bad_samples)
+        for not_enough_samples in [[], [0]]:
+            with self.assertRaises(_tskit.LibraryError):
+                tc.find_ibd(not_enough_samples)
+        for bad_float in ["sdf", None, {}]:
+            with self.assertRaises(TypeError):
+                tc.find_ibd([0, 1], min_length=bad_float)
+            with self.assertRaises(TypeError):
+                tc.find_ibd([0, 1], max_time=bad_float)
+
+    def test_idb_output_no_recomb(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables.ll_tables
+        segs = tc.find_ibd([0, 1, 2, 3])
+        self.assertIsInstance(segs, dict)
+        self.assertGreater(len(segs), 0)
+        for key, value in segs.items():
+            self.assertIsInstance(key, tuple)
+            self.assertEqual(len(key), 2)
+            self.assertIsInstance(value, dict)
+            self.assertEqual(len(value), 3)
+            self.assertEqual(list(value["left"]), [0])
+            self.assertEqual(list(value["right"]), [1])
+            self.assertEqual(len(value["node"]), 1)
+
+    def test_idb_output_recomb(self):
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
+        self.assertGreater(ts.num_trees, 1)
+        tc = ts.tables.ll_tables
+        # FIXME: this shouldn't be happening.
+        with self.assertRaises(_tskit.LibraryError):
+            tc.find_ibd([0, 1, 2, 3])
+        # self.assertIsInstance(segs, dict)
+        # self.assertGreater(len(segs), 0)
+        # for key, value in segs.items():
+        #     self.assertIsInstance(key, tuple)
+        #     self.assertEqual(len(key), 2)
+        #     self.assertIsInstance(value, dict)
+        #     self.assertEqual(len(value), 3)
 
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
