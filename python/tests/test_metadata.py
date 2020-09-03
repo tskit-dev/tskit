@@ -1772,11 +1772,11 @@ class TestTableCollectionEquality(unittest.TestCase):
             additionalProperties=False,
         )
         # Set with low-level to emulate loading.
-        tables.ll_tables.metadata_schema = json.dumps(schema)
+        tables._ll_tables.metadata_schema = json.dumps(schema)
         self.assertNotEqual(
-            tables.ll_tables.metadata_schema, tskit.canonical_json(schema),
+            tables._ll_tables.metadata_schema, tskit.canonical_json(schema),
         )
         tables.metadata_schema = tables.metadata_schema
         self.assertEqual(
-            tables.ll_tables.metadata_schema, tskit.canonical_json(schema),
+            tables._ll_tables.metadata_schema, tskit.canonical_json(schema),
         )
