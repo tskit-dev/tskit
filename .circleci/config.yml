@@ -43,7 +43,6 @@ jobs:
           command: |
             pre-commit run --all-files --show-diff-on-failure
 
-
       - run:
           name: Compile C with gcc
           command: |
