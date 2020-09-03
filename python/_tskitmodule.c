@@ -6547,9 +6547,6 @@ out:
     return ret;
 }
 
-// IBD: add entry for find_ibd as a method of the TableCollection Python class.
-// Will also need to add a way to convert C struct array to a comparable Python object...
-
 static PyObject *
 TableCollection_subset(TableCollection *self, PyObject *args)
 {
@@ -6741,14 +6738,13 @@ TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     /* NOTE: This will be a 2D array when we read in the pairs explicity */
     samples_array = (PyArrayObject *) PyArray_FROMANY(samples, NPY_INT32,
-            1, 1, NPY_ARRAY_IN_ARRAY);
+            2, 2, NPY_ARRAY_IN_ARRAY);
     if (samples_array == NULL) {
         goto out;
     }
     shape = PyArray_DIMS(samples_array);
 
     err = tsk_ibd_finder_init_and_run(&ibd_finder, self->tables,
-            self->tables->sequence_length,
             PyArray_DATA(samples_array), (tsk_size_t) shape[0],
             min_length, max_time);
     if (err != 0) {

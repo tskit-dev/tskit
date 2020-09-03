@@ -700,14 +700,11 @@ typedef struct _tsk_segment_t {
 // Define a struct called ibd_finder_t.
 
 typedef struct {
-    tsk_id_t *samples;
-    size_t num_samples;
+    tsk_id_t *pairs;
+    size_t num_pairs;
     size_t num_nodes;
     double sequence_length;
     tsk_table_collection_t *tables;
-    size_t num_pairs;
-    int pair_index;
-    size_t *sample_id_map;
     tsk_segment_t **ibd_segments_head;
     tsk_segment_t **ibd_segments_tail;
     tsk_blkalloc_t segment_heap;
@@ -2767,47 +2764,17 @@ int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *
     tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,
     tsk_flags_t options, tsk_edge_table_t *result);
 
-/* This is the current IBD C interface */
+/* The current IBD C interface */
 int tsk_ibd_finder_free(tsk_ibd_finder_t *self);
 int tsk_ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder,
-    tsk_table_collection_t *tables, double sequence_length, tsk_id_t *samples,
-    tsk_size_t num_samples, double min_length, double max_time);
+    tsk_table_collection_t *tables, tsk_id_t *samples, tsk_size_t num_samples,
+    double min_length, double max_time);
 int tsk_ibd_finder_run(tsk_ibd_finder_t *ibd_finder);
-int tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent);
 void ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out);
-
-/* JK Here's the interface we want:
-
-// sample_pairs must be of length 2 x num_sample_pairs, and each of the
-// pairs are adjacent. This corresponds exactly to what we'll get from
-// PyArray_DATA() on a 2D numpy array.
-int tsk_ibd_finder_init(tsk_ibd_finder_t *ibd_finder,
-    tsk_table_collection_t *tables, tsk_id_t *sample_pairs,
-    tsk_size_t num_sample_pairs);
-
-// since this will often be set to a default value, we use a setter
-// rather then complicating the contructor. Should return an error if
-// min_length < 0.
 int tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length);
-
-// similar to min_length
 int tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time);
-
-// debugging utility.
-void ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out);
-
-// run it.
-int tsk_ibd_finder_run(tsk_ibd_finder_t *ibd_finder);
-// free it
-int tsk_ibd_finder_free(tsk_ibd_finder_t *ibd_finder);
-
-// Return the head of the IBD segment chain for the sample pair at the
-// specified index in the input sample pairs. Returns an error if this
-// is out of bounds.
-int tsk_ibd_finder_get_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t
-    pair_index, tsk_segment_t *ret_ibd_segments_head);
-
-*/
+int tsk_ibd_finder_get_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t pair_index,
+    tsk_segment_t **ret_ibd_segments_head);
 
 int tsk_table_collection_deduplicate_sites(
     tsk_table_collection_t *tables, tsk_flags_t options);
