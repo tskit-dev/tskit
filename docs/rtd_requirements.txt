@@ -1,9 +1,9 @@
-autodocsumm
+autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 numpy
 svgwrite
 jsonschema
 h5py
-breathe==4.14.2 #Pinned as next version needs sphinx 3 (see below)
-sphinx==2.4.4 #Pinned as breathe v3 compatibility is rough for now.
+breathe
+sphinx
 sphinx-issues
 sphinx-argparse

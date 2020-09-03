@@ -44,7 +44,7 @@ if read_the_docs_build:
 # -- Project information -----------------------------------------------------
 
 project = "tskit"
-copyright = "2018-2019, Tskit developers"  # noqa: A001
+copyright = "2018-2020, Tskit developers"  # noqa: A001
 author = "Tskit developers"
 
 
@@ -306,6 +306,7 @@ nitpick_ignore = [
     ("c:type", "int32_t"),
     ("c:type", "uint32_t"),
     ("c:type", "bool"),
+    ("py:class", "tskit.metadata.AbstractMetadataCodec"),
     # TODO these have been triaged here to make the docs compile, but we should
     # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
     ("py:class", "array_like"),

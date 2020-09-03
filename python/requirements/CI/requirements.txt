@@ -2,7 +2,7 @@ attrs==20.1.0
 autodocsumm==0.1.13
 biopython==1.77
 black==20.8b1
-breathe==4.14.2
+breathe==4.20.0
 codecov==2.1.9
 coverage==5.2.1
 flake8==3.8.3
@@ -21,7 +21,7 @@ pyparsing==2.4.7
 pysam==0.16.0.1
 python-jsonschema-objects==0.3.12
 PyVCF==0.6.8
-sphinx==2.4.4
+sphinx==3.2.1
 sphinx-argparse==0.2.5
 sphinx-issues==1.2.0
 sphinx_rtd_theme==0.5.0
