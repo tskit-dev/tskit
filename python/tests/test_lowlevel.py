@@ -165,7 +165,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_reference_deletion(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        tc = ts.tables.ll_tables
+        tc = ts.tables._ll_tables
         # Get references to all the tables
         tables = [
             tc.individuals,
@@ -231,7 +231,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_simplify_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables.ll_tables
+        tc = ts.tables._ll_tables
         with self.assertRaises(TypeError):
             tc.simplify()
         with self.assertRaises(ValueError):
@@ -247,7 +247,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_link_ancestors_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables.ll_tables
+        tc = ts.tables._ll_tables
         with self.assertRaises(TypeError):
             tc.link_ancestors()
         with self.assertRaises(TypeError):
@@ -263,7 +263,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_link_ancestors(self):
         ts = msprime.simulate(2, random_seed=1)
-        tc = ts.tables.ll_tables
+        tc = ts.tables._ll_tables
         edges = tc.link_ancestors([0, 1], [3])
         self.assertIsInstance(edges, _tskit.EdgeTable)
         del edges
@@ -271,7 +271,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_subset_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables.ll_tables
+        tc = ts.tables._ll_tables
         with self.assertRaises(TypeError):
             tc.subset(np.array(["a"]))
         with self.assertRaises(ValueError):
@@ -283,7 +283,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_union_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables.ll_tables
+        tc = ts.tables._ll_tables
         tc2 = tc
         with self.assertRaises(TypeError):
             tc.union(tc2, np.array(["a"]))

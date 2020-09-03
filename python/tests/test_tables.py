@@ -2552,7 +2552,7 @@ class TestTableCollectionMetadata(unittest.TestCase):
         tc.metadata_schema = self.metadata_schema
         with self.assertRaises(exceptions.MetadataValidationError):
             tc.metadata = metadata
-        self.assertEqual(tc.ll_tables.metadata, b"")
+        self.assertEqual(tc._ll_tables.metadata, b"")
 
 
 class TestTableCollectionPickle(TestTableCollection):

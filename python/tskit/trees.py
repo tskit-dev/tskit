@@ -2950,7 +2950,7 @@ class TreeSequence:
     @classmethod
     def load_tables(cls, tables):
         ts = _tskit.TreeSequence()
-        ts.load_tables(tables.ll_tables)
+        ts.load_tables(tables._ll_tables)
         return TreeSequence(ts)
 
     def dump(self, path, zlib_compression=False):
@@ -3004,7 +3004,7 @@ class TreeSequence:
         :rtype: TableCollection
         """
         t = tables.TableCollection(sequence_length=self.sequence_length)
-        self._ll_tree_sequence.dump_tables(t.ll_tables)
+        self._ll_tree_sequence.dump_tables(t._ll_tables)
         return t
 
     def dump_text(

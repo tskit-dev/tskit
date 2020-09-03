@@ -2002,75 +2002,77 @@ class TableCollection:
     """
 
     def __init__(self, sequence_length=0):
-        self.ll_tables = _tskit.TableCollection(sequence_length)
+        self._ll_tables = _tskit.TableCollection(sequence_length)
 
     @property
     def individuals(self):
-        return IndividualTable(ll_table=self.ll_tables.individuals)
+        return IndividualTable(ll_table=self._ll_tables.individuals)
 
     @property
     def nodes(self):
-        return NodeTable(ll_table=self.ll_tables.nodes)
+        return NodeTable(ll_table=self._ll_tables.nodes)
 
     @property
     def edges(self):
-        return EdgeTable(ll_table=self.ll_tables.edges)
+        return EdgeTable(ll_table=self._ll_tables.edges)
 
     @property
     def migrations(self):
-        return MigrationTable(ll_table=self.ll_tables.migrations)
+        return MigrationTable(ll_table=self._ll_tables.migrations)
 
     @property
     def sites(self):
-        return SiteTable(ll_table=self.ll_tables.sites)
+        return SiteTable(ll_table=self._ll_tables.sites)
 
     @property
     def mutations(self):
-        return MutationTable(ll_table=self.ll_tables.mutations)
+        return MutationTable(ll_table=self._ll_tables.mutations)
 
     @property
     def populations(self):
-        return PopulationTable(ll_table=self.ll_tables.populations)
+        return PopulationTable(ll_table=self._ll_tables.populations)
 
     @property
     def provenances(self):
-        return ProvenanceTable(ll_table=self.ll_tables.provenances)
+        return ProvenanceTable(ll_table=self._ll_tables.provenances)
 
     @property
     def sequence_length(self):
-        return self.ll_tables.sequence_length
+        return self._ll_tables.sequence_length
 
     @sequence_length.setter
     def sequence_length(self, sequence_length):
-        self.ll_tables.sequence_length = sequence_length
+        self._ll_tables.sequence_length = sequence_length
 
     @property
     def file_uuid(self):
-        return self.ll_tables.file_uuid
+        return self._ll_tables.file_uuid
 
     @property
     def metadata_schema(self) -> metadata.MetadataSchema:
         """
         The :class:`tskit.MetadataSchema` for this TableCollection.
         """
-        return metadata.parse_metadata_schema(self.ll_tables.metadata_schema)
+        return metadata.parse_metadata_schema(self._ll_tables.metadata_schema)
 
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
         # Check the schema is a valid schema instance by roundtripping it.
         metadata.parse_metadata_schema(str(schema))
-        self.ll_tables.metadata_schema = str(schema)
+        self._ll_tables.metadata_schema = str(schema)
 
     @property
     def metadata(self) -> Any:
         """
         The decoded metadata for this TableCollection.
         """
-        return self.metadata_schema.decode_row(self.ll_tables.metadata)
+        return self.metadata_schema.decode_row(self._ll_tables.metadata)
 
     @metadata.setter
     def metadata(self, metadata: Any) -> None:
-        self.ll_tables.metadata = self.metadata_schema.validate_and_encode_row(metadata)
+        self._ll_tables.metadata = self.metadata_schema.validate_and_encode_row(
+            metadata
+        )
 
     def asdict(self):
         """
@@ -2142,7 +2144,7 @@ class TableCollection:
     def __eq__(self, other):
         ret = False
         if type(other) is type(self):
-            ret = bool(self.ll_tables.equals(other.ll_tables))
+            ret = bool(self._ll_tables.equals(other._ll_tables))
         return ret
 
     def __ne__(self, other):
@@ -2290,7 +2292,7 @@ class TableCollection:
             ].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
-        return self.ll_tables.simplify(
+        return self._ll_tables.simplify(
             samples,
             filter_sites=filter_sites,
             filter_individuals=filter_individuals,
@@ -2355,7 +2357,7 @@ class TableCollection:
         """
         samples = util.safe_np_int_cast(samples, np.int32)
         ancestors = util.safe_np_int_cast(ancestors, np.int32)
-        ll_edge_table = self.ll_tables.link_ancestors(samples, ancestors)
+        ll_edge_table = self._ll_tables.link_ancestors(samples, ancestors)
         return EdgeTable(ll_table=ll_edge_table)
 
     def map_ancestors(self, *args, **kwargs):
@@ -2402,7 +2404,7 @@ class TableCollection:
         :param int edge_start: The index in the edge table where sorting starts
             (default=0; must be <= len(edges)).
         """
-        self.ll_tables.sort(edge_start)
+        self._ll_tables.sort(edge_start)
         # TODO add provenance
 
     def compute_mutation_parents(self):
@@ -2423,7 +2425,7 @@ class TableCollection:
             in a change of state, as required; see :ref:`sec_mutation_requirements`.
 
         """
-        self.ll_tables.compute_mutation_parents()
+        self._ll_tables.compute_mutation_parents()
         # TODO add provenance
 
     def compute_mutation_times(self):
@@ -2443,7 +2445,7 @@ class TableCollection:
         is no longer valid.
 
         """
-        self.ll_tables.compute_mutation_times()
+        self._ll_tables.compute_mutation_times()
         # TODO add provenance
 
     def deduplicate_sites(self):
@@ -2453,7 +2455,7 @@ class TableCollection:
         site), and renumbering the ``site`` column of the mutation table
         appropriately.  This requires the site table to be sorted by position.
         """
-        self.ll_tables.deduplicate_sites()
+        self._ll_tables.deduplicate_sites()
         # TODO add provenance
 
     def delete_sites(self, site_ids, record_provenance=True):
@@ -2689,21 +2691,21 @@ class TableCollection:
         """
         Returns True if this TableCollection is indexed.
         """
-        return bool(self.ll_tables.has_index())
+        return bool(self._ll_tables.has_index())
 
     def build_index(self):
         """
         Builds an index on this TableCollection. Any existing indexes are automatically
         dropped.
         """
-        self.ll_tables.build_index()
+        self._ll_tables.build_index()
 
     def drop_index(self):
         """
         Drops any indexes present on this table collection. If the tables are not
         currently indexed this method has no effect.
         """
-        self.ll_tables.drop_index()
+        self._ll_tables.drop_index()
 
     def subset(self, nodes, record_provenance=True):
         """
@@ -2718,7 +2720,7 @@ class TableCollection:
             in the provenance table for this operation.
         """
         nodes = util.safe_np_int_cast(nodes, np.int32)
-        self.ll_tables.subset(nodes)
+        self._ll_tables.subset(nodes)
         if record_provenance:
             parameters = {"command": "subset", "nodes": nodes.tolist()}
             self.provenances.add_row(
@@ -2755,8 +2757,8 @@ class TableCollection:
             in the provenance table for this operation.
         """
         node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
-        self.ll_tables.union(
-            other.ll_tables,
+        self._ll_tables.union(
+            other._ll_tables,
             node_mapping,
             check_shared_equality=check_shared_equality,
             add_populations=add_populations,
