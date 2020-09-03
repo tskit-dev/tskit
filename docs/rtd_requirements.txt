@@ -3,7 +3,7 @@ numpy
 svgwrite
 jsonschema
 h5py
-breathe
-sphinx
+breathe>=4.20.0
+sphinx>=3.2.1
 sphinx-issues
 sphinx-argparse
