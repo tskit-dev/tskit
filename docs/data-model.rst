@@ -656,10 +656,9 @@ For simplicity and algorithmic efficiency, mutations must also:
   **before** their children (i.e. if a mutation with ID :math:`x` has
   ``parent`` with ID :math:`y`, then we must have :math:`y < x`).
 
-Violations of these sorting requirements are detected at load time.
-The :meth:`TableCollection.sort` method ensures that mutations are sorted
-according site ID, but does not at present enforce that mutations occur
-after their parent mutations.
+Violations of these sorting requirements are detected at load time. The
+:meth:`TableCollection.sort` method will ensure that these sortedness
+properties are fulfilled.
 
 Mutations also have the requirement that they must result in a
 change of state. For example, if we have a site with ancestral state
