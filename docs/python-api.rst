@@ -26,9 +26,9 @@ sequences, for example using :func:`tskit.load`.
 The ``TreeSequence`` class
 ++++++++++++++++++++++++++
 
-.. autoclass:: tskit.TreeSequence()
-    :autosummary:
+.. autoclass:: TreeSequence()
     :members:
+    :autosummary:
 
 
 ++++++++++++++++++
@@ -42,31 +42,30 @@ such as :meth:`TreeSequence.first`, :meth:`TreeSequence.at` and
 class which provides methods, for example, to access information
 about particular nodes in the tree.
 
-.. autoclass:: tskit.Tree()
-    :autosummary:
+.. autoclass:: Tree()
     :members:
-
+    :autosummary:
 
 +++++++++
 Constants
 +++++++++
 
-.. autodata:: tskit.NULL
+.. autodata:: NULL
     :annotation: = -1
 
-.. autodata:: tskit.NODE_IS_SAMPLE
+.. autodata:: NODE_IS_SAMPLE
     :annotation: = 1
 
-.. autodata:: tskit.MISSING_DATA
+.. autodata:: MISSING_DATA
     :annotation: = -1
 
-.. autodata:: tskit.FORWARD
+.. autodata:: FORWARD
     :annotation: = 1
 
-.. autodata:: tskit.REVERSE
+.. autodata:: REVERSE
     :annotation: = -1
 
-.. autodata:: tskit.ALLELES_ACGT
+.. autodata:: ALLELES_ACGT
 
 
 ++++++++++++++++++++++++
@@ -78,31 +77,31 @@ in the :ref:`sec_data_model_definitions`. These classes are not intended to be i
 directly, but are the return types for the various iterators provided by the
 :class:`TreeSequence` and :class:`Tree` classes.
 
-.. autoclass:: tskit.Individual()
+.. autoclass:: Individual()
     :members:
 
-.. autoclass:: tskit.Node()
+.. autoclass:: Node()
     :members:
 
-.. autoclass:: tskit.Edge()
+.. autoclass:: Edge()
     :members:
 
-.. autoclass:: tskit.Site()
+.. autoclass:: Site()
     :members:
 
-.. autoclass:: tskit.Mutation()
+.. autoclass:: Mutation()
     :members:
 
-.. autoclass:: tskit.Variant()
+.. autoclass:: Variant()
     :members:
 
-.. autoclass:: tskit.Migration()
+.. autoclass:: Migration()
     :members:
 
-.. autoclass:: tskit.Population()
+.. autoclass:: Population()
     :members:
 
-.. autoclass:: tskit.Provenance()
+.. autoclass:: Provenance()
     :members:
 
 ++++++++++++
@@ -119,9 +118,9 @@ efficiently creates a :class:`TreeSequence` object from a set of tables
 using the :ref:`Tables API <sec_tables_api>`.
 
 
-.. autofunction:: tskit.load
+.. autofunction:: load
 
-.. autofunction:: tskit.load_text
+.. autofunction:: load_text
 
 
 .. _sec_tables_api:
@@ -151,9 +150,9 @@ Many of the ``TreeSequence`` methods that return a modified tree sequence
 are in fact wrappers around a corresponding ``TableCollection`` method
 that modifies a copy of the origin tree sequence's table collection.
 
-.. autoclass:: tskit.TableCollection(sequence_length=0)
-    :autosummary:
+.. autoclass:: TableCollection(sequence_length=0)
     :members:
+    :autosummary:
 
 
 .. _sec_tables_api_tables:
@@ -420,42 +419,42 @@ and use, see :ref:`the table definitions <sec_table_definitions>`.
 .. Overriding the default signatures for the tables here as they will be
 .. confusing to most users.
 
-.. autoclass:: tskit.IndividualTable()
+.. autoclass:: IndividualTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.NodeTable()
+.. autoclass:: NodeTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.EdgeTable()
+.. autoclass:: EdgeTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.MigrationTable()
+.. autoclass:: MigrationTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.SiteTable()
+.. autoclass:: SiteTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.MutationTable()
+.. autoclass:: MutationTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.PopulationTable()
+.. autoclass:: PopulationTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
 
-.. autoclass:: tskit.ProvenanceTable()
+.. autoclass:: ProvenanceTable()
     :members:
     :inherited-members:
 
@@ -463,25 +462,25 @@ and use, see :ref:`the table definitions <sec_table_definitions>`.
 Table functions
 +++++++++++++++
 
-.. autofunction:: tskit.parse_nodes
+.. autofunction:: parse_nodes
 
-.. autofunction:: tskit.parse_edges
+.. autofunction:: parse_edges
 
-.. autofunction:: tskit.parse_sites
+.. autofunction:: parse_sites
 
-.. autofunction:: tskit.parse_mutations
+.. autofunction:: parse_mutations
 
-.. autofunction:: tskit.parse_individuals
+.. autofunction:: parse_individuals
 
-.. autofunction:: tskit.parse_populations
+.. autofunction:: parse_populations
 
-.. autofunction:: tskit.pack_strings
+.. autofunction:: pack_strings
 
-.. autofunction:: tskit.unpack_strings
+.. autofunction:: unpack_strings
 
-.. autofunction:: tskit.pack_bytes
+.. autofunction:: pack_bytes
 
-.. autofunction:: tskit.unpack_bytes
+.. autofunction:: unpack_bytes
 
 .. _sec_metadata_api:
 
@@ -493,11 +492,11 @@ The ``metadata`` module provides validation, encoding and decoding of metadata
 using a schema. See :ref:`sec_metadata`, :ref:`sec_metadata_api_overview` and
 :ref:`sec_tutorial_metadata`.
 
-.. autoclass:: tskit.MetadataSchema
+.. autoclass:: MetadataSchema
     :members:
     :inherited-members:
 
-.. autofunction:: tskit.register_metadata_codec
+.. autofunction:: register_metadata_codec
 
 .. _sec_stats_api:
 
@@ -510,13 +509,13 @@ The position of a tree in the enumeration ``all_trees`` is given by
 position in the enumeration with :meth:`Tree.unrank`.
 See :ref:`sec_combinatorics` for details.
 
-.. autofunction:: tskit.all_trees
+.. autofunction:: all_trees
 
-.. autofunction:: tskit.all_tree_shapes
+.. autofunction:: all_tree_shapes
 
-.. autofunction:: tskit.all_tree_labellings
+.. autofunction:: all_tree_labellings
 
-.. autoclass:: tskit.TopologyCounter
+.. autoclass:: TopologyCounter
 
 **********************
 Linkage disequilibrium
@@ -525,7 +524,7 @@ Linkage disequilibrium
 .. note:: This API will soon be deprecated in favour of multi-site extensions
     to the :ref:`sec_stats` API.
 
-.. autoclass:: tskit.LdCalculator(tree_sequence)
+.. autoclass:: LdCalculator(tree_sequence)
     :members:
 
 
@@ -539,7 +538,7 @@ We provide some preliminary support for validating JSON documents against the
 :ref:`provenance schema <sec_provenance>`. Programmatic access to provenance
 information is planned for future versions.
 
-.. autofunction:: tskit.validate_provenance
+.. autofunction:: validate_provenance
 
-.. autoexception:: tskit.ProvenanceValidationError
+.. autoexception:: ProvenanceValidationError
 

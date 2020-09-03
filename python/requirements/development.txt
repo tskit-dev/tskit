@@ -1,8 +1,8 @@
 attrs>=19.1.0 #Pinned as we need kw_args support
-autodocsumm
+autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 biopython
 black
-breathe==4.14.2 #Pinned as next version needs sphinx 3 (see below)
+breathe
 codecov
 coverage
 flake8
@@ -21,7 +21,7 @@ pyparsing
 pysam
 python_jsonschema_objects
 PyVCF
-sphinx==2.4.4 #Pinned as breathe v3 compatibility is rough for now.
+sphinx
 sphinx-argparse
 sphinx-issues
 sphinx_rtd_theme
