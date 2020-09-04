@@ -1,7 +1,14 @@
 --------------------
-[0.X.X] - 2020-XX-XX
+[0.3.1] - 2020-09-04
 --------------------
 
+**Bugfixes**
+
+- :issue:`823` - Fix mutation time error when using
+  ``simplify(keep_input_roots=True)`` (:user:`petrelharp`, :pr:`823`).
+
+- :issue:`821` - Fix mutation rows with unknown time never being
+  equal (:user:`petrelharp`, :pr:`822`).
 
 --------------------
 [0.3.0] - 2020-08-27
