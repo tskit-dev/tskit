@@ -1,7 +1,12 @@
 ---------------------
-[0.99.6] - 2020-XX-XX
+[0.99.6] - 2020-09-04
 ---------------------
 
+**Bugfixes**
+
+- :issue:`823` - Fix mutation time error when using
+  ``tsk_table_collection_simplify`` with ``TSK_KEEP_INPUT_ROOTS``
+  (:user:`petrelharp`, :pr:`823`).
 
 ---------------------
 [0.99.5] - 2020-08-27
