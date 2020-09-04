@@ -1,0 +1,6 @@
+PyVCF
+newick
+python_jsonschema_objects
+xmlunittest
+portion
+packaging

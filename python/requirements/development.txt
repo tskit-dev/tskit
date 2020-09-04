@@ -15,6 +15,7 @@ networkx
 newick
 nose
 numpy
+packaging
 portion
 pre-commit
 pyparsing 
