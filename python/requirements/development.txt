@@ -1,4 +1,4 @@
-attrs>=19.1.0 #Pinned as we need kw_args support
+attrs>=19.2.0
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 biopython
 black
@@ -6,8 +6,8 @@ breathe
 codecov
 coverage
 flake8
-h5py
-jsonschema
+h5py>=2.6.0
+jsonschema>=3.0.0
 kastore
 msgpack>=1.0.0
 msprime
@@ -26,5 +26,5 @@ sphinx
 sphinx-argparse
 sphinx-issues
 sphinx_rtd_theme
-svgwrite
+svgwrite>=1.1.10
 xmlunittest
