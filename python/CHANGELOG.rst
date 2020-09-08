@@ -2,6 +2,10 @@
 [X.X.X] - XXXX-XX-XX
 --------------------
 
+**Features**
+
+- :issue:`832` - Add ``metadata_bytes`` method to allow access to raw
+  TableCollection metadata (:user:`benjeffery`, :pr:`842`)
 
 --------------------
 [0.3.1] - 2020-09-04
