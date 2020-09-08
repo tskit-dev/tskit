@@ -2512,6 +2512,7 @@ class TestTableCollectionMetadata(unittest.TestCase):
         tc = tskit.TableCollection(1)
         # Default is empty bytes
         self.assertEqual(tc.metadata, b"")
+        self.assertEqual(tc.metadata_bytes, b"")
 
         tc.metadata_schema = self.metadata_schema
         md1 = self.metadata_example_data()
@@ -2519,15 +2520,22 @@ class TestTableCollectionMetadata(unittest.TestCase):
         # Set
         tc.metadata = md1
         self.assertEqual(tc.metadata, md1)
+        self.assertEqual(tc.metadata_bytes, tskit.canonical_json(md1).encode())
         # Overwrite
         tc.metadata = md2
         self.assertEqual(tc.metadata, md2)
+        self.assertEqual(tc.metadata_bytes, tskit.canonical_json(md2).encode())
         # Del should fail
         with self.assertRaises(AttributeError):
             del tc.metadata
+        with self.assertRaises(AttributeError):
+            del tc.metadata_bytes
         # None should fail
         with self.assertRaises(exceptions.MetadataValidationError):
             tc.metadata = None
+        # Setting bytes should fail
+        with self.assertRaises(AttributeError):
+            tc.metadata_bytes = b"123"
 
     def test_default_metadata_schema(self):
         # Default should allow bytes
@@ -2544,6 +2552,7 @@ class TestTableCollectionMetadata(unittest.TestCase):
         tc.metadata_schema = self.metadata_schema
         tc.metadata = data
         self.assertDictEqual(tc.metadata, data)
+        self.assertEqual(tc.metadata_bytes, tskit.canonical_json(data).encode())
 
     def test_bad_metadata(self):
         metadata = self.metadata_example_data()

@@ -2074,6 +2074,13 @@ class TableCollection:
             metadata
         )
 
+    @property
+    def metadata_bytes(self) -> Any:
+        """
+        The raw bytes of metadata for this TableCollection
+        """
+        return self._ll_tables.metadata
+
     def asdict(self):
         """
         Returns a dictionary representation of this TableCollection.
