@@ -13,6 +13,8 @@
 - :issue:`832` - Add ``metadata_bytes`` method to allow access to raw
   TableCollection metadata (:user:`benjeffery`, :pr:`842`)
 
+- New ``tree.is_isolated(u)`` method (:user:`hyanwong`, :pr:`443`).
+
 --------------------
 [0.3.1] - 2020-09-04
 --------------------
