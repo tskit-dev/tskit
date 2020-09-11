@@ -2,6 +2,8 @@
 [0.99.7] - 2020-XX-XX
 ---------------------
 
+- Added ``TSK_INCLUDE_TERMINAL`` option to ``tsk_diff_iter_init`` to output the last edges
+  at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`)
 
 ---------------------
 [0.99.6] - 2020-09-04

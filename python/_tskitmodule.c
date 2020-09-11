@@ -9852,14 +9852,19 @@ TreeDiffIterator_init(TreeDiffIterator *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = {"tree_sequence", NULL};
+    static char *kwlist[] = {"tree_sequence", "include_terminal", NULL};
     TreeSequence *tree_sequence;
+    int include_terminal = 0;
+    tsk_flags_t options = 0;
 
     self->tree_diff_iterator = NULL;
     self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!", kwlist,
-            &TreeSequenceType, &tree_sequence)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|p", kwlist,
+            &TreeSequenceType, &tree_sequence, &include_terminal)) {
         goto out;
+    }
+    if (include_terminal) {
+        options |= TSK_INCLUDE_TERMINAL;
     }
     self->tree_sequence = tree_sequence;
     Py_INCREF(self->tree_sequence);
@@ -9873,7 +9878,8 @@ TreeDiffIterator_init(TreeDiffIterator *self, PyObject *args, PyObject *kwds)
     }
     memset(self->tree_diff_iterator, 0, sizeof(tsk_diff_iter_t));
     err = tsk_diff_iter_init(self->tree_diff_iterator,
-            self->tree_sequence->tree_sequence);
+            self->tree_sequence->tree_sequence,
+            options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9892,7 +9898,7 @@ TreeDiffIterator_next(TreeDiffIterator  *self)
     PyObject *value = NULL;
     int err;
     double left, right;
-    size_t list_size, j;
+    tsk_size_t list_size, j;
     tsk_edge_list_node_t *record;
     tsk_edge_list_t records_out, records_in;
 

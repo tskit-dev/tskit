@@ -3474,7 +3474,7 @@ class TreeSequence:
             edgeset.children = sorted(children[edgeset.parent])
             yield edgeset
 
-    def edge_diffs(self):
+    def edge_diffs(self, include_terminal=False):
         """
         Returns an iterator over all the edges that are inserted and removed to
         build the trees as we move from left-to-right along the tree sequence.
@@ -3492,15 +3492,17 @@ class TreeSequence:
         descending parent time, parent id, then child_id). This means that within
         each list, edges with the same parent appear consecutively.
 
-        This iterator terminates after the final interval in the tree sequence
-        (i.e. it does not report a final removal of all remaining edges); the
-        number of iterations is thus always equal to the number of trees in the
-        tree sequence.
-
+        :param bool include_terminal: If False (default), the iterator terminates
+            after the final interval in the tree sequence (i.e. it does not
+            report a final removal of all remaining edges), and the number
+            of iterations will be equal to the number of trees in the tree
+            sequence. If True, an additional iteration takes place, with the last
+            ``edges_out`` value reporting all the edges contained in the final
+            tree (with both ``left`` and ``right`` equal to the sequence length).
         :return: An iterator over the (interval, edges_out, edges_in) tuples.
         :rtype: :class:`collections.abc.Iterable`
         """
-        iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence)
+        iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence, include_terminal)
         metadata_decoder = self.table_metadata_schemas.edge.decode_row
         for interval, edge_tuples_out, edge_tuples_in in iterator:
             edges_out = [Edge(*(e + (metadata_decoder,))) for e in edge_tuples_out]

@@ -175,7 +175,7 @@ verify_individual_nodes(tsk_treeseq_t *ts)
 }
 
 static void
-verify_trees(tsk_treeseq_t *ts, uint32_t num_trees, tsk_id_t *parents)
+verify_trees(tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *parents)
 {
     int ret;
     tsk_id_t u, j, v;
@@ -378,16 +378,16 @@ verify_tree_next_prev(tsk_treeseq_t *ts)
 }
 
 static void
-verify_tree_diffs(tsk_treeseq_t *ts)
+verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
 {
-    int ret;
+    int ret, valid_tree;
     tsk_diff_iter_t iter;
     tsk_tree_t tree;
     tsk_edge_list_node_t *record;
     tsk_edge_list_t records_out, records_in;
-    size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
-    size_t j, num_trees;
-    double left, right;
+    tsk_size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
+    tsk_size_t j, num_trees;
+    double lft, rgt;
     tsk_id_t *parent = malloc(num_nodes * sizeof(tsk_id_t));
     tsk_id_t *child = malloc(num_nodes * sizeof(tsk_id_t));
     tsk_id_t *sib = malloc(num_nodes * sizeof(tsk_id_t));
@@ -400,17 +400,17 @@ verify_tree_diffs(tsk_treeseq_t *ts)
         child[j] = TSK_NULL;
         sib[j] = TSK_NULL;
     }
-    ret = tsk_diff_iter_init(&iter, ts);
+    ret = tsk_diff_iter_init(&iter, ts, options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_tree_first(&tree);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    valid_tree = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(valid_tree, 1);
     tsk_diff_iter_print_state(&iter, _devnull);
 
     num_trees = 0;
-    while ((ret = tsk_diff_iter_next(&iter, &left, &right, &records_out, &records_in))
-           == 1) {
+    while (
+        (ret = tsk_diff_iter_next(&iter, &lft, &rgt, &records_out, &records_in)) == 1) {
         tsk_diff_iter_print_state(&iter, _devnull);
         num_trees++;
         /* Update forwards */
@@ -420,9 +420,11 @@ verify_tree_diffs(tsk_treeseq_t *ts)
         for (record = records_in.head; record != NULL; record = record->next) {
             parent[record->edge.child] = record->edge.parent;
         }
-        /* Now check against the sparse tree iterator. */
-        for (j = 0; j < num_nodes; j++) {
-            CU_ASSERT_EQUAL(parent[j], tree.parent[j]);
+        if (valid_tree) {
+            /* Now check against the sparse tree iterator. */
+            for (j = 0; j < num_nodes; j++) {
+                CU_ASSERT_EQUAL(parent[j], tree.parent[j]);
+            }
         }
         /* Update backwards */
         for (record = records_out.tail; record != NULL; record = record->prev) {
@@ -431,21 +433,34 @@ verify_tree_diffs(tsk_treeseq_t *ts)
         for (record = records_in.tail; record != NULL; record = record->prev) {
             parent[record->edge.child] = record->edge.parent;
         }
-        /* Now check against the sparse tree iterator. */
-        for (j = 0; j < num_nodes; j++) {
-            CU_ASSERT_EQUAL(parent[j], tree.parent[j]);
-        }
-        CU_ASSERT_EQUAL(tree.left, left);
-        CU_ASSERT_EQUAL(tree.right, right);
-        ret = tsk_tree_next(&tree);
-        if (num_trees < tsk_treeseq_get_num_trees(ts)) {
-            CU_ASSERT_EQUAL(ret, 1);
+        if (valid_tree) {
+            /* Now check against the sparse tree iterator. */
+            for (j = 0; j < num_nodes; j++) {
+                CU_ASSERT_EQUAL(parent[j], tree.parent[j]);
+            }
+            CU_ASSERT_EQUAL(tree.left, lft);
+            CU_ASSERT_EQUAL(tree.right, rgt);
+            valid_tree = tsk_tree_next(&tree);
+            if (num_trees < tsk_treeseq_get_num_trees(ts)) {
+                CU_ASSERT_EQUAL(valid_tree, 1);
+            } else {
+                CU_ASSERT_EQUAL(valid_tree, 0);
+            }
         } else {
-            CU_ASSERT_EQUAL(ret, 0);
+            CU_ASSERT_TRUE_FATAL(options & TSK_INCLUDE_TERMINAL);
+            for (j = 0; j < num_nodes; j++) {
+                CU_ASSERT_EQUAL(parent[j], -1);
+            }
+            CU_ASSERT_EQUAL(lft, tsk_treeseq_get_sequence_length(ts));
+            CU_ASSERT_EQUAL(rgt, tsk_treeseq_get_sequence_length(ts));
         }
     }
-    CU_ASSERT_EQUAL(num_trees, tsk_treeseq_get_num_trees(ts));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    if (options & TSK_INCLUDE_TERMINAL) {
+        CU_ASSERT_EQUAL(num_trees, tsk_treeseq_get_num_trees(ts) + 1);
+    } else {
+        CU_ASSERT_EQUAL(num_trees, tsk_treeseq_get_num_trees(ts));
+    }
+    CU_ASSERT_EQUAL_FATAL(valid_tree, 0);
     ret = tsk_diff_iter_free(&iter);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_free(&tree);
@@ -4597,7 +4612,8 @@ test_simple_diff_iter(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
         paper_ex_individuals, NULL, 0);
 
-    verify_tree_diffs(&ts);
+    verify_tree_diffs(&ts, 0);
+    verify_tree_diffs(&ts, TSK_INCLUDE_TERMINAL);
 
     ret = tsk_treeseq_free(&ts);
     CU_ASSERT_EQUAL(ret, 0);
@@ -4611,7 +4627,8 @@ test_nonbinary_diff_iter(void)
 
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
-    verify_tree_diffs(&ts);
+    verify_tree_diffs(&ts, 0);
+    verify_tree_diffs(&ts, TSK_INCLUDE_TERMINAL);
 
     ret = tsk_treeseq_free(&ts);
     CU_ASSERT_EQUAL(ret, 0);
@@ -4625,7 +4642,8 @@ test_unary_diff_iter(void)
 
     tsk_treeseq_from_text(
         &ts, 10, unary_ex_nodes, unary_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
-    verify_tree_diffs(&ts);
+    verify_tree_diffs(&ts, 0);
+    verify_tree_diffs(&ts, TSK_INCLUDE_TERMINAL);
 
     ret = tsk_treeseq_free(&ts);
     CU_ASSERT_EQUAL(ret, 0);
@@ -4639,7 +4657,38 @@ test_internal_sample_diff_iter(void)
 
     tsk_treeseq_from_text(&ts, 10, internal_sample_ex_nodes, internal_sample_ex_edges,
         NULL, NULL, NULL, NULL, NULL, 0);
-    verify_tree_diffs(&ts);
+    verify_tree_diffs(&ts, 0);
+    verify_tree_diffs(&ts, TSK_INCLUDE_TERMINAL);
+
+    ret = tsk_treeseq_free(&ts);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
+test_multiroot_diff_iter(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, multiroot_ex_nodes, multiroot_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    verify_tree_diffs(&ts, 0);
+    verify_tree_diffs(&ts, TSK_INCLUDE_TERMINAL);
+
+    ret = tsk_treeseq_free(&ts);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
+test_empty_diff_iter(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(
+        &ts, 10, empty_ex_nodes, empty_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
+    verify_tree_diffs(&ts, 0);
+    verify_tree_diffs(&ts, TSK_INCLUDE_TERMINAL);
 
     ret = tsk_treeseq_free(&ts);
     CU_ASSERT_EQUAL(ret, 0);
@@ -6041,6 +6090,8 @@ main(int argc, char **argv)
         { "test_nonbinary_diff_iter", test_nonbinary_diff_iter },
         { "test_unary_diff_iter", test_unary_diff_iter },
         { "test_internal_sample_diff_iter", test_internal_sample_diff_iter },
+        { "test_multiroot_diff_iter", test_multiroot_diff_iter },
+        { "test_empty_diff_iter", test_empty_diff_iter },
 
         /* Sample sets */
         { "test_simple_sample_sets", test_simple_sample_sets },

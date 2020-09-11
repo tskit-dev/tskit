@@ -658,6 +658,27 @@ class TestTreeSequence(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             self.verify_edge_diffs(ts)
 
+    def test_edge_diffs_include_terminal(self):
+        for ts in get_example_tree_sequences():
+            edges = set()
+            i = 0
+            breakpoints = list(ts.breakpoints())
+            for (left, right), e_out, e_in in ts.edge_diffs(include_terminal=True):
+                self.assertEqual(left, breakpoints[i])
+                if i == ts.num_trees:
+                    # Last iteration, right==left==sequence_length
+                    self.assertEqual(left, ts.sequence_length)
+                    self.assertEqual(right, ts.sequence_length)
+                else:
+                    self.assertEqual(right, breakpoints[i + 1])
+                for e in e_out:
+                    edges.remove(e.id)
+                for e in e_in:
+                    edges.add(e.id)
+                i += 1
+            self.assertEqual(i, ts.num_trees + 1)
+            self.assertEqual(len(edges), 0)
+
     def verify_edgesets(self, ts):
         """
         Verifies that the edgesets we return are equivalent to the original edges.
