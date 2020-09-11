@@ -66,7 +66,7 @@ for functions such as for :c:func:`tsk_table_collection_load`
 and :c:func:`tsk_table_collection_copy` which automatically initialise
 the object by default for convenience). The free
 method must always be called to avoid leaking memory, even in the
-case of an error occuring during intialisation. If ``class_name_init`` has
+case of an error occuring during initialisation. If ``class_name_init`` has
 been called succesfully, we say the object has been "initialised"; if not,
 it is "uninitialised". After ``class_name_free`` has been called,
 the object is again uninitialised.
