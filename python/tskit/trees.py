@@ -348,7 +348,7 @@ class Mutation(SimpleContainerWithMetadata):
         :meth:`TreeSequence.node`.
     :vartype node: int
     :ivar time: The occurrence time of this mutation.
-    :vartype node: float
+    :vartype time: float
     :ivar derived_state: The derived state for this mutation. This is the state
         inherited by nodes in the subtree rooted at this mutation's node, unless
         another mutation occurs.
