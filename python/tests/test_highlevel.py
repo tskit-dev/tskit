@@ -24,6 +24,7 @@
 Test cases for the high level interface to tskit.
 """
 import collections
+import inspect
 import io
 import itertools
 import json
@@ -879,17 +880,26 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_first_last(self):
         for ts in get_example_tree_sequences():
-            t1 = ts.first()
-            t2 = next(ts.trees())
-            self.assertFalse(t1 is t2)
-            self.assertEqual(t1.parent_dict, t2.parent_dict)
-            self.assertEqual(t1.index, 0)
+            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+                t1 = ts.first(**kwargs)
+                t2 = next(ts.trees())
+                self.assertFalse(t1 is t2)
+                self.assertEqual(t1.parent_dict, t2.parent_dict)
+                self.assertEqual(t1.index, 0)
+                if "tracked_samples" in kwargs:
+                    self.assertNotEqual(t1.num_tracked_samples(), 0)
+                else:
+                    self.assertEqual(t1.num_tracked_samples(), 0)
 
-            t1 = ts.last()
-            t2 = next(reversed(ts.trees()))
-            self.assertFalse(t1 is t2)
-            self.assertEqual(t1.parent_dict, t2.parent_dict)
-            self.assertEqual(t1.index, ts.num_trees - 1)
+                t1 = ts.last(**kwargs)
+                t2 = next(reversed(ts.trees()))
+                self.assertFalse(t1 is t2)
+                self.assertEqual(t1.parent_dict, t2.parent_dict)
+                self.assertEqual(t1.index, ts.num_trees - 1)
+                if "tracked_samples" in kwargs:
+                    self.assertNotEqual(t1.num_tracked_samples(), 0)
+                else:
+                    self.assertEqual(t1.num_tracked_samples(), 0)
 
     def test_trees_interface(self):
         ts = list(get_example_tree_sequences())[0]
@@ -1311,14 +1321,21 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_list(self):
         for ts in get_example_tree_sequences():
-            tree_list = ts.aslist()
-            self.assertEqual(len(tree_list), ts.num_trees)
-            self.assertEqual(len(set(map(id, tree_list))), ts.num_trees)
-            for index, tree in enumerate(tree_list):
-                self.assertEqual(index, tree.index)
-            for t1, t2 in zip(tree_list, ts.trees()):
-                self.assertEqual(t1, t2)
-                self.assertEqual(t1.parent_dict, t2.parent_dict)
+            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+                tree_list = ts.aslist(**kwargs)
+                self.assertEqual(len(tree_list), ts.num_trees)
+                self.assertEqual(len(set(map(id, tree_list))), ts.num_trees)
+                for index, tree in enumerate(tree_list):
+                    self.assertEqual(index, tree.index)
+                for t1, t2 in zip(tree_list, ts.trees(**kwargs)):
+                    self.assertEqual(t1, t2)
+                    self.assertEqual(t1.parent_dict, t2.parent_dict)
+                    if "tracked_samples" in kwargs:
+                        self.assertNotEqual(t1.num_tracked_samples(), 0)
+                        self.assertNotEqual(t2.num_tracked_samples(), 0)
+                    else:
+                        self.assertEqual(t1.num_tracked_samples(), 0)
+                        self.assertEqual(t2.num_tracked_samples(), 0)
 
     def test_reversed_trees(self):
         for ts in get_example_tree_sequences():
@@ -1333,31 +1350,41 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_at_index(self):
         for ts in get_example_tree_sequences():
-            tree_list = ts.aslist()
-            for index in list(range(ts.num_trees)) + [-1]:
-                t1 = tree_list[index]
-                t2 = ts.at_index(index)
-                self.assertEqual(t1, t2)
-                self.assertEqual(t1.interval, t2.interval)
-                self.assertEqual(t1.parent_dict, t2.parent_dict)
-
-    def test_at(self):
-        for ts in get_example_tree_sequences():
-            tree_list = ts.aslist()
-            for t1 in tree_list:
-                left, right = t1.interval
-                mid = left + (right - left) / 2
-                for pos in [left, left + 1e-9, mid, right - 1e-9]:
-                    t2 = ts.at(pos)
+            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+                tree_list = ts.aslist(**kwargs)
+                for index in list(range(ts.num_trees)) + [-1]:
+                    t1 = tree_list[index]
+                    t2 = ts.at_index(index, **kwargs)
                     self.assertEqual(t1, t2)
                     self.assertEqual(t1.interval, t2.interval)
                     self.assertEqual(t1.parent_dict, t2.parent_dict)
-                if right < ts.sequence_length:
-                    t2 = ts.at(right)
-                    t3 = tree_list[t1.index + 1]
-                    self.assertEqual(t3, t2)
-                    self.assertEqual(t3.interval, t2.interval)
-                    self.assertEqual(t3.parent_dict, t2.parent_dict)
+                    if "tracked_samples" in kwargs:
+                        self.assertNotEqual(t2.num_tracked_samples(), 0)
+                    else:
+                        self.assertEqual(t2.num_tracked_samples(), 0)
+
+    def test_at(self):
+        for ts in get_example_tree_sequences():
+            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+                tree_list = ts.aslist(**kwargs)
+                for t1 in tree_list:
+                    left, right = t1.interval
+                    mid = left + (right - left) / 2
+                    for pos in [left, left + 1e-9, mid, right - 1e-9]:
+                        t2 = ts.at(pos, **kwargs)
+                        self.assertEqual(t1, t2)
+                        self.assertEqual(t1.interval, t2.interval)
+                        self.assertEqual(t1.parent_dict, t2.parent_dict)
+                    if right < ts.sequence_length:
+                        t2 = ts.at(right, **kwargs)
+                        t3 = tree_list[t1.index + 1]
+                        self.assertEqual(t3, t2)
+                        self.assertEqual(t3.interval, t2.interval)
+                        self.assertEqual(t3.parent_dict, t2.parent_dict)
+                    if "tracked_samples" in kwargs:
+                        self.assertNotEqual(t2.num_tracked_samples(), 0)
+                    else:
+                        self.assertEqual(t2.num_tracked_samples(), 0)
 
     def test_sequence_iteration(self):
         for ts in get_example_tree_sequences():
@@ -1407,6 +1434,20 @@ class TestTreeSequenceMethodSignatures(unittest.TestCase):
             self.ts.simplify([], True)
         with self.assertRaisesRegex(TypeError, "argument"):
             self.ts.draw_svg("filename", True)
+
+    def test_trees_params(self):
+        """
+        The initial .trees() iterator parameters should match those in Tree.__init__()
+        """
+        tree_class_params = list(inspect.signature(tskit.Tree).parameters.items())
+        trees_iter_params = list(
+            inspect.signature(tskit.TreeSequence.trees).parameters.items()
+        )
+        # Skip the first param, which is `tree_sequence` and `self` respectively
+        tree_class_params = tree_class_params[1:]
+        # The trees iterator has some extra (deprecated) aliases
+        trees_iter_params = trees_iter_params[1:-3]
+        self.assertEqual(trees_iter_params, tree_class_params)
 
 
 class TestTreeSequenceMetadata(unittest.TestCase):
