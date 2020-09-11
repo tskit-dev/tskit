@@ -2851,6 +2851,36 @@ test_link_ancestors_multiple_to_single_tree(void)
     tsk_treeseq_free(&ts);
 }
 
+/* Helper method for running IBD tests */
+static int TSK_WARN_UNUSED
+ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder, tsk_table_collection_t *tables,
+    tsk_id_t *samples, tsk_size_t num_samples, double min_length, double max_time)
+{
+    int ret = 0;
+
+    ret = tsk_ibd_finder_init(ibd_finder, tables, samples, num_samples);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_ibd_finder_set_min_length(ibd_finder, min_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_set_max_time(ibd_finder, max_time);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_ibd_finder_run(ibd_finder);
+    if (ret != 0) {
+        goto out;
+    }
+
+out:
+    return ret;
+}
+
 static void
 test_ibd_finder(void)
 {
@@ -2872,7 +2902,7 @@ test_ibd_finder(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Run ibd_finder.
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0.0, 0.0);
 
     // Check the output.
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2889,6 +2919,7 @@ test_ibd_finder(void)
             seg = seg->next;
         }
     }
+    tsk_ibd_finder_print_state(&ibd_finder, _devnull);
 
     // Free.
     tsk_ibd_finder_free(&ibd_finder);
@@ -2917,7 +2948,7 @@ test_ibd_finder_multiple_trees(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Run ibd_finder.
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, 0.0, 0.0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Check the output.
@@ -2961,7 +2992,7 @@ test_ibd_finder_min_length_max_time(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Run ibd_finder.
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples, 3, 0.5, 3.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 3, 0.5, 3.0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Check the output.
@@ -3004,20 +3035,20 @@ test_ibd_finder_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Invalid sample IDs
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples2, 1, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples2, 1, 0.0, 0.0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_ibd_finder_free(&ibd_finder);
 
     // Only 1 sample
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples3, 0, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples3, 0, 0.0, 0.0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_PAIRS);
     tsk_ibd_finder_free(&ibd_finder);
 
     // Bad length or time
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, 0.0, -1);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, 0.0, -1);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     tsk_ibd_finder_free(&ibd_finder);
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, -1, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, -1, 0.0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     tsk_ibd_finder_free(&ibd_finder);
 
@@ -3042,12 +3073,12 @@ test_ibd_finder_odd_topologies(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Multiple roots.
-    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0, 0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_ibd_finder_free(&ibd_finder);
 
     // // Parent is a sample.
-    // ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, samples1, 1, 0, 0);
+    // ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples1, 1, 0, 0);
     // CU_ASSERT_EQUAL_FATAL(ret, 0); // This currently produces wrong output
     // tsk_ibd_finder_free(&ibd_finder);
 

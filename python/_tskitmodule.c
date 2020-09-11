@@ -6633,8 +6633,8 @@ out:
 }
 
 static PyObject *
-convert_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t *samples,
-        tsk_size_t num_samples)
+convert_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t *pairs,
+        tsk_size_t num_pairs)
 {
     PyObject *ret = NULL;
     PyObject *key = NULL;
@@ -6643,69 +6643,64 @@ convert_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t *samples,
     PyArrayObject *right_array = NULL;
     PyArrayObject *node_array = NULL;
     double *left, *right;
+    int err;
     tsk_id_t *node;
-    tsk_size_t j, k, ind, seg_index;
-    tsk_segment_t *u;
+    tsk_size_t j, seg_index;
+    tsk_segment_t *u, *head;
     PyObject *pair_dict = PyDict_New();
     npy_intp num_segments;
 
     if (pair_dict == NULL) {
         goto out;
     }
-    /* When we're working with the pair indexes, this will be simplified
-     * because we can just iterate from 0 to num_pairs and call
-     * tsk_ibd_finder_get_ibd_segments for each index. We'll probably
-     * pass the samples array to this function to make pulling out the
-     * samples a bit easier, but we could also add a method to tsk_ibd_finder
-     * to get the samples for a given index. */
 
-    ind = 0;
-    for (j = 0; j < num_samples - 1; j++) {
-        for (k = j + 1; k < num_samples; k++) {
-            /* For each pair we return an array of left, right, node values */
-            num_segments = 0;
-            for (u = ibd_finder->ibd_segments_head[ind]; u != NULL; u = u->next) {
-                num_segments++;
-            }
-            left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
-            right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
-            node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
-            if (left_array == NULL || right_array == NULL || node_array == NULL) {
-                goto out;
-            }
-            left = (double *) PyArray_DATA(left_array);
-            right = (double *) PyArray_DATA(right_array);
-            node = (tsk_id_t *) PyArray_DATA(node_array);
-            seg_index = 0;
-            for (u = ibd_finder->ibd_segments_head[ind]; u != NULL; u = u->next) {
-                left[seg_index] = u->left;
-                right[seg_index] = u->right;
-                node[seg_index] = u->node;
-                seg_index++;
-            }
-            key = Py_BuildValue("(ii)", samples[j], samples[k]);
-            value = Py_BuildValue("{s:O,s:O,s:O}",
-                "left", left_array, "right", right_array, "node", node_array);
-            if (key == NULL || value == NULL) {
-                goto out;
-            }
-            if (PyDict_SetItem(pair_dict, key, value) != 0) {
-                goto out;
-            }
-            Py_DECREF(key);
-            Py_DECREF(value);
-            Py_DECREF(left_array);
-            Py_DECREF(right_array);
-            Py_DECREF(node_array);
-            key = NULL;
-            value = NULL;
-            left_array = NULL;
-            right_array = NULL;
-            node_array = NULL;
-            ind++;
+    for (j = 0; j < num_pairs; j++) {
+        err = tsk_ibd_finder_get_ibd_segments(ibd_finder, j, &head);
+        if (err != 0) {
+            handle_library_error(err);
+            goto out;
         }
+        num_segments = 0;
+        for (u = head; u != NULL; u = u->next) {
+            num_segments++;
+        }
+        /* For each pair we return an array of left, right, node values */
+        left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+        right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+        node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
+        if (left_array == NULL || right_array == NULL || node_array == NULL) {
+            goto out;
+        }
+        left = (double *) PyArray_DATA(left_array);
+        right = (double *) PyArray_DATA(right_array);
+        node = (tsk_id_t *) PyArray_DATA(node_array);
+        seg_index = 0;
+        for (u = head; u != NULL; u = u->next) {
+            left[seg_index] = u->left;
+            right[seg_index] = u->right;
+            node[seg_index] = u->node;
+            seg_index++;
+        }
+        key = Py_BuildValue("(ii)", pairs[2 * j], pairs[2 * j + 1]);
+        value = Py_BuildValue("{s:O,s:O,s:O}",
+            "left", left_array, "right", right_array, "node", node_array);
+        if (key == NULL || value == NULL) {
+            goto out;
+        }
+        if (PyDict_SetItem(pair_dict, key, value) != 0) {
+            goto out;
+        }
+        Py_DECREF(key);
+        Py_DECREF(value);
+        Py_DECREF(left_array);
+        Py_DECREF(right_array);
+        Py_DECREF(node_array);
+        key = NULL;
+        value = NULL;
+        left_array = NULL;
+        right_array = NULL;
+        node_array = NULL;
     }
-
     ret = pair_dict;
     pair_dict = NULL;
 out:
@@ -6736,17 +6731,33 @@ TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
                 &min_length, &max_time)) {
         goto out;
     }
-    /* NOTE: This will be a 2D array when we read in the pairs explicity */
     samples_array = (PyArrayObject *) PyArray_FROMANY(samples, NPY_INT32,
             2, 2, NPY_ARRAY_IN_ARRAY);
     if (samples_array == NULL) {
         goto out;
     }
     shape = PyArray_DIMS(samples_array);
-
-    err = tsk_ibd_finder_init_and_run(&ibd_finder, self->tables,
-            PyArray_DATA(samples_array), (tsk_size_t) shape[0],
-            min_length, max_time);
+    if (shape[1] != 2) {
+        PyErr_SetString(PyExc_ValueError, "sample pairs must have shape (n, 2)");
+        goto out;
+    }
+    err = tsk_ibd_finder_init(&ibd_finder, self->tables,
+            PyArray_DATA(samples_array), (tsk_size_t) shape[0]);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    err = tsk_ibd_finder_set_min_length(&ibd_finder, min_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    err = tsk_ibd_finder_set_max_time(&ibd_finder, max_time);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    err = tsk_ibd_finder_run(&ibd_finder);
     if (err != 0) {
         handle_library_error(err);
         goto out;

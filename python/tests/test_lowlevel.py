@@ -314,11 +314,21 @@ class TestTableCollection(LowLevelTestCase):
         for not_enough_samples in [[], [0]]:
             with self.assertRaises(ValueError):
                 tc.find_ibd(not_enough_samples)
+        # input array must be 2D
+        with self.assertRaises(ValueError):
+            tc.find_ibd([[[1], [1]]])
+        # Input array must be (n, 2)
+        with self.assertRaises(ValueError):
+            tc.find_ibd([[1, 1, 1]])
         for bad_float in ["sdf", None, {}]:
             with self.assertRaises(TypeError):
                 tc.find_ibd([(0, 1)], min_length=bad_float)
             with self.assertRaises(TypeError):
                 tc.find_ibd([(0, 1)], max_time=bad_float)
+        with self.assertRaises(_tskit.LibraryError):
+            tc.find_ibd([(0, 1)], max_time=-1)
+        with self.assertRaises(_tskit.LibraryError):
+            tc.find_ibd([(0, 1)], min_length=-1)
 
     def test_ibd_output_no_recomb(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -339,8 +349,6 @@ class TestTableCollection(LowLevelTestCase):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
         self.assertGreater(ts.num_trees, 1)
         tc = ts.tables._ll_tables
-        # FIXME: this shouldn't be happening.
-        # with self.assertRaises(_tskit.LibraryError):
         segs = tc.find_ibd([(0, 1), (2, 3)])
         self.assertIsInstance(segs, dict)
         self.assertGreater(len(segs), 0)

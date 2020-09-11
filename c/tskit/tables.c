@@ -5386,7 +5386,7 @@ out:
  *************************/
 
 static tsk_segment_t *TSK_WARN_UNUSED
-ibd_finder_alloc_segment(
+tsk_ibd_finder_alloc_segment(
     tsk_ibd_finder_t *self, double left, double right, tsk_id_t node)
 {
     tsk_segment_t *seg = NULL;
@@ -5405,7 +5405,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-ibd_finder_add_output(
+tsk_ibd_finder_add_output(
     tsk_ibd_finder_t *self, double left, double right, tsk_id_t node_id, int pair_num)
 {
     int ret = 0;
@@ -5414,7 +5414,7 @@ ibd_finder_add_output(
 
     assert(left < right);
     if (tail == NULL) {
-        x = ibd_finder_alloc_segment(self, left, right, node_id);
+        x = tsk_ibd_finder_alloc_segment(self, left, right, node_id);
         if (x == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
@@ -5425,7 +5425,7 @@ ibd_finder_add_output(
         if (tail->right == left && tail->node == node_id) {
             tail->right = right;
         } else {
-            x = ibd_finder_alloc_segment(self, left, right, node_id);
+            x = tsk_ibd_finder_alloc_segment(self, left, right, node_id);
             if (x == NULL) {
                 ret = TSK_ERR_NO_MEMORY;
                 goto out;
@@ -5439,7 +5439,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-ibd_finder_add_ancestry(tsk_ibd_finder_t *self, tsk_id_t input_id, double left,
+tsk_ibd_finder_add_ancestry(tsk_ibd_finder_t *self, tsk_id_t input_id, double left,
     double right, tsk_id_t output_id)
 {
     int ret = 0;
@@ -5448,7 +5448,7 @@ ibd_finder_add_ancestry(tsk_ibd_finder_t *self, tsk_id_t input_id, double left,
 
     assert(left < right);
     if (tail == NULL) {
-        x = ibd_finder_alloc_segment(self, left, right, output_id);
+        x = tsk_ibd_finder_alloc_segment(self, left, right, output_id);
         if (x == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
@@ -5459,7 +5459,7 @@ ibd_finder_add_ancestry(tsk_ibd_finder_t *self, tsk_id_t input_id, double left,
         if (tail->right == left && tail->node == output_id) {
             tail->right = right;
         } else {
-            x = ibd_finder_alloc_segment(self, left, right, output_id);
+            x = tsk_ibd_finder_alloc_segment(self, left, right, output_id);
             if (x == NULL) {
                 ret = TSK_ERR_NO_MEMORY;
                 goto out;
@@ -5473,7 +5473,7 @@ out:
 }
 
 static int
-ibd_finder_init_samples(tsk_ibd_finder_t *self)
+tsk_ibd_finder_init_samples(tsk_ibd_finder_t *self)
 {
     int ret = 0;
     size_t j;
@@ -5490,7 +5490,8 @@ ibd_finder_init_samples(tsk_ibd_finder_t *self)
 
         if (!self->is_sample[u]) {
             self->is_sample[u] = true;
-            ret = ibd_finder_add_ancestry(self, u, 0, self->tables->sequence_length, u);
+            ret = tsk_ibd_finder_add_ancestry(
+                self, u, 0, self->tables->sequence_length, u);
             if (ret != 0) {
                 goto out;
             }
@@ -5501,9 +5502,9 @@ out:
     return ret;
 }
 
-static int
-ibd_finder_init(tsk_ibd_finder_t *self, tsk_id_t *pairs, size_t num_pairs,
-    tsk_table_collection_t *tables)
+int TSK_WARN_UNUSED
+tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
+    tsk_id_t *pairs, tsk_size_t num_pairs)
 {
     int ret = 0;
     size_t num_nodes_alloc;
@@ -5544,7 +5545,7 @@ ibd_finder_init(tsk_ibd_finder_t *self, tsk_id_t *pairs, size_t num_pairs,
         goto out;
     }
 
-    ret = ibd_finder_init_samples(self);
+    ret = tsk_ibd_finder_init_samples(self);
     if (ret != 0) {
         goto out;
     }
@@ -5580,38 +5581,8 @@ tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time)
     return ret;
 }
 
-// Define a function that runs the ibd_finder. (Wrapper for the other methods)
-int TSK_WARN_UNUSED
-tsk_ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder, tsk_table_collection_t *tables,
-    tsk_id_t *samples, tsk_size_t num_samples, double min_length, double max_time)
-{
-    int ret = 0;
-
-    ret = ibd_finder_init(ibd_finder, samples, num_samples, tables);
-    if (ret != 0) {
-        goto out;
-    }
-
-    ret = tsk_ibd_finder_set_min_length(ibd_finder, min_length);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_ibd_finder_set_max_time(ibd_finder, max_time);
-    if (ret != 0) {
-        goto out;
-    }
-
-    ret = tsk_ibd_finder_run(ibd_finder);
-    if (ret != 0) {
-        goto out;
-    }
-
-out:
-    return ret;
-}
-
 static int TSK_WARN_UNUSED
-ibd_finder_enqueue_segment(
+tsk_ibd_finder_enqueue_segment(
     tsk_ibd_finder_t *self, double left, double right, tsk_id_t node)
 {
     int ret = 0;
@@ -5641,7 +5612,7 @@ out:
 }
 
 static int
-ibd_finder_find_sample_pair_index2(
+tsk_ibd_finder_find_sample_pair_index2(
     tsk_ibd_finder_t *self, tsk_id_t sample0, tsk_id_t sample1)
 {
     int i = 0;
@@ -5661,7 +5632,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
+tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
 {
     int ret = 0;
     int j, pair_index;
@@ -5671,7 +5642,7 @@ ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
     if (self->ancestor_map_head[current_parent] == NULL) {
         for (j = 0; j != (int) self->segment_queue_size; j++) {
             seg = &self->segment_queue[j];
-            ret = ibd_finder_add_ancestry(
+            ret = tsk_ibd_finder_add_ancestry(
                 self, current_parent, seg->left, seg->right, seg->node);
             if (ret != 0) {
                 goto out;
@@ -5685,7 +5656,8 @@ ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
                 if (seg0->node == seg1->node) {
                     continue;
                 }
-                ret = ibd_finder_find_sample_pair_index2(self, seg0->node, seg1->node);
+                ret = tsk_ibd_finder_find_sample_pair_index2(
+                    self, seg0->node, seg1->node);
                 if (ret < 0) {
                     continue;
                 }
@@ -5704,7 +5676,7 @@ ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
 
                 if (left < right) {
                     if (right - left > self->min_length) {
-                        ret = ibd_finder_add_output(
+                        ret = tsk_ibd_finder_add_output(
                             self, left, right, current_parent, pair_index);
                         if (ret != 0) {
                             goto out;
@@ -5715,7 +5687,7 @@ ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
         }
         for (j = 0; j != (int) self->segment_queue_size; j++) {
             seg = &self->segment_queue[j];
-            ret = ibd_finder_add_ancestry(
+            ret = tsk_ibd_finder_add_ancestry(
                 self, current_parent, seg->left, seg->right, seg->node);
             if (ret != 0) {
                 goto out;
@@ -5748,7 +5720,7 @@ out:
 }
 
 void
-ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
+tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
 {
     size_t j;
     tsk_segment_t *u = NULL;
@@ -5767,13 +5739,13 @@ ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     }
     fprintf(out, "==\nOldest parents\n==\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
-        printf("For node %d: %d\n", (int) j, self->oldest_parent[j]);
+        fprintf(out, "For node %d: %d\n", (int) j, self->oldest_parent[j]);
     }
     fprintf(out, "==\nSample pairs\n==\n");
     for (j = 0; j < 2 * self->num_pairs; j++) {
-        printf("%i ", (int) self->pairs[j]);
+        fprintf(out, "%i ", (int) self->pairs[j]);
         if (j % 2 != 0) {
-            printf("\n");
+            fprintf(out, "\n");
         }
     }
     fprintf(out, "===\nAncestral map\n==\n");
@@ -5818,13 +5790,13 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
         }
 
         // Extract segment.
-        seg = ibd_finder_alloc_segment(
+        seg = tsk_ibd_finder_alloc_segment(
             self, input_edges->left[j], input_edges->right[j], input_edges->child[j]);
         // Create a SegmentList holding all of the sample segments descending from
         // seg.
         u = seg->node;
         if (self->is_sample[u]) {
-            ret = ibd_finder_enqueue_segment(self, seg->left, seg->right, seg->node);
+            ret = tsk_ibd_finder_enqueue_segment(self, seg->left, seg->right, seg->node);
             if (ret != 0) {
                 goto out;
             }
@@ -5842,7 +5814,8 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
                 }
                 // Add to the segment queue.
                 if (intvl_r - intvl_l > 0) {
-                    ret = ibd_finder_enqueue_segment(self, intvl_l, intvl_r, s->node);
+                    ret = tsk_ibd_finder_enqueue_segment(
+                        self, intvl_l, intvl_r, s->node);
                     if (ret != 0) {
                         goto out;
                     }
@@ -5852,7 +5825,7 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
 
         // Calculate new ibd segments descending from the current parent.
         if (self->segment_queue_size > 0) {
-            ret = ibd_finder_calculate_ibd(self, current_parent);
+            ret = tsk_ibd_finder_calculate_ibd(self, current_parent);
         }
         if (ret != 0) {
             goto out;
@@ -5860,21 +5833,19 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
 
         // For samples that appear in the parent column of the edge table
         if (self->is_sample[current_parent] && parent_should_be_added) {
-            ret = ibd_finder_enqueue_segment(
+            ret = tsk_ibd_finder_enqueue_segment(
                 self, 0, self->sequence_length, current_parent);
             if (ret != 0) {
                 goto out;
             }
-            ret = ibd_finder_calculate_ibd(self, current_parent);
+            ret = tsk_ibd_finder_calculate_ibd(self, current_parent);
             if (ret != 0) {
                 goto out;
             }
             parent_should_be_added = false;
         }
     }
-
 out:
-    ibd_finder_print_state(self, stdout);
     return ret;
 }
 

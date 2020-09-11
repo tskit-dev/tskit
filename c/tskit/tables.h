@@ -629,6 +629,39 @@ typedef struct _tsk_table_sorter_t {
     tsk_id_t *site_id_map;
 } tsk_table_sorter_t;
 
+
+/* Structs for IBD finding.
+ * TODO: document properly
+ * */
+
+typedef struct _tsk_segment_t {
+    double left;
+    double right;
+    struct _tsk_segment_t *next;
+    tsk_id_t node;
+} tsk_segment_t;
+
+typedef struct {
+    tsk_id_t *pairs;
+    size_t num_pairs;
+    size_t num_nodes;
+    double sequence_length;
+    tsk_table_collection_t *tables;
+    tsk_segment_t **ibd_segments_head;
+    tsk_segment_t **ibd_segments_tail;
+    tsk_blkalloc_t segment_heap;
+    bool *is_sample;
+    double min_length;
+    double max_time;
+    tsk_segment_t **ancestor_map_head;
+    tsk_segment_t **ancestor_map_tail;
+    tsk_segment_t *segment_queue;
+    size_t segment_queue_size;
+    size_t max_segment_queue_size;
+    tsk_id_t *oldest_parent;
+} tsk_ibd_finder_t;
+
+
 /****************************************************************************/
 /* Common function options */
 /****************************************************************************/
@@ -688,36 +721,6 @@ typedef struct _tsk_table_sorter_t {
 #define TSK_UNION_NO_CHECK_SHARED (1 << 0)
 #define TSK_UNION_NO_ADD_POP (1 << 1)
 
-// IBD things
-
-typedef struct _tsk_segment_t {
-    double left;
-    double right;
-    struct _tsk_segment_t *next;
-    tsk_id_t node;
-} tsk_segment_t;
-
-// Define a struct called ibd_finder_t.
-
-typedef struct {
-    tsk_id_t *pairs;
-    size_t num_pairs;
-    size_t num_nodes;
-    double sequence_length;
-    tsk_table_collection_t *tables;
-    tsk_segment_t **ibd_segments_head;
-    tsk_segment_t **ibd_segments_tail;
-    tsk_blkalloc_t segment_heap;
-    bool *is_sample;
-    double min_length;
-    double max_time;
-    tsk_segment_t **ancestor_map_head;
-    tsk_segment_t **ancestor_map_tail;
-    tsk_segment_t *segment_queue;
-    size_t segment_queue_size;
-    size_t max_segment_queue_size;
-    tsk_id_t *oldest_parent;
-} tsk_ibd_finder_t;
 
 /****************************************************************************/
 /* Function signatures */
@@ -2763,19 +2766,6 @@ tsk_id_t tsk_table_collection_check_integrity(
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
     tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,
     tsk_flags_t options, tsk_edge_table_t *result);
-
-/* The current IBD C interface */
-int tsk_ibd_finder_free(tsk_ibd_finder_t *self);
-int tsk_ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder,
-    tsk_table_collection_t *tables, tsk_id_t *samples, tsk_size_t num_samples,
-    double min_length, double max_time);
-int tsk_ibd_finder_run(tsk_ibd_finder_t *ibd_finder);
-void ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out);
-int tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length);
-int tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time);
-int tsk_ibd_finder_get_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t pair_index,
-    tsk_segment_t **ret_ibd_segments_head);
-
 int tsk_table_collection_deduplicate_sites(
     tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(
@@ -2861,6 +2851,18 @@ int tsk_table_sorter_free(struct _tsk_table_sorter_t *self);
 
 int tsk_squash_edges(
     tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
+
+
+/* IBD finder API. This is experimental and the interface may change. */
+int tsk_ibd_finder_init(tsk_ibd_finder_t *ibd_finder,
+    tsk_table_collection_t *tables, tsk_id_t *pairs, tsk_size_t num_pairs);
+int tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length);
+int tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time);
+int tsk_ibd_finder_free(tsk_ibd_finder_t *self);
+int tsk_ibd_finder_run(tsk_ibd_finder_t *ibd_finder);
+int tsk_ibd_finder_get_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t pair_index,
+    tsk_segment_t **ret_ibd_segments_head);
+void tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out);
 
 #ifdef __cplusplus
 }
