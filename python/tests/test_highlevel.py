@@ -2363,12 +2363,19 @@ class TestTree(HighLevelTestCase):
             self.assertRaises(ValueError, tree.seek, bad_position)
 
     def test_interval(self):
-        ts = msprime.simulate(10)
-        tree = ts.first()
-        self.assertEqual(tree.interval[0], 0)
-        self.assertEqual(tree.interval.left, 0)
-        self.assertEqual(tree.interval[1], 1)
-        self.assertEqual(tree.interval.right, 1)
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
+        self.assertGreater(ts.num_trees, 1)
+        breakpoints = list(ts.breakpoints())
+        self.assertEqual(breakpoints[0], 0)
+        self.assertEqual(breakpoints[-1], ts.sequence_length)
+        for i, tree in enumerate(ts.trees()):
+            self.assertAlmostEqual(tree.interval[0], breakpoints[i])
+            self.assertAlmostEqual(tree.interval.left, breakpoints[i])
+            self.assertAlmostEqual(tree.interval[1], breakpoints[i + 1])
+            self.assertAlmostEqual(tree.interval.right, breakpoints[i + 1])
+            self.assertAlmostEqual(
+                tree.interval.span, breakpoints[i + 1] - breakpoints[i]
+            )
 
     def verify_empty_tree(self, tree):
         ts = tree.tree_sequence

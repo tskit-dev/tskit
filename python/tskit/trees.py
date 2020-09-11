@@ -58,7 +58,13 @@ CoalescenceRecord = collections.namedtuple(
     "CoalescenceRecord", ["left", "right", "node", "children", "time", "population"]
 )
 
-Interval = collections.namedtuple("Interval", ["left", "right"])
+BaseInterval = collections.namedtuple("BaseInterval", ["left", "right"])
+
+
+class Interval(BaseInterval):
+    @property
+    def span(self):
+        return self.right - self.left
 
 
 # TODO this interface is rubbish. Should have much better printing options.
