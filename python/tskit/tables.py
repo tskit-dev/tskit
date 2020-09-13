@@ -2798,7 +2798,17 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
-    # TODO fixup the interface here. Just putting this in as the bare-bones
-    # needed to hook in with the low-level code.
-    def find_ibd(self, samples):
-        return self.ll_tables.find_ibd(samples)
+    def find_ibd(self, samples, max_time=None, min_length=0):
+        """
+        Docstring for method goes in here.
+        """
+        if max_time is None and min_length == 0:
+            return self._ll_tables.find_ibd(samples)
+        elif min_length == 0:
+            return self._ll_tables.find_ibd(samples, max_time=max_time)
+        elif max_time is None:
+            return self._ll_tables.find_ibd(samples, min_length=min_length)
+        else:
+            return self._ll_tables.find_ibd(
+                samples, max_time=max_time, min_length=min_length
+            )
