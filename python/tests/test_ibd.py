@@ -16,7 +16,13 @@ import tskit
 
 
 def find_ibd(
-    ts, sample_pairs, min_length=0, max_time=None, compare_lib=True, print_c=False
+    ts,
+    sample_pairs,
+    min_length=0,
+    max_time=None,
+    compare_lib=True,
+    print_c=False,
+    print_py=False,
 ):
     """
     Calculates IBD segments using Python and converts output to lists of segments.
@@ -33,7 +39,11 @@ def find_ibd(
         )
         c_out = convert_ibd_output_to_seglists(c_out)
         if print_c:
+            print("C output:\n")
             print(c_out)
+        if print_py:
+            print("Python output:\n")
+            print(ibd_segs)
         assert ibd_is_equal(ibd_segs, c_out)
     return ibd_segs
 
@@ -160,7 +170,9 @@ def subtrees_are_equal(tree1, pdict0, root):
     return True
 
 
-def verify_equal_ibd(ts, sample_pairs=None, compare_lib=True):
+def verify_equal_ibd(
+    ts, sample_pairs=None, compare_lib=True, print_c=False, print_py=False
+):
     """
     Calculates IBD segments using both the 'naive' and sophisticated algorithms,
     verifies that the same output is produced.
@@ -170,7 +182,13 @@ def verify_equal_ibd(ts, sample_pairs=None, compare_lib=True):
     """
     if sample_pairs is None:
         sample_pairs = list(itertools.combinations(ts.samples(), 2))
-    ibd0 = find_ibd(ts, sample_pairs=sample_pairs, compare_lib=compare_lib)
+    ibd0 = find_ibd(
+        ts,
+        sample_pairs=sample_pairs,
+        compare_lib=compare_lib,
+        print_c=print_c,
+        print_py=print_py,
+    )
     ibd1 = get_ibd_all_pairs(ts, path_ibd=True, mrca_ibd=True)
 
     # Check for equality.
@@ -276,7 +294,7 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
 
     # Basic test
     def test_defaults(self):
-        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)])
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)],)
         true_segs = {
             (0, 1): [ibd.Segment(0.0, 1.0, 3)],
             (0, 2): [ibd.Segment(0.0, 1.0, 4)],
@@ -284,13 +302,12 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
         }
         assert ibd_is_equal(ibd_segs, true_segs)
 
-    # Max time = 1.5
     def test_time(self):
         ibd_segs = find_ibd(
             self.ts,
             sample_pairs=[(0, 1), (0, 2), (1, 2)],
             max_time=1.5,
-            compare_lib=False,
+            compare_lib=True,
         )
         true_segs = {(0, 1): [ibd.Segment(0.0, 1.0, 3)], (0, 2): [], (1, 2): []}
         assert ibd_is_equal(ibd_segs, true_segs)
@@ -298,10 +315,7 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
     # Min length = 2
     def test_length(self):
         ibd_segs = find_ibd(
-            self.ts,
-            sample_pairs=[(0, 1), (0, 2), (1, 2)],
-            min_length=2,
-            compare_lib=False,
+            self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)], min_length=2,
         )
         true_segs = {(0, 1): [], (0, 2): [], (1, 2): []}
         assert ibd_is_equal(ibd_segs, true_segs)
@@ -353,7 +367,7 @@ class TestIbdTwoSamplesTwoTrees(unittest.TestCase):
     # Max time = 1.2
     def test_time(self):
         ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1)], max_time=1.2, compare_lib=False
+            self.ts, sample_pairs=[(0, 1)], max_time=1.2, compare_lib=True
         )
         true_segs = {(0, 1): [ibd.Segment(0.0, 0.4, 2)]}
         assert ibd_is_equal(ibd_segs, true_segs)
@@ -361,7 +375,7 @@ class TestIbdTwoSamplesTwoTrees(unittest.TestCase):
     # Min length = 0.5
     def test_length(self):
         ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1)], min_length=0.5, compare_lib=False
+            self.ts, sample_pairs=[(0, 1)], min_length=0.5, compare_lib=True
         )
         true_segs = {(0, 1): [ibd.Segment(0.4, 1.0, 3)]}
         assert ibd_is_equal(ibd_segs, true_segs)
@@ -393,23 +407,18 @@ class TestIbdUnrelatedSamples(unittest.TestCase):
 
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
-    # How to return empty output?
     def test_basic(self):
-        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], compare_lib=False)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)])
         true_segs = {(0, 1): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_time(self):
-        ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1)], max_time=1.2, compare_lib=False
-        )
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], max_time=1.2)
         true_segs = {(0, 1): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1)], min_length=0.2, compare_lib=False
-        )
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=0.2)
         true_segs = {(0, 1): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
@@ -475,9 +484,7 @@ class TestIbdSamplesAreDescendants(unittest.TestCase):
 
     def test_basic(self):
         ibd_segs = find_ibd(
-            self.ts,
-            sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
-            compare_lib=False,
+            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
         )
         true_segs = {
             (0, 1): [],
@@ -491,9 +498,7 @@ class TestIbdSamplesAreDescendants(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_input_sample_pairs(self):
-        ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 3), (0, 2), (3, 5)], compare_lib=False
-        )
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 3), (0, 2), (3, 5)])
         true_segs = {
             (0, 3): [],
             (0, 2): [ibd.Segment(0.0, 1.0, 2)],
@@ -538,7 +543,6 @@ class TestIbdDifferentPaths(unittest.TestCase):
     )
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
-    @unittest.expectedFailure
     def test_defaults(self):
         ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)])
         true_segs = {
@@ -550,29 +554,18 @@ class TestIbdDifferentPaths(unittest.TestCase):
         }
         assert ibd_is_equal(ibd_segs, true_segs)
 
-    @unittest.expectedFailure
     def test_time(self):
-        ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1)], max_time=2.8, compare_lib=False
-        )
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], max_time=1.8)
         true_segs = {(0, 1): []}
-        assert ibd_is_equal(ibd_segs, true_segs)
-        true_segs = {
-            (0, 1): [
-                ibd.Segment(0.0, 0.2, 4),
-                ibd.Segment(0.7, 1.0, 4),
-                ibd.Segment(0.2, 0.7, 4),
-            ]
-        }
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1)], min_length=0.4, compare_lib=False
-        )
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=0.4)
         true_segs = {(0, 1): [ibd.Segment(0.2, 0.7, 4)]}
         assert ibd_is_equal(ibd_segs, true_segs)
 
+    # This is a situation where the Python and the C libraries agree,
+    # but aren't doing as expected.
     @unittest.expectedFailure
     def test_input_sample_pairs(self):
         ibd_f = ibd.IbdFinder(self.ts, sample_pairs=[(0, 1), (2, 3), (1, 3)])
@@ -585,6 +578,59 @@ class TestIbdDifferentPaths(unittest.TestCase):
                 ibd.Segment(0.2, 0.7, 4),
             ],
             (2, 3): [ibd.Segment(0.2, 0.7, 4)],
+        }
+        ibd_segs = find_ibd(
+            self.ts,
+            sample_pairs=[(0, 1), (2, 3)],
+            compare_lib=True,
+            print_c=False,
+            print_py=False,
+        )
+        assert ibd_is_equal(ibd_segs, true_segs)
+
+
+class TestIbdDifferentPaths2(unittest.TestCase):
+    #
+    #        5         |
+    #       / \        |
+    #      /   4       |      4
+    #     /   / \      |     / \
+    #    /   /   \     |    /   \
+    #   /   /     \    |   3     \
+    #  /   /       \   |  / \     \
+    # 0   1         2  | 0   2     1
+    #                  |
+    #                  0.2
+
+    nodes = io.StringIO(
+        """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       0           1
+    4       0           2.5
+    5       0           3.5
+    """
+    )
+    edges = io.StringIO(
+        """\
+    left    right   parent  child
+    0.2     1.0     3       0
+    0.2     1.0     3       2
+    0.0     1.0     4       1
+    0.0     0.2     4       2
+    0.2     1.0     4       3
+    0.0     0.2     5       0
+    0.0     0.2     5       4
+    """
+    )
+    ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+
+    def test_defaults(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(1, 2)])
+        true_segs = {
+            (1, 2): [ibd.Segment(0.0, 0.2, 4), ibd.Segment(0.2, 1.0, 4)],
         }
         assert ibd_is_equal(ibd_segs, true_segs)
 
@@ -627,12 +673,9 @@ class TestIbdPolytomies(unittest.TestCase):
     )
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
-    @unittest.expectedFailure
     def test_defaults(self):
         ibd_segs = find_ibd(
-            self.ts,
-            sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
-            print_c=True,
+            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
         )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],
@@ -649,7 +692,6 @@ class TestIbdPolytomies(unittest.TestCase):
             self.ts,
             sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
             max_time=3,
-            compare_lib=False,
         )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],
@@ -666,7 +708,6 @@ class TestIbdPolytomies(unittest.TestCase):
             self.ts,
             sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
             min_length=0.5,
-            compare_lib=False,
         )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],
@@ -727,22 +768,10 @@ class TestIbdRandomExamples(unittest.TestCase):
     Randomly generated test cases.
     """
 
-    # Infinite sites, Hudson model.
-    def test_random_example1(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=2)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_random_example2(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=23)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_random_example3(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=232)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_random_example4(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=726)
-        verify_equal_ibd(ts, compare_lib=False)
+    def test_random_examples(self):
+        for i in range(1, 50):
+            ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=i)
+            verify_equal_ibd(ts)
 
     # Finite sites
     def sim_finite_sites(self, random_seed, dtwf=False):
@@ -766,59 +795,21 @@ class TestIbdRandomExamples(unittest.TestCase):
         )
         return ts
 
-    def test_finite_sites1(self):
-        ts = self.sim_finite_sites(9257)
-        verify_equal_ibd(ts, compare_lib=False)
+    def test_finite_sites(self):
+        for i in range(1, 11):
+            ts = self.sim_finite_sites(i)
+            verify_equal_ibd(ts)
 
-    def test_finite_sites2(self):
-        ts = self.sim_finite_sites(835)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_finite_sites3(self):
-        ts = self.sim_finite_sites(27278)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_finite_sites4(self):
-        ts = self.sim_finite_sites(22446688)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    # DTWF
-    def test_dtwf1(self):
-        ts = self.sim_finite_sites(84, dtwf=True)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_dtwf2(self):
-        ts = self.sim_finite_sites(17482, dtwf=True)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_dtwf3(self):
-        ts = self.sim_finite_sites(846, dtwf=True)
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_dtwf4(self):
-        ts = self.sim_finite_sites(273, dtwf=True)
-        verify_equal_ibd(ts, compare_lib=False)
+    def test_dtwf(self):
+        for i in range(1000, 1010):
+            ts = self.sim_finite_sites(i, dtwf=True)
+            verify_equal_ibd(ts)
 
     def test_sim_wright_fisher_generations(self):
         # Uses the bespoke DTWF forward-time simulator.
-        number_of_gens = 3
-        tables = wf.wf_sim(4, number_of_gens, deep_history=False, seed=83)
-        tables.sort()
-        ts = tables.tree_sequence()
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_sim_wright_fisher_generations2(self):
-        # Uses the bespoke DTWF forward-time simulator.
-        number_of_gens = 10
-        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=837)
-        tables.sort()
-        ts = tables.tree_sequence()
-        verify_equal_ibd(ts, compare_lib=False)
-
-    def test_sim_wright_fisher_generations3(self):
-        # Uses the bespoke DTWF forward-time simulator.
-        number_of_gens = 10
-        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=37)
-        tables.sort()
-        ts = tables.tree_sequence()
-        verify_equal_ibd(ts, compare_lib=False)
+        for i in range(1, 6):
+            number_of_gens = 10
+            tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=i)
+            tables.sort()
+            ts = tables.tree_sequence()
+            verify_equal_ibd(ts)

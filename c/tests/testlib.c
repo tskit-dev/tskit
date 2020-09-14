@@ -27,7 +27,7 @@
 char *_tmp_file_name;
 FILE *_devnull;
 
-/*** Simple single tree example. ***/
+/* Simple single tree example. */
 const char *single_tree_ex_nodes = /*          6          */
     "1  0   -1   -1\n"             /*         / \         */
     "1  0   -1   -1\n"             /*        /   \        */
@@ -213,6 +213,52 @@ const char *odd_tree1_ex_edges = "0.0   1.0 2   0,1\n"
                                  "0.0   0.2 3   2\n"
                                  "0.2   0.7 4   2\n"
                                  "0.7   1.0 4   2\n";
+
+/* An example where some samples descend from other samples, and multiple roots */
+
+const char *multi_root_tree_ex_nodes = "1  0   -1  -1\n" /*  4     5 */
+                                       "1  0   -1  -1\n" /*  |     | */
+                                       "1  1   -1  -1\n" /*  2     3 */
+                                       "1  1   -1  -1\n" /*  |     | */
+                                       "0  2   -1  -1\n" /*  0     1 */
+                                       "0  2   -1  -1\n";
+
+const char *multi_root_tree_ex_edges = "0   1   2   0\n"
+                                       "0   1   3   1\n"
+                                       "0   1   4   2\n"
+                                       "0   1   5   3\n";
+
+/* Examples of tree sequences where samples have different paths to the same ancestor. */
+
+const char *multi_path_tree_ex_nodes = /*       5        |             */
+    "1  0   -1  -1\n"                  /*      / \       |             */
+    "1  0   -1  -1\n"                  /*     /   4      |     4       */
+    "1  0   -1  -1\n"                  /*    /   / \     |    / \      */
+    "0  1   -1  -1\n"                  /*   /   /   \    |   3   \     */
+    "0  2   -1  -1\n"                  /*  /   /     \   |  / \   \    */
+    "0  3   -1  -1\n";                 /* 0   2       1  | 0   2   1   */
+                                       /*----------------|------------ */
+                                       /*0.0            0.2         1.0*/
+
+const char *multi_path_tree_ex_edges = "0.2 1.0 3   0\n"
+                                       "0.2 1.0 3   2\n"
+                                       "0.0 1.0 4   1\n"
+                                       "0.0 0.2 4   2\n"
+                                       "0.2 1.0 4   3\n"
+                                       "0.0 0.2 5   0\n"
+                                       "0.0 0.2 5   4\n";
+
+const char *multi_path_tree_ex2_nodes = "1  0   -1  -1\n"
+                                        "1  0   -1  -1\n"
+                                        "0  1   -1  -1\n"
+                                        "0  2   -1  -1\n"
+                                        "0  3   -1  -1\n";
+
+const char *multi_path_tree_ex2_edges = "0.6 1.0 2   1\n"
+                                        "0.0 1.0 3   0\n"
+                                        "0.0 0.6 4   1\n"
+                                        "0.6 1.0 4   2\n"
+                                        "0.0 1.0 4   3\n";
 
 /* An example of a tree sequence with internally sampled nodes. */
 

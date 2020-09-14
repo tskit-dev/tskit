@@ -279,6 +279,9 @@ class IbdFinder:
             ) and parent_should_be_added:
                 singleton_seg = SegmentList()
                 singleton_seg.add(Segment(0, self.ts.sequence_length, current_parent))
+                # u
+                # if self.A[u] is not None:
+                #     list_to_add.add(self.A[u])
                 self.calculate_ibd_segs(current_parent, singleton_seg)
                 parent_should_be_added = False
 
@@ -289,9 +292,6 @@ class IbdFinder:
             # Update parent_should_be_added.
             if e is not None and e.parent != current_parent:
                 parent_should_be_added = True
-                for i, n in enumerate(self.oldest_parent):
-                    if current_parent == n:
-                        self.A[i] = None
 
         self.convert_output_to_numpy()
 
@@ -330,7 +330,6 @@ class IbdFinder:
 
         if self.A[current_parent] is None:
             self.A[current_parent] = list_to_add
-
         else:
             seg0 = self.A[current_parent].head
             while seg0 is not None:

@@ -629,7 +629,6 @@ typedef struct _tsk_table_sorter_t {
     tsk_id_t *site_id_map;
 } tsk_table_sorter_t;
 
-
 /* Structs for IBD finding.
  * TODO: document properly
  * */
@@ -658,9 +657,7 @@ typedef struct {
     tsk_segment_t *segment_queue;
     size_t segment_queue_size;
     size_t max_segment_queue_size;
-    tsk_id_t *oldest_parent;
 } tsk_ibd_finder_t;
-
 
 /****************************************************************************/
 /* Common function options */
@@ -720,7 +717,6 @@ typedef struct {
 /* Flags for union() */
 #define TSK_UNION_NO_CHECK_SHARED (1 << 0)
 #define TSK_UNION_NO_ADD_POP (1 << 1)
-
 
 /****************************************************************************/
 /* Function signatures */
@@ -2852,10 +2848,9 @@ int tsk_table_sorter_free(struct _tsk_table_sorter_t *self);
 int tsk_squash_edges(
     tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
 
-
 /* IBD finder API. This is experimental and the interface may change. */
-int tsk_ibd_finder_init(tsk_ibd_finder_t *ibd_finder,
-    tsk_table_collection_t *tables, tsk_id_t *pairs, tsk_size_t num_pairs);
+int tsk_ibd_finder_init(tsk_ibd_finder_t *ibd_finder, tsk_table_collection_t *tables,
+    tsk_id_t *pairs, tsk_size_t num_pairs);
 int tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length);
 int tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time);
 int tsk_ibd_finder_free(tsk_ibd_finder_t *self);

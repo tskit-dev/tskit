@@ -2972,6 +2972,42 @@ test_ibd_finder_multiple_trees(void)
 }
 
 static void
+test_ibd_finder_empty_result(void)
+{
+    int ret;
+    int j;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1 };
+    tsk_ibd_finder_t ibd_finder;
+    tsk_segment_t *seg = NULL;
+
+    // Read in the tree sequence.
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Run ibd_finder.
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0.0, 0.5);
+
+    // Check the output.
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 0; j < (int) ibd_finder.num_pairs; j++) {
+        tsk_ibd_finder_get_ibd_segments(&ibd_finder, j, &seg);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(seg, NULL);
+    }
+    tsk_ibd_finder_print_state(&ibd_finder, _devnull);
+
+    // Free.
+    tsk_ibd_finder_free(&ibd_finder);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_ibd_finder_min_length_max_time(void)
 {
     int ret;
@@ -3057,6 +3093,99 @@ test_ibd_finder_errors(void)
 }
 
 static void
+test_ibd_finder_samples_are_descendants(void)
+{
+    int ret;
+    int j, k;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 2, 0, 4, 2, 4, 1, 3, 1, 5, 3, 5 };
+    tsk_ibd_finder_t ibd_finder;
+    double true_left[6][1] = { { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 } };
+    double true_right[6][1] = { { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 } };
+    tsk_id_t true_node[6][1] = { { 2 }, { 4 }, { 4 }, { 3 }, { 5 }, { 5 } };
+    tsk_segment_t *seg = NULL;
+
+    // Read in the tree sequence.
+    tsk_treeseq_from_text(&ts, 1, multi_root_tree_ex_nodes, multi_root_tree_ex_edges,
+        NULL, NULL, NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Run ibd_finder.
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 6, 0.0, 0.0);
+
+    // Check the output.
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 0; j < (int) ibd_finder.num_pairs; j++) {
+        tsk_ibd_finder_get_ibd_segments(&ibd_finder, j, &seg);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        k = 0;
+        while (seg != NULL) {
+            CU_ASSERT_EQUAL_FATAL(seg->left, true_left[j][k]);
+            CU_ASSERT_EQUAL_FATAL(seg->right, true_right[j][k]);
+            CU_ASSERT_EQUAL_FATAL(seg->node, true_node[j][k]);
+            k++;
+            seg = seg->next;
+        }
+    }
+    tsk_ibd_finder_print_state(&ibd_finder, _devnull);
+
+    // Free.
+    tsk_ibd_finder_free(&ibd_finder);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_ibd_finder_multiple_ibd_paths(void)
+{
+    int ret;
+    int j, k;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1, 0, 2, 1, 2 };
+    tsk_ibd_finder_t ibd_finder;
+    double true_left[3][2] = { { 0.2, 0.0 }, { 0.2, 0.0 }, { 0.0, 0.2 } };
+    double true_right[3][2] = { { 1.0, 0.2 }, { 1.0, 0.2 }, { 0.2, 1.0 } };
+    double true_node[3][2] = { { 4, 5 }, { 3, 5 }, { 4, 4 } };
+    tsk_segment_t *seg = NULL;
+
+    // Read in the tree sequence.
+    tsk_treeseq_from_text(&ts, 2, multi_path_tree_ex_nodes, multi_path_tree_ex_edges,
+        NULL, NULL, NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Run ibd_finder.
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 3, 0.0, 0.0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Check the output.
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 0; j < (int) ibd_finder.num_pairs; j++) {
+        tsk_ibd_finder_get_ibd_segments(&ibd_finder, j, &seg);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        k = 0;
+        while (seg != NULL) {
+            CU_ASSERT_EQUAL_FATAL(seg->left, true_left[j][k]);
+            CU_ASSERT_EQUAL_FATAL(seg->right, true_right[j][k]);
+            CU_ASSERT_EQUAL_FATAL(seg->node, true_node[j][k]);
+            k++;
+            seg = seg->next;
+        }
+    }
+    tsk_ibd_finder_print_state(&ibd_finder, _devnull);
+
+    // Free.
+    tsk_ibd_finder_free(&ibd_finder);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_ibd_finder_odd_topologies(void)
 {
     int ret;
@@ -3064,7 +3193,7 @@ test_ibd_finder_odd_topologies(void)
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1 };
-    // tsk_id_t samples1[] = { 0, 2 };
+    tsk_id_t samples1[] = { 0, 2 };
     tsk_ibd_finder_t ibd_finder;
 
     tsk_treeseq_from_text(
@@ -3078,9 +3207,9 @@ test_ibd_finder_odd_topologies(void)
     tsk_ibd_finder_free(&ibd_finder);
 
     // // Parent is a sample.
-    // ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples1, 1, 0, 0);
-    // CU_ASSERT_EQUAL_FATAL(ret, 0); // This currently produces wrong output
-    // tsk_ibd_finder_free(&ibd_finder);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples1, 1, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_ibd_finder_free(&ibd_finder);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -4864,7 +4993,11 @@ main(int argc, char **argv)
         { "test_sort_tables_offsets", test_sort_tables_offsets },
         { "test_ibd_finder", test_ibd_finder },
         { "test_ibd_finder_multiple_trees", test_ibd_finder_multiple_trees },
+        { "test_ibd_finder_empty_result", test_ibd_finder_empty_result },
         { "test_ibd_finder_min_length_max_time", test_ibd_finder_min_length_max_time },
+        { "test_ibd_finder_samples_are_descendants",
+            test_ibd_finder_samples_are_descendants },
+        { "test_ibd_finder_multiple_ibd_paths", test_ibd_finder_multiple_ibd_paths },
         { "test_ibd_finder_odd_topologies", test_ibd_finder_odd_topologies },
         { "test_ibd_finder_errors", test_ibd_finder_errors },
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },

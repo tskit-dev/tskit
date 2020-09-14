@@ -6656,7 +6656,9 @@ convert_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t *pairs,
 
     for (j = 0; j < num_pairs; j++) {
         err = tsk_ibd_finder_get_ibd_segments(ibd_finder, j, &head);
-        if (err != 0) {
+        if (err == -1) {
+            head = NULL;
+        } else if (err != 0) {
             handle_library_error(err);
             goto out;
         }
