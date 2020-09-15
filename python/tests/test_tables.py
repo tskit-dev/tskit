@@ -2458,6 +2458,14 @@ class TestTableCollection(unittest.TestCase):
         self.assertEqual(len(tree.parent_dict), 0)
 
 
+class TestTableCollectionMethodSignatures(unittest.TestCase):
+    tc = msprime.simulate(10, random_seed=1234).dump_tables()
+
+    def test_kwargs_only(self):
+        with self.assertRaises(TypeError):
+            self.tc.simplify([], True)
+
+
 class TestTableCollectionMetadata(unittest.TestCase):
 
     metadata_schema = metadata.MetadataSchema(

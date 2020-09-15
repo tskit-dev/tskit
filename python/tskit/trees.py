@@ -4440,6 +4440,7 @@ class TreeSequence:
     def simplify(
         self,
         samples=None,
+        *,
         filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
         map_nodes=False,
         reduce_to_site_topology=False,

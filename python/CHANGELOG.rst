@@ -2,6 +2,13 @@
 [X.X.X] - XXXX-XX-XX
 --------------------
 
+**Breaking changes**
+
+- All but the first argument to ``TreeSequence.simplify``, ``TableCollection.simplify``
+  must be keyword arguments, not positional. This allows the order & number of arguments
+  to be made the same. (:user:`hyanwong`, :issue:`374`, :issue:`846`, :pr:`851`)
+
+
 **Features**
 
 - Genomic intervals returned by python functions are now namedtuples, allowing ``.left``

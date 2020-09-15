@@ -1381,6 +1381,22 @@ class TestTreeSequence(HighLevelTestCase):
                     self.assertEqual(n.id, 0)
 
 
+class TestTreeSequenceMethodSignatures(unittest.TestCase):
+    ts = msprime.simulate(10, random_seed=1234)
+
+    def test_kwargs_only(self):
+        with self.assertRaises(TypeError):
+            self.ts.haplotypes(True)
+        with self.assertRaises(TypeError):
+            self.ts.variants(True)
+        with self.assertRaises(TypeError):
+            self.ts.genotype_matrix(True)
+        with self.assertRaises(TypeError):
+            self.ts.simplify([], True)
+        with self.assertRaises(TypeError):
+            self.ts.draw_svg("filename", True)
+
+
 class TestTreeSequenceMetadata(unittest.TestCase):
     metadata_tables = [
         "node",
