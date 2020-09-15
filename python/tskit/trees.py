@@ -660,6 +660,7 @@ class Tree:
         self,
         tree_sequence,
         tracked_samples=None,
+        *,
         sample_counts=None,
         sample_lists=False,
         root_threshold=1,
@@ -3652,6 +3653,7 @@ class TreeSequence:
     def trees(
         self,
         tracked_samples=None,
+        *,
         sample_counts=None,
         sample_lists=False,
         tracked_leaves=None,

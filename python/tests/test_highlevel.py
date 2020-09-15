@@ -789,7 +789,7 @@ class TestTreeSequence(HighLevelTestCase):
                 self.assertEqual(tree.get_num_tracked_samples(u), 0)
         samples = list(ts.samples())
         tracked_samples = samples[:2]
-        for tree in ts.trees(tracked_samples):
+        for tree in ts.trees(tracked_samples=tracked_samples):
             if len(tree.parent_dict) == 0:
                 # This is a crude way of checking if we have multiple roots.
                 # We'll need to fix this code up properly when we support multiple
@@ -808,6 +808,14 @@ class TestTreeSequence(HighLevelTestCase):
     def test_tracked_samples(self):
         for ts in get_example_tree_sequences():
             self.verify_tracked_samples(ts)
+
+    def test_tracked_samples_is_first_arg(self):
+        for ts in get_example_tree_sequences():
+            samples = list(ts.samples())[:2]
+            for a, b in zip(ts.trees(samples), ts.trees(tracked_samples=samples)):
+                self.assertEqual(
+                    a.get_num_tracked_samples(), b.get_num_tracked_samples()
+                )
 
     def test_deprecated_sample_aliases(self):
         for ts in get_example_tree_sequences():
@@ -1385,15 +1393,19 @@ class TestTreeSequenceMethodSignatures(unittest.TestCase):
     ts = msprime.simulate(10, random_seed=1234)
 
     def test_kwargs_only(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "argument"):
+            tskit.Tree(self.ts, [], True)
+        with self.assertRaisesRegex(TypeError, "argument"):
+            self.ts.trees([], True)
+        with self.assertRaisesRegex(TypeError, "argument"):
             self.ts.haplotypes(True)
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "argument"):
             self.ts.variants(True)
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "argument"):
             self.ts.genotype_matrix(True)
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "argument"):
             self.ts.simplify([], True)
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, "argument"):
             self.ts.draw_svg("filename", True)
 
 
