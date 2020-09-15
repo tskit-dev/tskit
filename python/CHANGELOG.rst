@@ -2,6 +2,15 @@
 [X.X.X] - XXXX-XX-XX
 --------------------
 
+**Breaking changes**
+
+- Change several methods (``simplify()``, ``trees()``, ``Tree()``) so most parameters
+  are keyword only, not positional. This allows reordering of parameters, so
+  that deprecated parameters can be moved, and the parameter order in similar functions,
+  e.g. ``TableCollection.simplify`` and ``TreeSequence.simplify()`` can be made
+  consistent (:user:`hyanwong`, :issue:`374`, :issue:`846`, :pr:`851`)
+
+
 **Features**
 
 - Genomic intervals returned by python functions are now namedtuples, allowing ``.left``
