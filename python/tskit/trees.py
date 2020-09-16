@@ -30,7 +30,6 @@ import concurrent.futures
 import copy
 import functools
 import itertools
-import json
 import math
 import textwrap
 import warnings
@@ -45,7 +44,6 @@ import tskit.drawing as drawing
 import tskit.exceptions as exceptions
 import tskit.formats as formats
 import tskit.metadata as metadata_module
-import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.util as util
 import tskit.vcf as vcf
@@ -4468,15 +4466,15 @@ class TreeSequence:
         self,
         samples=None,
         *,
-        filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
         map_nodes=False,
         reduce_to_site_topology=False,
         filter_populations=True,
         filter_individuals=True,
         filter_sites=True,
-        record_provenance=True,
         keep_unary=False,
         keep_input_roots=False,
+        record_provenance=True,
+        filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
     ):
         """
         Returns a simplified tree sequence that retains only the history of
@@ -4514,7 +4512,6 @@ class TreeSequence:
 
         :param list samples: The list of nodes for which to retain information. This
             may be a numpy array (or array-like) object (dtype=np.int32).
-        :param bool filter_zero_mutation_sites: Deprecated alias for ``filter_sites``.
         :param bool map_nodes: If True, return a tuple containing the resulting
             tree sequence and a numpy array mapping node IDs in the current tree
             sequence to their corresponding node IDs in the returned tree sequence.
@@ -4533,15 +4530,16 @@ class TreeSequence:
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: True)
-        :param bool record_provenance: If True, record details of this call to
-            simplify in the returned tree sequence's provenance information
-            (Default: True).
         :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
             one child) that exist on the path from samples to root will be preserved
             in the output. (Default: False)
         :param bool keep_input_roots: If True, insert edges from the MRCAs of the
             samples to the roots in the input trees. If False, no topology older
             than the MRCAs of the samples will be included. (Default: False)
+        :param bool record_provenance: If True, record details of this call to
+            simplify in the returned tree sequence's provenance information
+            (Default: True).
+        :param bool filter_zero_mutation_sites: Deprecated alias for ``filter_sites``.
         :return: The simplified tree sequence, or (if ``map_nodes`` is True)
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
@@ -4554,22 +4552,15 @@ class TreeSequence:
         assert tables.sequence_length == self.sequence_length
         node_map = tables.simplify(
             samples=samples,
-            filter_zero_mutation_sites=filter_zero_mutation_sites,
             reduce_to_site_topology=reduce_to_site_topology,
             filter_populations=filter_populations,
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
             keep_unary=keep_unary,
             keep_input_roots=keep_input_roots,
+            record_provenance=record_provenance,
+            filter_zero_mutation_sites=filter_zero_mutation_sites,
         )
-        if record_provenance:
-            # TODO move this into tables.simplify. See issue #374
-            # TODO also make sure we convert all the arguments so that they are
-            # definitely JSON encodable.
-            parameters = {"command": "simplify", "TODO": "add simplify parameters"}
-            tables.provenances.add_row(
-                record=json.dumps(provenance.get_provenance_dict(parameters))
-            )
         new_ts = tables.tree_sequence()
         assert new_ts.sequence_length == self.sequence_length
         if map_nodes:

@@ -107,7 +107,7 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
     tables.build_index()
     tables.compute_mutation_parents()
     if simplify:
-        tables.simplify()
+        tables.simplify(record_provenance=False)
     if record_provenance:
         parameters = {"command": "keep_intervals", "TODO": "add parameters"}
         tables.provenances.add_row(
@@ -2833,6 +2833,7 @@ class TestSimplifyExamples(TopologyTestCase):
             samples=samples,
             filter_sites=filter_sites,
             keep_input_roots=keep_input_roots,
+            record_provenance=False,
         )
         if debug:
             print("before")

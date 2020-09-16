@@ -2226,13 +2226,14 @@ class TableCollection:
         self,
         samples=None,
         *,
-        filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
         reduce_to_site_topology=False,
         filter_populations=True,
         filter_individuals=True,
         filter_sites=True,
         keep_unary=False,
         keep_input_roots=False,
+        record_provenance=True,
+        filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
     ):
         """
         Simplifies the tables in place to retain only the information necessary
@@ -2261,7 +2262,6 @@ class TableCollection:
 
         :param list[int] samples: A list of node IDs to retain as samples. If
             not specified or None, use all nodes marked with the IS_SAMPLE flag.
-        :param bool filter_zero_mutation_sites: Deprecated alias for ``filter_sites``.
         :param bool reduce_to_site_topology: Whether to reduce the topology down
             to the trees that are present at sites. (default: False).
         :param bool filter_populations: If True, remove any populations that are
@@ -2282,6 +2282,10 @@ class TableCollection:
         :param bool keep_input_roots: If True, insert edges from the MRCAs of the
             samples to the roots in the input trees. If False, no topology older
             than the MRCAs of the samples will be included. (Default: False)
+        :param bool record_provenance: If True, record details of this call to
+            simplify in the returned tree sequence's provenance information
+            (Default: True).
+        :param bool filter_zero_mutation_sites: Deprecated alias for ``filter_sites``.
         :return: A numpy array mapping node IDs in the input tables to their
             corresponding node IDs in the output tables.
         :rtype: numpy.ndarray (dtype=np.int32)
@@ -2300,7 +2304,7 @@ class TableCollection:
             ].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
-        return self._ll_tables.simplify(
+        node_map = self._ll_tables.simplify(
             samples,
             filter_sites=filter_sites,
             filter_individuals=filter_individuals,
@@ -2309,6 +2313,15 @@ class TableCollection:
             keep_unary=keep_unary,
             keep_input_roots=keep_input_roots,
         )
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            # TODO also make sure we convert all the arguments so that they are
+            # definitely JSON encodable.
+            parameters = {"command": "simplify", "TODO": "add simplify parameters"}
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+        return node_map
 
     def link_ancestors(self, samples, ancestors):
         """
@@ -2597,7 +2610,7 @@ class TableCollection:
         )
         self.sort()
         if simplify:
-            self.simplify()
+            self.simplify(record_provenance=False)
         if record_provenance:
             parameters = {"command": "keep_intervals", "TODO": "add parameters"}
             self.provenances.add_row(
