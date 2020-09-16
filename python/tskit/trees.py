@@ -644,7 +644,6 @@ class Tree:
     :param TreeSequence tree_sequence: The parent tree sequence.
     :param list tracked_samples: The list of samples to be tracked and
         counted using the :meth:`Tree.num_tracked_samples` method.
-    :param bool sample_counts: Deprecated since 0.2.4.
     :param bool sample_lists: If True, provide more efficient access
         to the samples beneath a give node using the
         :meth:`Tree.samples` method.
@@ -654,6 +653,7 @@ class Tree:
         are roots. To efficiently restrict the roots of the tree to
         those subtending meaningful topology, set this to 2. This value
         is only relevant when trees have multiple roots.
+    :param bool sample_counts: Deprecated since 0.2.4.
     """
 
     def __init__(
@@ -661,9 +661,9 @@ class Tree:
         tree_sequence,
         tracked_samples=None,
         *,
-        sample_counts=None,
         sample_lists=False,
         root_threshold=1,
+        sample_counts=None,
     ):
         options = 0
         if sample_counts is not None:
@@ -2947,7 +2947,7 @@ class TreeSequence:
     def get_ll_tree_sequence(self):
         return self._ll_tree_sequence
 
-    def aslist(self):
+    def aslist(self, **kwargs):
         """
         Returns the trees in this tree sequence as a list. Each tree is
         represented by a different instance of :class:`Tree`. As such, this
@@ -2956,10 +2956,13 @@ class TreeSequence:
         method is the recommended way to efficiently iterate over the trees
         in a tree sequence.
 
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned trees. For example ``ts.aslist(sample_lists=True)`` will result
+            in a list of :class:`Tree` instances created with ``sample_lists=True``.
         :return: A list of the trees in this tree sequence.
         :rtype: list
         """
-        return [tree.copy() for tree in self.trees()]
+        return [tree.copy() for tree in self.trees(**kwargs)]
 
     @classmethod
     def load(cls, path):
@@ -3601,52 +3604,66 @@ class TreeSequence:
             breakpoints = map(float, breakpoints)
         return breakpoints
 
-    def at(self, position):
+    def at(self, position, **kwargs):
         """
         Returns the tree covering the specified genomic location. The returned tree
         will have ``tree.interval.left`` <= ``position`` < ``tree.interval.right``.
         See also :meth:`Tree.seek`.
 
+        :param float position: A genomic location.
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example ``ts.at(2.5, sample_lists=True)`` will
+            result in a :class:`Tree` created with ``sample_lists=True``.
         :return: A new instance of :class:`Tree` positioned to cover the specified
-            position.
+            genomic location.
         :rtype: Tree
         """
-        tree = Tree(self)
+        tree = Tree(self, **kwargs)
         tree.seek(position)
         return tree
 
-    def at_index(self, index):
+    def at_index(self, index, **kwargs):
         """
         Returns the tree at the specified index. See also :meth:`Tree.seek_index`.
 
+        :param int index: The index of the required tree.
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example ``ts.at_index(4, sample_lists=True)``
+            will result in a :class:`Tree` created with ``sample_lists=True``.
         :return: A new instance of :class:`Tree` positioned at the specified index.
         :rtype: Tree
         """
-        tree = Tree(self)
+        tree = Tree(self, **kwargs)
         tree.seek_index(index)
         return tree
 
-    def first(self):
+    def first(self, **kwargs):
         """
         Returns the first tree in this :class:`TreeSequence`. To iterate over all
         trees in the sequence, use the :meth:`.trees` method.
 
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example ``ts.first(sample_lists=True)`` will
+            result in a :class:`Tree` created with ``sample_lists=True``.
         :return: The first tree in this tree sequence.
         :rtype: :class:`Tree`.
         """
-        tree = Tree(self)
+        tree = Tree(self, **kwargs)
         tree.first()
         return tree
 
-    def last(self):
+    def last(self, **kwargs):
         """
         Returns the last tree in this :class:`TreeSequence`. To iterate over all
         trees in the sequence, use the :meth:`.trees` method.
 
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example ``ts.first(sample_lists=True)`` will
+            result in a :class:`Tree` created with ``sample_lists=True``.
         :return: The last tree in this tree sequence.
         :rtype: :class:`Tree`.
         """
-        tree = Tree(self)
+        tree = Tree(self, **kwargs)
         tree.last()
         return tree
 
@@ -3654,8 +3671,9 @@ class TreeSequence:
         self,
         tracked_samples=None,
         *,
-        sample_counts=None,
         sample_lists=False,
+        root_threshold=1,
+        sample_counts=None,
         tracked_leaves=None,
         leaf_counts=None,
         leaf_lists=None,
@@ -3678,10 +3696,16 @@ class TreeSequence:
 
         :param list tracked_samples: The list of samples to be tracked and
             counted using the :meth:`Tree.num_tracked_samples` method.
-        :param bool sample_counts: Deprecated since 0.2.4.
         :param bool sample_lists: If True, provide more efficient access
             to the samples beneath a give node using the
             :meth:`Tree.samples` method.
+        :param int root_threshold: The minimum number of samples that a node
+            must be ancestral to for it to be in the list of roots. By default
+            this is 1, so that isolated samples (representing missing data)
+            are roots. To efficiently restrict the roots of the tree to
+            those subtending meaningful topology, set this to 2. This value
+            is only relevant when trees have multiple roots.
+        :param bool sample_counts: Deprecated since 0.2.4.
         :return: An iterator over the Trees in this tree sequence.
         :rtype: collections.abc.Iterable, :class:`Tree`
         """
@@ -3698,8 +3722,9 @@ class TreeSequence:
         tree = Tree(
             self,
             tracked_samples=tracked_samples,
-            sample_counts=sample_counts,
             sample_lists=sample_lists,
+            root_threshold=root_threshold,
+            sample_counts=sample_counts,
         )
         return TreeIterator(tree)
 

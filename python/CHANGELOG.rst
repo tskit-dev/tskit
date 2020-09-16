@@ -13,6 +13,10 @@
 
 **Features**
 
+- Tree accessor functions (e.g. ``ts.first()``, ``ts.at()`` pass extra parameters such as
+  ``sample_indexes`` to the underlying ``Tree`` constructor; also ``root_threshold`` can
+  be specified when calling ``ts.trees()`` (:user:`hyanwong`, :issue:`847`, :pr:`848`)
+
 - Genomic intervals returned by python functions are now namedtuples, allowing ``.left``
   ``.right`` and ``.span`` usage (:user:`hyanwong`, :issue:`784`, :pr:`786`, :pr:`811`)
 
