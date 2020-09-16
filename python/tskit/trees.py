@@ -6403,3 +6403,108 @@ class TreeSequence:
             "This method is no longer supported. Please use the Tree.newick"
             " method instead"
         )
+
+
+def write_ms(
+    tree_sequence,
+    output,
+    print_trees=False,
+    precision=4,
+    num_replicates=1,
+    write_header=True,
+):
+    """
+    Write ``ms`` formatted output from the genotypes of a tree sequence
+    or an iterator over tree sequences. Usage:
+
+    .. code-block:: python
+
+        import tskit as ts
+
+        tree_sequence = msprime.simulate(
+            sample_size=sample_size,
+            Ne=Ne,
+            length=length,
+            mutation_rate=mutation_rate,
+            recombination_rate=recombination_rate,
+            random_seed=random_seed,
+            num_replicates=num_replicates,
+        )
+        with open("output.ms", "w") as ms_file:
+            ts.write_ms(tree_sequence, ms_file)
+
+    :param ts tree_sequence: The tree sequence (or iterator over tree sequences) to
+        write to ms file
+    :param io.IOBase output: The file-like object to write the ms-style output
+    :param bool print_trees: Boolean parameter to write out newick format trees
+        to output [optional]
+    :param int precision: Numerical precision with which to write the ms
+        output [optional]
+    :param bool write_header: Boolean parameter to write out the header. [optional]
+    :param int num_replicates: Number of replicates simulated [required if
+        num_replicates used in simulation]
+
+    The first line of this ms-style output file written has two arguments which
+    are sample size and number of replicates. The second line has a 0 as a substitute
+    for the random seed.
+    """
+    if not isinstance(tree_sequence, collections.Iterable):
+        tree_sequence = [tree_sequence]
+
+    i = 0
+    for tree_seq in tree_sequence:
+        if i > 0:
+            write_header = False
+        i = i + 1
+
+        if write_header is True:
+            print(
+                f"ms {tree_seq.sample_size} {num_replicates}",
+                file=output,
+            )
+            print("0", file=output)
+
+        print(file=output)
+        print("//", file=output)
+        if print_trees is True:
+            """
+            Print out the trees in ms-format from the specified tree sequence.
+            """
+            if len(tree_seq.trees()) == 1:
+                tree = next(tree_seq.trees())
+                newick = tree.newick(precision=precision)
+                print(newick, file=output)
+            else:
+                for tree in tree_seq.trees():
+                    newick = tree.newick(precision=precision)
+                    print(f"[{tree.span:.{precision}f}]", newick, file=output)
+
+        else:
+            s = tree_seq.get_num_sites()
+            print("segsites:", s, file=output)
+            if s != 0:
+                print("positions: ", end="", file=output)
+                positions = [
+                    variant.position / (tree_seq.sequence_length)
+                    for variant in tree_seq.variants()
+                ]
+                for position in positions:
+                    print(
+                        f"{position:.{precision}f}",
+                        end=" ",
+                        file=output,
+                    )
+                print(file=output)
+
+                genotypes = tree_seq.genotype_matrix()
+                for k in range(tree_seq.num_samples):
+                    tmp_str = "".join(map(str, genotypes[:, k]))
+                    if set(tmp_str).issubset({"0", "1", "-"}):
+                        print(tmp_str, file=output)
+                    else:
+                        raise ValueError(
+                            "This tree sequence contains non-biallelic"
+                            "SNPs and is incompatible with the ms format!"
+                        )
+            else:
+                print(file=output)
