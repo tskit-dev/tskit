@@ -2381,6 +2381,8 @@ class TableCollection:
         ll_edge_table = self._ll_tables.link_ancestors(samples, ancestors)
         return EdgeTable(ll_table=ll_edge_table)
 
+    # Add a docstring for find_ibd, and run the low-level C code.
+
     def map_ancestors(self, *args, **kwargs):
         # A deprecated alias for link_ancestors()
         return self.link_ancestors(*args, **kwargs)

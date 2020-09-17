@@ -688,6 +688,40 @@ typedef struct _tsk_table_sorter_t {
 #define TSK_UNION_NO_CHECK_SHARED (1 << 0)
 #define TSK_UNION_NO_ADD_POP (1 << 1)
 
+// IBD things
+
+typedef struct _tsk_segment_t {
+    double left;
+    double right;
+    struct _tsk_segment_t *next;
+    tsk_id_t node;
+} tsk_segment_t;
+
+// Define a struct called ibd_finder_t.
+
+typedef struct {
+    tsk_id_t *samples;
+    size_t num_samples;
+    size_t num_nodes;
+    double sequence_length;
+    tsk_table_collection_t *tables;
+    size_t num_pairs;
+    int pair_index;
+    size_t *sample_id_map;
+    tsk_segment_t **ibd_segments_head;
+    tsk_segment_t **ibd_segments_tail;
+    tsk_blkalloc_t segment_heap;
+    bool *is_sample;
+    double min_length;
+    double max_time;
+    tsk_segment_t **ancestor_map_head;
+    tsk_segment_t **ancestor_map_tail;
+    tsk_segment_t *segment_queue;
+    size_t segment_queue_size;
+    size_t max_segment_queue_size;
+    tsk_id_t *oldest_parent;
+} tsk_ibd_finder_t;
+
 /****************************************************************************/
 /* Function signatures */
 /****************************************************************************/
@@ -2732,6 +2766,24 @@ tsk_id_t tsk_table_collection_check_integrity(
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
     tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,
     tsk_flags_t options, tsk_edge_table_t *result);
+
+// IBD: Add entry for tsk_table_collection_ibd_finder.
+int tsk_ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder,
+    tsk_table_collection_t *tables, double sequence_length, tsk_id_t *samples,
+    tsk_size_t num_samples, double min_length, double max_time);
+
+int tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent);
+
+// static int TSK_WARN_UNUSED
+int tsk_ibd_finder_run(tsk_ibd_finder_t *ibd_finder);
+
+/**
+@brief Free the internal memory for the specified table collection.
+
+@param self A pointer to an initialised tsk_table_collection_t object.
+@return Always returns 0.
+*/
+int tsk_ibd_finder_free(tsk_ibd_finder_t *self);
 
 int tsk_table_collection_deduplicate_sites(
     tsk_table_collection_t *tables, tsk_flags_t options);

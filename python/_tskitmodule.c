@@ -6547,6 +6547,9 @@ out:
     return ret;
 }
 
+// IBD: add entry for find_ibd as a method of the TableCollection Python class.
+// Will also need to add a way to convert C struct array to a comparable Python object...
+
 static PyObject *
 TableCollection_subset(TableCollection *self, PyObject *args)
 {
@@ -6787,6 +6790,7 @@ static PyMethodDef TableCollection_methods[] = {
     {"link_ancestors", (PyCFunction) TableCollection_link_ancestors,
         METH_VARARGS|METH_KEYWORDS,
         "Returns an edge table linking samples to a set of specified ancestors." },
+    // IBD: add an entry for find_ibd here.
     {"subset", (PyCFunction) TableCollection_subset, METH_VARARGS,
         "Subsets the table collection to a set of nodes." },
     {"union", (PyCFunction) TableCollection_union, METH_VARARGS|METH_KEYWORDS,

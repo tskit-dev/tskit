@@ -289,7 +289,9 @@ class IbdFinder:
             e = next(edges_iter, None)
 
             # Remove any processed nodes that are no longer needed.
+            # Update parent_should_be_added.
             if e is not None and e.parent != current_parent:
+                parent_should_be_added = True
                 for i, n in enumerate(self.oldest_parent):
                     if current_parent == n:
                         self.A[i] = None

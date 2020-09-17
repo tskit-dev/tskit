@@ -2852,6 +2852,147 @@ test_link_ancestors_multiple_to_single_tree(void)
 }
 
 static void
+test_ibd_finder(void)
+{
+    int ret;
+    // int j;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1 };
+    tsk_ibd_finder_t ibd_finder;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples, 2, 0.0, 0.0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_ibd_finder_free(&ibd_finder);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_ibd_finder_multiple_trees(void)
+{
+    int ret;
+    // int j;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1, 2 };
+    tsk_ibd_finder_t ibd_finder;
+    // tsk_segment_t *seg;
+
+    tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
+        NULL, NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples, 3, 0.0, 0.0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_ibd_finder_free(&ibd_finder);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_ibd_finder_min_length_max_time(void)
+{
+    int ret;
+    // int j;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1, 2 };
+    tsk_ibd_finder_t ibd_finder;
+    // tsk_segment_t *seg;
+
+    tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
+        NULL, NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples, 3, 0.5, 3.0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_ibd_finder_free(&ibd_finder);
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_ibd_finder_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1, 2 };
+    tsk_id_t samples1[] = { 0, 0 };
+    tsk_id_t samples2[] = { -1, 1 };
+    tsk_id_t samples3[] = { 0 };
+    tsk_ibd_finder_t ibd_finder;
+
+    tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
+        NULL, NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Duplicate sample IDs
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples1, 2, 0.0, 0.0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    tsk_ibd_finder_free(&ibd_finder);
+
+    // Invalid sample IDs
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples2, 2, 0.0, 0.0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_ibd_finder_free(&ibd_finder);
+
+    // Only 1 sample
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples3, 1, 0.0, 0.0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_PAIRS);
+    tsk_ibd_finder_free(&ibd_finder);
+
+    // Bad length or time
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples, 3, 0.0, -1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_ibd_finder_odd_topologies(void)
+{
+    int ret;
+    // int j;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1 };
+    tsk_id_t samples1[] = { 0, 2 };
+    tsk_ibd_finder_t ibd_finder;
+
+    tsk_treeseq_from_text(
+        &ts, 1, odd_tree1_ex_nodes, odd_tree1_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // Multiple roots.
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples, 2, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_ibd_finder_free(&ibd_finder);
+
+    // Parent is a sample.
+    ret = tsk_ibd_finder_init_and_run(&ibd_finder, &tables, 1.0, samples1, 2, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENERIC); // Currently fails
+    tsk_ibd_finder_free(&ibd_finder);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_simplify_tables_drops_indexes(void)
 {
     int ret;
@@ -4627,6 +4768,11 @@ main(int argc, char **argv)
         { "test_link_ancestors_multiple_to_single_tree",
             test_link_ancestors_multiple_to_single_tree },
         { "test_sort_tables_offsets", test_sort_tables_offsets },
+        { "test_ibd_finder", test_ibd_finder },
+        { "test_ibd_finder_multiple_trees", test_ibd_finder_multiple_trees },
+        { "test_ibd_finder_min_length_max_time", test_ibd_finder_min_length_max_time },
+        { "test_ibd_finder_odd_topologies", test_ibd_finder_odd_topologies },
+        { "test_ibd_finder_errors", test_ibd_finder_errors },
         { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
         { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
         { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },

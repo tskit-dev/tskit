@@ -427,24 +427,30 @@ class TestIbdNoSamples(unittest.TestCase):
 
 class TestIbdSamplesAreDescendants(unittest.TestCase):
     #
-    # 2
-    # |
-    # 1
-    # |
-    # 0
+    # 4     5
+    # |     |
+    # 2     3
+    # |     |
+    # 0     1
+    #
     nodes = io.StringIO(
         """\
     id      is_sample   time
     0       1           0
-    1       1           1
-    2       0           2
+    1       1           0
+    2       1           1
+    3       1           1
+    4       0           2
+    5       0           2
     """
     )
     edges = io.StringIO(
         """\
     left    right   parent  child
-    0       1       1       0
-    0       1       2       1
+    0       1       2       0
+    0       1       3       1
+    0       1       4       2
+    0       1       5       3
     """
     )
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
@@ -454,7 +460,14 @@ class TestIbdSamplesAreDescendants(unittest.TestCase):
         ibd_f = ibd.IbdFinder(ts)
         ibd_segs = ibd_f.find_ibd_segments()
         ibd_segs = convert_dict_of_segmentlists(ibd_segs)
-        true_segs = {(0, 1): [ibd.Segment(0.0, 1.0, 1)]}
+        true_segs = {
+            (0, 1): [],
+            (0, 2): [ibd.Segment(0.0, 1.0, 2)],
+            (0, 3): [],
+            (1, 2): [],
+            (1, 3): [ibd.Segment(0.0, 1.0, 3)],
+            (2, 3): [],
+        }
 
         assert ibd_is_equal(ibd_segs, true_segs)
 

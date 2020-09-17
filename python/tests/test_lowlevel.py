@@ -303,6 +303,8 @@ class TestTableCollection(LowLevelTestCase):
         with self.assertRaises(ValueError):
             tc.union(tc2, np.array([[1], [2]], dtype="int32"))
 
+    # IBD: add some low-level tests for find_ibd (bad arguments, a simple toy example)
+
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     """

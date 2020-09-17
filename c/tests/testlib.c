@@ -178,7 +178,43 @@ const char *unary_ex_mutations = "0    2   1\n"
                                  "1    6   1\n"
                                  "2    5   1\n";
 
-/*** An example of a tree sequence with internally sampled nodes. ***/
+/* An example of a simple tree sequence with multiple marginal trees. */
+
+/* Simple single tree example. */
+const char *multiple_tree_ex_nodes = /*                                    */
+    "1  0   -1   -1\n"               /*         6        |                */
+    "1  0   -1   -1\n"               /*        / \       |                 */
+    "1  0   -1   -1\n"               /*       /   \      |     5           */
+    "0  1   -1   -1\n"               /*      4     \     |    / \          */
+    "0  2   -1   -1\n"               /*     / \     \    |   /   3         */
+    "0  3   -1   -1\n"               /*    /   \     \   |  /   / \        */
+    "0  4   -1   -1\n";              /*   0     1     2  | 0   1   2       */
+                                     /* |----------------|---------------| */
+                                     /* 0                1               2 */
+
+const char *multiple_tree_ex_edges = "0.7  1.0   3   1,2\n"
+                                     "0.0  0.7   4   0,1\n"
+                                     "0.7  1.0   5   0,3\n"
+                                     "0.0  0.7   6   2,4\n";
+
+/* Odd topology -- different roots. */
+
+const char *odd_tree1_ex_nodes = /*        |       |   5    */
+    "1  0   -1  -1\n"            /*        |   4   |   |    */
+    "1  0   -1  -1\n"            /*    3   |   |   |   |    */
+    "0  1   -1  -1\n"            /*    |   |   |   |   |    */
+    "0  2   -1   -1\n"           /*    2   |   2   |   2    */
+    "0  3   -1   -1\n"           /*   / \  |  / \  |  / \   */
+    "0  4   -1   -1\n";          /*  0   1 | 0   1 | 0   1  */
+                                 /* |------|-------|------| */
+                                 /* 0.0    0.2     0.7   1.0*/
+
+const char *odd_tree1_ex_edges = "0.0   1.0 2   0,1\n"
+                                 "0.0   0.2 3   2\n"
+                                 "0.2   0.7 4   2\n"
+                                 "0.7   1.0 4   2\n";
+
+/* An example of a tree sequence with internally sampled nodes. */
 
 /*
 1.20┊         ┊     8   ┊         ┊
