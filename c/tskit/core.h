@@ -315,6 +315,9 @@ not found in the file.
 #define TSK_ERR_UNION_BAD_MAP                                      -1400
 #define TSK_ERR_UNION_DIFF_HISTORIES                               -1401
 
+/* IBD errors */
+#define TSK_ERR_NO_SAMPLE_PAIRS                                    -1500
+
 // clang-format on
 
 /* This bit is 0 for any errors originating from kastore */

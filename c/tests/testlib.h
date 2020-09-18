@@ -60,6 +60,18 @@ extern const char *single_tree_ex_edges;
 extern const char *single_tree_ex_sites;
 extern const char *single_tree_ex_mutations;
 
+extern const char *multiple_tree_ex_nodes;
+extern const char *multiple_tree_ex_edges;
+
+extern const char *odd_tree1_ex_nodes;
+extern const char *odd_tree1_ex_edges;
+
+extern const char *multi_root_tree_ex_nodes;
+extern const char *multi_root_tree_ex_edges;
+
+extern const char *multi_path_tree_ex_nodes;
+extern const char *multi_path_tree_ex_edges;
+
 extern const char *nonbinary_ex_nodes;
 extern const char *nonbinary_ex_edges;
 extern const char *nonbinary_ex_sites;

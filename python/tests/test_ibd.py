@@ -15,6 +15,39 @@ import tskit
 # Functions for computing IBD 'naively'.
 
 
+def find_ibd(
+    ts,
+    sample_pairs,
+    min_length=0,
+    max_time=None,
+    compare_lib=True,
+    print_c=False,
+    print_py=False,
+):
+    """
+    Calculates IBD segments using Python and converts output to lists of segments.
+    Also compares result with C library.
+    """
+    ibd_f = ibd.IbdFinder(
+        ts, sample_pairs=sample_pairs, max_time=max_time, min_length=min_length
+    )
+    ibd_segs = ibd_f.find_ibd_segments()
+    ibd_segs = convert_ibd_output_to_seglists(ibd_segs)
+    if compare_lib:
+        c_out = ts.tables.find_ibd(
+            sample_pairs, max_time=max_time, min_length=min_length
+        )
+        c_out = convert_ibd_output_to_seglists(c_out)
+        if print_c:
+            print("C output:\n")
+            print(c_out)
+        if print_py:
+            print("Python output:\n")
+            print(ibd_segs)
+        assert ibd_is_equal(ibd_segs, c_out)
+    return ibd_segs
+
+
 def get_ibd(
     sample0,
     sample1,
@@ -110,8 +143,7 @@ def get_ibd_all_pairs(
             path_ibd=path_ibd,
             mrca_ibd=mrca_ibd,
         )
-        if len(ibd_list) > 0:
-            ibd_dict[pair] = ibd_list
+        ibd_dict[pair] = ibd_list
 
     return ibd_dict
 
@@ -138,7 +170,9 @@ def subtrees_are_equal(tree1, pdict0, root):
     return True
 
 
-def verify_equal_ibd(treeSequence):
+def verify_equal_ibd(
+    ts, sample_pairs=None, compare_lib=True, print_c=False, print_py=False
+):
     """
     Calculates IBD segments using both the 'naive' and sophisticated algorithms,
     verifies that the same output is produced.
@@ -146,55 +180,45 @@ def verify_equal_ibd(treeSequence):
     of IBD options are tested simultaneously (all the MRCA and path-IBD combos),
     for example.
     """
-    ts = treeSequence
-    ibd0 = ibd.IbdFinder(ts, samples=ts.samples())
-    ibd0 = ibd0.find_ibd_segments()
+    if sample_pairs is None:
+        sample_pairs = list(itertools.combinations(ts.samples(), 2))
+    ibd0 = find_ibd(
+        ts,
+        sample_pairs=sample_pairs,
+        compare_lib=compare_lib,
+        print_c=print_c,
+        print_py=print_py,
+    )
     ibd1 = get_ibd_all_pairs(ts, path_ibd=True, mrca_ibd=True)
 
-    # Convert each SegmentList object into a list of Segment objects.
-    ibd0_tolist = {}
-    for key, val in ibd0.items():
-        if val is not None:
-            ibd0_tolist[key] = convert_segmentlist_to_list(val)
-
     # Check for equality.
-    for key0, val0 in ibd0_tolist.items():
-
+    for key0, val0 in ibd0.items():
         assert key0 in ibd1.keys()
         val1 = ibd1[key0]
         val0.sort()
         val1.sort()
 
 
-def convert_segmentlist_to_list(seglist):
+def convert_ibd_output_to_seglists(ibd_out):
     """
-    Turns a SegmentList object into a list of Segment objects.
-    (This makes them easier to compare for testing purposes)
+    Converts the Python mock-up output back into lists of segments.
+    This is needed to use the ibd_is_equal function.
     """
-    outlist = []
-    if seglist is None:
-        return outlist
-    else:
-        seg = seglist.head
-        outlist = [seg]
-        seg = seg.next
-        while seg is not None:
-            outlist.append(seg)
-            seg = seg.next
 
-    return outlist
+    for key in ibd_out.keys():
+        seg_list = []
+        num_segs = len(ibd_out[key]["left"])
+        for s in range(num_segs):
+            seg_list.append(
+                ibd.Segment(
+                    left=ibd_out[key]["left"][s],
+                    right=ibd_out[key]["right"][s],
+                    node=ibd_out[key]["node"][s],
+                )
+            )
+        ibd_out[key] = seg_list
 
-
-def convert_dict_of_segmentlists(dict0):
-    """
-    Turns a dictionary of SegmentList objects into a dictionary of lists of
-    Segment objects. (makes them easier to compare in tests).
-    """
-    dict_out = {}
-    for key, val in dict0.items():
-        dict_out[key] = convert_segmentlist_to_list(val)
-
-    return dict_out
+    return ibd_out
 
 
 def ibd_is_equal(dict1, dict2):
@@ -270,9 +294,7 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
 
     # Basic test
     def test_defaults(self):
-        ibd_f = ibd.IbdFinder(self.ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)],)
         true_segs = {
             (0, 1): [ibd.Segment(0.0, 1.0, 3)],
             (0, 2): [ibd.Segment(0.0, 1.0, 4)],
@@ -280,21 +302,33 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
         }
         assert ibd_is_equal(ibd_segs, true_segs)
 
-    # Max time = 1.5
     def test_time(self):
-        ibd_f = ibd.IbdFinder(self.ts, max_time=1.5)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(
+            self.ts,
+            sample_pairs=[(0, 1), (0, 2), (1, 2)],
+            max_time=1.5,
+            compare_lib=True,
+        )
         true_segs = {(0, 1): [ibd.Segment(0.0, 1.0, 3)], (0, 2): [], (1, 2): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     # Min length = 2
     def test_length(self):
-        ibd_f = ibd.IbdFinder(self.ts, min_length=2)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(
+            self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)], min_length=2,
+        )
         true_segs = {(0, 1): [], (0, 2): [], (1, 2): []}
         assert ibd_is_equal(ibd_segs, true_segs)
+
+    def test_input_errors(self):
+        with self.assertRaises(ValueError):
+            ibd.IbdFinder(self.ts, sample_pairs=[0])
+        with self.assertRaises(AssertionError):
+            ibd.IbdFinder(self.ts, sample_pairs=[(0, 1, 2)])
+        with self.assertRaises(ValueError):
+            ibd.IbdFinder(self.ts, sample_pairs=[(0, 5)])
+        with self.assertRaises(ValueError):
+            ibd.IbdFinder(self.ts, sample_pairs=[(0, 1), (1, 0)])
 
 
 class TestIbdTwoSamplesTwoTrees(unittest.TestCase):
@@ -326,25 +360,23 @@ class TestIbdTwoSamplesTwoTrees(unittest.TestCase):
 
     # Basic test
     def test_basic(self):
-        ibd_f = ibd.IbdFinder(self.ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)])
         true_segs = {(0, 1): [ibd.Segment(0.0, 0.4, 2), ibd.Segment(0.4, 1.0, 3)]}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     # Max time = 1.2
     def test_time(self):
-        ibd_f = ibd.IbdFinder(self.ts, max_time=1.2)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(
+            self.ts, sample_pairs=[(0, 1)], max_time=1.2, compare_lib=True
+        )
         true_segs = {(0, 1): [ibd.Segment(0.0, 0.4, 2)]}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     # Min length = 0.5
     def test_length(self):
-        ibd_f = ibd.IbdFinder(self.ts, min_length=0.5)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(
+            self.ts, sample_pairs=[(0, 1)], min_length=0.5, compare_lib=True
+        )
         true_segs = {(0, 1): [ibd.Segment(0.4, 1.0, 3)]}
         assert ibd_is_equal(ibd_segs, true_segs)
 
@@ -372,26 +404,21 @@ class TestIbdUnrelatedSamples(unittest.TestCase):
     0       1       3       1
     """
     )
+
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_basic(self):
-        ibd_f = ibd.IbdFinder(self.ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)])
         true_segs = {(0, 1): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_time(self):
-        ibd_f = ibd.IbdFinder(self.ts, max_time=1.2)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], max_time=1.2)
         true_segs = {(0, 1): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_f = ibd.IbdFinder(self.ts, min_length=0.2)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=0.2)
         true_segs = {(0, 1): []}
         assert ibd_is_equal(ibd_segs, true_segs)
 
@@ -422,40 +449,61 @@ class TestIbdNoSamples(unittest.TestCase):
         )
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
         with self.assertRaises(ValueError):
-            ibd.IbdFinder(ts)
+            ibd.IbdFinder(ts, sample_pairs=[(0, 1)])
 
 
 class TestIbdSamplesAreDescendants(unittest.TestCase):
     #
-    # 2
-    # |
-    # 1
-    # |
-    # 0
+    # 4     5
+    # |     |
+    # 2     3
+    # |     |
+    # 0     1
+    #
     nodes = io.StringIO(
         """\
     id      is_sample   time
     0       1           0
-    1       1           1
-    2       0           2
+    1       1           0
+    2       1           1
+    3       1           1
+    4       0           2
+    5       0           2
     """
     )
     edges = io.StringIO(
         """\
     left    right   parent  child
-    0       1       1       0
-    0       1       2       1
+    0       1       2       0
+    0       1       3       1
+    0       1       4       2
+    0       1       5       3
     """
     )
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_basic(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
-        true_segs = {(0, 1): [ibd.Segment(0.0, 1.0, 1)]}
+        ibd_segs = find_ibd(
+            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+        )
+        true_segs = {
+            (0, 1): [],
+            (0, 2): [ibd.Segment(0.0, 1.0, 2)],
+            (0, 3): [],
+            (1, 2): [],
+            (1, 3): [ibd.Segment(0.0, 1.0, 3)],
+            (2, 3): [],
+        }
 
+        assert ibd_is_equal(ibd_segs, true_segs)
+
+    def test_input_sample_pairs(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 3), (0, 2), (3, 5)])
+        true_segs = {
+            (0, 3): [],
+            (0, 2): [ibd.Segment(0.0, 1.0, 2)],
+            (3, 5): [ibd.Segment(0.0, 1.0, 5)],
+        }
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
@@ -496,9 +544,7 @@ class TestIbdDifferentPaths(unittest.TestCase):
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts)
-        ibd_segs = ibd_f.find_ibd_segments()
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)])
         true_segs = {
             (0, 1): [
                 ibd.Segment(0.0, 0.2, 4),
@@ -506,34 +552,86 @@ class TestIbdDifferentPaths(unittest.TestCase):
                 ibd.Segment(0.2, 0.7, 4),
             ]
         }
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_time(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts, max_time=1.8)
-        ibd_segs = ibd_f.find_ibd_segments()
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], max_time=1.8)
         true_segs = {(0, 1): []}
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
         assert ibd_is_equal(ibd_segs, true_segs)
-        ibd_f = ibd.IbdFinder(ts, max_time=2.8)
+
+    def test_length(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=0.4)
+        true_segs = {(0, 1): [ibd.Segment(0.2, 0.7, 4)]}
+        assert ibd_is_equal(ibd_segs, true_segs)
+
+    # This is a situation where the Python and the C libraries agree,
+    # but aren't doing as expected.
+    @unittest.expectedFailure
+    def test_input_sample_pairs(self):
+        ibd_f = ibd.IbdFinder(self.ts, sample_pairs=[(0, 1), (2, 3), (1, 3)])
         ibd_segs = ibd_f.find_ibd_segments()
+        ibd_segs = convert_ibd_output_to_seglists(ibd_segs)
         true_segs = {
             (0, 1): [
                 ibd.Segment(0.0, 0.2, 4),
                 ibd.Segment(0.7, 1.0, 4),
                 ibd.Segment(0.2, 0.7, 4),
-            ]
+            ],
+            (2, 3): [ibd.Segment(0.2, 0.7, 4)],
         }
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(
+            self.ts,
+            sample_pairs=[(0, 1), (2, 3)],
+            compare_lib=True,
+            print_c=False,
+            print_py=False,
+        )
         assert ibd_is_equal(ibd_segs, true_segs)
 
-    def test_length(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts, min_length=0.4)
-        ibd_segs = ibd_f.find_ibd_segments()
-        true_segs = {(0, 1): [ibd.Segment(0.2, 0.7, 4)]}
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+
+class TestIbdDifferentPaths2(unittest.TestCase):
+    #
+    #        5         |
+    #       / \        |
+    #      /   4       |      4
+    #     /   / \      |     / \
+    #    /   /   \     |    /   \
+    #   /   /     \    |   3     \
+    #  /   /       \   |  / \     \
+    # 0   1         2  | 0   2     1
+    #                  |
+    #                  0.2
+
+    nodes = io.StringIO(
+        """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       0           1
+    4       0           2.5
+    5       0           3.5
+    """
+    )
+    edges = io.StringIO(
+        """\
+    left    right   parent  child
+    0.2     1.0     3       0
+    0.2     1.0     3       2
+    0.0     1.0     4       1
+    0.0     0.2     4       2
+    0.2     1.0     4       3
+    0.0     0.2     5       0
+    0.0     0.2     5       4
+    """
+    )
+    ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+
+    def test_defaults(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(1, 2)])
+        true_segs = {
+            (1, 2): [ibd.Segment(0.0, 0.2, 4), ibd.Segment(0.2, 1.0, 4)],
+        }
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
@@ -576,10 +674,9 @@ class TestIbdPolytomies(unittest.TestCase):
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        # print(ibd_segs[(0,1)])
+        ibd_segs = find_ibd(
+            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+        )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],
             (0, 2): [ibd.Segment(0, 0.3, 4), ibd.Segment(0.3, 1, 5)],
@@ -588,14 +685,14 @@ class TestIbdPolytomies(unittest.TestCase):
             (1, 3): [ibd.Segment(0, 0.3, 5), ibd.Segment(0.3, 1, 4)],
             (2, 3): [ibd.Segment(0.3, 1, 5), ibd.Segment(0, 0.3, 5)],
         }
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
-        # print(ibd_segs)
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_time(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts, max_time=3)
-        ibd_segs = ibd_f.find_ibd_segments()
+        ibd_segs = find_ibd(
+            self.ts,
+            sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+            max_time=3,
+        )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],
             (0, 2): [ibd.Segment(0, 0.3, 4)],
@@ -604,13 +701,14 @@ class TestIbdPolytomies(unittest.TestCase):
             (1, 3): [ibd.Segment(0.3, 1, 4)],
             (2, 3): [],
         }
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts, min_length=0.5)
-        ibd_segs = ibd_f.find_ibd_segments()
+        ibd_segs = find_ibd(
+            self.ts,
+            sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+            min_length=0.5,
+        )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],
             (0, 2): [ibd.Segment(0.3, 1, 5)],
@@ -619,7 +717,14 @@ class TestIbdPolytomies(unittest.TestCase):
             (1, 3): [ibd.Segment(0.3, 1, 4)],
             (2, 3): [ibd.Segment(0.3, 1, 5)],
         }
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        assert ibd_is_equal(ibd_segs, true_segs)
+
+    def test_input_sample_pairs(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1), (0, 3)])
+        true_segs = {
+            (0, 1): [ibd.Segment(0.0, 1.0, 4)],
+            (0, 3): [ibd.Segment(0.3, 1.0, 4), ibd.Segment(0.0, 0.3, 5)],
+        }
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
@@ -651,10 +756,7 @@ class TestIbdInternalSamples(unittest.TestCase):
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ts = self.ts
-        ibd_f = ibd.IbdFinder(ts)
-        ibd_segs = ibd_f.find_ibd_segments()
-        ibd_segs = convert_dict_of_segmentlists(ibd_segs)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 2)])
         true_segs = {
             (0, 2): [ibd.Segment(0, 1, 3)],
         }
@@ -666,22 +768,10 @@ class TestIbdRandomExamples(unittest.TestCase):
     Randomly generated test cases.
     """
 
-    # Infinite sites, Hudson model.
-    def test_random_example1(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=2)
-        verify_equal_ibd(ts)
-
-    def test_random_example2(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=23)
-        verify_equal_ibd(ts)
-
-    def test_random_example3(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.5, random_seed=232)
-        verify_equal_ibd(ts)
-
-    def test_random_example4(self):
-        ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=726)
-        verify_equal_ibd(ts)
+    def test_random_examples(self):
+        for i in range(1, 50):
+            ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=i)
+            verify_equal_ibd(ts)
 
     # Finite sites
     def sim_finite_sites(self, random_seed, dtwf=False):
@@ -705,59 +795,21 @@ class TestIbdRandomExamples(unittest.TestCase):
         )
         return ts
 
-    def test_finite_sites1(self):
-        ts = self.sim_finite_sites(9257)
-        verify_equal_ibd(ts)
+    def test_finite_sites(self):
+        for i in range(1, 11):
+            ts = self.sim_finite_sites(i)
+            verify_equal_ibd(ts)
 
-    def test_finite_sites2(self):
-        ts = self.sim_finite_sites(835)
-        verify_equal_ibd(ts)
-
-    def test_finite_sites3(self):
-        ts = self.sim_finite_sites(27278)
-        verify_equal_ibd(ts)
-
-    def test_finite_sites4(self):
-        ts = self.sim_finite_sites(22446688)
-        verify_equal_ibd(ts)
-
-    # DTWF
-    def test_dtwf1(self):
-        ts = self.sim_finite_sites(84, dtwf=True)
-        verify_equal_ibd(ts)
-
-    def test_dtwf2(self):
-        ts = self.sim_finite_sites(17482, dtwf=True)
-        verify_equal_ibd(ts)
-
-    def test_dtwf3(self):
-        ts = self.sim_finite_sites(846, dtwf=True)
-        verify_equal_ibd(ts)
-
-    def test_dtwf4(self):
-        ts = self.sim_finite_sites(273, dtwf=True)
-        verify_equal_ibd(ts)
+    def test_dtwf(self):
+        for i in range(1000, 1010):
+            ts = self.sim_finite_sites(i, dtwf=True)
+            verify_equal_ibd(ts)
 
     def test_sim_wright_fisher_generations(self):
         # Uses the bespoke DTWF forward-time simulator.
-        number_of_gens = 3
-        tables = wf.wf_sim(4, number_of_gens, deep_history=False, seed=83)
-        tables.sort()
-        ts = tables.tree_sequence()
-        verify_equal_ibd(ts)
-
-    def test_sim_wright_fisher_generations2(self):
-        # Uses the bespoke DTWF forward-time simulator.
-        number_of_gens = 10
-        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=837)
-        tables.sort()
-        ts = tables.tree_sequence()
-        verify_equal_ibd(ts)
-
-    def test_sim_wright_fisher_generations3(self):
-        # Uses the bespoke DTWF forward-time simulator.
-        number_of_gens = 10
-        tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=37)
-        tables.sort()
-        ts = tables.tree_sequence()
-        verify_equal_ibd(ts)
+        for i in range(1, 6):
+            number_of_gens = 10
+            tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=i)
+            tables.sort()
+            ts = tables.tree_sequence()
+            verify_equal_ibd(ts)

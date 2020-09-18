@@ -27,6 +27,7 @@ import base64
 import datetime
 import itertools
 import json
+import sys
 import warnings
 from typing import Any
 from typing import Tuple
@@ -2795,3 +2796,10 @@ class TableCollection:
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
+
+    def find_ibd(self, samples, max_time=None, min_length=None):
+        max_time = sys.float_info.max if max_time is None else max_time
+        min_length = 0 if min_length is None else min_length
+        return self._ll_tables.find_ibd(
+            samples, max_time=max_time, min_length=min_length
+        )

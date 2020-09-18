@@ -461,6 +461,12 @@ tsk_strerror_internal(int err)
             // histories could be equivalent, because subset does not reorder
             // edges (if not sorted) or mutations.
             ret = "Shared portions of the tree sequences are not equal.";
+            break;
+
+        /* IBD errors */
+        case TSK_ERR_NO_SAMPLE_PAIRS:
+            ret = "There are no possible sample pairs.";
+            break;
     }
     return ret;
 }
