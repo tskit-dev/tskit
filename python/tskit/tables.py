@@ -27,6 +27,7 @@ import base64
 import datetime
 import itertools
 import json
+import sys
 import warnings
 from typing import Any
 from typing import Tuple
@@ -2381,8 +2382,6 @@ class TableCollection:
         ll_edge_table = self._ll_tables.link_ancestors(samples, ancestors)
         return EdgeTable(ll_table=ll_edge_table)
 
-    # Add a docstring for find_ibd, and run the low-level C code.
-
     def map_ancestors(self, *args, **kwargs):
         # A deprecated alias for link_ancestors()
         return self.link_ancestors(*args, **kwargs)
@@ -2799,8 +2798,7 @@ class TableCollection:
             )
 
     def find_ibd(self, samples, max_time=None, min_length=None):
-
-        max_time = 0 if max_time is None else max_time
+        max_time = sys.float_info.max if max_time is None else max_time
         min_length = 0 if min_length is None else min_length
         return self._ll_tables.find_ibd(
             samples, max_time=max_time, min_length=min_length

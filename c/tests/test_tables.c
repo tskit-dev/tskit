@@ -25,6 +25,7 @@
 #include "testlib.h"
 #include <tskit/tables.h>
 
+#include <float.h>
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -2862,7 +2863,6 @@ ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder, tsk_table_collection_t *ta
     if (ret != 0) {
         goto out;
     }
-
     ret = tsk_ibd_finder_set_min_length(ibd_finder, min_length);
     if (ret != 0) {
         goto out;
@@ -2871,7 +2871,6 @@ ibd_finder_init_and_run(tsk_ibd_finder_t *ibd_finder, tsk_table_collection_t *ta
     if (ret != 0) {
         goto out;
     }
-
     ret = tsk_ibd_finder_run(ibd_finder);
     if (ret != 0) {
         goto out;
@@ -2901,8 +2900,7 @@ test_ibd_finder(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    // Run ibd_finder.
-    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 1, 0.0, DBL_MAX);
 
     // Check the output.
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2948,7 +2946,7 @@ test_ibd_finder_multiple_trees(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Run ibd_finder.
-    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, 0.0, DBL_MAX);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Check the output.
@@ -3071,12 +3069,12 @@ test_ibd_finder_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Invalid sample IDs
-    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples2, 1, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples2, 1, 0.0, DBL_MAX);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_ibd_finder_free(&ibd_finder);
 
     // Only 1 sample
-    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples3, 0, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples3, 0, 0.0, DBL_MAX);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_PAIRS);
     tsk_ibd_finder_free(&ibd_finder);
 
@@ -3113,7 +3111,7 @@ test_ibd_finder_samples_are_descendants(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Run ibd_finder.
-    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 6, 0.0, 0.0);
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 6, 0.0, DBL_MAX);
 
     // Check the output.
     CU_ASSERT_EQUAL_FATAL(ret, 0);

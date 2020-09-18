@@ -5507,6 +5507,8 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     self->sequence_length = tables->sequence_length;
     self->num_nodes = tables->nodes.num_rows;
     self->tables = tables;
+    self->max_time = DBL_MAX;
+    self->min_length = 0;
 
     if (pairs == NULL || num_pairs < 1) {
         ret = TSK_ERR_NO_SAMPLE_PAIRS;
@@ -5525,10 +5527,11 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(*self->ancestor_map_tail));
     self->ibd_segments_head = calloc(self->num_pairs, sizeof(*self->ibd_segments_head));
     self->ibd_segments_tail = calloc(self->num_pairs, sizeof(*self->ibd_segments_tail));
-    self->is_sample = calloc(num_nodes_alloc, sizeof(bool));
+    self->is_sample = calloc(num_nodes_alloc, sizeof(*self->is_sample));
     self->segment_queue_size = 0;
     self->max_segment_queue_size = 64;
-    self->segment_queue = malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
+    self->segment_queue
+        = malloc(self->max_segment_queue_size * sizeof(*self->segment_queue));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
         || self->ibd_segments_head == NULL || self->ibd_segments_tail == NULL
         || self->is_sample == NULL || self->segment_queue == NULL) {
@@ -5549,10 +5552,11 @@ int TSK_WARN_UNUSED
 tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length)
 {
     int ret = 0;
-    self->min_length = min_length;
+
     if (min_length < 0) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
     }
+    self->min_length = min_length;
     return ret;
 }
 
@@ -5561,14 +5565,10 @@ tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time)
 {
     int ret = 0;
 
-    if (max_time == 0) {
-        self->max_time = DBL_MAX;
-    } else {
-        self->max_time = max_time;
-    }
     if (max_time < 0) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
     }
+    self->max_time = max_time;
     return ret;
 }
 
@@ -5696,6 +5696,7 @@ tsk_ibd_finder_get_ibd_segments(
     tsk_ibd_finder_t *self, tsk_id_t pair_index, tsk_segment_t **ret_ibd_segments_head)
 {
     int ret = 0;
+
     if (((pair_index < 0) || (pair_index >= (tsk_id_t) self->num_pairs))) {
         ret = TSK_ERR_NO_SAMPLE_PAIRS;
         goto out;
@@ -5705,7 +5706,6 @@ tsk_ibd_finder_get_ibd_segments(
     } else {
         ret = -1;
     }
-
 out:
     return ret;
 }
@@ -8468,8 +8468,6 @@ out:
     ancestor_mapper_free(&ancestor_mapper);
     return ret;
 }
-
-// IBD: Define find_ibd as a method of the tsk_table_collection.
 
 int TSK_WARN_UNUSED
 tsk_table_collection_sort(
