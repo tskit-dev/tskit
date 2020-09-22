@@ -634,12 +634,12 @@ requirements for a valid set of mutations are:
 
 - ``site`` must refer to a valid site ID;
 - ``node`` must refer to a valid node ID;
-- ``time`` must either be UNKNOWN_TIME (a NAN value which indicates
+- ``time`` must either be ``UNKNOWN_TIME`` (a NAN value which indicates
   the time is unknown) or be a finite value which is greater or equal to the
   mutation ``node``'s ``time``, less than the ``node`` above the mutation's
   ``time`` and equal to or less than the ``time`` of the ``parent`` mutation
-  if this mutation has one. If one mutation on a site has UNKNOWN_TIME then all mutations
-  at that site must, a mixture of known and unknown is not valid.
+  if this mutation has one. If one mutation on a site has ``UNKNOWN_TIME`` then
+  all mutations at that site must, as a mixture of known and unknown is not valid.
 - ``parent`` must either be the null ID (-1) or a valid mutation ID within the
   current table
 
@@ -668,6 +668,9 @@ mutation does not result in any change of state. This error is
 raised at run-time when we reconstruct sample genotypes, for example
 in the :meth:`TreeSequence.variants` iterator.
 
+.. note:: As ``tskit.UNKNOWN_TIME`` is implemented as a ``NaN`` value, tests for
+    equality will always fail. Use ``tskit.is_unknown_time`` to detect unknown
+    values.
 
 .. _sec_migration_requirements:
 

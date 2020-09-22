@@ -23,7 +23,6 @@
 Module responsible for various utility functions used in other modules.
 """
 import json
-import struct
 
 import numpy as np
 
@@ -45,9 +44,16 @@ def canonical_json(obj):
 def is_unknown_time(time):
     """
     As the default unknown mutation time is NAN equality always fails. This
-    method compares the bitfield.
+    method compares the bitfield such that unknown times can be detected.
+    Either single floats can be passed or lists/arrays.
+
+    :param float or array-like time: Value or array to check.
+    :return: A single boolean or array of booleans the same shape as ``time``.
+    :rtype: bool or np.array(dtype=bool)
     """
-    return struct.pack(">d", UNKNOWN_TIME) == struct.pack(">d", time)
+    return np.asarray(time, dtype=np.float64).view(np.uint64) == np.float64(
+        UNKNOWN_TIME
+    ).view(np.uint64)
 
 
 def safe_np_int_cast(int_array, dtype, copy=False):
