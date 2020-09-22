@@ -1524,7 +1524,7 @@ class TestTreeSequenceMetadata(unittest.TestCase):
             # Check via tree-sequence API
             new_ts = tskit.TreeSequence.load_tables(tables)
             self.assertEqual(
-                str(getattr(new_ts.table_metadata_schemas, table)), str(schema),
+                str(getattr(new_ts.table_metadata_schemas, table)), str(schema)
             )
             for other_table in self.metadata_tables:
                 if other_table != table:
@@ -2078,7 +2078,7 @@ class TestTree(HighLevelTestCase):
         5       0.00000000      1.00000000      6       5
         """
         )
-        ts = tskit.load_text(nodes, edges, sequence_length=1, strict=False,)
+        ts = tskit.load_text(nodes, edges, sequence_length=1, strict=False)
         tree = ts.first()
         for precision in range(17):
             newick_c = tree.newick(precision=precision)

@@ -85,8 +85,8 @@ class SimpleContainerWithMetadata(SimpleContainer):
 
     class CachedMetadata:
         """
-            If we had python>=3.8 we could just use @functools.cached_property here. We
-            don't so we implement it similarly using a descriptor
+        If we had python>=3.8 we could just use @functools.cached_property here. We
+        don't so we implement it similarly using a descriptor
         """
 
         def __get__(self, container: "SimpleContainerWithMetadata", owner: type):
@@ -484,7 +484,7 @@ class Population(SimpleContainerWithMetadata):
     """
 
     def __init__(
-        self, id_, encoded_metadata=b"", metadata_decoder=lambda metadata: metadata,
+        self, id_, encoded_metadata=b"", metadata_decoder=lambda metadata: metadata
     ):
         self.id = id_
         self._encoded_metadata = encoded_metadata

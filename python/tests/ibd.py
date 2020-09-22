@@ -352,7 +352,7 @@ class IbdFinder:
                     # IBD relationship.
                     if right - left > self.min_length:
                         self.add_ibd_segments(
-                            index, Segment(left, right, current_parent),
+                            index, Segment(left, right, current_parent)
                         )
                     seg1 = seg1.next
                 seg0 = seg0.next

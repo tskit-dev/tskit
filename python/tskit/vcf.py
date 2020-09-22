@@ -134,7 +134,7 @@ class VcfWriter:
         print(f"##source=tskit {provenance.__version__}", file=output)
         print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
         print(
-            f"##contig=<ID={self.contig_id},length={self.contig_length}>", file=output,
+            f"##contig=<ID={self.contig_id},length={self.contig_length}>", file=output
         )
         print(
             '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output

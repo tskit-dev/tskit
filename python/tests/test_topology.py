@@ -203,7 +203,7 @@ def fill_kc_vectors(tree, kc_vecs):
                 c2 = tree.right_sib(c1)
                 while c2 != tskit.NULL:
                     update_kc_vectors_all_pairs(
-                        tree, kc_vecs, c1, c2, depth, tree.time(root) - tree.time(u),
+                        tree, kc_vecs, c1, c2, depth, tree.time(root) - tree.time(u)
                     )
                     c2 = tree.right_sib(c2)
                 c1 = tree.right_sib(c1)
@@ -512,9 +512,9 @@ class TestKCMetric(unittest.TestCase):
         pv = [3, 3, 4, 4]
         cv = [0, 1, 2, 3]
 
-        for l, r, p, c in zip(lv, rv, pv, cv):
-            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
-            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+        for left, right, p, c in zip(lv, rv, pv, cv):
+            tables_1.edges.add_row(left=left, right=right, parent=p, child=c)
+            tables_2.edges.add_row(left=left, right=right, parent=p, child=c)
 
         tree_1 = next(tables_1.tree_sequence().trees(sample_lists=True))
         tree_2 = next(tables_2.tree_sequence().trees(sample_lists=True))
@@ -1239,13 +1239,13 @@ class TestKCSequenceMetric(unittest.TestCase):
         rv = [1.0, 1.0, 1.0, 1.0]
         pv1 = [3, 3, 4, 4]
         cv1 = [0, 1, 2, 3]
-        for l, r, p, c in zip(lv, rv, pv1, cv1):
-            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
+        for left, right, p, c in zip(lv, rv, pv1, cv1):
+            tables_1.edges.add_row(left=left, right=right, parent=p, child=c)
 
         pv2 = [2, 2, 3, 3]
         cv2 = [0, 1, 2, 4]
-        for l, r, p, c in zip(lv, rv, pv2, cv2):
-            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+        for left, right, p, c in zip(lv, rv, pv2, cv2):
+            tables_2.edges.add_row(left=left, right=right, parent=p, child=c)
 
         ts1 = tables_1.tree_sequence()
         ts2 = tables_2.tree_sequence()
@@ -1269,8 +1269,8 @@ class TestKCSequenceMetric(unittest.TestCase):
         rv = [1.0, 1.0, 1.0]
         pv = [1, 2]
         cv = [0, 1]
-        for l, r, p, c in zip(lv, rv, pv, cv):
-            tables.edges.add_row(left=l, right=r, parent=p, child=c)
+        for left, right, p, c in zip(lv, rv, pv, cv):
+            tables.edges.add_row(left=left, right=right, parent=p, child=c)
 
         ts = tables.tree_sequence()
         self.verify_errors(ts, ts)
@@ -1399,10 +1399,10 @@ class TestKCSequenceMetric(unittest.TestCase):
         lv2 = [0, 0, 0, 0, 0, 0, 1, 1]
         rv2 = [2, 2, 1, 2, 1, 2, 2, 2]
 
-        for l, r, p, c in zip(lv1, rv1, pv1, cv1):
-            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
-        for l, r, p, c in zip(lv2, rv2, pv2, cv2):
-            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+        for left, right, p, c in zip(lv1, rv1, pv1, cv1):
+            tables_1.edges.add_row(left=left, right=right, parent=p, child=c)
+        for left, right, p, c in zip(lv2, rv2, pv2, cv2):
+            tables_2.edges.add_row(left=left, right=right, parent=p, child=c)
 
         tables_1.sort()
         tables_2.sort()
@@ -1430,9 +1430,9 @@ class TestKCSequenceMetric(unittest.TestCase):
         pv = [3, 3, 4, 4]
         cv = [0, 1, 2, 3]
 
-        for l, r, p, c in zip(lv, rv, pv, cv):
-            tables_1.edges.add_row(left=l, right=r, parent=p, child=c)
-            tables_2.edges.add_row(left=l, right=r, parent=p, child=c)
+        for left, right, p, c in zip(lv, rv, pv, cv):
+            tables_1.edges.add_row(left=left, right=right, parent=p, child=c)
+            tables_2.edges.add_row(left=left, right=right, parent=p, child=c)
 
         ts_1 = tables_1.tree_sequence()
         ts_2 = tables_2.tree_sequence()
@@ -6368,7 +6368,7 @@ class TestMutationTime(unittest.TestCase):
         """
         )
         ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False,
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
         )
         # ts.dump_text(mutations=sys.stdout)
         # self.assertFalse(True)

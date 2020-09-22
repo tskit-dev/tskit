@@ -643,7 +643,7 @@ class RankTree:
         return self.labels[0]
 
     def labelled(self):
-        return all(l is not None for l in self.labels)
+        return all(label is not None for label in self.labels)
 
     def min_label(self):
         return self.labels[0]

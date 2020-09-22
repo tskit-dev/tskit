@@ -1902,7 +1902,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
     def test_known_svg_ts(self):
         ts = self.get_simple_ts()
         svg = ts.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}",
+            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
         # Prettify the SVG code for easy inspection
         svg = xml.dom.minidom.parseString(svg).toprettyxml()

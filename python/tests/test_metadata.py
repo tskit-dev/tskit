@@ -837,9 +837,7 @@ class TestStructCodec(unittest.TestCase):
             metadata.StructCodec.make_array_decode(schema)(5)
 
     def test_make_object_encode_and_decode(self):
-        self.encode_decode(
-            "make_object", {"type": "object", "properties": {}}, {}, b"",
-        )
+        self.encode_decode("make_object", {"type": "object", "properties": {}}, {}, b"")
         self.encode_decode(
             "make_object",
             {
@@ -968,7 +966,7 @@ class TestStructCodec(unittest.TestCase):
             b"a\xb2)B",
         )
         self.encode_decode(
-            "make_numeric", {"type": "integer", "binaryFormat": "b"}, 42, b"*",
+            "make_numeric", {"type": "integer", "binaryFormat": "b"}, 42, b"*"
         )
 
     def test_null_union_top_level(self):
@@ -1224,12 +1222,8 @@ class TestStructCodecRoundTrip(unittest.TestCase):
             },
         }
         self.round_trip(schema, {"array": []})
-        self.round_trip(
-            schema, {"array": [1]},
-        )
-        self.round_trip(
-            schema, {"array": list(range(255))},
-        )
+        self.round_trip(schema, {"array": [1]})
+        self.round_trip(schema, {"array": list(range(255))})
 
     def test_string_encoding(self):
         schema = {
@@ -1381,7 +1375,7 @@ class TestStructCodecErrors(unittest.TestCase):
             "properties": {"array": {"type": "array", "arrayLengthFormat": "b"}},
         }
         with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "does not match",
+            exceptions.MetadataSchemaValidationError, "does not match"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1410,7 +1404,7 @@ class TestStructCodecErrors(unittest.TestCase):
             },
         }
         with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type",
+            exceptions.MetadataSchemaValidationError, "is not of type"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1427,7 +1421,7 @@ class TestStructCodecErrors(unittest.TestCase):
             },
         }
         with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type",
+            exceptions.MetadataSchemaValidationError, "is not of type"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1444,7 +1438,7 @@ class TestStructCodecErrors(unittest.TestCase):
             },
         }
         with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type",
+            exceptions.MetadataSchemaValidationError, "is not of type"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1774,9 +1768,9 @@ class TestTableCollectionEquality(unittest.TestCase):
         # Set with low-level to emulate loading.
         tables._ll_tables.metadata_schema = json.dumps(schema)
         self.assertNotEqual(
-            tables._ll_tables.metadata_schema, tskit.canonical_json(schema),
+            tables._ll_tables.metadata_schema, tskit.canonical_json(schema)
         )
         tables.metadata_schema = tables.metadata_schema
         self.assertEqual(
-            tables._ll_tables.metadata_schema, tskit.canonical_json(schema),
+            tables._ll_tables.metadata_schema, tskit.canonical_json(schema)
         )
