@@ -28,6 +28,8 @@
 
 - New ``tree.is_isolated(u)`` method (:user:`hyanwong`, :pr:`443`).
 
+- ``tskit.is_unknown_time`` can now check arrays. (:user:`benjeffery`, :pr:`857`).
+
 --------------------
 [0.3.1] - 2020-09-04
 --------------------

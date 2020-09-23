@@ -29,6 +29,7 @@ import pickle
 import unittest
 
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import tests.tsutil as tsutil
 import tskit.util as util
@@ -64,7 +65,15 @@ class TestCanonicalJSON(unittest.TestCase):
 
 
 class TestUnknownTime(unittest.TestCase):
-    def test_unknown_time(self):
+    def test_unknown_time_bad_types(self):
+        with self.assertRaises(ValueError):
+            util.is_unknown_time("bad")
+        with self.assertRaises(ValueError):
+            util.is_unknown_time(np.array(["bad"]))
+        with self.assertRaises(ValueError):
+            util.is_unknown_time(["bad"])
+
+    def test_unknown_time_scalar(self):
         self.assertTrue(math.isnan(UNKNOWN_TIME))
         self.assertTrue(util.is_unknown_time(UNKNOWN_TIME))
         self.assertFalse(util.is_unknown_time(math.nan))
@@ -72,6 +81,28 @@ class TestUnknownTime(unittest.TestCase):
         self.assertFalse(util.is_unknown_time(0))
         self.assertFalse(util.is_unknown_time(math.inf))
         self.assertFalse(util.is_unknown_time(1))
+        self.assertFalse(util.is_unknown_time(None))
+        self.assertFalse(util.is_unknown_time([None]))
+
+    def test_unknown_time_array(self):
+        test_arrays = (
+            [],
+            [True],
+            [False],
+            [True, False] * 5,
+            [[True], [False]],
+            [[[True, False], [True, False]], [[False, True], [True, False]]],
+        )
+        for spec in test_arrays:
+            spec = np.asarray(spec, dtype=bool)
+            array = np.zeros(shape=spec.shape)
+            array[spec] = UNKNOWN_TIME
+            assert_array_equal(spec, util.is_unknown_time(array))
+
+        weird_array = [0, UNKNOWN_TIME, np.nan, 1, math.inf]
+        assert_array_equal(
+            [False, True, False, False, False], util.is_unknown_time(weird_array)
+        )
 
 
 class TestNumpyArrayCasting(unittest.TestCase):
