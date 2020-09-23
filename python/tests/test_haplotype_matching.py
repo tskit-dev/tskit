@@ -53,21 +53,21 @@ def ls_forward_matrix_naive(h, alleles, G, rho, mu):
     S = np.zeros(m)
     f = np.zeros(n) + 1 / n
 
-    for l in range(0, m):
+    for el in range(0, m):
         for j in range(n):
             # NOTE Careful with the difference between this expression and
             # the Viterbi algorithm below. This depends on the different
             # normalisation approach.
-            p_t = f[j] * (1 - rho[l]) + rho[l] / n
-            p_e = mu[l]
-            if G[l, j] == h[l] or h[l] == tskit.MISSING_DATA:
-                p_e = 1 - (len(alleles[l]) - 1) * mu[l]
+            p_t = f[j] * (1 - rho[el]) + rho[el] / n
+            p_e = mu[el]
+            if G[el, j] == h[el] or h[el] == tskit.MISSING_DATA:
+                p_e = 1 - (len(alleles[el]) - 1) * mu[el]
             f[j] = p_t * p_e
-        S[l] = np.sum(f)
+        S[el] = np.sum(f)
         # TODO need to handle the 0 case.
-        assert S[l] > 0
-        f /= S[l]
-        F[l] = f
+        assert S[el] > 0
+        f /= S[el]
+        F[el] = f
     return F, S
 
 
@@ -82,31 +82,31 @@ def ls_viterbi_naive(h, alleles, G, rho, mu):
     T = [set() for _ in range(m)]
     T_dest = np.zeros(m, dtype=int)
 
-    for l in range(m):
+    for el in range(m):
         # The calculation below is undefined otherwise.
-        if len(alleles[l]) > 1:
-            assert mu[l] <= 1 / (len(alleles[l]) - 1)
+        if len(alleles[el]) > 1:
+            assert mu[el] <= 1 / (len(alleles[el]) - 1)
         L_next = np.zeros(n)
         for j in range(n):
             # NOTE Careful with the difference between this expression and
             # the Forward algorithm above. This depends on the different
             # normalisation approach.
-            p_no_recomb = L[j] * (1 - rho[l] + rho[l] / n)
-            p_recomb = rho[l] / n
+            p_no_recomb = L[j] * (1 - rho[el] + rho[el] / n)
+            p_recomb = rho[el] / n
             if p_no_recomb > p_recomb:
                 p_t = p_no_recomb
             else:
                 p_t = p_recomb
-                T[l].add(j)
-            p_e = mu[l]
-            if G[l, j] == h[l] or h[l] == tskit.MISSING_DATA:
-                p_e = 1 - (len(alleles[l]) - 1) * mu[l]
+                T[el].add(j)
+            p_e = mu[el]
+            if G[el, j] == h[el] or h[el] == tskit.MISSING_DATA:
+                p_e = 1 - (len(alleles[el]) - 1) * mu[el]
             L_next[j] = p_t * p_e
         L = L_next
         j = np.argmax(L)
-        T_dest[l] = j
+        T_dest[el] = j
         if L[j] == 0:
-            assert mu[l] == 0
+            assert mu[el] == 0
             raise ValueError(
                 "Trying to match non-existent allele with zero mutation rate"
             )
@@ -114,11 +114,11 @@ def ls_viterbi_naive(h, alleles, G, rho, mu):
 
     P = np.zeros(m, dtype=int)
     P[m - 1] = T_dest[m - 1]
-    for l in range(m - 1, 0, -1):
-        j = P[l]
-        if j in T[l]:
-            j = T_dest[l - 1]
-        P[l - 1] = j
+    for el in range(m - 1, 0, -1):
+        j = P[el]
+        if j in T[el]:
+            j = T_dest[el - 1]
+        P[el - 1] = j
     return P
 
 
@@ -201,20 +201,20 @@ def ls_forward_matrix(h, alleles, G, rho, mu):
     f = np.zeros(n) + 1 / n
     p_e = np.zeros(n)
 
-    for l in range(0, m):
-        p_t = f * (1 - rho[l]) + rho[l] / n
-        eq = G[l] == h[l]
-        if h[l] == tskit.MISSING_DATA:
+    for el in range(0, m):
+        p_t = f * (1 - rho[el]) + rho[el] / n
+        eq = G[el] == h[el]
+        if h[el] == tskit.MISSING_DATA:
             # Missing data is equal to everything
             eq[:] = True
-        p_e[:] = mu[l]
-        p_e[eq] = 1 - (len(alleles[l]) - 1) * mu[l]
+        p_e[:] = mu[el]
+        p_e[eq] = 1 - (len(alleles[el]) - 1) * mu[el]
         f = p_t * p_e
-        S[l] = np.sum(f)
+        S[el] = np.sum(f)
         # TODO need to handle the 0 case.
-        assert S[l] > 0
-        f /= S[l]
-        F[l] = f
+        assert S[el] > 0
+        f /= S[el]
+        F[el] = f
     return F, S
 
 
@@ -236,15 +236,15 @@ def ls_forward_matrix_unscaled(h, alleles, G, rho, mu):
     F = np.zeros((m, n))
     f = np.zeros(n) + 1 / n
 
-    for l in range(0, m):
+    for el in range(0, m):
         s = np.sum(f)
         for j in range(n):
-            p_t = f[j] * (1 - rho[l]) + s * rho[l] / n
-            p_e = mu[l]
-            if G[l, j] == h[l] or h[l] == tskit.MISSING_DATA:
-                p_e = 1 - (len(alleles[l]) - 1) * mu[l]
+            p_t = f[j] * (1 - rho[el]) + s * rho[el] / n
+            p_e = mu[el]
+            if G[el, j] == h[el] or h[el] == tskit.MISSING_DATA:
+                p_e = 1 - (len(alleles[el]) - 1) * mu[el]
             f[j] = p_t * p_e
-        F[l] = f
+        F[el] = f
     return F
 
 

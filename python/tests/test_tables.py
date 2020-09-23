@@ -2688,7 +2688,7 @@ class TestDeduplicateSites(unittest.TestCase):
             tables.sites.add_row(position=site.position, ancestral_state="0")
             for mutation in site.mutations:
                 tables.mutations.add_row(
-                    site=site_id, node=mutation.node, derived_state="T" * site.id,
+                    site=site_id, node=mutation.node, derived_state="T" * site.id
                 )
         tables.deduplicate_sites()
         new_ts = tables.tree_sequence()

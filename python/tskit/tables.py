@@ -357,7 +357,7 @@ class MetadataMixin:
     @property
     def metadata_schema(self) -> metadata.MetadataSchema:
         """
-            The :class:`tskit.MetadataSchema` for this table.
+        The :class:`tskit.MetadataSchema` for this table.
         """
         return self._metadata_schema_cache
 
@@ -611,7 +611,7 @@ class NodeTable(BaseTable, MetadataMixin):
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata_schema: The metadata schema for this table's metadata column
     :vartype metadata_schema: tskit.MetadataSchema
-"""
+    """
 
     column_names = [
         "time",
@@ -808,7 +808,7 @@ class EdgeTable(BaseTable, MetadataMixin):
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata_schema: The metadata schema for this table's metadata column
     :vartype metadata_schema: tskit.MetadataSchema
-"""
+    """
 
     column_names = [
         "left",
@@ -923,7 +923,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         )
 
     def append_columns(
-        self, left, right, parent, child, metadata=None, metadata_offset=None,
+        self, left, right, parent, child, metadata=None, metadata_offset=None
     ):
         """
         Appends the specified arrays to the end of the columns of this
@@ -1016,7 +1016,7 @@ class MigrationTable(BaseTable, MetadataMixin):
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata_schema: The metadata schema for this table's metadata column
     :vartype metadata_schema: tskit.MetadataSchema
-"""
+    """
 
     column_names = [
         "left",
@@ -1232,7 +1232,7 @@ class SiteTable(BaseTable, MetadataMixin):
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata_schema: The metadata schema for this table's metadata column
     :vartype metadata_schema: tskit.MetadataSchema
-"""
+    """
 
     column_names = [
         "position",
@@ -1449,7 +1449,7 @@ class MutationTable(BaseTable, MetadataMixin):
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata_schema: The metadata schema for this table's metadata column
     :vartype metadata_schema: tskit.MetadataSchema
-"""
+    """
 
     column_names = [
         "site",
@@ -1498,9 +1498,7 @@ class MutationTable(BaseTable, MetadataMixin):
                 )
         return headers, rows
 
-    def add_row(
-        self, site, node, derived_state, parent=-1, metadata=None, time=None,
-    ):
+    def add_row(self, site, node, derived_state, parent=-1, metadata=None, time=None):
         """
         Adds a new row to this :class:`MutationTable` and returns the ID of the
         corresponding mutation. Metadata, if specified, will be validated and encoded
@@ -1699,7 +1697,7 @@ class PopulationTable(BaseTable, MetadataMixin):
     :vartype metadata_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata_schema: The metadata schema for this table's metadata column
     :vartype metadata_schema: tskit.MetadataSchema
-"""
+    """
 
     column_names = ["metadata", "metadata_offset"]
 

@@ -156,8 +156,8 @@ def subtrees_are_equal(tree1, pdict0, root):
     if root not in pdict0.values() or root not in pdict1.values():
         return False
     leaves1 = set(tree1.leaves(root))
-    for l in leaves1:
-        node = l
+    for leaf in leaves1:
+        node = leaf
         while node != root:
             p1 = pdict1[node]
             if p1 not in pdict0.values():
@@ -294,7 +294,7 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
 
     # Basic test
     def test_defaults(self):
-        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)],)
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)])
         true_segs = {
             (0, 1): [ibd.Segment(0.0, 1.0, 3)],
             (0, 2): [ibd.Segment(0.0, 1.0, 4)],
@@ -315,7 +315,7 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
     # Min length = 2
     def test_length(self):
         ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)], min_length=2,
+            self.ts, sample_pairs=[(0, 1), (0, 2), (1, 2)], min_length=2
         )
         true_segs = {(0, 1): [], (0, 2): [], (1, 2): []}
         assert ibd_is_equal(ibd_segs, true_segs)
@@ -484,7 +484,7 @@ class TestIbdSamplesAreDescendants(unittest.TestCase):
 
     def test_basic(self):
         ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
         )
         true_segs = {
             (0, 1): [],
@@ -675,7 +675,7 @@ class TestIbdPolytomies(unittest.TestCase):
 
     def test_defaults(self):
         ibd_segs = find_ibd(
-            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)],
+            self.ts, sample_pairs=[(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
         )
         true_segs = {
             (0, 1): [ibd.Segment(0, 1, 4)],

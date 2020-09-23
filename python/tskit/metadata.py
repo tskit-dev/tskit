@@ -158,7 +158,7 @@ def binary_format_validator(validator, types, instance, schema):
         and instance["binaryFormat"][-1] != "x"
     ):
         yield jsonschema.ValidationError(
-            f'null type binaryFormat must be padding ("x") if set'
+            'null type binaryFormat must be padding ("x") if set'
         )
 
 

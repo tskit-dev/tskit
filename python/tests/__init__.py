@@ -83,35 +83,35 @@ class PythonTree:
             v = self.right_sib[v]
         return ret
 
-    def _preorder_nodes(self, u, l):
-        l.append(u)
+    def _preorder_nodes(self, u, node_ist):
+        node_ist.append(u)
         for c in self.children(u):
-            self._preorder_nodes(c, l)
+            self._preorder_nodes(c, node_ist)
 
-    def _postorder_nodes(self, u, l):
+    def _postorder_nodes(self, u, node_ist):
         for c in self.children(u):
-            self._postorder_nodes(c, l)
-        l.append(u)
+            self._postorder_nodes(c, node_ist)
+        node_ist.append(u)
 
-    def _inorder_nodes(self, u, l):
+    def _inorder_nodes(self, u, node_ist):
         children = self.children(u)
         if len(children) > 0:
             mid = len(children) // 2
             for v in children[:mid]:
-                self._inorder_nodes(v, l)
-            l.append(u)
+                self._inorder_nodes(v, node_ist)
+            node_ist.append(u)
             for v in children[mid:]:
-                self._inorder_nodes(v, l)
+                self._inorder_nodes(v, node_ist)
         else:
-            l.append(u)
+            node_ist.append(u)
 
-    def _levelorder_nodes(self, u, l, level):
-        l[level].append(u) if level < len(l) else l.append([u])
+    def _levelorder_nodes(self, u, node_ist, level):
+        node_ist[level].append(u) if level < len(node_ist) else node_ist.append([u])
         for c in self.children(u):
-            self._levelorder_nodes(c, l, level + 1)
+            self._levelorder_nodes(c, node_ist, level + 1)
 
-    def _minlex_postorder_nodes(self, u, l):
-        l.extend(self._minlex_postorder_nodes_helper(u)[1])
+    def _minlex_postorder_nodes(self, u, node_ist):
+        node_ist.extend(self._minlex_postorder_nodes_helper(u)[1])
 
     def _minlex_postorder_nodes_helper(self, u):
         """

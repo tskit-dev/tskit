@@ -162,7 +162,7 @@ def get_tskit_parser():
         prog="python3 -m tskit", description="Command line interface for tskit."
     )
     top_parser.add_argument(
-        "-V", "--version", action="version", version=f"%(prog)s {tskit.__version__}",
+        "-V", "--version", action="version", version=f"%(prog)s {tskit.__version__}"
     )
     subparsers = top_parser.add_subparsers(dest="subcommand")
     subparsers.required = True
