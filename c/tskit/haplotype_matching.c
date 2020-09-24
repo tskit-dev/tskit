@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <math.h>
 #include <float.h>
 
@@ -64,17 +63,17 @@ tsk_ls_hmm_check_state(tsk_ls_hmm_t *self)
 
     for (j = 0; j < (tsk_id_t) self->num_transitions; j++) {
         if (T[j].tree_node != TSK_NULL) {
-            assert(T_index[T[j].tree_node] == j);
+            tsk_bug_assert(T_index[T[j].tree_node] == j);
         }
     }
-    /* assert(self->num_transitions <= self->num_samples); */
+    /* tsk_bug_assert(self->num_transitions <= self->num_samples); */
 
     if (self->num_transitions > 0) {
         for (j = 0; j < (tsk_id_t) self->num_nodes; j++) {
             if (T_index[j] != TSK_NULL) {
-                assert(T[T_index[j]].tree_node == j);
+                tsk_bug_assert(T[T_index[j]].tree_node == j);
             }
-            assert(self->tree.parent[j] == self->parent[j]);
+            tsk_bug_assert(self->tree.parent[j] == self->parent[j]);
         }
     }
 }
@@ -315,9 +314,9 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self)
             /* Ensure the subtree we're detaching has a transition at the root */
             while (T_index[u] == TSK_NULL) {
                 u = parent[u];
-                assert(u != TSK_NULL);
+                tsk_bug_assert(u != TSK_NULL);
             }
-            assert(self->num_transitions < self->max_transitions);
+            tsk_bug_assert(self->num_transitions < self->max_transitions);
             T_index[record->edge.child] = (tsk_id_t) self->num_transitions;
             T[self->num_transitions].tree_node = record->edge.child;
             T[self->num_transitions].value = T[T_index[u]].value;
@@ -334,7 +333,7 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self)
             /* Grafting onto a new root. */
             if (T_index[record->edge.parent] == TSK_NULL) {
                 T_index[edge.parent] = (tsk_id_t) self->num_transitions;
-                assert(self->num_transitions < self->max_transitions);
+                tsk_bug_assert(self->num_transitions < self->max_transitions);
                 T[self->num_transitions].tree_node = edge.parent;
                 T[self->num_transitions].value = T[T_index[edge.child]].value;
                 self->num_transitions++;
@@ -344,9 +343,9 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self)
             while (T_index[u] == TSK_NULL) {
                 u = parent[u];
             }
-            assert(u != TSK_NULL);
+            tsk_bug_assert(u != TSK_NULL);
         }
-        assert(T_index[u] != -1 && T_index[edge.child] != -1);
+        tsk_bug_assert(T_index[u] != -1 && T_index[edge.child] != -1);
         if (T[T_index[u]].value == T[T_index[edge.child]].value) {
             vt = &T[T_index[edge.child]];
             /* Mark the value transition as unusued */
@@ -422,7 +421,7 @@ tsk_ls_hmm_update_probabilities(
             while (T_index[u] == TSK_NULL) {
                 u = parent[u];
             }
-            assert(self->num_transitions < self->max_transitions);
+            tsk_bug_assert(self->num_transitions < self->max_transitions);
             T_index[mut.node] = (tsk_id_t) self->num_transitions;
             T[self->num_transitions].tree_node = mut.node;
             T[self->num_transitions].value = T[T_index[u]].value;
@@ -437,7 +436,7 @@ tsk_ls_hmm_update_probabilities(
             v = u;
             while (allelic_state[v] == TSK_MISSING_DATA) {
                 v = parent[v];
-                assert(v != -1);
+                tsk_bug_assert(v != -1);
             }
             match = haplotype_state == TSK_MISSING_DATA
                     || haplotype_state == allelic_state[v];
@@ -477,7 +476,7 @@ tsk_ls_hmm_discretise_values(tsk_ls_hmm_t *self)
             num_values++;
         }
     }
-    assert(num_values > 0);
+    tsk_bug_assert(num_values > 0);
 
     qsort(values, num_values, sizeof(double), cmp_double);
 
@@ -494,7 +493,7 @@ tsk_ls_hmm_discretise_values(tsk_ls_hmm_t *self)
         if (T[j].tree_node != TSK_NULL) {
             T[j].value_index
                 = (tsk_id_t) tsk_search_sorted(values, num_values, T[j].value);
-            assert(T[j].value == self->values[T[j].value_index]);
+            tsk_bug_assert(T[j].value == self->values[T[j].value_index]);
         }
     }
     return ret;
@@ -516,7 +515,7 @@ get_smallest_set_bit(uint64_t v)
      */
     uint64_t t = 1;
     tsk_id_t r = 0;
-    assert(v != 0);
+    tsk_bug_assert(v != 0);
 
     while ((v & t) == 0) {
         t <<= 1;
@@ -534,7 +533,7 @@ get_smallest_element(const uint64_t *restrict A, size_t u, size_t num_words)
 
     while (a[j] == 0) {
         j++;
-        assert(j < (tsk_id_t) num_words);
+        tsk_bug_assert(j < (tsk_id_t) num_words);
     }
     return j * 64 + get_smallest_set_bit(a[j]);
 }
@@ -563,7 +562,7 @@ static inline void
 set_fitch(uint64_t *restrict A, const tsk_id_t u, const size_t num_words, tsk_id_t state)
 {
     size_t index = ((size_t) u) * num_words + (size_t)(state / 64);
-    assert(((size_t) state) / 64 < num_words);
+    tsk_bug_assert(((size_t) state) / 64 < num_words);
     A[index] |= 1ULL << (state % 64);
 }
 
@@ -641,7 +640,7 @@ compute_fitch_general(uint64_t *restrict A, const tsk_id_t *restrict left_child,
     const uint64_t state_word = 1ULL << (parent_state % 64);
     int j;
 
-    assert(num_words <= MAX_FITCH_WORDS);
+    tsk_bug_assert(num_words <= MAX_FITCH_WORDS);
 
     memset(a_union, 0, num_words * sizeof(*a_union));
     memset(a_inter, 0xff, num_words * sizeof(*a_inter));
@@ -761,7 +760,7 @@ tsk_ls_hmm_build_fitch_sets(tsk_ls_hmm_t *self)
             if (v != TSK_NULL) {
                 while (T_index[v] == TSK_NULL) {
                     v = parent[v];
-                    assert(v != TSK_NULL);
+                    tsk_bug_assert(v != TSK_NULL);
                 }
                 parent_state = T[T_index[v]].value_index;
                 v = parent[u];
@@ -769,7 +768,7 @@ tsk_ls_hmm_build_fitch_sets(tsk_ls_hmm_t *self)
                     compute_fitch(
                         A, left_child, right_sib, v, parent_state, num_fitch_words);
                     v = parent[v];
-                    assert(v != TSK_NULL);
+                    tsk_bug_assert(v != TSK_NULL);
                 }
             }
         }
@@ -803,12 +802,12 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
     for (root = self->tree.left_root; root != TSK_NULL; root = right_sib[root]) {
         stack[0].tree_node = root;
         stack[0].old_state = T_old[T_index[root]].value_index;
-        /* assert(self->num_fitch_words == 1); */
+        /* tsk_bug_assert(self->num_fitch_words == 1); */
         stack[0].new_state = get_smallest_element(A, (size_t) root, num_fitch_words);
         stack[0].transition_parent = 0;
         stack_top = 0;
 
-        assert(self->num_transitions < self->max_transitions);
+        tsk_bug_assert(self->num_transitions < self->max_transitions);
         T_parent[self->num_transitions] = TSK_NULL;
         T[self->num_transitions].tree_node = stack[0].tree_node;
         T[self->num_transitions].value_index = stack[0].new_state;
@@ -829,7 +828,7 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
                             = get_smallest_element(A, (size_t) v, num_fitch_words);
                         child_s.transition_parent = (tsk_id_t) self->num_transitions;
                         /* Add a new transition */
-                        assert(self->num_transitions < self->max_transitions);
+                        tsk_bug_assert(self->num_transitions < self->max_transitions);
                         T_parent[self->num_transitions] = s.transition_parent;
                         T[self->num_transitions].tree_node = v;
                         T[self->num_transitions].value_index = child_s.new_state;
@@ -840,7 +839,7 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
                 } else {
                     /* Node that we didn't visit when moving up the tree */
                     if (s.old_state != s.new_state) {
-                        assert(self->num_transitions < self->max_transitions);
+                        tsk_bug_assert(self->num_transitions < self->max_transitions);
                         T_parent[self->num_transitions] = s.transition_parent;
                         T[self->num_transitions].tree_node = v;
                         T[self->num_transitions].value_index = s.old_state;
@@ -916,7 +915,7 @@ tsk_ls_hmm_process_site(tsk_ls_hmm_t *self, tsk_site_t *site, int8_t haplotype_s
     if (ret != 0) {
         goto out;
     }
-    assert(self->num_transitions <= self->num_samples);
+    tsk_bug_assert(self->num_transitions <= self->num_samples);
     normalisation_factor = self->compute_normalisation_factor(self);
 
     if (normalisation_factor == 0) {
@@ -924,7 +923,7 @@ tsk_ls_hmm_process_site(tsk_ls_hmm_t *self, tsk_site_t *site, int8_t haplotype_s
         goto out;
     }
     for (j = 0; j < self->num_transitions; j++) {
-        assert(T[j].tree_node != TSK_NULL);
+        tsk_bug_assert(T[j].tree_node != TSK_NULL);
         x = T[j].value / normalisation_factor;
         T[j].value = tsk_round(x, precision);
     }
@@ -999,7 +998,7 @@ tsk_ls_hmm_compute_normalisation_factor_forward(tsk_ls_hmm_t *self)
 
     /* Compute the number of samples directly inheriting from each transition */
     for (j = 0; j < num_transitions; j++) {
-        assert(T[j].tree_node != TSK_NULL);
+        tsk_bug_assert(T[j].tree_node != TSK_NULL);
         N[j] = num_samples[T[j].tree_node];
     }
     for (j = 0; j < num_transitions; j++) {
@@ -1079,9 +1078,9 @@ tsk_ls_hmm_compute_normalisation_factor_viterbi(tsk_ls_hmm_t *self)
 
     max_vt.value = -1;
     max_vt.tree_node = 0; /* keep compiler happy */
-    assert(num_transitions > 0);
+    tsk_bug_assert(num_transitions > 0);
     for (j = 0; j < num_transitions; j++) {
-        assert(T[j].tree_node != TSK_NULL);
+        tsk_bug_assert(T[j].tree_node != TSK_NULL);
         if (T[j].value > max_vt.value) {
             max_vt = T[j];
         }
@@ -1481,7 +1480,7 @@ tsk_viterbi_matrix_choose_sample(
             max_value = transition_values[j];
         }
     }
-    assert(u != TSK_NULL);
+    tsk_bug_assert(u != TSK_NULL);
 
     while (!(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
         found = false;
@@ -1499,7 +1498,7 @@ tsk_viterbi_matrix_choose_sample(
             }
         }
         /* TODO: should remove this once we're sure this is robust */
-        assert(found);
+        tsk_bug_assert(found);
     }
     ret = u;
 out:
@@ -1551,8 +1550,8 @@ tsk_viterbi_matrix_traceback(
                 goto out;
             }
         }
-        assert(tree.left <= site.position);
-        assert(site.position < tree.right);
+        tsk_bug_assert(tree.left <= site.position);
+        tsk_bug_assert(site.position < tree.right);
 
         /* Fill in the recombination tree */
         rr_record_tmp = rr_record;
@@ -1574,7 +1573,7 @@ tsk_viterbi_matrix_traceback(
         while (u != TSK_NULL && recombination_tree[u] == TSK_NULL) {
             u = tree.parent[u];
         }
-        assert(u != TSK_NULL);
+        tsk_bug_assert(u != TSK_NULL);
         if (recombination_tree[u] == 1) {
             /* Switch at the next site */
             current_node = TSK_NULL;

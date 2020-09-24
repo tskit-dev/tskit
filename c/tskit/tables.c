@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <float.h>
@@ -490,9 +489,9 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
     double *location, tsk_size_t location_length, const char *metadata,
     tsk_size_t metadata_length)
 {
-    assert(self->num_rows < self->max_rows);
-    assert(self->metadata_length + metadata_length <= self->max_metadata_length);
-    assert(self->location_length + location_length <= self->max_location_length);
+    tsk_bug_assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+    tsk_bug_assert(self->location_length + location_length <= self->max_location_length);
     self->flags[self->num_rows] = flags;
     memcpy(self->location + self->location_length, location,
         location_length * sizeof(double));
@@ -1012,8 +1011,8 @@ tsk_node_table_add_row_internal(tsk_node_table_t *self, tsk_flags_t flags, doubl
     tsk_id_t population, tsk_id_t individual, const char *metadata,
     tsk_size_t metadata_length)
 {
-    assert(self->num_rows < self->max_rows);
-    assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+    tsk_bug_assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
     memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
     self->flags[self->num_rows] = flags;
     self->time[self->num_rows] = time;
@@ -1106,8 +1105,8 @@ tsk_node_table_print_state(tsk_node_table_t *self, FILE *out)
         }
         fprintf(out, "\n");
     }
-    assert(self->metadata_offset[0] == 0);
-    assert(self->metadata_offset[self->num_rows] == self->metadata_length);
+    tsk_bug_assert(self->metadata_offset[0] == 0);
+    tsk_bug_assert(self->metadata_offset[self->num_rows] == self->metadata_length);
 }
 
 int
@@ -1416,7 +1415,7 @@ tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double right,
         goto out;
     }
 
-    assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(self->num_rows < self->max_rows);
     self->left[self->num_rows] = left;
     self->right[self->num_rows] = right;
     self->parent[self->num_rows] = parent;
@@ -1427,7 +1426,8 @@ tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double right,
         if (ret != 0) {
             goto out;
         }
-        assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+        tsk_bug_assert(
+            self->metadata_length + metadata_length <= self->max_metadata_length);
         memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
         self->metadata_offset[self->num_rows + 1]
             = self->metadata_length + metadata_length;
@@ -1636,7 +1636,7 @@ tsk_edge_table_print_state(tsk_edge_table_t *self, FILE *out)
         (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_edge_table_dump_text(self, out);
-    assert(ret == 0);
+    tsk_bug_assert(ret == 0);
 }
 
 int
@@ -1698,7 +1698,7 @@ tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other)
             /* The only way that the metadata lengths can be equal (which
              * we've already tests) if either one or the other of the tables
              * hasn't got metadata is if they are both zero. */
-            assert(self->metadata_length == 0);
+            tsk_bug_assert(self->metadata_length == 0);
             metadata_equal = true;
         }
         ret = memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
@@ -1835,7 +1835,7 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
         goto out;
     }
     tsk_edge_table_clear(self);
-    assert(num_output_edges <= self->max_rows);
+    tsk_bug_assert(num_output_edges <= self->max_rows);
     self->num_rows = num_output_edges;
     for (k = 0; k < (int) num_output_edges; k++) {
         self->left[k] = edges[k].left;
@@ -2013,7 +2013,8 @@ tsk_site_table_add_row(tsk_site_table_t *self, double position,
     self->position[self->num_rows] = position;
 
     ancestral_state_offset = (tsk_size_t) self->ancestral_state_length;
-    assert(self->ancestral_state_offset[self->num_rows] == ancestral_state_offset);
+    tsk_bug_assert(
+        self->ancestral_state_offset[self->num_rows] == ancestral_state_offset);
     ret = tsk_site_table_expand_ancestral_state(self, ancestral_state_length);
     if (ret != 0) {
         goto out;
@@ -2024,7 +2025,7 @@ tsk_site_table_add_row(tsk_site_table_t *self, double position,
     self->ancestral_state_offset[self->num_rows + 1] = self->ancestral_state_length;
 
     metadata_offset = (tsk_size_t) self->metadata_length;
-    assert(self->metadata_offset[self->num_rows] == metadata_offset);
+    tsk_bug_assert(self->metadata_offset[self->num_rows] == metadata_offset);
     ret = tsk_site_table_expand_metadata(self, metadata_length);
     if (ret != 0) {
         goto out;
@@ -2232,12 +2233,13 @@ tsk_site_table_print_state(tsk_site_table_t *self, FILE *out)
         (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_site_table_dump_text(self, out);
-    assert(ret == 0);
+    tsk_bug_assert(ret == 0);
 
-    assert(self->ancestral_state_offset[0] == 0);
-    assert(self->ancestral_state_length == self->ancestral_state_offset[self->num_rows]);
-    assert(self->metadata_offset[0] == 0);
-    assert(self->metadata_length == self->metadata_offset[self->num_rows]);
+    tsk_bug_assert(self->ancestral_state_offset[0] == 0);
+    tsk_bug_assert(
+        self->ancestral_state_length == self->ancestral_state_offset[self->num_rows]);
+    tsk_bug_assert(self->metadata_offset[0] == 0);
+    tsk_bug_assert(self->metadata_length == self->metadata_offset[self->num_rows]);
 }
 
 static inline void
@@ -2567,7 +2569,7 @@ tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site, tsk_id_t n
     self->time[self->num_rows] = time;
 
     derived_state_offset = self->derived_state_length;
-    assert(self->derived_state_offset[self->num_rows] == derived_state_offset);
+    tsk_bug_assert(self->derived_state_offset[self->num_rows] == derived_state_offset);
     ret = tsk_mutation_table_expand_derived_state(self, derived_state_length);
     if (ret != 0) {
         goto out;
@@ -2578,7 +2580,7 @@ tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site, tsk_id_t n
     self->derived_state_offset[self->num_rows + 1] = self->derived_state_length;
 
     metadata_offset = self->metadata_length;
-    assert(self->metadata_offset[self->num_rows] == metadata_offset);
+    tsk_bug_assert(self->metadata_offset[self->num_rows] == metadata_offset);
     ret = tsk_mutation_table_expand_metadata(self, metadata_length);
     if (ret != 0) {
         goto out;
@@ -2814,11 +2816,12 @@ tsk_mutation_table_print_state(tsk_mutation_table_t *self, FILE *out)
         (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_mutation_table_dump_text(self, out);
-    assert(ret == 0);
-    assert(self->derived_state_offset[0] == 0);
-    assert(self->derived_state_length == self->derived_state_offset[self->num_rows]);
-    assert(self->metadata_offset[0] == 0);
-    assert(self->metadata_length == self->metadata_offset[self->num_rows]);
+    tsk_bug_assert(ret == 0);
+    tsk_bug_assert(self->derived_state_offset[0] == 0);
+    tsk_bug_assert(
+        self->derived_state_length == self->derived_state_offset[self->num_rows]);
+    tsk_bug_assert(self->metadata_offset[0] == 0);
+    tsk_bug_assert(self->metadata_length == self->metadata_offset[self->num_rows]);
 }
 
 static inline void
@@ -3218,8 +3221,8 @@ tsk_migration_table_add_row(tsk_migration_table_t *self, double left, double rig
         goto out;
     }
 
-    assert(self->num_rows < self->max_rows);
-    assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+    tsk_bug_assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
     memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
     self->left[self->num_rows] = left;
     self->right[self->num_rows] = right;
@@ -3286,7 +3289,7 @@ tsk_migration_table_print_state(tsk_migration_table_t *self, FILE *out)
         (int) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_migration_table_dump_text(self, out);
-    assert(ret == 0);
+    tsk_bug_assert(ret == 0);
 }
 
 static inline void
@@ -3649,8 +3652,8 @@ tsk_population_table_add_row_internal(
 {
     int ret = 0;
 
-    assert(self->num_rows < self->max_rows);
-    assert(self->metadata_length + metadata_length <= self->max_metadata_length);
+    tsk_bug_assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
     memcpy(self->metadata + self->metadata_length, metadata, metadata_length);
     self->metadata_offset[self->num_rows + 1] = self->metadata_length + metadata_length;
     self->metadata_length += metadata_length;
@@ -3731,8 +3734,8 @@ tsk_population_table_print_state(tsk_population_table_t *self, FILE *out)
         }
         fprintf(out, "\n");
     }
-    assert(self->metadata_offset[0] == 0);
-    assert(self->metadata_offset[self->num_rows] == self->metadata_length);
+    tsk_bug_assert(self->metadata_offset[0] == 0);
+    tsk_bug_assert(self->metadata_offset[self->num_rows] == self->metadata_length);
 }
 
 static inline void
@@ -4118,13 +4121,14 @@ tsk_provenance_table_add_row_internal(tsk_provenance_table_t *self,
 {
     int ret = 0;
 
-    assert(self->num_rows < self->max_rows);
-    assert(self->timestamp_length + timestamp_length <= self->max_timestamp_length);
+    tsk_bug_assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(
+        self->timestamp_length + timestamp_length <= self->max_timestamp_length);
     memcpy(self->timestamp + self->timestamp_length, timestamp, timestamp_length);
     self->timestamp_offset[self->num_rows + 1]
         = self->timestamp_length + timestamp_length;
     self->timestamp_length += timestamp_length;
-    assert(self->record_length + record_length <= self->max_record_length);
+    tsk_bug_assert(self->record_length + record_length <= self->max_record_length);
     memcpy(self->record + self->record_length, record, record_length);
     self->record_offset[self->num_rows + 1] = self->record_length + record_length;
     self->record_length += record_length;
@@ -4217,10 +4221,10 @@ tsk_provenance_table_print_state(tsk_provenance_table_t *self, FILE *out)
         }
         fprintf(out, "\n");
     }
-    assert(self->timestamp_offset[0] == 0);
-    assert(self->timestamp_offset[self->num_rows] == self->timestamp_length);
-    assert(self->record_offset[0] == 0);
-    assert(self->record_offset[self->num_rows] == self->record_length);
+    tsk_bug_assert(self->timestamp_offset[0] == 0);
+    tsk_bug_assert(self->timestamp_offset[self->num_rows] == self->timestamp_length);
+    tsk_bug_assert(self->record_offset[0] == 0);
+    tsk_bug_assert(self->record_offset[self->num_rows] == self->record_length);
 }
 
 static inline void
@@ -4848,7 +4852,7 @@ segment_overlapper_next(segment_overlapper_t *self, double *left, double *right,
             self->left = S[self->index].left;
         }
         while (self->index < n && S[self->index].left == self->left) {
-            assert(self->num_overlapping < self->max_overlapping);
+            tsk_bug_assert(self->num_overlapping < self->max_overlapping);
             self->overlapping[self->num_overlapping] = &S[self->index];
             self->num_overlapping++;
             self->index++;
@@ -4858,7 +4862,7 @@ segment_overlapper_next(segment_overlapper_t *self, double *left, double *right,
         for (j = 0; j < self->num_overlapping; j++) {
             self->right = TSK_MIN(self->right, self->overlapping[j]->right);
         }
-        assert(self->left < self->right);
+        tsk_bug_assert(self->left < self->right);
         self->index++;
         ret = 1;
     } else {
@@ -5002,7 +5006,7 @@ ancestor_mapper_record_edge(
 
     tail = self->child_edge_map_tail[child];
     if (tail == NULL) {
-        assert(self->num_buffered_children < self->tables->nodes.num_rows);
+        tsk_bug_assert(self->num_buffered_children < self->tables->nodes.num_rows);
         self->buffered_children[self->num_buffered_children] = child;
         self->num_buffered_children++;
         x = ancestor_mapper_alloc_interval_list(self, left, right);
@@ -5037,7 +5041,7 @@ ancestor_mapper_add_ancestry(ancestor_mapper_t *self, tsk_id_t input_id, double 
     tsk_segment_t *tail = self->ancestor_map_tail[input_id];
     tsk_segment_t *x;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     if (tail == NULL) {
         x = ancestor_mapper_alloc_segment(self, left, right, output_id);
         if (x == NULL) {
@@ -5209,7 +5213,7 @@ ancestor_mapper_enqueue_segment(
     tsk_segment_t *seg;
     void *p;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     /* Make sure we always have room for one more segment in the queue so we
      * can put a tail sentinel on it */
     if (self->segment_queue_size == self->max_segment_queue_size - 1) {
@@ -5244,7 +5248,7 @@ ancestor_mapper_merge_ancestors(ancestor_mapper_t *self, tsk_id_t input_id)
     if (is_sample) {
         /* Free up the existing ancestry mapping. */
         x = self->ancestor_map_tail[input_id];
-        assert(x->left == 0 && x->right == self->sequence_length);
+        tsk_bug_assert(x->left == 0 && x->right == self->sequence_length);
         self->ancestor_map_head[input_id] = NULL;
         self->ancestor_map_tail[input_id] = NULL;
     }
@@ -5258,8 +5262,8 @@ ancestor_mapper_merge_ancestors(ancestor_mapper_t *self, tsk_id_t input_id)
     while ((ret = segment_overlapper_next(
                 &self->segment_overlapper, &left, &right, &X, &num_overlapping))
            == 1) {
-        assert(left < right);
-        assert(num_overlapping > 0);
+        tsk_bug_assert(left < right);
+        tsk_bug_assert(num_overlapping > 0);
         if (is_ancestor || is_sample) {
             for (j = 0; j < num_overlapping; j++) {
                 ret = ancestor_mapper_record_edge(self, left, right, X[j]->node);
@@ -5322,7 +5326,7 @@ ancestor_mapper_process_parent_edges(
     /* Go through the edges and queue up ancestry segments for processing. */
     self->segment_queue_size = 0;
     for (j = start; j < end; j++) {
-        assert(parent == input_edges->parent[j]);
+        tsk_bug_assert(parent == input_edges->parent[j]);
         child = input_edges->child[j];
         left = input_edges->left[j];
         right = input_edges->right[j];
@@ -5412,7 +5416,7 @@ tsk_ibd_finder_add_output(
     tsk_segment_t *tail = self->ibd_segments_tail[pair_num];
     tsk_segment_t *x;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     if (tail == NULL) {
         x = tsk_ibd_finder_alloc_segment(self, left, right, node_id);
         if (x == NULL) {
@@ -5442,7 +5446,7 @@ tsk_ibd_finder_add_ancestry(tsk_ibd_finder_t *self, tsk_id_t input_id, double le
     tsk_segment_t *tail = self->ancestor_map_tail[input_id];
     tsk_segment_t *x = NULL;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     if (tail == NULL) {
         x = tsk_ibd_finder_alloc_segment(self, left, right, output_id);
         if (x == NULL) {
@@ -5580,7 +5584,7 @@ tsk_ibd_finder_enqueue_segment(
     tsk_segment_t *seg;
     void *p;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     /* Make sure we always have room for one more segment in the queue so we
      * can put a tail sentinel on it */
     if (self->segment_queue_size == self->max_segment_queue_size - 1) {
@@ -5863,42 +5867,42 @@ simplifier_check_state(simplifier_t *self)
     size_t num_intervals;
 
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
-        assert((self->ancestor_map_head[j] == NULL)
-               == (self->ancestor_map_tail[j] == NULL));
+        tsk_bug_assert((self->ancestor_map_head[j] == NULL)
+                       == (self->ancestor_map_tail[j] == NULL));
         for (u = self->ancestor_map_head[j]; u != NULL; u = u->next) {
-            assert(u->left < u->right);
+            tsk_bug_assert(u->left < u->right);
             if (u->next != NULL) {
-                assert(u->right <= u->next->left);
+                tsk_bug_assert(u->right <= u->next->left);
                 if (u->right == u->next->left) {
-                    assert(u->node != u->next->node);
+                    tsk_bug_assert(u->node != u->next->node);
                 }
             } else {
-                assert(u == self->ancestor_map_tail[j]);
+                tsk_bug_assert(u == self->ancestor_map_tail[j]);
             }
         }
     }
 
     for (j = 0; j < self->segment_queue_size; j++) {
-        assert(self->segment_queue[j].left < self->segment_queue[j].right);
+        tsk_bug_assert(self->segment_queue[j].left < self->segment_queue[j].right);
     }
 
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
         last_position = -1;
         for (list_node = self->node_mutation_list_map_head[j]; list_node != NULL;
              list_node = list_node->next) {
-            assert(
+            tsk_bug_assert(
                 self->input_tables.mutations.node[list_node->mutation] == (tsk_id_t) j);
             site = self->input_tables.mutations.site[list_node->mutation];
             position = self->input_tables.sites.position[site];
-            assert(last_position <= position);
+            tsk_bug_assert(last_position <= position);
             last_position = position;
         }
     }
 
     /* check the buffered edges */
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
-        assert((self->child_edge_map_head[j] == NULL)
-               == (self->child_edge_map_tail[j] == NULL));
+        tsk_bug_assert((self->child_edge_map_head[j] == NULL)
+                       == (self->child_edge_map_tail[j] == NULL));
         if (self->child_edge_map_head[j] != NULL) {
             /* Make sure that the child is in our list */
             found = false;
@@ -5908,24 +5912,25 @@ simplifier_check_state(simplifier_t *self)
                     break;
                 }
             }
-            assert(found);
+            tsk_bug_assert(found);
         }
     }
     num_intervals = 0;
     for (j = 0; j < self->num_buffered_children; j++) {
         child = self->buffered_children[j];
-        assert(self->child_edge_map_head[child] != NULL);
+        tsk_bug_assert(self->child_edge_map_head[child] != NULL);
         for (int_list = self->child_edge_map_head[child]; int_list != NULL;
              int_list = int_list->next) {
-            assert(int_list->left < int_list->right);
+            tsk_bug_assert(int_list->left < int_list->right);
             if (int_list->next != NULL) {
-                assert(int_list->right < int_list->next->left);
+                tsk_bug_assert(int_list->right < int_list->next->left);
             }
             num_intervals++;
         }
     }
-    assert(num_intervals
-           == self->interval_list_heap.total_allocated / (sizeof(interval_list_t)));
+    tsk_bug_assert(
+        num_intervals
+        == self->interval_list_heap.total_allocated / (sizeof(interval_list_t)));
 }
 
 static void
@@ -6180,7 +6185,7 @@ simplifier_record_edge(simplifier_t *self, double left, double right, tsk_id_t c
 
     tail = self->child_edge_map_tail[child];
     if (tail == NULL) {
-        assert(self->num_buffered_children < self->input_tables.nodes.num_rows);
+        tsk_bug_assert(self->num_buffered_children < self->input_tables.nodes.num_rows);
         self->buffered_children[self->num_buffered_children] = child;
         self->num_buffered_children++;
         x = simplifier_alloc_interval_list(self, left, right);
@@ -6280,7 +6285,7 @@ simplifier_add_ancestry(
     tsk_segment_t *tail = self->ancestor_map_tail[input_id];
     tsk_segment_t *x;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     if (tail == NULL) {
         x = simplifier_alloc_segment(self, left, right, output_id);
         if (x == NULL) {
@@ -6465,7 +6470,7 @@ simplifier_enqueue_segment(simplifier_t *self, double left, double right, tsk_id
     tsk_segment_t *seg;
     void *p;
 
-    assert(left < right);
+    tsk_bug_assert(left < right);
     /* Make sure we always have room for one more segment in the queue so we
      * can put a tail sentinel on it */
     if (self->segment_queue_size == self->max_segment_queue_size - 1) {
@@ -6502,7 +6507,7 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
     if (is_sample) {
         /* Free up the existing ancestry mapping. */
         x = self->ancestor_map_tail[input_id];
-        assert(x->left == 0 && x->right == self->tables->sequence_length);
+        tsk_bug_assert(x->left == 0 && x->right == self->tables->sequence_length);
         self->ancestor_map_head[input_id] = NULL;
         self->ancestor_map_tail[input_id] = NULL;
     }
@@ -6516,8 +6521,8 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
     while ((ret = segment_overlapper_next(
                 &self->segment_overlapper, &left, &right, &X, &num_overlapping))
            == 1) {
-        assert(left < right);
-        assert(num_overlapping > 0);
+        tsk_bug_assert(left < right);
+        tsk_bug_assert(num_overlapping > 0);
         if (num_overlapping == 1) {
             ancestry_node = X[0]->node;
             if (is_sample) {
@@ -6671,7 +6676,7 @@ simplifier_process_parent_edges(
     /* Go through the edges and queue up ancestry segments for processing. */
     self->segment_queue_size = 0;
     for (j = start; j < end; j++) {
-        assert(parent == input_edges->parent[j]);
+        tsk_bug_assert(parent == input_edges->parent[j]);
         child = input_edges->child[j];
         left = input_edges->left[j];
         right = input_edges->right[j];
@@ -6736,10 +6741,10 @@ simplifier_output_sites(simplifier_t *self)
             for (input_mutation = site_start; input_mutation < site_end;
                  input_mutation++) {
                 if (self->mutation_id_map[input_mutation] != TSK_NULL) {
-                    assert(self->tables->mutations.num_rows
-                           == (size_t) self->mutation_id_map[input_mutation]);
+                    tsk_bug_assert(self->tables->mutations.num_rows
+                                   == (size_t) self->mutation_id_map[input_mutation]);
                     mapped_node = self->mutation_node_map[input_mutation];
-                    assert(mapped_node != TSK_NULL);
+                    tsk_bug_assert(mapped_node != TSK_NULL);
                     mapped_parent = self->input_tables.mutations.parent[input_mutation];
                     if (mapped_parent != TSK_NULL) {
                         mapped_parent = self->mutation_id_map[mapped_parent];
@@ -6763,10 +6768,11 @@ simplifier_output_sites(simplifier_t *self)
                 goto out;
             }
         }
-        assert(num_output_mutations == (tsk_id_t) self->tables->mutations.num_rows);
+        tsk_bug_assert(
+            num_output_mutations == (tsk_id_t) self->tables->mutations.num_rows);
         input_mutation = site_end;
     }
-    assert(input_mutation == num_input_mutations);
+    tsk_bug_assert(input_mutation == num_input_mutations);
     ret = 0;
 out:
     return ret;
@@ -6913,7 +6919,7 @@ simplifier_sort_edges(simplifier_t *self)
         .sites = self->tables->sites.num_rows,
         .mutations = self->tables->mutations.num_rows,
     };
-    assert(self->edge_sort_offset >= 0);
+    tsk_bug_assert(self->edge_sort_offset >= 0);
     return tsk_table_collection_sort(self->tables, &bookmark, 0);
 }
 
@@ -7012,7 +7018,7 @@ simplifier_run(simplifier_t *self, tsk_id_t *node_map)
             self->input_tables.nodes.num_rows * sizeof(tsk_id_t));
     }
     if (self->edge_sort_offset != TSK_NULL) {
-        assert(self->options & TSK_KEEP_INPUT_ROOTS);
+        tsk_bug_assert(self->options & TSK_KEEP_INPUT_ROOTS);
         ret = simplifier_sort_edges(self);
         if (ret != 0) {
             goto out;
@@ -7497,7 +7503,7 @@ tsk_table_collection_check_tree_integrity(tsk_table_collection_t *self)
     k = 0;
     site = 0;
     mutation = 0;
-    assert(I != NULL && O != NULL);
+    tsk_bug_assert(I != NULL && O != NULL);
 
     while (j < num_edges || tree_left < sequence_length) {
         while (k < num_edges && edge_right[O[k]] == tree_left) {

@@ -25,7 +25,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
@@ -47,10 +46,10 @@ tsk_treeseq_check_state(tsk_treeseq_t *self)
     for (j = 0; j < self->num_trees; j++) {
         for (k = 0; k < self->tree_sites_length[j]; k++) {
             site = self->tree_sites[j][k];
-            assert(site.id == site_id);
+            tsk_bug_assert(site.id == site_id);
             site_id++;
             for (l = 0; l < site.mutations_length; l++) {
-                assert(site.mutations[l].site == site.id);
+                tsk_bug_assert(site.mutations[l].site == site.id);
             }
         }
     }
@@ -210,8 +209,8 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
         ind = node_individual[node];
         if (ind != TSK_NULL) {
             node_array = self->individual_nodes[ind];
-            assert(node_array - self->individual_nodes_mem
-                   < (tsk_id_t)(total_node_refs - node_count[ind]));
+            tsk_bug_assert(node_array - self->individual_nodes_mem
+                           < (tsk_id_t)(total_node_refs - node_count[ind]));
             node_array[node_count[ind]] = node;
             node_count[ind] += 1;
         }
@@ -282,8 +281,8 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
         tree_left = tree_right;
         tree_index++;
     }
-    assert(site == num_sites);
-    assert(tree_index == self->num_trees);
+    tsk_bug_assert(site == num_sites);
+    tsk_bug_assert(tree_index == self->num_trees);
     self->breakpoints[tree_index] = tree_right;
     ret = 0;
 out:
@@ -321,7 +320,7 @@ tsk_treeseq_init_nodes(tsk_treeseq_t *self)
             k++;
         }
     }
-    assert(k == self->num_samples);
+    tsk_bug_assert(k == self->num_samples);
 out:
     return ret;
 }
@@ -632,7 +631,7 @@ increment_nd_array_value(double *array, tsk_size_t n, const tsk_size_t *shape,
     int k;
 
     for (k = (int) n - 1; k >= 0; k--) {
-        assert(coordinate[k] < shape[k]);
+        tsk_bug_assert(coordinate[k] < shape[k]);
         offset += coordinate[k] * product;
         product *= shape[k];
     }
@@ -1168,13 +1167,13 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self, size_t state_dim,
         }
 
         while (windows[window_index] < t_right) {
-            assert(window_index < num_windows);
+            tsk_bug_assert(window_index < num_windows);
             w_left = windows[window_index];
             w_right = windows[window_index + 1];
             left = TSK_MAX(t_left, w_left);
             right = TSK_MIN(t_right, w_right);
             scale = (right - left);
-            assert(scale > 0);
+            tsk_bug_assert(scale > 0);
             result_row = GET_2D_ROW(result, result_dim, window_index);
             for (k = 0; k < result_dim; k++) {
                 result_row[k] += running_sum[k] * scale;
@@ -1192,7 +1191,7 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self, size_t state_dim,
         t_left = t_right;
         tree_index++;
     }
-    assert(window_index == num_windows);
+    tsk_bug_assert(window_index == num_windows);
 out:
     /* Can't use msp_safe_free here because of restrict */
     if (parent != NULL) {
@@ -1228,7 +1227,7 @@ get_allele_weights(tsk_site_t *site, double *state, size_t state_dim,
         goto out;
     }
 
-    assert(state != NULL);
+    tsk_bug_assert(state != NULL);
     alleles[0] = site->ancestral_state;
     allele_lengths[0] = site->ancestral_state_length;
     memcpy(allele_states, total_weight, state_dim * sizeof(*allele_states));
@@ -1248,7 +1247,7 @@ get_allele_weights(tsk_site_t *site, double *state, size_t state_dim,
             allele++;
         }
         if (allele == num_alleles) {
-            assert(allele < max_alleles);
+            tsk_bug_assert(allele < max_alleles);
             alleles[allele] = mutation.derived_state;
             allele_lengths[allele] = mutation.derived_state_length;
             num_alleles++;
@@ -1277,7 +1276,7 @@ get_allele_weights(tsk_site_t *site, double *state, size_t state_dim,
             }
             allele++;
         }
-        assert(allele < num_alleles);
+        tsk_bug_assert(allele < num_alleles);
 
         allele_row = GET_2D_ROW(allele_states, state_dim, allele);
         for (k = 0; k < state_dim; k++) {
@@ -1433,10 +1432,10 @@ tsk_treeseq_site_general_stat(tsk_treeseq_t *self, size_t state_dim,
 
             while (windows[window_index + 1] <= site->position) {
                 window_index++;
-                assert(window_index < num_windows);
+                tsk_bug_assert(window_index < num_windows);
             }
-            assert(windows[window_index] <= site->position);
-            assert(site->position < windows[window_index + 1]);
+            tsk_bug_assert(windows[window_index] <= site->position);
+            tsk_bug_assert(site->position < windows[window_index + 1]);
             result_row = GET_2D_ROW(result, result_dim, window_index);
             for (k = 0; k < result_dim; k++) {
                 result_row[k] += site_result[k];
@@ -1519,7 +1518,7 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self, size_t state_dim,
     t_left = 0;
     window_index = 0;
     while (tj < num_edges || t_left < sequence_length) {
-        assert(window_index < num_windows);
+        tsk_bug_assert(window_index < num_windows);
         while (tk < num_edges && edge_right[O[tk]] == t_left) {
             h = O[tk];
             tk++;
@@ -1574,7 +1573,7 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self, size_t state_dim,
             w_right = windows[window_index + 1];
             /* Flush the contributions of all nodes to the current window */
             for (u = 0; u < (tsk_id_t) num_nodes; u++) {
-                assert(last_update[u] < w_right);
+                tsk_bug_assert(last_update[u] < w_right);
                 increment_row(result_dim, w_right - last_update[u],
                     GET_2D_ROW(node_summary, result_dim, u),
                     GET_3D_ROW(result, num_nodes, result_dim, window_index, u));
@@ -1900,7 +1899,7 @@ fold(tsk_size_t *restrict coordinate, const tsk_size_t *restrict dims,
     int s = 0;
 
     for (k = 0; k < num_dims; k++) {
-        assert(coordinate[k] < dims[k]);
+        tsk_bug_assert(coordinate[k] < dims[k]);
         n += dims[k] - 1;
         s += (int) coordinate[k];
     }
@@ -1914,7 +1913,7 @@ fold(tsk_size_t *restrict coordinate, const tsk_size_t *restrict dims,
     if (s > n) {
         for (k = 0; k < num_dims; k++) {
             s = (int) (dims[k] - 1 - coordinate[k]);
-            assert(s >= 0);
+            tsk_bug_assert(s >= 0);
             coordinate[k] = (tsk_size_t) s;
         }
     }
@@ -2049,15 +2048,15 @@ tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
             site = self->tree_sites[tree_index] + tree_site;
             while (windows[window_index + 1] <= site->position) {
                 window_index++;
-                assert(window_index < num_windows);
+                tsk_bug_assert(window_index < num_windows);
             }
             ret = tsk_treeseq_update_site_afs(self, site, total_counts, counts,
                 num_sample_sets, window_index, result_dims, result, options);
             if (ret != 0) {
                 goto out;
             }
-            assert(windows[window_index] <= site->position);
-            assert(site->position < windows[window_index + 1]);
+            tsk_bug_assert(windows[window_index] <= site->position);
+            tsk_bug_assert(site->position < windows[window_index + 1]);
         }
         tree_index++;
         t_left = t_right;
@@ -2149,7 +2148,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
     t_left = 0;
     window_index = 0;
     while (tj < num_edges || t_left < sequence_length) {
-        assert(window_index < num_windows);
+        tsk_bug_assert(window_index < num_windows);
         while (tk < num_edges && edge_right[O[tk]] == t_left) {
             h = O[tk];
             tk++;
@@ -2206,7 +2205,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
             w_right = windows[window_index + 1];
             /* Flush the contributions of all nodes to the current window */
             for (u = 0; u < (tsk_id_t) num_nodes; u++) {
-                assert(last_update[u] < w_right);
+                tsk_bug_assert(last_update[u] < w_right);
                 ret = tsk_treeseq_update_branch_afs(self, u, w_right, branch_length,
                     last_update, counts, num_sample_sets, window_index, result_dims,
                     result, options);
@@ -3310,7 +3309,7 @@ tsk_tree_set_tracked_samples_from_sample_list(
         stop = other->right_sample[node];
         while (true) {
             u = samples[index];
-            assert(self->num_tracked_samples[u] == 0);
+            tsk_bug_assert(self->num_tracked_samples[u] == 0);
             /* Propagate this upwards */
             while (u != TSK_NULL) {
                 self->num_tracked_samples[u] += 1;
@@ -3450,7 +3449,7 @@ tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca)
     j = u;
     l1 = 0;
     while (j != TSK_NULL) {
-        assert(l1 < (int) self->num_nodes);
+        tsk_bug_assert(l1 < (int) self->num_nodes);
         s1[l1] = j;
         l1++;
         j = self->parent[j];
@@ -3459,7 +3458,7 @@ tsk_tree_get_mrca(tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca)
     j = v;
     l2 = 0;
     while (j != TSK_NULL) {
-        assert(l2 < (int) self->num_nodes);
+        tsk_bug_assert(l2 < (int) self->num_nodes);
         s2[l2] = j;
         l2++;
         j = self->parent[j];
@@ -3675,7 +3674,7 @@ tsk_tree_check_state(tsk_tree_t *self)
     tsk_id_t *children = malloc(self->num_nodes * sizeof(tsk_id_t));
     bool *is_root = calloc(self->num_nodes, sizeof(bool));
 
-    assert(children != NULL);
+    tsk_bug_assert(children != NULL);
 
     for (j = 0; j < self->tree_sequence->num_samples; j++) {
         u = self->samples[j];
@@ -3685,55 +3684,55 @@ tsk_tree_check_state(tsk_tree_t *self)
         is_root[u] = true;
     }
     if (self->tree_sequence->num_samples == 0) {
-        assert(self->left_root == TSK_NULL);
+        tsk_bug_assert(self->left_root == TSK_NULL);
     } else {
-        assert(self->left_sib[self->left_root] == TSK_NULL);
+        tsk_bug_assert(self->left_sib[self->left_root] == TSK_NULL);
     }
     /* Iterate over the roots and make sure they are set */
     for (u = self->left_root; u != TSK_NULL; u = self->right_sib[u]) {
-        assert(is_root[u]);
+        tsk_bug_assert(is_root[u]);
         is_root[u] = false;
     }
     for (u = 0; u < (tsk_id_t) self->num_nodes; u++) {
-        assert(!is_root[u]);
+        tsk_bug_assert(!is_root[u]);
         c = 0;
         for (v = self->left_child[u]; v != TSK_NULL; v = self->right_sib[v]) {
-            assert(self->parent[v] == u);
+            tsk_bug_assert(self->parent[v] == u);
             children[c] = v;
             c++;
         }
         for (v = self->right_child[u]; v != TSK_NULL; v = self->left_sib[v]) {
-            assert(c > 0);
+            tsk_bug_assert(c > 0);
             c--;
-            assert(v == children[c]);
+            tsk_bug_assert(v == children[c]);
         }
     }
     for (j = 0; j < self->sites_length; j++) {
         site = self->sites[j];
-        assert(self->left <= site.position);
-        assert(site.position < self->right);
+        tsk_bug_assert(self->left <= site.position);
+        tsk_bug_assert(site.position < self->right);
     }
 
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-        assert(self->num_samples != NULL);
-        assert(self->num_tracked_samples != NULL);
+        tsk_bug_assert(self->num_samples != NULL);
+        tsk_bug_assert(self->num_tracked_samples != NULL);
         for (u = 0; u < (tsk_id_t) self->num_nodes; u++) {
             err = tsk_tree_get_num_samples_by_traversal(self, u, &num_samples);
-            assert(err == 0);
-            assert(num_samples == (size_t) self->num_samples[u]);
+            tsk_bug_assert(err == 0);
+            tsk_bug_assert(num_samples == (size_t) self->num_samples[u]);
         }
     } else {
-        assert(self->num_samples == NULL);
-        assert(self->num_tracked_samples == NULL);
+        tsk_bug_assert(self->num_samples == NULL);
+        tsk_bug_assert(self->num_tracked_samples == NULL);
     }
     if (self->options & TSK_SAMPLE_LISTS) {
-        assert(self->right_sample != NULL);
-        assert(self->left_sample != NULL);
-        assert(self->next_sample != NULL);
+        tsk_bug_assert(self->right_sample != NULL);
+        tsk_bug_assert(self->left_sample != NULL);
+        tsk_bug_assert(self->next_sample != NULL);
     } else {
-        assert(self->right_sample == NULL);
-        assert(self->left_sample == NULL);
-        assert(self->next_sample == NULL);
+        tsk_bug_assert(self->right_sample == NULL);
+        tsk_bug_assert(self->left_sample == NULL);
+        tsk_bug_assert(self->next_sample == NULL);
     }
 
     free(children);
@@ -3806,7 +3805,7 @@ tsk_tree_update_sample_lists(tsk_tree_t *self, const tsk_id_t *restrict parent,
         }
         for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
             if (left[v] != TSK_NULL) {
-                assert(right[v] != TSK_NULL);
+                tsk_bug_assert(right[v] != TSK_NULL);
                 if (left[u] == TSK_NULL) {
                     left[u] = left[v];
                     right[u] = right[v];
@@ -4020,7 +4019,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
         x = self->left;
     }
     while (out >= 0 && out < num_edges && out_breakpoints[out_order[out]] == x) {
-        assert(out < num_edges);
+        tsk_bug_assert(out < num_edges);
         k = out_order[out];
         out += direction;
         tsk_tree_remove_edge(self, edge_parent[k], edge_child[k]);
@@ -4060,7 +4059,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
             self->left = TSK_MAX(self->left, in_breakpoints[in_order[in]]);
         }
     }
-    assert(self->left < self->right);
+    tsk_bug_assert(self->left < self->right);
     *out_index = out;
     *in_index = in;
     if (tables->sites.num_rows > 0) {
@@ -4376,7 +4375,7 @@ tsk_diff_iter_init(
 {
     int ret = 0;
 
-    assert(tree_sequence != NULL);
+    tsk_bug_assert(tree_sequence != NULL);
     memset(self, 0, sizeof(tsk_diff_iter_t));
     self->num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
     self->num_edges = tsk_treeseq_get_num_edges(tree_sequence);
@@ -4446,7 +4445,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
         while (self->removal_index < (tsk_id_t) self->num_edges
                && left == edges->right[removal_order[self->removal_index]]) {
             k = removal_order[self->removal_index];
-            assert(next_edge_list_node < self->num_edges);
+            tsk_bug_assert(next_edge_list_node < self->num_edges);
             w = &self->edge_list_nodes[next_edge_list_node];
             next_edge_list_node++;
             w->edge.id = k;
@@ -4476,7 +4475,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
         while (self->insertion_index < (tsk_id_t) self->num_edges
                && left == edges->left[insertion_order[self->insertion_index]]) {
             k = insertion_order[self->insertion_index];
-            assert(next_edge_list_node < self->num_edges);
+            tsk_bug_assert(next_edge_list_node < self->num_edges);
             w = &self->edge_list_nodes[next_edge_list_node];
             next_edge_list_node++;
             w->edge.id = k;
@@ -4890,7 +4889,7 @@ update_kc_incremental(tsk_tree_t *self, kc_vectors *kc, tsk_edge_list_t *edges_o
         e = &record->edge;
         u = e->child;
 
-        assert(depths[e->child] == 0);
+        tsk_bug_assert(depths[e->child] == 0);
         depths[u] = depths[e->parent] + 1;
 
         root_time = times[tsk_tree_node_root(self, u)];
@@ -4976,7 +4975,7 @@ tsk_treeseq_kc_distance(
     }
     ret = tsk_diff_iter_next(
         &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
-    assert(ret == 1);
+    tsk_bug_assert(ret == 1);
     ret = update_kc_incremental(
         &trees[0], &kcs[0], &edges_out[0], &edges_in[0], depths[0]);
     if (ret != 0) {
@@ -4989,7 +4988,7 @@ tsk_treeseq_kc_distance(
         }
         ret = tsk_diff_iter_next(
             &diff_iters[1], &t1_left, &t1_right, &edges_out[1], &edges_in[1]);
-        assert(ret == 1);
+        tsk_bug_assert(ret == 1);
 
         ret = update_kc_incremental(
             &trees[1], &kcs[1], &edges_out[1], &edges_in[1], depths[1]);
@@ -5002,14 +5001,14 @@ tsk_treeseq_kc_distance(
 
             left = t0_right;
             ret = tsk_tree_next(&trees[0]);
-            assert(ret == 1);
+            tsk_bug_assert(ret == 1);
             ret = check_kc_distance_tree_inputs(&trees[0]);
             if (ret != 0) {
                 goto out;
             }
             ret = tsk_diff_iter_next(
                 &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
-            assert(ret == 1);
+            tsk_bug_assert(ret == 1);
             ret = update_kc_incremental(
                 &trees[0], &kcs[0], &edges_out[0], &edges_in[0], depths[0]);
             if (ret != 0) {
