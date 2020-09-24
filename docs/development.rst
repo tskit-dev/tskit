@@ -14,7 +14,7 @@ see any problems.
 
 The tskit-dev team strives to create a welcoming and open environment for
 contributors; please see our `code of conduct
-<https://github.com/tskit-dev/.github/blob/master/CODE_OF_CONDUCT.md>`__ for
+<https://github.com/tskit-dev/.github/blob/main/CODE_OF_CONDUCT.md>`__ for
 details. We wish our code and documentation to be `inclusive
 <https://chromium.googlesource.com/chromium/src/+/master/styleguide/inclusive_code.md>`__
 and in particular to be gender and racially neutral.
@@ -162,7 +162,7 @@ Git workflow
    is to follow this recipe::
 
     $ git fetch upstream
-    $ git checkout upstream/master
+    $ git checkout upstream/main
     $ git checkout -b topic_branch_name
 
 4. As you work on your topic branch you can add commits to it. Once you're
@@ -852,7 +852,7 @@ the C and Python APIs.
 2.  Write your function in Python: in ``python/tests/`` find the test module that
     pertains to the functionality you wish to add. For instance, the kc_distance
     metric was added to
-    `test_topology.py <https://github.com/tskit-dev/tskit/blob/master/python/tests/test_topology.py>`_.
+    `test_topology.py <https://github.com/tskit-dev/tskit/blob/main/python/tests/test_topology.py>`_.
     Add a python version of your function here.
 3.  Create a new class in this module to write unit tests for your function: in addition
     to making sure that your function is correct, make sure it fails on inappropriate inputs.
@@ -862,26 +862,26 @@ the C and Python APIs.
     `TestKCMetric <https://github.com/tskit-dev/tskit/blob/4e707ea04adca256036669cd852656a08ec45590/python/tests/test_topology.py#L293>`_ for example.
 4.  Write your function in C: check out the :ref:`sec_c_api` for guidance. There
     are also many examples in the
-    `c directory <https://github.com/tskit-dev/tskit/tree/master/c/tskit>`_.
+    `c directory <https://github.com/tskit-dev/tskit/tree/main/c/tskit>`_.
     Your function will probably go in
-    `trees.c <https://github.com/tskit-dev/tskit/blob/master/c/tskit/trees.c>`_.
+    `trees.c <https://github.com/tskit-dev/tskit/blob/main/c/tskit/trees.c>`_.
 5.  Write a few tests for your function in C: again, write your tests in
-    `tskit/c/tests/test_tree.c <https://github.com/tskit-dev/tskit/blob/master/c/tests/test_trees.c>`_.
+    `tskit/c/tests/test_tree.c <https://github.com/tskit-dev/tskit/blob/main/c/tests/test_trees.c>`_.
     The key here is code coverage, you don't need to worry as much about covering every
     corner case, as we will proceed to link this function to the Python tests you
     wrote earlier.
 6.  Create a low-level definition of your function using Python's C API: this will
     go in `_tskitmodule.c
-    <https://github.com/tskit-dev/tskit/blob/master/python/_tskitmodule.c>`_.
+    <https://github.com/tskit-dev/tskit/blob/main/python/_tskitmodule.c>`_.
 7.  Test your low-level implementation in `tskit/python/tests/test_lowlevel.py
-    <https://github.com/tskit-dev/tskit/blob/master/python/tests/test_lowlevel.py>`_:
+    <https://github.com/tskit-dev/tskit/blob/main/python/tests/test_lowlevel.py>`_:
     again, these tests don't need to be as comprehensive as your first python tests,
     instead, they should focus on the interface, e.g., does the function behave
     correctly on malformed inputs?
 8.  Link your C function to the Python API: write a function in tskit's Python API,
     for example the kc_distance function lives in
     `tskit/python/tskit/trees.py
-    <https://github.com/tskit-dev/tskit/blob/master/python/tskit/trees.py>`_.
+    <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
 9.  Modify your Python tests to test the new C-linked function: if you followed
     the example of other tests, you might need to only add a single line of code
     here. In this case, the tests are well factored so that we can easily compare
@@ -889,7 +889,7 @@ the C and Python APIs.
 10. Write a docstring for your function in the Python API: for instance, the kc_distance
     docstring is in
     `tskit/python/tskit/trees.py
-    <https://github.com/tskit-dev/tskit/blob/master/python/tskit/trees.py>`_.
+    <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
     Ensure that your docstring renders correctly by building the documentation
     (see :ref:`sec_development_documentation`).
 11. Update your Pull Request (`rebasing <https://stdpopsim.readthedocs.io/en/
