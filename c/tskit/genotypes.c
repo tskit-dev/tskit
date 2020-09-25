@@ -25,7 +25,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -115,7 +114,7 @@ tsk_vargen_init(tsk_vargen_t *self, tsk_treeseq_t *tree_sequence, tsk_id_t *samp
     tsk_size_t max_alleles;
     tsk_id_t u;
 
-    assert(tree_sequence != NULL);
+    tsk_bug_assert(tree_sequence != NULL);
     memset(self, 0, sizeof(tsk_vargen_t));
 
     if (samples == NULL) {
@@ -299,7 +298,7 @@ tsk_vargen_update_genotypes_i8_sample_list(
     tsk_id_t index, stop;
     int ret = 0;
 
-    assert(derived < INT8_MAX);
+    tsk_bug_assert(derived < INT8_MAX);
 
     index = list_left[node];
     if (index != TSK_NULL) {
@@ -332,7 +331,7 @@ tsk_vargen_update_genotypes_i16_sample_list(
     tsk_id_t index, stop;
     int ret = 0;
 
-    assert(derived < INT16_MAX);
+    tsk_bug_assert(derived < INT16_MAX);
 
     index = list_left[node];
     if (index != TSK_NULL) {
@@ -404,8 +403,8 @@ tsk_vargen_visit_i8(tsk_vargen_t *self, tsk_id_t sample_index, tsk_id_t derived)
     int ret = 0;
     int8_t *restrict genotypes = self->variant.genotypes.i8;
 
-    assert(derived < INT8_MAX);
-    assert(sample_index != -1);
+    tsk_bug_assert(derived < INT8_MAX);
+    tsk_bug_assert(sample_index != -1);
     if (genotypes[sample_index] == (int8_t) derived) {
         ret = TSK_ERR_INCONSISTENT_MUTATIONS;
         goto out;
@@ -422,8 +421,8 @@ tsk_vargen_visit_i16(tsk_vargen_t *self, tsk_id_t sample_index, tsk_id_t derived
     int ret = 0;
     int16_t *restrict genotypes = self->variant.genotypes.i16;
 
-    assert(derived < INT16_MAX);
-    assert(sample_index != -1);
+    tsk_bug_assert(derived < INT16_MAX);
+    tsk_bug_assert(sample_index != -1);
     if (genotypes[sample_index] == (int16_t) derived) {
         ret = TSK_ERR_INCONSISTENT_MUTATIONS;
         goto out;

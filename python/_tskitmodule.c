@@ -25,6 +25,9 @@
 
 #define PY_SSIZE_T_CLEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define TSK_BUG_ASSERT_MESSAGE "Please open an issue on"                                \
+                               " GitHub, ideally with a reproducible example."          \
+                               " (https://github.com/tskit-dev/tskit/issues)"
 
 #include <Python.h>
 #include <structmember.h>

@@ -337,6 +337,30 @@ not be freed by client code.
 */
 const char *tsk_strerror(int err);
 
+#ifndef TSK_BUG_ASSERT_MESSAGE
+#define TSK_BUG_ASSERT_MESSAGE                                                          \
+    "If you are using tskit directly please open an issue on"                           \
+    " GitHub, ideally with a reproducible example."                                     \
+    " (https://github.com/tskit-dev/tskit/issues) If you are"                           \
+    " using software that uses tskit, please report an issue"                           \
+    " to that software's issue tracker, at least initially."
+#endif
+
+/**
+We often wish to assert a condition that is unexpected, but using the normal `assert`
+means compiling without NDEBUG. This macro still asserts when NDEBUG is defined.
+If you are using this macro in your own software then please set TSK_BUG_ASSERT_MESSAGE
+to point users to your issue tracker.
+*/
+#define tsk_bug_assert(condition)                                                       \
+    do {                                                                                \
+        if (!(condition)) {                                                             \
+            fprintf(stderr, "Bug detected in %s at line %d. %s\n", __FILE__, __LINE__,  \
+                TSK_BUG_ASSERT_MESSAGE);                                                \
+            abort();                                                                    \
+        }                                                                               \
+    } while (0)
+
 void __tsk_safe_free(void **ptr);
 #define tsk_safe_free(pointer) __tsk_safe_free((void **) &(pointer))
 
