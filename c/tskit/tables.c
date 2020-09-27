@@ -654,7 +654,6 @@ tsk_individual_table_free(tsk_individual_table_t *self)
     return 0;
 }
 
-// TODO
 void
 tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
 {
@@ -673,6 +672,7 @@ tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
     write_metadata_schema_header(
         out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "id\tflags\tlocation_offset\tlocation\t");
+    fprintf(out, "parents_offset\tparents\n");
     fprintf(out, "metadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
         fprintf(out, "%d\t%d\t", (int) j, self->flags[j]);
@@ -680,6 +680,14 @@ tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
         for (k = self->location_offset[j]; k < self->location_offset[j + 1]; k++) {
             fprintf(out, "%f", self->location[k]);
             if (k + 1 < self->location_offset[j + 1]) {
+                fprintf(out, ",");
+            }
+        }
+        fprintf(out, "\t");
+        fprintf(out, "%d\t", self->parents_offset[j]);
+        for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
+            fprintf(out, "%d", self->parents[k]);
+            if (k + 1 < self->parents_offset[j + 1]) {
                 fprintf(out, ",");
             }
         }
@@ -735,7 +743,6 @@ tsk_individual_table_set_metadata_schema(tsk_individual_table_t *self,
         metadata_schema, metadata_schema_length);
 }
 
-// TODO
 int
 tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out)
 {
@@ -749,7 +756,7 @@ tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out)
     if (err < 0) {
         goto out;
     }
-    err = fprintf(out, "id\tflags\tlocation\tmetadata\n");
+    err = fprintf(out, "id\tflags\tlocation\tparents\tmetadata\n");
     if (err < 0) {
         goto out;
     }
@@ -765,6 +772,18 @@ tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out)
                 goto out;
             }
             if (k + 1 < self->location_offset[j + 1]) {
+                err = fprintf(out, ",");
+                if (err < 0) {
+                    goto out;
+                }
+            }
+        }
+        for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
+            err = fprintf(out, "%d", self->parents[k]);
+            if (err < 0) {
+                goto out;
+            }
+            if (k + 1 < self->parents_offset[j + 1]) {
                 err = fprintf(out, ",");
                 if (err < 0) {
                     goto out;
