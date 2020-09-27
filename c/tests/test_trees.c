@@ -1910,9 +1910,9 @@ test_simplest_bad_individuals(void)
     tables.nodes.individual[0] = TSK_NULL;
 
     /* add two individuals */
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL(ret, 1);
 
     /* Bad individual ID */
@@ -2693,9 +2693,9 @@ test_simplest_individual_filter(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 1;
-    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, "0", 1);
-    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, "1", 1);
-    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, "2", 1);
+    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, "0", 1);
+    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, "1", 1);
+    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, "2", 1);
     /* Two nodes referring to individual 1 */
     tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
     tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
