@@ -1792,28 +1792,32 @@ test_simplest_final_gap_tsk_treeseq_mutation_parents(void)
 static void
 test_simplest_individuals(void)
 {
-    const char *individuals = "1      0.25\n"
-                              "2      0.5,0.25\n";
+    const char *individuals = "1      0.25     -1,-1\n"
+                              "2      0.5,0.25 -1,-1\n"
+                              "3      0.3      0,1\n";
     const char *nodes = "1  0   -1  -1\n"
                         "1  0   -1  1\n"
                         "0  0   -1  -1\n"
                         "1  0   -1  0\n"
-                        "0  0   -1  1\n";
+                        "0  0   -1  1\n"
+                        "0  0   -1  2\n";
     tsk_table_collection_t tables;
     tsk_treeseq_t ts;
     tsk_node_t node;
     tsk_individual_t individual;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
     int ret;
+    tsk_id_t pat_id, mat_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 1.0;
     parse_individuals(individuals, &tables.individuals);
-    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 2);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 3);
+    
     parse_nodes(nodes, &tables.nodes);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 5);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 6);
 
     ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1832,6 +1836,10 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.flags, 1);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
     CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.25);
+    CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[0], -1);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[1], -1);
+    pat_id = individual.id;
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 3);
 
@@ -1842,9 +1850,25 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.5);
     CU_ASSERT_EQUAL_FATAL(individual.location[1], 0.25);
+    CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[0], -1);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[1], -1);
+    mat_id = individual.id;
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[1], 4);
+
+    ret = tsk_treeseq_get_individual(&ts, 2, &individual);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(individual.id, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.flags, 3);
+    CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
+    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.3);
+    CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[0], pat_id);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[1], mat_id);
+    CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 1);
+    CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 5);
 
     ret = tsk_treeseq_get_individual(&ts, 3, &individual);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
