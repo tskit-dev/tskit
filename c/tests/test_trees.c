@@ -1815,7 +1815,7 @@ test_simplest_individuals(void)
     tables.sequence_length = 1.0;
     parse_individuals(individuals, &tables.individuals);
     CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 3);
-    
+
     parse_nodes(nodes, &tables.nodes);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 6);
 
@@ -1934,9 +1934,11 @@ test_simplest_bad_individuals(void)
     tables.nodes.individual[0] = TSK_NULL;
 
     /* add two individuals */
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL(ret, 1);
 
     /* Bad individual ID */

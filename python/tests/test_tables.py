@@ -818,7 +818,7 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
         t = tskit.IndividualTable()
         t.add_row(flags=0, location=[], metadata=b"123")
         t.add_row(flags=1, location=(0, 1, 2, 3), metadata=b"\xf0")
-        t.add_row(flags=2, parents=[0,1])
+        t.add_row(flags=2, parents=[0, 1])
         s = str(t)
         self.assertGreater(len(s), 0)
         self.assertEqual(len(t), 3)
@@ -851,7 +851,7 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
         with self.assertRaises(ValueError):
             t.add_row(location="1234")
         with self.assertRaises(ValueError):
-            t.add_row(parents="forty-two")    
+            t.add_row(parents="forty-two")
 
     def test_packset_location(self):
         t = tskit.IndividualTable()
