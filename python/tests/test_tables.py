@@ -805,6 +805,7 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
     columns = [UInt32Column("flags")]
     ragged_list_columns = [
         (DoubleColumn("location"), UInt32Column("location_offset")),
+        (Int32Column("parents"), UInt32Column("parents_offset")),
         (CharColumn("metadata"), UInt32Column("metadata_offset")),
     ]
     string_colnames = []
@@ -817,16 +818,18 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
         t = tskit.IndividualTable()
         t.add_row(flags=0, location=[], metadata=b"123")
         t.add_row(flags=1, location=(0, 1, 2, 3), metadata=b"\xf0")
+        t.add_row(flags=2, parents=[0,1])
         s = str(t)
         self.assertGreater(len(s), 0)
-        self.assertEqual(len(t), 2)
+        self.assertEqual(len(t), 3)
         self.assertEqual(t[0].flags, 0)
         self.assertEqual(list(t[0].location), [])
         self.assertEqual(t[0].metadata, b"123")
         self.assertEqual(t[1].flags, 1)
         self.assertEqual(list(t[1].location), [0, 1, 2, 3])
         self.assertEqual(t[1].metadata, b"\xf0")
-        self.assertRaises(IndexError, t.__getitem__, -3)
+        self.assertEqual(list(t[2].parents), [0, 1])
+        self.assertRaises(IndexError, t.__getitem__, -4)
 
     def test_add_row_defaults(self):
         t = tskit.IndividualTable()
@@ -834,6 +837,8 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
         self.assertEqual(t.flags[0], 0)
         self.assertEqual(len(t.location), 0)
         self.assertEqual(t.location_offset[0], 0)
+        self.assertEqual(len(t.parents), 0)
+        self.assertEqual(t.parents_offset[0], 0)
         self.assertEqual(len(t.metadata), 0)
         self.assertEqual(t.metadata_offset[0], 0)
 
@@ -845,6 +850,8 @@ class TestIndividualTable(unittest.TestCase, CommonTestsMixin, MetadataTestsMixi
             t.add_row(metadata=123)
         with self.assertRaises(ValueError):
             t.add_row(location="1234")
+        with self.assertRaises(ValueError):
+            t.add_row(parents="forty-two")    
 
     def test_packset_location(self):
         t = tskit.IndividualTable()
