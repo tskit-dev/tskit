@@ -451,7 +451,9 @@ class IndividualTable(BaseTable, MetadataMixin):
                 location_str = ",".join(map(str, location[j]))
                 parents_str = ",".join(map(str, parents[j]))
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{}".format(j, flags[j], location_str, parents_str, md).split("\t")
+                    "{}\t{}\t{}\t{}\t{}".format(
+                        j, flags[j], location_str, parents_str, md
+                    ).split("\t")
                 )
         return headers, rows
 
@@ -471,7 +473,9 @@ class IndividualTable(BaseTable, MetadataMixin):
         :rtype: int
         """
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
-        return self.ll_table.add_row(flags=flags, location=location, parents=parents, metadata=metadata)
+        return self.ll_table.add_row(
+            flags=flags, location=location, parents=parents, metadata=metadata
+        )
 
     def set_columns(
         self,
