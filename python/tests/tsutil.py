@@ -593,7 +593,7 @@ def py_subset(tables, nodes, record_provenance=True):
         if node.individual not in ind_map and node.individual != tskit.NULL:
             ind = full.individuals[node.individual]
             new_ind_id = tables.individuals.add_row(
-                ind.flags, ind.location, ind.metadata
+                ind.flags, ind.location, ind.parents, ind.metadata
             )
             ind_map[node.individual] = new_ind_id
         if node.population not in pop_map and node.population != tskit.NULL:

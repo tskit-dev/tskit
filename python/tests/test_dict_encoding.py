@@ -51,7 +51,12 @@ def get_example_tables():
 
     tables = ts.dump_tables()
     for j in range(ts.num_samples):
-        tables.individuals.add_row(flags=j, location=np.arange(j), metadata=b"x" * j)
+        tables.individuals.add_row(
+            flags=j,
+            location=np.arange(j),
+            parents=[tskit.NULL, tskit.NULL],
+            metadata=b"x" * j,
+        )
     tables.nodes.clear()
     for node in ts.nodes():
         tables.nodes.add_row(
