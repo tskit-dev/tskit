@@ -27,6 +27,7 @@ import unittest
 
 import msprime
 import numpy as np
+import pytest
 
 import _tskit  # TMP
 import tskit
@@ -853,13 +854,13 @@ class LiStephensBase:
         """
         A1 = cm1.decode()
         A2 = cm2.decode()
-        self.assertTrue(np.allclose(A1, A2))
-        self.assertEqual(A1.shape, A2.shape)
-        self.assertEqual(cm1.num_sites, cm2.num_sites)
+        assert np.allclose(A1, A2)
+        assert A1.shape == A2.shape
+        assert cm1.num_sites == cm2.num_sites
         nf1 = cm1.normalisation_factor
         nf2 = cm1.normalisation_factor
-        self.assertTrue(np.allclose(nf1, nf2))
-        self.assertEqual(nf1.shape, nf2.shape)
+        assert np.allclose(nf1, nf2)
+        assert nf1.shape == nf2.shape
         # It seems that we can't rely on the number of transitions in the two
         # implementations being equal, which seems odd given that we should
         # be doing things identically. Still, once the decoded matrices are the
@@ -937,32 +938,32 @@ class LiStephensBase:
             yield h, rho, mu
 
     def assertAllClose(self, A, B):
-        self.assertTrue(np.allclose(A, B))
+        assert np.allclose(A, B)
 
     def test_simple_n_4_no_recombination(self):
         ts = msprime.simulate(4, recombination_rate=0, mutation_rate=0.5, random_seed=1)
-        self.assertGreater(ts.num_sites, 3)
+        assert ts.num_sites > 3
         self.verify(ts)
 
     def test_simple_n_3(self):
         ts = msprime.simulate(3, recombination_rate=2, mutation_rate=7, random_seed=2)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_sites > 5
         self.verify(ts)
 
     def test_simple_n_7(self):
         ts = msprime.simulate(7, recombination_rate=2, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_sites > 5
         self.verify(ts)
 
     def test_simple_n_8_high_recombination(self):
         ts = msprime.simulate(8, recombination_rate=20, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_trees, 15)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_trees > 15
+        assert ts.num_sites > 5
         self.verify(ts)
 
     def test_simple_n_15(self):
         ts = msprime.simulate(15, recombination_rate=2, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_sites > 5
         self.verify(ts)
 
     def test_jukes_cantor_n_3(self):
@@ -980,10 +981,10 @@ class LiStephensBase:
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=0.1, seed=10)
         self.verify(ts, tskit.ALLELES_ACGT)
 
-    @unittest.skip("Not supporting internal samples yet")
+    @pytest.mark.skip(reason="Not supporting internal samples yet")
     def test_ancestors_n_3(self):
         ts = msprime.simulate(3, recombination_rate=2, mutation_rate=7, random_seed=2)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_sites > 5
         tables = ts.dump_tables()
         print(tables.nodes)
         tables.nodes.flags = np.ones_like(tables.nodes.flags)
@@ -992,13 +993,14 @@ class LiStephensBase:
         self.verify(ts)
 
 
+@pytest.mark.slow
 class ForwardAlgorithmBase(LiStephensBase):
     """
-    Base for forward algoritm tests.
+    Base for forward algorithm tests.
     """
 
 
-class TestNumpyMatrixMethod(ForwardAlgorithmBase, unittest.TestCase):
+class TestNumpyMatrixMethod(ForwardAlgorithmBase):
     """
     Tests that we compute the same values from the numpy matrix method as
     the naive algorithm.
@@ -1019,7 +1021,7 @@ class ViterbiAlgorithmBase(LiStephensBase):
     """
 
 
-class TestExactMatchViterbi(ViterbiAlgorithmBase, unittest.TestCase):
+class TestExactMatchViterbi(ViterbiAlgorithmBase):
     def verify(self, ts, alleles=tskit.ALLELES_01):
         G = ts.genotype_matrix(alleles=alleles)
         H = G.T
@@ -1036,20 +1038,21 @@ class TestExactMatchViterbi(ViterbiAlgorithmBase, unittest.TestCase):
             p4 = cm1.traceback()
             self.assertCompressedMatricesEqual(cm1, cm2)
 
-            self.assertEqual(len(np.unique(p1)), 1)
-            self.assertEqual(len(np.unique(p2)), 1)
-            self.assertEqual(len(np.unique(p3)), 1)
-            self.assertEqual(len(np.unique(p4)), 1)
+            assert len(np.unique(p1)) == 1
+            assert len(np.unique(p2)) == 1
+            assert len(np.unique(p3)) == 1
+            assert len(np.unique(p4)) == 1
             m1 = H[p1, np.arange(H.shape[1])]
-            self.assertTrue(np.array_equal(m1, h))
+            assert np.array_equal(m1, h)
             m2 = H[p2, np.arange(H.shape[1])]
-            self.assertTrue(np.array_equal(m2, h))
+            assert np.array_equal(m2, h)
             m3 = H[p3, np.arange(H.shape[1])]
-            self.assertTrue(np.array_equal(m3, h))
+            assert np.array_equal(m3, h)
             m4 = H[p3, np.arange(H.shape[1])]
-            self.assertTrue(np.array_equal(m4, h))
+            assert np.array_equal(m4, h)
 
 
+@pytest.mark.slow
 class TestGeneralViterbi(ViterbiAlgorithmBase, unittest.TestCase):
     def verify(self, ts, alleles=tskit.ALLELES_01):
         # np.set_printoptions(linewidth=20000)
@@ -1089,7 +1092,7 @@ class TestGeneralViterbi(ViterbiAlgorithmBase, unittest.TestCase):
             self.assertAlmostEqual(proba1, proba4, places=6)
 
 
-class TestMissingHaplotypes(LiStephensBase, unittest.TestCase):
+class TestMissingHaplotypes(LiStephensBase):
     def verify(self, ts, alleles=tskit.ALLELES_01):
         G = ts.genotype_matrix(alleles=alleles)
         H = G.T
@@ -1102,12 +1105,12 @@ class TestMissingHaplotypes(LiStephensBase, unittest.TestCase):
         h = H[0].copy()
         h[:] = tskit.MISSING_DATA
         path = ls_viterbi_vectorised(h, alleles, G, rho, mu)
-        self.assertTrue(np.all(path == 0))
+        assert np.all(path == 0)
         cm = ls_viterbi_tree(h, alleles, ts, rho, mu, use_lib=True)
         # For the tree base algorithm it's not simple which particular sample
         # gets chosen.
         path = cm.traceback()
-        self.assertEqual(len(set(path)), 1)
+        assert len(set(path)) == 1
 
         # TODO Not clear what else we can check about missing data.
 
@@ -1135,10 +1138,10 @@ class TestForwardMatrixScaling(ForwardAlgorithmBase, unittest.TestCase):
                 computed_log_proba = True
                 log_proba2 = np.log(psum)
                 self.assertAlmostEqual(log_proba1, log_proba2)
-        self.assertTrue(computed_log_proba)
+        assert computed_log_proba
 
 
-class TestForwardTree(ForwardAlgorithmBase, unittest.TestCase):
+class TestForwardTree(ForwardAlgorithmBase):
     """
     Tests that the tree algorithm computes the same forward matrix as the
     simple method.
@@ -1214,7 +1217,7 @@ class TestAllPaths(unittest.TestCase):
         self.verify(G, [1, 1, 0, 0, 0])
 
 
-class TestBasicViterbi(unittest.TestCase):
+class TestBasicViterbi:
     """
     Very simple tests of the Viterbi algorithm.
     """
@@ -1227,8 +1230,8 @@ class TestBasicViterbi(unittest.TestCase):
         alleles = [["0", "1"] for _ in range(m)]
         path1 = ls_viterbi_naive(h, alleles, G, rho, mu)
         path2 = ls_viterbi_vectorised(h, alleles, G, rho, mu)
-        self.assertEqual(list(path1), path)
-        self.assertEqual(list(path2), path)
+        assert list(path1) == path
+        assert list(path2) == path
 
     def test_n2_m6_exact(self):
         G = np.array(
@@ -1293,5 +1296,5 @@ class TestBasicViterbi(unittest.TestCase):
         mu[:] = 1e-8
         path2 = ls_viterbi_naive(h, alleles, G, rho, mu)
         path3 = ls_viterbi_vectorised(h, alleles, G, rho, mu)
-        self.assertTrue(np.array_equal(path1, path2))
-        self.assertTrue(np.array_equal(path2, path3))
+        assert np.array_equal(path1, path2)
+        assert np.array_equal(path2, path3)

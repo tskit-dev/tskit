@@ -26,10 +26,10 @@ Test cases for combinatorial algorithms.
 import collections
 import io
 import itertools
-import unittest
 
 import msprime
 import numpy as np
+import pytest
 
 import tests.test_wright_fisher as wf
 import tskit
@@ -38,7 +38,7 @@ from tests import test_stats
 from tskit.combinatorics import RankTree
 
 
-class TestCombination(unittest.TestCase):
+class TestCombination:
     def test_combination_with_replacement_rank_unrank(self):
         for n in range(9):
             for k in range(n):
@@ -47,9 +47,9 @@ class TestCombination(unittest.TestCase):
                 for exp_rank, c in enumerate(combs):
                     c = list(c)
                     actual_rank = comb.Combination.with_replacement_rank(c, n)
-                    self.assertEqual(actual_rank, exp_rank)
+                    assert actual_rank == exp_rank
                     unranked = comb.Combination.with_replacement_unrank(exp_rank, n, k)
-                    self.assertEqual(unranked, c)
+                    assert unranked == c
 
     def test_combination_rank_unrank(self):
         for n in range(11):
@@ -57,19 +57,19 @@ class TestCombination(unittest.TestCase):
                 nums = list(range(n))
                 for rank, c in enumerate(itertools.combinations(nums, k)):
                     c = list(c)
-                    self.assertEqual(comb.Combination.rank(c, nums), rank)
-                    self.assertEqual(comb.Combination.unrank(rank, nums, k), c)
+                    assert comb.Combination.rank(c, nums) == rank
+                    assert comb.Combination.unrank(rank, nums, k) == c
 
     def test_combination_unrank_errors(self):
         self.verify_unrank_errors(1, 1, 1)
         self.verify_unrank_errors(2, 0, 1)
 
     def verify_unrank_errors(self, rank, n, k):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             comb.Combination.unrank(rank, list(range(n)), k)
 
 
-class TestPartition(unittest.TestCase):
+class TestPartition:
     def test_rule_asc(self):
         self.verify_rule_asc(1, [[1]])
         self.verify_rule_asc(2, [[1, 1], [2]])
@@ -97,25 +97,25 @@ class TestPartition(unittest.TestCase):
         )
 
     def verify_rule_asc(self, n, partitions):
-        self.assertEqual(list(comb.rule_asc(n)), partitions)
+        assert list(comb.rule_asc(n)) == partitions
 
     def test_partitions(self):
-        self.assertEqual(list(comb.partitions(0)), [])
+        assert list(comb.partitions(0)) == []
         for n in range(1, 7):
-            self.assertEqual(list(comb.partitions(n)), list(comb.rule_asc(n))[:-1])
+            assert list(comb.partitions(n)) == list(comb.rule_asc(n))[:-1]
 
     def test_group_partition(self):
-        self.assertEqual(comb.group_partition([1]), [[1]])
-        self.assertEqual(comb.group_partition([1, 2]), [[1], [2]])
-        self.assertEqual(comb.group_partition([1, 1, 1]), [[1, 1, 1]])
-        self.assertEqual(comb.group_partition([1, 1, 2, 3, 3]), [[1, 1], [2], [3, 3]])
+        assert comb.group_partition([1]) == [[1]]
+        assert comb.group_partition([1, 2]) == [[1], [2]]
+        assert comb.group_partition([1, 1, 1]) == [[1, 1, 1]]
+        assert comb.group_partition([1, 1, 2, 3, 3]) == [[1, 1], [2], [3, 3]]
 
 
-class TestRankTree(unittest.TestCase):
+class TestRankTree:
     def test_num_shapes(self):
         for i in range(11):
             all_trees = RankTree.all_unlabelled_trees(i)
-            self.assertEqual(len(list(all_trees)), comb.num_shapes(i))
+            assert len(list(all_trees)) == comb.num_shapes(i)
 
     def test_num_labellings(self):
         for n in range(2, 8):
@@ -123,21 +123,19 @@ class TestRankTree(unittest.TestCase):
                 tree = tree.label_unrank(0)
                 tree2 = tree.to_tsk_tree()
                 n_labellings = sum(1 for _ in RankTree.all_labellings(tree))
-                self.assertEqual(
-                    n_labellings, RankTree.from_tsk_tree(tree2).num_labellings()
-                )
+                assert n_labellings == RankTree.from_tsk_tree(tree2).num_labellings()
 
     def test_num_labelled_trees(self):
         # Number of leaf-labelled trees with n leaves on OEIS
         n_trees = [0, 1, 1, 4, 26, 236, 2752, 39208]
         for i, expected in zip(range(len(n_trees)), n_trees):
             actual = sum(1 for _ in RankTree.all_labelled_trees(i))
-            self.assertEqual(actual, expected)
+            assert actual == expected
 
     def test_all_labelled_trees_3(self):
         expected = ["(0,1,2)", "(0,(1,2))", "(1,(0,2))", "(2,(0,1))"]
         actual = [t.newick() for t in RankTree.all_labelled_trees(3)]
-        self.assertEqual(expected, actual)
+        assert expected == actual
 
     def test_all_labelled_trees_4(self):
         expected = [
@@ -175,21 +173,21 @@ class TestRankTree(unittest.TestCase):
             "((0,3),(1,2))",
         ]
         actual = [t.newick() for t in RankTree.all_labelled_trees(4)]
-        self.assertEqual(expected, actual)
+        assert expected == actual
 
     def test_generate_trees_roundtrip(self):
         n = 5
         all_rank_trees = RankTree.all_labelled_trees(n)
         all_tsk_trees = tskit.all_trees(n)
         for rank_tree, tsk_tree in zip(all_rank_trees, all_tsk_trees):
-            self.assertEqual(rank_tree, RankTree.from_tsk_tree(tsk_tree))
+            assert rank_tree == RankTree.from_tsk_tree(tsk_tree)
 
     def test_all_shapes_roundtrip(self):
         n = 5
         all_rank_tree_shapes = RankTree.all_unlabelled_trees(n)
         all_tsk_tree_shapes = tskit.all_tree_shapes(n)
         for rank_tree, tsk_tree in zip(all_rank_tree_shapes, all_tsk_tree_shapes):
-            self.assertTrue(rank_tree.shape_equal(RankTree.from_tsk_tree(tsk_tree)))
+            assert rank_tree.shape_equal(RankTree.from_tsk_tree(tsk_tree))
 
     def test_all_labellings_roundtrip(self):
         n = 5
@@ -198,25 +196,25 @@ class TestRankTree(unittest.TestCase):
         rank_tree_labellings = RankTree.all_labellings(rank_tree)
         tsk_tree_labellings = tskit.all_tree_labellings(tsk_tree)
         for rank_t, tsk_t in zip(rank_tree_labellings, tsk_tree_labellings):
-            self.assertEqual(rank_t, RankTree.from_tsk_tree(tsk_t))
+            assert rank_t == RankTree.from_tsk_tree(tsk_t)
 
     def test_unrank(self):
         for n in range(6):
             for shape_rank, t in enumerate(RankTree.all_unlabelled_trees(n)):
                 for label_rank, labelled_tree in enumerate(RankTree.all_labellings(t)):
                     unranked = RankTree.unrank((shape_rank, label_rank), n)
-                    self.assertTrue(labelled_tree == unranked)
+                    assert labelled_tree == unranked
 
         # The number of labelled trees gets very big quickly
         for n in range(6, 10):
             for shape_rank in range(comb.num_shapes(n)):
                 rank = (shape_rank, 0)
                 unranked = RankTree.unrank(rank, n)
-                self.assertTrue(rank, unranked.rank())
+                assert rank, unranked.rank()
 
                 rank = (shape_rank, comb.num_labellings(shape_rank, n) - 1)
                 unranked = RankTree.unrank(rank, n)
-                self.assertTrue(rank, unranked.rank())
+                assert rank, unranked.rank()
 
     def test_unrank_errors(self):
         self.verify_unrank_errors((-1, 0), 1)
@@ -239,34 +237,34 @@ class TestRankTree(unittest.TestCase):
         self.verify_unrank_errors(invalid_labelling, 10)
 
     def verify_unrank_errors(self, rank, n):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             RankTree.unrank(rank, n)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             tskit.Tree.unrank(rank, n)
 
     def test_shape_rank(self):
         for n in range(10):
             for rank, tree in enumerate(RankTree.all_unlabelled_trees(n)):
-                self.assertEqual(tree.shape_rank(), rank)
+                assert tree.shape_rank() == rank
 
     def test_shape_unrank(self):
         for n in range(6):
             for rank, tree in enumerate(RankTree.all_unlabelled_trees(n)):
                 t = RankTree.shape_unrank(rank, n)
-                self.assertTrue(tree.shape_equal(t))
+                assert tree.shape_equal(t)
 
         for n in range(2, 9):
             for shape_rank, tree in enumerate(RankTree.all_unlabelled_trees(n)):
                 tsk_tree = tskit.Tree.unrank((shape_rank, 0), n)
-                self.assertEqual(shape_rank, tree.shape_rank())
+                assert shape_rank == tree.shape_rank()
                 shape_rank, _ = tsk_tree.rank()
-                self.assertEqual(shape_rank, tree.shape_rank())
+                assert shape_rank == tree.shape_rank()
 
     def test_label_rank(self):
         for n in range(7):
             for tree in RankTree.all_unlabelled_trees(n):
                 for rank, labelled_tree in enumerate(RankTree.all_labellings(tree)):
-                    self.assertEqual(labelled_tree.label_rank(), rank)
+                    assert labelled_tree.label_rank() == rank
 
     def test_label_unrank(self):
         for n in range(7):
@@ -276,26 +274,26 @@ class TestRankTree(unittest.TestCase):
                 ):
                     rank = (shape_rank, label_rank)
                     unranked = tree.label_unrank(label_rank)
-                    self.assertEqual(labelled_tree.rank(), rank)
-                    self.assertEqual(unranked.rank(), rank)
+                    assert labelled_tree.rank() == rank
+                    assert unranked.rank() == rank
 
     def test_unrank_rank_round_trip(self):
         for n in range(6):  # Can do more but gets slow pretty quickly after 6
             for shape_rank in range(comb.num_shapes(n)):
                 tree = RankTree.shape_unrank(shape_rank, n)
                 tree = tree.label_unrank(0)
-                self.assertEqual(tree.shape_rank(), shape_rank)
+                assert tree.shape_rank() == shape_rank
                 for label_rank in range(tree.num_labellings()):
                     tree = tree.label_unrank(label_rank)
-                    self.assertEqual(tree.label_rank(), label_rank)
+                    assert tree.label_rank() == label_rank
                     tsk_tree = tree.label_unrank(label_rank).to_tsk_tree()
                     _, tsk_label_rank = tsk_tree.rank()
-                    self.assertEqual(tsk_label_rank, label_rank)
+                    assert tsk_label_rank == label_rank
 
     def test_is_canonical(self):
         for n in range(7):
             for tree in RankTree.all_labelled_trees(n):
-                self.assertTrue(tree.is_canonical())
+                assert tree.is_canonical()
 
         shape_not_canonical = RankTree(
             children=[
@@ -313,7 +311,7 @@ class TestRankTree(unittest.TestCase):
                 ),
             ]
         )
-        self.assertFalse(shape_not_canonical.is_canonical())
+        assert not shape_not_canonical.is_canonical()
 
         labels_not_canonical = RankTree(
             children=[
@@ -336,27 +334,27 @@ class TestRankTree(unittest.TestCase):
                 ),
             ]
         )
-        self.assertFalse(labels_not_canonical.is_canonical())
+        assert not labels_not_canonical.is_canonical()
 
     def test_unranking_is_canonical(self):
         for n in range(7):
             for shape_rank in range(comb.num_shapes(n)):
                 for label_rank in range(comb.num_labellings(shape_rank, n)):
                     t = RankTree.shape_unrank(shape_rank, n)
-                    self.assertTrue(t.is_canonical())
+                    assert t.is_canonical()
                     t = t.label_unrank(label_rank)
-                    self.assertTrue(t.is_canonical())
+                    assert t.is_canonical()
                     t = tskit.Tree.unrank((shape_rank, label_rank), n)
-                    self.assertTrue(RankTree.from_tsk_tree(t).is_canonical())
+                    assert RankTree.from_tsk_tree(t).is_canonical()
 
     def test_to_from_tsk_tree(self):
         for n in range(5):
             for tree in RankTree.all_labelled_trees(n):
-                self.assertTrue(tree.is_canonical())
+                assert tree.is_canonical()
                 tsk_tree = tree.to_tsk_tree()
                 reconstructed = RankTree.from_tsk_tree(tsk_tree)
-                self.assertTrue(tree.is_canonical())
-                self.assertEqual(tree, reconstructed)
+                assert tree.is_canonical()
+                assert tree == reconstructed
 
     def test_from_unary_tree(self):
         tables = tskit.TableCollection(sequence_length=1)
@@ -365,15 +363,15 @@ class TestRankTree(unittest.TestCase):
         tables.edges.add_row(left=0, right=1, parent=p, child=c)
 
         t = tables.tree_sequence().first()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             RankTree.from_tsk_tree(t)
 
     def test_to_tsk_tree_errors(self):
         alpha_tree = RankTree.unrank((0, 0), 3, ["A", "B", "C"])
         out_of_bounds_tree = RankTree.unrank((0, 0), 3, [2, 3, 4])
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             alpha_tree.to_tsk_tree()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             out_of_bounds_tree.to_tsk_tree()
 
     def test_rank_errors_multiple_roots(self):
@@ -388,7 +386,7 @@ class TestRankTree(unittest.TestCase):
             tables.nodes.add_row(flags=flags, time=t)
 
         ts = tables.tree_sequence()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.first().rank()
 
     def test_big_trees(self):
@@ -397,57 +395,57 @@ class TestRankTree(unittest.TestCase):
         labelling = 0
         tree = RankTree.unrank((shape, labelling), n)
         tsk_tree = tskit.Tree.unrank((shape, labelling), n)
-        self.assertEqual(tree.rank(), tsk_tree.rank())
+        assert tree.rank() == tsk_tree.rank()
 
         n = 10
         shape = 95
         labelling = comb.num_labellings(shape, n) // 2
         tree = RankTree.unrank((shape, labelling), n)
         tsk_tree = tskit.Tree.unrank((shape, labelling), n)
-        self.assertEqual(tree.rank(), tsk_tree.rank())
+        assert tree.rank() == tsk_tree.rank()
 
     def test_symmetrical_trees(self):
         for n in range(2, 18, 2):
             last_rank = comb.num_shapes(n) - 1
             t = RankTree.shape_unrank(last_rank, n)
-            self.assertTrue(t.is_symmetrical())
+            assert t.is_symmetrical()
 
     def test_equal(self):
         unlabelled_leaf = RankTree(children=[])
-        self.assertEqual(unlabelled_leaf, unlabelled_leaf)
-        self.assertTrue(unlabelled_leaf.shape_equal(unlabelled_leaf))
+        assert unlabelled_leaf == unlabelled_leaf
+        assert unlabelled_leaf.shape_equal(unlabelled_leaf)
 
         leaf_zero = RankTree(children=[], label=0)
         leaf_one = RankTree(children=[], label=1)
         leaf_two = RankTree(children=[], label=2)
-        self.assertEqual(leaf_zero, leaf_zero)
-        self.assertNotEqual(leaf_zero, leaf_one)
-        self.assertTrue(leaf_zero.shape_equal(leaf_one))
+        assert leaf_zero == leaf_zero
+        assert leaf_zero != leaf_one
+        assert leaf_zero.shape_equal(leaf_one)
 
         tree1 = RankTree(children=[leaf_zero, leaf_one])
-        self.assertEqual(tree1, tree1)
-        self.assertNotEqual(tree1, unlabelled_leaf)
-        self.assertFalse(tree1.shape_equal(unlabelled_leaf))
+        assert tree1 == tree1
+        assert tree1 != unlabelled_leaf
+        assert not tree1.shape_equal(unlabelled_leaf)
 
         tree2 = RankTree(children=[leaf_two, leaf_one])
-        self.assertNotEqual(tree1, tree2)
-        self.assertTrue(tree1.shape_equal(tree2))
+        assert tree1 != tree2
+        assert tree1.shape_equal(tree2)
 
     def test_is_symmetrical(self):
         unlabelled_leaf = RankTree(children=[])
-        self.assertTrue(unlabelled_leaf.is_symmetrical())
+        assert unlabelled_leaf.is_symmetrical()
         three_leaf_asym = RankTree(
             children=[
                 unlabelled_leaf,
                 RankTree(children=[unlabelled_leaf, unlabelled_leaf]),
             ]
         )
-        self.assertFalse(three_leaf_asym.is_symmetrical())
+        assert not three_leaf_asym.is_symmetrical()
         six_leaf_sym = RankTree(children=[three_leaf_asym, three_leaf_asym])
-        self.assertTrue(six_leaf_sym.is_symmetrical())
+        assert six_leaf_sym.is_symmetrical()
 
 
-class TestPartialTopologyCounter(unittest.TestCase):
+class TestPartialTopologyCounter:
     def test_add_sibling_topologies_simple(self):
         a = RankTree(children=[], label="A")
         b = RankTree(children=[], label="B")
@@ -455,11 +453,11 @@ class TestPartialTopologyCounter(unittest.TestCase):
 
         a_counter = comb.TopologyCounter()
         a_counter["A"][a.rank()] = 1
-        self.assertEqual(a_counter, comb.TopologyCounter.from_sample("A"))
+        assert a_counter == comb.TopologyCounter.from_sample("A")
 
         b_counter = comb.TopologyCounter()
         b_counter["B"][b.rank()] = 1
-        self.assertEqual(b_counter, comb.TopologyCounter.from_sample("B"))
+        assert b_counter == comb.TopologyCounter.from_sample("B")
 
         partial_counter = comb.PartialTopologyCounter()
         partial_counter.add_sibling_topologies(a_counter)
@@ -470,7 +468,7 @@ class TestPartialTopologyCounter(unittest.TestCase):
         expected["B"][b.rank()] = 1
         expected["A", "B"][ab.rank()] = 1
         joined_counter = partial_counter.join_all_combinations()
-        self.assertEqual(joined_counter, expected)
+        assert joined_counter == expected
 
     def test_add_sibling_topologies_polytomy(self):
         """
@@ -502,16 +500,16 @@ class TestPartialTopologyCounter(unittest.TestCase):
 
         partial_counter.add_sibling_topologies(a_counter)
         expected[("A",)] = collections.Counter({((("A",), (0, 0)),): 1})
-        self.assertEqual(partial_counter.partials, expected)
+        assert partial_counter.partials == expected
 
         partial_counter.add_sibling_topologies(a_counter)
         expected[("A",)][((("A",), (0, 0)),)] += 1
-        self.assertEqual(partial_counter.partials, expected)
+        assert partial_counter.partials == expected
 
         partial_counter.add_sibling_topologies(b_counter)
         expected[("B",)][((("B",), (0, 0)),)] = 1
         expected[("A", "B")][((("A",), (0, 0)), (("B",), (0, 0)))] = 2
-        self.assertEqual(partial_counter.partials, expected)
+        assert partial_counter.partials == expected
 
         partial_counter.add_sibling_topologies(ac_counter)
         expected[("A",)][((("A",), (0, 0)),)] += 1
@@ -524,7 +522,7 @@ class TestPartialTopologyCounter(unittest.TestCase):
             ((("A",), (0, 0)), (("B",), (0, 0)), (("C",), (0, 0)))
         ] = 2
         expected[("A", "B", "C")][((("A", "C"), (0, 0)), (("B",), (0, 0)))] = 1
-        self.assertEqual(partial_counter.partials, expected)
+        assert partial_counter.partials == expected
 
         expected_topologies = comb.TopologyCounter()
         expected_topologies["A"][(0, 0)] = 3
@@ -536,7 +534,7 @@ class TestPartialTopologyCounter(unittest.TestCase):
         expected_topologies["A", "B", "C"][(0, 0)] = 2
         expected_topologies["A", "B", "C"][(1, 1)] = 1
         joined_topologies = partial_counter.join_all_combinations()
-        self.assertEqual(joined_topologies, expected_topologies)
+        assert joined_topologies == expected_topologies
 
     def test_join_topologies(self):
         a = RankTree(children=[], label="A")
@@ -560,10 +558,10 @@ class TestPartialTopologyCounter(unittest.TestCase):
 
     def verify_join_topologies(self, topologies, expected_topology):
         actual_topology = comb.PartialTopologyCounter.join_topologies(topologies)
-        self.assertEqual(actual_topology, expected_topology)
+        assert actual_topology == expected_topology
 
 
-class TestCountTopologies(unittest.TestCase):
+class TestCountTopologies:
     def verify_topologies(self, ts, sample_sets=None, expected=None):
         if sample_sets is None:
             sample_sets = [ts.samples(population=pop.id) for pop in ts.populations()]
@@ -584,12 +582,10 @@ class TestCountTopologies(unittest.TestCase):
                         subsampled_topologies = self.subsample_topologies(
                             just_t, sample_sets, sample_set_indexes
                         )
-                        self.assertEqual(actual_topologies, subsampled_topologies)
+                        assert actual_topologies == subsampled_topologies
                     if expected is not None:
-                        self.assertEqual(
-                            actual_topologies, expected[i][sample_set_indexes]
-                        )
-                    self.assertEqual(actual_topologies, actual_inc_topologies)
+                        assert actual_topologies == expected[i][sample_set_indexes]
+                    assert actual_topologies == actual_inc_topologies
 
     def subsample_topologies(self, ts, sample_sets, sample_set_indexes):
         subsample_sets = [sample_sets[i] for i in sample_set_indexes]
@@ -770,8 +766,8 @@ class TestCountTopologies(unittest.TestCase):
 
         tree_topologies = ts.first().count_topologies(sample_sets)
         treeseq_topologies = list(ts.count_topologies(sample_sets))
-        self.assertEqual(tree_topologies, expected)
-        self.assertEqual(treeseq_topologies, [expected])
+        assert tree_topologies == expected
+        assert treeseq_topologies == [expected]
 
     def test_ignores_non_sample_leaves(self):
         nodes = io.StringIO(
@@ -818,8 +814,8 @@ class TestCountTopologies(unittest.TestCase):
 
         tree_topologies = ts.first().count_topologies(sample_sets)
         treeseq_topologies = list(ts.count_topologies(sample_sets))
-        self.assertEqual(tree_topologies, expected)
-        self.assertEqual(treeseq_topologies, [expected])
+        assert tree_topologies == expected
+        assert treeseq_topologies == [expected]
 
     def test_internal_samples_errors(self):
         tables = tskit.TableCollection(sequence_length=1.0)
@@ -850,15 +846,15 @@ class TestCountTopologies(unittest.TestCase):
         self.verify_node_out_of_bounds_error(tables.tree_sequence(), sample_sets)
 
     def verify_value_error(self, ts, sample_sets=None):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.first().count_topologies(sample_sets)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(ts.count_topologies(sample_sets))
 
     def verify_node_out_of_bounds_error(self, ts, sample_sets=None):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.first().count_topologies(sample_sets)
-        with self.assertRaises(IndexError):
+        with pytest.raises(IndexError):
             list(ts.count_topologies(sample_sets))
 
     def test_standard_msprime_migrations(self):

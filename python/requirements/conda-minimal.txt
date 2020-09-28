@@ -1,6 +1,5 @@
 attrs>=19.2.0
 numpy
-nose
 h5py>=2.6.0
 jsonschema>=3.0.0
 svgwrite>=1.1.10
@@ -9,3 +8,5 @@ msprime
 kastore
 biopython
 networkx
+pytest
+pytest-xdist

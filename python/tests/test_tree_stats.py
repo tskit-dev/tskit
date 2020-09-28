@@ -29,11 +29,11 @@ import functools
 import io
 import itertools
 import random
-import unittest
 
 import msprime
 import numpy as np
 import numpy.testing as nt
+import pytest
 
 import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
@@ -524,13 +524,13 @@ def upper_tri_to_matrix(x):
 ##################################
 
 
-class StatsTestCase(unittest.TestCase):
+class StatsTestCase:
     """
     Provides convenience functions.
     """
 
     def assertListAlmostEqual(self, x, y):
-        self.assertEqual(len(x), len(y))
+        assert len(x) == len(y)
         for a, b in zip(x, y):
             self.assertAlmostEqual(a, b)
 
@@ -572,7 +572,7 @@ class TopologyExamplesMixin:
 
     def test_many_trees(self):
         ts = msprime.simulate(6, recombination_rate=2, random_seed=1)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_trees > 2
         self.verify(ts)
 
     def test_many_trees_sequence_length(self):
@@ -593,6 +593,7 @@ class TopologyExamplesMixin:
         ts = tables.tree_sequence()
         self.verify(ts)
 
+    @pytest.mark.slow
     def test_wright_fisher_initial_generation(self):
         tables = wf.wf_sim(
             6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
@@ -689,7 +690,7 @@ class MutatedTopologyExamplesMixin:
 
     def test_single_tree_no_sites(self):
         ts = msprime.simulate(6, random_seed=1)
-        self.assertEqual(ts.num_sites, 0)
+        assert ts.num_sites == 0
         self.verify(ts)
 
     def test_ghost_allele(self):
@@ -757,7 +758,7 @@ class MutatedTopologyExamplesMixin:
 
     def test_single_tree_infinite_sites(self):
         ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_single_tree_sites_no_mutations(self):
@@ -779,8 +780,8 @@ class MutatedTopologyExamplesMixin:
 
     def test_many_trees_infinite_sites(self):
         ts = msprime.simulate(6, recombination_rate=2, mutation_rate=2, random_seed=1)
-        self.assertGreater(ts.num_sites, 0)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_sites > 0
+        assert ts.num_trees > 2
         self.verify(ts)
 
     def test_many_trees_sequence_length_infinite_sites(self):
@@ -801,7 +802,7 @@ class MutatedTopologyExamplesMixin:
         )
         tables.sort()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_wright_fisher_initial_generation(self):
@@ -811,7 +812,7 @@ class MutatedTopologyExamplesMixin:
         tables.sort()
         tables.simplify()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_wright_fisher_initial_generation_no_deep_history(self):
@@ -826,7 +827,7 @@ class MutatedTopologyExamplesMixin:
         tables.sort()
         tables.simplify()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_wright_fisher_unsimplified_multiple_roots(self):
@@ -840,7 +841,7 @@ class MutatedTopologyExamplesMixin:
         )
         tables.sort()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.006, random_seed=2)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_wright_fisher_simplified(self):
@@ -855,7 +856,7 @@ class MutatedTopologyExamplesMixin:
         tables.sort()
         ts = tables.tree_sequence().simplify()
         ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_empty_ts(self):
@@ -976,9 +977,9 @@ class WeightStatsMixin:
                 ts, W, windows=windows, mode=self.mode, span_normalise=sn
             )
 
-            self.assertEqual(sigma1.shape, sigma2.shape)
-            self.assertEqual(sigma1.shape, sigma3.shape)
-            self.assertEqual(sigma1.shape, sigma4.shape)
+            assert sigma1.shape == sigma2.shape
+            assert sigma1.shape == sigma3.shape
+            assert sigma1.shape == sigma4.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
             self.assertArrayAlmostEqual(sigma1, sigma4)
@@ -1022,9 +1023,9 @@ class SampleSetStatsMixin:
                 ts, sample_sets, windows=windows, mode=self.mode, span_normalise=sn
             )
 
-            self.assertEqual(sigma1.shape, sigma2.shape)
-            self.assertEqual(sigma1.shape, sigma3.shape)
-            self.assertEqual(sigma1.shape, sigma4.shape)
+            assert sigma1.shape == sigma2.shape
+            assert sigma1.shape == sigma3.shape
+            assert sigma1.shape == sigma4.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
             self.assertArrayAlmostEqual(sigma1, sigma4)
@@ -1055,9 +1056,9 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
             ts, sample_sets, indexes=indexes, windows=windows, mode=self.mode
         )
 
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
-        self.assertEqual(sigma1.shape, sigma4.shape)
+        assert sigma1.shape == sigma2.shape
+        assert sigma1.shape == sigma3.shape
+        assert sigma1.shape == sigma4.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
         self.assertArrayAlmostEqual(sigma1, sigma4)
@@ -1454,7 +1455,7 @@ class TestTajimasD(StatsTestCase, SampleSetStatsMixin):
         for windows in self.get_windows(ts):
             sigma1 = ts.Tajimas_D(sample_sets, windows=windows, mode=self.mode)
             sigma2 = site_tajimas_d(ts, sample_sets, windows=windows)
-            self.assertEqual(sigma1.shape, sigma2.shape)
+            assert sigma1.shape == sigma2.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
 
 
@@ -1827,7 +1828,7 @@ class TestFst(StatsTestCase, TwoWaySampleSetStatsMixin):
             span_normalise=False,
         )
         sigma2 = single_site_Fst(ts, sample_sets, indexes)
-        self.assertEqual(sigma1.shape, sigma2.shape)
+        assert sigma1.shape == sigma2.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
 
 
@@ -1835,11 +1836,11 @@ class FstInterfaceMixin:
     def test_interface(self):
         ts = msprime.simulate(10, mutation_rate=0.0)
         sample_sets = [[0, 1, 2], [6, 7], [4]]
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.Fst(sample_sets, mode=self.mode)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.Fst(sample_sets, indexes=[(0, 1, 2), (3, 4, 5)], mode=self.mode)
-        with self.assertRaises(tskit.LibraryError):
+        with pytest.raises(tskit.LibraryError):
             ts.Fst(sample_sets, indexes=[(0, 1), (0, 20)])
         sigma1 = ts.Fst(sample_sets, indexes=[(0, 1)], mode=self.mode)
         sigma2 = ts.Fst(sample_sets, indexes=[(0, 1), (0, 2), (1, 2)], mode=self.mode)
@@ -2787,7 +2788,7 @@ def foldit(A):
     return B
 
 
-class TestFold(unittest.TestCase):
+class TestFold:
     """
     Tests for the fold operation used in the AFS.
     """
@@ -2798,13 +2799,13 @@ class TestFold(unittest.TestCase):
             [11.0, 11.0, 11.0, 11.0, 11.0, 11.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         )
 
-        self.assertTrue(np.all(foldit(A) == Af))
+        assert np.all(foldit(A) == Af)
 
         B = A.copy().reshape(3, 4)
         Bf = np.array(
             [[11.0, 11.0, 11.0, 0.0], [11.0, 11.0, 0.0, 0.0], [11.0, 0.0, 0.0, 0.0]]
         )
-        self.assertTrue(np.all(foldit(B) == Bf))
+        assert np.all(foldit(B) == Bf)
 
         C = A.copy().reshape(3, 2, 2)
         Cf = np.array(
@@ -2814,15 +2815,15 @@ class TestFold(unittest.TestCase):
                 [[0.0, 0.0], [0.0, 0.0]],
             ]
         )
-        self.assertTrue(np.all(foldit(C) == Cf))
+        assert np.all(foldit(C) == Cf)
 
         D = np.arange(9).reshape((3, 3))
         Df = np.array([[8.0, 8.0, 8.0], [8.0, 4.0, 0.0], [0.0, 0.0, 0.0]])
-        self.assertTrue(np.all(foldit(D) == Df))
+        assert np.all(foldit(D) == Df)
 
         E = np.arange(9)
         Ef = np.array([8.0, 8.0, 8.0, 8.0, 4.0, 0.0, 0.0, 0.0, 0.0])
-        self.assertTrue(np.all(foldit(E) == Ef))
+        assert np.all(foldit(E) == Ef)
 
 
 def naive_site_allele_frequency_spectrum(
@@ -3203,15 +3204,15 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
                 polarised=polarised,
                 span_normalise=span_normalise,
             )
-            self.assertEqual(sfs1.shape[0], len(windows) - 1)
-            self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
+            assert sfs1.shape[0] == len(windows) - 1
+            assert len(sfs1.shape) == len(sample_sets) + 1
             for j, sample_set in enumerate(sample_sets):
                 n = 1 + len(sample_set)
-                self.assertEqual(sfs1.shape[j + 1], n)
+                assert sfs1.shape[j + 1] == n
 
-            self.assertEqual(len(sfs1.shape), len(sample_sets) + 1)
-            self.assertEqual(sfs1.shape, sfs2.shape)
-            self.assertEqual(sfs1.shape, sfs3.shape)
+            assert len(sfs1.shape) == len(sample_sets) + 1
+            assert sfs1.shape == sfs2.shape
+            assert sfs1.shape == sfs3.shape
             if not np.allclose(sfs1, sfs3):
                 print()
                 print("sample sets", sample_sets)
@@ -3307,7 +3308,7 @@ class TestWindowedTreeStat(StatsTestCase):
     # TODO add more tests here covering the various windowing possibilities.
     def get_tree_sequence(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=1)
-        self.assertGreater(ts.num_trees, 3)
+        assert ts.num_trees > 3
         return ts
 
     def test_all_trees(self):
@@ -3317,7 +3318,7 @@ class TestWindowedTreeStat(StatsTestCase):
         A2 = windowed_tree_stat(ts, A1, windows)
         # print("breakpoints = ", windows)
         # print(A2)
-        self.assertEqual(A1.shape, A2.shape)
+        assert A1.shape == A2.shape
         # JK: I don't understand what we're computing here, this normalisation
         # seems pretty weird.
         # for tree in ts.trees():
@@ -3328,7 +3329,7 @@ class TestWindowedTreeStat(StatsTestCase):
         A1 = np.ones((ts.num_trees, 1))
         windows = np.array([0, ts.sequence_length])
         A2 = windowed_tree_stat(ts, A1, windows)
-        self.assertEqual(A2.shape, (1, 1))
+        assert A2.shape == (1, 1)
         # TODO: Test output
 
 
@@ -3345,34 +3346,34 @@ class TestSampleSets(StatsTestCase):
     def test_duplicate_samples(self):
         ts = self.get_example_ts()
         for bad_set in [[1, 1], [1, 2, 1], list(range(10)) + [9]]:
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 ts.diversity([bad_set])
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 ts.divergence([[0, 1], bad_set])
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 ts.sample_count_stat([bad_set], self.identity_f(ts), 1)
 
     def test_empty_sample_set(self):
         ts = self.get_example_ts()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.diversity([[]])
         for bad_sample_sets in [[[], []], [[1], []], [[1, 2], [1], []]]:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 ts.diversity(bad_sample_sets)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 ts.divergence(bad_sample_sets)
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 ts.sample_count_stat(bad_sample_sets, self.identity_f(ts), 1)
 
     def test_non_samples(self):
         ts = self.get_example_ts()
-        with self.assertRaises(exceptions.LibraryError):
+        with pytest.raises(exceptions.LibraryError):
             ts.diversity([[ts.num_samples]])
 
-        with self.assertRaises(exceptions.LibraryError):
+        with pytest.raises(exceptions.LibraryError):
             ts.divergence([[ts.num_samples], [1, 2]])
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.sample_count_stat([[ts.num_samples]], self.identity_f(ts), 1)
 
     def test_span_normalise(self):
@@ -3400,8 +3401,8 @@ class TestSampleSets(StatsTestCase):
             if mode == "node":
                 denom = np.diff(windows)[:, np.newaxis, np.newaxis]
 
-            self.assertEqual(sigma1.shape, sigma2.shape)
-            self.assertEqual(sigma1.shape, sigma3.shape)
+            assert sigma1.shape == sigma2.shape
+            assert sigma1.shape == sigma3.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3 / denom)
 
@@ -3414,7 +3415,7 @@ class TestSampleSetIndexes(StatsTestCase):
 
     def get_example_ts(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        self.assertGreater(ts.num_mutations, 0)
+        assert ts.num_mutations > 0
         return ts
 
     def test_2_way_default(self):
@@ -3423,13 +3424,13 @@ class TestSampleSetIndexes(StatsTestCase):
         S1 = ts.divergence(sample_sets)
         S2 = divergence(ts, sample_sets)[0, 0]
         S3 = ts.divergence(sample_sets, [0, 1])
-        self.assertEqual(S1.shape, S2.shape)
+        assert S1.shape == S2.shape
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
         sample_sets = np.array_split(ts.samples(), 3)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _ = ts.divergence(sample_sets)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _ = ts.divergence([sample_sets[0]])
 
     def test_3_way_default(self):
@@ -3438,11 +3439,11 @@ class TestSampleSetIndexes(StatsTestCase):
         S1 = ts.f3(sample_sets)
         S2 = f3(ts, sample_sets)[0, 0]
         S3 = ts.f3(sample_sets, [0, 1, 2])
-        self.assertEqual(S1.shape, S2.shape)
+        assert S1.shape == S2.shape
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
         sample_sets = np.array_split(ts.samples(), 4)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _ = ts.f3(sample_sets)
 
     def test_4_way_default(self):
@@ -3451,11 +3452,11 @@ class TestSampleSetIndexes(StatsTestCase):
         S1 = ts.f4(sample_sets)
         S2 = f4(ts, sample_sets)
         S3 = ts.f4(sample_sets, [0, 1, 2, 3])
-        self.assertEqual(S1.shape, S3.shape)
+        assert S1.shape == S3.shape
         self.assertArrayAlmostEqual(S1, S2)
         self.assertArrayAlmostEqual(S1, S3)
         sample_sets = np.array_split(ts.samples(), 5)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             _ = ts.f4(sample_sets)
 
     def test_2_way_combinations(self):
@@ -3465,8 +3466,8 @@ class TestSampleSetIndexes(StatsTestCase):
         for k in range(1, len(pairs)):
             S1 = ts.divergence(sample_sets, pairs[:k])
             S2 = divergence(ts, sample_sets, pairs[:k])[0]
-            self.assertEqual(S1.shape[-1], k)
-            self.assertEqual(S1.shape, S2.shape)
+            assert S1.shape[-1] == k
+            assert S1.shape == S2.shape
             self.assertArrayAlmostEqual(S1, S2)
 
     def test_3_way_combinations(self):
@@ -3476,8 +3477,8 @@ class TestSampleSetIndexes(StatsTestCase):
         for k in range(1, len(triples)):
             S1 = ts.Y3(sample_sets, triples[:k])
             S2 = Y3(ts, sample_sets, triples[:k])[0]
-            self.assertEqual(S1.shape[-1], k)
-            self.assertEqual(S1.shape, S2.shape)
+            assert S1.shape[-1] == k
+            assert S1.shape == S2.shape
             self.assertArrayAlmostEqual(S1, S2)
 
     def test_4_way_combinations(self):
@@ -3487,18 +3488,18 @@ class TestSampleSetIndexes(StatsTestCase):
         for k in range(1, len(quads)):
             S1 = ts.f4(sample_sets, quads[:k], windows=[0, ts.sequence_length])
             S2 = f4(ts, sample_sets, quads[:k])
-            self.assertEqual(S1.shape[-1], k)
-            self.assertEqual(S2.shape, S2.shape)
+            assert S1.shape[-1] == k
+            assert S2.shape == S2.shape
             self.assertArrayAlmostEqual(S1, S2)
 
     def test_errors(self):
         ts = self.get_example_ts()
         sample_sets = np.array_split(ts.samples(), 2)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.divergence(sample_sets, indexes=[])
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.divergence(sample_sets, indexes=[(1, 1, 1)])
-        with self.assertRaises(exceptions.LibraryError):
+        with pytest.raises(exceptions.LibraryError):
             ts.divergence(sample_sets, indexes=[(1, 2)])
 
 
@@ -3551,24 +3552,24 @@ class TestGeneralStatInterface(StatsTestCase):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
         for bad_mode in ["", "MODE", "x" * 8192]:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 ts.general_stat(W, self.identity_f(ts), W.shape[1], mode=bad_mode)
 
     def test_bad_window_strings(self):
         ts = self.get_tree_sequence()
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.diversity([ts.samples()], mode="site", windows="abc")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.diversity([ts.samples()], mode="site", windows="")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.diversity([ts.samples()], mode="tree", windows="abc")
 
     def test_bad_summary_function(self):
         ts = self.get_tree_sequence()
         W = np.ones((ts.num_samples, 3))
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.general_stat(W, lambda x: x, 3, windows="sites")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.general_stat(W, lambda x: np.array([1.0]), 1, windows="sites")
 
     def test_nonnumpy_summary_function(self):
@@ -3590,8 +3591,8 @@ class TestGeneralBranchStats(StatsTestCase):
         sigma1 = naive_branch_general_stat(ts, W, f, windows, polarised=polarised)
         sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="branch")
         sigma3 = branch_general_stat(ts, W, f, windows, polarised=polarised)
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
+        assert sigma1.shape == sigma2.shape
+        assert sigma1.shape == sigma3.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
@@ -3603,8 +3604,8 @@ class TestGeneralBranchStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.identity_f(ts), windows="trees", polarised=polarised
             )
-            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
+            assert sigma.shape == (ts.num_trees, W.shape[1])
+            assert np.all(sigma == 0)
 
     def test_simple_identity_f_w_ones(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
@@ -3612,12 +3613,12 @@ class TestGeneralBranchStats(StatsTestCase):
         sigma = self.compare_general_stat(
             ts, W, self.identity_f(ts), windows="trees", polarised=True
         )
-        self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
+        assert sigma.shape == (ts.num_trees, W.shape[1])
         # A W of 1 for every node and identity f counts the samples in the subtree
         # if polarised is True.
         for tree in ts.trees():
             s = sum(tree.num_samples(u) * tree.branch_length(u) for u in tree.nodes())
-            self.assertTrue(np.allclose(sigma[tree.index], s))
+            assert np.allclose(sigma[tree.index], s)
 
     def test_simple_cumsum_f_w_ones(self):
         ts = msprime.simulate(13, recombination_rate=1, random_seed=2)
@@ -3626,15 +3627,15 @@ class TestGeneralBranchStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.cumsum_f(ts), windows="trees", polarised=polarised
             )
-            self.assertEqual(sigma.shape, (ts.num_trees, W.shape[1]))
+            assert sigma.shape == (ts.num_trees, W.shape[1])
 
     def test_simple_cumsum_f_w_ones_many_windows(self):
         ts = msprime.simulate(15, recombination_rate=3, random_seed=3)
-        self.assertGreater(ts.num_trees, 3)
+        assert ts.num_trees > 3
         windows = np.linspace(0, ts.sequence_length, num=ts.num_trees * 10)
         W = np.ones((ts.num_samples, 3))
         sigma = self.compare_general_stat(ts, W, self.cumsum_f(ts), windows=windows)
-        self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
+        assert sigma.shape == (windows.shape[0] - 1, W.shape[1])
 
     def test_windows_equal_to_ts_breakpoints(self):
         ts = msprime.simulate(14, recombination_rate=1, random_seed=2)
@@ -3643,7 +3644,7 @@ class TestGeneralBranchStats(StatsTestCase):
             sigma_no_windows = self.compare_general_stat(
                 ts, W, self.cumsum_f(ts), windows="trees", polarised=polarised
             )
-            self.assertEqual(sigma_no_windows.shape, (ts.num_trees, W.shape[1]))
+            assert sigma_no_windows.shape == (ts.num_trees, W.shape[1])
             sigma_windows = self.compare_general_stat(
                 ts,
                 W,
@@ -3651,8 +3652,8 @@ class TestGeneralBranchStats(StatsTestCase):
                 windows=ts.breakpoints(as_array=True),
                 polarised=polarised,
             )
-            self.assertEqual(sigma_windows.shape, sigma_no_windows.shape)
-            self.assertTrue(np.allclose(sigma_windows.shape, sigma_no_windows.shape))
+            assert sigma_windows.shape == sigma_no_windows.shape
+            assert np.allclose(sigma_windows.shape, sigma_no_windows.shape)
 
     def test_single_tree_windows(self):
         ts = msprime.simulate(15, random_seed=2, length=100)
@@ -3662,7 +3663,7 @@ class TestGeneralBranchStats(StatsTestCase):
         for num_windows in [2]:
             windows = np.linspace(0, ts.sequence_length, num=num_windows + 1)
             sigma = self.compare_general_stat(ts, W, f, windows)
-            self.assertEqual(sigma.shape, (num_windows, 1))
+            assert sigma.shape == (num_windows, 1)
 
     def test_simple_identity_f_w_zeros_windows(self):
         ts = msprime.simulate(15, recombination_rate=3, random_seed=2)
@@ -3671,8 +3672,8 @@ class TestGeneralBranchStats(StatsTestCase):
         windows = np.linspace(0, ts.sequence_length, num=11)
         for polarised in [True, False]:
             sigma = self.compare_general_stat(ts, W, f, windows, polarised=polarised)
-            self.assertEqual(sigma.shape, (10, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
+            assert sigma.shape == (10, W.shape[1])
+            assert np.all(sigma == 0)
 
 
 class TestGeneralSiteStats(StatsTestCase):
@@ -3686,8 +3687,8 @@ class TestGeneralSiteStats(StatsTestCase):
         sigma1 = naive_site_general_stat(ts, W, f, windows, polarised=polarised)
         sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="site")
         sigma3 = site_general_stat(ts, W, f, windows, polarised=polarised)
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
+        assert sigma1.shape == sigma2.shape
+        assert sigma1.shape == sigma3.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
@@ -3700,8 +3701,8 @@ class TestGeneralSiteStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.identity_f(ts), windows="sites", polarised=polarised
             )
-            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
+            assert sigma.shape == (ts.num_sites, W.shape[1])
+            assert np.all(sigma == 0)
 
     def test_identity_f_W_0_multiple_alleles_windows(self):
         ts = msprime.simulate(34, recombination_rate=0, random_seed=2)
@@ -3712,8 +3713,8 @@ class TestGeneralSiteStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.identity_f(ts), windows=windows, polarised=polarised
             )
-            self.assertEqual(sigma.shape, (windows.shape[0] - 1, W.shape[1]))
-            self.assertTrue(np.all(sigma == 0))
+            assert sigma.shape == (windows.shape[0] - 1, W.shape[1])
+            assert np.all(sigma == 0)
 
     def test_cumsum_f_W_1_multiple_alleles(self):
         ts = msprime.simulate(3, recombination_rate=2, random_seed=2)
@@ -3723,7 +3724,7 @@ class TestGeneralSiteStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.cumsum_f(ts), windows="sites", polarised=polarised
             )
-            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
+            assert sigma.shape == (ts.num_sites, W.shape[1])
 
     def test_cumsum_f_W_1_two_alleles(self):
         ts = msprime.simulate(33, recombination_rate=1, mutation_rate=2, random_seed=1)
@@ -3732,7 +3733,7 @@ class TestGeneralSiteStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.cumsum_f(ts), windows="sites", polarised=polarised
             )
-            self.assertEqual(sigma.shape, (ts.num_sites, W.shape[1]))
+            assert sigma.shape == (ts.num_sites, W.shape[1])
 
 
 class TestGeneralNodeStats(StatsTestCase):
@@ -3746,8 +3747,8 @@ class TestGeneralNodeStats(StatsTestCase):
         sigma1 = naive_node_general_stat(ts, W, f, windows, polarised=polarised)
         sigma2 = ts.general_stat(W, f, M, windows, polarised=polarised, mode="node")
         sigma3 = node_general_stat(ts, W, f, windows, polarised=polarised)
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma1.shape, sigma3.shape)
+        assert sigma1.shape == sigma2.shape
+        assert sigma1.shape == sigma3.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
@@ -3759,15 +3760,15 @@ class TestGeneralNodeStats(StatsTestCase):
             sigma = self.compare_general_stat(
                 ts, W, self.identity_f(ts), windows="trees", polarised=polarised
             )
-            self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 3))
-            self.assertTrue(np.all(sigma == 0))
+            assert sigma.shape == (ts.num_trees, ts.num_nodes, 3)
+            assert np.all(sigma == 0)
 
     def test_simple_sum_f_w_ones(self):
         ts = msprime.simulate(44, recombination_rate=1, random_seed=2)
         W = np.ones((ts.num_samples, 2))
         f = self.sum_f(ts)
         sigma = self.compare_general_stat(ts, W, f, windows="trees", polarised=True)
-        self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
+        assert sigma.shape == (ts.num_trees, ts.num_nodes, 1)
         # Drop the last dimension
         sigma = sigma.reshape((ts.num_trees, ts.num_nodes))
         # A W of 1 for every node and f(x)=sum(x) counts the samples in the subtree
@@ -3793,7 +3794,7 @@ class TestGeneralNodeStats(StatsTestCase):
             mode="node",
             strict=False,
         )
-        self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
+        assert sigma.shape == (ts.num_trees, ts.num_nodes, 1)
         # Drop the last dimension
         sigma = sigma.reshape((ts.num_trees, ts.num_nodes))
         # A W of 1 for every node and f(x)=sum(x) counts the samples in the subtree
@@ -3804,7 +3805,7 @@ class TestGeneralNodeStats(StatsTestCase):
 
     def test_small_tree_windows_polarised(self):
         ts = msprime.simulate(4, recombination_rate=0.5, random_seed=2)
-        self.assertGreater(ts.num_trees, 1)
+        assert ts.num_trees > 1
         W = np.ones((ts.num_samples, 1))
         sigma = self.compare_general_stat(
             ts,
@@ -3813,7 +3814,7 @@ class TestGeneralNodeStats(StatsTestCase):
             windows=ts.breakpoints(as_array=True),
             polarised=True,
         )
-        self.assertEqual(sigma.shape, (ts.num_trees, ts.num_nodes, 1))
+        assert sigma.shape == (ts.num_trees, ts.num_nodes, 1)
 
     def test_one_window_polarised(self):
         ts = msprime.simulate(4, recombination_rate=1, random_seed=2)
@@ -3821,7 +3822,7 @@ class TestGeneralNodeStats(StatsTestCase):
         sigma = self.compare_general_stat(
             ts, W, self.cumsum_f(ts), windows=[0, ts.sequence_length], polarised=True
         )
-        self.assertEqual(sigma.shape, (1, ts.num_nodes, W.shape[1]))
+        assert sigma.shape == (1, ts.num_nodes, W.shape[1])
 
     def test_one_window_unpolarised(self):
         ts = msprime.simulate(4, recombination_rate=1, random_seed=2)
@@ -3829,7 +3830,7 @@ class TestGeneralNodeStats(StatsTestCase):
         sigma = self.compare_general_stat(
             ts, W, self.cumsum_f(ts), windows=[0, ts.sequence_length], polarised=False
         )
-        self.assertEqual(sigma.shape, (1, ts.num_nodes, 2))
+        assert sigma.shape == (1, ts.num_nodes, 2)
 
     def test_many_windows(self):
         ts = msprime.simulate(24, recombination_rate=3, random_seed=2)
@@ -3840,14 +3841,14 @@ class TestGeneralNodeStats(StatsTestCase):
                 sigma = self.compare_general_stat(
                     ts, W, self.cumsum_f(ts), windows=windows, polarised=polarised
                 )
-            self.assertEqual(sigma.shape, (k, ts.num_nodes, 3))
+            assert sigma.shape == (k, ts.num_nodes, 3)
 
     def test_one_tree(self):
         ts = msprime.simulate(10, random_seed=3)
         W = np.ones((ts.num_samples, 2))
         f = self.sum_f(ts, k=2)
         sigma = self.compare_general_stat(ts, W, f, windows=[0, 1], polarised=True)
-        self.assertEqual(sigma.shape, (1, ts.num_nodes, 2))
+        assert sigma.shape == (1, ts.num_nodes, 2)
         # A W of 1 for every node and f(x)=sum(x) counts the samples in the subtree
         # times 2 if polarised is True.
         tree = ts.first()
@@ -3996,7 +3997,7 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
 
     def get_example_ts(self):
         ts = msprime.simulate(10, mutation_rate=1, recombination_rate=2, random_seed=1)
-        self.assertGreater(ts.num_mutations, 0)
+        assert ts.num_mutations > 0
         return ts
 
     def transform_weights(self, W):
@@ -4019,7 +4020,7 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
         sigma1 = ts_method(W, mode=self.mode)
         sigma2 = ts_method(W, windows=None, mode=self.mode)
         sigma3 = ts_method(W, windows=[0.0, ts.sequence_length], mode=self.mode)
-        self.assertEqual(sigma1.shape, sigma2.shape)
+        assert sigma1.shape == sigma2.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3[0])
 
@@ -4034,9 +4035,9 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
             sigma2 = ts_method(W + shift, windows=windows, mode=self.mode)
             sigma3 = method(ts, W, windows=windows, mode=self.mode)
             sigma4 = method(ts, W + shift, windows=windows, mode=self.mode)
-            self.assertEqual(sigma1.shape, sigma2.shape)
-            self.assertEqual(sigma1.shape, sigma3.shape)
-            self.assertEqual(sigma1.shape, sigma4.shape)
+            assert sigma1.shape == sigma2.shape
+            assert sigma1.shape == sigma3.shape
+            assert sigma1.shape == sigma4.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
             self.assertArrayAlmostEqual(sigma1, sigma4)
@@ -4055,15 +4056,18 @@ class TraitCovarianceMixin:
         ts = self.get_example_ts()
         W = np.ones((ts.num_samples, 2))
         # W must have the right number of rows
-        self.assertRaises(ValueError, ts.trait_correlation, W[1:, :])
+        with pytest.raises(ValueError):
+            ts.trait_correlation(W[1:, :])
 
 
+@pytest.mark.slow
 class TestBranchTraitCovariance(
     TestTraitCovariance, TopologyExamplesMixin, TraitCovarianceMixin
 ):
     mode = "branch"
 
 
+@pytest.mark.slow
 class TestNodeTraitCovariance(
     TestTraitCovariance, TopologyExamplesMixin, TraitCovarianceMixin
 ):
@@ -4242,9 +4246,11 @@ class TestTraitCorrelation(TestTraitCovariance):
         ts = self.get_example_ts()
         # columns of W must have positive SD
         W = np.ones((ts.num_samples, 2))
-        self.assertRaises(ValueError, ts.trait_correlation, W)
+        with pytest.raises(ValueError):
+            ts.trait_correlation(W)
         # W must have the right number of rows
-        self.assertRaises(ValueError, ts.trait_correlation, W[1:, :])
+        with pytest.raises(ValueError):
+            ts.trait_correlation(W[1:, :])
 
     def verify_standardising(self, ts, method, ts_method):
         """
@@ -4259,7 +4265,7 @@ class TestTraitCorrelation(TestTraitCovariance):
             sigma2 = ts_method(W * scale, windows=windows, mode=self.mode)
             sigma3 = method(ts, W, windows=windows, mode=self.mode)
             sigma4 = method(ts, W * scale, windows=windows, mode=self.mode)
-            self.assertEqual(sigma1.shape, sigma2.shape)
+            assert sigma1.shape == sigma2.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
             self.assertArrayAlmostEqual(sigma1, sigma4)
@@ -4276,12 +4282,14 @@ class TraitCorrelationMixin:
         self.verify_standardising(ts, trait_correlation, ts.trait_correlation)
 
 
+@pytest.mark.slow
 class TestBranchTraitCorrelation(
     TestTraitCorrelation, TopologyExamplesMixin, TraitCorrelationMixin
 ):
     mode = "branch"
 
 
+@pytest.mark.slow
 class TestNodeTraitCorrelation(
     TestTraitCorrelation, TopologyExamplesMixin, TraitCorrelationMixin
 ):
@@ -4443,7 +4451,7 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
 
     def get_example_ts(self):
         ts = msprime.simulate(10, mutation_rate=1, recombination_rate=2, random_seed=1)
-        self.assertGreater(ts.num_mutations, 0)
+        assert ts.num_mutations > 0
         return ts
 
     def example_covariates(self, ts):
@@ -4531,9 +4539,9 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
                 ts, W, Z, windows=windows, mode=self.mode, span_normalise=sn
             )
 
-            self.assertEqual(sigma1.shape, sigma2.shape)
-            self.assertEqual(sigma1.shape, sigma3.shape)
-            self.assertEqual(sigma1.shape, sigma4.shape)
+            assert sigma1.shape == sigma2.shape
+            assert sigma1.shape == sigma3.shape
+            assert sigma1.shape == sigma4.shape
             self.assertArrayAlmostEqual(sigma1, sigma2)
             self.assertArrayAlmostEqual(sigma1, sigma3)
             self.assertArrayAlmostEqual(sigma1, sigma4)
@@ -4552,10 +4560,10 @@ class TraitRegressionMixin:
         sigma4 = ts.trait_regression(
             W, Z=None, windows=[0.0, ts.sequence_length], mode=self.mode
         )
-        self.assertEqual(sigma1.shape, sigma2.shape)
-        self.assertEqual(sigma3.shape[0], 1)
-        self.assertEqual(sigma1.shape, sigma3.shape[1:])
-        self.assertEqual(sigma1.shape, sigma4.shape[1:])
+        assert sigma1.shape == sigma2.shape
+        assert sigma3.shape[0] == 1
+        assert sigma1.shape == sigma3.shape[1:]
+        assert sigma1.shape == sigma4.shape[1:]
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3[0])
         self.assertArrayAlmostEqual(sigma1, sigma4[0])
@@ -4565,25 +4573,28 @@ class TraitRegressionMixin:
         W = np.array([np.arange(ts.num_samples)]).T
         Z = np.ones((ts.num_samples, 1))
         # singular covariates
-        self.assertRaises(
-            ValueError,
-            ts.trait_regression,
-            W,
-            np.ones((ts.num_samples, 2)),
-            mode=self.mode,
-        )
+        with pytest.raises(ValueError):
+            ts.trait_regression(
+                W,
+                np.ones((ts.num_samples, 2)),
+                mode=self.mode,
+            )
         # wrong dimensions of W
-        self.assertRaises(ValueError, ts.trait_regression, W[1:, :], Z, mode=self.mode)
+        with pytest.raises(ValueError):
+            ts.trait_regression(W[1:, :], Z, mode=self.mode)
         # wrong dimensions of Z
-        self.assertRaises(ValueError, ts.trait_regression, W, Z[1:, :], mode=self.mode)
+        with pytest.raises(ValueError):
+            ts.trait_regression(W, Z[1:, :], mode=self.mode)
 
 
+@pytest.mark.slow
 class TestBranchTraitRegression(
     TestTraitRegression, TopologyExamplesMixin, TraitRegressionMixin
 ):
     mode = "branch"
 
 
+@pytest.mark.slow
 class TestNodeTraitRegression(
     TestTraitRegression, TopologyExamplesMixin, TraitRegressionMixin
 ):
@@ -4601,7 +4612,7 @@ class TestSiteTraitRegression(
 ##############################
 
 
-@unittest.skip("Broken - need to port tests")
+@pytest.mark.skip(reason="Broken - need to port tests")
 class SampleSetStatTestCase(StatsTestCase):
     """
     Provides checks for testing of sample set-based statistics.  Actual testing
@@ -4626,7 +4637,7 @@ class SampleSetStatTestCase(StatsTestCase):
             tree_vals = [tree_fn(sample_set, **b) for b in win_args]
 
             tsc_vals = tsc_fn(sample_set, windows)
-            self.assertEqual(len(tsc_vals), len(windows) - 1)
+            assert len(tsc_vals) == len(windows) - 1
             for i in range(len(windows) - 1):
                 self.assertListAlmostEqual(tsc_vals[i], tree_vals[i])
 
@@ -4634,48 +4645,44 @@ class SampleSetStatTestCase(StatsTestCase):
         samples = ts.samples()
 
         # empty sample sets will raise an error
-        self.assertRaises(ValueError, ts.site_frequency_spectrum, [], self.stat_type)
+        with pytest.raises(ValueError):
+            ts.site_frequency_spectrum([], self.stat_type)
         # sample_sets must be lists without repeated elements
-        self.assertRaises(
-            ValueError,
-            ts.site_frequency_spectrum,
-            [samples[2], samples[2]],
-            self.stat_type,
-        )
+        with pytest.raises(ValueError):
+            ts.site_frequency_spectrum(
+                [samples[2], samples[2]],
+                self.stat_type,
+            )
         # and must all be samples
-        self.assertRaises(
-            ValueError,
-            ts.site_frequency_spectrum,
-            [samples[0], max(samples) + 1],
-            self.stat_type,
-        )
+        with pytest.raises(ValueError):
+            ts.site_frequency_spectrum(
+                [samples[0], max(samples) + 1],
+                self.stat_type,
+            )
         # windows must start at 0.0, be increasing, and extend to the end
-        self.assertRaises(
-            ValueError,
-            ts.site_frequency_spectrum,
-            samples[0:2],
-            [0.1, ts.sequence_length],
-            self.stat_type,
-        )
-        self.assertRaises(
-            ValueError,
-            ts.site_frequency_spectrum,
-            samples[0:2],
-            [0.0, 0.8 * ts.sequence_length],
-            self.stat_type,
-        )
-        self.assertRaises(
-            ValueError,
-            ts.site_frequency_spectrum,
-            samples[0:2],
-            [
-                0.0,
-                0.8 * ts.sequence_length,
-                0.4 * ts.sequence_length,
-                ts.sequence_length,
-            ],
-            self.stat_type,
-        )
+        with pytest.raises(ValueError):
+            ts.site_frequency_spectrum(
+                samples[0:2],
+                [0.1, ts.sequence_length],
+                self.stat_type,
+            )
+        with pytest.raises(ValueError):
+            ts.site_frequency_spectrum(
+                samples[0:2],
+                [0.0, 0.8 * ts.sequence_length],
+                self.stat_type,
+            )
+        with pytest.raises(ValueError):
+            ts.site_frequency_spectrum(
+                samples[0:2],
+                [
+                    0.0,
+                    0.8 * ts.sequence_length,
+                    0.4 * ts.sequence_length,
+                    ts.sequence_length,
+                ],
+                self.stat_type,
+            )
 
     def check_sfs(self, ts):
         # check site frequency spectrum
@@ -4710,31 +4717,33 @@ class BranchSampleSetStatsTestCase(SampleSetStatTestCase):
                 N, random_seed=self.random_seed, recombination_rate=10
             )
 
-    @unittest.skip("Skipping SFS.")
+    @pytest.mark.skip(reason="Skipping SFS.")
     def test_sfs_interface(self):
         ts = msprime.simulate(10)
         tsc = tskit.BranchStatCalculator(ts)
 
         # Duplicated samples raise an error
-        self.assertRaises(ValueError, tsc.site_frequency_spectrum, [1, 1])
-        self.assertRaises(ValueError, tsc.site_frequency_spectrum, [])
-        self.assertRaises(ValueError, tsc.site_frequency_spectrum, [0, 11])
+        with pytest.raises(ValueError):
+            tsc.site_frequency_spectrum([1, 1])
+        with pytest.raises(ValueError):
+            tsc.site_frequency_spectrum([])
+        with pytest.raises(ValueError):
+            tsc.site_frequency_spectrum([0, 11])
         # Check for bad windows
         for bad_start in [-1, 1, 1e-7]:
-            self.assertRaises(
-                ValueError,
-                tsc.site_frequency_spectrum,
-                [1, 2],
-                [bad_start, ts.sequence_length],
-            )
+            with pytest.raises(ValueError):
+                tsc.site_frequency_spectrum(
+                    [1, 2],
+                    [bad_start, ts.sequence_length],
+                )
         for bad_end in [0, ts.sequence_length - 1, ts.sequence_length + 1]:
-            self.assertRaises(
-                ValueError, tsc.site_frequency_spectrum, [1, 2], [0, bad_end]
-            )
+            with pytest.raises(ValueError):
+                tsc.site_frequency_spectrum([1, 2], [0, bad_end])
         # Windows must be increasing.
-        self.assertRaises(ValueError, tsc.site_frequency_spectrum, [1, 2], [0, 1, 1])
+        with pytest.raises(ValueError):
+            tsc.site_frequency_spectrum([1, 2], [0, 1, 1])
 
-    @unittest.skip("No SFS.")
+    @pytest.mark.skip(reason="No SFS.")
     def test_branch_sfs(self):
         for ts in self.get_ts():
             self.check_sfs(ts)
@@ -5476,7 +5485,7 @@ class TestOutputDimensions(StatsTestCase):
 
     def get_example_ts(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        self.assertGreater(ts.num_sites, 1)
+        assert ts.num_sites > 1
         return ts
 
     def test_afs_default_windows(self):
@@ -5487,12 +5496,12 @@ class TestOutputDimensions(StatsTestCase):
         for mode in ["site", "branch"]:
             x = ts.allele_frequency_spectrum(mode=mode)
             # x is a 1D numpy array with n + 1 values
-            self.assertEqual(x.shape, (n + 1,))
+            assert x.shape == (n + 1,)
             self.assertArrayEqual(
                 x, ts.allele_frequency_spectrum([ts.samples()], mode=mode)
             )
             x = ts.allele_frequency_spectrum([A, B], mode=mode)
-            self.assertEqual(x.shape, (len(A) + 1, len(B) + 1))
+            assert x.shape == (len(A) + 1, len(B) + 1)
 
     def test_afs_windows(self):
         ts = self.get_example_ts()
@@ -5503,14 +5512,14 @@ class TestOutputDimensions(StatsTestCase):
         B = ts.samples()[6:]
         for mode in ["site", "branch"]:
             x = ts.allele_frequency_spectrum([A, B], windows=windows, mode=mode)
-            self.assertEqual(x.shape, (3, len(A) + 1, len(B) + 1))
+            assert x.shape == (3, len(A) + 1, len(B) + 1)
 
             x = ts.allele_frequency_spectrum([A], windows=windows, mode=mode)
-            self.assertEqual(x.shape, (3, len(A) + 1))
+            assert x.shape == (3, len(A) + 1)
 
             x = ts.allele_frequency_spectrum(windows=windows, mode=mode)
             # Default returns this for all samples
-            self.assertEqual(x.shape, (3, ts.num_samples + 1))
+            assert x.shape == (3, ts.num_samples + 1)
             y = ts.allele_frequency_spectrum([ts.samples()], windows=windows, mode=mode)
             self.assertArrayEqual(x, y)
 
@@ -5520,15 +5529,15 @@ class TestOutputDimensions(StatsTestCase):
         for mode in ["site", "branch"]:
             x = ts.diversity(mode=mode)
             # x is a zero-d numpy value
-            self.assertEqual(np.shape(x), tuple())
-            self.assertEqual(x, float(x))
-            self.assertEqual(x, ts.diversity(ts.samples(), mode=mode))
+            assert np.shape(x) == tuple()
+            assert x == float(x)
+            assert x == ts.diversity(ts.samples(), mode=mode)
             self.assertArrayEqual([x], ts.diversity([ts.samples()], mode=mode))
 
         mode = "node"
         x = ts.diversity(mode=mode)
         # x is a 1D numpy array with N values
-        self.assertEqual(x.shape, (ts.num_nodes,))
+        assert x.shape == (ts.num_nodes,)
         self.assertArrayEqual(x, ts.diversity(ts.samples(), mode=mode))
         y = ts.diversity([ts.samples()], mode=mode)
         # We're adding on the *last* dimension, so must reshape
@@ -5544,40 +5553,40 @@ class TestOutputDimensions(StatsTestCase):
         for mode in ["site", "branch"]:
             x = method([A, B], windows=windows, mode=mode)
             # Four windows, 2 sets.
-            self.assertEqual(x.shape, (4, 2))
+            assert x.shape == (4, 2)
 
             x = method([A], windows=windows, mode=mode)
             # Four windows, 1 sets.
-            self.assertEqual(x.shape, (4, 1))
+            assert x.shape == (4, 1)
 
             x = method(A, windows=windows, mode=mode)
             # Dropping the outer list removes the last dimension
-            self.assertEqual(x.shape, (4,))
+            assert x.shape == (4,)
 
             x = method(windows=windows, mode=mode)
             # Default returns this for all samples
-            self.assertEqual(x.shape, (4,))
+            assert x.shape == (4,)
             y = method(ts.samples(), windows=windows, mode=mode)
             self.assertArrayEqual(x, y)
 
         mode = "node"
         x = method([A, B], windows=windows, mode=mode)
         # Four windows, N nodes and 2 sets.
-        self.assertEqual(x.shape, (4, N, 2))
+        assert x.shape == (4, N, 2)
 
         x = method([A], windows=windows, mode=mode)
         # Four windows, N nodes and 1 set.
-        self.assertEqual(x.shape, (4, N, 1))
+        assert x.shape == (4, N, 1)
 
         x = method(A, windows=windows, mode=mode)
         # Drop the outer list, so we lose the last dimension
-        self.assertEqual(x.shape, (4, N))
+        assert x.shape == (4, N)
 
         x = method(windows=windows, mode=mode)
         # The default sample sets also drops the last dimension
-        self.assertEqual(x.shape, (4, N))
+        assert x.shape == (4, N)
 
-        self.assertEqual(ts.num_trees, 1)
+        assert ts.num_trees == 1
         # In this example, we know that the trees are all the same so check this
         # for sanity.
         self.assertArrayEqual(x[0], x[1])
@@ -5603,17 +5612,17 @@ class TestOutputDimensions(StatsTestCase):
         for mode in ["site", "branch"]:
             x = ts.divergence([A, B], mode=mode)
             # x is a zero-d numpy value
-            self.assertEqual(np.shape(x), tuple())
-            self.assertEqual(x, float(x))
+            assert np.shape(x) == tuple()
+            assert x == float(x)
             # If indexes is a 1D array, we also drop the outer dimension
-            self.assertEqual(x, ts.divergence([A, B, A], indexes=[0, 1], mode=mode))
+            assert x == ts.divergence([A, B, A], indexes=[0, 1], mode=mode)
             # But, if it's a 2D array we keep the outer dimension
-            self.assertEqual([x], ts.divergence([A, B], indexes=[[0, 1]], mode=mode))
+            assert [x] == ts.divergence([A, B], indexes=[[0, 1]], mode=mode)
 
         mode = "node"
         x = ts.divergence([A, B], mode=mode)
         # x is a 1D numpy array with N values
-        self.assertEqual(x.shape, (ts.num_nodes,))
+        assert x.shape == (ts.num_nodes,)
         self.assertArrayEqual(x, ts.divergence([A, B], indexes=[0, 1], mode=mode))
         y = ts.divergence([A, B], indexes=[[0, 1]], mode=mode)
         # We're adding on the *last* dimension, so must reshape
@@ -5629,38 +5638,38 @@ class TestOutputDimensions(StatsTestCase):
         for mode in ["site", "branch"]:
             x = method([A, B, A], indexes=[[0, 1], [0, 2]], windows=windows, mode=mode)
             # Three windows, 2 pairs
-            self.assertEqual(x.shape, (3, 2))
+            assert x.shape == (3, 2)
 
             x = method([A, B], indexes=[[0, 1]], windows=windows, mode=mode)
             # Three windows, 1 pair
-            self.assertEqual(x.shape, (3, 1))
+            assert x.shape == (3, 1)
 
             x = method([A, B], indexes=[0, 1], windows=windows, mode=mode)
             # Dropping the outer list removes the last dimension
-            self.assertEqual(x.shape, (3,))
+            assert x.shape == (3,)
 
             y = method([A, B], windows=windows, mode=mode)
-            self.assertEqual(y.shape, (3,))
+            assert y.shape == (3,)
             self.assertArrayEqual(x, y)
 
         mode = "node"
         x = method([A, B], indexes=[[0, 1], [0, 1]], windows=windows, mode=mode)
         # Three windows, N nodes and 2 pairs
-        self.assertEqual(x.shape, (3, N, 2))
+        assert x.shape == (3, N, 2)
 
         x = method([A, B], indexes=[[0, 1]], windows=windows, mode=mode)
         # Three windows, N nodes and 1 pairs
-        self.assertEqual(x.shape, (3, N, 1))
+        assert x.shape == (3, N, 1)
 
         x = method([A, B], indexes=[0, 1], windows=windows, mode=mode)
         # Drop the outer list, so we lose the last dimension
-        self.assertEqual(x.shape, (3, N))
+        assert x.shape == (3, N)
 
         x = method([A, B], windows=windows, mode=mode)
         # The default sample sets also drops the last dimension
-        self.assertEqual(x.shape, (3, N))
+        assert x.shape == (3, N)
 
-        self.assertEqual(ts.num_trees, 1)
+        assert ts.num_trees == 1
         # In this example, we know that the trees are all the same so check this
         # for sanity.
         self.assertArrayEqual(x[0], x[1])
@@ -5691,18 +5700,18 @@ class TestOutputDimensions(StatsTestCase):
                 [A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode
             )
             # Three windows, 2 triple
-            self.assertEqual(x.shape, (3, 2))
+            assert x.shape == (3, 2)
 
             x = method([A, B, C], indexes=[[0, 1, 2]], windows=windows, mode=mode)
             # Three windows, 1 triple
-            self.assertEqual(x.shape, (3, 1))
+            assert x.shape == (3, 1)
 
             x = method([A, B, C], indexes=[0, 1, 2], windows=windows, mode=mode)
             # Dropping the outer list removes the last dimension
-            self.assertEqual(x.shape, (3,))
+            assert x.shape == (3,)
 
             y = method([A, B, C], windows=windows, mode=mode)
-            self.assertEqual(y.shape, (3,))
+            assert y.shape == (3,)
             self.assertArrayEqual(x, y)
 
         mode = "node"
@@ -5710,21 +5719,21 @@ class TestOutputDimensions(StatsTestCase):
             [A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode
         )
         # Three windows, N nodes and 2 triples
-        self.assertEqual(x.shape, (3, N, 2))
+        assert x.shape == (3, N, 2)
 
         x = method([A, B, C], indexes=[[0, 1, 2]], windows=windows, mode=mode)
         # Three windows, N nodes and 1 triples
-        self.assertEqual(x.shape, (3, N, 1))
+        assert x.shape == (3, N, 1)
 
         x = method([A, B, C], indexes=[0, 1, 2], windows=windows, mode=mode)
         # Drop the outer list, so we lose the last dimension
-        self.assertEqual(x.shape, (3, N))
+        assert x.shape == (3, N)
 
         x = method([A, B, C], windows=windows, mode=mode)
         # The default sample sets also drops the last dimension
-        self.assertEqual(x.shape, (3, N))
+        assert x.shape == (3, N)
 
-        self.assertEqual(ts.num_trees, 1)
+        assert ts.num_trees == 1
         # In this example, we know that the trees are all the same so check this
         # for sanity.
         self.assertArrayEqual(x[0], x[1])

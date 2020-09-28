@@ -25,10 +25,10 @@ Test cases for threading enabled aspects of the API.
 """
 import platform
 import threading
-import unittest
 
 import msprime
 import numpy as np
+import pytest
 
 import tests.tsutil as tsutil
 import tskit
@@ -48,7 +48,7 @@ def run_threads(worker, num_threads):
     return results
 
 
-class TestLdCalculatorReplicates(unittest.TestCase):
+class TestLdCalculatorReplicates:
     """
     Tests the LdCalculator object to ensure we get correct results
     when using threads.
@@ -80,7 +80,7 @@ class TestLdCalculatorReplicates(unittest.TestCase):
 
         results = run_threads(worker, m)
         for j in range(m):
-            self.assertTrue(np.allclose(results[j], A[j]))
+            assert np.allclose(results[j], A[j])
 
     def test_get_r2_single_instance(self):
         # This is the degenerate case where we have a single LdCalculator
@@ -99,7 +99,7 @@ class TestLdCalculatorReplicates(unittest.TestCase):
 
         results = run_threads(worker, m)
         for j in range(m):
-            self.assertTrue(np.allclose(results[j], A[j]))
+            assert np.allclose(results[j], A[j])
 
     def test_get_r2_array_multiple_instances(self):
         # This is the nominal case where we have a separate LdCalculator
@@ -116,7 +116,7 @@ class TestLdCalculatorReplicates(unittest.TestCase):
 
         results = run_threads(worker, m)
         for j in range(m):
-            self.assertTrue(np.allclose(results[j], A[j, j + 1 :]))
+            assert np.allclose(results[j], A[j, j + 1 :])
 
     def test_get_r2_array_single_instance(self):
         # This is the degenerate case where we have a single LdCalculator
@@ -135,13 +135,13 @@ class TestLdCalculatorReplicates(unittest.TestCase):
 
         results = run_threads(worker, m)
         for j in range(m):
-            self.assertEqual(results[j][0], m - j - 1)
+            assert results[j][0] == m - j - 1
 
 
 # Temporarily skipping these on Windows. See
 # https://github.com/jeromekelleher/tskit/issues/344
-@unittest.skipIf(IS_WINDOWS, "Cannot test thread support on Windows.")
-class TestTables(unittest.TestCase):
+@pytest.mark.skipif(IS_WINDOWS, reason="Can't test thread support on Windows.")
+class TestTables:
     """
     Tests to ensure that attempts to access tables in threads correctly
     raise an exception.
@@ -171,8 +171,8 @@ class TestTables(unittest.TestCase):
         successes = num_writers - failures
         # Note: we would like to insist that #failures is > 0, but this is too
         # stochastic to guarantee for test purposes.
-        self.assertGreaterEqual(failures, 0)
-        self.assertGreater(successes, 0)
+        assert failures >= 0
+        assert successes > 0
 
     def run_failing_reader(self, writer, reader, num_readers=32):
         """
@@ -203,8 +203,8 @@ class TestTables(unittest.TestCase):
         successes = num_readers - failures
         # Note: we would like to insist that #failures is > 0, but this is too
         # stochastic to guarantee for test purposes.
-        self.assertGreaterEqual(failures, 0)
-        self.assertGreater(successes, 0)
+        assert failures >= 0
+        assert successes > 0
 
     def test_many_simplify_all_tables(self):
         tables = self.get_tables()

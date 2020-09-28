@@ -26,7 +26,7 @@ build_script:
   - cmd: python setup.py build_ext --inplace
   # Install some modules needed for tests
   - cmd: python -m pip install -r requirements/appveyor-pypi.txt
-  - cmd: python -m nose -vs --processes=%NUMBER_OF_PROCESSORS% --process-timeout=5000
+  - cmd: python -m pytest -n %NUMBER_OF_PROCESSORS%
 
 after_test:
   - cmd: python setup.py bdist_wheel

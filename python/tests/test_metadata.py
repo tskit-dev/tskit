@@ -35,6 +35,7 @@ import unittest
 import msgpack
 import msprime
 import numpy as np
+import pytest
 import python_jsonschema_objects as pjs
 
 import tskit
@@ -71,15 +72,15 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
             metadata_offset=offset,
             metadata=encoded,
         )
-        self.assertTrue(np.array_equal(nodes.metadata_offset, offset))
-        self.assertTrue(np.array_equal(nodes.metadata, encoded))
+        assert np.array_equal(nodes.metadata_offset, offset)
+        assert np.array_equal(nodes.metadata, encoded)
         ts1 = tables.tree_sequence()
         for j, node in enumerate(ts1.nodes()):
             decoded_metadata = json.loads(node.metadata.decode())
-            self.assertEqual(decoded_metadata, metadata[j])
+            assert decoded_metadata == metadata[j]
         ts1.dump(self.temp_file)
         ts2 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables.nodes, ts2.tables.nodes)
+        assert ts1.tables.nodes == ts2.tables.nodes
 
     def test_pickle(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -97,15 +98,15 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
             metadata_offset=offset,
             metadata=encoded,
         )
-        self.assertTrue(np.array_equal(tables.nodes.metadata_offset, offset))
-        self.assertTrue(np.array_equal(tables.nodes.metadata, encoded))
+        assert np.array_equal(tables.nodes.metadata_offset, offset)
+        assert np.array_equal(tables.nodes.metadata, encoded)
         ts1 = tables.tree_sequence()
         for j, node in enumerate(ts1.nodes()):
             decoded_metadata = pickle.loads(node.metadata)
-            self.assertEqual(decoded_metadata, metadata[j])
+            assert decoded_metadata == metadata[j]
         ts1.dump(self.temp_file)
         ts2 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables.nodes, ts2.tables.nodes)
+        assert ts1.tables.nodes == ts2.tables.nodes
 
 
 class ExampleMetadata:
@@ -118,7 +119,7 @@ class ExampleMetadata:
         self.two = two
 
 
-class TestMetadataPickleDecoding(unittest.TestCase):
+class TestMetadataPickleDecoding:
     """
     Tests in which use pickle.pickle to decode metadata in nodes, sites and mutations.
     """
@@ -130,11 +131,11 @@ class TestMetadataPickleDecoding(unittest.TestCase):
         tables.nodes.add_row(time=0.125, metadata=pickled)
         ts = tables.tree_sequence()
         node = ts.node(0)
-        self.assertEqual(node.time, 0.125)
-        self.assertEqual(node.metadata, pickled)
+        assert node.time == 0.125
+        assert node.metadata == pickled
         unpickled = pickle.loads(node.metadata)
-        self.assertEqual(unpickled.one, metadata.one)
-        self.assertEqual(unpickled.two, metadata.two)
+        assert unpickled.one == metadata.one
+        assert unpickled.two == metadata.two
 
     def test_sites(self):
         tables = tskit.TableCollection(sequence_length=1)
@@ -143,12 +144,12 @@ class TestMetadataPickleDecoding(unittest.TestCase):
         tables.sites.add_row(position=0.1, ancestral_state="A", metadata=pickled)
         ts = tables.tree_sequence()
         site = ts.site(0)
-        self.assertEqual(site.position, 0.1)
-        self.assertEqual(site.ancestral_state, "A")
-        self.assertEqual(site.metadata, pickled)
+        assert site.position == 0.1
+        assert site.ancestral_state == "A"
+        assert site.metadata == pickled
         unpickled = pickle.loads(site.metadata)
-        self.assertEqual(unpickled.one, metadata.one)
-        self.assertEqual(unpickled.two, metadata.two)
+        assert unpickled.one == metadata.one
+        assert unpickled.two == metadata.two
 
     def test_mutations(self):
         tables = tskit.TableCollection(sequence_length=1)
@@ -159,16 +160,16 @@ class TestMetadataPickleDecoding(unittest.TestCase):
         tables.mutations.add_row(site=0, node=0, derived_state="T", metadata=pickled)
         ts = tables.tree_sequence()
         mutation = ts.site(0).mutations[0]
-        self.assertEqual(mutation.site, 0)
-        self.assertEqual(mutation.node, 0)
-        self.assertEqual(mutation.derived_state, "T")
-        self.assertEqual(mutation.metadata, pickled)
+        assert mutation.site == 0
+        assert mutation.node == 0
+        assert mutation.derived_state == "T"
+        assert mutation.metadata == pickled
         unpickled = pickle.loads(mutation.metadata)
-        self.assertEqual(unpickled.one, metadata.one)
-        self.assertEqual(unpickled.two, metadata.two)
+        assert unpickled.one == metadata.one
+        assert unpickled.two == metadata.two
 
 
-class TestJSONSchemaDecoding(unittest.TestCase):
+class TestJSONSchemaDecoding:
     """
     Tests in which use json-schema to decode the metadata.
     """
@@ -192,14 +193,14 @@ class TestJSONSchemaDecoding(unittest.TestCase):
         tables.nodes.add_row(time=0.125, metadata=encoded)
         ts = tables.tree_sequence()
         node = ts.node(0)
-        self.assertEqual(node.time, 0.125)
-        self.assertEqual(node.metadata, encoded)
+        assert node.time == 0.125
+        assert node.metadata == encoded
         decoded = ns.ExampleMetadata.from_json(node.metadata.decode())
-        self.assertEqual(decoded.one, metadata.one)
-        self.assertEqual(decoded.two, metadata.two)
+        assert decoded.one == metadata.one
+        assert decoded.two == metadata.two
 
 
-class TestLoadTextMetadata(unittest.TestCase):
+class TestLoadTextMetadata:
     """
     Tests that use the load_text interface.
     """
@@ -222,11 +223,11 @@ class TestLoadTextMetadata(unittest.TestCase):
             (0, [2.0, 3.0, 0.0], "!@#$%^&*()"),
         ]
         for a, b in zip(expected, i):
-            self.assertEqual(a[0], b.flags)
-            self.assertEqual(len(a[1]), len(b.location))
+            assert a[0] == b.flags
+            assert len(a[1]) == len(b.location)
             for x, y in zip(a[1], b.location):
-                self.assertEqual(x, y)
-            self.assertEqual(a[2].encode("utf8"), b.metadata)
+                assert x == y
+            assert a[2].encode("utf8") == b.metadata
 
     def test_nodes(self):
         nodes = io.StringIO(
@@ -242,7 +243,7 @@ class TestLoadTextMetadata(unittest.TestCase):
         )
         expected = ["abc", "XYZ+", "!@#$%^&*()"]
         for a, b in zip(expected, n):
-            self.assertEqual(a.encode("utf8"), b.metadata)
+            assert a.encode("utf8") == b.metadata
 
     def test_sites(self):
         sites = io.StringIO(
@@ -258,7 +259,7 @@ class TestLoadTextMetadata(unittest.TestCase):
         )
         expected = ["abc", "XYZ+", "!@#$%^&*()"]
         for a, b in zip(expected, s):
-            self.assertEqual(a.encode("utf8"), b.metadata)
+            assert a.encode("utf8") == b.metadata
 
     def test_mutations(self):
         mutations = io.StringIO(
@@ -273,7 +274,7 @@ class TestLoadTextMetadata(unittest.TestCase):
         )
         expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, m):
-            self.assertEqual(a.encode("utf8"), b.metadata)
+            assert a.encode("utf8") == b.metadata
 
     def test_populations(self):
         populations = io.StringIO(
@@ -288,25 +289,25 @@ class TestLoadTextMetadata(unittest.TestCase):
         )
         expected = ["mno", ")(*&^%$#@!"]
         for a, b in zip(expected, p):
-            self.assertEqual(a.encode("utf8"), b.metadata)
+            assert a.encode("utf8") == b.metadata
 
 
-class TestMetadataModule(unittest.TestCase):
+class TestMetadataModule:
     """
     Tests that use the metadata module
     """
 
     def test_metadata_schema(self):
         # Bad jsonschema
-        with self.assertRaises(exceptions.MetadataSchemaValidationError):
+        with pytest.raises(exceptions.MetadataSchemaValidationError):
             metadata.MetadataSchema(
                 {"codec": "json", "additionalProperties": "THIS ISN'T RIGHT"},
             )
         # Bad codec
-        with self.assertRaises(exceptions.MetadataSchemaValidationError):
+        with pytest.raises(exceptions.MetadataSchemaValidationError):
             metadata.MetadataSchema({"codec": "morse-code"})
         # Missing codec
-        with self.assertRaises(exceptions.MetadataSchemaValidationError):
+        with pytest.raises(exceptions.MetadataSchemaValidationError):
             metadata.MetadataSchema({})
         schema = {
             "codec": "json",
@@ -317,9 +318,9 @@ class TestMetadataModule(unittest.TestCase):
             "additionalProperties": False,
         }
         ms = metadata.MetadataSchema(schema)
-        self.assertEqual(str(ms), tskit.canonical_json(schema))
+        assert str(ms) == tskit.canonical_json(schema)
         # Missing required properties
-        with self.assertRaises(exceptions.MetadataValidationError):
+        with pytest.raises(exceptions.MetadataValidationError):
             ms.validate_and_encode_row({})
 
     def test_register_codec(self):
@@ -327,21 +328,21 @@ class TestMetadataModule(unittest.TestCase):
             pass
 
         metadata.register_metadata_codec(TestCodec, "test")
-        self.assertEqual(TestCodec, metadata.codec_registry["test"])
+        assert TestCodec == metadata.codec_registry["test"]
 
     def test_parse(self):
         # Empty string gives MetaDataSchema with None codec
         ms = metadata.parse_metadata_schema("")
-        self.assertIsInstance(ms, metadata.MetadataSchema)
-        self.assertEqual(ms.schema, None)
+        assert isinstance(ms, metadata.MetadataSchema)
+        assert ms.schema is None
 
         # json gives MetaDataSchema with json codec
         ms = metadata.parse_metadata_schema(json.dumps({"codec": "json"}))
-        self.assertIsInstance(ms, metadata.MetadataSchema)
-        self.assertDictEqual(ms.schema, {"codec": "json"})
+        assert isinstance(ms, metadata.MetadataSchema)
+        assert ms.schema == {"codec": "json"}
 
         # Bad JSON gives error
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             metadata.parse_metadata_schema(json.dumps({"codec": "json"})[:-1])
 
     def test_canonical_string(self):
@@ -365,9 +366,9 @@ class TestMetadataModule(unittest.TestCase):
             title="Example Metadata",
             codec="json",
         )
-        self.assertNotEqual(json.dumps(schema), json.dumps(schema2))
-        self.assertEqual(
-            str(metadata.MetadataSchema(schema)), str(metadata.MetadataSchema(schema2))
+        assert json.dumps(schema) != json.dumps(schema2)
+        assert str(metadata.MetadataSchema(schema)) == str(
+            metadata.MetadataSchema(schema2)
         )
 
     def test_equality(self):
@@ -403,12 +404,12 @@ class TestMetadataModule(unittest.TestCase):
                 "additionalProperties": False,
             }
         )
-        self.assertTrue(schema == schema)
-        self.assertFalse(schema != schema)
-        self.assertTrue(schema == schema_same)
-        self.assertFalse(schema != schema_same)
-        self.assertTrue(schema != schema_diff)
-        self.assertFalse(schema == schema_diff)
+        assert schema == schema
+        assert not (schema != schema)
+        assert schema == schema_same
+        assert not (schema != schema_same)
+        assert schema != schema_diff
+        assert not (schema == schema_diff)
 
     def test_bad_top_level_type(self):
         for bad_type in ["array", "boolean", "integer", "null", "number", "string"]:
@@ -416,7 +417,7 @@ class TestMetadataModule(unittest.TestCase):
                 "codec": "json",
                 "type": bad_type,
             }
-            with self.assertRaises(exceptions.MetadataSchemaValidationError):
+            with pytest.raises(exceptions.MetadataSchemaValidationError):
                 metadata.MetadataSchema(schema)
 
     def test_null_union_top_level(self):
@@ -427,18 +428,18 @@ class TestMetadataModule(unittest.TestCase):
         }
         ms = metadata.MetadataSchema(schema)
         row_data = {"one": "tree", "two": 5}
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(None)), None)
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
+        assert ms.decode_row(ms.validate_and_encode_row(None)) is None
 
     def test_null_codec(self):
         ms = metadata.MetadataSchema(None)
-        self.assertEqual(str(ms), "")
+        assert str(ms) == ""
         row = b"Some binary data that tskit can't interpret "
         # Encode/decode are no-ops
-        self.assertEqual(row, ms.validate_and_encode_row(row))
-        self.assertEqual(row, ms.decode_row(row))
+        assert row == ms.validate_and_encode_row(row)
+        assert row == ms.decode_row(row)
         # Only bytes validate
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             ms.validate_and_encode_row({})
 
     def test_json_codec(self):
@@ -453,19 +454,19 @@ class TestMetadataModule(unittest.TestCase):
         ms = metadata.MetadataSchema(schema)
         # Valid row data
         row_data = {"one": "tree", "two": 5}
-        self.assertEqual(
-            ms.validate_and_encode_row(row_data),
-            tskit.canonical_json(row_data).encode(),
+        assert (
+            ms.validate_and_encode_row(row_data)
+            == tskit.canonical_json(row_data).encode()
         )
-        self.assertEqual(ms.decode_row(json.dumps(row_data).encode()), row_data)
+        assert ms.decode_row(json.dumps(row_data).encode()) == row_data
         # Round trip
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
         # Test canonical encoding
         row_data = collections.OrderedDict(one="tree", two=5)
         row_data2 = collections.OrderedDict(two=5, one="tree")
-        self.assertNotEqual(json.dumps(row_data), json.dumps(row_data2))
-        self.assertEqual(
-            ms.validate_and_encode_row(row_data), ms.validate_and_encode_row(row_data2)
+        assert json.dumps(row_data) != json.dumps(row_data2)
+        assert ms.validate_and_encode_row(row_data) == ms.validate_and_encode_row(
+            row_data2
         )
 
     def test_msgpack_codec(self):
@@ -492,23 +493,23 @@ class TestMetadataModule(unittest.TestCase):
         ms = metadata.MetadataSchema(schema)
         # Valid row data
         row_data = {"one": "tree", "two": 5}
-        self.assertEqual(ms.validate_and_encode_row(row_data), msgpack.dumps(row_data))
-        self.assertEqual(ms.decode_row(msgpack.dumps(row_data)), row_data)
+        assert ms.validate_and_encode_row(row_data) == msgpack.dumps(row_data)
+        assert ms.decode_row(msgpack.dumps(row_data)) == row_data
         # Round trip
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
 
 
-class TestStructCodec(unittest.TestCase):
+class TestStructCodec:
     def encode_decode(self, method_name, sub_schema, obj, buffer):
-        self.assertEqual(
-            getattr(metadata.StructCodec, f"{method_name}_encode")(sub_schema)(obj),
-            buffer,
+        assert (
+            getattr(metadata.StructCodec, f"{method_name}_encode")(sub_schema)(obj)
+            == buffer
         )
-        self.assertEqual(
+        assert (
             getattr(metadata.StructCodec, f"{method_name}_decode")(sub_schema)(
                 iter(buffer)
-            ),
-            obj,
+            )
+            == obj
         )
 
     def test_order_schema(self):
@@ -689,7 +690,7 @@ class TestStructCodec(unittest.TestCase):
             "required": ["one", "two"],
             "additionalProperties": False,
         }
-        self.assertDictEqual(metadata.StructCodec.order_by_index(schema), schema_sorted)
+        assert metadata.StructCodec.order_by_index(schema) == schema_sorted
 
     def test_make_encode_and_decode(self):
         self.encode_decode(
@@ -831,9 +832,9 @@ class TestStructCodec(unittest.TestCase):
             "noLengthEncodingExhaustBuffer": True,
             "items": {"type": "number", "binaryFormat": "I'M NOT VALID"},
         }
-        with self.assertRaises(struct.error):
+        with pytest.raises(struct.error):
             metadata.StructCodec.make_array_encode(schema)(5)
-        with self.assertRaises(struct.error):
+        with pytest.raises(struct.error):
             metadata.StructCodec.make_array_decode(schema)(5)
 
     def test_make_object_encode_and_decode(self):
@@ -882,32 +883,32 @@ class TestStructCodec(unittest.TestCase):
             "make_string", {"type": "string", "binaryFormat": "4s"}, "abcd", b"abcd"
         )
         # If too small gets truncated
-        self.assertEqual(
+        assert (
             metadata.StructCodec.make_string_encode(
                 {"type": "string", "binaryFormat": "2s"}
-            )("abcd"),
-            b"ab",
+            )("abcd")
+            == b"ab"
         )
         # If too large gets padded - have to test separately as encode and decode are not
         # inverse of each other in this case
-        self.assertEqual(
+        assert (
             metadata.StructCodec.make_string_encode(
                 {"type": "string", "binaryFormat": "6s"}
-            )("abcd"),
-            b"abcd\x00\x00",
+            )("abcd")
+            == b"abcd\x00\x00"
         )
         # Too large getting decoded returns padding
-        self.assertEqual(
+        assert (
             metadata.StructCodec.make_string_decode(
                 {"type": "string", "binaryFormat": "6s"}
-            )(b"abcd\x00\x00"),
-            "abcd\x00\x00",
+            )(b"abcd\x00\x00")
+            == "abcd\x00\x00"
         )
-        self.assertEqual(
+        assert (
             metadata.StructCodec.make_string_decode(
                 {"type": "string", "binaryFormat": "6s", "nullTerminated": False}
-            )(b"abcd\x00\x00"),
-            "abcd\x00\x00",
+            )(b"abcd\x00\x00")
+            == "abcd\x00\x00"
         )
         # Unless we specify that the field is null-teminated
         self.encode_decode(
@@ -986,14 +987,14 @@ class TestStructCodec(unittest.TestCase):
         }
         ms = metadata.MetadataSchema(schema)
         row_data = {"o": {"x": 5.5}, "a": 4, "b": 7}
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(None)), None)
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
+        assert ms.decode_row(ms.validate_and_encode_row(None)) is None
 
 
-class TestStructCodecRoundTrip(unittest.TestCase):
+class TestStructCodecRoundTrip:
     def round_trip(self, schema, row_data):
         ms = metadata.MetadataSchema(schema)
-        self.assertEqual(ms.decode_row(ms.validate_and_encode_row(row_data)), row_data)
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
 
     def test_simple_types(self):
         for type_, binaryFormat, value in (
@@ -1261,8 +1262,8 @@ class TestStructCodecRoundTrip(unittest.TestCase):
         }
         alpha_ordered_encoded = b"\x01\xaa\xbb\xcc\xdd\x05\x00\x00\x00\x03foo"
         ms = metadata.MetadataSchema(schema)
-        self.assertEqual(ms.validate_and_encode_row(row_data), alpha_ordered_encoded)
-        self.assertDictEqual(ms.decode_row(alpha_ordered_encoded), row_data)
+        assert ms.validate_and_encode_row(row_data) == alpha_ordered_encoded
+        assert ms.decode_row(alpha_ordered_encoded) == row_data
         schema = {
             "codec": "struct",
             "type": "object",
@@ -1276,11 +1277,11 @@ class TestStructCodecRoundTrip(unittest.TestCase):
         }
         index_order_encoded = b"\x00\x00\x00\xaa\xbb\xcc\xdd\x01\x05\x03foo"
         ms = metadata.MetadataSchema(schema)
-        self.assertEqual(ms.validate_and_encode_row(row_data), index_order_encoded)
-        self.assertDictEqual(ms.decode_row(index_order_encoded), row_data)
+        assert ms.validate_and_encode_row(row_data) == index_order_encoded
+        assert ms.decode_row(index_order_encoded) == row_data
 
 
-class TestStructCodecErrors(unittest.TestCase):
+class TestStructCodecErrors:
     def encode(self, schema, row_data):
         ms = metadata.MetadataSchema(schema)
         ms.validate_and_encode_row(row_data)
@@ -1294,12 +1295,13 @@ class TestStructCodecErrors(unittest.TestCase):
                 "float": {"type": "number", "binaryFormat": "d"},
             },
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataValidationError, "'int' is a required property"
+        with pytest.raises(
+            exceptions.MetadataValidationError, match="'int' is a required property"
         ):
             self.encode(schema, {"float": 5.5})
-        with self.assertRaisesRegex(
-            exceptions.MetadataValidationError, "Additional properties are not allowed"
+        with pytest.raises(
+            exceptions.MetadataValidationError,
+            match="Additional properties are not allowed",
         ):
             self.encode(
                 schema, {"float": 5.5, "int": 9, "extra": "I really shouldn't be here"}
@@ -1307,8 +1309,8 @@ class TestStructCodecErrors(unittest.TestCase):
 
     def test_bad_schema_union_type(self):
         schema = {"codec": "struct", "type": ["object", "number"], "binaryFormat": "d"}
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not one of"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="is not one of"
         ):
             metadata.MetadataSchema(schema)
         schema = {
@@ -1316,8 +1318,8 @@ class TestStructCodecErrors(unittest.TestCase):
             "type": "object",
             "properties": {"test": {"type": ["number", "string"], "binaryFormat": "d"}},
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not one of"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="is not one of"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1332,8 +1334,8 @@ class TestStructCodecErrors(unittest.TestCase):
                 }
             },
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type 'object'"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="is not of type 'object'"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1343,8 +1345,8 @@ class TestStructCodecErrors(unittest.TestCase):
             "type": "object",
             "properties": {"int": {"type": "number", "binaryFormat": "int"}},
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "does not match"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="does not match"
         ):
             metadata.MetadataSchema(schema)
         # Can't specify endianness
@@ -1353,8 +1355,8 @@ class TestStructCodecErrors(unittest.TestCase):
             "type": "object",
             "properties": {"int": {"type": "number", "binaryFormat": ">b"}},
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "does not match"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="does not match"
         ):
             metadata.MetadataSchema(schema)
         schema = {
@@ -1362,9 +1364,9 @@ class TestStructCodecErrors(unittest.TestCase):
             "type": "object",
             "properties": {"null": {"type": "null", "binaryFormat": "l"}},
         }
-        with self.assertRaisesRegex(
+        with pytest.raises(
             exceptions.MetadataSchemaValidationError,
-            "null type binaryFormat must be padding",
+            match="null type binaryFormat must be padding",
         ):
             metadata.MetadataSchema(schema)
 
@@ -1374,8 +1376,8 @@ class TestStructCodecErrors(unittest.TestCase):
             "type": "object",
             "properties": {"array": {"type": "array", "arrayLengthFormat": "b"}},
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "does not match"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="does not match"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1385,9 +1387,9 @@ class TestStructCodecErrors(unittest.TestCase):
             "type": "object",
             "properties": {"int": {"type": "number"}},
         }
-        with self.assertRaisesRegex(
+        with pytest.raises(
             exceptions.MetadataSchemaValidationError,
-            "number type must have binaryFormat set",
+            match="number type must have binaryFormat set",
         ):
             metadata.MetadataSchema(schema)
 
@@ -1403,8 +1405,8 @@ class TestStructCodecErrors(unittest.TestCase):
                 }
             },
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="is not of type"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1420,8 +1422,8 @@ class TestStructCodecErrors(unittest.TestCase):
                 }
             },
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="is not of type"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1437,8 +1439,8 @@ class TestStructCodecErrors(unittest.TestCase):
                 }
             },
         }
-        with self.assertRaisesRegex(
-            exceptions.MetadataSchemaValidationError, "is not of type"
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError, match="is not of type"
         ):
             metadata.MetadataSchema(schema)
 
@@ -1457,15 +1459,15 @@ class TestStructCodecErrors(unittest.TestCase):
         data = {"array": list(range(255))}
         metadata.MetadataSchema(schema).validate_and_encode_row(data)
         data2 = {"array": list(range(256))}
-        with self.assertRaisesRegex(
+        with pytest.raises(
             ValueError,
-            "Couldn't pack array size - it is likely too long for the"
+            match="Couldn't pack array size - it is likely too long for the"
             " specified arrayLengthFormat",
         ):
             metadata.MetadataSchema(schema).validate_and_encode_row(data2)
 
 
-class TestSLiMDecoding(unittest.TestCase):
+class TestSLiMDecoding:
     """
     Test with byte strings copied from a SLiM tree sequence
     """
@@ -1490,9 +1492,7 @@ class TestSLiMDecoding(unittest.TestCase):
                 {"genomeID": 11997, "genomeType": 0, "isNull": True},
             ),
         ]:
-            self.assertDictEqual(
-                metadata.MetadataSchema(schema).decode_row(example), expected
-            )
+            assert metadata.MetadataSchema(schema).decode_row(example) == expected
 
     def test_individual(self):
         schema = {
@@ -1535,9 +1535,7 @@ class TestSLiMDecoding(unittest.TestCase):
                 },
             ),
         ]:
-            self.assertEqual(
-                metadata.MetadataSchema(schema).decode_row(example), expected
-            )
+            assert metadata.MetadataSchema(schema).decode_row(example) == expected
 
     def test_mutation(self):
         schema = {
@@ -1651,11 +1649,11 @@ class TestSLiMDecoding(unittest.TestCase):
                 ],
             ),
         ]:
-            self.assertEqual(
+            assert (
                 metadata.MetadataSchema(schema).decode_row(example)[
                     "stacked_mutation_array"
-                ],
-                expected,
+                ]
+                == expected
             )
 
     def test_population(self):
@@ -1713,12 +1711,10 @@ class TestSLiMDecoding(unittest.TestCase):
             "sexRatio": 0.0,
             "subpopulationID": 1,
         }
-        self.assertDictEqual(
-            metadata.MetadataSchema(schema).decode_row(example), expected
-        )
+        assert metadata.MetadataSchema(schema).decode_row(example) == expected
 
 
-class TestTableCollectionEquality(unittest.TestCase):
+class TestTableCollectionEquality:
     def test_equality(self):
         ts = msprime.simulate(10, random_seed=42)
         tables = ts.dump_tables()
@@ -1744,13 +1740,13 @@ class TestTableCollectionEquality(unittest.TestCase):
             codec="json",
         )
         tables.metadata_schema = metadata.MetadataSchema(schema)
-        self.assertNotEqual(tables, tables2)
+        assert tables != tables2
         tables2.metadata_schema = metadata.MetadataSchema(schema2)
-        self.assertEqual(tables, tables2)
+        assert tables == tables2
         tables.metadata = collections.OrderedDict(one="tree", two=5)
-        self.assertNotEqual(tables, tables2)
+        assert tables != tables2
         tables2.metadata = collections.OrderedDict(two=5, one="tree")
-        self.assertEqual(tables, tables2)
+        assert tables == tables2
 
     def test_fixing_uncanonical(self):
         ts = msprime.simulate(10, random_seed=42)
@@ -1767,10 +1763,6 @@ class TestTableCollectionEquality(unittest.TestCase):
         )
         # Set with low-level to emulate loading.
         tables._ll_tables.metadata_schema = json.dumps(schema)
-        self.assertNotEqual(
-            tables._ll_tables.metadata_schema, tskit.canonical_json(schema)
-        )
+        assert tables._ll_tables.metadata_schema != tskit.canonical_json(schema)
         tables.metadata_schema = tables.metadata_schema
-        self.assertEqual(
-            tables._ll_tables.metadata_schema, tskit.canonical_json(schema)
-        )
+        assert tables._ll_tables.metadata_schema == tskit.canonical_json(schema)

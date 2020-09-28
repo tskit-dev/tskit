@@ -51,8 +51,8 @@ install:
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      nosetests -vs --processes=`sysctl -n hw.ncpu` --process-timeout=5000 tests;
+      pytest -n `sysctl -n hw.ncpu` python;
     else
-      nosetests -vs --processes=`nproc` --process-timeout=5000 tests;
+      pytest -n `nproc` python;
     fi
 

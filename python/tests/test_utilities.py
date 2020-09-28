@@ -22,14 +22,13 @@
 """
 Tests for the various testing utilities.
 """
-import unittest
-
 import msprime
+import pytest
 
 import tests.tsutil as tsutil
 
 
-class TestJukesCantor(unittest.TestCase):
+class TestJukesCantor:
     """
     Check that the we get useable tree sequences.
     """
@@ -37,9 +36,9 @@ class TestJukesCantor(unittest.TestCase):
     def verify(self, ts):
         tables = ts.dump_tables()
         tables.compute_mutation_parents()
-        self.assertEqual(tables, ts.tables)
+        assert tables == ts.tables
         # This will catch inconsistent mutations.
-        self.assertIsNotNone(ts.genotype_matrix())
+        assert ts.genotype_matrix() is not None
 
     def test_n10_multiroot(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -54,19 +53,19 @@ class TestJukesCantor(unittest.TestCase):
         self.verify(ts)
 
 
-class TestCaterpillarTree(unittest.TestCase):
+class TestCaterpillarTree:
     """
     Tests for the caterpillar tree method.
     """
 
     def verify(self, ts, n):
-        self.assertEqual(ts.num_trees, 1)
-        self.assertEqual(ts.num_nodes, ts.num_samples * 2 - 1)
+        assert ts.num_trees == 1
+        assert ts.num_nodes == ts.num_samples * 2 - 1
         tree = ts.first()
         for j in range(1, n):
-            self.assertEqual(tree.parent(j), n + j - 1)
+            assert tree.parent(j) == n + j - 1
         # This will catch inconsistent mutations.
-        self.assertIsNotNone(ts.genotype_matrix())
+        assert ts.genotype_matrix() is not None
 
     def test_n_2(self):
         ts = tsutil.caterpillar_tree(2)
@@ -83,22 +82,22 @@ class TestCaterpillarTree(unittest.TestCase):
     def test_n_5_sites(self):
         ts = tsutil.caterpillar_tree(5, num_sites=4)
         self.verify(ts, 5)
-        self.assertEqual(ts.num_sites, 4)
-        self.assertEqual(ts.num_mutations, 4)
-        self.assertEqual(list(ts.tables.sites.position), [0.2, 0.4, 0.6, 0.8])
+        assert ts.num_sites == 4
+        assert ts.num_mutations == 4
+        assert list(ts.tables.sites.position) == [0.2, 0.4, 0.6, 0.8]
         ts = tsutil.caterpillar_tree(5, num_sites=1, num_mutations=1)
-        self.assertEqual(ts.num_sites, 1)
-        self.assertEqual(ts.num_mutations, 1)
+        assert ts.num_sites == 1
+        assert ts.num_mutations == 1
         site = ts.site(0)
-        self.assertEqual(site.mutations[0].node, 7)
+        assert site.mutations[0].node == 7
 
     def test_n_5_mutations(self):
         ts = tsutil.caterpillar_tree(5, num_sites=1, num_mutations=3)
         self.verify(ts, 5)
-        self.assertEqual(ts.num_sites, 1)
-        self.assertEqual(ts.num_mutations, 3)
+        assert ts.num_sites == 1
+        assert ts.num_mutations == 3
         node = ts.tables.mutations.node
-        self.assertEqual(list(node), [7, 6, 5])
+        assert list(node) == [7, 6, 5]
 
     def test_n_many_mutations(self):
         for n in range(10, 15):
@@ -107,39 +106,39 @@ class TestCaterpillarTree(unittest.TestCase):
                     n, num_sites=1, num_mutations=num_mutations
                 )
                 self.verify(ts, n)
-                self.assertEqual(ts.num_sites, 1)
-                self.assertEqual(ts.num_mutations, num_mutations)
+                assert ts.num_sites == 1
+                assert ts.num_mutations == num_mutations
             for num_mutations in range(n - 1, n + 2):
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     tsutil.caterpillar_tree(n, num_sites=1, num_mutations=num_mutations)
 
 
-class TestInsertIndividuals(unittest.TestCase):
+class TestInsertIndividuals:
     """
     Test that we insert individuals correctly.
     """
 
     def test_ploidy_1(self):
         ts = msprime.simulate(10, random_seed=1)
-        self.assertEqual(ts.num_individuals, 0)
+        assert ts.num_individuals == 0
         ts = tsutil.insert_individuals(ts, ploidy=1)
-        self.assertEqual(ts.num_individuals, 10)
+        assert ts.num_individuals == 10
         for j, ind in enumerate(ts.individuals()):
-            self.assertEqual(list(ind.nodes), [j])
+            assert list(ind.nodes) == [j]
 
     def test_ploidy_2(self):
         ts = msprime.simulate(10, random_seed=1)
-        self.assertEqual(ts.num_individuals, 0)
+        assert ts.num_individuals == 0
         ts = tsutil.insert_individuals(ts, ploidy=2)
-        self.assertEqual(ts.num_individuals, 5)
+        assert ts.num_individuals == 5
         for j, ind in enumerate(ts.individuals()):
-            self.assertEqual(list(ind.nodes), [2 * j, 2 * j + 1])
+            assert list(ind.nodes) == [2 * j, 2 * j + 1]
 
     def test_ploidy_2_reversed(self):
         ts = msprime.simulate(10, random_seed=1)
-        self.assertEqual(ts.num_individuals, 0)
+        assert ts.num_individuals == 0
         samples = ts.samples()[::-1]
         ts = tsutil.insert_individuals(ts, samples=samples, ploidy=2)
-        self.assertEqual(ts.num_individuals, 5)
+        assert ts.num_individuals == 5
         for j, ind in enumerate(ts.individuals()):
-            self.assertEqual(list(ind.nodes), [samples[2 * j + 1], samples[2 * j]])
+            assert list(ind.nodes) == [samples[2 * j + 1], samples[2 * j]]
