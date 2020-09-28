@@ -1,6 +1,7 @@
+include LICENSE
+include _tskit_lwt_interface.h
 include lib/subprojects/kastore/kastore.h
 include lib/tskit.h
 include lib/tskit/*.h
-include LICENSE
 include tskit/_version.py
 include tskit/provenance.schema.json

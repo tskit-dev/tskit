@@ -476,7 +476,7 @@ class TestRequiredAndOptionalColumns(unittest.TestCase):
         bad_offset[-1] = table_dict[offset_col][-1]
         table_dict[offset_col] = bad_offset
         lwt = c_module.LightweightTableCollection()
-        with self.assertRaises(c_module.LibraryError):
+        with self.assertRaises(ValueError):
             lwt.fromdict(d)
 
     def verify_metadata_schema(self, tables, table_name):
