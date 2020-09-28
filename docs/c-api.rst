@@ -139,7 +139,7 @@ different project structures and build systems.
 
 Tskit uses the `meson <https://mesonbuild.com>`_ build system internally,
 and supports being used a `meson subproject <https://mesonbuild.com/Subprojects.html>`_.
-We show an `example <https://github.com/tskit-dev/tskit-build-examples/tree/master/meson>`_
+We show an `example <https://github.com/tskit-dev/tskit-build-examples/tree/main/meson>`_
 in which this is combined with
 `git submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_ to neatly
 abstract many details of cross platform C development.
@@ -147,8 +147,8 @@ abstract many details of cross platform C development.
 Some users may choose to check the source for ``tskit`` (and ``kastore``)
 directly into their source control repositories. If you wish to do this,
 the code is in the ``c`` subdirectory of the
-`tskit <https://github.com/tskit-dev/tskit/tree/master/c>`_ and
-`kastore <https://github.com/tskit-dev/kastore/tree/master/c>`__ repos.
+`tskit <https://github.com/tskit-dev/tskit/tree/main/c>`_ and
+`kastore <https://github.com/tskit-dev/kastore/tree/main/c>`__ repos.
 The following header files should be placed in the search path:
 ``kastore.h``, ``tskit.h``, and ``tskit/*.h``.
 The C files ``kastore.c`` and ``tskit*.c`` should be compiled.
@@ -170,7 +170,7 @@ using git. For example, to check out the ``C_0.99.1`` release::
     $ git checkout C_0.99.1
 
 Git submodules may also be considered---see the
-`example <https://github.com/tskit-dev/tskit-build-examples/tree/master/meson>`_
+`example <https://github.com/tskit-dev/tskit-build-examples/tree/main/meson>`_
 for how to set these up and to check out at a specific release.
 
 
