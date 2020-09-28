@@ -54,8 +54,6 @@ _tskit_module = Extension(
     extra_compile_args=["-std=c99"],
     libraries=libraries,
     define_macros=defines,
-    # Enable asserts
-    undef_macros=["NDEBUG"],
     include_dirs=[libdir, kastore_dir],
 )
 

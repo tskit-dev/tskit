@@ -585,7 +585,7 @@ class CommonTestsMixin:
 
             for _list_col, offset_col in self.ragged_list_columns:
                 input_data[offset_col.name][0] = -1
-                self.assertRaises(_tskit.LibraryError, t.set_columns, **input_data)
+                self.assertRaises(ValueError, t.set_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
                 t.set_columns(**input_data)
                 input_data[offset_col.name][-1] = 0
@@ -593,11 +593,11 @@ class CommonTestsMixin:
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
                 t.set_columns(**input_data)
                 input_data[offset_col.name][num_rows // 2] = 2 ** 31
-                self.assertRaises(_tskit.LibraryError, t.set_columns, **input_data)
+                self.assertRaises(ValueError, t.set_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
 
                 input_data[offset_col.name][0] = -1
-                self.assertRaises(_tskit.LibraryError, t.append_columns, **input_data)
+                self.assertRaises(ValueError, t.append_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
                 t.append_columns(**input_data)
                 input_data[offset_col.name][-1] = 0
@@ -605,7 +605,7 @@ class CommonTestsMixin:
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
                 t.append_columns(**input_data)
                 input_data[offset_col.name][num_rows // 2] = 2 ** 31
-                self.assertRaises(_tskit.LibraryError, t.append_columns, **input_data)
+                self.assertRaises(ValueError, t.append_columns, **input_data)
                 input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
 
 
