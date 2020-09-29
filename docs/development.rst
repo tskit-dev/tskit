@@ -918,6 +918,7 @@ release on GitHub using the pattern ``C_MAJOR.MINOR.PATCH``, with::
     git push upstream --tags
 
 Then prepare a release for the tag on GitHub, copying across the changelog.
+Running ``python docs/convert_changelog.py`` will format the changelog for GitHub.
 After release, start a section in the changelog for new developments.
 
 ------
@@ -940,9 +941,9 @@ This will trigger a build of the distribution artifacts for Python
 on `Github Actions <https://github.com/tskit-dev/tskit/actions>`_. and deploy
 them to the `test PyPI <https://test.pypi.org/project/tskit/>`_. Check
 the release looks good there, then create a release on Github based on the tag you
-pushed. Copy the changelog into the release. Publishing this release will cause
-the github action to deploy to the
-`production PyPI <https://pypi.org/project/tskit/>`_.
+pushed. Copy the changelog into the release. Running ``python docs/convert_changelog.py``
+will format the changelog for GitHub. Publishing this release will cause the github
+action to deploy to the `production PyPI <https://pypi.org/project/tskit/>`_.
 After release, start a section in the changelog for new developments.
 
 
