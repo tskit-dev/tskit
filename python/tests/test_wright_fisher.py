@@ -528,9 +528,7 @@ class TestSimplify:
         """
         Check that haplotypes are unchanged by simplify.
         """
-        sub_ts, node_map = ts.simplify(
-            samples, map_nodes=True, filter_zero_mutation_sites=False
-        )
+        sub_ts, node_map = ts.simplify(samples, map_nodes=True, filter_sites=False)
         # Sites tables should be equal
         assert ts.tables.sites == sub_ts.tables.sites
         sub_haplotypes = dict(zip(sub_ts.samples(), sub_ts.haplotypes()))

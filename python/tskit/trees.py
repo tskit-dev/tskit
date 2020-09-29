@@ -3833,7 +3833,7 @@ class TreeSequence:
                     alleles[i] = allele_int8
             H[:, var.site.id] = alleles[var.genotypes]
         for h in H:
-            yield h.tostring().decode("ascii")
+            yield h.tobytes().decode("ascii")
 
     def variants(
         self,

@@ -40,6 +40,7 @@ from . import tsutil
 
 
 class TestException(Exception):
+    __test__ = False
     """
     Custom exception we can throw for testing.
     """

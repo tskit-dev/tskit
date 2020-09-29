@@ -194,7 +194,8 @@ class TestNumpyArrayCasting:
                 # On some platforms and Python / numpy versions, a ValueError
                 # occurs instead
                 with pytest.raises((TypeError, ValueError)):
-                    util.safe_np_int_cast(bad_input, dtype)
+                    with pytest.deprecated_call():
+                        util.safe_np_int_cast(bad_input, dtype)
 
 
 class TestIntervalOps:

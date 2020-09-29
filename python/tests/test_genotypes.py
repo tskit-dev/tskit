@@ -179,12 +179,12 @@ class TestVariantGenerator:
             A[variant.index] = variant.genotypes
         for variant in ts.variants(as_bytes=True):
             assert isinstance(variant.genotypes, bytes)
-            B[variant.index] = np.fromstring(variant.genotypes, np.uint8) - ord("0")
+            B[variant.index] = np.frombuffer(variant.genotypes, np.uint8) - ord("0")
         assert np.all(A == B)
         bytes_variants = list(ts.variants(as_bytes=True))
         for j, variant in enumerate(bytes_variants):
             assert j == variant.index
-            row = np.fromstring(variant.genotypes, np.uint8) - ord("0")
+            row = np.frombuffer(variant.genotypes, np.uint8) - ord("0")
             assert np.all(A[j] == row)
 
     def test_as_bytes_fails(self):
@@ -475,14 +475,19 @@ class TestVariantGenerator:
         assert np.array_equal(Gm, Gm2)
 
         # Test deprecated param
-        Gi = ts.genotype_matrix(impute_missing_data=True)
+
+        with pytest.deprecated_call():
+            Gi = ts.genotype_matrix(impute_missing_data=True)
         assert np.array_equal(Gnm, Gi)
-        Gni = ts.genotype_matrix(impute_missing_data=False)
+        with pytest.deprecated_call():
+            Gni = ts.genotype_matrix(impute_missing_data=False)
         assert np.array_equal(Gm, Gni)
 
-        G = ts.genotype_matrix(isolated_as_missing=False, impute_missing_data=True)
+        with pytest.deprecated_call():
+            G = ts.genotype_matrix(isolated_as_missing=False, impute_missing_data=True)
         assert np.array_equal(Gnm, G)
-        G = ts.genotype_matrix(isolated_as_missing=True, impute_missing_data=False)
+        with pytest.deprecated_call():
+            G = ts.genotype_matrix(isolated_as_missing=True, impute_missing_data=False)
         assert np.array_equal(Gm, G)
 
     def test_empty_ts_missing_data(self):
@@ -675,7 +680,7 @@ class TestHaplotypeGenerator:
         B = np.zeros((n, m), dtype="u1")
         for j, h in enumerate(haplotypes):
             assert len(h) == m
-            A[j] = np.fromstring(h, np.uint8) - ord("0")
+            A[j] = np.frombuffer(h.encode("ascii"), np.uint8) - ord("0")
         for variant in tree_sequence.variants():
             B[:, variant.index] = variant.genotypes
         assert np.all(A == B)
@@ -814,17 +819,25 @@ class TestHaplotypeGenerator:
         h = list(ts.haplotypes())
         assert h == ["-", "-"]
         # Test deprecated method
-        h = list(ts.haplotypes(impute_missing_data=True))
+        with pytest.deprecated_call():
+            h = list(ts.haplotypes(impute_missing_data=True))
         assert h == ["A", "A"]
-        h = list(ts.haplotypes(impute_missing_data=False))
+        with pytest.deprecated_call():
+            h = list(ts.haplotypes(impute_missing_data=False))
         assert h == ["-", "-"]
-        h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
+        with pytest.deprecated_call():
+            h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
         assert h == ["-", "-"]
-        h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
+        with pytest.deprecated_call():
+            h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
         assert h == ["-", "-"]
-        h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
+        with pytest.deprecated_call():
+            h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
         assert h == ["A", "A"]
-        h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=False))
+        with pytest.deprecated_call():
+            h = list(
+                ts.haplotypes(isolated_as_missing=False, impute_missing_data=False)
+            )
         assert h == ["A", "A"]
 
 
