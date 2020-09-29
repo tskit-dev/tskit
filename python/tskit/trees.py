@@ -3098,6 +3098,15 @@ class TreeSequence:
         """
         return self.dump_tables()
 
+    @property
+    def nbytes(self):
+        """
+        Returns the total number of bytes required to store the data
+        in this tree sequence. Note that this may not be equal to
+        the actual memory footprint.
+        """
+        return self.tables.nbytes
+
     def dump_tables(self):
         """
         A copy of the tables defining this tree sequence.
@@ -3290,7 +3299,7 @@ class TreeSequence:
             ["Trees", str(self.num_trees)],
             ["Sequence Length", str(self.sequence_length)],
             ["Sample Nodes", str(self.num_samples)],
-            ["Total Size TODO", util.naturalsize(99999)],
+            ["Total Size", util.naturalsize(self.nbytes)],
         ]
         header = ["Table", "Rows", "Size", "Has Metadata"]
         table_rows = []
@@ -3301,7 +3310,7 @@ class TreeSequence:
                     for s in [
                         name.capitalize(),
                         table.num_rows,
-                        "TODO",
+                        util.naturalsize(table.nbytes),
                         "Yes"
                         if hasattr(table, "metadata") and len(table.metadata) > 0
                         else "No",

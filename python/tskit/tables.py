@@ -148,6 +148,10 @@ class TableCollectionIndexes:
     def asdict(self):
         return attr.asdict(self, filter=lambda k, v: v is not None)
 
+    @property
+    def nbytes(self):
+        return self.edge_insertion_order.nbytes + self.edge_removal_order.nbytes
+
 
 def keep_with_offset(keep, data, offset):
     """
@@ -195,6 +199,28 @@ class BaseTable:
     @property
     def max_rows_increment(self):
         return self.ll_table.max_rows_increment
+
+    @property
+    def nbytes(self) -> int:
+        """
+        Returns the total number of bytes required to store the data
+        in this table. Note that this may not be equal to
+        the actual memory footprint.
+        """
+        # It's not ideal that we run asdict() here to do this as we're
+        # currently creating copies of the column arrays, so it would
+        # be more efficient to have dedicated low-level methods. However,
+        # if we do have read-only views on the underlying memory for the
+        # column arrays then this will be a perfectly good way of
+        # computing the nbytes values and the overhead minimal.
+        d = self.asdict()
+        nbytes = 0
+        # Some tables don't have a metadata_schema
+        metadata_schema = d.pop("metadata_schema", None)
+        if metadata_schema is not None:
+            nbytes += len(metadata_schema.encode())
+        nbytes += sum(col.nbytes for col in d.values())
+        return nbytes
 
     def equals(self, other, ignore_metadata=False):
         """
@@ -2173,6 +2199,23 @@ class TableCollection:
             "provenances": self.provenances,
             "sites": self.sites,
         }
+
+    @property
+    def nbytes(self) -> int:
+        """
+        Returns the total number of bytes required to store the data
+        in this table collection. Note that this may not be equal to
+        the actual memory footprint.
+        """
+        return sum(
+            (
+                8,  # sequence_length takes 8 bytes
+                len(self.metadata_bytes),
+                len(str(self.metadata_schema).encode()),
+                self.indexes.nbytes,
+                sum(table.nbytes for table in self.name_map.values()),
+            )
+        )
 
     def __banner(self, title):
         width = 60
