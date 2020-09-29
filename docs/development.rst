@@ -382,25 +382,32 @@ Tests
 -----
 
 The tests are defined in the ``tests`` directory, and run using
-`nose <http://nose.readthedocs.io/en/latest/>`_. If you want to run
+`pytest <https://docs.pytest.org/en/stable/>`_. If you want to run
 the tests in a particular module (say, ``test_tables.py``), use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs tests/test_tables.py
+    $ python3 -m pytest tests/test_tables.py
 
 To run all the tests in a particular class in this module (say, ``TestNodeTable``)
 use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs tests/test_tables.py:TestNodeTable
+    $ python3 -m pytest tests/test_tables.py::TestNodeTable
 
 To run a specific test case in this class (say, ``test_copy``) use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs tests/test_tables.py:TestNodeTable.test_copy
+    $ python3 -m pytest tests/test_tables.py::TestNodeTable::test_copy
+
+You can also run tests with a keyword expression search. For example this will
+run all tests that have ``TestNodeTable`` but not ``copy`` in their name:
+
+.. code-block:: bash
+
+    $ python3 -m pytest -k "TestNodeTable and not copy"
 
 When developing your own tests, it is much quicker to run the specific tests
 that you are developing rather than rerunning large sections of the test
@@ -410,14 +417,27 @@ To run all of the tests, we can use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs
+    $ python3 -m pytest
 
 As tskit's test suite is large, it is helpful to run the tests in parallel, e.g.:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs --processes=8 --process-timeout=5000
+    $ python3 -m pytest -n8
 
+A few of the tests take most of the time, we can skip the slow tests to get the test run
+under 20 seconds on an modern workstation:
+
+.. code-block:: bash
+
+    $ python3 -m pytest -n8 --skip-slow
+
+If you have a lot of failing tests it can be useful to have a shorter summary
+of the failing lines:
+
+.. code-block:: bash
+
+    $ python3 -m pytest -n8 --tb=line
 
 All new code must have high test coverage, which will be checked as part of the
 :ref:`sec_development_continuous_integration`
@@ -767,11 +787,11 @@ be very useful. For example, to run a particular test case, we can do:
 .. code-block:: bash
 
     $ gdb python3
-    (gdb) run -m nose -vs tests/test_lowlevel.py
+    (gdb) run -m pytest tests/test_lowlevel.py
 
 
-    (gdb) run  -m nose -vs tests/test_tables.py:TestNodeTable.test_copy
-    Starting program: /usr/bin/python3 -m nose -vs tests/test_tables.py:TestNodeTable.test_copy
+    (gdb) run  -m pytest -vs tests/test_tables.py::TestNodeTable::test_copy
+    Starting program: /usr/bin/python3 run  -m pytest tests/test_tables.py::TestNodeTable::test_copy
     [Thread debugging using libthread_db enabled]
     Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
     [New Thread 0x7ffff1e48700 (LWP 1503)]
@@ -780,12 +800,10 @@ be very useful. For example, to run a particular test case, we can do:
     [Thread 0x7fffeee46700 (LWP 1505) exited]
     [Thread 0x7fffef647700 (LWP 1504) exited]
     [Thread 0x7ffff1e48700 (LWP 1503) exited]
-    test_copy (tests.test_tables.TestNodeTable) ... ok
+    collected 1 item
 
-    ----------------------------------------------------------------------
-    Ran 1 test in 0.001s
+    tests/test_tables.py::TestNodeTable::test_copy PASSED
 
-    OK
     [Inferior 1 (process 1499) exited normally]
     (gdb)
 

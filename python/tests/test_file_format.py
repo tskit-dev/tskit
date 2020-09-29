@@ -33,6 +33,7 @@ import h5py
 import kastore
 import msprime
 import numpy as np
+import pytest
 
 import tests.tsutil as tsutil
 import tskit
@@ -226,18 +227,18 @@ class TestLoadLegacyExamples(TestFileFormat):
 
     def verify_tree_sequence(self, ts):
         # Just some quick checks to make sure the tree sequence makes sense.
-        self.assertGreater(ts.sample_size, 0)
-        self.assertGreater(ts.num_edges, 0)
-        self.assertGreater(ts.num_sites, 0)
-        self.assertGreater(ts.num_mutations, 0)
-        self.assertGreater(ts.sequence_length, 0)
+        assert ts.sample_size > 0
+        assert ts.num_edges > 0
+        assert ts.num_sites > 0
+        assert ts.num_mutations > 0
+        assert ts.sequence_length > 0
         for t in ts.trees():
             left, right = t.interval
-            self.assertGreater(right, left)
+            assert right > left
             for site in t.sites():
-                self.assertTrue(left <= site.position < right)
+                assert left <= site.position < right
                 for mut in site.mutations:
-                    self.assertEqual(mut.site, site.id)
+                    assert mut.site == site.id
 
     def test_format_too_old_raised_for_hdf5(self):
         files = [
@@ -247,7 +248,8 @@ class TestLoadLegacyExamples(TestFileFormat):
         ]
         for filename in files:
             path = os.path.join(test_data_dir, "hdf5-formats", filename)
-            self.assertRaises(exceptions.VersionTooOldError, tskit.load, path)
+            with pytest.raises(exceptions.VersionTooOldError):
+                tskit.load(path)
 
     def test_msprime_v_0_5_0(self):
         path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.5.0_v10.0.hdf5")
@@ -272,7 +274,7 @@ class TestRoundTrip(TestFileFormat):
     """
 
     def verify_tree_sequences_equal(self, ts, tsp, simplify=True):
-        self.assertEqual(ts.sequence_length, tsp.sequence_length)
+        assert ts.sequence_length == tsp.sequence_length
         t1 = ts.tables
         # We need to sort and squash the edges in the new format because it
         # has gone through an edgesets representation. Simplest way to do this
@@ -281,10 +283,10 @@ class TestRoundTrip(TestFileFormat):
             t2 = tsp.simplify().tables
         else:
             t2 = tsp.tables
-        self.assertEqual(t1.nodes, t2.nodes)
-        self.assertEqual(t1.edges, t2.edges)
-        self.assertEqual(t1.sites, t2.sites)
-        self.assertEqual(t1.mutations, t2.mutations)
+        assert t1.nodes == t2.nodes
+        assert t1.edges == t2.edges
+        assert t1.sites == t2.sites
+        assert t1.mutations == t2.mutations
 
     def verify_round_trip(self, ts, version):
         tskit.dump_legacy(ts, self.temp_file, version=version)
@@ -354,17 +356,15 @@ class TestRoundTrip(TestFileFormat):
     def test_recurrent_mutation_example(self):
         ts = recurrent_mutation_example()
         for version in [2, 3]:
-            self.assertRaises(
-                ValueError, tskit.dump_legacy, ts, self.temp_file, version
-            )
+            with pytest.raises(ValueError):
+                tskit.dump_legacy(ts, self.temp_file, version)
         self.verify_round_trip(ts, 10)
 
     def test_general_mutation_example(self):
         ts = general_mutation_example()
         for version in [2, 3]:
-            self.assertRaises(
-                ValueError, tskit.dump_legacy, ts, self.temp_file, version
-            )
+            with pytest.raises(ValueError):
+                tskit.dump_legacy(ts, self.temp_file, version)
         self.verify_round_trip(ts, 10)
 
     def test_node_metadata_example(self):
@@ -411,13 +411,12 @@ class TestRoundTrip(TestFileFormat):
             root = h5py.File(self.temp_file, "r+")
             root["mutations/position"][:] = 0
             root.close()
-            self.assertRaises(
-                tskit.DuplicatePositionsError, tskit.load_legacy, self.temp_file
-            )
+            with pytest.raises(tskit.DuplicatePositionsError):
+                tskit.load_legacy(self.temp_file)
             tsp = tskit.load_legacy(self.temp_file, remove_duplicate_positions=True)
-            self.assertEqual(tsp.num_sites, 1)
+            assert tsp.num_sites == 1
             sites = list(tsp.sites())
-            self.assertEqual(sites[0].position, 0)
+            assert sites[0].position == 0
 
     def test_duplicate_mutation_positions(self):
         ts = multi_locus_with_mutation_example()
@@ -428,13 +427,12 @@ class TestRoundTrip(TestFileFormat):
             position[0] = position[1]
             root["mutations/position"][:] = position
             root.close()
-            self.assertRaises(
-                tskit.DuplicatePositionsError, tskit.load_legacy, self.temp_file
-            )
+            with pytest.raises(tskit.DuplicatePositionsError):
+                tskit.load_legacy(self.temp_file)
             tsp = tskit.load_legacy(self.temp_file, remove_duplicate_positions=True)
-            self.assertEqual(tsp.num_sites, position.shape[0] - 1)
+            assert tsp.num_sites == position.shape[0] - 1
             position_after = list(s.position for s in tsp.sites())
-            self.assertEqual(list(position[1:]), position_after)
+            assert list(position[1:]) == position_after
 
 
 class TestErrors(TestFileFormat):
@@ -449,27 +447,32 @@ class TestErrors(TestFileFormat):
         ts = msprime.simulate(
             sample_size=10, demographic_events=demographic_events, random_seed=1
         )
-        self.assertRaises(ValueError, tskit.dump_legacy, ts, self.temp_file, 2)
+        with pytest.raises(ValueError):
+            tskit.dump_legacy(ts, self.temp_file, 2)
 
     def test_unsupported_version(self):
         ts = msprime.simulate(10)
-        self.assertRaises(ValueError, tskit.dump_legacy, ts, self.temp_file, version=4)
+        with pytest.raises(ValueError):
+            tskit.dump_legacy(ts, self.temp_file, version=4)
         # Cannot read current files.
         ts.dump(self.temp_file)
         # Catch Exception here because h5py throws different exceptions on py2 and py3
-        self.assertRaises(Exception, tskit.load_legacy, self.temp_file)
+        with pytest.raises(Exception):
+            tskit.load_legacy(self.temp_file)
 
     def test_no_version_number(self):
         root = h5py.File(self.temp_file, "w")
         root.attrs["x"] = 0
         root.close()
-        self.assertRaises(ValueError, tskit.load_legacy, self.temp_file)
+        with pytest.raises(ValueError):
+            tskit.load_legacy(self.temp_file)
 
     def test_unknown_legacy_version(self):
         root = h5py.File(self.temp_file, "w")
         root.attrs["format_version"] = (1024, 0)  # Arbitrary unknown version
         root.close()
-        self.assertRaises(ValueError, tskit.load_legacy, self.temp_file)
+        with pytest.raises(ValueError):
+            tskit.load_legacy(self.temp_file)
 
 
 class TestDumpFormat(TestFileFormat):
@@ -541,36 +544,32 @@ class TestDumpFormat(TestFileFormat):
         ]
         ts.dump(self.temp_file)
         store = kastore.load(self.temp_file)
-        self.assertEqual(sorted(list(store.keys())), keys)
+        assert sorted(list(store.keys())) == keys
 
     def verify_uuid(self, ts, uuid):
-        self.assertEqual(len(uuid), 36)
+        assert len(uuid) == 36
         # Check that the UUID is well-formed.
         parsed = _uuid.UUID("{" + uuid + "}")
-        self.assertEqual(str(parsed), uuid)
-        self.assertEqual(uuid, ts.file_uuid)
+        assert str(parsed) == uuid
+        assert uuid == ts.file_uuid
 
     def verify_dump_format(self, ts):
         ts.dump(self.temp_file)
-        self.assertTrue(os.path.exists(self.temp_file))
-        self.assertGreater(os.path.getsize(self.temp_file), 0)
+        assert os.path.exists(self.temp_file)
+        assert os.path.getsize(self.temp_file) > 0
         self.verify_keys(ts)
 
         store = kastore.load(self.temp_file)
         # Check the basic root attributes
         format_name = store["format/name"]
-        self.assertTrue(
-            np.array_equal(
-                np.array(bytearray(b"tskit.trees"), dtype=np.int8), format_name
-            )
+        assert np.array_equal(
+            np.array(bytearray(b"tskit.trees"), dtype=np.int8), format_name
         )
         format_version = store["format/version"]
-        self.assertEqual(format_version[0], CURRENT_FILE_MAJOR)
-        self.assertEqual(format_version[1], CURRENT_FILE_MINOR)
-        self.assertEqual(ts.sequence_length, store["sequence_length"][0])
-        self.assertEqual(
-            str(ts.metadata_schema), "".join(store["metadata_schema"].astype("U"))
-        )
+        assert format_version[0] == CURRENT_FILE_MAJOR
+        assert format_version[1] == CURRENT_FILE_MINOR
+        assert ts.sequence_length == store["sequence_length"][0]
+        assert str(ts.metadata_schema) == "".join(store["metadata_schema"].astype("U"))
 
         # Load another copy from file so we can check the uuid.
         other_ts = tskit.load(self.temp_file)
@@ -578,59 +577,46 @@ class TestDumpFormat(TestFileFormat):
 
         tables = ts.tables
 
-        self.assertTrue(np.array_equal(tables.metadata, b"".join(store["metadata"])))
-        self.assertTrue(
-            np.array_equal(tables.individuals.flags, store["individuals/flags"])
+        assert np.array_equal(tables.metadata, b"".join(store["metadata"]))
+        assert np.array_equal(tables.individuals.flags, store["individuals/flags"])
+        assert np.array_equal(
+            tables.individuals.location, store["individuals/location"]
         )
-        self.assertTrue(
-            np.array_equal(tables.individuals.location, store["individuals/location"])
+        assert np.array_equal(
+            tables.individuals.location_offset, store["individuals/location_offset"]
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.individuals.location_offset, store["individuals/location_offset"]
-            )
+        assert np.array_equal(
+            tables.individuals.metadata, store["individuals/metadata"]
         )
-        self.assertTrue(
-            np.array_equal(tables.individuals.metadata, store["individuals/metadata"])
+        assert np.array_equal(
+            tables.individuals.metadata_offset, store["individuals/metadata_offset"]
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.individuals.metadata_offset, store["individuals/metadata_offset"]
-            )
-        )
-        self.assertEqual(
-            str(tables.individuals.metadata_schema),
-            "".join(store["individuals/metadata_schema"].astype("U")),
+        assert str(tables.individuals.metadata_schema) == "".join(
+            store["individuals/metadata_schema"].astype("U")
         )
 
-        self.assertTrue(np.array_equal(tables.nodes.flags, store["nodes/flags"]))
-        self.assertTrue(np.array_equal(tables.nodes.time, store["nodes/time"]))
-        self.assertTrue(
-            np.array_equal(tables.nodes.population, store["nodes/population"])
+        assert np.array_equal(tables.nodes.flags, store["nodes/flags"])
+        assert np.array_equal(tables.nodes.time, store["nodes/time"])
+        assert np.array_equal(tables.nodes.population, store["nodes/population"])
+        assert np.array_equal(tables.nodes.individual, store["nodes/individual"])
+        assert np.array_equal(tables.nodes.metadata, store["nodes/metadata"])
+        assert np.array_equal(
+            tables.nodes.metadata_offset, store["nodes/metadata_offset"]
         )
-        self.assertTrue(
-            np.array_equal(tables.nodes.individual, store["nodes/individual"])
-        )
-        self.assertTrue(np.array_equal(tables.nodes.metadata, store["nodes/metadata"]))
-        self.assertTrue(
-            np.array_equal(tables.nodes.metadata_offset, store["nodes/metadata_offset"])
-        )
-        self.assertEqual(
-            str(tables.nodes.metadata_schema),
-            "".join(store["nodes/metadata_schema"].astype("U")),
+        assert str(tables.nodes.metadata_schema) == "".join(
+            store["nodes/metadata_schema"].astype("U")
         )
 
-        self.assertTrue(np.array_equal(tables.edges.left, store["edges/left"]))
-        self.assertTrue(np.array_equal(tables.edges.right, store["edges/right"]))
-        self.assertTrue(np.array_equal(tables.edges.parent, store["edges/parent"]))
-        self.assertTrue(np.array_equal(tables.edges.child, store["edges/child"]))
-        self.assertTrue(np.array_equal(tables.edges.metadata, store["edges/metadata"]))
-        self.assertTrue(
-            np.array_equal(tables.edges.metadata_offset, store["edges/metadata_offset"])
+        assert np.array_equal(tables.edges.left, store["edges/left"])
+        assert np.array_equal(tables.edges.right, store["edges/right"])
+        assert np.array_equal(tables.edges.parent, store["edges/parent"])
+        assert np.array_equal(tables.edges.child, store["edges/child"])
+        assert np.array_equal(tables.edges.metadata, store["edges/metadata"])
+        assert np.array_equal(
+            tables.edges.metadata_offset, store["edges/metadata_offset"]
         )
-        self.assertEqual(
-            str(tables.edges.metadata_schema),
-            "".join(store["edges/metadata_schema"].astype("U")),
+        assert str(tables.edges.metadata_schema) == "".join(
+            store["edges/metadata_schema"].astype("U")
         )
 
         left = tables.edges.left
@@ -646,131 +632,85 @@ class TestDumpFormat(TestFileFormat):
             range(ts.num_edges),
             key=lambda j: (right[j], -time[parent[j]], -parent[j], -child[j]),
         )
-        self.assertTrue(
-            np.array_equal(
-                np.array(in_order, dtype=np.int32),
-                store["indexes/edge_insertion_order"],
-            )
+        assert np.array_equal(
+            np.array(in_order, dtype=np.int32),
+            store["indexes/edge_insertion_order"],
         )
-        self.assertTrue(
-            np.array_equal(
-                np.array(out_order, dtype=np.int32), store["indexes/edge_removal_order"]
-            )
+        assert np.array_equal(
+            np.array(out_order, dtype=np.int32), store["indexes/edge_removal_order"]
         )
 
-        self.assertTrue(
-            np.array_equal(tables.migrations.left, store["migrations/left"])
+        assert np.array_equal(tables.migrations.left, store["migrations/left"])
+        assert np.array_equal(tables.migrations.right, store["migrations/right"])
+        assert np.array_equal(tables.migrations.node, store["migrations/node"])
+        assert np.array_equal(tables.migrations.source, store["migrations/source"])
+        assert np.array_equal(tables.migrations.dest, store["migrations/dest"])
+        assert np.array_equal(tables.migrations.time, store["migrations/time"])
+        assert np.array_equal(tables.migrations.metadata, store["migrations/metadata"])
+        assert np.array_equal(
+            tables.migrations.metadata_offset, store["migrations/metadata_offset"]
         )
-        self.assertTrue(
-            np.array_equal(tables.migrations.right, store["migrations/right"])
-        )
-        self.assertTrue(
-            np.array_equal(tables.migrations.node, store["migrations/node"])
-        )
-        self.assertTrue(
-            np.array_equal(tables.migrations.source, store["migrations/source"])
-        )
-        self.assertTrue(
-            np.array_equal(tables.migrations.dest, store["migrations/dest"])
-        )
-        self.assertTrue(
-            np.array_equal(tables.migrations.time, store["migrations/time"])
-        )
-        self.assertTrue(
-            np.array_equal(tables.migrations.metadata, store["migrations/metadata"])
-        )
-        self.assertTrue(
-            np.array_equal(
-                tables.migrations.metadata_offset, store["migrations/metadata_offset"]
-            )
-        )
-        self.assertEqual(
-            str(tables.migrations.metadata_schema),
-            "".join(store["migrations/metadata_schema"].astype("U")),
+        assert str(tables.migrations.metadata_schema) == "".join(
+            store["migrations/metadata_schema"].astype("U")
         )
 
-        self.assertTrue(np.array_equal(tables.sites.position, store["sites/position"]))
-        self.assertTrue(
-            np.array_equal(tables.sites.ancestral_state, store["sites/ancestral_state"])
+        assert np.array_equal(tables.sites.position, store["sites/position"])
+        assert np.array_equal(
+            tables.sites.ancestral_state, store["sites/ancestral_state"]
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.sites.ancestral_state_offset,
-                store["sites/ancestral_state_offset"],
-            )
+        assert np.array_equal(
+            tables.sites.ancestral_state_offset,
+            store["sites/ancestral_state_offset"],
         )
-        self.assertTrue(np.array_equal(tables.sites.metadata, store["sites/metadata"]))
-        self.assertTrue(
-            np.array_equal(tables.sites.metadata_offset, store["sites/metadata_offset"])
+        assert np.array_equal(tables.sites.metadata, store["sites/metadata"])
+        assert np.array_equal(
+            tables.sites.metadata_offset, store["sites/metadata_offset"]
         )
-        self.assertEqual(
-            str(tables.sites.metadata_schema),
-            "".join(store["sites/metadata_schema"].astype("U")),
+        assert str(tables.sites.metadata_schema) == "".join(
+            store["sites/metadata_schema"].astype("U")
         )
 
-        self.assertTrue(np.array_equal(tables.mutations.site, store["mutations/site"]))
-        self.assertTrue(np.array_equal(tables.mutations.node, store["mutations/node"]))
+        assert np.array_equal(tables.mutations.site, store["mutations/site"])
+        assert np.array_equal(tables.mutations.node, store["mutations/node"])
         # Default mutation time is a NaN value so we want to check for
         # bit equality, not numeric equality
-        self.assertEqual(
-            tables.mutations.time.tobytes(), store["mutations/time"].tobytes()
+        assert tables.mutations.time.tobytes() == store["mutations/time"].tobytes()
+        assert np.array_equal(tables.mutations.parent, store["mutations/parent"])
+        assert np.array_equal(
+            tables.mutations.derived_state, store["mutations/derived_state"]
         )
-        self.assertTrue(
-            np.array_equal(tables.mutations.parent, store["mutations/parent"])
+        assert np.array_equal(
+            tables.mutations.derived_state_offset,
+            store["mutations/derived_state_offset"],
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.mutations.derived_state, store["mutations/derived_state"]
-            )
+        assert np.array_equal(tables.mutations.metadata, store["mutations/metadata"])
+        assert np.array_equal(
+            tables.mutations.metadata_offset, store["mutations/metadata_offset"]
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.mutations.derived_state_offset,
-                store["mutations/derived_state_offset"],
-            )
-        )
-        self.assertTrue(
-            np.array_equal(tables.mutations.metadata, store["mutations/metadata"])
-        )
-        self.assertTrue(
-            np.array_equal(
-                tables.mutations.metadata_offset, store["mutations/metadata_offset"]
-            )
-        )
-        self.assertEqual(
-            str(tables.mutations.metadata_schema),
-            "".join(store["mutations/metadata_schema"].astype("U")),
+        assert str(tables.mutations.metadata_schema) == "".join(
+            store["mutations/metadata_schema"].astype("U")
         )
 
-        self.assertTrue(
-            np.array_equal(tables.populations.metadata, store["populations/metadata"])
+        assert np.array_equal(
+            tables.populations.metadata, store["populations/metadata"]
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.populations.metadata_offset, store["populations/metadata_offset"]
-            )
+        assert np.array_equal(
+            tables.populations.metadata_offset, store["populations/metadata_offset"]
         )
-        self.assertEqual(
-            str(tables.populations.metadata_schema),
-            "".join(store["populations/metadata_schema"].astype("U")),
+        assert str(tables.populations.metadata_schema) == "".join(
+            store["populations/metadata_schema"].astype("U")
         )
 
-        self.assertTrue(
-            np.array_equal(tables.provenances.record, store["provenances/record"])
+        assert np.array_equal(tables.provenances.record, store["provenances/record"])
+        assert np.array_equal(
+            tables.provenances.record_offset, store["provenances/record_offset"]
         )
-        self.assertTrue(
-            np.array_equal(
-                tables.provenances.record_offset, store["provenances/record_offset"]
-            )
+        assert np.array_equal(
+            tables.provenances.timestamp, store["provenances/timestamp"]
         )
-        self.assertTrue(
-            np.array_equal(tables.provenances.timestamp, store["provenances/timestamp"])
-        )
-        self.assertTrue(
-            np.array_equal(
-                tables.provenances.timestamp_offset,
-                store["provenances/timestamp_offset"],
-            )
+        assert np.array_equal(
+            tables.provenances.timestamp_offset,
+            store["provenances/timestamp_offset"],
         )
 
         store.close()
@@ -827,7 +767,7 @@ class TestUuid(TestFileFormat):
             ts.dump(self.temp_file)
             with kastore.load(self.temp_file) as store:
                 uuids.append(store["uuid"].tobytes().decode())
-        self.assertEqual(len(uuids), len(set(uuids)))
+        assert len(uuids) == len(set(uuids))
 
 
 class TestOptionalColumns(TestFileFormat):
@@ -839,8 +779,8 @@ class TestOptionalColumns(TestFileFormat):
         ts1 = migration_example()
         ts1.dump(self.temp_file)
         ts2 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables, ts2.tables)
-        self.assertEqual(len(ts1.tables.edges.metadata), 0)
+        assert ts1.tables == ts2.tables
+        assert len(ts1.tables.edges.metadata) == 0
 
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
@@ -848,14 +788,14 @@ class TestOptionalColumns(TestFileFormat):
         del all_data["edges/metadata_offset"]
         kastore.dump(all_data, self.temp_file)
         ts3 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables, ts3.tables)
+        assert ts1.tables == ts3.tables
 
     def test_empty_migration_metadata(self):
         ts1 = migration_example()
         ts1.dump(self.temp_file)
         ts2 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables, ts2.tables)
-        self.assertEqual(len(ts1.tables.migrations.metadata), 0)
+        assert ts1.tables == ts2.tables
+        assert len(ts1.tables.migrations.metadata) == 0
 
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
@@ -863,20 +803,20 @@ class TestOptionalColumns(TestFileFormat):
         del all_data["migrations/metadata_offset"]
         kastore.dump(all_data, self.temp_file)
         ts3 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables, ts3.tables)
+        assert ts1.tables == ts3.tables
 
     def test_empty_mutation_time(self):
         ts1 = migration_example()
         ts1.dump(self.temp_file)
         ts2 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables, ts2.tables)
-        self.assertEqual(len(ts1.tables.mutations.metadata), 0)
+        assert ts1.tables == ts2.tables
+        assert len(ts1.tables.mutations.metadata) == 0
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
         del all_data["mutations/time"]
         kastore.dump(all_data, self.temp_file)
         ts3 = tskit.load(self.temp_file)
-        self.assertEqual(ts1.tables, ts3.tables)
+        assert ts1.tables == ts3.tables
 
 
 class TestFileFormatErrors(TestFileFormat):
@@ -897,7 +837,7 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(all_data)
                 del data[key]
                 kastore.dump(data, self.temp_file)
-                with self.assertRaises(
+                with pytest.raises(
                     (exceptions.FileFormatError, exceptions.LibraryError)
                 ):
                     tskit.load(self.temp_file)
@@ -926,7 +866,7 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(all_data)
                 data[col] = bad_val
                 kastore.dump(data, self.temp_file)
-                with self.assertRaises(exceptions.FileFormatError):
+                with pytest.raises(exceptions.FileFormatError):
                     tskit.load(self.temp_file)
 
     def test_equal_length_columns(self):
@@ -950,7 +890,7 @@ class TestFileFormatErrors(TestFileFormat):
             for bad_col_length in [[], range(2 * num_rows)]:
                 data[offset_col] = bad_col_length
                 kastore.dump(data, self.temp_file)
-                with self.assertRaises(exceptions.FileFormatError):
+                with pytest.raises(exceptions.FileFormatError):
                     tskit.load(self.temp_file)
 
             # Check for a bad offset
@@ -960,7 +900,7 @@ class TestFileFormatErrors(TestFileFormat):
             data[offset_col] = np.zeros_like(original_offset)
             data[col] = np.zeros(10, dtype=original_col.dtype)
             kastore.dump(data, self.temp_file)
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 tskit.load(self.temp_file)
 
     def test_offset_columns(self):
@@ -980,41 +920,43 @@ class TestFileFormatErrors(TestFileFormat):
         del data[edge_removal_order]
         del data[edge_insertion_order]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.LibraryError):
+        with pytest.raises(exceptions.LibraryError):
             tskit.load(self.temp_file)
 
         data = dict(all_data)
         del data[edge_removal_order]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.LibraryError):
+        with pytest.raises(exceptions.LibraryError):
             tskit.load(self.temp_file)
 
         data = dict(all_data)
         del data[edge_insertion_order]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.LibraryError):
+        with pytest.raises(exceptions.LibraryError):
             tskit.load(self.temp_file)
 
         data = dict(all_data)
         data[edge_insertion_order] = data[edge_insertion_order][:1]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.FileFormatError):
+        with pytest.raises(exceptions.FileFormatError):
             tskit.load(self.temp_file)
 
         data = dict(all_data)
         data[edge_removal_order] = data[edge_removal_order][:1]
         kastore.dump(data, self.temp_file)
-        with self.assertRaises(exceptions.FileFormatError):
+        with pytest.raises(exceptions.FileFormatError):
             tskit.load(self.temp_file)
 
     def test_load_empty_kastore(self):
         kastore.dump({}, self.temp_file)
-        self.assertRaises(exceptions.LibraryError, tskit.load, self.temp_file)
+        with pytest.raises(exceptions.LibraryError):
+            tskit.load(self.temp_file)
 
     def test_load_non_tskit_hdf5(self):
         with h5py.File(self.temp_file, "w") as root:
             root["x"] = np.zeros(10)
-        self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+        with pytest.raises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)
 
     def test_old_version_load_error(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -1024,7 +966,8 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(store)
             data["format/version"] = np.array(bad_version, dtype=np.uint32)
             kastore.dump(data, self.temp_file)
-            self.assertRaises(tskit.VersionTooOldError, tskit.load, self.temp_file)
+            with pytest.raises(tskit.VersionTooOldError):
+                tskit.load(self.temp_file)
 
     def test_new_version_load_error(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -1034,7 +977,8 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(store)
             data["format/version"] = np.array(bad_version, dtype=np.uint32)
             kastore.dump(data, self.temp_file)
-            self.assertRaises(tskit.VersionTooNewError, tskit.load, self.temp_file)
+            with pytest.raises(tskit.VersionTooNewError):
+                tskit.load(self.temp_file)
 
     def test_format_name_error(self):
         ts = msprime.simulate(10)
@@ -1044,17 +988,21 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(store)
             data["format/name"] = np.array(bytearray(bad_name.encode()), dtype=np.int8)
             kastore.dump(data, self.temp_file)
-            self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+            with pytest.raises(exceptions.FileFormatError):
+                tskit.load(self.temp_file)
 
     def test_load_bad_formats(self):
         # try loading a bunch of files in various formats.
         # First, check the empty file.
-        self.assertRaises(EOFError, tskit.load, self.temp_file)
+        with pytest.raises(EOFError):
+            tskit.load(self.temp_file)
         # Now some ascii text
         with open(self.temp_file, "wb") as f:
             f.write(b"Some ASCII text")
-        self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+        with pytest.raises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)
         # Now write 8k of random bytes
         with open(self.temp_file, "wb") as f:
             f.write(os.urandom(8192))
-        self.assertRaises(exceptions.FileFormatError, tskit.load, self.temp_file)
+        with pytest.raises(exceptions.FileFormatError):
+            tskit.load(self.temp_file)

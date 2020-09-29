@@ -47,11 +47,11 @@ def _get_v2_provenance(command, attrs):
     try:
         environment = json.loads(str(attrs["environment"]))
     except ValueError:
-        logging.warn("Failed to convert environment provenance")
+        logging.warning("Failed to convert environment provenance")
     try:
         parameters = json.loads(str(attrs["parameters"]))
     except ValueError:
-        logging.warn("Failed to convert parameters provenance")
+        logging.warning("Failed to convert parameters provenance")
     parameters["command"] = command
     provenance_dict = provenance.get_provenance_dict(parameters)
     provenance_dict["version"] = environment.get("msprime_version", "Unknown_version")

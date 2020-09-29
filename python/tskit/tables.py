@@ -46,7 +46,7 @@ attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 
 
 # note: soon attrs will deprecate cmp; we just need to change this argument to eq
-@attr.s(cmp=False, **attr_options)
+@attr.s(eq=False, **attr_options)
 class IndividualTableRow:
     flags: int
     location: np.ndarray

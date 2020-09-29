@@ -22,17 +22,15 @@
 """
 Test python package versioning
 """
-import unittest
-
 from packaging.version import Version
 
 from tskit import _version
 
 
-class TestPythonVersion(unittest.TestCase):
+class TestPythonVersion:
     """
     Test that the version is PEP440 compliant
     """
 
     def test_version(self):
-        self.assertEqual(str(Version(_version.tskit_version)), _version.tskit_version)
+        assert str(Version(_version.tskit_version)) == _version.tskit_version

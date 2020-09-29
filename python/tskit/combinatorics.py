@@ -147,7 +147,7 @@ class TopologyCounter:
 
     @staticmethod
     def _to_key(sample_set_indexes):
-        if not isinstance(sample_set_indexes, collections.Iterable):
+        if not isinstance(sample_set_indexes, collections.abc.Iterable):
             sample_set_indexes = (sample_set_indexes,)
         return tuple(sorted(sample_set_indexes))
 

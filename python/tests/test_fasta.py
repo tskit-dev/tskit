@@ -27,9 +27,9 @@ import io
 import itertools
 import os
 import tempfile
-import unittest
 
 import msprime
+import pytest
 from Bio import SeqIO
 
 from tests import tsutil
@@ -45,7 +45,7 @@ def create_data(length):
     return ts
 
 
-class TestLineLength(unittest.TestCase):
+class TestLineLength:
     """
     Tests if the fasta file produced has the correct line lengths for
     default, custom, and no-wrapping options.
@@ -83,19 +83,19 @@ class TestLineLength(unittest.TestCase):
                 line_chars = len(line.strip("\n"))
                 # test full default width lines
                 if seq_line_counter < lines_expect:
-                    self.assertEqual(wrap_width, line_chars)
+                    assert wrap_width == line_chars
                 elif no_hanging_line:
-                    self.assertEqual(wrap_width, line_chars)
+                    assert wrap_width == line_chars
                 # test extra line if not perfectly divided by wrap_width
                 else:
-                    self.assertEqual(extra_line_length, line_chars)
+                    assert extra_line_length == line_chars
             # testing correct number of lines per sequence and correct num sequences
             else:
                 id_lines += 1
                 if seq_line_counter > 0:
-                    self.assertEqual(lines_expect, seq_line_counter)
+                    assert lines_expect == seq_line_counter
                     seq_line_counter = 0
-        self.assertEqual(id_lines, ts.num_samples)
+        assert id_lines == ts.num_samples
 
     def test_wrap_length_default_easy(self):
         # default wrap width (60) perfectly divides sequence length
@@ -119,11 +119,11 @@ class TestLineLength(unittest.TestCase):
 
     def test_bad_wrap(self):
         ts = create_data(100)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.write_fasta(io.StringIO(), wrap_width=-1)
 
 
-class TestSequenceIds(unittest.TestCase):
+class TestSequenceIds:
     """
     Tests that sequence IDs are output correctly, whether default or custom
     and that the length of IDs supplied must equal number of sequences
@@ -142,11 +142,11 @@ class TestSequenceIds(unittest.TestCase):
         # test default seq ids
         if seq_ids_in in [None]:
             for i, val in enumerate(seq_ids_read):
-                self.assertEqual(f"tsk_{i}", val)
+                assert f"tsk_{i}" == val
         # test custom seq ids
         else:
             for i, j in itertools.zip_longest(seq_ids_in, seq_ids_read):
-                self.assertEqual(i, j)
+                assert i == j
 
     def test_default_ids(self):
         # test that default sequence ids, immediately following '>', are as expected
@@ -161,18 +161,18 @@ class TestSequenceIds(unittest.TestCase):
 
     def test_bad_length_ids(self):
         ts = create_data(100)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples - 1)]
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples + 1)]
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             seq_ids_in = []
             ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
 
 
-class TestRoundTrip(unittest.TestCase):
+class TestRoundTrip:
     """
     Tests that output from our code is read in by available software packages
     Here test for compatability with biopython processing - Bio.SeqIO
@@ -189,7 +189,7 @@ class TestRoundTrip(unittest.TestCase):
                     biopython_fasta_read.append(record.seq)
 
         for i, j in itertools.zip_longest(biopython_fasta_read, ts.haplotypes()):
-            self.assertEqual(i, j)
+            assert i == j
 
     def test_equal_lines(self):
         # sequence length perfectly divisible by wrap_width

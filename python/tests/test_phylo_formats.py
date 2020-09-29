@@ -28,6 +28,7 @@ import unittest
 
 import msprime
 import newick
+import pytest
 from Bio.Nexus import Nexus
 
 import tskit
@@ -56,7 +57,7 @@ class TreeExamples(unittest.TestCase):
             if len(e.children) > 2:
                 found = True
                 break
-        self.assertTrue(found)
+        assert found
         return ts
 
     def get_binary_example(self):
@@ -98,7 +99,7 @@ class TestNewick(TreeExamples):
             leaf_labels = {u: node_labels[u] for u in tree.leaves(root)}
         newick_tree = newick.loads(ns)[0]
         leaf_names = newick_tree.get_leaf_names()
-        self.assertEqual(sorted(leaf_names), sorted(leaf_labels.values()))
+        assert sorted(leaf_names) == sorted(leaf_labels.values())
         for u in tree.leaves(root):
             name = leaf_labels[u]
             node = newick_tree.get_node(name)
@@ -106,7 +107,7 @@ class TestNewick(TreeExamples):
                 self.assertAlmostEqual(node.length, tree.branch_length(u))
                 node = node.ancestor
                 u = tree.parent(u)
-            self.assertIsNone(node.ancestor)
+            assert node.ancestor is None
 
     def test_nonbinary_tree(self):
         ts = self.get_nonbinary_example()
@@ -121,7 +122,8 @@ class TestNewick(TreeExamples):
     def test_multiroot(self):
         ts = self.get_multiroot_example()
         t = ts.first()
-        self.assertRaises(ValueError, t.newick)
+        with pytest.raises(ValueError):
+            t.newick()
         for root in t.roots:
             self.verify_newick_topology(t, root=root)
 
@@ -147,19 +149,18 @@ class TestNewick(TreeExamples):
         labels = {u: f"x_{u}" for u in tree.nodes()}
         ns = tree.newick(node_labels=labels)
         root = newick.loads(ns)[0]
-        self.assertEqual(root.name, labels[tree.root])
-        self.assertEqual(sorted([n.name for n in root.walk()]), sorted(labels.values()))
+        assert root.name == labels[tree.root]
+        assert sorted([n.name for n in root.walk()]) == sorted(labels.values())
 
     def test_single_node_label(self):
         tree = msprime.simulate(5, random_seed=2).first()
         labels = {tree.root: "XXX"}
         ns = tree.newick(node_labels=labels)
         root = newick.loads(ns)[0]
-        self.assertEqual(root.name, labels[tree.root])
-        self.assertEqual(
-            [n.name for n in root.walk()],
-            [labels[tree.root]] + [None for _ in range(len(list(tree.nodes())) - 1)],
-        )
+        assert root.name == labels[tree.root]
+        assert [n.name for n in root.walk()] == [labels[tree.root]] + [
+            None for _ in range(len(list(tree.nodes())) - 1)
+        ]
 
 
 class TestNexus(TreeExamples):
@@ -169,7 +170,7 @@ class TestNexus(TreeExamples):
     """
 
     def verify_tree(self, nexus_tree, tsk_tree):
-        self.assertEqual(len(nexus_tree.get_terminals()), tsk_tree.num_samples())
+        assert len(nexus_tree.get_terminals()) == tsk_tree.num_samples()
 
         bio_node_map = {}
         for node_id in nexus_tree.all_ids():
@@ -184,25 +185,23 @@ class TestNexus(TreeExamples):
                 bio_node.data.branchlength, tsk_tree.branch_length(u)
             )
             if tsk_tree.parent(u) == tskit.NULL:
-                self.assertEqual(bio_node.prev, None)
+                assert bio_node.prev is None
             else:
                 bio_node_parent = nexus_tree.node(bio_node.prev)
                 parent = tsk_tree.tree_sequence.node(tsk_tree.parent(u))
-                self.assertEqual(
-                    bio_node_parent.data.taxon, f"tsk_{parent.id}_{parent.flags}"
-                )
-        self.assertEqual(len(bio_node_map), 0)
+                assert bio_node_parent.data.taxon == f"tsk_{parent.id}_{parent.flags}"
+        assert len(bio_node_map) == 0
 
     def verify_nexus_topology(self, treeseq):
         nexus = treeseq.to_nexus(precision=16)
         nexus_treeseq = Nexus.Nexus(nexus)
-        self.assertEqual(treeseq.num_trees, len(nexus_treeseq.trees))
+        assert treeseq.num_trees == len(nexus_treeseq.trees)
         for tree, nexus_tree in itertools.zip_longest(
             treeseq.trees(), nexus_treeseq.trees
         ):
             name = nexus_tree.name
             split_name = name.split("_")
-            self.assertEqual(len(split_name), 2)
+            assert len(split_name) == 2
             start = float(split_name[0][4:])
             end = float(split_name[1])
             self.assertAlmostEqual(tree.interval[0], start)
@@ -224,7 +223,8 @@ class TestNexus(TreeExamples):
 
     def test_multiroot(self):
         ts = self.get_multiroot_example()
-        self.assertRaises(ValueError, ts.to_nexus)
+        with pytest.raises(ValueError):
+            ts.to_nexus()
 
     def test_many_trees(self):
         ts = msprime.simulate(4, recombination_rate=2, random_seed=123)

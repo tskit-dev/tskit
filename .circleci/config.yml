@@ -123,9 +123,8 @@ jobs:
       - run:
           name: Run Python tests
           command: |
-            PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
-              --cover-branches --cover-erase --cover-xml \
-              --cover-inclusive python/tests
+            PYTHONPATH=python pytest --cov=python/tskit  --cov-report=xml --cov-branch \
+            -n `nproc` python
 
       - run:
           name: Upload Python coverage
