@@ -1,9 +1,12 @@
 ---------------------
-[0.99.7] - 2020-XX-XX
+[0.99.7] - 2020-09-29
 ---------------------
 
 - Added ``TSK_INCLUDE_TERMINAL`` option to ``tsk_diff_iter_init`` to output the last edges
   at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`)
+
+- Added ``tsk_bug_assert`` for assertions that should be compiled into release binaries
+  (:user:`benjeffery`, :pr:`860`)
 
 ---------------------
 [0.99.6] - 2020-09-04
