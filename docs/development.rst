@@ -914,6 +914,99 @@ the C and Python APIs.
     latest/development.html#rebasing>`_ if necessary!) and let the community check
     your work.
 
+***************
+Troubleshooting
+***************
+
+--------------------------
+pre-commit is blocking me!
+--------------------------
+
+You might be having a hard time committing because of the "pre-commit" checks
+(described above). First, consider: the pre-commit hooks are supposed to make your life *easier*,
+not add a layer of frustration to contributing.
+So, you should feel free to just ask git to skip the pre-commit!
+There's no shame in a broken build - you can get it fixed up (and we'll help)
+before it's merged into the rest of the project.
+To skip, just append `--no-verify` to the `git commit` command.
+Below are some more specific situations.
+
+----------------------------------------------
+pre-commit complains about files I didn't edit
+----------------------------------------------
+
+For instance, suppose you have *not* edited `util.py` and yet:
+
+.. code-block:: bash
+
+   > git commit -a -m 'dev docs'
+   python/tskit/util.py:117:26: E203 whitespace before ':'
+   python/tskit/util.py:135:31: E203 whitespace before ':'
+   python/tskit/util.py:195:23: E203 whitespace before ':'
+   python/tskit/util.py:213:36: E203 whitespace before ':'
+   ... lots more, gah, what is this ...
+
+First, check (with `git status`) that you didn't actually edit `util.py`.
+Then, you should **not** try to fix these errors; this is **not your problem**.
+You might first try restarting your pre-commit, by running
+
+.. code-block:: bash
+
+   pre-commit clean
+   pre-commit gc
+
+You might also check you don't have other pre-commit hook files in `.git/hooks`.
+If this doesn't fix the problem,
+then you should just *skip* the pre-commit (but alert us to the problem),
+by appending `--no-verify`:
+
+.. code-block:: bash
+
+   > git commit -a -m 'dev docs' --no-verify
+   [main 46f3f2e] dev docs
+    1 file changed, 43 insertions(+)
+
+Now you can go ahead and push your changes!
+
+
+--------------------
+pre-commit won't run
+--------------------
+
+For instance:
+
+.. code-block:: bash
+
+   > git commit -a -m 'fixed all the things'
+   /usr/bin/env: ‘python3.7’: No such file or directory
+
+What the heck? Why is this even looking for python3.7?
+This is because of the "pre-commit hook", mentioned above.
+As above, you can proceed by just appending `--no-verify`:
+
+.. code-block:: bash
+
+   > git commit -a -m 'fixed all the things' --no-verify
+   [main 99a01da] fixed all the things
+    1 file changed, 10 insertions(+)
+
+We'll help you sort it out in the PR.
+But, you should fix the problem at some point. In this case,
+uninstalling and reinstalling the pre-commit hooks fixed the problem:
+
+.. code-block:: bash
+
+   > pre-commit uninstall
+   pre-commit uninstalled
+   Restored previous hooks to .git/hooks/pre-commit
+   > pre-commit install -f
+   pre-commit installed at .git/hooks/pre-commit
+   > # do some more edits
+   > git commit -a -m 'wrote the docs'
+   [main 79b81ff] fixed all the things
+    1 file changed, 42 insertions(+)
+      
+
 ***********************
 Releasing a new version
 ***********************
