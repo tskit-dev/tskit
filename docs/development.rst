@@ -382,8 +382,8 @@ Tests
 -----
 
 The tests are defined in the ``tests`` directory, and run using
-`pytest <https://docs.pytest.org/en/stable/>`_. If you want to run
-the tests in a particular module (say, ``test_tables.py``), use:
+`pytest <https://docs.pytest.org/en/stable/>`_ from the `python` directory.
+If you want to run the tests in a particular module (say, ``test_tables.py``), use:
 
 .. code-block:: bash
 
@@ -419,7 +419,7 @@ To run all of the tests, we can use:
 
     $ python3 -m pytest
 
-As tskit's test suite is large, it is helpful to run the tests in parallel, e.g.:
+By default the tests are run on 4 cores, if you have more you can specify:
 
 .. code-block:: bash
 
@@ -430,14 +430,14 @@ under 20 seconds on an modern workstation:
 
 .. code-block:: bash
 
-    $ python3 -m pytest -n8 --skip-slow
+    $ python3 -m pytest --skip-slow
 
 If you have a lot of failing tests it can be useful to have a shorter summary
 of the failing lines:
 
 .. code-block:: bash
 
-    $ python3 -m pytest -n8 --tb=line
+    $ python3 -m pytest --tb=line
 
 All new code must have high test coverage, which will be checked as part of the
 :ref:`sec_development_continuous_integration`
