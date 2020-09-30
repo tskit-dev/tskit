@@ -45,7 +45,6 @@ from tskit import UNKNOWN_TIME
 attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 
 
-# note: soon attrs will deprecate cmp; we just need to change this argument to eq
 @attr.s(eq=False, **attr_options)
 class IndividualTableRow:
     flags: int
