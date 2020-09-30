@@ -36,7 +36,7 @@ install:
   - conda info -a
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  # We shouldn't need to do this, but we get compile failures otherwise as the 
+  # We shouldn't need to do this, but we get compile failures otherwise as the
   # gcc we're looking for is missing.
   - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
       conda install -c conda-forge gxx_linux-64;
@@ -50,9 +50,10 @@ install:
   - pip install -e python
 
 script:
+  - cd python
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      pytest -n `sysctl -n hw.ncpu` python;
+      pytest -n `sysctl -n hw.ncpu`;
     else
-      pytest -n `nproc` python;
+      pytest -n `nproc`;
     fi
 

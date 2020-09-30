@@ -123,8 +123,8 @@ jobs:
       - run:
           name: Run Python tests
           command: |
-            PYTHONPATH=python pytest --cov=python/tskit  --cov-report=xml --cov-branch \
-            -n `nproc` python
+            cd python
+            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n `nproc` tests
 
       - run:
           name: Upload Python coverage
@@ -159,3 +159,12 @@ jobs:
             python setup.py bdist_wheel
             pip install dist/*.tar.gz
             tskit --help
+
+      - run:
+          name: Build example LWT interface code and test
+          command: |
+            # We're assuming that the tskit C module has already
+            # been built, as we're testing against the local tskit version.
+            cd python/lwt_interface
+            make allchecks
+            python -m pytest
