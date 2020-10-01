@@ -4589,14 +4589,17 @@ class TreeSequence:
         Returns a copy of this tree sequence for which information in the
         specified list of genomic intervals has been deleted. Edges spanning these
         intervals are truncated or deleted, and sites and mutations falling within
-        them are discarded.
+        them are discarded. Note that it is the information in the intervals that
+        is deleted, not the intervals themselves, so in particular, all samples
+        will be isolated in the deleted intervals.
 
         Note that node IDs may change as a result of this operation,
         as by default :meth:`.simplify` is called on the returned tree sequence
         to remove redundant nodes. If you wish to map node IDs onto the same
         nodes before and after this method has been called, specify ``simplify=False``.
 
-        See also :meth:`.keep_intervals`.
+        See also :meth:`.keep_intervals`, :meth:`.ltrim`, :meth:`.rtrim`, and
+        :ref:`missing data<sec_data_model_missing_data>`.
 
         :param array_like intervals: A list (start, end) pairs describing the
             genomic intervals to delete. Intervals must be non-overlapping and
@@ -4617,14 +4620,17 @@ class TreeSequence:
         Returns a copy of this tree sequence which includes only information in
         the specified list of genomic intervals. Edges are truncated to lie within
         these intervals, and sites and mutations falling outside these intervals
-        are discarded.
+        are discarded.  Note that it is the information outside the intervals that
+        is deleted, not the intervals themselves, so in particular, all samples
+        will be isolated outside of the retained intervals.
 
         Note that node IDs may change as a result of this operation,
         as by default :meth:`.simplify` is called on the returned tree sequence
         to remove redundant nodes. If you wish to map node IDs onto the same
         nodes before and after this method has been called, specify ``simplify=False``.
 
-        See also :meth:`.delete_intervals`.
+        See also :meth:`.keep_intervals`, :meth:`.ltrim`, :meth:`.rtrim`, and
+        :ref:`missing data<sec_data_model_missing_data>`.
 
         :param array_like intervals: A list (start, end) pairs describing the
             genomic intervals to keep. Intervals must be non-overlapping and
