@@ -5691,6 +5691,16 @@ class TreeSequence:
         "node"
             Not supported for this method (raises a ValueError).
 
+        For example, suppose that `S0` is a list of 5 sample IDs, and `S1` is
+        a list of 3 other sample IDs. Then `afs = ts.allele_frequency_spectrum([S0, S1],
+        mode="site", span_normalise=False)` will be a 5x3 numpy array, and if
+        there are six alleles that are present in only one sample of `S0` but
+        two samples of `S1`, then `afs[1,2]` will be equal to 6.  Similarly,
+        `branch_afs = ts.allele_frequency_spectrum([S0, S1], mode="branch",
+        span_normalise=False)` will also be a 5x3 array, and `branch_afs[1,2]`
+        will be the total area (i.e., length times span) of all branches that
+        are above exactly one sample of `S0` and two samples of `S1`.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of samples to compute the joint allele frequency
         :param list windows: An increasing list of breakpoints between windows
