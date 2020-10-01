@@ -21,7 +21,7 @@ pysam==0.16.0.1
 pytest==6.1.0
 pytest-cov==2.10.1
 pytest-xdist==2.1.0
-python-jsonschema-objects==0.3.12
+python-jsonschema-objects==0.3.13
 PyVCF==0.6.8
 sphinx==3.2.1
 sphinx-argparse==0.2.5
