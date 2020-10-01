@@ -13,7 +13,7 @@ msgpack==1.0.0
 msprime==0.7.4
 networkx==2.5
 newick==1.0.0
-numpy==1.19.1
+numpy==1.19.2
 portion==2.1.1
 pre-commit==2.7.1
 pyparsing==2.4.7
