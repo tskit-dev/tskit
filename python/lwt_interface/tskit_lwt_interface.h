@@ -1,8 +1,35 @@
-/* TODO document what this file is. */
-/* A lightweight wrapper for a table collection. This serves only as a wrapper
- * around a pointer and a way to data in-and-out of the low level structures
- * via the canonical dictionary encoding.
+/*
+ * MIT License
+ *
+ * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2015-2018 University of Oxford
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
+
+/* This file defines the LightweightTableCollection class using the
+ * Python-C interface. It is intended to be #include-d and compiled
+ * into third-party Python modules that use the tskit C interface.
+ * See https://github.com/tskit-dev/tskit/tree/main/python/lwt_interface
+ * for details and usage examples.
+ */
+
 typedef struct {
     PyObject_HEAD
     tsk_table_collection_t *tables;
@@ -1681,10 +1708,6 @@ out:
     return ret;
 }
 
-static PyMemberDef LightweightTableCollection_members[] = {
-    {NULL}  /* Sentinel */
-};
-
 static PyMethodDef LightweightTableCollection_methods[] = {
     {"asdict", (PyCFunction) LightweightTableCollection_asdict,
         METH_NOARGS, "Returns the tables encoded as a dictionary."},
@@ -1695,47 +1718,20 @@ static PyMethodDef LightweightTableCollection_methods[] = {
 
 static PyTypeObject LightweightTableCollectionType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "_msprime.LightweightTableCollection",             /* tp_name */
-    sizeof(LightweightTableCollection),             /* tp_basicsize */
-    0,                         /* tp_itemsize */
-    (destructor)LightweightTableCollection_dealloc, /* tp_dealloc */
-    0,                         /* tp_print */
-    0,                         /* tp_getattr */
-    0,                         /* tp_setattr */
-    0,                         /* tp_reserved */
-    0,                         /* tp_repr */
-    0,                         /* tp_as_number */
-    0,                         /* tp_as_sequence */
-    0,                         /* tp_as_mapping */
-    0,                         /* tp_hash  */
-    0,                         /* tp_call */
-    0,                         /* tp_str */
-    0,                         /* tp_getattro */
-    0,                         /* tp_setattro */
-    0,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,        /* tp_flags */
-    "LightweightTableCollection objects",           /* tp_doc */
-    0,                     /* tp_traverse */
-    0,                     /* tp_clear */
-    0,                     /* tp_richcompare */
-    0,                     /* tp_weaklistoffset */
-    0,                     /* tp_iter */
-    0,                     /* tp_iternext */
-    LightweightTableCollection_methods,             /* tp_methods */
-    LightweightTableCollection_members,             /* tp_members */
-    0,                         /* tp_getset */
-    0,                         /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    (initproc)LightweightTableCollection_init,      /* tp_init */
+    .tp_name = "LightweightTableCollection",
+    .tp_doc = "Low-level table collection interchange.",
+    .tp_basicsize = sizeof(LightweightTableCollection),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_methods = LightweightTableCollection_methods,
+    .tp_init = (initproc) LightweightTableCollection_init,
+    .tp_dealloc = (destructor) LightweightTableCollection_dealloc,
 };
 
 static int
 register_lwt_class(PyObject *module)
 {
-    LightweightTableCollectionType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&LightweightTableCollectionType) < 0) {
         return -1;
     }
