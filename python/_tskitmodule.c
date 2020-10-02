@@ -51,7 +51,7 @@ static PyObject *TskitFileFormatError;
 static PyObject *TskitVersionTooOldError;
 static PyObject *TskitVersionTooNewError;
 
-#include "_tskit_lwt_interface.h"
+#include "tskit_lwt_interface.h"
 
 /* The XTable classes each have 'lock' attribute, which is used to
  * raise an error if a Python thread attempts to access a table

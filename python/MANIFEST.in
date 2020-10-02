@@ -1,5 +1,5 @@
 include LICENSE
-include _tskit_lwt_interface.h
+include lwt_interface/tskit_lwt_interface.h
 include lib/subprojects/kastore/kastore.h
 include lib/tskit.h
 include lib/tskit/*.h
