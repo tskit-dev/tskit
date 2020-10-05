@@ -1,0 +1,11 @@
+attrs>=19.2.0
+autodocsumm==0.1.13 #Pinned as errors on 0.2.0
+breathe
+h5py>=2.6.0
+jsonschema>=3.0.0
+numpy
+sphinx
+sphinx-argparse
+sphinx-issues
+sphinx_rtd_theme
+svgwrite>=1.1.10
