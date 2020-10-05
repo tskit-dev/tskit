@@ -50,7 +50,7 @@ jobs:
         if: (!github.event.pull_request)
         run: |
           cd tskit-docs
-          cp -r docs/_build/html ${GITHUB_REF#refs/tags/}
+          cp -r ../docs/_build/html ${GITHUB_REF#refs/tags/}
 
       - name: Commit and push the docs
         run: |
