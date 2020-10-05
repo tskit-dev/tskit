@@ -148,6 +148,12 @@ Workflow
 Git workflow
 ------------
 
+If you would like to make an addition to tskit, then follow the steps below
+to get things set up.
+If you would just like to review someone else's proposed changes
+(either to the code or to the docs), then
+skip to :ref:`sec_development_workflow_anothers_commit`.
+
 1. Make your own `fork <https://help.github.com/articles/fork-a-repo/>`_
    of the ``tskit`` repository on GitHub, and
    `clone <https://help.github.com/articles/cloning-a-repository/>`_
@@ -179,6 +185,67 @@ Git workflow
 Please follow `this guide
 <https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_
 for step-by-step instructions on rebasing and squashing commits.
+
+
+.. _sec_development_workflow_anothers_commit:
+
+----------------------------------------
+Checking out someone else's pull request
+----------------------------------------
+
+Sometimes you want to just check out someone else's pull request,
+for the purpose of trying it out and giving them feedback.
+To do this, you first need your own local version of the git repository,
+so you should first do steps 1 and 2 above.
+(Strictly speaking, you don't need a fork on github
+if you don't plan to edit, but it won't hurt.)
+Continuing from there, let's say you want to check out the current
+state of the code on `pull request #854 <https://github.com/tskit-dev/tskit/pull/854>`_.
+(So, below you should replace ``854`` with the number of the pull request
+that you actually want to investigate.)
+Then, continuing from above:
+
+3. Fetch the pull request, and store it as a local branch.
+   For instance, to name the local branch ``my_pr_copy``::
+    
+       $ git fetch upstream pull/854/head:my_pr_copy
+   
+   You should probably call the branch something more descriptive,
+   though. (Also note that you might need to put ``origin`` instead
+   of ``upstream`` for the remote repository name: see ``git remote -v``
+   for a list of possible remotes.)
+
+4. Check out the pull request's local branch::
+
+       $ git checkout my_pr_copy
+
+Now, your repository will be in exactly the same state as
+that of the person who's submitted the pull request.
+Great! Now you can test things out.
+
+To view the documentation,
+``cd docs && make``, which should build the documentation,
+and then navigate your web browser to the ``docs/_build/html/``
+subdirectory.
+
+To test out the *code*, you can either use conda (as described above),
+or, if you change to the ``python/`` subdirectory,
+run ``make`` to compile the C code,
+and execute ``python`` from this subdirectory,
+it will use the modified version of the package.
+(For instance, you might want to
+open an interactive ``python`` shell from the ``python/`` subdirectory,
+or running ``python3 -m pytest`` from this subdirectory.)
+
+After you're done, you should do::
+
+    $ git checkout main
+
+to get your repository back to the "main" branch of development.
+If the pull request is changed and you want to do the same thing again,
+then first *delete* your local copy (by doing ``git branch -d my_pr_copy``)
+and repeat the steps again.
+
 
 .. _sec_development_workflow_pre_commit:
 
