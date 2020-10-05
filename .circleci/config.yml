@@ -39,11 +39,6 @@ jobs:
             cd python && make allchecks
 
       - run:
-          name: Lint Python (pre-commit)
-          command: |
-            pre-commit run --all-files --show-diff-on-failure
-
-      - run:
           name: Compile C with gcc
           command: |
             meson build-gcc c -D b_coverage=true
@@ -114,11 +109,6 @@ jobs:
           name: Run example make file
           command: |
             make -C c/examples
-
-      - run:
-          name: Build docs
-          command: |
-            cd docs && make
 
       - run:
           name: Run Python tests
