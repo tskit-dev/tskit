@@ -23,7 +23,7 @@ jobs:
 
       - name: Install deps
         run: |
-          sudo apt-get install doxygen
+          sudo apt-get install -y doxygen
           python -m pip install wheel
           python -m pip install -r python/requirements/docs.txt
 
@@ -50,7 +50,7 @@ jobs:
         if: (!github.event.pull_request)
         run: |
           cd tskit-docs
-          cp -r ../docs/_build/html ${GITHUB_REF#refs/tags/}
+          cp -r ../docs/_build/html `echo ${GITHUB_REF} | sed -e "s/refs\/heads\///g" |  sed -e "s/refs\/tags\///g"`
 
       - name: Commit and push the docs
         run: |
@@ -58,7 +58,7 @@ jobs:
           git config user.name Adminbot-tskit
           git config user.email ben.jeffery.well+adminbot@gmail.com
           git add .
-          git diff-index --quiet HEAD || git commit -m "Automated doc build for ${{github.event.pull_request.number}} ${GITHUB_REF#refs/tags/}"
+          git diff-index --quiet HEAD || git commit -m "Automated doc build for ${{github.event.pull_request.number}} ${GITHUB_REF}"
           git push
 
       - name: Comment on PR
