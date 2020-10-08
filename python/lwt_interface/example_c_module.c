@@ -36,16 +36,12 @@
 #include "tskit_lwt_interface.h"
 
 static PyMethodDef example_c_module_methods[] = {
-    {NULL, NULL, 0, NULL}   /* sentinel */
+    { NULL, NULL, 0, NULL } /* sentinel */
 };
 
-static struct PyModuleDef example_c_module = {
-    PyModuleDef_HEAD_INIT,
-    "example_c_module",
-    "Example C module using the tskit LightweightTableCollection.",
-    -1,
-    example_c_module_methods
-};
+static struct PyModuleDef example_c_module = { PyModuleDef_HEAD_INIT, "example_c_module",
+    "Example C module using the tskit LightweightTableCollection.", -1,
+    example_c_module_methods };
 
 PyMODINIT_FUNC
 PyInit_example_c_module(void)
