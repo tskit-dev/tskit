@@ -37,6 +37,7 @@ extern "C" {
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <limits.h>
 
 #if defined(_TSK_WORKAROUND_FALSE_CLANG_WARNING) && defined(__clang__)
