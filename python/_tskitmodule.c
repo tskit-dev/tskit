@@ -1089,79 +1089,78 @@ out:
 }
 
 static PyGetSetDef IndividualTable_getsetters[] = {
-    { "max_rows_increment", (getter) IndividualTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) IndividualTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) IndividualTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "flags", (getter) IndividualTable_get_flags, NULL, "The flags array" },
-    { "location", (getter) IndividualTable_get_location, NULL, "The location array" },
-    { "location_offset", (getter) IndividualTable_get_location_offset, NULL,
-        "The location offset array" },
-    { "metadata", (getter) IndividualTable_get_metadata, NULL, "The metadata array" },
-    { "metadata_offset", (getter) IndividualTable_get_metadata_offset, NULL,
-        "The metadata offset array" },
-    { "metadata_schema", (getter) IndividualTable_get_metadata_schema,
-        (setter) IndividualTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) IndividualTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) IndividualTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) IndividualTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "flags",
+        .get = (getter) IndividualTable_get_flags,
+        .doc = "The flags array" },
+    { .name = "location",
+        .get = (getter) IndividualTable_get_location,
+        .doc = "The location array" },
+    { .name = "location_offset",
+        .get = (getter) IndividualTable_get_location_offset,
+        .doc = "The location offset array" },
+    { .name = "metadata",
+        .get = (getter) IndividualTable_get_metadata,
+        .doc = "The metadata array" },
+    { .name = "metadata_offset",
+        .get = (getter) IndividualTable_get_metadata_offset,
+        .doc = "The metadata offset array" },
+    { .name = "metadata_schema",
+        .get = (getter) IndividualTable_get_metadata_schema,
+        .set = (setter) IndividualTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef IndividualTable_methods[] = {
-    { "add_row", (PyCFunction) IndividualTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "get_row", (PyCFunction) IndividualTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "equals", (PyCFunction) IndividualTable_equals, METH_VARARGS,
-        "Returns true if the specified individual table is equal." },
-    { "append_columns", (PyCFunction) IndividualTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Appends the data in the specified arrays into the columns." },
-    { "set_columns", (PyCFunction) IndividualTable_set_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) IndividualTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) IndividualTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) IndividualTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) IndividualTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) IndividualTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns true if the specified individual table is equal." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) IndividualTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Appends the data in the specified arrays into the columns." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) IndividualTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) IndividualTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) IndividualTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject IndividualTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.IndividualTable", /* tp_name */
-    sizeof(IndividualTable),                                 /* tp_basicsize */
-    0,                                                       /* tp_itemsize */
-    (destructor) IndividualTable_dealloc,                    /* tp_dealloc */
-    0,                                                       /* tp_print */
-    0,                                                       /* tp_getattr */
-    0,                                                       /* tp_setattr */
-    0,                                                       /* tp_reserved */
-    0,                                                       /* tp_repr */
-    0,                                                       /* tp_as_number */
-    0,                                                       /* tp_as_sequence */
-    0,                                                       /* tp_as_mapping */
-    0,                                                       /* tp_hash  */
-    0,                                                       /* tp_call */
-    0,                                                       /* tp_str */
-    0,                                                       /* tp_getattro */
-    0,                                                       /* tp_setattro */
-    0,                                                       /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,                /* tp_flags */
-    "IndividualTable objects",                               /* tp_doc */
-    0,                                                       /* tp_traverse */
-    0,                                                       /* tp_clear */
-    0,                                                       /* tp_richcompare */
-    0,                                                       /* tp_weaklistoffset */
-    0,                                                       /* tp_iter */
-    0,                                                       /* tp_iternext */
-    IndividualTable_methods,                                 /* tp_methods */
-    0,                                                       /* tp_members */
-    IndividualTable_getsetters,                              /* tp_getset */
-    0,                                                       /* tp_base */
-    0,                                                       /* tp_dict */
-    0,                                                       /* tp_descr_get */
-    0,                                                       /* tp_descr_set */
-    0,                                                       /* tp_dictoffset */
-    (initproc) IndividualTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.IndividualTable",
+    .tp_basicsize = sizeof(IndividualTable),
+    .tp_dealloc = (destructor) IndividualTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "IndividualTable objects",
+    .tp_methods = IndividualTable_methods,
+    .tp_getset = IndividualTable_getsetters,
+    .tp_init = (initproc) IndividualTable_init,
 };
 
 /*===================================================================
@@ -1556,77 +1555,77 @@ out:
 }
 
 static PyGetSetDef NodeTable_getsetters[] = {
-    { "max_rows_increment", (getter) NodeTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) NodeTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) NodeTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "time", (getter) NodeTable_get_time, NULL, "The time array" },
-    { "flags", (getter) NodeTable_get_flags, NULL, "The flags array" },
-    { "population", (getter) NodeTable_get_population, NULL, "The population array" },
-    { "individual", (getter) NodeTable_get_individual, NULL, "The individual array" },
-    { "metadata", (getter) NodeTable_get_metadata, NULL, "The metadata array" },
-    { "metadata_offset", (getter) NodeTable_get_metadata_offset, NULL,
-        "The metadata offset array" },
-    { "metadata_schema", (getter) NodeTable_get_metadata_schema,
-        (setter) NodeTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) NodeTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) NodeTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) NodeTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "time", .get = (getter) NodeTable_get_time, .doc = "The time array" },
+    { .name = "flags", .get = (getter) NodeTable_get_flags, .doc = "The flags array" },
+    { .name = "population",
+        .get = (getter) NodeTable_get_population,
+        .doc = "The population array" },
+    { .name = "individual",
+        .get = (getter) NodeTable_get_individual,
+        .doc = "The individual array" },
+    { .name = "metadata",
+        .get = (getter) NodeTable_get_metadata,
+        .doc = "The metadata array" },
+    { .name = "metadata_offset",
+        .get = (getter) NodeTable_get_metadata_offset,
+        .doc = "The metadata offset array" },
+    { .name = "metadata_schema",
+        .get = (getter) NodeTable_get_metadata_schema,
+        .set = (setter) NodeTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef NodeTable_methods[] = {
-    { "add_row", (PyCFunction) NodeTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) NodeTable_equals, METH_VARARGS,
-        "Returns True if the specified NodeTable is equal to this one." },
-    { "get_row", (PyCFunction) NodeTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "append_columns", (PyCFunction) NodeTable_append_columns, METH_VARARGS,
-        "Appends the data in the specified arrays into the columns." },
-    { "set_columns", (PyCFunction) NodeTable_set_columns, METH_VARARGS,
-        "Copies the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) NodeTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) NodeTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) NodeTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) NodeTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if the specified NodeTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) NodeTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) NodeTable_append_columns,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Appends the data in the specified arrays into the columns." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) NodeTable_set_columns,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) NodeTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) NodeTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject NodeTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.NodeTable", /* tp_name */
-    sizeof(NodeTable),                                 /* tp_basicsize */
-    0,                                                 /* tp_itemsize */
-    (destructor) NodeTable_dealloc,                    /* tp_dealloc */
-    0,                                                 /* tp_print */
-    0,                                                 /* tp_getattr */
-    0,                                                 /* tp_setattr */
-    0,                                                 /* tp_reserved */
-    0,                                                 /* tp_repr */
-    0,                                                 /* tp_as_number */
-    0,                                                 /* tp_as_sequence */
-    0,                                                 /* tp_as_mapping */
-    0,                                                 /* tp_hash  */
-    0,                                                 /* tp_call */
-    0,                                                 /* tp_str */
-    0,                                                 /* tp_getattro */
-    0,                                                 /* tp_setattro */
-    0,                                                 /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    "NodeTable objects",                               /* tp_doc */
-    0,                                                 /* tp_traverse */
-    0,                                                 /* tp_clear */
-    0,                                                 /* tp_richcompare */
-    0,                                                 /* tp_weaklistoffset */
-    0,                                                 /* tp_iter */
-    0,                                                 /* tp_iternext */
-    NodeTable_methods,                                 /* tp_methods */
-    0,                                                 /* tp_members */
-    NodeTable_getsetters,                              /* tp_getset */
-    0,                                                 /* tp_base */
-    0,                                                 /* tp_dict */
-    0,                                                 /* tp_descr_get */
-    0,                                                 /* tp_descr_set */
-    0,                                                 /* tp_dictoffset */
-    (initproc) NodeTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.NodeTable",
+    .tp_basicsize = sizeof(NodeTable),
+    .tp_dealloc = (destructor) NodeTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "NodeTable objects",
+    .tp_methods = NodeTable_methods,
+    .tp_getset = NodeTable_getsetters,
+    .tp_init = (initproc) NodeTable_init,
 };
 
 /*===================================================================
@@ -2037,80 +2036,77 @@ out:
 }
 
 static PyGetSetDef EdgeTable_getsetters[] = {
-    { "max_rows_increment", (getter) EdgeTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) EdgeTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) EdgeTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "left", (getter) EdgeTable_get_left, NULL, "The left array" },
-    { "right", (getter) EdgeTable_get_right, NULL, "The right array" },
-    { "parent", (getter) EdgeTable_get_parent, NULL, "The parent array" },
-    { "child", (getter) EdgeTable_get_child, NULL, "The child array" },
-    { "metadata", (getter) EdgeTable_get_metadata, NULL, "The metadata array" },
-    { "metadata_offset", (getter) EdgeTable_get_metadata_offset, NULL,
-        "The metadata offset array" },
-    { "metadata_schema", (getter) EdgeTable_get_metadata_schema,
-        (setter) EdgeTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) EdgeTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) EdgeTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) EdgeTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "left", .get = (getter) EdgeTable_get_left, .doc = "The left array" },
+    { .name = "right", .get = (getter) EdgeTable_get_right, .doc = "The right array" },
+    { .name = "parent",
+        .get = (getter) EdgeTable_get_parent,
+        .doc = "The parent array" },
+    { .name = "child", .get = (getter) EdgeTable_get_child, .doc = "The child array" },
+    { .name = "metadata",
+        .get = (getter) EdgeTable_get_metadata,
+        .doc = "The metadata array" },
+    { .name = "metadata_offset",
+        .get = (getter) EdgeTable_get_metadata_offset,
+        .doc = "The metadata offset array" },
+    { .name = "metadata_schema",
+        .get = (getter) EdgeTable_get_metadata_schema,
+        .set = (setter) EdgeTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef EdgeTable_methods[] = {
-    { "add_row", (PyCFunction) EdgeTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) EdgeTable_equals, METH_VARARGS,
-        "Returns True if the specified EdgeTable is equal to this one." },
-    { "get_row", (PyCFunction) EdgeTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "set_columns", (PyCFunction) EdgeTable_set_columns, METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "append_columns", (PyCFunction) EdgeTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) EdgeTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) EdgeTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) EdgeTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) EdgeTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if the specified EdgeTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) EdgeTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) EdgeTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) EdgeTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) EdgeTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) EdgeTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { "squash", (PyCFunction) EdgeTable_squash, METH_NOARGS,
         "Squashes sets of edges with adjacent L,R and identical P,C values." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject EdgeTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.EdgeTable", /* tp_name */
-    sizeof(EdgeTable),                                 /* tp_basicsize */
-    0,                                                 /* tp_itemsize */
-    (destructor) EdgeTable_dealloc,                    /* tp_dealloc */
-    0,                                                 /* tp_print */
-    0,                                                 /* tp_getattr */
-    0,                                                 /* tp_setattr */
-    0,                                                 /* tp_reserved */
-    0,                                                 /* tp_repr */
-    0,                                                 /* tp_as_number */
-    0,                                                 /* tp_as_sequence */
-    0,                                                 /* tp_as_mapping */
-    0,                                                 /* tp_hash  */
-    0,                                                 /* tp_call */
-    0,                                                 /* tp_str */
-    0,                                                 /* tp_getattro */
-    0,                                                 /* tp_setattro */
-    0,                                                 /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    "EdgeTable objects",                               /* tp_doc */
-    0,                                                 /* tp_traverse */
-    0,                                                 /* tp_clear */
-    0,                                                 /* tp_richcompare */
-    0,                                                 /* tp_weaklistoffset */
-    0,                                                 /* tp_iter */
-    0,                                                 /* tp_iternext */
-    EdgeTable_methods,                                 /* tp_methods */
-    0,                                                 /* tp_members */
-    EdgeTable_getsetters,                              /* tp_getset */
-    0,                                                 /* tp_base */
-    0,                                                 /* tp_dict */
-    0,                                                 /* tp_descr_get */
-    0,                                                 /* tp_descr_set */
-    0,                                                 /* tp_dictoffset */
-    (initproc) EdgeTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.EdgeTable",
+    .tp_basicsize = sizeof(EdgeTable),
+    .tp_dealloc = (destructor) EdgeTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "EdgeTable objects",
+    .tp_methods = EdgeTable_methods,
+    .tp_getset = EdgeTable_getsetters,
+    .tp_init = (initproc) EdgeTable_init,
 };
 
 /*===================================================================
@@ -2529,81 +2525,79 @@ out:
 }
 
 static PyGetSetDef MigrationTable_getsetters[] = {
-    { "max_rows_increment", (getter) MigrationTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) MigrationTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) MigrationTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "left", (getter) MigrationTable_get_left, NULL, "The left array" },
-    { "right", (getter) MigrationTable_get_right, NULL, "The right array" },
-    { "node", (getter) MigrationTable_get_node, NULL, "The node array" },
-    { "source", (getter) MigrationTable_get_source, NULL, "The source array" },
-    { "dest", (getter) MigrationTable_get_dest, NULL, "The dest array" },
-    { "time", (getter) MigrationTable_get_time, NULL, "The time array" },
-    { "metadata", (getter) MigrationTable_get_metadata, NULL, "The metadata array" },
-    { "metadata_offset", (getter) MigrationTable_get_metadata_offset, NULL,
-        "The metadata offset array" },
-    { "metadata_schema", (getter) MigrationTable_get_metadata_schema,
-        (setter) MigrationTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) MigrationTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) MigrationTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) MigrationTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "left", .get = (getter) MigrationTable_get_left, .doc = "The left array" },
+    { .name = "right",
+        .get = (getter) MigrationTable_get_right,
+        .doc = "The right array" },
+    { .name = "node", .get = (getter) MigrationTable_get_node, .doc = "The node array" },
+    { .name = "source",
+        .get = (getter) MigrationTable_get_source,
+        .doc = "The source array" },
+    { .name = "dest", .get = (getter) MigrationTable_get_dest, .doc = "The dest array" },
+    { .name = "time", .get = (getter) MigrationTable_get_time, .doc = "The time array" },
+    { .name = "metadata",
+        .get = (getter) MigrationTable_get_metadata,
+        .doc = "The metadata array" },
+    { .name = "metadata_offset",
+        .get = (getter) MigrationTable_get_metadata_offset,
+        .doc = "The metadata offset array" },
+    { .name = "metadata_schema",
+        .get = (getter) MigrationTable_get_metadata_schema,
+        .set = (setter) MigrationTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef MigrationTable_methods[] = {
-    { "add_row", (PyCFunction) MigrationTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) MigrationTable_equals, METH_VARARGS,
-        "Returns True if the specified MigrationTable is equal to this one." },
-    { "get_row", (PyCFunction) MigrationTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "set_columns", (PyCFunction) MigrationTable_set_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "append_columns", (PyCFunction) MigrationTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Appends the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) MigrationTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) MigrationTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) MigrationTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) MigrationTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if the specified MigrationTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) MigrationTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) MigrationTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) MigrationTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Appends the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) MigrationTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) MigrationTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject MigrationTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.MigrationTable", /* tp_name */
-    sizeof(MigrationTable),                                 /* tp_basicsize */
-    0,                                                      /* tp_itemsize */
-    (destructor) MigrationTable_dealloc,                    /* tp_dealloc */
-    0,                                                      /* tp_print */
-    0,                                                      /* tp_getattr */
-    0,                                                      /* tp_setattr */
-    0,                                                      /* tp_reserved */
-    0,                                                      /* tp_repr */
-    0,                                                      /* tp_as_number */
-    0,                                                      /* tp_as_sequence */
-    0,                                                      /* tp_as_mapping */
-    0,                                                      /* tp_hash  */
-    0,                                                      /* tp_call */
-    0,                                                      /* tp_str */
-    0,                                                      /* tp_getattro */
-    0,                                                      /* tp_setattro */
-    0,                                                      /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,               /* tp_flags */
-    "MigrationTable objects",                               /* tp_doc */
-    0,                                                      /* tp_traverse */
-    0,                                                      /* tp_clear */
-    0,                                                      /* tp_richcompare */
-    0,                                                      /* tp_weaklistoffset */
-    0,                                                      /* tp_iter */
-    0,                                                      /* tp_iternext */
-    MigrationTable_methods,                                 /* tp_methods */
-    0,                                                      /* tp_members */
-    MigrationTable_getsetters,                              /* tp_getset */
-    0,                                                      /* tp_base */
-    0,                                                      /* tp_dict */
-    0,                                                      /* tp_descr_get */
-    0,                                                      /* tp_descr_set */
-    0,                                                      /* tp_dictoffset */
-    (initproc) MigrationTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.MigrationTable",
+    .tp_basicsize = sizeof(MigrationTable),
+    .tp_dealloc = (destructor) MigrationTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "MigrationTable objects",
+    .tp_methods = MigrationTable_methods,
+    .tp_getset = MigrationTable_getsetters,
+    .tp_init = (initproc) MigrationTable_init,
 };
 
 /*===================================================================
@@ -2980,79 +2974,78 @@ out:
 }
 
 static PyGetSetDef SiteTable_getsetters[] = {
-    { "max_rows_increment", (getter) SiteTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) SiteTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) SiteTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "position", (getter) SiteTable_get_position, NULL, "The position array." },
-    { "ancestral_state", (getter) SiteTable_get_ancestral_state, NULL,
-        "The ancestral state array." },
-    { "ancestral_state_offset", (getter) SiteTable_get_ancestral_state_offset, NULL,
-        "The ancestral state offset array." },
-    { "metadata", (getter) SiteTable_get_metadata, NULL, "The metadata array." },
-    { "metadata_offset", (getter) SiteTable_get_metadata_offset, NULL,
-        "The metadata offset array." },
-    { "metadata_schema", (getter) SiteTable_get_metadata_schema,
-        (setter) SiteTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) SiteTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) SiteTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) SiteTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "position",
+        .get = (getter) SiteTable_get_position,
+        .doc = "The position array." },
+    { .name = "ancestral_state",
+        .get = (getter) SiteTable_get_ancestral_state,
+        .doc = "The ancestral state array." },
+    { .name = "ancestral_state_offset",
+        .get = (getter) SiteTable_get_ancestral_state_offset,
+        .doc = "The ancestral state offset array." },
+    { .name = "metadata",
+        .get = (getter) SiteTable_get_metadata,
+        .doc = "The metadata array." },
+    { .name = "metadata_offset",
+        .get = (getter) SiteTable_get_metadata_offset,
+        .doc = "The metadata offset array." },
+    { .name = "metadata_schema",
+        .get = (getter) SiteTable_get_metadata_schema,
+        .set = (setter) SiteTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef SiteTable_methods[] = {
-    { "add_row", (PyCFunction) SiteTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) SiteTable_equals, METH_VARARGS,
-        "Returns True if the specified SiteTable is equal to this one." },
-    { "get_row", (PyCFunction) SiteTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "set_columns", (PyCFunction) SiteTable_set_columns, METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "append_columns", (PyCFunction) SiteTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Appends the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) SiteTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) SiteTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) SiteTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) SiteTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if the specified SiteTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) SiteTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) SiteTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) SiteTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Appends the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) SiteTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) SiteTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject SiteTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.SiteTable", /* tp_name */
-    sizeof(SiteTable),                                 /* tp_basicsize */
-    0,                                                 /* tp_itemsize */
-    (destructor) SiteTable_dealloc,                    /* tp_dealloc */
-    0,                                                 /* tp_print */
-    0,                                                 /* tp_getattr */
-    0,                                                 /* tp_setattr */
-    0,                                                 /* tp_reserved */
-    0,                                                 /* tp_repr */
-    0,                                                 /* tp_as_number */
-    0,                                                 /* tp_as_sequence */
-    0,                                                 /* tp_as_mapping */
-    0,                                                 /* tp_hash  */
-    0,                                                 /* tp_call */
-    0,                                                 /* tp_str */
-    0,                                                 /* tp_getattro */
-    0,                                                 /* tp_setattro */
-    0,                                                 /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,          /* tp_flags */
-    "SiteTable objects",                               /* tp_doc */
-    0,                                                 /* tp_traverse */
-    0,                                                 /* tp_clear */
-    0,                                                 /* tp_richcompare */
-    0,                                                 /* tp_weaklistoffset */
-    0,                                                 /* tp_iter */
-    0,                                                 /* tp_iternext */
-    SiteTable_methods,                                 /* tp_methods */
-    0,                                                 /* tp_members */
-    SiteTable_getsetters,                              /* tp_getset */
-    0,                                                 /* tp_base */
-    0,                                                 /* tp_dict */
-    0,                                                 /* tp_descr_get */
-    0,                                                 /* tp_descr_set */
-    0,                                                 /* tp_dictoffset */
-    (initproc) SiteTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.SiteTable",
+    .tp_basicsize = sizeof(SiteTable),
+    .tp_dealloc = (destructor) SiteTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "SiteTable objects",
+    .tp_methods = SiteTable_methods,
+    .tp_getset = SiteTable_getsetters,
+    .tp_init = (initproc) SiteTable_init,
 };
 
 /*===================================================================
@@ -3476,83 +3469,81 @@ out:
 }
 
 static PyGetSetDef MutationTable_getsetters[] = {
-    { "max_rows_increment", (getter) MutationTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) MutationTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) MutationTable_get_max_rows, NULL,
-        "The curret maximum number of rows in the table." },
-    { "site", (getter) MutationTable_get_site, NULL, "The site array" },
-    { "node", (getter) MutationTable_get_node, NULL, "The node array" },
-    { "parent", (getter) MutationTable_get_parent, NULL, "The parent array" },
-    { "time", (getter) MutationTable_get_time, NULL, "The time array" },
-    { "derived_state", (getter) MutationTable_get_derived_state, NULL,
-        "The derived_state array" },
-    { "derived_state_offset", (getter) MutationTable_get_derived_state_offset, NULL,
-        "The derived_state_offset array" },
-    { "metadata", (getter) MutationTable_get_metadata, NULL, "The metadata array" },
-    { "metadata_offset", (getter) MutationTable_get_metadata_offset, NULL,
-        "The metadata_offset array" },
-    { "metadata_schema", (getter) MutationTable_get_metadata_schema,
-        (setter) MutationTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) MutationTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) MutationTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) MutationTable_get_max_rows,
+        .doc = "The curret maximum number of rows in the table." },
+    { .name = "site", .get = (getter) MutationTable_get_site, .doc = "The site array" },
+    { .name = "node", .get = (getter) MutationTable_get_node, .doc = "The node array" },
+    { .name = "parent",
+        .get = (getter) MutationTable_get_parent,
+        .doc = "The parent array" },
+    { .name = "time", .get = (getter) MutationTable_get_time, .doc = "The time array" },
+    { .name = "derived_state",
+        .get = (getter) MutationTable_get_derived_state,
+        .doc = "The derived_state array" },
+    { .name = "derived_state_offset",
+        .get = (getter) MutationTable_get_derived_state_offset,
+        .doc = "The derived_state_offset array" },
+    { .name = "metadata",
+        .get = (getter) MutationTable_get_metadata,
+        .doc = "The metadata array" },
+    { .name = "metadata_offset",
+        .get = (getter) MutationTable_get_metadata_offset,
+        .doc = "The metadata_offset array" },
+    { .name = "metadata_schema",
+        .get = (getter) MutationTable_get_metadata_schema,
+        .set = (setter) MutationTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef MutationTable_methods[] = {
-    { "add_row", (PyCFunction) MutationTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) MutationTable_equals, METH_VARARGS,
-        "Returns True if the specified MutationTable is equal to this one." },
-    { "get_row", (PyCFunction) MutationTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "set_columns", (PyCFunction) MutationTable_set_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "append_columns", (PyCFunction) MutationTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Appends the data in the specified  arrays into the columns." },
-    { "clear", (PyCFunction) MutationTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) MutationTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) MutationTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) MutationTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if the specified MutationTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) MutationTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) MutationTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) MutationTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Appends the data in the specified  arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) MutationTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) MutationTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject MutationTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.MutationTable", /* tp_name */
-    sizeof(MutationTable),                                 /* tp_basicsize */
-    0,                                                     /* tp_itemsize */
-    (destructor) MutationTable_dealloc,                    /* tp_dealloc */
-    0,                                                     /* tp_print */
-    0,                                                     /* tp_getattr */
-    0,                                                     /* tp_setattr */
-    0,                                                     /* tp_reserved */
-    0,                                                     /* tp_repr */
-    0,                                                     /* tp_as_number */
-    0,                                                     /* tp_as_sequence */
-    0,                                                     /* tp_as_mapping */
-    0,                                                     /* tp_hash  */
-    0,                                                     /* tp_call */
-    0,                                                     /* tp_str */
-    0,                                                     /* tp_getattro */
-    0,                                                     /* tp_setattro */
-    0,                                                     /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,              /* tp_flags */
-    "MutationTable objects",                               /* tp_doc */
-    0,                                                     /* tp_traverse */
-    0,                                                     /* tp_clear */
-    0,                                                     /* tp_richcompare */
-    0,                                                     /* tp_weaklistoffset */
-    0,                                                     /* tp_iter */
-    0,                                                     /* tp_iternext */
-    MutationTable_methods,                                 /* tp_methods */
-    0,                                                     /* tp_members */
-    MutationTable_getsetters,                              /* tp_getset */
-    0,                                                     /* tp_base */
-    0,                                                     /* tp_dict */
-    0,                                                     /* tp_descr_get */
-    0,                                                     /* tp_descr_set */
-    0,                                                     /* tp_dictoffset */
-    (initproc) MutationTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.MutationTable",
+    .tp_basicsize = sizeof(MutationTable),
+    .tp_dealloc = (destructor) MutationTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "MutationTable objects",
+    .tp_methods = MutationTable_methods,
+    .tp_getset = MutationTable_getsetters,
+    .tp_init = (initproc) MutationTable_init,
 };
 
 /*===================================================================
@@ -3884,75 +3875,70 @@ out:
 }
 
 static PyGetSetDef PopulationTable_getsetters[] = {
-    { "max_rows_increment", (getter) PopulationTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) PopulationTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) PopulationTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "metadata", (getter) PopulationTable_get_metadata, NULL, "The metadata array" },
-    { "metadata_offset", (getter) PopulationTable_get_metadata_offset, NULL,
-        "The metadata offset array" },
-    { "metadata_schema", (getter) PopulationTable_get_metadata_schema,
-        (setter) PopulationTable_set_metadata_schema, "The metadata schema" },
+    { .name = "max_rows_increment",
+        .get = (getter) PopulationTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) PopulationTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) PopulationTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "metadata",
+        .get = (getter) PopulationTable_get_metadata,
+        .doc = "The metadata array" },
+    { .name = "metadata_offset",
+        .get = (getter) PopulationTable_get_metadata_offset,
+        .doc = "The metadata offset array" },
+    { .name = "metadata_schema",
+        .get = (getter) PopulationTable_get_metadata_schema,
+        .set = (setter) PopulationTable_set_metadata_schema,
+        .doc = "The metadata schema" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef PopulationTable_methods[] = {
-    { "add_row", (PyCFunction) PopulationTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) PopulationTable_equals, METH_VARARGS,
-        "Returns True if the specified PopulationTable is equal to this one." },
-    { "get_row", (PyCFunction) PopulationTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "append_columns", (PyCFunction) PopulationTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Appends the data in the specified arrays into the columns." },
-    { "set_columns", (PyCFunction) PopulationTable_set_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) PopulationTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) PopulationTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) PopulationTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) PopulationTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc
+        = "Returns True if the specified PopulationTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) PopulationTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) PopulationTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Appends the data in the specified arrays into the columns." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) PopulationTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) PopulationTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) PopulationTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject PopulationTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.PopulationTable", /* tp_name */
-    sizeof(PopulationTable),                                 /* tp_basicsize */
-    0,                                                       /* tp_itemsize */
-    (destructor) PopulationTable_dealloc,                    /* tp_dealloc */
-    0,                                                       /* tp_print */
-    0,                                                       /* tp_getattr */
-    0,                                                       /* tp_setattr */
-    0,                                                       /* tp_reserved */
-    0,                                                       /* tp_repr */
-    0,                                                       /* tp_as_number */
-    0,                                                       /* tp_as_sequence */
-    0,                                                       /* tp_as_mapping */
-    0,                                                       /* tp_hash  */
-    0,                                                       /* tp_call */
-    0,                                                       /* tp_str */
-    0,                                                       /* tp_getattro */
-    0,                                                       /* tp_setattro */
-    0,                                                       /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,                /* tp_flags */
-    "PopulationTable objects",                               /* tp_doc */
-    0,                                                       /* tp_traverse */
-    0,                                                       /* tp_clear */
-    0,                                                       /* tp_richcompare */
-    0,                                                       /* tp_weaklistoffset */
-    0,                                                       /* tp_iter */
-    0,                                                       /* tp_iternext */
-    PopulationTable_methods,                                 /* tp_methods */
-    0,                                                       /* tp_members */
-    PopulationTable_getsetters,                              /* tp_getset */
-    0,                                                       /* tp_base */
-    0,                                                       /* tp_dict */
-    0,                                                       /* tp_descr_get */
-    0,                                                       /* tp_descr_set */
-    0,                                                       /* tp_dictoffset */
-    (initproc) PopulationTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.PopulationTable",
+    .tp_basicsize = sizeof(PopulationTable),
+    .tp_dealloc = (destructor) PopulationTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "PopulationTable objects",
+    .tp_methods = PopulationTable_methods,
+    .tp_getset = PopulationTable_getsetters,
+    .tp_init = (initproc) PopulationTable_init,
 };
 
 /*===================================================================
@@ -4269,76 +4255,72 @@ out:
 }
 
 static PyGetSetDef ProvenanceTable_getsetters[] = {
-    { "max_rows_increment", (getter) ProvenanceTable_get_max_rows_increment, NULL,
-        "The size increment" },
-    { "num_rows", (getter) ProvenanceTable_get_num_rows, NULL,
-        "The number of rows in the table." },
-    { "max_rows", (getter) ProvenanceTable_get_max_rows, NULL,
-        "The current maximum number of rows in the table." },
-    { "timestamp", (getter) ProvenanceTable_get_timestamp, NULL, "The timestamp array" },
-    { "timestamp_offset", (getter) ProvenanceTable_get_timestamp_offset, NULL,
-        "The timestamp offset array" },
-    { "record", (getter) ProvenanceTable_get_record, NULL, "The record array" },
-    { "record_offset", (getter) ProvenanceTable_get_record_offset, NULL,
-        "The record offset array" },
+    { .name = "max_rows_increment",
+        .get = (getter) ProvenanceTable_get_max_rows_increment,
+        .doc = "The size increment" },
+    { .name = "num_rows",
+        .get = (getter) ProvenanceTable_get_num_rows,
+        .doc = "The number of rows in the table." },
+    { .name = "max_rows",
+        .get = (getter) ProvenanceTable_get_max_rows,
+        .doc = "The current maximum number of rows in the table." },
+    { .name = "timestamp",
+        .get = (getter) ProvenanceTable_get_timestamp,
+        .doc = "The timestamp array" },
+    { .name = "timestamp_offset",
+        .get = (getter) ProvenanceTable_get_timestamp_offset,
+        .doc = "The timestamp offset array" },
+    { .name = "record",
+        .get = (getter) ProvenanceTable_get_record,
+        .doc = "The record array" },
+    { .name = "record_offset",
+        .get = (getter) ProvenanceTable_get_record_offset,
+        .doc = "The record offset array" },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef ProvenanceTable_methods[] = {
-    { "add_row", (PyCFunction) ProvenanceTable_add_row, METH_VARARGS | METH_KEYWORDS,
-        "Adds a new row to this table." },
-    { "equals", (PyCFunction) ProvenanceTable_equals, METH_VARARGS,
-        "Returns True if the specified ProvenanceTable is equal to this one." },
-    { "get_row", (PyCFunction) ProvenanceTable_get_row, METH_VARARGS,
-        "Returns the kth row in this table." },
-    { "append_columns", (PyCFunction) ProvenanceTable_append_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Appends the data in the specified arrays into the columns." },
-    { "set_columns", (PyCFunction) ProvenanceTable_set_columns,
-        METH_VARARGS | METH_KEYWORDS,
-        "Copies the data in the specified arrays into the columns." },
-    { "clear", (PyCFunction) ProvenanceTable_clear, METH_NOARGS, "Clears this table." },
-    { "truncate", (PyCFunction) ProvenanceTable_truncate, METH_VARARGS,
-        "Truncates this table to the specified number of rows." },
+    { .ml_name = "add_row",
+        .ml_meth = (PyCFunction) ProvenanceTable_add_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) ProvenanceTable_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc
+        = "Returns True if the specified ProvenanceTable is equal to this one." },
+    { .ml_name = "get_row",
+        .ml_meth = (PyCFunction) ProvenanceTable_get_row,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the kth row in this table." },
+    { .ml_name = "append_columns",
+        .ml_meth = (PyCFunction) ProvenanceTable_append_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Appends the data in the specified arrays into the columns." },
+    { .ml_name = "set_columns",
+        .ml_meth = (PyCFunction) ProvenanceTable_set_columns,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Copies the data in the specified arrays into the columns." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) ProvenanceTable_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Clears this table." },
+    { .ml_name = "truncate",
+        .ml_meth = (PyCFunction) ProvenanceTable_truncate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Truncates this table to the specified number of rows." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject ProvenanceTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.ProvenanceTable", /* tp_name */
-    sizeof(ProvenanceTable),                                 /* tp_basicsize */
-    0,                                                       /* tp_itemsize */
-    (destructor) ProvenanceTable_dealloc,                    /* tp_dealloc */
-    0,                                                       /* tp_print */
-    0,                                                       /* tp_getattr */
-    0,                                                       /* tp_setattr */
-    0,                                                       /* tp_reserved */
-    0,                                                       /* tp_repr */
-    0,                                                       /* tp_as_number */
-    0,                                                       /* tp_as_sequence */
-    0,                                                       /* tp_as_mapping */
-    0,                                                       /* tp_hash  */
-    0,                                                       /* tp_call */
-    0,                                                       /* tp_str */
-    0,                                                       /* tp_getattro */
-    0,                                                       /* tp_setattro */
-    0,                                                       /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,                /* tp_flags */
-    "ProvenanceTable objects",                               /* tp_doc */
-    0,                                                       /* tp_traverse */
-    0,                                                       /* tp_clear */
-    0,                                                       /* tp_richcompare */
-    0,                                                       /* tp_weaklistoffset */
-    0,                                                       /* tp_iter */
-    0,                                                       /* tp_iternext */
-    ProvenanceTable_methods,                                 /* tp_methods */
-    0,                                                       /* tp_members */
-    ProvenanceTable_getsetters,                              /* tp_getset */
-    0,                                                       /* tp_base */
-    0,                                                       /* tp_dict */
-    0,                                                       /* tp_descr_get */
-    0,                                                       /* tp_descr_set */
-    0,                                                       /* tp_dictoffset */
-    (initproc) ProvenanceTable_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.ProvenanceTable",
+    .tp_basicsize = sizeof(ProvenanceTable),
+    .tp_dealloc = (destructor) ProvenanceTable_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "ProvenanceTable objects",
+    .tp_methods = ProvenanceTable_methods,
+    .tp_getset = ProvenanceTable_getsetters,
+    .tp_init = (initproc) ProvenanceTable_init,
 };
 
 /*===================================================================
@@ -5107,97 +5089,117 @@ out:
 }
 
 static PyGetSetDef TableCollection_getsetters[] = {
-    { "individuals", (getter) TableCollection_get_individuals, NULL,
-        "The individual table." },
-    { "nodes", (getter) TableCollection_get_nodes, NULL, "The node table." },
-    { "edges", (getter) TableCollection_get_edges, NULL, "The edge table." },
-    { "migrations", (getter) TableCollection_get_migrations, NULL,
-        "The migration table." },
-    { "sites", (getter) TableCollection_get_sites, NULL, "The site table." },
-    { "mutations", (getter) TableCollection_get_mutations, NULL, "The mutation table." },
-    { "populations", (getter) TableCollection_get_populations, NULL,
-        "The population table." },
-    { "provenances", (getter) TableCollection_get_provenances, NULL,
-        "The provenance table." },
-    { "sequence_length", (getter) TableCollection_get_sequence_length,
-        (setter) TableCollection_set_sequence_length, "The sequence length." },
-    { "file_uuid", (getter) TableCollection_get_file_uuid, NULL,
-        "The UUID of the corresponding file." },
-    { "metadata", (getter) TableCollection_get_metadata,
-        (setter) TableCollection_set_metadata, "The metadata." },
-    { "metadata_schema", (getter) TableCollection_get_metadata_schema,
-        (setter) TableCollection_set_metadata_schema, "The metadata schema." },
+    { .name = "individuals",
+        .get = (getter) TableCollection_get_individuals,
+        .doc = "The individual table." },
+    { .name = "nodes",
+        .get = (getter) TableCollection_get_nodes,
+        .doc = "The node table." },
+    { .name = "edges",
+        .get = (getter) TableCollection_get_edges,
+        .doc = "The edge table." },
+    { .name = "migrations",
+        .get = (getter) TableCollection_get_migrations,
+        .doc = "The migration table." },
+    { .name = "sites",
+        .get = (getter) TableCollection_get_sites,
+        .doc = "The site table." },
+    { .name = "mutations",
+        .get = (getter) TableCollection_get_mutations,
+        .doc = "The mutation table." },
+    { .name = "populations",
+        .get = (getter) TableCollection_get_populations,
+        .doc = "The population table." },
+    { .name = "provenances",
+        .get = (getter) TableCollection_get_provenances,
+        .doc = "The provenance table." },
+    { .name = "sequence_length",
+        .get = (getter) TableCollection_get_sequence_length,
+        .set = (setter) TableCollection_set_sequence_length,
+        .doc = "The sequence length." },
+    { .name = "file_uuid",
+        .get = (getter) TableCollection_get_file_uuid,
+        .doc = "The UUID of the corresponding file." },
+    { .name = "metadata",
+        .get = (getter) TableCollection_get_metadata,
+        .set = (setter) TableCollection_set_metadata,
+        .doc = "The metadata." },
+    { .name = "metadata_schema",
+        .get = (getter) TableCollection_get_metadata_schema,
+        .set = (setter) TableCollection_set_metadata_schema,
+        .doc = "The metadata schema." },
     { NULL } /* Sentinel */
 };
 
 static PyMethodDef TableCollection_methods[] = {
-    { "simplify", (PyCFunction) TableCollection_simplify, METH_VARARGS | METH_KEYWORDS,
-        "Simplifies for a given sample subset." },
-    { "link_ancestors", (PyCFunction) TableCollection_link_ancestors,
-        METH_VARARGS | METH_KEYWORDS,
-        "Returns an edge table linking samples to a set of specified ancestors." },
-    { "subset", (PyCFunction) TableCollection_subset, METH_VARARGS,
-        "Subsets the table collection to a set of nodes." },
-    { "union", (PyCFunction) TableCollection_union, METH_VARARGS | METH_KEYWORDS,
-        "Adds to this table collection the portions of another table collection "
-        "that are not shared with this one." },
-    { "find_ibd", (PyCFunction) TableCollection_find_ibd, METH_VARARGS | METH_KEYWORDS,
-        "Returns IBD segments for the specified sample pairs." },
-    { "sort", (PyCFunction) TableCollection_sort, METH_VARARGS | METH_KEYWORDS,
-        "Sorts the tables to satisfy tree sequence requirements." },
-    { "equals", (PyCFunction) TableCollection_equals, METH_VARARGS,
-        "Returns True if the parameter table collection is equal to this one." },
-    { "compute_mutation_parents", (PyCFunction) TableCollection_compute_mutation_parents,
-        METH_NOARGS, "Computes the mutation parents for the tables." },
-    { "compute_mutation_times", (PyCFunction) TableCollection_compute_mutation_times,
-        METH_NOARGS, "Computes the mutation times for the tables." },
-    { "deduplicate_sites", (PyCFunction) TableCollection_deduplicate_sites, METH_NOARGS,
-        "Removes sites with duplicate positions." },
-    { "build_index", (PyCFunction) TableCollection_build_index, METH_NOARGS,
-        "Builds an index on the table collection." },
-    { "drop_index", (PyCFunction) TableCollection_drop_index, METH_NOARGS,
-        "Drops indexes." },
-    { "has_index", (PyCFunction) TableCollection_has_index, METH_NOARGS,
-        "Returns True if the TableCollection is indexed." },
+    { .ml_name = "simplify",
+        .ml_meth = (PyCFunction) TableCollection_simplify,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Simplifies for a given sample subset." },
+    { .ml_name = "link_ancestors",
+        .ml_meth = (PyCFunction) TableCollection_link_ancestors,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc
+        = "Returns an edge table linking samples to a set of specified ancestors." },
+    { .ml_name = "subset",
+        .ml_meth = (PyCFunction) TableCollection_subset,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Subsets the table collection to a set of nodes." },
+    { .ml_name = "union",
+        .ml_meth = (PyCFunction) TableCollection_union,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc
+        = "Adds to this table collection the portions of another table collection "
+          "that are not shared with this one." },
+    { .ml_name = "find_ibd",
+        .ml_meth = (PyCFunction) TableCollection_find_ibd,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns IBD segments for the specified sample pairs." },
+    { .ml_name = "sort",
+        .ml_meth = (PyCFunction) TableCollection_sort,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Sorts the tables to satisfy tree sequence requirements." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) TableCollection_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc
+        = "Returns True if the parameter table collection is equal to this one." },
+    { .ml_name = "compute_mutation_parents",
+        .ml_meth = (PyCFunction) TableCollection_compute_mutation_parents,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Computes the mutation parents for the tables." },
+    { .ml_name = "compute_mutation_times",
+        .ml_meth = (PyCFunction) TableCollection_compute_mutation_times,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Computes the mutation times for the tables." },
+    { .ml_name = "deduplicate_sites",
+        .ml_meth = (PyCFunction) TableCollection_deduplicate_sites,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Removes sites with duplicate positions." },
+    { .ml_name = "build_index",
+        .ml_meth = (PyCFunction) TableCollection_build_index,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Builds an index on the table collection." },
+    { .ml_name = "drop_index",
+        .ml_meth = (PyCFunction) TableCollection_drop_index,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Drops indexes." },
+    { .ml_name = "has_index",
+        .ml_meth = (PyCFunction) TableCollection_has_index,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns True if the TableCollection is indexed." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject TableCollectionType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.TableCollection", /* tp_name */
-    sizeof(TableCollection),                                 /* tp_basicsize */
-    0,                                                       /* tp_itemsize */
-    (destructor) TableCollection_dealloc,                    /* tp_dealloc */
-    0,                                                       /* tp_print */
-    0,                                                       /* tp_getattr */
-    0,                                                       /* tp_setattr */
-    0,                                                       /* tp_reserved */
-    0,                                                       /* tp_repr */
-    0,                                                       /* tp_as_number */
-    0,                                                       /* tp_as_sequence */
-    0,                                                       /* tp_as_mapping */
-    0,                                                       /* tp_hash  */
-    0,                                                       /* tp_call */
-    0,                                                       /* tp_str */
-    0,                                                       /* tp_getattro */
-    0,                                                       /* tp_setattro */
-    0,                                                       /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,                /* tp_flags */
-    "TableCollection objects",                               /* tp_doc */
-    0,                                                       /* tp_traverse */
-    0,                                                       /* tp_clear */
-    0,                                                       /* tp_richcompare */
-    0,                                                       /* tp_weaklistoffset */
-    0,                                                       /* tp_iter */
-    0,                                                       /* tp_iternext */
-    TableCollection_methods,                                 /* tp_methods */
-    0,                                                       /* tp_members */
-    TableCollection_getsetters,                              /* tp_getset */
-    0,                                                       /* tp_base */
-    0,                                                       /* tp_dict */
-    0,                                                       /* tp_descr_get */
-    0,                                                       /* tp_descr_set */
-    0,                                                       /* tp_dictoffset */
-    (initproc) TableCollection_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.TableCollection",
+    .tp_basicsize = sizeof(TableCollection),
+    .tp_dealloc = (destructor) TableCollection_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "TableCollection objects",
+    .tp_methods = TableCollection_methods,
+    .tp_getset = TableCollection_getsetters,
+    .tp_init = (initproc) TableCollection_init,
 };
 
 /*===================================================================
@@ -6928,98 +6930,166 @@ static PyMemberDef TreeSequence_members[] = {
 };
 
 static PyMethodDef TreeSequence_methods[] = {
-    { "dump", (PyCFunction) TreeSequence_dump, METH_VARARGS | METH_KEYWORDS,
-        "Writes the tree sequence out to the specified path." },
-    { "load", (PyCFunction) TreeSequence_load, METH_VARARGS | METH_KEYWORDS,
-        "Loads a tree sequence from the specified path." },
-    { "load_tables", (PyCFunction) TreeSequence_load_tables,
-        METH_VARARGS | METH_KEYWORDS,
-        "Loads a tree sequence from the specified set of tables" },
-    { "dump_tables", (PyCFunction) TreeSequence_dump_tables,
-        METH_VARARGS | METH_KEYWORDS,
-        "Dumps the tree sequence to the specified set of tables" },
-    { "get_node", (PyCFunction) TreeSequence_get_node, METH_VARARGS,
-        "Returns the node record at the specified index." },
-    { "get_edge", (PyCFunction) TreeSequence_get_edge, METH_VARARGS,
-        "Returns the edge record at the specified index." },
-    { "get_migration", (PyCFunction) TreeSequence_get_migration, METH_VARARGS,
-        "Returns the migration record at the specified index." },
-    { "get_site", (PyCFunction) TreeSequence_get_site, METH_VARARGS,
-        "Returns the mutation type record at the specified index." },
-    { "get_mutation", (PyCFunction) TreeSequence_get_mutation, METH_VARARGS,
-        "Returns the mutation record at the specified index." },
-    { "get_individual", (PyCFunction) TreeSequence_get_individual, METH_VARARGS,
-        "Returns the individual record at the specified index." },
-    { "get_population", (PyCFunction) TreeSequence_get_population, METH_VARARGS,
-        "Returns the population record at the specified index." },
-    { "get_provenance", (PyCFunction) TreeSequence_get_provenance, METH_VARARGS,
-        "Returns the provenance record at the specified index." },
-    { "get_num_edges", (PyCFunction) TreeSequence_get_num_edges, METH_NOARGS,
-        "Returns the number of coalescence records." },
-    { "get_num_migrations", (PyCFunction) TreeSequence_get_num_migrations, METH_NOARGS,
-        "Returns the number of migration records." },
-    { "get_num_populations", (PyCFunction) TreeSequence_get_num_populations, METH_NOARGS,
-        "Returns the number of population records." },
-    { "get_num_individuals", (PyCFunction) TreeSequence_get_num_individuals, METH_NOARGS,
-        "Returns the number of individual records." },
-    { "get_num_trees", (PyCFunction) TreeSequence_get_num_trees, METH_NOARGS,
-        "Returns the number of trees in the tree sequence." },
-    { "get_sequence_length", (PyCFunction) TreeSequence_get_sequence_length, METH_NOARGS,
-        "Returns the sequence length in bases." },
-    { "get_breakpoints", (PyCFunction) TreeSequence_get_breakpoints, METH_NOARGS,
-        "Returns the tree breakpoints as a numpy array." },
+    { .ml_name = "dump",
+        .ml_meth = (PyCFunction) TreeSequence_dump,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Writes the tree sequence out to the specified path." },
+    { .ml_name = "load",
+        .ml_meth = (PyCFunction) TreeSequence_load,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Loads a tree sequence from the specified path." },
+    { .ml_name = "load_tables",
+        .ml_meth = (PyCFunction) TreeSequence_load_tables,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Loads a tree sequence from the specified set of tables" },
+    { .ml_name = "dump_tables",
+        .ml_meth = (PyCFunction) TreeSequence_dump_tables,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Dumps the tree sequence to the specified set of tables" },
+    { .ml_name = "get_node",
+        .ml_meth = (PyCFunction) TreeSequence_get_node,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the node record at the specified index." },
+    { .ml_name = "get_edge",
+        .ml_meth = (PyCFunction) TreeSequence_get_edge,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the edge record at the specified index." },
+    { .ml_name = "get_migration",
+        .ml_meth = (PyCFunction) TreeSequence_get_migration,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the migration record at the specified index." },
+    { .ml_name = "get_site",
+        .ml_meth = (PyCFunction) TreeSequence_get_site,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the mutation type record at the specified index." },
+    { .ml_name = "get_mutation",
+        .ml_meth = (PyCFunction) TreeSequence_get_mutation,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the mutation record at the specified index." },
+    { .ml_name = "get_individual",
+        .ml_meth = (PyCFunction) TreeSequence_get_individual,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the individual record at the specified index." },
+    { .ml_name = "get_population",
+        .ml_meth = (PyCFunction) TreeSequence_get_population,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the population record at the specified index." },
+    { .ml_name = "get_provenance",
+        .ml_meth = (PyCFunction) TreeSequence_get_provenance,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the provenance record at the specified index." },
+    { .ml_name = "get_num_edges",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_edges,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of coalescence records." },
+    { .ml_name = "get_num_migrations",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_migrations,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of migration records." },
+    { .ml_name = "get_num_populations",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_populations,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of population records." },
+    { .ml_name = "get_num_individuals",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_individuals,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of individual records." },
+    { .ml_name = "get_num_trees",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_trees,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of trees in the tree sequence." },
+    { .ml_name = "get_sequence_length",
+        .ml_meth = (PyCFunction) TreeSequence_get_sequence_length,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the sequence length in bases." },
+    { .ml_name = "get_breakpoints",
+        .ml_meth = (PyCFunction) TreeSequence_get_breakpoints,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the tree breakpoints as a numpy array." },
     { "get_file_uuid", (PyCFunction) TreeSequence_get_file_uuid, METH_NOARGS,
         "Returns the UUID of the underlying file, if present." },
-    { "get_metadata", (PyCFunction) TreeSequence_get_metadata, METH_NOARGS,
-        "Returns the metadata for the tree sequence" },
-    { "get_metadata_schema", (PyCFunction) TreeSequence_get_metadata_schema, METH_NOARGS,
-        "Returns the metadata schema for the tree sequence metadata" },
-    { "get_num_sites", (PyCFunction) TreeSequence_get_num_sites, METH_NOARGS,
-        "Returns the number of sites" },
-    { "get_num_mutations", (PyCFunction) TreeSequence_get_num_mutations, METH_NOARGS,
-        "Returns the number of mutations" },
-    { "get_num_provenances", (PyCFunction) TreeSequence_get_num_provenances, METH_NOARGS,
-        "Returns the number of provenances" },
-    { "get_num_nodes", (PyCFunction) TreeSequence_get_num_nodes, METH_NOARGS,
-        "Returns the number of unique nodes in the tree sequence." },
-    { "get_num_samples", (PyCFunction) TreeSequence_get_num_samples, METH_NOARGS,
-        "Returns the sample size" },
-    { "get_table_metadata_schemas",
-        (PyCFunction) TreeSequence_get_table_metadata_schemas, METH_NOARGS,
-        "Returns the metadata schemas for the tree sequence tables" },
-    { "get_samples", (PyCFunction) TreeSequence_get_samples, METH_NOARGS,
-        "Returns the samples." },
-    { "genealogical_nearest_neighbours",
-        (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
-        METH_VARARGS | METH_KEYWORDS,
-        "Returns the genealogical nearest neighbours statistic." },
-    { "get_kc_distance", (PyCFunction) TreeSequence_get_kc_distance,
-        METH_VARARGS | METH_KEYWORDS,
-        "Returns the KC distance between this tree sequence and another." },
-    { "mean_descendants", (PyCFunction) TreeSequence_mean_descendants,
-        METH_VARARGS | METH_KEYWORDS,
-        "Returns the mean number of nodes descending from each node." },
-    { "general_stat", (PyCFunction) TreeSequence_general_stat,
-        METH_VARARGS | METH_KEYWORDS,
-        "Runs the general stats algorithm for a given summary function." },
-    { "diversity", (PyCFunction) TreeSequence_diversity, METH_VARARGS | METH_KEYWORDS,
-        "Computes diversity within sample sets." },
-    { "allele_frequency_spectrum", (PyCFunction) TreeSequence_allele_frequency_spectrum,
-        METH_VARARGS | METH_KEYWORDS, "Computes the K-dimensional joint AFS." },
-    { "trait_covariance", (PyCFunction) TreeSequence_trait_covariance,
-        METH_VARARGS | METH_KEYWORDS, "Computes covariance with traits." },
-    { "trait_correlation", (PyCFunction) TreeSequence_trait_correlation,
-        METH_VARARGS | METH_KEYWORDS, "Computes correlation with traits." },
-    { "trait_regression", (PyCFunction) TreeSequence_trait_regression,
-        METH_VARARGS | METH_KEYWORDS,
-        "Computes regression coefficients of each trait." },
-    { "segregating_sites", (PyCFunction) TreeSequence_segregating_sites,
-        METH_VARARGS | METH_KEYWORDS,
-        "Computes density of segregating sites within sample sets." },
+    { .ml_name = "get_metadata",
+        .ml_meth = (PyCFunction) TreeSequence_get_metadata,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the metadata for the tree sequence" },
+    { .ml_name = "get_metadata_schema",
+        .ml_meth = (PyCFunction) TreeSequence_get_metadata_schema,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the metadata schema for the tree sequence metadata" },
+    { .ml_name = "get_num_sites",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_sites,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of sites" },
+    { .ml_name = "get_num_mutations",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_mutations,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of mutations" },
+    { .ml_name = "get_num_provenances",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_provenances,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of provenances" },
+    { .ml_name = "get_num_nodes",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_nodes,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of unique nodes in the tree sequence." },
+    { .ml_name = "get_num_samples",
+        .ml_meth = (PyCFunction) TreeSequence_get_num_samples,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the sample size" },
+    { .ml_name = "get_table_metadata_schemas",
+        .ml_meth = (PyCFunction) TreeSequence_get_table_metadata_schemas,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the metadata schemas for the tree sequence tables" },
+    { .ml_name = "get_samples",
+        .ml_meth = (PyCFunction) TreeSequence_get_samples,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the samples." },
+    { .ml_name = "genealogical_nearest_neighbours",
+        .ml_meth = (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the genealogical nearest neighbours statistic." },
+    { .ml_name = "get_kc_distance",
+        .ml_meth = (PyCFunction) TreeSequence_get_kc_distance,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the KC distance between this tree sequence and another." },
+    { .ml_name = "mean_descendants",
+        .ml_meth = (PyCFunction) TreeSequence_mean_descendants,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the mean number of nodes descending from each node." },
+    { .ml_name = "general_stat",
+        .ml_meth = (PyCFunction) TreeSequence_general_stat,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Runs the general stats algorithm for a given summary function." },
+    { .ml_name = "diversity",
+        .ml_meth = (PyCFunction) TreeSequence_diversity,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes diversity within sample sets." },
+    { .ml_name = "allele_frequency_spectrum",
+        .ml_meth = (PyCFunction) TreeSequence_allele_frequency_spectrum,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the K-dimensional joint AFS." },
+    { .ml_name = "trait_covariance",
+        .ml_meth = (PyCFunction) TreeSequence_trait_covariance,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes covariance with traits." },
+    { .ml_name = "trait_correlation",
+        .ml_meth = (PyCFunction) TreeSequence_trait_correlation,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes correlation with traits." },
+    { .ml_name = "trait_regression",
+        .ml_meth = (PyCFunction) TreeSequence_trait_regression,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes regression coefficients of each trait." },
+    { .ml_name = "segregating_sites",
+        .ml_meth = (PyCFunction) TreeSequence_segregating_sites,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes density of segregating sites within sample sets." },
     { "Y1", (PyCFunction) TreeSequence_Y1, METH_VARARGS | METH_KEYWORDS,
         "Computes the Y1 statistic." },
-    { "divergence", (PyCFunction) TreeSequence_divergence, METH_VARARGS | METH_KEYWORDS,
-        "Computes diveregence between sample sets." },
+    { .ml_name = "divergence",
+        .ml_meth = (PyCFunction) TreeSequence_divergence,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes diveregence between sample sets." },
     { "Y2", (PyCFunction) TreeSequence_Y2, METH_VARARGS | METH_KEYWORDS,
         "Computes the Y2 statistic." },
     { "f2", (PyCFunction) TreeSequence_f2, METH_VARARGS | METH_KEYWORDS,
@@ -7030,47 +7100,22 @@ static PyMethodDef TreeSequence_methods[] = {
         "Computes the f3 statistic." },
     { "f4", (PyCFunction) TreeSequence_f4, METH_VARARGS | METH_KEYWORDS,
         "Computes the f4 statistic." },
-    { "get_genotype_matrix", (PyCFunction) TreeSequence_get_genotype_matrix,
-        METH_VARARGS | METH_KEYWORDS, "Returns the genotypes matrix." },
+    { .ml_name = "get_genotype_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_get_genotype_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the genotypes matrix." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject TreeSequenceType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.TreeSequence", /* tp_name */
-    sizeof(TreeSequence),                                 /* tp_basicsize */
-    0,                                                    /* tp_itemsize */
-    (destructor) TreeSequence_dealloc,                    /* tp_dealloc */
-    0,                                                    /* tp_print */
-    0,                                                    /* tp_getattr */
-    0,                                                    /* tp_setattr */
-    0,                                                    /* tp_reserved */
-    0,                                                    /* tp_repr */
-    0,                                                    /* tp_as_number */
-    0,                                                    /* tp_as_sequence */
-    0,                                                    /* tp_as_mapping */
-    0,                                                    /* tp_hash  */
-    0,                                                    /* tp_call */
-    0,                                                    /* tp_str */
-    0,                                                    /* tp_getattro */
-    0,                                                    /* tp_setattro */
-    0,                                                    /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                                   /* tp_flags */
-    "TreeSequence objects",                               /* tp_doc */
-    0,                                                    /* tp_traverse */
-    0,                                                    /* tp_clear */
-    0,                                                    /* tp_richcompare */
-    0,                                                    /* tp_weaklistoffset */
-    0,                                                    /* tp_iter */
-    0,                                                    /* tp_iternext */
-    TreeSequence_methods,                                 /* tp_methods */
-    TreeSequence_members,                                 /* tp_members */
-    0,                                                    /* tp_getset */
-    0,                                                    /* tp_base */
-    0,                                                    /* tp_dict */
-    0,                                                    /* tp_descr_get */
-    0,                                                    /* tp_descr_set */
-    0,                                                    /* tp_dictoffset */
-    (initproc) TreeSequence_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.TreeSequence",
+    .tp_basicsize = sizeof(TreeSequence),
+    .tp_dealloc = (destructor) TreeSequence_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "TreeSequence objects",
+    .tp_methods = TreeSequence_methods,
+    .tp_members = TreeSequence_members,
+    .tp_init = (initproc) TreeSequence_init,
 };
 
 /*===================================================================
@@ -8013,125 +8058,181 @@ static PyMemberDef Tree_members[] = {
 };
 
 static PyMethodDef Tree_methods[] = {
-    { "first", (PyCFunction) Tree_first, METH_NOARGS,
-        "Sets this tree to the first in the sequence." },
-    { "last", (PyCFunction) Tree_last, METH_NOARGS,
-        "Sets this tree to the last in the sequence." },
-    { "prev", (PyCFunction) Tree_prev, METH_NOARGS,
-        "Sets this tree to the previous one in the sequence." },
-    { "next", (PyCFunction) Tree_next, METH_NOARGS,
-        "Sets this tree to the next one in the sequence." },
-    { "clear", (PyCFunction) Tree_clear, METH_NOARGS,
-        "Resets this tree back to the cleared null state." },
-    { "get_sample_size", (PyCFunction) Tree_get_sample_size, METH_NOARGS,
-        "Returns the number of samples in this tree." },
-    { "get_num_nodes", (PyCFunction) Tree_get_num_nodes, METH_NOARGS,
-        "Returns the number of nodes in this tree." },
-    { "get_num_roots", (PyCFunction) Tree_get_num_roots, METH_NOARGS,
-        "Returns the number of roots in this tree." },
-    { "get_index", (PyCFunction) Tree_get_index, METH_NOARGS,
-        "Returns the index this tree occupies within the tree sequence." },
-    { "get_left_root", (PyCFunction) Tree_get_left_root, METH_NOARGS,
-        "Returns the root of the tree." },
-    { "get_left", (PyCFunction) Tree_get_left, METH_NOARGS,
-        "Returns the left-most coordinate (inclusive)." },
-    { "get_right", (PyCFunction) Tree_get_right, METH_NOARGS,
-        "Returns the right-most coordinate (exclusive)." },
-    { "get_sites", (PyCFunction) Tree_get_sites, METH_NOARGS,
-        "Returns the list of sites on this tree." },
-    { "get_options", (PyCFunction) Tree_get_options, METH_NOARGS,
-        "Returns the value of the options variable." },
-    { "get_num_sites", (PyCFunction) Tree_get_num_sites, METH_NOARGS,
-        "Returns the number of sites on this tree." },
-    { "is_sample", (PyCFunction) Tree_is_sample, METH_VARARGS,
-        "Returns True if the specified node is a sample." },
-    { "is_descendant", (PyCFunction) Tree_is_descendant, METH_VARARGS,
-        "Returns True if u is a descendant of v." },
-    { "depth", (PyCFunction) Tree_depth, METH_VARARGS, "Returns the depth of node u" },
-    { "get_parent", (PyCFunction) Tree_get_parent, METH_VARARGS,
-        "Returns the parent of node u" },
-    { "get_time", (PyCFunction) Tree_get_time, METH_VARARGS,
-        "Returns the time of node u" },
-    { "get_population", (PyCFunction) Tree_get_population, METH_VARARGS,
-        "Returns the population of node u" },
-    { "get_left_child", (PyCFunction) Tree_get_left_child, METH_VARARGS,
-        "Returns the left-most child of node u" },
-    { "get_right_child", (PyCFunction) Tree_get_right_child, METH_VARARGS,
-        "Returns the right-most child of node u" },
-    { "get_left_sib", (PyCFunction) Tree_get_left_sib, METH_VARARGS,
-        "Returns the left-most sib of node u" },
-    { "get_right_sib", (PyCFunction) Tree_get_right_sib, METH_VARARGS,
-        "Returns the right-most sib of node u" },
-    { "get_children", (PyCFunction) Tree_get_children, METH_VARARGS,
-        "Returns the children of u in left-right order." },
-    { "get_left_sample", (PyCFunction) Tree_get_left_sample, METH_VARARGS,
-        "Returns the index of the left-most sample descending from u." },
-    { "get_right_sample", (PyCFunction) Tree_get_right_sample, METH_VARARGS,
-        "Returns the index of the right-most sample descending from u." },
-    { "get_next_sample", (PyCFunction) Tree_get_next_sample, METH_VARARGS,
-        "Returns the index of the next sample after the specified sample index." },
-    { "get_mrca", (PyCFunction) Tree_get_mrca, METH_VARARGS,
-        "Returns the MRCA of nodes u and v" },
-    { "get_num_children", (PyCFunction) Tree_get_num_children, METH_VARARGS,
-        "Returns the number of children of node u." },
-    { "get_num_samples", (PyCFunction) Tree_get_num_samples, METH_VARARGS,
-        "Returns the number of samples below node u." },
-    { "get_num_tracked_samples", (PyCFunction) Tree_get_num_tracked_samples,
-        METH_VARARGS, "Returns the number of tracked samples below node u." },
-    { "get_newick", (PyCFunction) Tree_get_newick, METH_VARARGS | METH_KEYWORDS,
-        "Returns the newick representation of this tree." },
-    { "map_mutations", (PyCFunction) Tree_map_mutations, METH_VARARGS | METH_KEYWORDS,
-        "Returns a parsimonious state reconstruction for the specified genotypes." },
-    { "equals", (PyCFunction) Tree_equals, METH_VARARGS,
-        "Returns True if this tree is equal to the parameter tree." },
-    { "copy", (PyCFunction) Tree_copy, METH_NOARGS, "Returns a copy of this tree." },
-    { "get_kc_distance", (PyCFunction) Tree_get_kc_distance,
-        METH_VARARGS | METH_KEYWORDS,
-        "Returns the KC distance between this tree and another." },
-    { "set_root_threshold", (PyCFunction) Tree_set_root_threshold, METH_VARARGS,
-        "Sets the root threshold to the specified value." },
-    { "get_root_threshold", (PyCFunction) Tree_get_root_threshold, METH_NOARGS,
-        "Returns the root threshold for this tree." },
+    { .ml_name = "first",
+        .ml_meth = (PyCFunction) Tree_first,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Sets this tree to the first in the sequence." },
+    { .ml_name = "last",
+        .ml_meth = (PyCFunction) Tree_last,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Sets this tree to the last in the sequence." },
+    { .ml_name = "prev",
+        .ml_meth = (PyCFunction) Tree_prev,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Sets this tree to the previous one in the sequence." },
+    { .ml_name = "next",
+        .ml_meth = (PyCFunction) Tree_next,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Sets this tree to the next one in the sequence." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) Tree_clear,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Resets this tree back to the cleared null state." },
+    { .ml_name = "get_sample_size",
+        .ml_meth = (PyCFunction) Tree_get_sample_size,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of samples in this tree." },
+    { .ml_name = "get_num_nodes",
+        .ml_meth = (PyCFunction) Tree_get_num_nodes,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of nodes in this tree." },
+    { .ml_name = "get_num_roots",
+        .ml_meth = (PyCFunction) Tree_get_num_roots,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of roots in this tree." },
+    { .ml_name = "get_index",
+        .ml_meth = (PyCFunction) Tree_get_index,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the index this tree occupies within the tree sequence." },
+    { .ml_name = "get_left_root",
+        .ml_meth = (PyCFunction) Tree_get_left_root,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the root of the tree." },
+    { .ml_name = "get_left",
+        .ml_meth = (PyCFunction) Tree_get_left,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the left-most coordinate (inclusive)." },
+    { .ml_name = "get_right",
+        .ml_meth = (PyCFunction) Tree_get_right,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the right-most coordinate (exclusive)." },
+    { .ml_name = "get_sites",
+        .ml_meth = (PyCFunction) Tree_get_sites,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the list of sites on this tree." },
+    { .ml_name = "get_options",
+        .ml_meth = (PyCFunction) Tree_get_options,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the value of the options variable." },
+    { .ml_name = "get_num_sites",
+        .ml_meth = (PyCFunction) Tree_get_num_sites,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of sites on this tree." },
+    { .ml_name = "is_sample",
+        .ml_meth = (PyCFunction) Tree_is_sample,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if the specified node is a sample." },
+    { .ml_name = "is_descendant",
+        .ml_meth = (PyCFunction) Tree_is_descendant,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if u is a descendant of v." },
+    { .ml_name = "depth",
+        .ml_meth = (PyCFunction) Tree_depth,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the depth of node u" },
+    { .ml_name = "get_parent",
+        .ml_meth = (PyCFunction) Tree_get_parent,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the parent of node u" },
+    { .ml_name = "get_time",
+        .ml_meth = (PyCFunction) Tree_get_time,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the time of node u" },
+    { .ml_name = "get_population",
+        .ml_meth = (PyCFunction) Tree_get_population,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the population of node u" },
+    { .ml_name = "get_left_child",
+        .ml_meth = (PyCFunction) Tree_get_left_child,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the left-most child of node u" },
+    { .ml_name = "get_right_child",
+        .ml_meth = (PyCFunction) Tree_get_right_child,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the right-most child of node u" },
+    { .ml_name = "get_left_sib",
+        .ml_meth = (PyCFunction) Tree_get_left_sib,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the left-most sib of node u" },
+    { .ml_name = "get_right_sib",
+        .ml_meth = (PyCFunction) Tree_get_right_sib,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the right-most sib of node u" },
+    { .ml_name = "get_children",
+        .ml_meth = (PyCFunction) Tree_get_children,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the children of u in left-right order." },
+    { .ml_name = "get_left_sample",
+        .ml_meth = (PyCFunction) Tree_get_left_sample,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the index of the left-most sample descending from u." },
+    { .ml_name = "get_right_sample",
+        .ml_meth = (PyCFunction) Tree_get_right_sample,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the index of the right-most sample descending from u." },
+    { .ml_name = "get_next_sample",
+        .ml_meth = (PyCFunction) Tree_get_next_sample,
+        .ml_flags = METH_VARARGS,
+        .ml_doc
+        = "Returns the index of the next sample after the specified sample index." },
+    { .ml_name = "get_mrca",
+        .ml_meth = (PyCFunction) Tree_get_mrca,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the MRCA of nodes u and v" },
+    { .ml_name = "get_num_children",
+        .ml_meth = (PyCFunction) Tree_get_num_children,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the number of children of node u." },
+    { .ml_name = "get_num_samples",
+        .ml_meth = (PyCFunction) Tree_get_num_samples,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the number of samples below node u." },
+    { .ml_name = "get_num_tracked_samples",
+        .ml_meth = (PyCFunction) Tree_get_num_tracked_samples,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the number of tracked samples below node u." },
+    { .ml_name = "get_newick",
+        .ml_meth = (PyCFunction) Tree_get_newick,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the newick representation of this tree." },
+    { .ml_name = "map_mutations",
+        .ml_meth = (PyCFunction) Tree_map_mutations,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc
+        = "Returns a parsimonious state reconstruction for the specified genotypes." },
+    { .ml_name = "equals",
+        .ml_meth = (PyCFunction) Tree_equals,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns True if this tree is equal to the parameter tree." },
+    { .ml_name = "copy",
+        .ml_meth = (PyCFunction) Tree_copy,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns a copy of this tree." },
+    { .ml_name = "get_kc_distance",
+        .ml_meth = (PyCFunction) Tree_get_kc_distance,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the KC distance between this tree and another." },
+    { .ml_name = "set_root_threshold",
+        .ml_meth = (PyCFunction) Tree_set_root_threshold,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Sets the root threshold to the specified value." },
+    { .ml_name = "get_root_threshold",
+        .ml_meth = (PyCFunction) Tree_get_root_threshold,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the root threshold for this tree." },
 
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject TreeType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.Tree", /* tp_name */
-    sizeof(Tree),                                 /* tp_basicsize */
-    0,                                            /* tp_itemsize */
-    (destructor) Tree_dealloc,                    /* tp_dealloc */
-    0,                                            /* tp_print */
-    0,                                            /* tp_getattr */
-    0,                                            /* tp_setattr */
-    0,                                            /* tp_reserved */
-    0,                                            /* tp_repr */
-    0,                                            /* tp_as_number */
-    0,                                            /* tp_as_sequence */
-    0,                                            /* tp_as_mapping */
-    0,                                            /* tp_hash  */
-    0,                                            /* tp_call */
-    0,                                            /* tp_str */
-    0,                                            /* tp_getattro */
-    0,                                            /* tp_setattro */
-    0,                                            /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                           /* tp_flags */
-    "Tree objects",                               /* tp_doc */
-    0,                                            /* tp_traverse */
-    0,                                            /* tp_clear */
-    0,                                            /* tp_richcompare */
-    0,                                            /* tp_weaklistoffset */
-    0,                                            /* tp_iter */
-    0,                                            /* tp_iternext */
-    Tree_methods,                                 /* tp_methods */
-    Tree_members,                                 /* tp_members */
-    0,                                            /* tp_getset */
-    0,                                            /* tp_base */
-    0,                                            /* tp_dict */
-    0,                                            /* tp_descr_get */
-    0,                                            /* tp_descr_set */
-    0,                                            /* tp_dictoffset */
-    (initproc) Tree_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.Tree",
+    .tp_basicsize = sizeof(Tree),
+    .tp_dealloc = (destructor) Tree_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "Tree objects",
+    .tp_methods = Tree_methods,
+    .tp_members = Tree_members,
+    .tp_init = (initproc) Tree_init,
 };
 
 /*===================================================================
@@ -8287,41 +8388,16 @@ static PyMethodDef TreeDiffIterator_methods[] = {
 };
 
 static PyTypeObject TreeDiffIteratorType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.TreeDiffIterator", /* tp_name */
-    sizeof(TreeDiffIterator),                                 /* tp_basicsize */
-    0,                                                        /* tp_itemsize */
-    (destructor) TreeDiffIterator_dealloc,                    /* tp_dealloc */
-    0,                                                        /* tp_print */
-    0,                                                        /* tp_getattr */
-    0,                                                        /* tp_setattr */
-    0,                                                        /* tp_reserved */
-    0,                                                        /* tp_repr */
-    0,                                                        /* tp_as_number */
-    0,                                                        /* tp_as_sequence */
-    0,                                                        /* tp_as_mapping */
-    0,                                                        /* tp_hash  */
-    0,                                                        /* tp_call */
-    0,                                                        /* tp_str */
-    0,                                                        /* tp_getattro */
-    0,                                                        /* tp_setattro */
-    0,                                                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                                       /* tp_flags */
-    "TreeDiffIterator objects",                               /* tp_doc */
-    0,                                                        /* tp_traverse */
-    0,                                                        /* tp_clear */
-    0,                                                        /* tp_richcompare */
-    0,                                                        /* tp_weaklistoffset */
-    PyObject_SelfIter,                                        /* tp_iter */
-    (iternextfunc) TreeDiffIterator_next,                     /* tp_iternext */
-    TreeDiffIterator_methods,                                 /* tp_methods */
-    TreeDiffIterator_members,                                 /* tp_members */
-    0,                                                        /* tp_getset */
-    0,                                                        /* tp_base */
-    0,                                                        /* tp_dict */
-    0,                                                        /* tp_descr_get */
-    0,                                                        /* tp_descr_set */
-    0,                                                        /* tp_dictoffset */
-    (initproc) TreeDiffIterator_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.TreeDiffIterator",
+    .tp_basicsize = sizeof(TreeDiffIterator),
+    .tp_dealloc = (destructor) TreeDiffIterator_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "TreeDiffIterator objects",
+    .tp_iter = PyObject_SelfIter,
+    .tp_iternext = (iternextfunc) TreeDiffIterator_next,
+    .tp_methods = TreeDiffIterator_methods,
+    .tp_members = TreeDiffIterator_members,
+    .tp_init = (initproc) TreeDiffIterator_init,
 };
 
 /*===================================================================
@@ -8453,41 +8529,16 @@ static PyMethodDef VariantGenerator_methods[] = {
 };
 
 static PyTypeObject VariantGeneratorType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.VariantGenerator", /* tp_name */
-    sizeof(VariantGenerator),                                 /* tp_basicsize */
-    0,                                                        /* tp_itemsize */
-    (destructor) VariantGenerator_dealloc,                    /* tp_dealloc */
-    0,                                                        /* tp_print */
-    0,                                                        /* tp_getattr */
-    0,                                                        /* tp_setattr */
-    0,                                                        /* tp_reserved */
-    0,                                                        /* tp_repr */
-    0,                                                        /* tp_as_number */
-    0,                                                        /* tp_as_sequence */
-    0,                                                        /* tp_as_mapping */
-    0,                                                        /* tp_hash  */
-    0,                                                        /* tp_call */
-    0,                                                        /* tp_str */
-    0,                                                        /* tp_getattro */
-    0,                                                        /* tp_setattro */
-    0,                                                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                                       /* tp_flags */
-    "VariantGenerator objects",                               /* tp_doc */
-    0,                                                        /* tp_traverse */
-    0,                                                        /* tp_clear */
-    0,                                                        /* tp_richcompare */
-    0,                                                        /* tp_weaklistoffset */
-    PyObject_SelfIter,                                        /* tp_iter */
-    (iternextfunc) VariantGenerator_next,                     /* tp_iternext */
-    VariantGenerator_methods,                                 /* tp_methods */
-    VariantGenerator_members,                                 /* tp_members */
-    0,                                                        /* tp_getset */
-    0,                                                        /* tp_base */
-    0,                                                        /* tp_dict */
-    0,                                                        /* tp_descr_get */
-    0,                                                        /* tp_descr_set */
-    0,                                                        /* tp_dictoffset */
-    (initproc) VariantGenerator_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.VariantGenerator",
+    .tp_basicsize = sizeof(VariantGenerator),
+    .tp_dealloc = (destructor) VariantGenerator_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "VariantGenerator objects",
+    .tp_iter = PyObject_SelfIter,
+    .tp_iternext = (iternextfunc) VariantGenerator_next,
+    .tp_methods = VariantGenerator_methods,
+    .tp_members = VariantGenerator_members,
+    .tp_init = (initproc) VariantGenerator_init,
 };
 
 /*===================================================================
@@ -8660,41 +8711,14 @@ static PyMethodDef LdCalculator_methods[] = {
 };
 
 static PyTypeObject LdCalculatorType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.LdCalculator", /* tp_name */
-    sizeof(LdCalculator),                                 /* tp_basicsize */
-    0,                                                    /* tp_itemsize */
-    (destructor) LdCalculator_dealloc,                    /* tp_dealloc */
-    0,                                                    /* tp_print */
-    0,                                                    /* tp_getattr */
-    0,                                                    /* tp_setattr */
-    0,                                                    /* tp_reserved */
-    0,                                                    /* tp_repr */
-    0,                                                    /* tp_as_number */
-    0,                                                    /* tp_as_sequence */
-    0,                                                    /* tp_as_mapping */
-    0,                                                    /* tp_hash  */
-    0,                                                    /* tp_call */
-    0,                                                    /* tp_str */
-    0,                                                    /* tp_getattro */
-    0,                                                    /* tp_setattro */
-    0,                                                    /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                                   /* tp_flags */
-    "LdCalculator objects",                               /* tp_doc */
-    0,                                                    /* tp_traverse */
-    0,                                                    /* tp_clear */
-    0,                                                    /* tp_richcompare */
-    0,                                                    /* tp_weaklistoffset */
-    0,                                                    /* tp_iter */
-    0,                                                    /* tp_iternext */
-    LdCalculator_methods,                                 /* tp_methods */
-    LdCalculator_members,                                 /* tp_members */
-    0,                                                    /* tp_getset */
-    0,                                                    /* tp_base */
-    0,                                                    /* tp_dict */
-    0,                                                    /* tp_descr_get */
-    0,                                                    /* tp_descr_set */
-    0,                                                    /* tp_dictoffset */
-    (initproc) LdCalculator_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.LdCalculator",
+    .tp_basicsize = sizeof(LdCalculator),
+    .tp_dealloc = (destructor) LdCalculator_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "LdCalculator objects",
+    .tp_methods = LdCalculator_methods,
+    .tp_members = LdCalculator_members,
+    .tp_init = (initproc) LdCalculator_init,
 };
 
 /*===================================================================
@@ -8817,12 +8841,15 @@ CompressedMatrix_decode(CompressedMatrix *self)
 }
 
 static PyGetSetDef CompressedMatrix_getsetters[] = {
-    { "num_sites", (getter) CompressedMatrix_get_num_sites, NULL,
-        "The number of sites." },
-    { "normalisation_factor", (getter) CompressedMatrix_get_normalisation_factor, NULL,
-        "The per-site normalisation factor." },
-    { "num_transitions", (getter) CompressedMatrix_get_num_transitions, NULL,
-        "The per-site number of transitions in the compressed matrix." },
+    { .name = "num_sites",
+        .get = (getter) CompressedMatrix_get_num_sites,
+        .doc = "The number of sites." },
+    { .name = "normalisation_factor",
+        .get = (getter) CompressedMatrix_get_normalisation_factor,
+        .doc = "The per-site normalisation factor." },
+    { .name = "num_transitions",
+        .get = (getter) CompressedMatrix_get_num_transitions,
+        .doc = "The per-site number of transitions in the compressed matrix." },
     { NULL } /* Sentinel */
 };
 
@@ -8833,47 +8860,23 @@ static PyMemberDef CompressedMatrix_members[] = {
 static PyMethodDef CompressedMatrix_methods[] = {
     { "get_site", (PyCFunction) CompressedMatrix_get_site, METH_VARARGS,
         "Returns the list of (node, value) tuples for the specified site." },
-    { "decode", (PyCFunction) CompressedMatrix_decode, METH_NOARGS,
-        "Returns the full decoded forward matrix." },
+    { .ml_name = "decode",
+        .ml_meth = (PyCFunction) CompressedMatrix_decode,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the full decoded forward matrix." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject CompressedMatrixType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.CompressedMatrix", /* tp_name */
-    sizeof(CompressedMatrix),                                 /* tp_basicsize */
-    0,                                                        /* tp_itemsize */
-    (destructor) CompressedMatrix_dealloc,                    /* tp_dealloc */
-    0,                                                        /* tp_print */
-    0,                                                        /* tp_getattr */
-    0,                                                        /* tp_setattr */
-    0,                                                        /* tp_reserved */
-    0,                                                        /* tp_repr */
-    0,                                                        /* tp_as_number */
-    0,                                                        /* tp_as_sequence */
-    0,                                                        /* tp_as_mapping */
-    0,                                                        /* tp_hash  */
-    0,                                                        /* tp_call */
-    0,                                                        /* tp_str */
-    0,                                                        /* tp_getattro */
-    0,                                                        /* tp_setattro */
-    0,                                                        /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                                       /* tp_flags */
-    "CompressedMatrix objects",                               /* tp_doc */
-    0,                                                        /* tp_traverse */
-    0,                                                        /* tp_clear */
-    0,                                                        /* tp_richcompare */
-    0,                                                        /* tp_weaklistoffset */
-    0,                                                        /* tp_iter */
-    0,                                                        /* tp_iternext */
-    CompressedMatrix_methods,                                 /* tp_methods */
-    CompressedMatrix_members,                                 /* tp_members */
-    CompressedMatrix_getsetters,                              /* tp_getset */
-    0,                                                        /* tp_base */
-    0,                                                        /* tp_dict */
-    0,                                                        /* tp_descr_get */
-    0,                                                        /* tp_descr_set */
-    0,                                                        /* tp_dictoffset */
-    (initproc) CompressedMatrix_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.CompressedMatrix",
+    .tp_basicsize = sizeof(CompressedMatrix),
+    .tp_dealloc = (destructor) CompressedMatrix_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "CompressedMatrix objects",
+    .tp_methods = CompressedMatrix_methods,
+    .tp_members = CompressedMatrix_members,
+    .tp_getset = CompressedMatrix_getsetters,
+    .tp_init = (initproc) CompressedMatrix_init,
 };
 
 /*===================================================================
@@ -9030,11 +9033,15 @@ ViterbiMatrix_decode(ViterbiMatrix *self)
 }
 
 static PyGetSetDef ViterbiMatrix_getsetters[] = {
-    { "num_sites", (getter) ViterbiMatrix_get_num_sites, NULL, "The number of sites." },
-    { "normalisation_factor", (getter) ViterbiMatrix_get_normalisation_factor, NULL,
-        "The per-site normalisation factor." },
-    { "num_transitions", (getter) ViterbiMatrix_get_num_transitions, NULL,
-        "The per-site number of transitions in the compressed matrix." },
+    { .name = "num_sites",
+        .get = (getter) ViterbiMatrix_get_num_sites,
+        .doc = "The number of sites." },
+    { .name = "normalisation_factor",
+        .get = (getter) ViterbiMatrix_get_normalisation_factor,
+        .doc = "The per-site normalisation factor." },
+    { .name = "num_transitions",
+        .get = (getter) ViterbiMatrix_get_num_transitions,
+        .doc = "The per-site number of transitions in the compressed matrix." },
     { NULL } /* Sentinel */
 };
 
@@ -9043,51 +9050,29 @@ static PyMemberDef ViterbiMatrix_members[] = {
 };
 
 static PyMethodDef ViterbiMatrix_methods[] = {
-    { "traceback", (PyCFunction) ViterbiMatrix_traceback, METH_NOARGS,
-        "Returns a path for a given haplotype." },
+    { .ml_name = "traceback",
+        .ml_meth = (PyCFunction) ViterbiMatrix_traceback,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns a path for a given haplotype." },
     { "get_site", (PyCFunction) ViterbiMatrix_get_site, METH_VARARGS,
         "Returns the list of (node, value) tuples for the specified site." },
-    { "decode", (PyCFunction) ViterbiMatrix_decode, METH_NOARGS,
-        "Returns the full decoded forward matrix." },
+    { .ml_name = "decode",
+        .ml_meth = (PyCFunction) ViterbiMatrix_decode,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the full decoded forward matrix." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject ViterbiMatrixType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.ViterbiMatrix", /* tp_name */
-    sizeof(ViterbiMatrix),                                 /* tp_basicsize */
-    0,                                                     /* tp_itemsize */
-    (destructor) ViterbiMatrix_dealloc,                    /* tp_dealloc */
-    0,                                                     /* tp_print */
-    0,                                                     /* tp_getattr */
-    0,                                                     /* tp_setattr */
-    0,                                                     /* tp_reserved */
-    0,                                                     /* tp_repr */
-    0,                                                     /* tp_as_number */
-    0,                                                     /* tp_as_sequence */
-    0,                                                     /* tp_as_mapping */
-    0,                                                     /* tp_hash  */
-    0,                                                     /* tp_call */
-    0,                                                     /* tp_str */
-    0,                                                     /* tp_getattro */
-    0,                                                     /* tp_setattro */
-    0,                                                     /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                                    /* tp_flags */
-    "ViterbiMatrix objects",                               /* tp_doc */
-    0,                                                     /* tp_traverse */
-    0,                                                     /* tp_clear */
-    0,                                                     /* tp_richcompare */
-    0,                                                     /* tp_weaklistoffset */
-    0,                                                     /* tp_iter */
-    0,                                                     /* tp_iternext */
-    ViterbiMatrix_methods,                                 /* tp_methods */
-    ViterbiMatrix_members,                                 /* tp_members */
-    ViterbiMatrix_getsetters,                              /* tp_getset */
-    0,                                                     /* tp_base */
-    0,                                                     /* tp_dict */
-    0,                                                     /* tp_descr_get */
-    0,                                                     /* tp_descr_set */
-    0,                                                     /* tp_dictoffset */
-    (initproc) ViterbiMatrix_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.ViterbiMatrix",
+    .tp_basicsize = sizeof(ViterbiMatrix),
+    .tp_dealloc = (destructor) ViterbiMatrix_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "ViterbiMatrix objects",
+    .tp_methods = ViterbiMatrix_methods,
+    .tp_members = ViterbiMatrix_members,
+    .tp_getset = ViterbiMatrix_getsetters,
+    .tp_init = (initproc) ViterbiMatrix_init,
 };
 
 /*===================================================================
@@ -9266,49 +9251,26 @@ static PyMemberDef LsHmm_members[] = {
 };
 
 static PyMethodDef LsHmm_methods[] = {
-    { "forward_matrix", (PyCFunction) LsHmm_forward_matrix, METH_VARARGS,
-        "Returns the tree encoded forward matrix for a given haplotype" },
-    { "viterbi_matrix", (PyCFunction) LsHmm_viterbi_matrix, METH_VARARGS,
-        "Returns the tree encoded Viterbi matrix for a given haplotype" },
+    { .ml_name = "forward_matrix",
+        .ml_meth = (PyCFunction) LsHmm_forward_matrix,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the tree encoded forward matrix for a given haplotype" },
+    { .ml_name = "viterbi_matrix",
+        .ml_meth = (PyCFunction) LsHmm_viterbi_matrix,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the tree encoded Viterbi matrix for a given haplotype" },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject LsHmmType = {
-    PyVarObject_HEAD_INIT(NULL, 0) "_tskit.LsHmm", /* tp_name */
-    sizeof(LsHmm),                                 /* tp_basicsize */
-    0,                                             /* tp_itemsize */
-    (destructor) LsHmm_dealloc,                    /* tp_dealloc */
-    0,                                             /* tp_print */
-    0,                                             /* tp_getattr */
-    0,                                             /* tp_setattr */
-    0,                                             /* tp_reserved */
-    0,                                             /* tp_repr */
-    0,                                             /* tp_as_number */
-    0,                                             /* tp_as_sequence */
-    0,                                             /* tp_as_mapping */
-    0,                                             /* tp_hash  */
-    0,                                             /* tp_call */
-    0,                                             /* tp_str */
-    0,                                             /* tp_getattro */
-    0,                                             /* tp_setattro */
-    0,                                             /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                            /* tp_flags */
-    "LsHmm objects",                               /* tp_doc */
-    0,                                             /* tp_traverse */
-    0,                                             /* tp_clear */
-    0,                                             /* tp_richcompare */
-    0,                                             /* tp_weaklistoffset */
-    0,                                             /* tp_iter */
-    0,                                             /* tp_iternext */
-    LsHmm_methods,                                 /* tp_methods */
-    LsHmm_members,                                 /* tp_members */
-    0,                                             /* tp_getset */
-    0,                                             /* tp_base */
-    0,                                             /* tp_dict */
-    0,                                             /* tp_descr_get */
-    0,                                             /* tp_descr_set */
-    0,                                             /* tp_dictoffset */
-    (initproc) LsHmm_init,                         /* tp_init */
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.LsHmm",
+    .tp_basicsize = sizeof(LsHmm),
+    .tp_dealloc = (destructor) LsHmm_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "LsHmm objects",
+    .tp_methods = LsHmm_methods,
+    .tp_members = LsHmm_members,
+    .tp_init = (initproc) LsHmm_init,
 };
 
 /*===================================================================
@@ -9329,10 +9291,14 @@ tskit_get_tskit_version(PyObject *self)
 }
 
 static PyMethodDef tskit_methods[] = {
-    { "get_kastore_version", (PyCFunction) tskit_get_kastore_version, METH_NOARGS,
-        "Returns the version of kastore we have built in." },
-    { "get_tskit_version", (PyCFunction) tskit_get_tskit_version, METH_NOARGS,
-        "Returns the version of the tskit C API we have built in." },
+    { .ml_name = "get_kastore_version",
+        .ml_meth = (PyCFunction) tskit_get_kastore_version,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the version of kastore we have built in." },
+    { .ml_name = "get_tskit_version",
+        .ml_meth = (PyCFunction) tskit_get_tskit_version,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the version of the tskit C API we have built in." },
     { NULL } /* Sentinel */
 };
 
