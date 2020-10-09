@@ -608,7 +608,7 @@ On Debian/Ubuntu, these can be installed using
 
 .. code-block:: bash
 
-    $ sudo apt install libcunit1-dev ninja-build meson clang-format
+    $ sudo apt install libcunit1-dev ninja-build meson clang-format-6.0
 
 (A more recent version of meson can alternatively be installed using ``pip``, if you wish.)
 
@@ -627,14 +627,12 @@ Code style
 
 C code is formatted using
 `clang-format <https://clang.llvm.org/docs/ClangFormat.html>`_
-with a custom configuration.
-To ensure that your code is correctly formatted, you can run
+with a custom configuration and version 6.0. This is checked as part of the pre-commit
+checks. To manually format run:
 
 .. code-block:: bash
 
-    clang-format -i c/tskit/* c/tests/*.c c/tests/*.h
-
-before submitting a pull request.
+    clang-format-6.0 -i c/tskit/* c/tests/*.c c/tests/*.h
 
 Vim users may find the
 `vim-clang-format <https://github.com/rhysd/vim-clang-format>`_
