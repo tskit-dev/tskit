@@ -9256,14 +9256,6 @@ tsk_check_subset_equality(tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_provenance_table_clear(&other_copy.provenances);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_provenance_table_clear(&self_copy.provenances);
-    if (ret != 0) {
-        goto out;
-    }
     ret = tsk_table_collection_subset(&self_copy, self_nodes, num_shared_nodes);
     if (ret != 0) {
         goto out;
@@ -9272,7 +9264,8 @@ tsk_check_subset_equality(tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    if (!tsk_table_collection_equals(&self_copy, &other_copy, 0)) {
+    if (!tsk_table_collection_equals(&self_copy, &other_copy,
+            TSK_CMP_IGNORE_TS_METADATA | TSK_CMP_IGNORE_PROVENANCE)) {
         ret = TSK_ERR_UNION_DIFF_HISTORIES;
         goto out;
     }

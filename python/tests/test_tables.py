@@ -3216,6 +3216,12 @@ class TestUnion(unittest.TestCase):
             i if i < len(shared_nodes) else tskit.NULL
             for i in range(tables2.nodes.num_rows)
         ]
+        # adding some metadata to one of the tables
+        # union should disregard differences in metadata
+        tables1.metadata_schema = tskit.MetadataSchema(
+            {"codec": "json", "type": "object"}
+        )
+        tables1.metadata = {"hello": "world"}
         return tables1, tables2, node_mapping
 
     def verify_union_equality(self, tables, other, node_mapping, add_populations=True):
@@ -3225,7 +3231,7 @@ class TestUnion(unittest.TestCase):
         uni1.union(
             other,
             node_mapping,
-            record_provenance=False,
+            record_provenance=True,
             add_populations=add_populations,
         )
         tsutil.py_union(
@@ -3235,15 +3241,13 @@ class TestUnion(unittest.TestCase):
             record_provenance=False,
             add_populations=add_populations,
         )
-        assert uni1 == uni2
+        assert uni1.equals(uni2, ignore_ts_metadata=True, ignore_provenance=True)
         # verifying that subsetting to original nodes return the same table
         orig_nodes = [j for i, j in enumerate(node_mapping) if j != tskit.NULL]
         uni1.subset(orig_nodes)
         # subsetting tables just to make sure order is the same
         tables.subset(orig_nodes)
-        uni1.provenances.clear()
-        tables.provenances.clear()
-        assert uni1 == tables
+        assert uni1.equals(tables, ignore_ts_metadata=True, ignore_provenance=True)
 
     def test_noshared_example(self):
         ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)

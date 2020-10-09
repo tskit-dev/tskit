@@ -5074,6 +5074,8 @@ test_table_collection_union(void)
     tsk_table_collection_t tables_empty;
     tsk_table_collection_t tables_copy;
     tsk_id_t node_mapping[3];
+    char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
 
     memset(node_mapping, 0xff, sizeof(node_mapping));
 
@@ -5087,8 +5089,14 @@ test_table_collection_union(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // does not error on empty tables
-    ret = tsk_table_collection_union(
-        &tables, &tables_empty, node_mapping, TSK_UNION_NO_CHECK_SHARED);
+    ret = tsk_table_collection_union(&tables, &tables_empty, node_mapping, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // does not error on empty tables but that differ on top level metadata
+    ret = tsk_table_collection_set_metadata(
+        &tables, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_union(&tables, &tables_empty, node_mapping, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // three nodes, two pop, three ind, two edge, two site, two mut
