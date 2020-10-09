@@ -476,17 +476,17 @@ class TestVariantGenerator:
 
         # Test deprecated param
 
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             Gi = ts.genotype_matrix(impute_missing_data=True)
         assert np.array_equal(Gnm, Gi)
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             Gni = ts.genotype_matrix(impute_missing_data=False)
         assert np.array_equal(Gm, Gni)
 
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             G = ts.genotype_matrix(isolated_as_missing=False, impute_missing_data=True)
         assert np.array_equal(Gnm, G)
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             G = ts.genotype_matrix(isolated_as_missing=True, impute_missing_data=False)
         assert np.array_equal(Gm, G)
 
@@ -819,22 +819,22 @@ class TestHaplotypeGenerator:
         h = list(ts.haplotypes())
         assert h == ["-", "-"]
         # Test deprecated method
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(impute_missing_data=True))
         assert h == ["A", "A"]
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(impute_missing_data=False))
         assert h == ["-", "-"]
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
         assert h == ["-", "-"]
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
         assert h == ["-", "-"]
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
         assert h == ["A", "A"]
-        with pytest.deprecated_call():
+        with pytest.warns(FutureWarning):
             h = list(
                 ts.haplotypes(isolated_as_missing=False, impute_missing_data=False)
             )

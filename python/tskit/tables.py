@@ -2289,10 +2289,10 @@ class TableCollection:
         :rtype: numpy.ndarray (dtype=np.int32)
         """
         if filter_zero_mutation_sites is not None:
-            # Deprecated in 0.6.1.
+            # Deprecated in msprime 0.6.1.
             warnings.warn(
                 "filter_zero_mutation_sites is deprecated; use filter_sites instead",
-                DeprecationWarning,
+                FutureWarning,
             )
             filter_sites = filter_zero_mutation_sites
         if samples is None:
