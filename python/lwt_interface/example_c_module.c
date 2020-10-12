@@ -39,9 +39,11 @@ static PyMethodDef example_c_module_methods[] = {
     { NULL, NULL, 0, NULL } /* sentinel */
 };
 
-static struct PyModuleDef example_c_module = { PyModuleDef_HEAD_INIT, "example_c_module",
-    "Example C module using the tskit LightweightTableCollection.", -1,
-    example_c_module_methods };
+static struct PyModuleDef example_c_module = { .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "example_c_module",
+    .m_doc = "Example C module using the tskit LightweightTableCollection.",
+    .m_size = -1,
+    .m_methods = example_c_module_methods };
 
 PyMODINIT_FUNC
 PyInit_example_c_module(void)
