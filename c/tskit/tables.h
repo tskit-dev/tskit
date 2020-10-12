@@ -718,6 +718,11 @@ typedef struct {
 #define TSK_UNION_NO_CHECK_SHARED (1 << 0)
 #define TSK_UNION_NO_ADD_POP (1 << 1)
 
+/* Flags for table collection equals */
+#define TSK_IGNORE_TOP_LEVEL_METADATA (1 << 0)
+#define TSK_IGNORE_METADATA (1 << 0)
+#define TSK_IGNORE_PROVENANCE (1 << 1)
+
 /****************************************************************************/
 /* Function signatures */
 /****************************************************************************/
@@ -2133,6 +2138,29 @@ No memory is freed as a result of this operation; please use
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_clear(tsk_table_collection_t *self);
+
+/**
+@brief Returns true if the data in the specified table collection is identical to the
+data in this table, with options to allow partial equality.
+
+@rst
+Returns true if the data in all of the table columns are byte-by-byte equal
+and the sequence lengths of the two table collections are equal. Indexes are
+not considered when determining equality, since they are derived from the
+basic data. You may disable the comparison of top-level metadata and
+metadata schema (`TSK_IGNORE_TOP_LEVEL_METADATA`) or the provenance table
+(`TSK_IGNORE_PROVENANCE`). Note that table row-level metadata and table schemas
+are always checked.
+
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param other A pointer to a tsk_table_collection_t object.
+@param options Bitwise options. See above for details.
+@return Return true if the specified table collection is equal to this table.
+*/
+bool tsk_table_collection_equals_with_options(
+    tsk_table_collection_t *self, tsk_table_collection_t *other, tsk_flags_t options);
 
 /**
 @brief Returns true if the data in the specified table collection is identical to the

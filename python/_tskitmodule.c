@@ -5075,15 +5075,28 @@ TableCollection_has_index(TableCollection *self)
 }
 
 static PyObject *
-TableCollection_equals(TableCollection *self, PyObject *args)
+TableCollection_equals(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     TableCollection *other = NULL;
+    tsk_flags_t options = 0;
+    int ignore_metadata = false;
+    int ignore_provenance = false;
+    static char *kwlist[]
+        = { "other", "ignore_top_level_metadata", "ignore_provenance", NULL };
 
-    if (!PyArg_ParseTuple(args, "O!", &TableCollectionType, &other)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|ii", kwlist, &TableCollectionType,
+            &other, &ignore_metadata, &ignore_provenance)) {
         goto out;
     }
-    ret = Py_BuildValue("i", tsk_table_collection_equals(self->tables, other->tables));
+    if (ignore_metadata) {
+        options |= TSK_IGNORE_TOP_LEVEL_METADATA;
+    }
+    if (ignore_provenance) {
+        options |= TSK_IGNORE_PROVENANCE;
+    }
+    ret = Py_BuildValue("i",
+        tsk_table_collection_equals_with_options(self->tables, other->tables, options));
 out:
     return ret;
 }
@@ -5161,7 +5174,7 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_doc = "Sorts the tables to satisfy tree sequence requirements." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) TableCollection_equals,
-        .ml_flags = METH_VARARGS,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc
         = "Returns True if the parameter table collection is equal to this one." },
     { .ml_name = "compute_mutation_parents",

@@ -2395,6 +2395,53 @@ class TestTableCollection:
         t2.populations.clear()
         assert t1 == t2
 
+    def test_equals_with_options(self):
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 1], [1, 0]]
+        t1 = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            mutation_rate=1,
+            record_migrations=True,
+            random_seed=1,
+        ).dump_tables()
+        t2 = t1.copy()
+
+        t1.provenances.add_row("random stuff")
+        assert not (t1 == t2)
+        assert t1.equals(t2, ignore_provenance=True)
+        assert t2.equals(t1, ignore_provenance=True)
+        assert not (t1.equals(t2))
+        assert not (t2.equals(t1))
+        t1.provenances.clear()
+        t2.provenances.clear()
+        assert t1.equals(t2)
+        assert t2.equals(t1)
+
+        t1.metadata_schema = tskit.MetadataSchema({"codec": "json", "type": "object"})
+        t1.metadata = {"hello": "world"}
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_top_level_metadata=True)
+        assert not t2.equals(t1)
+        assert t2.equals(t1, ignore_top_level_metadata=True)
+        t2.metadata_schema = t1.metadata_schema
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_top_level_metadata=True)
+        assert not t2.equals(t1)
+        assert t2.equals(t1, ignore_top_level_metadata=True)
+
+        # testing both
+        t1.provenances.add_row("random stuff")
+        assert not t1.equals(t2)
+        assert not t1.equals(t2, ignore_top_level_metadata=True)
+        assert not t1.equals(t2, ignore_provenance=True)
+        assert t1.equals(t2, ignore_top_level_metadata=True, ignore_provenance=True)
+
+        t1.provenances.clear()
+        t2.metadata = t1.metadata
+        assert t1.equals(t2)
+        assert t2.equals(t1)
+
     def test_sequence_length(self):
         for sequence_length in [0, 1, 100.1234]:
             tables = tskit.TableCollection(sequence_length=sequence_length)

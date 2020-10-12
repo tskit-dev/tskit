@@ -7732,26 +7732,39 @@ tsk_table_collection_free(tsk_table_collection_t *self)
  * tables. We do not consider the file_uuids either, since this is a property of
  * the file that set of tables is stored in. */
 bool
+tsk_table_collection_equals_with_options(
+    tsk_table_collection_t *self, tsk_table_collection_t *other, tsk_flags_t options)
+{
+    bool ignore_metadata = !!(options & TSK_IGNORE_TOP_LEVEL_METADATA);
+    bool ignore_provenance = !!(options & TSK_IGNORE_PROVENANCE);
+    bool ret
+        = self->sequence_length == other->sequence_length
+          && (ignore_metadata
+                 || (self->metadata_length == other->metadata_length
+                        && self->metadata_schema_length == other->metadata_schema_length
+                        && memcmp(self->metadata, other->metadata,
+                               self->metadata_length * sizeof(char))
+                               == 0
+                        && memcmp(self->metadata_schema, other->metadata_schema,
+                               self->metadata_schema_length * sizeof(char))
+                               == 0))
+          && tsk_individual_table_equals(&self->individuals, &other->individuals)
+          && tsk_node_table_equals(&self->nodes, &other->nodes)
+          && tsk_edge_table_equals(&self->edges, &other->edges)
+          && tsk_migration_table_equals(&self->migrations, &other->migrations)
+          && tsk_site_table_equals(&self->sites, &other->sites)
+          && tsk_mutation_table_equals(&self->mutations, &other->mutations)
+          && tsk_population_table_equals(&self->populations, &other->populations)
+          && (ignore_provenance
+                 || tsk_provenance_table_equals(
+                        &self->provenances, &other->provenances));
+    return ret;
+}
+
+bool
 tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collection_t *other)
 {
-    bool ret = self->sequence_length == other->sequence_length
-               && self->metadata_length == other->metadata_length
-               && self->metadata_schema_length == other->metadata_schema_length
-               && memcmp(self->metadata, other->metadata,
-                      self->metadata_length * sizeof(char))
-                      == 0
-               && memcmp(self->metadata_schema, other->metadata_schema,
-                      self->metadata_schema_length * sizeof(char))
-                      == 0
-               && tsk_individual_table_equals(&self->individuals, &other->individuals)
-               && tsk_node_table_equals(&self->nodes, &other->nodes)
-               && tsk_edge_table_equals(&self->edges, &other->edges)
-               && tsk_migration_table_equals(&self->migrations, &other->migrations)
-               && tsk_site_table_equals(&self->sites, &other->sites)
-               && tsk_mutation_table_equals(&self->mutations, &other->mutations)
-               && tsk_population_table_equals(&self->populations, &other->populations)
-               && tsk_provenance_table_equals(&self->provenances, &other->provenances);
-    return ret;
+    return tsk_table_collection_equals_with_options(self, other, 0);
 }
 
 int
