@@ -3796,7 +3796,7 @@ class TreeSequence:
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
-                DeprecationWarning,
+                FutureWarning,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -3917,7 +3917,7 @@ class TreeSequence:
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
-                DeprecationWarning,
+                FutureWarning,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -3991,7 +3991,7 @@ class TreeSequence:
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
-                DeprecationWarning,
+                FutureWarning,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:

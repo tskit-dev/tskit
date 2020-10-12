@@ -1982,13 +1982,13 @@ class TestSimplifyTables:
             warnings.simplefilter("always")
             tables.simplify(ts.samples(), filter_zero_mutation_sites=True)
             assert len(w) == 1
-            assert issubclass(w[-1].category, DeprecationWarning)
+            assert issubclass(w[-1].category, FutureWarning)
 
     def test_zero_mutation_sites(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=self.random_seed)
         for filter_sites in [True, False]:
             t1 = ts.dump_tables()
-            with pytest.deprecated_call():
+            with pytest.warns(FutureWarning):
                 t1.simplify([0, 1], filter_zero_mutation_sites=filter_sites)
             t2 = ts.dump_tables()
             t2.simplify([0, 1], filter_sites=filter_sites)
