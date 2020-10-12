@@ -2794,6 +2794,31 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    def equals(self, other, ignore_top_level_metadata=False, ignore_provenance=False):
+        """
+        Returns True if  `self` and `other` are equal. The comparison of
+        top-level metadata/metadata schema and provenance tables may be
+        disabled with the flags `ignore_top_level_metadata` and `ignore_provenance`,
+        which are false by default. Note that table row-level metadata and table
+        schemas are always checked.
+
+        :param TableCollection other: Another table collection.
+        :param bool ignore_top_level_metadata: If True, the top-level metadata and
+            metadata schema are ignored.
+        :param bool ignore_provenance: If True, the provenance tables are
+            ignored.
+        """
+        ret = False
+        if type(other) is type(self):
+            ret = bool(
+                self._ll_tables.equals(
+                    other._ll_tables,
+                    ignore_top_level_metadata=ignore_top_level_metadata,
+                    ignore_provenance=ignore_provenance,
+                )
+            )
+        return ret
+
     def find_ibd(self, samples, max_time=None, min_length=None):
         max_time = sys.float_info.max if max_time is None else max_time
         min_length = 0 if min_length is None else min_length

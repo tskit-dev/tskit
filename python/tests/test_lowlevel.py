@@ -360,6 +360,15 @@ class TestTableCollection(LowLevelTestCase):
             assert isinstance(value, dict)
             assert len(value) == 3
 
+    def test_equals_bad_args(self):
+        # Tests the low-level equals interface to ensure we're getting coverage.
+        ts = msprime.simulate(10, random_seed=1242)
+        tc = ts.tables._ll_tables
+        with pytest.raises(TypeError):
+            tc.equals()
+        with pytest.raises(TypeError):
+            tc.equals(None)
+
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     """

@@ -2,6 +2,11 @@
 [0.99.8] - 2020-XX-XX
 ---------------------
 
+**New features**
+
+- Added ``tsk_table_collection_equals_with_options`` which allows for more flexible equality 
+  criteria (e.g., ignore top-level metadata and schema or provenance tables).
+  (:user:`mufernando`, :issue:`896`, :pr:`897`)
 
 ---------------------
 [0.99.7] - 2020-09-29

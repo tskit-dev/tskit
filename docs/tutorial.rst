@@ -860,7 +860,7 @@ not metadata):
 
 .. code-block:: python
 
-    ts.metadata = {"mean_coverage": 200.5}
+    tables.metadata = {"mean_coverage": 200.5}
 
 To modify a schema, for example to add a key; first get the dict representation, modify
 then write back:

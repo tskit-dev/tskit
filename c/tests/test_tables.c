@@ -106,6 +106,113 @@ insert_edge_metadata(tsk_table_collection_t *tables)
 }
 
 static void
+test_table_collection_equals_with_options(void)
+{
+    int ret;
+    tsk_table_collection_t tc1, tc2;
+
+    char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
+    char example_metadata_schema[100]
+        = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
+    tsk_size_t example_metadata_schema_length
+        = (tsk_size_t) strlen(example_metadata_schema);
+
+    // Test equality empty tables
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_init(&tc2, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_TRUE(ret);
+
+    // Adding some meat to the tables
+    ret = tsk_node_table_add_row(&tc1.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
+    CU_ASSERT(ret >= 0);
+    ret = tsk_node_table_add_row(&tc1.nodes, TSK_NODE_IS_SAMPLE, 1.0, 0, 0, NULL, 0);
+    CU_ASSERT(ret >= 0);
+    ret = tsk_individual_table_add_row(&tc1.individuals, 0, NULL, 0, NULL, 0);
+    CU_ASSERT(ret >= 0);
+    ret = tsk_population_table_add_row(&tc1.populations, NULL, 0);
+    CU_ASSERT(ret >= 0);
+    ret = tsk_edge_table_add_row(&tc1.edges, 0.0, 1.0, 1, 0, NULL, 0);
+    CU_ASSERT(ret >= 0);
+    ret = tsk_site_table_add_row(&tc1.sites, 0.2, "A", 1, NULL, 0);
+    CU_ASSERT(ret >= 0);
+    ret = tsk_mutation_table_add_row(
+        &tc1.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT(ret >= 0);
+
+    // Equality of empty vs non-empty
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
+    CU_ASSERT_EQUAL(ret, 0);
+
+    // Equivalent except for metadata
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(
+        &tc1, &tc2, TSK_IGNORE_TOP_LEVEL_METADATA);
+    CU_ASSERT_TRUE(ret);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, TSK_IGNORE_PROVENANCE);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_table_collection_set_metadata(
+        &tc2, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_TRUE(ret);
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc1, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(
+        &tc1, &tc2, TSK_IGNORE_TOP_LEVEL_METADATA);
+    CU_ASSERT_TRUE(ret);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_table_collection_set_metadata_schema(
+        &tc2, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_TRUE(ret);
+
+    // Ignore provenance
+    ret = tsk_provenance_table_add_row(&tc1.provenances, "time", 4, "record", 6);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, TSK_IGNORE_PROVENANCE);
+    CU_ASSERT_TRUE(ret);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_table_collection_equals_with_options(
+        &tc1, &tc2, TSK_IGNORE_TOP_LEVEL_METADATA);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_provenance_table_add_row(&tc2.provenances, "time", 4, "record", 6);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, TSK_IGNORE_PROVENANCE);
+    CU_ASSERT_TRUE(ret);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_TRUE(ret);
+
+    // Both
+    ret = tsk_provenance_table_clear(&tc1.provenances);
+    CU_ASSERT_EQUAL(ret, 0);
+    example_metadata[0] = 'J';
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_equals_with_options(&tc1, &tc2, 0);
+    CU_ASSERT_FALSE(ret);
+    ret = tsk_table_collection_equals_with_options(
+        &tc1, &tc2, TSK_IGNORE_TOP_LEVEL_METADATA | TSK_IGNORE_PROVENANCE);
+    CU_ASSERT_TRUE(ret);
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+}
+
+static void
 test_table_collection_simplify_errors(void)
 {
     int ret;
@@ -4974,6 +5081,8 @@ main(int argc, char **argv)
         { "test_population_table", test_population_table },
         { "test_provenance_table", test_provenance_table },
         { "test_table_size_increments", test_table_size_increments },
+        { "test_table_collection_equals_with_options",
+            test_table_collection_equals_with_options },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
         { "test_table_collection_metadata", test_table_collection_metadata },

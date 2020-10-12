@@ -2,6 +2,11 @@
 [0.X.X] - 2020-XX-XX
 --------------------
 
+**Features**
+
+- Added ``TableCollection.equals``, a method that compares two table 
+  collections with the options to ignore top-level metadata/schema or
+  provenance tables. (:user:`mufernando`, :issue:`896`, :pr:`897`).
 
 --------------------
 [0.3.2] - 2020-09-29
