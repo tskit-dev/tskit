@@ -5,7 +5,6 @@ pull_request_rules:
       - "#approved-reviews-by>=1"
       - base=main
       - label=AUTOMERGE-REQUESTED
-      - status-success=lint-c
       - status-success=pre-commit
       - "status-success=ci/circleci: build"
       #- status-success=codecov/patch
