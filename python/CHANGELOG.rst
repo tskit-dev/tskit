@@ -4,6 +4,9 @@
 
 **Features**
 
+- tskit is now supported on, and has wheels for, python3.9.
+  (:user:`benjeffery`, :issue:`982`, :pr:`907`)
+
 - ``Tree.newick()`` now has extra option ``include_branch_lengths`` to allow branch
   lengths to be omitted (:user:`hyanwong`, :pr:`931`).
 
