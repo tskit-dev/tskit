@@ -32,6 +32,7 @@ import math
 import os
 import pathlib
 import pickle
+import platform
 import random
 import shutil
 import tempfile
@@ -1261,7 +1262,7 @@ class TestTreeSequence(HighLevelTestCase):
             ts.newick_trees()
 
     def test_dump_pathlib(self):
-        ts = msprime.simulate(5, random_seed=1)
+        ts = msprime.simulate(2, random_seed=42)
         path = pathlib.Path(self.temp_dir) / "tmp.trees"
         assert path.exists
         assert path.is_file
@@ -1269,15 +1270,27 @@ class TestTreeSequence(HighLevelTestCase):
         other_ts = tskit.load(path)
         assert ts.tables == other_ts.tables
 
-    def test_zlib_compression_warning(self):
+    @pytest.mark.skipif(platform.system() == "Windows", reason="Windows doesn't raise")
+    def test_dump_load_errors(self):
         ts = msprime.simulate(5, random_seed=1)
-        with warnings.catch_warnings(record=True) as w:
-            ts.dump(self.temp_file, zlib_compression=True)
-            assert len(w) == 1
-            assert issubclass(w[0].category, RuntimeWarning)
-        with warnings.catch_warnings(record=True) as w:
-            ts.dump(self.temp_file, zlib_compression=False)
-            assert len(w) == 0
+        # Try to dump/load files we don't have access to or don't exist.
+        for func in [ts.dump, tskit.load]:
+            for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
+                with pytest.raises(OSError):
+                    func(f)
+                try:
+                    func(f)
+                except OSError as e:
+                    message = str(e)
+                    assert len(message) > 0
+            f = "/" + 4000 * "x"
+            with pytest.raises(OSError):
+                func(f)
+            try:
+                func(f)
+            except OSError as e:
+                message = str(e)
+            assert "File name too long" in message
 
     def test_tables_sequence_length_round_trip(self):
         for sequence_length in [0.1, 1, 10, 100]:

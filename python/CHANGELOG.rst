@@ -8,6 +8,13 @@
   collections with the options to ignore top-level metadata/schema or
   provenance tables. (:user:`mufernando`, :issue:`896`, :pr:`897`).
 
+- ``ts.dump`` and ``tskit.load`` now support reading and writing file objects such as
+  FIFOs and sockets. (:user:`benjeffery`, :issue:`657`, :pr:`909`)
+
+**Breaking changes**
+
+- The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
+
 --------------------
 [0.3.2] - 2020-09-29
 --------------------

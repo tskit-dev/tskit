@@ -393,26 +393,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         for func in [ts1.dump, loader]:
             with pytest.raises(TypeError):
                 func()
-            for bad_type in [1, None, [], {}]:
+            for bad_type in [None, [], {}]:
                 with pytest.raises(TypeError):
                     func(bad_type)
-            # Try to dump/load files we don't have access to or don't exist.
-            for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
-                with pytest.raises(OSError):
-                    func(f)
-                try:
-                    func(f)
-                except OSError as e:
-                    message = str(e)
-                    assert len(message) > 0
-            f = "/" + 4000 * "x"
-            with pytest.raises(OSError):
-                func(f)
-            try:
-                func(f)
-            except OSError as e:
-                message = str(e)
-            assert message.endswith("File name too long")
 
     def test_initial_state(self):
         # Check the initial state to make sure that it is empty.
@@ -451,9 +434,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         Verifies that we can dump a copy of the specified tree sequence
         to the specified file, and load an identical copy.
         """
-        ts.dump(self.temp_file)
-        ts2 = _tskit.TreeSequence()
-        ts2.load(self.temp_file)
+        with open(self.temp_file, "wb") as f:
+            ts.dump(f)
+        with open(self.temp_file, "rb") as f:
+            ts2 = _tskit.TreeSequence()
+            ts2.load(f)
         assert ts.get_num_samples() == ts2.get_num_samples()
         assert ts.get_sequence_length() == ts2.get_sequence_length()
         assert ts.get_num_mutations() == ts2.get_num_mutations()
