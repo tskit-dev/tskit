@@ -720,7 +720,6 @@ typedef struct {
 
 /* Flags for table collection equals */
 #define TSK_IGNORE_TOP_LEVEL_METADATA (1 << 0)
-#define TSK_IGNORE_METADATA (1 << 0)
 #define TSK_IGNORE_PROVENANCE (1 << 1)
 
 /****************************************************************************/
