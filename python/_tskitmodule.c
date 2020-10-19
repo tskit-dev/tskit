@@ -54,6 +54,7 @@ static PyObject *TskitVersionTooNewError;
 #include "tskit_lwt_interface.h"
 
 // clang-format off
+
 /* The XTable classes each have 'lock' attribute, which is used to
  * raise an error if a Python thread attempts to access a table
  * while another Python thread is operating on it. Because tables
@@ -180,20 +181,29 @@ typedef struct {
     TreeSequence *tree_sequence;
     tsk_viterbi_matrix_t *viterbi_matrix;
 } ViterbiMatrix;
-// clang-format on
 
 /* A named tuple of metadata schemas for a tree sequence */
 static PyTypeObject MetadataSchemas;
-static PyStructSequence_Field metadata_schemas_fields[]
-    = { { "node", "The node metadata schema" }, { "edge", "The edge metadata schema" },
-          { "site", "The site metadata schema" },
-          { "mutation", "The mutation metadata schema" },
-          { "migration", "The migration metadata schema" },
-          { "individual", "The individual metadata schema" },
-          { "population", "The population metadata schema" }, { NULL } };
-static PyStructSequence_Desc metadata_schemas_desc
-    = { "MetadataSchemas", "Namedtuple of metadata schemas for this tree sequence",
-          metadata_schemas_fields, 7 };
+
+static PyStructSequence_Field metadata_schemas_fields[] = {
+    { "node", "The node metadata schema" },
+    { "edge", "The edge metadata schema" },
+    { "site", "The site metadata schema" },
+    { "mutation", "The mutation metadata schema" },
+    { "migration", "The migration metadata schema" },
+    { "individual", "The individual metadata schema" },
+    { "population", "The population metadata schema" },
+    { NULL }
+};
+
+static PyStructSequence_Desc metadata_schemas_desc = {
+    .name = "MetadataSchemas",
+    .doc = "Namedtuple of metadata schemas for this tree sequence",
+    .fields = metadata_schemas_fields,
+    .n_in_sequence = 7
+};
+
+// clang-format on
 
 static void
 handle_library_error(int err)
@@ -1153,7 +1163,9 @@ static PyMethodDef IndividualTable_methods[] = {
 };
 
 static PyTypeObject IndividualTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.IndividualTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.IndividualTable",
     .tp_basicsize = sizeof(IndividualTable),
     .tp_dealloc = (destructor) IndividualTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -1161,6 +1173,8 @@ static PyTypeObject IndividualTableType = {
     .tp_methods = IndividualTable_methods,
     .tp_getset = IndividualTable_getsetters,
     .tp_init = (initproc) IndividualTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -1618,7 +1632,9 @@ static PyMethodDef NodeTable_methods[] = {
 };
 
 static PyTypeObject NodeTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.NodeTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.NodeTable",
     .tp_basicsize = sizeof(NodeTable),
     .tp_dealloc = (destructor) NodeTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -1626,6 +1642,8 @@ static PyTypeObject NodeTableType = {
     .tp_methods = NodeTable_methods,
     .tp_getset = NodeTable_getsetters,
     .tp_init = (initproc) NodeTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -2093,13 +2111,17 @@ static PyMethodDef EdgeTable_methods[] = {
         .ml_meth = (PyCFunction) EdgeTable_truncate,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Truncates this table to the specified number of rows." },
-    { "squash", (PyCFunction) EdgeTable_squash, METH_NOARGS,
-        "Squashes sets of edges with adjacent L,R and identical P,C values." },
+    { .ml_name = "squash",
+        .ml_meth = (PyCFunction) EdgeTable_squash,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Squashes sets of edges with adjacent L,R and identical P,C values." },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject EdgeTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.EdgeTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.EdgeTable",
     .tp_basicsize = sizeof(EdgeTable),
     .tp_dealloc = (destructor) EdgeTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -2107,6 +2129,8 @@ static PyTypeObject EdgeTableType = {
     .tp_methods = EdgeTable_methods,
     .tp_getset = EdgeTable_getsetters,
     .tp_init = (initproc) EdgeTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -2590,7 +2614,9 @@ static PyMethodDef MigrationTable_methods[] = {
 };
 
 static PyTypeObject MigrationTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.MigrationTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.MigrationTable",
     .tp_basicsize = sizeof(MigrationTable),
     .tp_dealloc = (destructor) MigrationTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -2598,6 +2624,8 @@ static PyTypeObject MigrationTableType = {
     .tp_methods = MigrationTable_methods,
     .tp_getset = MigrationTable_getsetters,
     .tp_init = (initproc) MigrationTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -3038,7 +3066,9 @@ static PyMethodDef SiteTable_methods[] = {
 };
 
 static PyTypeObject SiteTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.SiteTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.SiteTable",
     .tp_basicsize = sizeof(SiteTable),
     .tp_dealloc = (destructor) SiteTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -3046,6 +3076,8 @@ static PyTypeObject SiteTableType = {
     .tp_methods = SiteTable_methods,
     .tp_getset = SiteTable_getsetters,
     .tp_init = (initproc) SiteTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -3536,7 +3568,9 @@ static PyMethodDef MutationTable_methods[] = {
 };
 
 static PyTypeObject MutationTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.MutationTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.MutationTable",
     .tp_basicsize = sizeof(MutationTable),
     .tp_dealloc = (destructor) MutationTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -3544,6 +3578,8 @@ static PyTypeObject MutationTableType = {
     .tp_methods = MutationTable_methods,
     .tp_getset = MutationTable_getsetters,
     .tp_init = (initproc) MutationTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -3931,7 +3967,9 @@ static PyMethodDef PopulationTable_methods[] = {
 };
 
 static PyTypeObject PopulationTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.PopulationTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.PopulationTable",
     .tp_basicsize = sizeof(PopulationTable),
     .tp_dealloc = (destructor) PopulationTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -3939,6 +3977,8 @@ static PyTypeObject PopulationTableType = {
     .tp_methods = PopulationTable_methods,
     .tp_getset = PopulationTable_getsetters,
     .tp_init = (initproc) PopulationTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -4313,7 +4353,9 @@ static PyMethodDef ProvenanceTable_methods[] = {
 };
 
 static PyTypeObject ProvenanceTableType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.ProvenanceTable",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.ProvenanceTable",
     .tp_basicsize = sizeof(ProvenanceTable),
     .tp_dealloc = (destructor) ProvenanceTable_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -4321,6 +4363,8 @@ static PyTypeObject ProvenanceTableType = {
     .tp_methods = ProvenanceTable_methods,
     .tp_getset = ProvenanceTable_getsetters,
     .tp_init = (initproc) ProvenanceTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -5205,7 +5249,9 @@ static PyMethodDef TableCollection_methods[] = {
 };
 
 static PyTypeObject TableCollectionType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.TableCollection",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.TableCollection",
     .tp_basicsize = sizeof(TableCollection),
     .tp_dealloc = (destructor) TableCollection_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -5213,6 +5259,8 @@ static PyTypeObject TableCollectionType = {
     .tp_methods = TableCollection_methods,
     .tp_getset = TableCollection_getsetters,
     .tp_init = (initproc) TableCollection_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -6938,10 +6986,6 @@ out:
     return ret;
 }
 
-static PyMemberDef TreeSequence_members[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyMethodDef TreeSequence_methods[] = {
     { .ml_name = "dump",
         .ml_meth = (PyCFunction) TreeSequence_dump,
@@ -7019,8 +7063,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_breakpoints,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the tree breakpoints as a numpy array." },
-    { "get_file_uuid", (PyCFunction) TreeSequence_get_file_uuid, METH_NOARGS,
-        "Returns the UUID of the underlying file, if present." },
+    { .ml_name = "get_file_uuid",
+        .ml_meth = (PyCFunction) TreeSequence_get_file_uuid,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the UUID of the underlying file, if present." },
     { .ml_name = "get_metadata",
         .ml_meth = (PyCFunction) TreeSequence_get_metadata,
         .ml_flags = METH_NOARGS,
@@ -7097,22 +7143,34 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_segregating_sites,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes density of segregating sites within sample sets." },
-    { "Y1", (PyCFunction) TreeSequence_Y1, METH_VARARGS | METH_KEYWORDS,
-        "Computes the Y1 statistic." },
     { .ml_name = "divergence",
         .ml_meth = (PyCFunction) TreeSequence_divergence,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes diveregence between sample sets." },
-    { "Y2", (PyCFunction) TreeSequence_Y2, METH_VARARGS | METH_KEYWORDS,
-        "Computes the Y2 statistic." },
-    { "f2", (PyCFunction) TreeSequence_f2, METH_VARARGS | METH_KEYWORDS,
-        "Computes the f2 statistic." },
-    { "Y3", (PyCFunction) TreeSequence_Y3, METH_VARARGS | METH_KEYWORDS,
-        "Computes the Y3 statistic." },
-    { "f3", (PyCFunction) TreeSequence_f3, METH_VARARGS | METH_KEYWORDS,
-        "Computes the f3 statistic." },
-    { "f4", (PyCFunction) TreeSequence_f4, METH_VARARGS | METH_KEYWORDS,
-        "Computes the f4 statistic." },
+    { .ml_name = "Y1",
+        .ml_meth = (PyCFunction) TreeSequence_Y1,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the Y1 statistic." },
+    { .ml_name = "Y2",
+        .ml_meth = (PyCFunction) TreeSequence_Y2,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the Y2 statistic." },
+    { .ml_name = "f2",
+        .ml_meth = (PyCFunction) TreeSequence_f2,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the f2 statistic." },
+    { .ml_name = "Y3",
+        .ml_meth = (PyCFunction) TreeSequence_Y3,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the Y3 statistic." },
+    { .ml_name = "f3",
+        .ml_meth = (PyCFunction) TreeSequence_f3,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the f3 statistic." },
+    { .ml_name = "f4",
+        .ml_meth = (PyCFunction) TreeSequence_f4,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the f4 statistic." },
     { .ml_name = "get_genotype_matrix",
         .ml_meth = (PyCFunction) TreeSequence_get_genotype_matrix,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -7121,14 +7179,17 @@ static PyMethodDef TreeSequence_methods[] = {
 };
 
 static PyTypeObject TreeSequenceType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.TreeSequence",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.TreeSequence",
     .tp_basicsize = sizeof(TreeSequence),
     .tp_dealloc = (destructor) TreeSequence_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "TreeSequence objects",
     .tp_methods = TreeSequence_methods,
-    .tp_members = TreeSequence_members,
     .tp_init = (initproc) TreeSequence_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -8066,10 +8127,6 @@ out:
     return ret;
 }
 
-static PyMemberDef Tree_members[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyMethodDef Tree_methods[] = {
     { .ml_name = "first",
         .ml_meth = (PyCFunction) Tree_first,
@@ -8233,19 +8290,21 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_root_threshold,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the root threshold for this tree." },
-
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject TreeType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.Tree",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.Tree",
     .tp_basicsize = sizeof(Tree),
     .tp_dealloc = (destructor) Tree_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "Tree objects",
     .tp_methods = Tree_methods,
-    .tp_members = Tree_members,
     .tp_init = (initproc) Tree_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -8392,25 +8451,19 @@ out:
     return ret;
 }
 
-static PyMemberDef TreeDiffIterator_members[] = {
-    { NULL } /* Sentinel */
-};
-
-static PyMethodDef TreeDiffIterator_methods[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyTypeObject TreeDiffIteratorType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.TreeDiffIterator",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.TreeDiffIterator",
     .tp_basicsize = sizeof(TreeDiffIterator),
     .tp_dealloc = (destructor) TreeDiffIterator_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "TreeDiffIterator objects",
     .tp_iter = PyObject_SelfIter,
     .tp_iternext = (iternextfunc) TreeDiffIterator_next,
-    .tp_methods = TreeDiffIterator_methods,
-    .tp_members = TreeDiffIterator_members,
     .tp_init = (initproc) TreeDiffIterator_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -8533,25 +8586,19 @@ out:
     return ret;
 }
 
-static PyMemberDef VariantGenerator_members[] = {
-    { NULL } /* Sentinel */
-};
-
-static PyMethodDef VariantGenerator_methods[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyTypeObject VariantGeneratorType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.VariantGenerator",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.VariantGenerator",
     .tp_basicsize = sizeof(VariantGenerator),
     .tp_dealloc = (destructor) VariantGenerator_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "VariantGenerator objects",
     .tp_iter = PyObject_SelfIter,
     .tp_iternext = (iternextfunc) VariantGenerator_next,
-    .tp_methods = VariantGenerator_methods,
-    .tp_members = VariantGenerator_members,
     .tp_init = (initproc) VariantGenerator_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -8709,29 +8756,31 @@ out:
     return ret;
 }
 
-static PyMemberDef LdCalculator_members[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyMethodDef LdCalculator_methods[] = {
-    { "get_r2", (PyCFunction) LdCalculator_get_r2, METH_VARARGS,
-        "Returns the value of the r2 statistic between the specified pair of "
-        "mutation indexes" },
-    { "get_r2_array", (PyCFunction) LdCalculator_get_r2_array,
-        METH_VARARGS | METH_KEYWORDS,
-        "Returns r2 statistic for a given mutation over specified range" },
+    { .ml_name = "get_r2",
+        .ml_meth = (PyCFunction) LdCalculator_get_r2,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the value of the r2 statistic between the specified pair of "
+                  "mutation indexes" },
+    { .ml_name = "get_r2_array",
+        .ml_meth = (PyCFunction) LdCalculator_get_r2_array,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns r2 statistic for a given mutation over specified range" },
     { NULL } /* Sentinel */
 };
 
 static PyTypeObject LdCalculatorType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.LdCalculator",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.LdCalculator",
     .tp_basicsize = sizeof(LdCalculator),
     .tp_dealloc = (destructor) LdCalculator_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "LdCalculator objects",
     .tp_methods = LdCalculator_methods,
-    .tp_members = LdCalculator_members,
     .tp_init = (initproc) LdCalculator_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -8866,13 +8915,11 @@ static PyGetSetDef CompressedMatrix_getsetters[] = {
     { NULL } /* Sentinel */
 };
 
-static PyMemberDef CompressedMatrix_members[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyMethodDef CompressedMatrix_methods[] = {
-    { "get_site", (PyCFunction) CompressedMatrix_get_site, METH_VARARGS,
-        "Returns the list of (node, value) tuples for the specified site." },
+    { .ml_name = "get_site",
+        .ml_meth = (PyCFunction) CompressedMatrix_get_site,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the list of (node, value) tuples for the specified site." },
     { .ml_name = "decode",
         .ml_meth = (PyCFunction) CompressedMatrix_decode,
         .ml_flags = METH_NOARGS,
@@ -8881,15 +8928,18 @@ static PyMethodDef CompressedMatrix_methods[] = {
 };
 
 static PyTypeObject CompressedMatrixType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.CompressedMatrix",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.CompressedMatrix",
     .tp_basicsize = sizeof(CompressedMatrix),
     .tp_dealloc = (destructor) CompressedMatrix_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "CompressedMatrix objects",
     .tp_methods = CompressedMatrix_methods,
-    .tp_members = CompressedMatrix_members,
     .tp_getset = CompressedMatrix_getsetters,
     .tp_init = (initproc) CompressedMatrix_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -9058,17 +9108,15 @@ static PyGetSetDef ViterbiMatrix_getsetters[] = {
     { NULL } /* Sentinel */
 };
 
-static PyMemberDef ViterbiMatrix_members[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyMethodDef ViterbiMatrix_methods[] = {
     { .ml_name = "traceback",
         .ml_meth = (PyCFunction) ViterbiMatrix_traceback,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns a path for a given haplotype." },
-    { "get_site", (PyCFunction) ViterbiMatrix_get_site, METH_VARARGS,
-        "Returns the list of (node, value) tuples for the specified site." },
+    { .ml_name = "get_site",
+        .ml_meth = (PyCFunction) ViterbiMatrix_get_site,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the list of (node, value) tuples for the specified site." },
     { .ml_name = "decode",
         .ml_meth = (PyCFunction) ViterbiMatrix_decode,
         .ml_flags = METH_NOARGS,
@@ -9077,15 +9125,18 @@ static PyMethodDef ViterbiMatrix_methods[] = {
 };
 
 static PyTypeObject ViterbiMatrixType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.ViterbiMatrix",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.ViterbiMatrix",
     .tp_basicsize = sizeof(ViterbiMatrix),
     .tp_dealloc = (destructor) ViterbiMatrix_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "ViterbiMatrix objects",
     .tp_methods = ViterbiMatrix_methods,
-    .tp_members = ViterbiMatrix_members,
     .tp_getset = ViterbiMatrix_getsetters,
     .tp_init = (initproc) ViterbiMatrix_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -9259,10 +9310,6 @@ out:
     return ret;
 }
 
-static PyMemberDef LsHmm_members[] = {
-    { NULL } /* Sentinel */
-};
-
 static PyMethodDef LsHmm_methods[] = {
     { .ml_name = "forward_matrix",
         .ml_meth = (PyCFunction) LsHmm_forward_matrix,
@@ -9276,14 +9323,17 @@ static PyMethodDef LsHmm_methods[] = {
 };
 
 static PyTypeObject LsHmmType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_tskit.LsHmm",
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.LsHmm",
     .tp_basicsize = sizeof(LsHmm),
     .tp_dealloc = (destructor) LsHmm_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "LsHmm objects",
     .tp_methods = LsHmm_methods,
-    .tp_members = LsHmm_members,
     .tp_init = (initproc) LsHmm_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
 };
 
 /*===================================================================
@@ -9315,8 +9365,13 @@ static PyMethodDef tskit_methods[] = {
     { NULL } /* Sentinel */
 };
 
-static struct PyModuleDef tskitmodule = { PyModuleDef_HEAD_INIT, "_tskit",
-    "Low level interface for tskit", -1, tskit_methods, NULL, NULL, NULL, NULL };
+static struct PyModuleDef tskitmodule = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "_tskit",
+    .m_doc = "Low level interface for tskit",
+    .m_size = -1,
+    .m_methods = tskit_methods,
+};
 
 PyObject *
 PyInit__tskit(void)
@@ -9332,7 +9387,6 @@ PyInit__tskit(void)
     }
 
     /* IndividualTable type */
-    IndividualTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&IndividualTableType) < 0) {
         return NULL;
     }
@@ -9340,7 +9394,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "IndividualTable", (PyObject *) &IndividualTableType);
 
     /* NodeTable type */
-    NodeTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&NodeTableType) < 0) {
         return NULL;
     }
@@ -9348,7 +9401,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "NodeTable", (PyObject *) &NodeTableType);
 
     /* EdgeTable type */
-    EdgeTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&EdgeTableType) < 0) {
         return NULL;
     }
@@ -9356,7 +9408,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "EdgeTable", (PyObject *) &EdgeTableType);
 
     /* MigrationTable type */
-    MigrationTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&MigrationTableType) < 0) {
         return NULL;
     }
@@ -9364,7 +9415,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "MigrationTable", (PyObject *) &MigrationTableType);
 
     /* SiteTable type */
-    SiteTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&SiteTableType) < 0) {
         return NULL;
     }
@@ -9372,7 +9422,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "SiteTable", (PyObject *) &SiteTableType);
 
     /* MutationTable type */
-    MutationTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&MutationTableType) < 0) {
         return NULL;
     }
@@ -9380,7 +9429,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "MutationTable", (PyObject *) &MutationTableType);
 
     /* PopulationTable type */
-    PopulationTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&PopulationTableType) < 0) {
         return NULL;
     }
@@ -9388,7 +9436,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "PopulationTable", (PyObject *) &PopulationTableType);
 
     /* ProvenanceTable type */
-    ProvenanceTableType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&ProvenanceTableType) < 0) {
         return NULL;
     }
@@ -9396,7 +9443,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "ProvenanceTable", (PyObject *) &ProvenanceTableType);
 
     /* TableCollectionTable type */
-    TableCollectionType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TableCollectionType) < 0) {
         return NULL;
     }
@@ -9404,7 +9450,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "TableCollection", (PyObject *) &TableCollectionType);
 
     /* TreeSequence type */
-    TreeSequenceType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TreeSequenceType) < 0) {
         return NULL;
     }
@@ -9412,7 +9457,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "TreeSequence", (PyObject *) &TreeSequenceType);
 
     /* Tree type */
-    TreeType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TreeType) < 0) {
         return NULL;
     }
@@ -9420,7 +9464,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "Tree", (PyObject *) &TreeType);
 
     /* TreeDiffIterator type */
-    TreeDiffIteratorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&TreeDiffIteratorType) < 0) {
         return NULL;
     }
@@ -9428,7 +9471,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "TreeDiffIterator", (PyObject *) &TreeDiffIteratorType);
 
     /* VariantGenerator type */
-    VariantGeneratorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&VariantGeneratorType) < 0) {
         return NULL;
     }
@@ -9436,7 +9478,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "VariantGenerator", (PyObject *) &VariantGeneratorType);
 
     /* LdCalculator type */
-    LdCalculatorType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&LdCalculatorType) < 0) {
         return NULL;
     }
@@ -9444,7 +9485,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "LdCalculator", (PyObject *) &LdCalculatorType);
 
     /* CompressedMatrix type */
-    CompressedMatrixType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&CompressedMatrixType) < 0) {
         return NULL;
     }
@@ -9452,7 +9492,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "CompressedMatrix", (PyObject *) &CompressedMatrixType);
 
     /* ViterbiMatrix type */
-    ViterbiMatrixType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&ViterbiMatrixType) < 0) {
         return NULL;
     }
@@ -9460,7 +9499,6 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "ViterbiMatrix", (PyObject *) &ViterbiMatrixType);
 
     /* LsHmm type */
-    LsHmmType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&LsHmmType) < 0) {
         return NULL;
     }

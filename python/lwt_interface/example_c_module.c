@@ -22,6 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+// Turn off clang-formatting for this file as turning off formatting
+// for specific bits will make it more confusing.
+// clang-format off
 
 #define PY_SSIZE_T_CLEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -39,7 +42,8 @@ static PyMethodDef example_c_module_methods[] = {
     { NULL, NULL, 0, NULL } /* sentinel */
 };
 
-static struct PyModuleDef example_c_module = { .m_base = PyModuleDef_HEAD_INIT,
+static struct PyModuleDef example_c_module = {
+    .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "example_c_module",
     .m_doc = "Example C module using the tskit LightweightTableCollection.",
     .m_size = -1,
@@ -56,7 +60,7 @@ PyInit_example_c_module(void)
     if (register_lwt_class(module) != 0) {
         return NULL;
     }
-    /* Put your own functions/class defintion here, as usual */
+    /* Put your own functions/class definitions here, as usual */
 
     return module;
 }
