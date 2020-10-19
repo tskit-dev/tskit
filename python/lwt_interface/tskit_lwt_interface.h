@@ -1703,10 +1703,14 @@ out:
 }
 
 static PyMethodDef LightweightTableCollection_methods[] = {
-    { "asdict", (PyCFunction) LightweightTableCollection_asdict, METH_NOARGS,
-        "Returns the tables encoded as a dictionary." },
-    { "fromdict", (PyCFunction) LightweightTableCollection_fromdict, METH_VARARGS,
-        "Populates the internal tables using the specified dictionary." },
+    { .ml_name = "asdict",
+        .ml_meth = (PyCFunction) LightweightTableCollection_asdict,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the tables encoded as a dictionary." },
+    { .ml_name = "fromdict",
+        .ml_meth = (PyCFunction) LightweightTableCollection_fromdict,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Populates the internal tables using the specified dictionary." },
     { NULL } /* Sentinel */
 };
 
@@ -1716,7 +1720,6 @@ static PyTypeObject LightweightTableCollectionType = {
     .tp_name = "LightweightTableCollection",
     .tp_doc = "Low-level table collection interchange.",
     .tp_basicsize = sizeof(LightweightTableCollection),
-    .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_methods = LightweightTableCollection_methods,
