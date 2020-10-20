@@ -228,10 +228,9 @@ To view the documentation,
 and then navigate your web browser to the ``docs/_build/html/``
 subdirectory.
 
-To test out the *code*, you can either use conda (as described above),
-or, if you change to the ``python/`` subdirectory,
-run ``make`` to compile the C code,
-and execute ``python`` from this subdirectory,
+To test out changes to the *code*, you can change to the ``python/`` subdirectory,
+and run ``make`` to compile the C code.
+If you then execute ``python`` from this subdirectory (and only this one!),
 it will use the modified version of the package.
 (For instance, you might want to
 open an interactive ``python`` shell from the ``python/`` subdirectory,
