@@ -1310,16 +1310,23 @@ class TestPopulationTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=[0])
 
 
-class TestTableCollectionIndex:
+class TestTableCollectionIndexes:
     def test_index(self):
         i = np.arange(20)
         r = np.arange(20)[::-1]
         index = tskit.TableCollectionIndexes(
             edge_insertion_order=i, edge_removal_order=r
         )
-        assert index.edge_insertion_order is i
-        assert index.edge_removal_order is r
-        assert index.asdict() == {"edge_insertion_order": i, "edge_removal_order": r}
+        assert np.array_equal(index.edge_insertion_order, i)
+        assert np.array_equal(index.edge_removal_order, r)
+        d = index.asdict()
+        assert np.array_equal(d["edge_insertion_order"], i)
+        assert np.array_equal(d["edge_removal_order"], r)
+
+        index = tskit.TableCollectionIndexes()
+        assert index.edge_insertion_order is None
+        assert index.edge_removal_order is None
+        assert index.asdict() == {}
 
 
 class TestSortTables:
@@ -2255,7 +2262,7 @@ class TestTableCollection:
         t = ts.tables
         self.add_metadata(t)
         d1 = {
-            "encoding_version": (1, 1),
+            "encoding_version": (1, 2),
             "sequence_length": t.sequence_length,
             "metadata_schema": str(t.metadata_schema),
             "metadata": t.metadata_schema.encode_row(t.metadata),
@@ -2267,12 +2274,15 @@ class TestTableCollection:
             "mutations": t.mutations.asdict(),
             "migrations": t.migrations.asdict(),
             "provenances": t.provenances.asdict(),
+            "indexes": t.indexes.asdict(),
         }
         d2 = t.asdict()
         assert set(d1.keys()) == set(d2.keys())
         t1 = tskit.TableCollection.fromdict(d1)
         t2 = tskit.TableCollection.fromdict(d2)
         assert t1 == t2
+        assert t1.has_index()
+        assert t2.has_index()
 
     def test_from_dict(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
@@ -2291,6 +2301,7 @@ class TestTableCollection:
             "mutations": t1.mutations.asdict(),
             "migrations": t1.migrations.asdict(),
             "provenances": t1.provenances.asdict(),
+            "indexes": t1.indexes.asdict(),
         }
         t2 = tskit.TableCollection.fromdict(d)
         assert t1 == t2
@@ -2551,16 +2562,9 @@ class TestTableCollection:
         tree = next(trees)
         assert len(tree.parent_dict) == 0
 
-    def test_index_read(self, simple_ts_fixture):
+    def test_indexes(self, simple_ts_fixture):
         tc = tskit.TableCollection(sequence_length=1)
-        assert tc.indexes.edge_insertion_order.dtype == np.int32
-        assert tc.indexes.edge_removal_order.dtype == np.int32
-        assert np.array_equal(
-            tc.indexes.edge_insertion_order, np.arange(0, dtype=np.int32)
-        )
-        assert np.array_equal(
-            tc.indexes.edge_removal_order, np.arange(0, dtype=np.int32)[::-1]
-        )
+        assert tc.indexes == tskit.TableCollectionIndexes()
         tc = simple_ts_fixture.tables
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
@@ -2569,12 +2573,7 @@ class TestTableCollection:
             tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
         )
         tc.drop_index()
-        assert np.array_equal(
-            tc.indexes.edge_insertion_order, np.arange(0, dtype=np.int32)
-        )
-        assert np.array_equal(
-            tc.indexes.edge_removal_order, np.arange(0, dtype=np.int32)[::-1]
-        )
+        assert tc.indexes == tskit.TableCollectionIndexes()
         tc.build_index()
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
@@ -2582,6 +2581,63 @@ class TestTableCollection:
         assert np.array_equal(
             tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
         )
+
+        modify_indexes = tskit.TableCollectionIndexes(
+            edge_insertion_order=np.arange(42, 42 + 18, dtype=np.int32),
+            edge_removal_order=np.arange(4242, 4242 + 18, dtype=np.int32),
+        )
+        tc.indexes = modify_indexes
+        assert np.array_equal(
+            tc.indexes.edge_insertion_order, np.arange(42, 42 + 18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes.edge_removal_order, np.arange(4242, 4242 + 18, dtype=np.int32)
+        )
+
+    def test_indexes_roundtrip(self, simple_ts_fixture):
+        # Indexes shouldn't be made by roundtripping
+        tables = tskit.TableCollection(sequence_length=1)
+        assert not tables.has_index()
+        assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
+
+        tables = simple_ts_fixture.dump_tables()
+        tables.drop_index()
+        assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
+
+    def test_asdict_lwt_concordence(self, ts_fixture):
+        def check_concordence(d1, d2):
+            assert set(d1.keys()) == set(d2.keys())
+            for k1, v1 in d1.items():
+                v2 = d2[k1]
+                assert type(v1) == type(v2)
+                if type(v1) == dict:
+                    assert set(v1.keys()) == set(v2.keys())
+                    for sk1, sv1 in v1.items():
+                        sv2 = v2[sk1]
+                        assert type(sv1) == type(sv2)
+                        if type(sv1) == np.ndarray:
+                            assert np.array_equal(sv1, sv2) or (
+                                np.all(tskit.is_unknown_time(sv1))
+                                and np.all(tskit.is_unknown_time(sv2))
+                            )
+                        elif type(sv1) in [bytes, str]:
+                            assert sv1 == sv2
+                        else:
+                            raise AssertionError()
+
+                else:
+                    assert v1 == v2
+
+        tables = ts_fixture.dump_tables()
+        assert tables.has_index()
+        lwt = _tskit.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        check_concordence(lwt.asdict(), tables.asdict())
+
+        tables.drop_index()
+        lwt = _tskit.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        check_concordence(lwt.asdict(), tables.asdict())
 
 
 class TestEqualityOptions:
