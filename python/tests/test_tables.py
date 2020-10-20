@@ -1310,6 +1310,18 @@ class TestPopulationTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=[0])
 
 
+class TestTableCollectionIndex:
+    def test_index(self):
+        i = np.arange(20)
+        r = np.arange(20)[::-1]
+        index = tskit.TableCollectionIndexes(
+            edge_insertion_order=i, edge_removal_order=r
+        )
+        assert index.edge_insertion_order is i
+        assert index.edge_removal_order is r
+        assert index.asdict() == {"edge_insertion_order": i, "edge_removal_order": r}
+
+
 class TestSortTables:
     """
     Tests for the TableCollection.sort() method.
@@ -2494,7 +2506,7 @@ class TestTableCollection:
         assert not tables.has_index()
         ts = tables.tree_sequence()
         assert ts.tables == tables
-        assert not tables.has_index()
+        assert tables.has_index()
 
     def test_set_sequence_length_errors(self):
         tables = tskit.TableCollection(1)
@@ -2538,6 +2550,38 @@ class TestTableCollection:
         assert len(tree.parent_dict) > 0
         tree = next(trees)
         assert len(tree.parent_dict) == 0
+
+    def test_index_read(self, simple_ts_fixture):
+        tc = tskit.TableCollection(sequence_length=1)
+        assert tc.indexes.edge_insertion_order.dtype == np.int32
+        assert tc.indexes.edge_removal_order.dtype == np.int32
+        assert np.array_equal(
+            tc.indexes.edge_insertion_order, np.arange(0, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes.edge_removal_order, np.arange(0, dtype=np.int32)[::-1]
+        )
+        tc = simple_ts_fixture.tables
+        assert np.array_equal(
+            tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
+        )
+        tc.drop_index()
+        assert np.array_equal(
+            tc.indexes.edge_insertion_order, np.arange(0, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes.edge_removal_order, np.arange(0, dtype=np.int32)[::-1]
+        )
+        tc.build_index()
+        assert np.array_equal(
+            tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
+        )
 
 
 class TestEqualityOptions:

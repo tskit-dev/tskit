@@ -3002,9 +3002,9 @@ class TreeSequence:
         return TreeSequence(ts)
 
     @classmethod
-    def load_tables(cls, tables):
+    def load_tables(cls, tables, *, build_indexes=False):
         ts = _tskit.TreeSequence()
-        ts.load_tables(tables._ll_tables)
+        ts.load_tables(tables._ll_tables, build_indexes=build_indexes)
         return TreeSequence(ts)
 
     def dump(self, file):

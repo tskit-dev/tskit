@@ -13,6 +13,12 @@
 - ``ts.dump`` and ``tskit.load`` now support reading and writing file objects such as
   FIFOs and sockets. (:user:`benjeffery`, :issue:`657`, :pr:`909`)
 
+- Added ``tskit.write_ms`` for writing to MS format.
+  (:user:`saurabhbelsare`, :issue:`727`, :pr:`854`)
+
+- Added ``TableCollection.indexes`` for access to the edge insertion/removal order indexes.
+  (:user:`benjeffery`, :issue:`4`, :pr:`916`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.

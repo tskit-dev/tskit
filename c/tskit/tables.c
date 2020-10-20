@@ -7917,8 +7917,8 @@ tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
         metadata_schema, metadata_schema_length);
 }
 
-static int
-tsk_table_collection_set_index(tsk_table_collection_t *self,
+int
+tsk_table_collection_set_indexes(tsk_table_collection_t *self,
     tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order)
 {
     int ret = 0;
@@ -8068,7 +8068,7 @@ tsk_table_collection_copy(const tsk_table_collection_t *self,
     }
     dest->sequence_length = self->sequence_length;
     if (tsk_table_collection_has_index(self, 0)) {
-        ret = tsk_table_collection_set_index(
+        ret = tsk_table_collection_set_indexes(
             dest, self->indexes.edge_insertion_order, self->indexes.edge_removal_order);
         if (ret != 0) {
             goto out;
@@ -8261,7 +8261,7 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self, kastore_t *store
             ret = TSK_ERR_FILE_FORMAT;
             goto out;
         }
-        ret = tsk_table_collection_set_index(
+        ret = tsk_table_collection_set_indexes(
             self, edge_insertion_order, edge_removal_order);
         if (ret != 0) {
             goto out;

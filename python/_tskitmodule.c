@@ -248,7 +248,7 @@ convert_node_id_list(tsk_id_t *children, size_t num_children)
     for (j = 0; j < num_children; j++) {
         py_int = Py_BuildValue("i", (int) children[j]);
         if (py_int == NULL) {
-            Py_DECREF(children);
+            Py_DECREF(t);
             goto out;
         }
         PyTuple_SET_ITEM(t, j, py_int);
@@ -5215,6 +5215,66 @@ out:
 }
 
 static PyObject *
+TableCollection_get_indexes(TableCollection *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyObject *indexes_dict = NULL;
+    PyObject *insertion = NULL;
+    PyObject *removal = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+
+    insertion = table_get_column_array(self->tables->indexes.num_edges,
+        self->tables->indexes.edge_insertion_order, NPY_INT32, sizeof(tsk_id_t));
+    if (insertion == NULL) {
+        goto out;
+    }
+    removal = table_get_column_array(self->tables->indexes.num_edges,
+        self->tables->indexes.edge_removal_order, NPY_INT32, sizeof(tsk_id_t));
+    if (removal == NULL) {
+        goto out;
+    }
+    indexes_dict = PyDict_New();
+    if (indexes_dict == NULL) {
+        goto out;
+    }
+    if (PyDict_SetItemString(indexes_dict, "edge_insertion_order", insertion) != 0) {
+        goto out;
+    }
+    if (PyDict_SetItemString(indexes_dict, "edge_removal_order", removal) != 0) {
+        goto out;
+    }
+    ret = indexes_dict;
+    indexes_dict = NULL;
+out:
+    Py_XDECREF(indexes_dict);
+    Py_XDECREF(insertion);
+    Py_XDECREF(removal);
+    return ret;
+}
+
+static int
+TableCollection_set_indexes(TableCollection *self, PyObject *arg, void *closure)
+{
+    int err;
+    int ret = -1;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+
+    err = parse_indexes_dict(self->tables, arg);
+    if (err != 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_has_index(TableCollection *self)
 {
     bool has_index = tsk_table_collection_has_index(self->tables, 0);
@@ -5286,6 +5346,10 @@ static PyGetSetDef TableCollection_getsetters[] = {
     { .name = "provenances",
         .get = (getter) TableCollection_get_provenances,
         .doc = "The provenance table." },
+    { .name = "indexes",
+        .get = (getter) TableCollection_get_indexes,
+        .set = (setter) TableCollection_set_indexes,
+        .doc = "The indexes." },
     { .name = "sequence_length",
         .get = (getter) TableCollection_get_sequence_length,
         .set = (setter) TableCollection_set_sequence_length,
@@ -5473,17 +5537,20 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
     int err;
     PyObject *ret = NULL;
     TableCollection *tables = NULL;
-    static char *kwlist[] = { "tables", NULL };
-    /* TODO add an interface to turn this on and off. */
-    tsk_flags_t options = TSK_BUILD_INDEXES;
+    static char *kwlist[] = { "tables", "build_indexes", NULL };
+    int build_indexes = false;
+    tsk_flags_t options = 0;
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "O!", kwlist, &TableCollectionType, &tables)) {
+            args, kwds, "O!|i", kwlist, &TableCollectionType, &tables, &build_indexes)) {
         goto out;
     }
     err = TreeSequence_alloc(self);
     if (err != 0) {
         goto out;
+    }
+    if (build_indexes) {
+        options |= TSK_BUILD_INDEXES;
     }
     err = tsk_treeseq_init(self->tree_sequence, tables->tables, options);
     if (err != 0) {

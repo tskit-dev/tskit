@@ -140,6 +140,15 @@ class ProvenanceTableRow:
     record: str
 
 
+@attr.s(**attr_options)
+class TableCollectionIndexes:
+    edge_insertion_order: np.ndarray
+    edge_removal_order: np.ndarray
+
+    def asdict(self):
+        return attr.asdict(self)
+
+
 def keep_with_offset(keep, data, offset):
     """
     Used when filtering _offset columns in tables
@@ -2025,6 +2034,7 @@ class TableCollection:
     :vartype populations: PopulationTable
     :ivar provenances: The provenance table.
     :vartype provenances: ProvenanceTable
+    :ivar index: The edge insertion and removal index.
     :ivar sequence_length: The sequence length defining the coordinate
         space.
     :vartype sequence_length: float
@@ -2067,6 +2077,10 @@ class TableCollection:
     @property
     def provenances(self):
         return ProvenanceTable(ll_table=self._ll_tables.provenances)
+
+    @property
+    def indexes(self):
+        return TableCollectionIndexes(**self._ll_tables.indexes)
 
     @property
     def sequence_length(self):
@@ -2291,12 +2305,15 @@ class TableCollection:
         in canonical form (i.e., does not meet sorting requirements) or cannot be
         interpreted as a tree sequence an exception is raised. The
         :meth:`.sort` method may be used to ensure that input sorting requirements
-        are met.
+        are met. If the table collection does not have indexes they will be
+        built.
 
         :return: A :class:`TreeSequence` instance reflecting the structures
             defined in this set of tables.
         :rtype: .TreeSequence
         """
+        if not self.has_index():
+            self.build_index()
         return tskit.TreeSequence.load_tables(self)
 
     def simplify(

@@ -1172,6 +1172,76 @@ out:
     return ret;
 }
 
+// TODO REMOVE THIS ONCE INDEXES IN LWT
+#ifdef __GNUC__
+#define VARIABLE_IS_NOT_USED __attribute__((unused))
+#else
+#define VARIABLE_IS_NOT_USED
+#endif
+
+VARIABLE_IS_NOT_USED static int
+parse_indexes_dict(tsk_table_collection_t *tables, PyObject *dict)
+{
+    int err;
+    int ret = -1;
+    size_t insertion_length, removal_length;
+    PyObject *insertion_input = NULL;
+    PyArrayObject *insertion_array = NULL;
+    PyObject *removal_input = NULL;
+    PyArrayObject *removal_array = NULL;
+
+    /* Get the inputs */
+    insertion_input = get_table_dict_value(dict, "edge_insertion_order", false);
+    if (insertion_input == NULL) {
+        goto out;
+    }
+    removal_input = get_table_dict_value(dict, "edge_removal_order", false);
+    if (removal_input == NULL) {
+        goto out;
+    }
+
+    if ((insertion_input == Py_None) != (removal_input == Py_None)) {
+        PyErr_SetString(PyExc_TypeError,
+            "edge_insertion_order and edge_removal_order must be specified together");
+        goto out;
+    }
+
+    if (insertion_input != Py_None) {
+        insertion_array = table_read_column_array(
+            insertion_input, NPY_INT32, &insertion_length, false);
+        if (insertion_array == NULL) {
+            goto out;
+        }
+        removal_array
+            = table_read_column_array(removal_input, NPY_INT32, &removal_length, false);
+        if (removal_array == NULL) {
+            goto out;
+        }
+        if (insertion_length != removal_length) {
+            PyErr_SetString(PyExc_ValueError,
+                "edge_insertion_order and edge_removal_order must be the same length");
+            goto out;
+        }
+        if (insertion_length != tables->edges.num_rows) {
+            PyErr_SetString(PyExc_ValueError,
+                "edge_insertion_order and edge_removal_order must be "
+                "the same length as the number of edges");
+            goto out;
+        }
+        err = tsk_table_collection_set_indexes(
+            tables, PyArray_DATA(insertion_array), PyArray_DATA(removal_array));
+        if (err != 0) {
+            handle_tskit_error(err);
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    Py_XDECREF(insertion_array);
+    Py_XDECREF(removal_array);
+    return ret;
+}
+
 static int
 parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dict)
 {

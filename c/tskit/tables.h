@@ -2851,6 +2851,26 @@ collection. Any existing index is first dropped using
 int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t options);
 
 /**
+@brief Sets the edge insertion/removal index for this table collection
+
+@rst
+This method sets the edge insertion/removal index for this table collection
+The index arrays should have the same number of edges that are in the
+edge table. The index is not checked for validity.
+
+See the :ref:`sec_c_api_table_indexes` section for details on the index
+life-cycle.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param edge_insertion_order Array of tsk_id_t edge ids.
+@param edge_removal_order Array of tsk_id_t edge ids.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_set_indexes(tsk_table_collection_t *self,
+    tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order);
+
+/**
 @brief Runs integrity checks on this table collection.
 
 @rst
