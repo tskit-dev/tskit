@@ -1310,7 +1310,7 @@ class TestPopulationTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=[0])
 
 
-class TestTableCollectionIndex:
+class TestTableCollectionIndexes:
     def test_index(self):
         i = np.arange(20)
         r = np.arange(20)[::-1]
@@ -2267,12 +2267,15 @@ class TestTableCollection:
             "mutations": t.mutations.asdict(),
             "migrations": t.migrations.asdict(),
             "provenances": t.provenances.asdict(),
+            "indexes": t.indexes.asdict(),
         }
         d2 = t.asdict()
         assert set(d1.keys()) == set(d2.keys())
         t1 = tskit.TableCollection.fromdict(d1)
         t2 = tskit.TableCollection.fromdict(d2)
         assert t1 == t2
+        assert t1.has_index()
+        assert t2.has_index()
 
     def test_from_dict(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
@@ -2291,6 +2294,7 @@ class TestTableCollection:
             "mutations": t1.mutations.asdict(),
             "migrations": t1.migrations.asdict(),
             "provenances": t1.provenances.asdict(),
+            "indexes": t1.indexes.asdict(),
         }
         t2 = tskit.TableCollection.fromdict(d)
         assert t1 == t2
@@ -2551,16 +2555,9 @@ class TestTableCollection:
         tree = next(trees)
         assert len(tree.parent_dict) == 0
 
-    def test_index_read(self, simple_ts_fixture):
+    def test_indexes(self, simple_ts_fixture):
         tc = tskit.TableCollection(sequence_length=1)
-        assert tc.indexes.edge_insertion_order.dtype == np.int32
-        assert tc.indexes.edge_removal_order.dtype == np.int32
-        assert np.array_equal(
-            tc.indexes.edge_insertion_order, np.arange(0, dtype=np.int32)
-        )
-        assert np.array_equal(
-            tc.indexes.edge_removal_order, np.arange(0, dtype=np.int32)[::-1]
-        )
+        assert tc.indexes is None
         tc = simple_ts_fixture.tables
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
@@ -2569,12 +2566,7 @@ class TestTableCollection:
             tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
         )
         tc.drop_index()
-        assert np.array_equal(
-            tc.indexes.edge_insertion_order, np.arange(0, dtype=np.int32)
-        )
-        assert np.array_equal(
-            tc.indexes.edge_removal_order, np.arange(0, dtype=np.int32)[::-1]
-        )
+        assert tc.indexes is None
         tc.build_index()
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
@@ -2582,6 +2574,28 @@ class TestTableCollection:
         assert np.array_equal(
             tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
         )
+
+        modify_indexes = tskit.TableCollectionIndexes(
+            edge_insertion_order=np.arange(42, 42 + 18, dtype=np.int32),
+            edge_removal_order=np.arange(4242, 4242 + 18, dtype=np.int32),
+        )
+        tc.indexes = modify_indexes
+        assert np.array_equal(
+            tc.indexes.edge_insertion_order, np.arange(42, 42 + 18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes.edge_removal_order, np.arange(4242, 4242 + 18, dtype=np.int32)
+        )
+
+    def test_indexes_roundtrip(self, simple_ts_fixture):
+        # Indexes shouldn't be made by roundtripping
+        tables = tskit.TableCollection(sequence_length=1)
+        assert not tables.has_index()
+        assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
+
+        tables = simple_ts_fixture.dump_tables()
+        tables.drop_index()
+        assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 
 
 class TestEqualityOptions:

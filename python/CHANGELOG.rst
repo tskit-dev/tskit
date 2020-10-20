@@ -25,6 +25,9 @@
 - Added ``TableCollection.indexes`` for access to the edge insertion/removal order indexes.
   (:user:`benjeffery`, :issue:`4`, :pr:`916`)
 
+- The dictionary representation of a TableCollection now contains its index.
+  (:user:`benjeffery`, :issue:`870`, :pr:`921`)
+
 - Added ``TreeSequence._repr_html_`` for use in jupyter notebooks.
   (:user:`benjeffery`, :issue:`872`, :pr:`923`)
 

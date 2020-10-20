@@ -5226,6 +5226,11 @@ TableCollection_get_indexes(TableCollection *self, void *closure)
         goto out;
     }
 
+    if (!tsk_table_collection_has_index(self->tables, 0)) {
+        ret = Py_None;
+        goto out;
+    }
+
     insertion = table_get_column_array(self->tables->indexes.num_edges,
         self->tables->indexes.edge_insertion_order, NPY_INT32, sizeof(tsk_id_t));
     if (insertion == NULL) {
