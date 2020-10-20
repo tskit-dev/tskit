@@ -301,7 +301,7 @@ test_missing_optional_column_pairs(void)
         copy_store_drop_columns(ts, 2, drop_cols, _tmp_file_name);
         ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2));
+        CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2, 0));
         tsk_table_collection_free(&t2);
     }
 
@@ -484,7 +484,7 @@ test_missing_indexes(void)
     copy_store_drop_columns(ts, 2, cols, _tmp_file_name);
     ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     CU_ASSERT_FALSE(tsk_table_collection_has_index(&t2, 0));
     tsk_table_collection_free(&t2);
 
@@ -633,7 +633,7 @@ test_metadata_schemas_optional(void)
         ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         /* metadata schemas are included in data comparisons */
-        CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2));
+        CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2, 0));
         tsk_table_collection_free(&t2);
     }
 
@@ -933,12 +933,12 @@ test_example_round_trip(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
 
     /* Reading multiple times into the same tables with TSK_NO_INIT is supported. */
     ret = tsk_table_collection_load(&t2, _tmp_file_name, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     tsk_table_collection_free(&t2);
 
     /* Do the same thing with treeseq API */
@@ -947,7 +947,7 @@ test_example_round_trip(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_load(&ts2, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables, 0));
     tsk_treeseq_free(&ts2);
 
     /* Use loadf form */
@@ -957,7 +957,7 @@ test_example_round_trip(void)
     fseek(f, 0, SEEK_SET);
     ret = tsk_table_collection_loadf(&t2, f, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     tsk_table_collection_free(&t2);
     fclose(f);
 
@@ -968,7 +968,7 @@ test_example_round_trip(void)
     fseek(f, 0, SEEK_SET);
     ret = tsk_treeseq_loadf(&ts2, f, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables, 0));
     tsk_treeseq_free(&ts2);
 
     fclose(f);
@@ -1004,7 +1004,7 @@ test_multiple_round_trip(void)
     for (j = 0; j < num_examples; j++) {
         ret = tsk_table_collection_loadf(&out_tables, f, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables));
+        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables, 0));
         tsk_table_collection_free(&out_tables);
     }
 
@@ -1015,7 +1015,7 @@ test_multiple_round_trip(void)
     for (j = 0; j < num_examples; j++) {
         ret = tsk_table_collection_loadf(&out_tables, f, TSK_NO_INIT);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables));
+        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables, 0));
     }
     tsk_table_collection_free(&out_tables);
 
@@ -1030,7 +1030,7 @@ test_multiple_round_trip(void)
             break;
         }
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables));
+        CU_ASSERT_TRUE(tsk_table_collection_equals(&in_tables[j], &out_tables, 0));
         j++;
     }
     tsk_table_collection_free(&out_tables);
@@ -1055,7 +1055,7 @@ test_copy_store_drop_columns(void)
     copy_store_drop_columns(ts, 0, NULL, _tmp_file_name);
     ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
 
     tsk_table_collection_free(&t1);
     tsk_table_collection_free(&t2);

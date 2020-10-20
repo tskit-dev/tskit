@@ -2,11 +2,14 @@
 [0.99.8] - 2020-XX-XX
 ---------------------
 
-**New features**
+**Breaking changes**
 
-- Added ``tsk_table_collection_equals_with_options`` which allows for more flexible equality 
-  criteria (e.g., ignore top-level metadata and schema or provenance tables).
-  (:user:`mufernando`, :issue:`896`, :pr:`897`)
+- Added an ``options`` argument to ``tsk_table_collection_equals``
+  and table equality methods to allow for more flexible equality criteria
+  (e.g., ignore top-level metadata and schema or provenance tables).
+  Existing code should add an extra final parameter ``0`` to retain the
+  current behaviour. (:user:`mufernando`, :user:`jeromekelleher`,
+  :issue:`896`, :pr:`897`, :issue:`913`, :pr:`917`).
 
 ---------------------
 [0.99.7] - 2020-09-29
@@ -35,7 +38,7 @@
 **Breaking changes**
 
 - The macro ``TSK_IMPUTE_MISSING_DATA`` is renamed to ``TSK_ISOLATED_NOT_MISSING``
-  (:user:`benjeffery`, :issue:`716`, :pr:`794`)  
+  (:user:`benjeffery`, :issue:`716`, :pr:`794`)
 
 **New features**
 

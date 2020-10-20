@@ -97,25 +97,23 @@ def ts_fixture():
         record_migrations=True,
     )
     tables = ts.dump_tables()
-    for table in [
-        "edges",
-        "individuals",
-        "migrations",
-        "mutations",
-        "nodes",
-        "populations",
-        "sites",
-    ]:
-        getattr(tables, table).metadata_schema = tskit.MetadataSchema({"codec": "json"})
-        metadatas = [f"n_{table}_{u}" for u in range(getattr(ts, f"num_{table}"))]
-        metadata, metadata_offset = tskit.pack_strings(metadatas)
-        getattr(tables, table).set_columns(
-            **{
-                **getattr(tables, table).asdict(),
-                "metadata": metadata,
-                "metadata_offset": metadata_offset,
-            }
-        )
+    # TODO replace this with properly linked up individuals using sim_ancestry
+    # once 1.0 is released.
+    for j in range(n):
+        tables.individuals.add_row(flags=j, location=(j, j))
+
+    for name, table in tables.name_map.items():
+        if name != "provenances":
+            table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+            metadatas = [f"n_{name}_{u}" for u in range(len(table))]
+            metadata, metadata_offset = tskit.pack_strings(metadatas)
+            table.set_columns(
+                **{
+                    **table.asdict(),
+                    "metadata": metadata,
+                    "metadata_offset": metadata_offset,
+                }
+            )
     tables.metadata_schema = tskit.MetadataSchema({"codec": "json"})
     tables.metadata = "Test metadata"
     return tables.tree_sequence()
