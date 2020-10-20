@@ -114,7 +114,7 @@ jobs:
           name: Run Python tests
           command: |
             cd python
-            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n `nproc` tests
+            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n8 tests
 
       - run:
           name: Upload Python coverage

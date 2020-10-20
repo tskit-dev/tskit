@@ -556,7 +556,7 @@ class TestBadFile:
             with pytest.raises(TestException):
                 capture_output(cli.tskit_main, ["info", "/no/such/file"])
             mocked_exit.assert_called_once_with(
-                "Load error: [Errno 2] No such file or directory"
+                "Load error: [Errno 2] No such file or directory: '/no/such/file'"
             )
 
     def test_info(self):

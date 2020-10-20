@@ -709,6 +709,33 @@ out:
     return ret;
 }
 
+static FILE *
+make_file(PyObject *fileobj, const char *mode)
+{
+    FILE *ret = NULL;
+    FILE *file = NULL;
+    int fileobj_fd, new_fd;
+
+    fileobj_fd = PyObject_AsFileDescriptor(fileobj);
+    if (fileobj_fd == -1) {
+        goto out;
+    }
+    new_fd = dup(fileobj_fd);
+    if (new_fd == -1) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        goto out;
+    }
+    file = fdopen(new_fd, mode);
+    if (file == NULL) {
+        (void) close(new_fd);
+        PyErr_SetFromErrno(PyExc_OSError);
+        goto out;
+    }
+    ret = file;
+out:
+    return ret;
+}
+
 /*===================================================================
  * IndividualTable
  *===================================================================
@@ -5321,23 +5348,33 @@ static PyObject *
 TreeSequence_dump(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     int err;
-    char *path;
+    FILE *file = NULL;
+    PyObject *py_file = NULL;
     PyObject *ret = NULL;
-    static char *kwlist[] = { "path", NULL };
+    static char *kwlist[] = { "file", NULL };
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &path)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &py_file)) {
         goto out;
     }
-    err = tsk_treeseq_dump(self->tree_sequence, path, 0);
+
+    file = make_file(py_file, "wb");
+    if (file == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_dumpf(self->tree_sequence, file, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("");
 out:
+    if (file != NULL) {
+        (void) fclose(file);
+    }
     return ret;
 }
 
@@ -5398,24 +5435,41 @@ static PyObject *
 TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     int err;
-    char *path;
     PyObject *ret = NULL;
-    static char *kwlist[] = { "path", NULL };
+    PyObject *py_file;
+    FILE *file = NULL;
+    static char *kwlist[] = { "file", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &path)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &py_file)) {
+        goto out;
+    }
+    file = make_file(py_file, "rb");
+    if (file == NULL) {
+        goto out;
+    }
+    /* Set unbuffered mode to ensure no more bytes are read than requested.
+     * Buffered reads could read beyond the end of the current store in a
+     * multi-store file or stream. This data would be discarded when we
+     * fclose() the file below, such that attempts to load the next store
+     * will fail. */
+    if (setvbuf(file, NULL, _IONBF, 0) != 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
         goto out;
     }
     err = TreeSequence_alloc(self);
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_load(self->tree_sequence, path, 0);
+    err = tsk_treeseq_loadf(self->tree_sequence, file, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("");
 out:
+    if (file != NULL) {
+        (void) fclose(file);
+    }
     return ret;
 }
 
