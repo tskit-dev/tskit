@@ -181,8 +181,8 @@ skip to :ref:`sec_development_workflow_anothers_commit`.
 
 4. Write your code following the outline in :ref:`sec_development_best_practices`.
    As you work on your topic branch you can add commits to it. Once you're
-   ready to share this, you can then open a `pull request
-   <https://help.github.com/articles/about-pull-requests/>`_ (PR). This can be done at any
+   ready to share this, you can then open a `pull request (PR)
+   <https://help.github.com/articles/about-pull-requests/>`_. This can be done at any
    time! You don't have to have code that is completely functional and tested to get
    feedback. Use the drop-down button to create a "draft PR" to indicate that it's not
    done, and explain in the comments what feedback you need and/or what you think needs
