@@ -182,31 +182,37 @@ skip to :ref:`sec_development_workflow_anothers_commit`.
 4. Write your code following the outline in :ref:`sec_development_best_practices`.
    As you work on your topic branch you can add commits to it. Once you're
    ready to share this, you can then open a `pull request
-   <https://help.github.com/articles/about-pull-requests/>`__. This can be done at any time
-   if you would like feedback on incomplete code, the drop-down button to create a PR
-   has a "draft PR" option for this.
+   <https://help.github.com/articles/about-pull-requests/>`_ (PR). This can be done at any
+   time! You don't have to have code that is completely functional and tested to get
+   feedback. Use the drop-down button to create a "draft PR" to indicate that it's not
+   done, and explain in the comments what feedback you need and/or what you think needs
+   to be done.
 
 5. As you code it is best to `rebase <https://stdpopsim.readthedocs.io/en/
    latest/development.html#rebasing>`_ your work onto the ``main`` branch periodically
-   (e.g. once a week) to keep up with changes.
+   (e.g. once a week) to keep up with changes. If you merge ``main`` via ``git pull upstream main``
+   it will create a much more complex rebase when your code is finally merged when done, so
+   should be avoided.
 
 6. Once you're done coding add content to the tutorial and other documentation pages if
    appropriate.
 
-7. Update the change logs, taking care to document any breaking changes separately.
+7. Update the change logs at ``python/CHANGELOG.rst`` and ``c/CHANGELOG.rst``, taking care
+   to document any breaking changes separately in a "breaking changes" section.
 
 8. Push your changes to your topic branch and either open the PR or, if you
    opened a draft PR above change it to a non-draft PR by clicking "Ready to
    Review".
 
 9. The tskit community will review the code, asking you to make changes where appropriate.
-   This can often take a couple of rounds of review.
+   This usually takes at least two rounds of review.
 
-10. Once the review process is complete squash the commits to the minimal set of changes -
-    usually one or two. Please follow `this guide <https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_ for step-by-step
-    instructions on rebasing and squashing commits.
+10. Once the review process is complete, squash the commits to the minimal set of changes -
+    usually one or  commits. Please follow
+    `this guide <https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_ for
+    step-by-step instructions on rebasing and squashing commits.
 
-11. Your PR will be merged, open the champagne! 🎉🍾
+11. Your PR will be merged, time to celebrate! 🎉🍾
 
 
 .. _sec_development_workflow_anothers_commit:
