@@ -191,8 +191,8 @@ skip to :ref:`sec_development_workflow_anothers_commit`.
 5. As you code it is best to `rebase <https://stdpopsim.readthedocs.io/en/
    latest/development.html#rebasing>`_ your work onto the ``main`` branch periodically
    (e.g. once a week) to keep up with changes. If you merge ``main`` via ``git pull upstream main``
-   it will create a much more complex rebase when your code is finally merged when done, so
-   should be avoided.
+   it will create a much more complex rebase when your code is finally ready to be
+   incorporated into the main branch, so should be avoided.
 
 6. Once you're done coding add content to the tutorial and other documentation pages if
    appropriate.
