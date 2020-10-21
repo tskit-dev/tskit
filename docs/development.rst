@@ -148,21 +148,28 @@ Workflow
 Git workflow
 ------------
 
-If you would like to make an addition to tskit, then follow the steps below
+If you would like to make an addition/fix to tskit, then follow the steps below
 to get things set up.
 If you would just like to review someone else's proposed changes
 (either to the code or to the docs), then
 skip to :ref:`sec_development_workflow_anothers_commit`.
 
+0.  Open an `issue <http://github.com/tskit-dev/tskit/issues>`_ with your proposed
+    functionality/fix. If adding or changing the public API close thought should be given to
+    names and signatures of proposed functions. If consensus is reached that your
+    proposed addition should be added to the codebase, proceed!
+
 1. Make your own `fork <https://help.github.com/articles/fork-a-repo/>`_
    of the ``tskit`` repository on GitHub, and
    `clone <https://help.github.com/articles/cloning-a-repository/>`_
    a local copy as detailed in :ref:`sec_development_getting_started_environment`.
+
 2. Make sure that your local repository has been configured with an
    `upstream remote <https://help.github
    .com/articles/configuring-a-remote-for-a-fork/>`_::
 
    $ git remote add upstream git@github.com:tskit-dev/tskit.git
+
 
 3. Create a "topic branch" to work on. One reliable way to do it
    is to follow this recipe::
@@ -171,20 +178,41 @@ skip to :ref:`sec_development_workflow_anothers_commit`.
     $ git checkout upstream/main
     $ git checkout -b topic_branch_name
 
-4. As you work on your topic branch you can add commits to it. Once you're
-   ready to share this, you can then open a `pull request
-   <https://help.github.com/articles/about-pull-requests/>`__. Your PR will
-   be reviewed by some of the maintainers, who may ask you to make changes.
-   If you'd like to open the PR but feel that the code isn't ready
-   for review yet, please use the "Draft" option on GitHub.
-5. If your topic branch has been around for a long time and has gotten
-   out of date with the main repository, we might ask you to
-   `rebase <https://help.github.com/articles/about-git-rebase/>`_
-   or to "squash" your commits into one.
 
-Please follow `this guide
-<https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_
-for step-by-step instructions on rebasing and squashing commits.
+4. Write your code following the outline in :ref:`sec_development_best_practices`.
+   As you work on your topic branch you can add commits to it. Once you're
+   ready to share this, you can then open a `pull request (PR)
+   <https://help.github.com/articles/about-pull-requests/>`_. This can be done at any
+   time! You don't have to have code that is completely functional and tested to get
+   feedback. Use the drop-down button to create a "draft PR" to indicate that it's not
+   done, and explain in the comments what feedback you need and/or what you think needs
+   to be done.
+
+5. As you code it is best to `rebase <https://stdpopsim.readthedocs.io/en/
+   latest/development.html#rebasing>`_ your work onto the ``main`` branch periodically
+   (e.g. once a week) to keep up with changes. If you merge ``main`` via ``git pull upstream main``
+   it will create a much more complex rebase when your code is finally ready to be
+   incorporated into the main branch, so should be avoided.
+
+6. Once you're done coding add content to the tutorial and other documentation pages if
+   appropriate.
+
+7. Update the change logs at ``python/CHANGELOG.rst`` and ``c/CHANGELOG.rst``, taking care
+   to document any breaking changes separately in a "breaking changes" section.
+
+8. Push your changes to your topic branch and either open the PR or, if you
+   opened a draft PR above change it to a non-draft PR by clicking "Ready to
+   Review".
+
+9. The tskit community will review the code, asking you to make changes where appropriate.
+   This usually takes at least two rounds of review.
+
+10. Once the review process is complete, squash the commits to the minimal set of changes -
+    usually one or  commits. Please follow
+    `this guide <https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_ for
+    step-by-step instructions on rebasing and squashing commits.
+
+11. Your PR will be merged, time to celebrate! 🎉🍾
 
 
 .. _sec_development_workflow_anothers_commit:
@@ -925,58 +953,50 @@ tskit codebase.
 Note that this guide covers the most complex case of adding a new function to both
 the C and Python APIs.
 
-0.  Open an `issue <http://github.com/tskit-dev/tskit/issues>`_ with your proposed
-    functionality. If consensus is reached that your proposed addition should be
-    added to the codebase, proceed!
-1.  Create a new branch on your fork of tskit-dev (see :ref:`sec_development_getting_started`
-    above). Then open a `pull request <http://github.com/tskit-dev/tskit/pulls>`_ on GitHub,
-    with an initial description of your planned addition.
-2.  Write your function in Python: in ``python/tests/`` find the test module that
+1.  Write your function in Python: in ``python/tests/`` find the test module that
     pertains to the functionality you wish to add. For instance, the kc_distance
     metric was added to
     `test_topology.py <https://github.com/tskit-dev/tskit/blob/main/python/tests/test_topology.py>`_.
     Add a python version of your function here.
-3.  Create a new class in this module to write unit tests for your function: in addition
+2.  Create a new class in this module to write unit tests for your function: in addition
     to making sure that your function is correct, make sure it fails on inappropriate inputs.
     This can often require judgement. For instance, :meth:`Tree.kc_distance` fails on a tree
     with multiple roots, but allows users to input parameter values that are nonsensical,
     as long as they don't break functionality. See the
     `TestKCMetric <https://github.com/tskit-dev/tskit/blob/4e707ea04adca256036669cd852656a08ec45590/python/tests/test_topology.py#L293>`_ for example.
-4.  Write your function in C: check out the :ref:`sec_c_api` for guidance. There
+3.  Write your function in C: check out the :ref:`sec_c_api` for guidance. There
     are also many examples in the
     `c directory <https://github.com/tskit-dev/tskit/tree/main/c/tskit>`_.
     Your function will probably go in
     `trees.c <https://github.com/tskit-dev/tskit/blob/main/c/tskit/trees.c>`_.
-5.  Write a few tests for your function in C: again, write your tests in
+4.  Write a few tests for your function in C: again, write your tests in
     `tskit/c/tests/test_tree.c <https://github.com/tskit-dev/tskit/blob/main/c/tests/test_trees.c>`_.
     The key here is code coverage, you don't need to worry as much about covering every
     corner case, as we will proceed to link this function to the Python tests you
     wrote earlier.
-6.  Create a low-level definition of your function using Python's C API: this will
+5.  Create a low-level definition of your function using Python's C API: this will
     go in `_tskitmodule.c
     <https://github.com/tskit-dev/tskit/blob/main/python/_tskitmodule.c>`_.
-7.  Test your low-level implementation in `tskit/python/tests/test_lowlevel.py
+6.  Test your low-level implementation in `tskit/python/tests/test_lowlevel.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tests/test_lowlevel.py>`_:
     again, these tests don't need to be as comprehensive as your first python tests,
     instead, they should focus on the interface, e.g., does the function behave
     correctly on malformed inputs?
-8.  Link your C function to the Python API: write a function in tskit's Python API,
+7.  Link your C function to the Python API: write a function in tskit's Python API,
     for example the kc_distance function lives in
     `tskit/python/tskit/trees.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
-9.  Modify your Python tests to test the new C-linked function: if you followed
+8.  Modify your Python tests to test the new C-linked function: if you followed
     the example of other tests, you might need to only add a single line of code
     here. In this case, the tests are well factored so that we can easily compare
     the results from both the Python and C versions.
-10. Write a docstring for your function in the Python API: for instance, the kc_distance
+9. Write a docstring for your function in the Python API: for instance, the kc_distance
     docstring is in
     `tskit/python/tskit/trees.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
     Ensure that your docstring renders correctly by building the documentation
     (see :ref:`sec_development_documentation`).
-11. Update your Pull Request (`rebasing <https://stdpopsim.readthedocs.io/en/
-    latest/development.html#rebasing>`_ if necessary!) and let the community check
-    your work.
+
 
 ***************
 Troubleshooting
