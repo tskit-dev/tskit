@@ -260,3 +260,124 @@ def negate_intervals(intervals, start, end):
     if last_right != end:
         other_intervals.append((last_right, end))
     return np.array(other_intervals)
+
+
+def naturalsize(value):
+    """
+    Format a number of bytes like a human readable filesize (e.g. 10 kiB)
+    """
+    # Taken from https://github.com/jmoiron/humanize
+    suffix = ("KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB")
+    base = 1024
+    format_ = "%.1f"
+
+    bytes_ = float(value)
+    abs_bytes = abs(bytes_)
+
+    if abs_bytes == 1:
+        return "%d Byte" % bytes_
+    elif abs_bytes < base:
+        return "%d Bytes" % bytes_
+
+    for i, s in enumerate(suffix):
+        unit = base ** (i + 2)
+        if abs_bytes < unit:
+            return (format_ + " %s") % ((base * bytes_ / unit), s)
+    return (format_ + " %s") % ((base * bytes_ / unit), s)
+
+
+def obj_to_collapsed_html(d, name=None, open_depth=0):
+    opened = "open" if open_depth > 0 else ""
+    open_depth -= 1
+    name = str(name) + ":" if name is not None else ""
+    if type(d) == dict:
+        return f"""
+                <div>
+                  <span class="tskit-details-label">{name}</span>
+                  <details {opened}>
+                    <summary>dict</summary>
+                    {"".join(obj_to_collapsed_html(val, key, open_depth)
+                             for key, val in d.items())}
+                  </details>
+                </div>
+                """
+    elif type(d) == list:
+        return f"""
+                <div>
+                  <span class="tskit-details-label">{name}</span>
+                  <details {opened}>
+                    <summary>list</summary>
+                    {"".join(f"{obj_to_collapsed_html(val, None, open_depth)}<br/>"
+                             for val in d)}
+                  </details>
+                </div>
+                """
+    else:
+        return f"{name} {d}"
+
+
+def tree_sequence_html(ts):
+    table_rows = "".join(
+        f"""
+                  <tr>
+                    <td>{name.capitalize()}</td>
+                      <td>{table.num_rows}</td>
+                      <td>TODO! {naturalsize(99999)}</td>
+                      <td style="text-align: center;">
+                        {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
+        else ''}
+                      </td>
+                    </tr>
+                """
+        for name, table in ts.tables.name_map.items()
+    )
+    return f"""
+            <div>
+              <style>
+                .tskit-table thead tr th {{text-align: left;}}
+                .tskit-table tbody tr td:first-of-type {{text-align: left;}}
+                .tskit-details-label {{vertical-align: top; padding-right:5px;}}
+                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
+                .tskit-table-set-table {{margin: 12px 0 0 12px;}}
+                details {{display: inline-block;}}
+                summary {{cursor: pointer; outline: 0; display: list-item;}}
+              </style>
+              <div class="tskit-table-set">
+                <div class="tskit-table-set-table">
+                  <table class="tskit-table">
+                    <thead>
+                      <tr>
+                        <th style="padding:0;line-height:21px;">
+                          <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;"src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
+                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-treesequence-class"> Tree Sequence
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
+                      <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
+                      <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
+                      <tr><td>Total Size</td><td>TODO! {naturalsize(99999)}</td></tr>
+                      <tr>
+                        <td>Metadata</td><td style="text-align: left;">{obj_to_collapsed_html(ts.metadata, None, 1) if len(ts.tables.metadata_bytes) > 0 else "No Metadata"}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="tskit-table-set-table">
+                  <table class="tskit-table">
+                    <thead>
+                      <tr>
+                        <th style="line-height:21px;">Table</th>
+                        <th>Rows</th>
+                        <th>Size</th>
+                        <th>Has Metadata</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {table_rows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            """  # noqa: B950

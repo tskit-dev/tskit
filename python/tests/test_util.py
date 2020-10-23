@@ -349,3 +349,54 @@ class TestArrayPacking:
             self.verify_packing(data)
             data = [1 / (1 + np.arange(n)) for _ in range(n)]
             self.verify_packing(data)
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (0, "0 Bytes"),
+        (1, "1 Byte"),
+        (300, "300 Bytes"),
+        (3000, "2.9 KiB"),
+        (3000000, "2.9 MiB"),
+        (10 ** 26 * 30, "2481.5 YiB"),
+    ],
+)
+def test_naturalsize(value, expected):
+    assert util.naturalsize(value) == expected
+    if value != 0:
+        assert util.naturalsize(-value) == "-" + expected
+    else:
+        assert util.naturalsize(-value) == expected
+
+
+@pytest.mark.parametrize(
+    "obj, expected",
+    [
+        (0, "Test:0"),
+        (
+            {"a": 1},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            "t</summary>a:1</details></div>",
+        ),
+        (
+            {"b": [1, 2, 3]},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
+            ">list</summary>1<br/>2<br/>3<br/></details></div></details></div>",
+        ),
+        (
+            {"b": [1, 2, {"c": 1}]},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
+            '>list</summary>1<br/>2<br/><div><spanclass="tskit-details-label"></span><de'
+            "tails><summary>dict</summary>c:1</details></div><br/></details></div></deta"
+            "ils></div>",
+        ),
+    ],
+)
+def test_obj_to_collapsed_html(obj, expected):
+    assert (
+        util.obj_to_collapsed_html(obj, "Test", 1).replace(" ", "").replace("\n", "")
+        == expected
+    )

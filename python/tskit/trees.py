@@ -3259,6 +3259,12 @@ class TreeSequence:
                 )
                 print(row, file=provenances)
 
+    def _repr_html_(self):
+        """
+        Called by jupyter notebooks to render a TreeSequence
+        """
+        return util.tree_sequence_html(self)
+
     # num_samples was originally called sample_size, and so we must keep sample_size
     # around as a deprecated alias.
     @property
