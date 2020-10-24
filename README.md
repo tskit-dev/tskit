@@ -9,7 +9,7 @@
 
 Succinct tree sequences are a highly efficient way of storing a set of related DNA sequences by encoding their ancestral history as a set of correlated trees along the genome. The tree sequence format is output by a number of software libraries and programs (such as [msprime](https://github.com/tskit-dev/msprime), [SLiM](https://github.com/MesserLab/SLiM), [fwdpp](http://molpopgen.github.io/fwdpp/), and [tsinfer](https://tsinfer.readthedocs.io/en/latest/)) that either simulate or infer the evolutionary history of genetic sequences.
 
-The `tskit` library provides the underlying functionality used to load, examine, and manipulate tree sequences. It often forms part of an installation of other software packages such as those listed above. Please see the [documentation](https://tskit.readthedocs.io/en/latest/) for further details, which includes [installation instructions](https://tskit.readthedocs.io/en/latest/installation.html).
+The `tskit` library provides the underlying functionality used to load, examine, and manipulate tree sequences, including efficient methods for calculating genetic statistics. It often forms part of an installation of other software packages such as those listed above. Please see the [documentation](https://tskit.readthedocs.io/en/latest/) for further details, which includes [installation instructions](https://tskit.readthedocs.io/en/latest/installation.html).
 
 `tskit` has both a Python and C API
 
