@@ -182,6 +182,16 @@ class TestRankTree:
         for rank_tree, tsk_tree in zip(all_rank_trees, all_tsk_trees):
             assert rank_tree == RankTree.from_tsk_tree(tsk_tree)
 
+    def test_generate_treeseq_roundtrip(self):
+        n = 5
+        span = 9
+        all_rank_trees = RankTree.all_labelled_trees(n)
+        all_tsk_trees = tskit.all_trees(n, span=span)
+        for rank_tree, tsk_tree in zip(all_rank_trees, all_tsk_trees):
+            ts1 = tsk_tree.tree_sequence
+            ts2 = rank_tree.to_tsk_tree(span=span).tree_sequence
+            assert ts1.tables.equals(ts2.tables, ignore_provenance=True)
+
     def test_all_shapes_roundtrip(self):
         n = 5
         all_rank_tree_shapes = RankTree.all_unlabelled_trees(n)
@@ -388,6 +398,16 @@ class TestRankTree:
         ts = tables.tree_sequence()
         with pytest.raises(ValueError):
             ts.first().rank()
+
+    def test_span(self):
+        n = 5
+        span = 8
+        # Create a start tree, with a single root
+        tsk_tree = tskit.Tree.unrank((0, 0), n, span=span)
+        assert tsk_tree.num_nodes == n + 1
+        assert tsk_tree.interval.left == 0
+        assert tsk_tree.interval.right == span
+        assert tsk_tree.tree_sequence.sequence_length == span
 
     def test_big_trees(self):
         n = 14

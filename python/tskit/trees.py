@@ -847,7 +847,7 @@ class Tree:
         return combinatorics.RankTree.from_tsk_tree(self).rank()
 
     @staticmethod
-    def unrank(rank, num_leaves):
+    def unrank(rank, num_leaves, *, span=1):
         """
         Reconstruct the tree of the given ``rank``
         (see :meth:`tskit.Tree.rank`) with ``num_leaves`` leaves.
@@ -859,11 +859,15 @@ class Tree:
 
         :param tuple(int) rank: The rank of the tree to generate.
         :param int num_leaves: The number of leaves of the tree to generate.
+        :param float span: The genomic span of the returned tree. The tree will cover
+            the interval :math:`[0, \\text{span})` and the :attr:`~Tree.tree_sequence`
+            from which the tree is taken will have its
+            :attr:`~tskit.TreeSequence.sequence_length` equal to ``span``.
         :rtype: Tree
         :raises: ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
-        return combinatorics.RankTree.unrank(rank, num_leaves).to_tsk_tree()
+        return combinatorics.RankTree.unrank(rank, num_leaves).to_tsk_tree(span=span)
 
     def count_topologies(self, sample_sets=None):
         """

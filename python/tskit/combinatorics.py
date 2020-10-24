@@ -255,7 +255,7 @@ class PartialTopologyCounter:
         return RankTree(children).rank()
 
 
-def all_trees(num_leaves):
+def all_trees(num_leaves, span=1):
     """
     Generates all unique leaf-labelled trees with ``num_leaves``
     leaves. See :ref:`sec_combinatorics` on the details of this
@@ -264,25 +264,27 @@ def all_trees(num_leaves):
     chosen arbitrarily.
 
     :param int num_leaves: The number of leaves of the tree to generate.
+    :param float span: The genomic span of each returned tree.
     :rtype: tskit.Tree
     """
     for rank_tree in RankTree.all_labelled_trees(num_leaves):
-        yield rank_tree.to_tsk_tree()
+        yield rank_tree.to_tsk_tree(span=span)
 
 
-def all_tree_shapes(num_leaves):
+def all_tree_shapes(num_leaves, span=1):
     """
     Generates all unique shapes of trees with ``num_leaves`` leaves.
 
     :param int num_leaves: The number of leaves of the tree to generate.
+    :param float span: The genomic span of each returned tree.
     :rtype: tskit.Tree
     """
     for rank_tree in RankTree.all_unlabelled_trees(num_leaves):
         default_labelling = rank_tree.label_unrank(0)
-        yield default_labelling.to_tsk_tree()
+        yield default_labelling.to_tsk_tree(span=span)
 
 
-def all_tree_labellings(tree):
+def all_tree_labellings(tree, span=1):
     """
     Generates all unique labellings of the leaves of a
     :class:`tskit.Tree`. Leaves are labelled from the set
@@ -290,11 +292,12 @@ def all_tree_labellings(tree):
 
     :param tskit.Tree tree: The tree used to generate
         labelled trees of the same shape.
+    :param float span: The genomic span of each returned tree.
     :rtype: tskit.Tree
     """
     rank_tree = RankTree.from_tsk_tree(tree)
     for labelling in RankTree.all_labellings(rank_tree):
-        yield labelling.to_tsk_tree()
+        yield labelling.to_tsk_tree(span=span)
 
 
 class RankTree:
@@ -515,12 +518,19 @@ class RankTree:
 
         return RankTree.from_tsk_tree_node(tree, tree.root)
 
-    def to_tsk_tree(self):
+    def to_tsk_tree(self, span=1):
+        """
+        Convert a ``RankTree`` into the only tree in a new tree sequence.
+
+        :param float span: The genomic span of the returned tree. The tree will cover
+            the interval :math:`[0, span)` and the :attr:`~Tree.tree_sequence` from which
+            the tree is taken will have its :attr:`~tskit.TreeSequence.sequence_length`
+            equal to ``span``.
+        """
         if set(self.labels) != set(range(self.num_leaves)):
             raise ValueError("Labels set must be equivalent to [0, num_leaves)")
 
-        seq_length = 1
-        tables = tskit.TableCollection(seq_length)
+        tables = tskit.TableCollection(span)
 
         def add_node(node):
             if node.is_leaf():
@@ -532,7 +542,7 @@ class RankTree:
             max_child_time = max(tables.nodes.time[c] for c in child_ids)
             parent_id = tables.nodes.add_row(time=max_child_time + 1)
             for child_id in child_ids:
-                tables.edges.add_row(0, seq_length, parent_id, child_id)
+                tables.edges.add_row(0, span, parent_id, child_id)
 
             return parent_id
 
