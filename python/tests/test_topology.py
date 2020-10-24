@@ -7917,3 +7917,37 @@ class TestMissingData:
                 tree.is_isolated("abc")
             with pytest.raises(TypeError):
                 tree.is_isolated(1.1)
+
+
+class TestExampleTrees:
+    """
+    Test hard-coded example tree (sequence) generation
+    """
+
+    def test_star_equivalent(self):
+        for extra_params in [{}, {"span": 2.5}]:
+            for n in range(2, 6):
+                ts = tskit.Tree.generate_star(n, **extra_params).tree_sequence
+                equiv_ts = tskit.Tree.unrank((0, 0), n, **extra_params).tree_sequence
+                assert ts.tables.equals(equiv_ts.tables, ignore_provenance=True)
+
+    def test_star_bad_params(self):
+        for n in [-1, 0, 1, np.array([1, 2])]:
+            with pytest.raises(ValueError):
+                tskit.Tree.generate_star(n)
+        for n in [None, "", []]:
+            with pytest.raises(TypeError):
+                tskit.Tree.generate_star(n)
+        with pytest.raises(tskit.LibraryError):
+            tskit.Tree.generate_star(2, span=0)
+        with pytest.raises(tskit.LibraryError):
+            tskit.Tree.generate_star(2, branch_length=0)
+
+    def test_star_branch_length(self):
+        branch_length = 10
+        n = 7
+        ts = tskit.Tree.generate_star(n, branch_length=branch_length).tree_sequence
+        topological_equiv_ts = tskit.Tree.unrank((0, 0), n).tree_sequence
+
+        assert ts.node(ts.first().root).time == branch_length
+        assert ts.kc_distance(topological_equiv_ts) == 0
