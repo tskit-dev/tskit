@@ -5516,6 +5516,93 @@ out:
     return ret;
 }
 
+static int
+tsk_ibd_finder_index_samples(tsk_ibd_finder_t *self)
+{
+    int ret = 0;
+    size_t i;
+    tsk_id_t idx;
+
+    self->paired_nodes_index
+        = calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
+
+    if (self->paired_nodes_index == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < self->num_nodes; ++i) {
+        self->paired_nodes_index[i] = -1;
+    }
+
+    for (i = 0; i < 2 * self->num_pairs; ++i) {
+        self->paired_nodes_index[self->pairs[i]] = 1;
+    }
+
+    self->num_unique_nodes_in_pair = 0;
+    idx = 0;
+    for (i = 0; i < self->num_nodes; ++i) {
+        if (self->paired_nodes_index[i] == 1) {
+            ++self->num_unique_nodes_in_pair;
+            self->paired_nodes_index[i] = idx;
+            ++idx;
+        }
+    }
+
+out:
+    return ret;
+}
+
+// NOTE: future travellers may want to refactor
+// this to only allocate the upper triangle of the matrix.
+// Doing so would save a good bit of memory, but would
+// imply trickier indexing here and in
+// tsk_ibd_finder_find_sample_pair_index2.
+static int
+tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
+{
+    int ret = 0;
+    size_t i;
+    tsk_id_t sample0, sample1;
+    tsk_id_t row, col;
+    size_t matrix_size = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
+
+    self->pair_map = calloc(matrix_size, sizeof(*self->pair_map));
+    if (self->pair_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < matrix_size; ++i) {
+        self->pair_map[i] = -1;
+    }
+
+    for (i = 0; i < self->num_pairs; ++i) {
+        sample0 = self->pairs[2 * i];
+        sample1 = self->pairs[2 * i + 1];
+
+        row = TSK_MIN(
+            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
+        col = TSK_MAX(
+            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
+
+        tsk_bug_assert(row >= 0);
+        tsk_bug_assert(col >= 0);
+
+        if (self->pair_map[(size_t) row * self->num_unique_nodes_in_pair + (size_t) col]
+            != -1) {
+            ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
+            goto out;
+        }
+
+        self->pair_map[(size_t) row * self->num_unique_nodes_in_pair + (size_t) col]
+            = (int64_t) i;
+    }
+
+out:
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     tsk_id_t *pairs, tsk_size_t num_pairs)
@@ -5562,6 +5649,16 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     }
 
     ret = tsk_ibd_finder_init_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_ibd_finder_index_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_ibd_finder_build_pair_map(self);
     if (ret != 0) {
         goto out;
     }
@@ -5628,18 +5725,21 @@ static int
 tsk_ibd_finder_find_sample_pair_index2(
     tsk_ibd_finder_t *self, tsk_id_t sample0, tsk_id_t sample1)
 {
-    int i = 0;
     int ret = -1;
     tsk_id_t s0, s1;
+    size_t row, col;
 
-    for (i = 0; i < (tsk_id_t) self->num_pairs; i++) {
-        s0 = self->pairs[2 * i];
-        s1 = self->pairs[2 * i + 1];
-        if ((s0 == sample0 && s1 == sample1) || (s0 == sample1 && s1 == sample0)) {
-            ret = i;
-            goto out;
-        }
+    s0 = self->paired_nodes_index[sample0];
+    s1 = self->paired_nodes_index[sample1];
+
+    if (s0 < 0 || s1 < 0) {
+        goto out;
     }
+
+    row = TSK_MIN((size_t) s0, (size_t) s1);
+    col = TSK_MAX((size_t) s0, (size_t) s1);
+
+    ret = (int) self->pair_map[row * self->num_unique_nodes_in_pair + col];
 out:
     return ret;
 }
@@ -5861,9 +5961,11 @@ tsk_ibd_finder_free(tsk_ibd_finder_t *self)
     tsk_safe_free(self->ibd_segments_tail);
     tsk_blkalloc_free(&self->segment_heap);
     tsk_safe_free(self->is_sample);
+    tsk_safe_free(self->paired_nodes_index);
     tsk_safe_free(self->ancestor_map_head);
     tsk_safe_free(self->ancestor_map_tail);
     tsk_safe_free(self->segment_queue);
+    tsk_safe_free(self->pair_map);
     return 0;
 }
 

@@ -466,6 +466,10 @@ tsk_strerror_internal(int err)
         case TSK_ERR_NO_SAMPLE_PAIRS:
             ret = "There are no possible sample pairs.";
             break;
+
+        case TSK_ERR_DUPLICATE_SAMPLE_PAIRS:
+            ret = "There are duplicate sample pairs.";
+            break;
     }
     return ret;
 }

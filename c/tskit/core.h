@@ -318,6 +318,7 @@ not found in the file.
 
 /* IBD errors */
 #define TSK_ERR_NO_SAMPLE_PAIRS                                    -1500
+#define TSK_ERR_DUPLICATE_SAMPLE_PAIRS                             -1501
 
 // clang-format on
 

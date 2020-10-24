@@ -644,12 +644,15 @@ typedef struct {
     tsk_id_t *pairs;
     size_t num_pairs;
     size_t num_nodes;
+    size_t num_unique_nodes_in_pair;
+    int64_t *pair_map;
     double sequence_length;
     tsk_table_collection_t *tables;
     tsk_segment_t **ibd_segments_head;
     tsk_segment_t **ibd_segments_tail;
     tsk_blkalloc_t segment_heap;
     bool *is_sample;
+    tsk_id_t *paired_nodes_index;
     double min_length;
     double max_time;
     tsk_segment_t **ancestor_map_head;

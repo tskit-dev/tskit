@@ -3166,6 +3166,7 @@ test_ibd_finder_errors(void)
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1, 2, 0 };
+    tsk_id_t duplicate_samples[] = { 0, 1, 1, 0 };
     tsk_id_t samples2[] = { -1, 1 };
     tsk_id_t samples3[] = { 0 };
     tsk_ibd_finder_t ibd_finder;
@@ -3191,6 +3192,11 @@ test_ibd_finder_errors(void)
     tsk_ibd_finder_free(&ibd_finder);
     ret = ibd_finder_init_and_run(&ibd_finder, &tables, samples, 2, -1, 0.0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    tsk_ibd_finder_free(&ibd_finder);
+
+    // Duplicate samples
+    ret = ibd_finder_init_and_run(&ibd_finder, &tables, duplicate_samples, 2, 0.0, -1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE_PAIRS);
     tsk_ibd_finder_free(&ibd_finder);
 
     tsk_table_collection_free(&tables);
