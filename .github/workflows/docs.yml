@@ -46,13 +46,16 @@ jobs:
         if: github.event.pull_request
         run: |
           cd tskit-docs
+          rm -rf ${{github.event.pull_request.number}}
           cp -r ../docs/_build/html ${{github.event.pull_request.number}}
 
       - name: Copy our docs to the tag specific location
         if: (!github.event.pull_request)
         run: |
           cd tskit-docs
-          cp -r ../docs/_build/html `echo ${GITHUB_REF} | sed -e "s/refs\/heads\///g" |  sed -e "s/refs\/tags\///g"`
+          export DEST=`echo ${GITHUB_REF} | sed -e "s/refs\/heads\///g" |  sed -e "s/refs\/tags\///g"`
+          rm -rf $DEST
+          cp -r ../docs/_build/html $DEST
 
       - name: Commit and push the docs
         run: |
