@@ -336,7 +336,7 @@ out:
  */
 int TSK_WARN_UNUSED
 tsk_treeseq_init(
-    tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options)
+    tsk_treeseq_t *self, const tsk_table_collection_t *tables, tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t num_trees;
@@ -579,8 +579,8 @@ tsk_treeseq_get_num_trees(const tsk_treeseq_t *self)
     return self->num_trees;
 }
 
-double *
-tsk_treeseq_get_breakpoints(tsk_treeseq_t *self)
+const double *
+tsk_treeseq_get_breakpoints(const tsk_treeseq_t *self)
 {
     return self->breakpoints;
 }
@@ -641,9 +641,10 @@ increment_nd_array_value(double *array, tsk_size_t n, const tsk_size_t *shape,
 /* TODO flatten the reference sets input here and follow the same pattern used
  * in diversity, divergence, etc. */
 int TSK_WARN_UNUSED
-tsk_treeseq_genealogical_nearest_neighbours(tsk_treeseq_t *self, tsk_id_t *focal,
-    size_t num_focal, tsk_id_t **reference_sets, size_t *reference_set_size,
-    size_t num_reference_sets, tsk_flags_t TSK_UNUSED(options), double *ret_array)
+tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
+    const tsk_id_t *focal, size_t num_focal, tsk_id_t *const *reference_sets,
+    const size_t *reference_set_size, size_t num_reference_sets,
+    tsk_flags_t TSK_UNUSED(options), double *ret_array)
 {
     int ret = 0;
     tsk_id_t u, v, p;
@@ -823,8 +824,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_mean_descendants(tsk_treeseq_t *self, tsk_id_t **reference_sets,
-    size_t *reference_set_size, size_t num_reference_sets,
+tsk_treeseq_mean_descendants(const tsk_treeseq_t *self, tsk_id_t *const *reference_sets,
+    const size_t *reference_set_size, size_t num_reference_sets,
     tsk_flags_t TSK_UNUSED(options), double *ret_array)
 {
     int ret = 0;
@@ -989,7 +990,8 @@ out:
  ***********************************/
 
 static int
-tsk_treeseq_check_windows(tsk_treeseq_t *self, size_t num_windows, double *windows)
+tsk_treeseq_check_windows(
+    const tsk_treeseq_t *self, size_t num_windows, const double *windows)
 {
     int ret = TSK_ERR_BAD_WINDOWS;
     size_t j;
@@ -1053,9 +1055,10 @@ update_running_sum(tsk_id_t u, double sign, const double *restrict branch_length
 }
 
 static int
-tsk_treeseq_branch_general_stat(tsk_treeseq_t *self, size_t state_dim,
-    double *sample_weights, size_t result_dim, general_stat_func_t *f, void *f_params,
-    size_t num_windows, double *windows, double *result, tsk_flags_t TSK_UNUSED(options))
+tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, size_t state_dim,
+    const double *sample_weights, size_t result_dim, general_stat_func_t *f,
+    void *f_params, size_t num_windows, const double *windows, double *result,
+    tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -1074,7 +1077,8 @@ tsk_treeseq_branch_general_stat(tsk_treeseq_t *self, size_t state_dim,
     double *restrict branch_length = calloc(num_nodes, sizeof(*branch_length));
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_left, w_right, left, right, scale;
-    double *state_u, *weight_u, *result_row, *summary_u;
+    const double *weight_u;
+    double *state_u, *result_row, *summary_u;
     double *state = calloc(num_nodes * state_dim, sizeof(*state));
     double *summary = calloc(num_nodes * result_dim, sizeof(*summary));
     double *running_sum = calloc(result_dim, sizeof(*running_sum));
@@ -1207,8 +1211,8 @@ out:
 }
 
 static int
-get_allele_weights(tsk_site_t *site, double *state, size_t state_dim,
-    double *total_weight, tsk_size_t *ret_num_alleles, double **ret_allele_states)
+get_allele_weights(const tsk_site_t *site, const double *state, size_t state_dim,
+    const double *total_weight, tsk_size_t *ret_num_alleles, double **ret_allele_states)
 {
     int ret = 0;
     size_t k;
@@ -1219,7 +1223,8 @@ get_allele_weights(tsk_site_t *site, double *state, size_t state_dim,
     const char **alleles = malloc(max_alleles * sizeof(*alleles));
     tsk_size_t *allele_lengths = calloc(max_alleles, sizeof(*allele_lengths));
     double *allele_states = calloc(max_alleles * state_dim, sizeof(*allele_states));
-    double *allele_row, *state_row;
+    double *allele_row;
+    const double *state_row;
     const char *alt_allele;
 
     if (alleles == NULL || allele_lengths == NULL || allele_states == NULL) {
@@ -1334,9 +1339,10 @@ out:
 }
 
 static int
-tsk_treeseq_site_general_stat(tsk_treeseq_t *self, size_t state_dim,
-    double *sample_weights, size_t result_dim, general_stat_func_t *f, void *f_params,
-    size_t num_windows, double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_site_general_stat(const tsk_treeseq_t *self, size_t state_dim,
+    const double *sample_weights, size_t result_dim, general_stat_func_t *f,
+    void *f_params, size_t num_windows, const double *windows, double *result,
+    tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -1354,7 +1360,8 @@ tsk_treeseq_site_general_stat(tsk_treeseq_t *self, size_t state_dim,
     tsk_site_t *site;
     tsk_id_t tj, tk, h;
     double t_left, t_right;
-    double *state_u, *weight_u, *result_row;
+    const double *weight_u;
+    double *state_u, *result_row;
     double *state = calloc(num_nodes * state_dim, sizeof(*state));
     double *total_weight = calloc(state_dim, sizeof(*total_weight));
     double *site_result = calloc(result_dim, sizeof(*site_result));
@@ -1466,9 +1473,10 @@ increment_row(size_t length, double multiplier, double *source, double *dest)
 }
 
 static int
-tsk_treeseq_node_general_stat(tsk_treeseq_t *self, size_t state_dim,
-    double *sample_weights, size_t result_dim, general_stat_func_t *f, void *f_params,
-    size_t num_windows, double *windows, double *result, tsk_flags_t TSK_UNUSED(options))
+tsk_treeseq_node_general_stat(const tsk_treeseq_t *self, size_t state_dim,
+    const double *sample_weights, size_t result_dim, general_stat_func_t *f,
+    void *f_params, size_t num_windows, const double *windows, double *result,
+    tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -1484,7 +1492,8 @@ tsk_treeseq_node_general_stat(tsk_treeseq_t *self, size_t state_dim,
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
     tsk_id_t tj, tk, h;
-    double *state_u, *weight_u;
+    const double *weight_u;
+    double *state_u;
     double *state = calloc(num_nodes * state_dim, sizeof(*state));
     double *node_summary = calloc(num_nodes * result_dim, sizeof(*node_summary));
     double *last_update = calloc(num_nodes, sizeof(*last_update));
@@ -1596,7 +1605,7 @@ out:
 }
 
 static void
-span_normalise(size_t num_windows, double *windows, size_t row_size, double *array)
+span_normalise(size_t num_windows, const double *windows, size_t row_size, double *array)
 {
     size_t window_index, k;
     double span, *row;
@@ -1619,8 +1628,8 @@ typedef struct {
 } unpolarised_summary_func_args;
 
 static int
-unpolarised_summary_func(
-    size_t state_dim, double *state, size_t result_dim, double *result, void *params)
+unpolarised_summary_func(size_t state_dim, const double *state, size_t result_dim,
+    double *result, void *params)
 {
     int ret = 0;
     unpolarised_summary_func_args *upargs = (unpolarised_summary_func_args *) params;
@@ -1654,16 +1663,17 @@ out:
  * the implementation and memory management for the node and branch stats.
  */
 static int
-tsk_polarisable_func_general_stat(tsk_treeseq_t *self, size_t state_dim,
-    double *sample_weights, size_t result_dim, general_stat_func_t *f, void *f_params,
-    size_t num_windows, double *windows, double *result, tsk_flags_t options)
+tsk_polarisable_func_general_stat(const tsk_treeseq_t *self, size_t state_dim,
+    const double *sample_weights, size_t result_dim, general_stat_func_t *f,
+    void *f_params, size_t num_windows, const double *windows, double *result,
+    tsk_flags_t options)
 {
     int ret = 0;
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool polarised = options & TSK_STAT_POLARISED;
     general_stat_func_t *wrapped_f = f;
     void *wrapped_f_params = f_params;
-    double *weight_u;
+    const double *weight_u;
     unpolarised_summary_func_args upargs;
     tsk_size_t j, k;
 
@@ -1709,9 +1719,10 @@ out:
 }
 
 int
-tsk_treeseq_general_stat(tsk_treeseq_t *self, size_t state_dim, double *sample_weights,
-    size_t result_dim, general_stat_func_t *f, void *f_params, size_t num_windows,
-    double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_general_stat(const tsk_treeseq_t *self, size_t state_dim,
+    const double *sample_weights, size_t result_dim, general_stat_func_t *f,
+    void *f_params, size_t num_windows, const double *windows, double *result,
+    tsk_flags_t options)
 {
     int ret = 0;
     bool stat_site = !!(options & TSK_STAT_SITE);
@@ -1769,7 +1780,8 @@ out:
 }
 
 static int
-check_set_indexes(tsk_size_t num_sets, tsk_size_t num_set_indexes, tsk_id_t *set_indexes)
+check_set_indexes(
+    tsk_size_t num_sets, tsk_size_t num_set_indexes, const tsk_id_t *set_indexes)
 {
     int ret = 0;
     tsk_size_t j;
@@ -1785,8 +1797,8 @@ out:
 }
 
 static int
-tsk_treeseq_check_sample_sets(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets)
+tsk_treeseq_check_sample_sets(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets)
 {
     int ret = 0;
     size_t j, k, l;
@@ -1832,17 +1844,17 @@ typedef struct {
 } covariates_stat_params_t;
 
 typedef struct {
-    tsk_id_t *sample_sets;
+    const tsk_id_t *sample_sets;
     tsk_size_t num_sample_sets;
-    tsk_size_t *sample_set_sizes;
-    tsk_id_t *set_indexes;
+    const tsk_size_t *sample_set_sizes;
+    const tsk_id_t *set_indexes;
 } sample_count_stat_params_t;
 
 static int
-tsk_treeseq_sample_count_stat(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t result_dim,
-    tsk_id_t *set_indexes, general_stat_func_t *f, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_sample_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t result_dim, const tsk_id_t *set_indexes, general_stat_func_t *f,
+    tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     const size_t num_samples = self->num_samples;
@@ -1920,9 +1932,10 @@ fold(tsk_size_t *restrict coordinate, const tsk_size_t *restrict dims,
 }
 
 static int
-tsk_treeseq_update_site_afs(tsk_treeseq_t *self, tsk_site_t *site, double *total_counts,
-    double *counts, tsk_size_t num_sample_sets, tsk_size_t window_index,
-    tsk_size_t *result_dims, double *result, tsk_flags_t options)
+tsk_treeseq_update_site_afs(const tsk_treeseq_t *self, const tsk_site_t *site,
+    const double *total_counts, const double *counts, tsk_size_t num_sample_sets,
+    tsk_size_t window_index, tsk_size_t *result_dims, double *result,
+    tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t afs_size;
@@ -1968,10 +1981,10 @@ out:
 }
 
 static int
-tsk_treeseq_site_allele_frequency_spectrum(tsk_treeseq_t *self,
+tsk_treeseq_site_allele_frequency_spectrum(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes, double *counts,
-    tsk_size_t num_windows, double *windows, tsk_size_t *result_dims, double *result,
-    tsk_flags_t options)
+    tsk_size_t num_windows, const double *windows, tsk_size_t *result_dims,
+    double *result, tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -2071,7 +2084,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_treeseq_update_branch_afs(tsk_treeseq_t *self, tsk_id_t u, double right,
+tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double right,
     const double *restrict branch_length, double *restrict last_update,
     const double *counts, tsk_size_t num_sample_sets, size_t window_index,
     const tsk_size_t *result_dims, double *result, tsk_flags_t options)
@@ -2112,9 +2125,10 @@ out:
 }
 
 static int
-tsk_treeseq_branch_allele_frequency_spectrum(tsk_treeseq_t *self,
-    tsk_size_t num_sample_sets, double *counts, tsk_size_t num_windows, double *windows,
-    tsk_size_t *result_dims, double *result, tsk_flags_t options)
+tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, double *counts, tsk_size_t num_windows,
+    const double *windows, const tsk_size_t *result_dims, double *result,
+    tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -2233,9 +2247,10 @@ out:
 }
 
 int
-tsk_treeseq_allele_frequency_spectrum(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, tsk_size_t num_windows, const double *windows,
+    double *result, tsk_flags_t options)
 {
     int ret = 0;
     bool stat_site = !!(options & TSK_STAT_SITE);
@@ -2334,8 +2349,8 @@ out:
  ***********************************/
 
 static int
-diversity_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result_dim),
-    double *result, void *params)
+diversity_summary_func(size_t state_dim, const double *state,
+    size_t TSK_UNUSED(result_dim), double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
     const double *x = state;
@@ -2350,9 +2365,9 @@ diversity_summary_func(size_t state_dim, double *state, size_t TSK_UNUSED(result
 }
 
 int
-tsk_treeseq_diversity(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_diversity(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options)
 {
     return tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
         sample_sets, num_sample_sets, NULL, diversity_summary_func, num_windows, windows,
@@ -2360,7 +2375,7 @@ tsk_treeseq_diversity(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 }
 
 static int
-trait_covariance_summary_func(size_t state_dim, double *state,
+trait_covariance_summary_func(size_t state_dim, const double *state,
     size_t TSK_UNUSED(result_dim), double *result, void *params)
 {
     weight_stat_params_t args = *(weight_stat_params_t *) params;
@@ -2375,14 +2390,15 @@ trait_covariance_summary_func(size_t state_dim, double *state,
 }
 
 int
-tsk_treeseq_trait_covariance(tsk_treeseq_t *self, tsk_size_t num_weights,
-    double *weights, tsk_size_t num_windows, double *windows, double *result,
+tsk_treeseq_trait_covariance(const tsk_treeseq_t *self, tsk_size_t num_weights,
+    const double *weights, tsk_size_t num_windows, const double *windows, double *result,
     tsk_flags_t options)
 {
     tsk_size_t num_samples = self->num_samples;
     size_t j, k;
     int ret;
-    double *row, *new_row;
+    const double *row;
+    double *new_row;
     double *means = calloc(num_weights, sizeof(double));
     double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(double));
     weight_stat_params_t args = { num_samples = self->num_samples };
@@ -2420,7 +2436,7 @@ out:
 }
 
 static int
-trait_correlation_summary_func(size_t state_dim, double *state,
+trait_correlation_summary_func(size_t state_dim, const double *state,
     size_t TSK_UNUSED(result_dim), double *result, void *params)
 {
     weight_stat_params_t args = *(weight_stat_params_t *) params;
@@ -2441,8 +2457,8 @@ trait_correlation_summary_func(size_t state_dim, double *state,
 }
 
 int
-tsk_treeseq_trait_correlation(tsk_treeseq_t *self, tsk_size_t num_weights,
-    double *weights, tsk_size_t num_windows, double *windows, double *result,
+tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
+    const double *weights, tsk_size_t num_windows, const double *windows, double *result,
     tsk_flags_t options)
 {
     tsk_size_t num_samples = self->num_samples;
@@ -2451,7 +2467,8 @@ tsk_treeseq_trait_correlation(tsk_treeseq_t *self, tsk_size_t num_weights,
     double *means = calloc(num_weights, sizeof(double));
     double *meansqs = calloc(num_weights, sizeof(double));
     double *sds = calloc(num_weights, sizeof(double));
-    double *row, *new_row;
+    const double *row;
+    double *new_row;
     double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(double));
     weight_stat_params_t args = { num_samples = self->num_samples };
 
@@ -2501,8 +2518,8 @@ out:
 }
 
 static int
-trait_regression_summary_func(
-    size_t state_dim, double *state, size_t result_dim, double *result, void *params)
+trait_regression_summary_func(size_t state_dim, const double *state, size_t result_dim,
+    double *result, void *params)
 {
     covariates_stat_params_t args = *(covariates_stat_params_t *) params;
     const double num_samples = (double) args.num_samples;
@@ -2547,14 +2564,15 @@ trait_regression_summary_func(
 }
 
 int
-tsk_treeseq_trait_regression(tsk_treeseq_t *self, tsk_size_t num_weights,
-    double *weights, tsk_size_t num_covariates, double *covariates,
-    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_trait_regression(const tsk_treeseq_t *self, tsk_size_t num_weights,
+    const double *weights, tsk_size_t num_covariates, const double *covariates,
+    tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options)
 {
     tsk_size_t num_samples = self->num_samples;
     size_t i, j, k;
     int ret;
-    double *v, *w, *z, *new_row;
+    const double *w, *z;
+    double *v, *new_row;
     double *V = calloc(num_covariates * num_weights, sizeof(double));
     double *new_weights
         = malloc((num_weights + num_covariates + 1) * num_samples * sizeof(double));
@@ -2614,7 +2632,7 @@ out:
 }
 
 static int
-segregating_sites_summary_func(size_t state_dim, double *state,
+segregating_sites_summary_func(size_t state_dim, const double *state,
     size_t TSK_UNUSED(result_dim), double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2631,9 +2649,9 @@ segregating_sites_summary_func(size_t state_dim, double *state,
 }
 
 int
-tsk_treeseq_segregating_sites(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_segregating_sites(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options)
 {
     return tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
         sample_sets, num_sample_sets, NULL, segregating_sites_summary_func, num_windows,
@@ -2641,7 +2659,7 @@ tsk_treeseq_segregating_sites(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 }
 
 static int
-Y1_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+Y1_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2659,9 +2677,9 @@ Y1_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 }
 
 int
-tsk_treeseq_Y1(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options)
+tsk_treeseq_Y1(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options)
 {
     return tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
         sample_sets, num_sample_sets, NULL, Y1_summary_func, num_windows, windows,
@@ -2674,7 +2692,7 @@ tsk_treeseq_Y1(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 
 static int
 check_sample_stat_inputs(tsk_size_t num_sample_sets, tsk_size_t tuple_size,
-    tsk_size_t num_index_tuples, tsk_id_t *index_tuples)
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples)
 {
     int ret = 0;
 
@@ -2696,8 +2714,8 @@ out:
 }
 
 static int
-divergence_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
-    double *result, void *params)
+divergence_summary_func(size_t TSK_UNUSED(state_dim), const double *state,
+    size_t result_dim, double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
     const double *x = state;
@@ -2717,10 +2735,10 @@ divergence_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t resu
 }
 
 int
-tsk_treeseq_divergence(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    tsk_id_t *index_tuples, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options)
+tsk_treeseq_divergence(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 2, num_index_tuples, index_tuples);
@@ -2735,7 +2753,7 @@ out:
 }
 
 static int
-Y2_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+Y2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2756,10 +2774,10 @@ Y2_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 }
 
 int
-tsk_treeseq_Y2(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    tsk_id_t *index_tuples, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options)
+tsk_treeseq_Y2(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 2, num_index_tuples, index_tuples);
@@ -2774,7 +2792,7 @@ out:
 }
 
 static int
-f2_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+f2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2797,10 +2815,10 @@ f2_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 }
 
 int
-tsk_treeseq_f2(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    tsk_id_t *index_tuples, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options)
+tsk_treeseq_f2(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 2, num_index_tuples, index_tuples);
@@ -2819,7 +2837,7 @@ out:
  ***********************************/
 
 static int
-Y3_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+Y3_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2843,10 +2861,10 @@ Y3_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 }
 
 int
-tsk_treeseq_Y3(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    tsk_id_t *index_tuples, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options)
+tsk_treeseq_Y3(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 3, num_index_tuples, index_tuples);
@@ -2861,7 +2879,7 @@ out:
 }
 
 static int
-f3_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+f3_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2886,10 +2904,10 @@ f3_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 }
 
 int
-tsk_treeseq_f3(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    tsk_id_t *index_tuples, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options)
+tsk_treeseq_f3(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 3, num_index_tuples, index_tuples);
@@ -2908,7 +2926,7 @@ out:
  ***********************************/
 
 static int
-f4_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
+f4_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
@@ -2935,10 +2953,10 @@ f4_summary_func(size_t TSK_UNUSED(state_dim), double *state, size_t result_dim,
 }
 
 int
-tsk_treeseq_f4(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    tsk_id_t *index_tuples, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options)
+tsk_treeseq_f4(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 4, num_index_tuples, index_tuples);
