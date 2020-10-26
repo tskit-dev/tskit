@@ -417,10 +417,6 @@ verify_node_general_stat_errors(tsk_treeseq_t *ts)
     verify_summary_func_errors(ts, TSK_STAT_NODE);
 }
 
-typedef int one_way_weighted_method(tsk_treeseq_t *self, tsk_size_t num_weights,
-    double *weights, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options);
-
 static void
 verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *method)
 {
@@ -442,14 +438,9 @@ verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *
     free(weights);
 }
 
-typedef int one_way_weighted_covariate_method(tsk_treeseq_t *self,
-    tsk_size_t num_weights, double *weights, tsk_size_t num_covariates,
-    double *covariates, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options);
-
 static void
 verify_one_way_weighted_covariate_func_errors(
-    tsk_treeseq_t *ts, one_way_weighted_covariate_method *method)
+    tsk_treeseq_t *ts, one_way_covariates_method *method)
 {
     // we don't have any specific errors for this function
     // but we might add some in the future
@@ -470,12 +461,8 @@ verify_one_way_weighted_covariate_func_errors(
     free(weights);
 }
 
-typedef int one_way_stat_method(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options);
-
 static void
-verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_stat_method *method)
+verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_sample_stat_method *method)
 {
     int ret;
     tsk_id_t num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(ts);
@@ -521,11 +508,6 @@ verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_stat_method *method)
     ret = method(ts, 1, &sample_set_sizes, samples, 2, windows, &result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 }
-
-typedef int general_sample_stat_method(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_indexes,
-    tsk_id_t *indexes, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options);
 
 static void
 verify_two_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *method)
@@ -931,6 +913,98 @@ test_empty_ts_genealogical_nearest_neighbours(void)
         &ts, 1, single_tree_ex_nodes, "", NULL, NULL, NULL, NULL, NULL, 0);
     verify_genealogical_nearest_neighbours(&ts);
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_genealogical_nearest_neighbours_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_id_t *reference_sets[2];
+    tsk_id_t reference_set_0[4], reference_set_1[4];
+    tsk_id_t focal[] = { 0, 1, 2, 3 };
+    size_t reference_set_size[2];
+    size_t num_focal = 4;
+    double *A = malloc(2 * num_focal * sizeof(double));
+    CU_ASSERT_FATAL(A != NULL);
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 0, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, INT16_MAX, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Overlapping sample sets */
+    reference_sets[0] = focal;
+    reference_set_size[0] = 1;
+    reference_sets[1] = focal;
+    reference_set_size[1] = num_focal;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+
+    /* bad values in the sample sets */
+    reference_set_0[0] = 0;
+    reference_set_0[1] = 1;
+    reference_set_1[0] = 2;
+    reference_set_1[1] = 3;
+    reference_set_size[0] = 2;
+    reference_set_size[1] = 2;
+    reference_sets[0] = reference_set_0;
+    reference_sets[1] = reference_set_1;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    reference_set_0[0] = -1;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    reference_set_0[0] = (tsk_id_t) tsk_treeseq_get_num_nodes(&ts);
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    reference_set_0[0] = (tsk_id_t) tsk_treeseq_get_num_nodes(&ts) + 1;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    /* Duplicate values in the focal sets */
+    reference_set_0[0] = 1;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    reference_set_0[0] = 3;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+
+    /* Bad sample ID */
+    reference_sets[0] = focal;
+    reference_set_size[0] = 1;
+    reference_sets[1] = focal + 1;
+    reference_set_size[1] = num_focal - 1;
+    focal[0] = -1;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    focal[0] = (tsk_id_t) tsk_treeseq_get_num_nodes(&ts);
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    focal[0] = (tsk_id_t) tsk_treeseq_get_num_nodes(&ts) + 100;
+    ret = tsk_treeseq_genealogical_nearest_neighbours(
+        &ts, focal, num_focal, reference_sets, reference_set_size, 2, 0, A);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    tsk_treeseq_free(&ts);
+    free(A);
 }
 
 static void
@@ -1660,6 +1734,8 @@ main(int argc, char **argv)
         { "test_empty_ts_mean_descendants", test_empty_ts_mean_descendants },
         { "test_empty_ts_genealogical_nearest_neighbours",
             test_empty_ts_genealogical_nearest_neighbours },
+        { "test_genealogical_nearest_neighbours_errors",
+            test_genealogical_nearest_neighbours_errors },
         { "test_empty_ts_general_stat", test_empty_ts_general_stat },
         { "test_empty_ts_afs", test_empty_ts_afs },
 
