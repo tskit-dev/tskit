@@ -266,7 +266,7 @@ make_metadata(const char *metadata, Py_ssize_t length)
 }
 
 static PyObject *
-make_mutation(tsk_mutation_t *mutation)
+make_mutation(const tsk_mutation_t *mutation)
 {
     PyObject *ret = NULL;
     PyObject *metadata = NULL;
@@ -284,7 +284,7 @@ out:
 }
 
 static PyObject *
-make_mutation_id_list(tsk_mutation_t *mutations, size_t length)
+make_mutation_id_list(const tsk_mutation_t *mutations, size_t length)
 {
     PyObject *ret = NULL;
     PyObject *t;
@@ -309,7 +309,7 @@ out:
 }
 
 static PyObject *
-make_population(tsk_population_t *population)
+make_population(const tsk_population_t *population)
 {
     PyObject *ret = NULL;
     PyObject *metadata
@@ -324,7 +324,7 @@ out:
 }
 
 static PyObject *
-make_provenance(tsk_provenance_t *provenance)
+make_provenance(const tsk_provenance_t *provenance)
 {
     PyObject *ret = NULL;
 
@@ -335,7 +335,7 @@ make_provenance(tsk_provenance_t *provenance)
 }
 
 static PyObject *
-make_individual_row(tsk_individual_t *r)
+make_individual_row(const tsk_individual_t *r)
 {
     PyObject *ret = NULL;
     PyObject *metadata = make_metadata(r->metadata, (Py_ssize_t) r->metadata_length);
@@ -356,7 +356,7 @@ out:
 }
 
 static PyObject *
-make_individual_object(tsk_individual_t *r)
+make_individual_object(const tsk_individual_t *r)
 {
     PyObject *ret = NULL;
     PyObject *metadata = make_metadata(r->metadata, (Py_ssize_t) r->metadata_length);
@@ -382,7 +382,7 @@ out:
 }
 
 static PyObject *
-make_node(tsk_node_t *r)
+make_node(const tsk_node_t *r)
 {
     PyObject *ret = NULL;
     PyObject *metadata = make_metadata(r->metadata, (Py_ssize_t) r->metadata_length);
@@ -397,7 +397,7 @@ out:
 }
 
 static PyObject *
-make_edge(tsk_edge_t *edge, bool include_id)
+make_edge(const tsk_edge_t *edge, bool include_id)
 {
     PyObject *ret = NULL;
     PyObject *metadata
@@ -418,7 +418,7 @@ out:
 }
 
 static PyObject *
-make_migration(tsk_migration_t *r)
+make_migration(const tsk_migration_t *r)
 {
     int source = r->source == TSK_NULL ? -1 : r->source;
     int dest = r->dest == TSK_NULL ? -1 : r->dest;
@@ -435,7 +435,7 @@ out:
 }
 
 static PyObject *
-make_site_row(tsk_site_t *site)
+make_site_row(const tsk_site_t *site)
 {
     PyObject *ret = NULL;
     PyObject *metadata = NULL;
@@ -452,7 +452,7 @@ out:
 }
 
 static PyObject *
-make_site_object(tsk_site_t *site)
+make_site_object(const tsk_site_t *site)
 {
     PyObject *ret = NULL;
     PyObject *mutations = NULL;
@@ -530,7 +530,7 @@ out:
 }
 
 static PyObject *
-convert_sites(tsk_site_t *sites, size_t num_sites)
+convert_sites(const tsk_site_t *sites, size_t num_sites)
 {
     PyObject *ret = NULL;
     PyObject *l = NULL;
