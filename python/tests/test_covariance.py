@@ -38,7 +38,6 @@ import tskit
 def check_cov_tree_inputs(tree):
     if not len(tree.roots) == 1:
         raise ValueError("Trees must have one root")
-
     for u in tree.nodes():
         if tree.num_children(u) == 1:
             raise ValueError("Unary nodes are not supported")
@@ -52,14 +51,12 @@ def naive_tree_covariance(tree):
     """
     samples = tree.tree_sequence.samples()
     check_cov_tree_inputs(tree)
-
     n = samples.shape[0]
     cov = np.zeros((n, n))
     for n1, n2 in itertools.combinations_with_replacement(range(n), 2):
         mrca = tree.mrca(samples[n1], samples[n2])
         cov[n1, n2] = tree.time(tree.root) - tree.time(mrca)
         cov[n2, n1] = cov[n1, n2]
-
     return cov
 
 
@@ -70,89 +67,34 @@ def naive_ts_covariance(ts):
     tree covariance, with the weights given by the spans of the trees.
     """
     samples = ts.samples()
-
     n = samples.shape[0]
     cov = np.zeros((n, n))
     for tree in ts.trees():
         cov += naive_tree_covariance(tree) * tree.span
-
     return cov / ts.sequence_length
 
 
-def ts_covariance_incremental(ts):
-    for tree in ts.trees():
-        check_cov_tree_inputs(tree)
+def genetic_relatedness(ts):
+    # NOTE: I'm outputting a matrix here just for convenience; the proposal
+    # is that the tskit method *not* output a matrix, and use the indices argument
+    sample_sets = [[u] for u in ts.samples()]
+    n = len(sample_sets)
+    num_samples = sum(map(len, sample_sets))
 
-    n = ts.num_samples
+    def f(x):
+        # x[i] gives the number of descendants in sample set i below the branch
+        return np.array(
+            [x[i] * x[j] * (sum(x) != num_samples) for i in range(n) for j in range(n)]
+        )
 
-    this_cov = np.zeros((n, n))
-    total_cov = np.zeros((n, n))
-    last_update = np.zeros((n, n))
-
-    for tree, edge_diff in zip(ts.trees(sample_lists=True), ts.edge_diffs()):
-        (t_left, t_right), edges_out, edges_in = edge_diff
-
-        for e in reversed(edges_out):
-            u = e.child
-            if tree.parent(u) == tskit.NULL:
-                for leaf in tree.leaves(u):
-                    update_cov_pairs_with_leaf(
-                        tree, total_cov, this_cov, last_update, leaf, t_left
-                    )
-
-        for e in reversed(edges_in):
-            u = e.child
-            for leaf in tree.leaves(u):
-                update_cov_pairs_with_leaf(
-                    tree, total_cov, this_cov, last_update, leaf, t_left
-                )
-
-    total_cov += this_cov * (t_right - last_update)
-    for (n1, n2) in itertools.combinations(range(n), 2):
-        total_cov[n2, n1] = total_cov[n1, n2]
-    return total_cov / ts.sequence_length
-
-
-def update_cov_pairs_with_leaf(tree, total_cov, this_cov, last_update, leaf, t_left):
-    """
-    Perform an upward traversal from `leaf` to the root, updating the covariance
-    matrix elements for pairs of `leaf` with every other leaf in the tree.
-    """
-    root_time = tree.time(tree.root)
-    p = tree.parent(leaf)
-    c = leaf
-
-    if tree.is_sample(c):
-        total_cov[c, c] += this_cov[c, c] * (t_left - last_update[c, c])
-        last_update[c, c] = t_left
-        this_cov[c, c] = root_time - tree.time(c)
-    while p != -1:
-        time = root_time - tree.time(p)
-        for sibling in tree.children(p):
-            if sibling != c:
-                update_cov_all_pairs(
-                    tree, total_cov, this_cov, last_update, leaf, sibling, time, t_left
-                )
-        c, p = p, tree.parent(p)
-
-
-def update_cov_all_pairs(tree, total_cov, this_cov, last_update, c1, c2, time, t_left):
-    s1_ind = tree.left_sample(c1)
-    while True:
-        s2_ind = tree.left_sample(c2)
-        while True:
-            (n1, n2) = (s1_ind, s2_ind)
-            if n1 > n2:
-                (n1, n2) = (n2, n1)
-            total_cov[n1, n2] += this_cov[n1, n2] * (t_left - last_update[n1, n2])
-            last_update[n1, n2] = t_left
-            this_cov[n1, n2] = time
-            if s2_ind == tree.right_sample(c2):
-                break
-            s2_ind = tree.next_sample(s2_ind)
-        if s1_ind == tree.right_sample(c1):
-            break
-        s1_ind = tree.next_sample(s1_ind)
+    return ts.sample_count_stat(
+        sample_sets,
+        f,
+        output_dim=n * n,
+        mode="branch",
+        span_normalise=True,
+        polarised=True,
+    ).reshape((n, n))
 
 
 class TestCovariance(unittest.TestCase):
@@ -162,33 +104,44 @@ class TestCovariance(unittest.TestCase):
 
     def verify(self, ts):
         cov1 = naive_ts_covariance(ts)
-        cov2 = ts_covariance_incremental(ts)
+        cov2 = genetic_relatedness(ts)
+        sample_sets = [[u] for u in ts.samples()]
+        n = len(sample_sets)
+        indexes = [
+            (n1, n2) for n1, n2 in itertools.combinations_with_replacement(range(n), 2)
+        ]
+        cov3 = np.zeros((n, n))
+        i_upper = np.triu_indices(n)
+        cov3[i_upper] = ts.genetic_relatedness(
+            sample_sets, indexes, mode="branch", span_normalise=True
+        )
+        cov3 = np.maximum(cov3, cov3.transpose())
+        # cov2 = ts_covariance_incremental(ts)
         assert np.allclose(cov1, cov2)
+        assert np.allclose(cov1, cov3)
 
     def verify_errors(self, ts):
         with pytest.raises(ValueError):
             naive_ts_covariance(ts)
-        with pytest.raises(ValueError):
-            ts_covariance_incremental(ts)
 
-    def test_errors_unary_nodes(self):
-        tables = tskit.TableCollection(sequence_length=2.0)
+    # def test_errors_unary_nodes(self):
+    #     tables = tskit.TableCollection(sequence_length=2.0)
 
-        sv = [True, False, False]
-        tv = [0.0, 1.0, 2.0]
-        for is_sample, t in zip(sv, tv):
-            flags = tskit.NODE_IS_SAMPLE if is_sample else 0
-            tables.nodes.add_row(flags=flags, time=t)
+    #     sv = [True, False, False]
+    #     tv = [0.0, 1.0, 2.0]
+    #     for is_sample, t in zip(sv, tv):
+    #         flags = tskit.NODE_IS_SAMPLE if is_sample else 0
+    #         tables.nodes.add_row(flags=flags, time=t)
 
-        lv = [0.0, 0.0, 0.0]
-        rv = [1.0, 1.0, 1.0]
-        pv = [1, 2]
-        cv = [0, 1]
-        for left, right, p, c in zip(lv, rv, pv, cv):
-            tables.edges.add_row(left=left, right=right, parent=p, child=c)
+    #     lv = [0.0, 0.0, 0.0]
+    #     rv = [1.0, 1.0, 1.0]
+    #     pv = [1, 2]
+    #     cv = [0, 1]
+    #     for left, right, p, c in zip(lv, rv, pv, cv):
+    #         tables.edges.add_row(left=left, right=right, parent=p, child=c)
 
-        ts = tables.tree_sequence()
-        self.verify_errors(ts)
+    #     ts = tables.tree_sequence()
+    #     self.verify_errors(ts)
 
     def test_errors_multiroot_tree(self):
         ts = msprime.simulate(15, random_seed=10)

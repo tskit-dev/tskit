@@ -5496,6 +5496,65 @@ class TreeSequence:
     #                 k += 1
     #     return A
 
+    def genetic_relatedness(
+        self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
+    ):
+        """
+        Computes genetic relatedness between (and within) pairs of
+        sets of nodes from ``sample_sets``.
+        Operates on ``k = 2`` sample sets at a time; please see the
+        :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
+        section for details on how the ``sample_sets`` and ``indexes`` arguments are
+        interpreted and how they interact with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>`,
+        :ref:`mode <sec_stats_mode>`,
+        :ref:`span normalise <sec_stats_span_normalise>`,
+        and :ref:`return value <sec_stats_output_format>`.
+
+        As a special case, an index ``(j, j)`` will compute the
+        :meth:`diversity <.TreeSequence.diversity>` of ``sample_set[j]``.
+
+        What is computed depends on ``mode``:
+
+        "site"
+            Mean pairwise genetic divergence: the average across distinct,
+            randomly chosen pairs of chromosomes (one from each sample set), of
+            the density of sites at which the two carry different alleles, per
+            unit of chromosome length.
+
+        "branch"
+            Mean distance in the tree: the average across distinct, randomly
+            chosen pairs of chromsomes (one from each sample set) and locations
+            in the window, of the mean distance in the tree between the two
+            samples (in units of time).
+
+        "node"
+            For each node, the proportion of genome on which the node is an ancestor to
+            only one of a random pair (one from each sample set), averaged over
+            choices of pair.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+        :param list indexes: A list of 2-tuples, or None.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.relatedness,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
+
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``

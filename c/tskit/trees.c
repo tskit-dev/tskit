@@ -2752,8 +2752,57 @@ out:
     return ret;
 }
 
+relatedness_summary_func(size_t state_dim, const double *state, 
+    size_t result_dim, double *result, void *params)
+{
+    sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
+    const double *x = state;
+    tsk_id_t i, j;
+    size_t k;
+    double c = 0;
+    double sumx = 0;
+    double num = 0;
+
+    for (k = 0; k < state_dim; k++) {
+        sumx += x[k];
+    }
+
+    for (k = 0; k < result_dim; k++) {
+        num += args.sample_set_sizes[k];
+    } 
+
+    if (num != sumx) {
+        c = 1;
+    }
+
+    for (k = 0; k < result_dim; k++) {
+        i = args.set_indexes[2 * k];
+        j = args.set_indexes[2 * k + 1];
+        result[k] = x[i] * x[j] * c;
+    }
+    return 0;
+}
+
+int
+tsk_treeseq_relatedness(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
+    const tsk_id_t *index_tuples, tsk_size_t num_windows, const double *windows, double *result,
+    tsk_flags_t options)
+{
+    int ret = 0;
+    ret = check_sample_stat_inputs(num_sample_sets, 2, num_index_tuples, index_tuples);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
+        sample_sets, num_index_tuples, index_tuples, relatedness_summary_func,
+        num_windows, windows, result, options);
+out:
+    return ret;
+}
+
 static int
-Y2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
+Y2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim, 
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;

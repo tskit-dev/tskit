@@ -7029,6 +7029,12 @@ TreeSequence_divergence(TreeSequence *self, PyObject *args, PyObject *kwds)
 }
 
 static PyObject *
+TreeSequence_relatedness(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_k_way_stat_method(self, args, kwds, 2, tsk_treeseq_relatedness);
+}
+
+static PyObject *
 TreeSequence_Y2(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_k_way_stat_method(self, args, kwds, 2, tsk_treeseq_Y2);
@@ -7345,6 +7351,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_divergence,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes diveregence between sample sets." },
+    { .ml_name = "relatedness",
+        .ml_meth = (PyCFunction) TreeSequence_relatedness,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes genetic relatedness between sample sets." },    
     { .ml_name = "Y1",
         .ml_meth = (PyCFunction) TreeSequence_Y1,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
