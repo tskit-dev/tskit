@@ -727,6 +727,13 @@ class TestIbdPolytomies:
         }
         assert ibd_is_equal(ibd_segs, true_segs)
 
+    def test_duplicate_input_sample_pairs(self):
+        with pytest.raises(tskit.LibraryError):
+            self.ts.tables.find_ibd([(0, 1), (0, 1)])
+
+        with pytest.raises(tskit.LibraryError):
+            self.ts.tables.find_ibd([(0, 1), (1, 0)])
+
 
 class TestIbdInternalSamples:
     #
