@@ -7951,3 +7951,22 @@ class TestExampleTrees:
 
         assert ts.node(ts.first().root).time == branch_length
         assert ts.kc_distance(topological_equiv_ts) == 0
+
+    def test_balanced_equivalent(self):
+        for extra_params in [{}, {"span": 2.5}]:
+            for n in range(2, 10):
+                tree = tskit.Tree.generate_balanced(n, **extra_params)
+                # balanced shape is the last shape in the rank
+                assert tree.rank()[0] == tskit.combinatorics.num_shapes(n) - 1
+
+    def test_balanced_bad_params(self):
+        for n in [-1, 0, 1, np.array([1, 2])]:
+            with pytest.raises(ValueError):
+                tskit.Tree.generate_balanced(n)
+        for n in [None, "", []]:
+            with pytest.raises(TypeError):
+                tskit.Tree.generate_balanced(n)
+        with pytest.raises(tskit.LibraryError):
+            tskit.Tree.generate_balanced(2, span=0)
+        with pytest.raises(tskit.LibraryError):
+            tskit.Tree.generate_balanced(2, branch_length=0)
