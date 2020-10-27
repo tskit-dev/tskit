@@ -19,6 +19,9 @@
 - Added ``TableCollection.indexes`` for access to the edge insertion/removal order indexes.
   (:user:`benjeffery`, :issue:`4`, :pr:`916`)
 
+- Added ``TreeSequence._repr_html_`` for use in jupyter notebooks.
+  (:user:`benjeffery`, :issue:`872`, :pr:`923`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.

@@ -1452,6 +1452,14 @@ class TestTreeSequence(HighLevelTestCase):
             # Tables in tc, and rebuilt
             assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
 
+    def test_html_repr(self):
+        for ts in get_example_tree_sequences():
+            html = ts._repr_html_()
+            assert len(html) > 4300
+            assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
+            for table in ts.tables.name_map:
+                assert f"<td>{table.capitalize()}</td>" in html
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)
