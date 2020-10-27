@@ -29,6 +29,7 @@ import json
 import math
 import pickle
 import random
+import time
 import unittest
 import warnings
 
@@ -2395,7 +2396,7 @@ class TestTableCollection:
         t2.populations.clear()
         assert t1 == t2
 
-    def test_equals_with_options(self):
+    def test_equals_options(self):
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]
         t1 = msprime.simulate(
@@ -2421,21 +2422,20 @@ class TestTableCollection:
         t1.metadata_schema = tskit.MetadataSchema({"codec": "json", "type": "object"})
         t1.metadata = {"hello": "world"}
         assert not t1.equals(t2)
-        assert t1.equals(t2, ignore_top_level_metadata=True)
+        assert t1.equals(t2, ignore_ts_metadata=True)
         assert not t2.equals(t1)
-        assert t2.equals(t1, ignore_top_level_metadata=True)
+        assert t2.equals(t1, ignore_ts_metadata=True)
         t2.metadata_schema = t1.metadata_schema
         assert not t1.equals(t2)
-        assert t1.equals(t2, ignore_top_level_metadata=True)
+        assert t1.equals(t2, ignore_ts_metadata=True)
         assert not t2.equals(t1)
-        assert t2.equals(t1, ignore_top_level_metadata=True)
+        assert t2.equals(t1, ignore_ts_metadata=True)
 
-        # testing both
         t1.provenances.add_row("random stuff")
         assert not t1.equals(t2)
-        assert not t1.equals(t2, ignore_top_level_metadata=True)
+        assert not t1.equals(t2, ignore_ts_metadata=True)
         assert not t1.equals(t2, ignore_provenance=True)
-        assert t1.equals(t2, ignore_top_level_metadata=True, ignore_provenance=True)
+        assert t1.equals(t2, ignore_ts_metadata=True, ignore_provenance=True)
 
         t1.provenances.clear()
         t2.metadata = t1.metadata
@@ -2538,6 +2538,89 @@ class TestTableCollection:
         assert len(tree.parent_dict) > 0
         tree = next(trees)
         assert len(tree.parent_dict) == 0
+
+
+class TestEqualityOptions:
+    def test_equals_provenance(self):
+        t1 = msprime.simulate(10, random_seed=42).tables
+        time.sleep(0.1)
+        t2 = msprime.simulate(10, random_seed=42).tables
+        # Timestamps should differ
+        assert t1.provenances[-1].timestamp != t2.provenances[-1].timestamp
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_timestamps=True)
+        assert t1.equals(t2, ignore_provenance=True)
+        assert t1.equals(t2, ignore_provenance=True, ignore_timestamps=True)
+
+    def test_equals_node_metadata(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
+        t2 = t1.copy()
+        assert t1.equals(t2)
+        t1.nodes.add_row(time=0, metadata={"a": "a"})
+        t2.nodes.add_row(time=0, metadata={"a": "b"})
+        assert not t1.nodes.equals(t2.nodes)
+        assert not t1.equals(t2)
+        assert t1.nodes.equals(t2.nodes, ignore_metadata=True)
+
+    def test_equals_edge_metadata(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
+        child = t1.nodes.add_row(time=0)
+        parent = t1.nodes.add_row(time=1)
+        t2 = t1.copy()
+        assert t1.equals(t2)
+        t1.edges.add_row(0, 1, parent, child, metadata={"a": "a"})
+        t2.edges.add_row(0, 1, parent, child, metadata={"a": "b"})
+        assert not t1.edges.equals(t2.edges)
+        assert not t1.equals(t2)
+        assert t1.edges.equals(t2.edges, ignore_metadata=True)
+        assert t1.equals(t2, ignore_metadata=True)
+
+    def test_equals_migration_metadata(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
+        t2 = t1.copy()
+        assert t1.equals(t2)
+        t1.migrations.add_row(
+            0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "a"}
+        )
+        t2.migrations.add_row(
+            0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "b"}
+        )
+        assert not t1.migrations.equals(t2.migrations)
+        assert not t1.equals(t2)
+        assert t1.migrations.equals(t2.migrations, ignore_metadata=True)
+        assert t1.equals(t2, ignore_metadata=True)
+
+    def test_equals_site_metadata(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
+        t2 = t1.copy()
+        assert t1.equals(t2)
+        t1.sites.add_row(0, "A", metadata={"a": "a"})
+        t2.sites.add_row(0, "A", metadata={"a": "b"})
+        assert not t1.sites.equals(t2.sites)
+        assert not t1.equals(t2)
+        assert t1.sites.equals(t2.sites, ignore_metadata=True)
+        assert t1.equals(t2, ignore_metadata=True)
+
+    def test_equals_mutation_metadata(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
+        t2 = t1.copy()
+        assert t1.equals(t2)
+        t1.mutations.add_row(0, 0, "A", metadata={"a": "a"})
+        t2.mutations.add_row(0, 0, "A", metadata={"a": "b"})
+        assert not t1.mutations.equals(t2.mutations)
+        assert not t1.equals(t2)
+        assert t1.mutations.equals(t2.mutations, ignore_metadata=True)
+        assert t1.equals(t2, ignore_metadata=True)
+
+    def test_equals_population_metadata(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
+        t2 = t1.copy()
+        assert t1.equals(t2)
+        t1.populations.add_row({"a": "a"})
+        t2.populations.add_row({"a": "b"})
+        assert not t1.populations.equals(t2.populations)
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_metadata=True)
 
 
 class TestTableCollectionMethodSignatures:

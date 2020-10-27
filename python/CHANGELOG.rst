@@ -4,9 +4,11 @@
 
 **Features**
 
-- Added ``TableCollection.equals``, a method that compares two table 
-  collections with the options to ignore top-level metadata/schema or
-  provenance tables. (:user:`mufernando`, :issue:`896`, :pr:`897`).
+- Added ``equals`` method to TableCollection and each of the tables which
+  provides more flexible equality comparisons, for example, allowing
+  users to ignore metadata or provenance in the comparison.
+  (:user:`mufernando`, :user:`jeromekelleher`, :issue:`896`, :pr:`897`,
+  :issue:`913`, :pr:`917`).
 
 - ``ts.dump`` and ``tskit.load`` now support reading and writing file objects such as
   FIFOs and sockets. (:user:`benjeffery`, :issue:`657`, :pr:`909`)

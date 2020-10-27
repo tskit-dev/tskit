@@ -361,13 +361,48 @@ class TestTableCollection(LowLevelTestCase):
             assert len(value) == 3
 
     def test_equals_bad_args(self):
-        # Tests the low-level equals interface to ensure we're getting coverage.
         ts = msprime.simulate(10, random_seed=1242)
         tc = ts.tables._ll_tables
         with pytest.raises(TypeError):
             tc.equals()
         with pytest.raises(TypeError):
             tc.equals(None)
+        assert tc.equals(tc)
+        with pytest.raises(TypeError):
+            tc.equals(tc, no_such_arg=1)
+        bad_bool = "x"
+        with pytest.raises(TypeError):
+            tc.equals(tc, ignore_metadata=bad_bool)
+        with pytest.raises(TypeError):
+            tc.equals(tc, ignore_ts_metadata=bad_bool)
+        with pytest.raises(TypeError):
+            tc.equals(tc, ignore_provenance=bad_bool)
+        with pytest.raises(TypeError):
+            tc.equals(tc, ignore_timestamps=bad_bool)
+
+
+class TestTableMethodsErrors:
+    """
+    Tests for the error handling of errors in the low-level tables.
+    """
+
+    def yield_tables(self, ts):
+        for table in ts.tables.name_map.values():
+            yield table.ll_table
+
+    def test_equals_bad_args(self, ts_fixture):
+        for ll_table in self.yield_tables(ts_fixture):
+            assert ll_table.equals(ll_table)
+            with pytest.raises(TypeError):
+                ll_table.equals(None)
+            with pytest.raises(TypeError):
+                ll_table.equals(ll_table, no_such_arg="")
+
+    def test_get_row_bad_args(self, ts_fixture):
+        for ll_table in self.yield_tables(ts_fixture):
+            assert ll_table.get_row(0) is not None
+            with pytest.raises(TypeError):
+                ll_table.get_row(no_such_arg="")
 
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):

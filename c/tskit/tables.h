@@ -722,8 +722,10 @@ typedef struct {
 #define TSK_UNION_NO_ADD_POP (1 << 1)
 
 /* Flags for table collection equals */
-#define TSK_IGNORE_TOP_LEVEL_METADATA (1 << 0)
-#define TSK_IGNORE_PROVENANCE (1 << 1)
+#define TSK_CMP_IGNORE_TS_METADATA (1 << 0)
+#define TSK_CMP_IGNORE_PROVENANCE (1 << 1)
+#define TSK_CMP_IGNORE_METADATA (1 << 2)
+#define TSK_CMP_IGNORE_TIMESTAMPS (1 << 3)
 
 /****************************************************************************/
 /* Function signatures */
@@ -813,12 +815,27 @@ int tsk_individual_table_truncate(tsk_individual_table_t *self, tsk_size_t num_r
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata or metadata schemas in the comparison.
+
+@endrst
+
 @param self A pointer to a tsk_individual_table_t object.
 @param other A pointer to a tsk_individual_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_individual_table_equals(
-    const tsk_individual_table_t *self, const tsk_individual_table_t *other);
+bool tsk_individual_table_equals(const tsk_individual_table_t *self,
+    const tsk_individual_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -987,11 +1004,27 @@ int tsk_node_table_truncate(tsk_node_table_t *self, tsk_size_t num_rows);
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata or metadata schemas in the comparison.
+
+@endrst
+
 @param self A pointer to a tsk_node_table_t object.
 @param other A pointer to a tsk_node_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_node_table_equals(const tsk_node_table_t *self, const tsk_node_table_t *other);
+bool tsk_node_table_equals(
+    const tsk_node_table_t *self, const tsk_node_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -1098,8 +1131,7 @@ TSK_NO_METADATA
 @endrst
 
 @param self A pointer to an uninitialised tsk_edge_table_t object.
-@param options Allocation time options. Currently unused; should be
-    set to zero to ensure compatibility with later versions of tskit.
+@param options Allocation time options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options);
@@ -1163,11 +1195,27 @@ int tsk_edge_table_truncate(tsk_edge_table_t *self, tsk_size_t num_rows);
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata or metadata schemas in the comparison.
+
+@endrst
+
 @param self A pointer to a tsk_edge_table_t object.
 @param other A pointer to a tsk_edge_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_edge_table_equals(const tsk_edge_table_t *self, const tsk_edge_table_t *other);
+bool tsk_edge_table_equals(
+    const tsk_edge_table_t *self, const tsk_edge_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -1334,12 +1382,27 @@ int tsk_migration_table_truncate(tsk_migration_table_t *self, tsk_size_t num_row
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata or metadata schemas in the comparison.
+
+@endrst
+
 @param self A pointer to a tsk_migration_table_t object.
 @param other A pointer to a tsk_migration_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_migration_table_equals(
-    const tsk_migration_table_t *self, const tsk_migration_table_t *other);
+bool tsk_migration_table_equals(const tsk_migration_table_t *self,
+    const tsk_migration_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -1502,11 +1565,27 @@ int tsk_site_table_truncate(tsk_site_table_t *self, tsk_size_t num_rows);
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata or metadata schemas in the comparison.
+
+@endrst
+
 @param self A pointer to a tsk_site_table_t object.
 @param other A pointer to a tsk_site_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_site_table_equals(const tsk_site_table_t *self, const tsk_site_table_t *other);
+bool tsk_site_table_equals(
+    const tsk_site_table_t *self, const tsk_site_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -1674,12 +1753,27 @@ int tsk_mutation_table_truncate(tsk_mutation_table_t *self, tsk_size_t num_rows)
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata or metadata schemas in the comparison.
+
+@endrst
+
 @param self A pointer to a tsk_mutation_table_t object.
 @param other A pointer to a tsk_mutation_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_mutation_table_equals(
-    const tsk_mutation_table_t *self, const tsk_mutation_table_t *other);
+bool tsk_mutation_table_equals(const tsk_mutation_table_t *self,
+    const tsk_mutation_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -1841,12 +1935,29 @@ int tsk_population_table_truncate(tsk_population_table_t *self, tsk_size_t num_r
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns,
+and their metadata schemas are byte-wise identical.
+
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata in the comparison. Note that as metadata is the
+    only column in the population table, two population tables are considered
+    equal if they have the same number of rows if this flag is specified.
+
+@endrst
+
 @param self A pointer to a tsk_population_table_t object.
 @param other A pointer to a tsk_population_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_population_table_equals(
-    const tsk_population_table_t *self, const tsk_population_table_t *other);
+bool tsk_population_table_equals(const tsk_population_table_t *self,
+    const tsk_population_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -2004,12 +2115,27 @@ int tsk_provenance_table_truncate(tsk_provenance_table_t *self, tsk_size_t num_r
 @brief Returns true if the data in the specified table is identical to the data
        in this table.
 
+@rst
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) tables are
+considered equal if they are byte-wise identical in all columns.
+
+TSK_CMP_IGNORE_TIMESTAMPS
+    Do not include the timestamp column when comparing provenance
+    tables.
+
+@endrst
+
 @param self A pointer to a tsk_provenance_table_t object.
 @param other A pointer to a tsk_provenance_table_t object.
+@param options Bitwise comparison options.
 @return Return true if the specified table is equal to this table.
 */
-bool tsk_provenance_table_equals(
-    const tsk_provenance_table_t *self, const tsk_provenance_table_t *other);
+bool tsk_provenance_table_equals(const tsk_provenance_table_t *self,
+    const tsk_provenance_table_t *other, tsk_flags_t options);
 
 /**
 @brief Copies the state of this table into the specified destination.
@@ -2138,44 +2264,46 @@ No memory is freed as a result of this operation; please use
 int tsk_table_collection_clear(tsk_table_collection_t *self);
 
 /**
-@brief Returns true if the data in the specified table collection is identical to the
-data in this table, with options to allow partial equality.
+@brief Returns true if the data in the specified table collection is equal
+    to the data in this table collection.
 
 @rst
-Returns true if the data in all of the table columns are byte-by-byte equal
-and the sequence lengths of the two table collections are equal. Indexes are
-not considered when determining equality, since they are derived from the
-basic data. You may disable the comparison of top-level metadata and
-metadata schema (`TSK_IGNORE_TOP_LEVEL_METADATA`) or the provenance table
-(`TSK_IGNORE_PROVENANCE`). Note that table row-level metadata and table schemas
-are always checked.
 
+Returns true if the two table collections are equal. The indexes are
+not considered as these are derived from the tables. We also do not
+consider the ``file_uuid``, since it is a property of the file that set
+of tables is stored in.
+
+**Options**
+
+Options to control the comparison can be specified by providing one or
+more of the following bitwise flags. By default (options=0) two table
+collections are considered equal if all of the tables are byte-wise
+identical, and the sequence lengths, metadata and metadata schemas
+of the two table collections are identical.
+
+TSK_CMP_IGNORE_PROVENANCE
+    Do not include the provenance table in comparison.
+TSK_CMP_IGNORE_METADATA
+    Do not include metadata when comparing the table collections.
+    This includes both the top-level tree sequence metadata as well as the
+    metadata for each of the tables (i.e, TSK_CMP_IGNORE_TS_METADATA is implied).
+    All metadata schemas are also ignored.
+TSK_CMP_IGNORE_TS_METADATA
+    Do not include the top-level tree sequence metadata and metadata schemas
+    in the comparison.
+TSK_CMP_IGNORE_TIMESTAMPS
+    Do not include the timestamp information when comparing the provenance
+    tables. This has no effect if TSK_CMP_IGNORE_PROVENANCE is specified.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
 @param other A pointer to a tsk_table_collection_t object.
-@param options Bitwise options. See above for details.
+@param options Bitwise comparison options.
 @return Return true if the specified table collection is equal to this table.
 */
-bool tsk_table_collection_equals_with_options(const tsk_table_collection_t *self,
+bool tsk_table_collection_equals(const tsk_table_collection_t *self,
     const tsk_table_collection_t *other, tsk_flags_t options);
-
-/**
-@brief Returns true if the data in the specified table collection is identical to the
-data in this table.
-
-@rst
-Returns true if the data in all of the table columns are byte-by-byte equal
-and the sequence lengths of the two table collections are equal. Indexes are not
-considered when determining equality, since they are derived from the basic data.
-@endrst
-
-@param self A pointer to a tsk_table_collection_t object.
-@param other A pointer to a tsk_table_collection_t object.
-@return Return true if the specified table collection is equal to this table.
-*/
-bool tsk_table_collection_equals(
-    const tsk_table_collection_t *self, const tsk_table_collection_t *other);
 
 /**
 @brief Copies the state of this table collection into the specified destination.
