@@ -142,8 +142,8 @@ class ProvenanceTableRow:
 
 @attr.s(**attr_options)
 class TableCollectionIndexes:
-    edge_insertion_order: np.ndarray
-    edge_removal_order: np.ndarray
+    edge_insertion_order: np.ndarray = attr.ib(default=None)
+    edge_removal_order: np.ndarray = attr.ib(default=None)
 
     def asdict(self):
         return attr.asdict(self)

@@ -1566,6 +1566,10 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { NULL },
     };
 
+    struct table_col no_indexes_cols[] = {
+        { NULL },
+    };
+
     struct table_desc table_descs[] = {
         { "individuals", individual_cols, tables->individuals.metadata_schema,
             tables->individuals.metadata_schema_length },
@@ -1582,11 +1586,14 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { "populations", population_cols, tables->populations.metadata_schema,
             tables->populations.metadata_schema_length },
         { "provenances", provenance_cols, NULL, 0 },
-        { "indexes", indexes_cols, NULL, 0 },
+        /* We don't want to insert empty indexes, return an empty dict if there are none
+         */
+        { "indexes",
+            tsk_table_collection_has_index(tables, 0) ? indexes_cols : no_indexes_cols,
+            NULL, 0 },
     };
 
     for (j = 0; j < sizeof(table_descs) / sizeof(*table_descs); j++) {
-        /* We don't want to insert empty indexes, they are an optional entry */
         if (strcmp(table_descs[j].name, "indexes") == 0
             && !tsk_table_collection_has_index(tables, 0)) {
             continue;

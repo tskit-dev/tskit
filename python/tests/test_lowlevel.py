@@ -417,7 +417,7 @@ class TestTableMethodsErrors:
             tc.indexes["edge_removal_order"], np.arange(18, dtype=np.int32)[::-1]
         )
         tc.drop_index()
-        assert tc.indexes is None
+        assert tc.indexes == {}
         tc.build_index()
         assert np.array_equal(
             tc.indexes["edge_insertion_order"], np.arange(18, dtype=np.int32)
@@ -442,7 +442,7 @@ class TestTableMethodsErrors:
     def test_no_indexes(self):
         tc = msprime.simulate(10, random_seed=42).tables._ll_tables
         tc.drop_index()
-        assert tc.indexes is None
+        assert tc.indexes == {}
 
     def test_bad_indexes(self):
         tc = msprime.simulate(10, random_seed=42).tables._ll_tables

@@ -1317,9 +1317,19 @@ class TestTableCollectionIndexes:
         index = tskit.TableCollectionIndexes(
             edge_insertion_order=i, edge_removal_order=r
         )
-        assert index.edge_insertion_order is i
-        assert index.edge_removal_order is r
-        assert index.asdict() == {"edge_insertion_order": i, "edge_removal_order": r}
+        assert np.array_equal(index.edge_insertion_order, i)
+        assert np.array_equal(index.edge_removal_order, r)
+        d = index.asdict()
+        assert np.array_equal(d["edge_insertion_order"], i)
+        assert np.array_equal(d["edge_removal_order"], r)
+
+        index = tskit.TableCollectionIndexes()
+        assert index.edge_insertion_order is None
+        assert index.edge_removal_order is None
+        assert index.asdict() == {
+            "edge_insertion_order": None,
+            "edge_removal_order": None,
+        }
 
 
 class TestSortTables:
@@ -2557,7 +2567,7 @@ class TestTableCollection:
 
     def test_indexes(self, simple_ts_fixture):
         tc = tskit.TableCollection(sequence_length=1)
-        assert tc.indexes is None
+        assert tc.indexes == tskit.TableCollectionIndexes()
         tc = simple_ts_fixture.tables
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
@@ -2566,7 +2576,7 @@ class TestTableCollection:
             tc.indexes.edge_removal_order, np.arange(18, dtype=np.int32)[::-1]
         )
         tc.drop_index()
-        assert tc.indexes is None
+        assert tc.indexes == tskit.TableCollectionIndexes()
         tc.build_index()
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
