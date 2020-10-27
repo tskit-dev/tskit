@@ -260,30 +260,33 @@ class TestFIFO:
 ADDRESS = ("localhost", 10009)
 
 
+class Server(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+
+
+class StoreEchoHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        while True:
+            try:
+                ts = tskit.load(self.request.fileno())
+            except EOFError:
+                break
+            ts.dump(self.request.fileno())
+        self.server.shutdown()
+
+
+def server_process(q):
+    server = Server(ADDRESS, StoreEchoHandler)
+    # Tell the client (on the other end of the queue) that it's OK to open
+    # a connection
+    q.put(None)
+    server.serve_forever()
+
+
 @pytest.mark.skipif(IS_WINDOWS, reason="Errors on Windows")
 class TestSocket:
     @fixture
     def client_fd(self):
-        class Server(socketserver.ThreadingTCPServer):
-            allow_reuse_address = True
-
-        class StoreEchoHandler(socketserver.BaseRequestHandler):
-            def handle(self):
-                while True:
-                    try:
-                        ts = tskit.load(self.request.fileno())
-                    except EOFError:
-                        break
-                    ts.dump(self.request.fileno())
-                self.server.shutdown()
-
-        def server_process(q):
-            server = Server(ADDRESS, StoreEchoHandler)
-            # Tell the client (on the other end of the queue) that it's OK to open
-            # a connection
-            q.put(None)
-            server.serve_forever()
-
         # Use a queue to synchronise the startup of the server and the client.
         q = multiprocessing.Queue()
         _server_process = multiprocessing.Process(target=server_process, args=(q,))
