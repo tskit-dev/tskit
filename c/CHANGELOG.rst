@@ -11,6 +11,9 @@
   current behaviour. (:user:`mufernando`, :user:`jeromekelleher`,
   :issue:`896`, :pr:`897`, :issue:`913`, :pr:`917`).
 
+- Exposed ``tsk_table_collection_set_indexes`` to the API.
+  (:user:`benjeffery`, :issue:`870`, :pr:`921`)
+
 ---------------------
 [0.99.7] - 2020-09-29
 ---------------------

@@ -303,6 +303,8 @@ class TestTableCollection(LowLevelTestCase):
             [node_mapping.tolist(), node_mapping.tolist()], dtype="int32"
         )
         with pytest.raises(ValueError):
+            tc.union(tc2, node_mapping)
+        with pytest.raises(ValueError):
             tc.union(tc2, np.array([[1], [2]], dtype="int32"))
 
     def test_ibd_bad_args(self):
@@ -403,6 +405,101 @@ class TestTableMethodsErrors:
             assert ll_table.get_row(0) is not None
             with pytest.raises(TypeError):
                 ll_table.get_row(no_such_arg="")
+
+    def test_index(self):
+        tc = msprime.simulate(10, random_seed=42).tables._ll_tables
+        assert tc.indexes["edge_insertion_order"].dtype == np.int32
+        assert tc.indexes["edge_removal_order"].dtype == np.int32
+        assert np.array_equal(
+            tc.indexes["edge_insertion_order"], np.arange(18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes["edge_removal_order"], np.arange(18, dtype=np.int32)[::-1]
+        )
+        tc.drop_index()
+        assert np.array_equal(
+            tc.indexes["edge_insertion_order"], np.arange(0, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes["edge_removal_order"], np.arange(0, dtype=np.int32)[::-1]
+        )
+        tc.build_index()
+        assert np.array_equal(
+            tc.indexes["edge_insertion_order"], np.arange(18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes["edge_removal_order"], np.arange(18, dtype=np.int32)[::-1]
+        )
+
+        modify_indexes = tc.indexes
+        modify_indexes["edge_insertion_order"] = np.arange(42, 42 + 18, dtype=np.int32)
+        modify_indexes["edge_removal_order"] = np.arange(
+            4242, 4242 + 18, dtype=np.int32
+        )
+        tc.indexes = modify_indexes
+        assert np.array_equal(
+            tc.indexes["edge_insertion_order"], np.arange(42, 42 + 18, dtype=np.int32)
+        )
+        assert np.array_equal(
+            tc.indexes["edge_removal_order"], np.arange(4242, 4242 + 18, dtype=np.int32)
+        )
+
+    def test_bad_indexes(self):
+        tc = msprime.simulate(10, random_seed=42).tables._ll_tables
+        for col in ("insertion", "removal"):
+            d = tc.indexes
+            d[f"edge_{col}_order"] = d[f"edge_{col}_order"][:-1]
+            with pytest.raises(
+                ValueError,
+                match="^edge_insertion_order and"
+                " edge_removal_order must be the same"
+                " length$",
+            ):
+                tc.indexes = d
+        d = tc.indexes
+        for col in ("insertion", "removal"):
+            d[f"edge_{col}_order"] = d[f"edge_{col}_order"][:-1]
+        with pytest.raises(
+            ValueError,
+            match="^edge_insertion_order and edge_removal_order must be"
+            " the same length as the number of edges$",
+        ):
+            tc.indexes = d
+
+        # Both columns must be provided, if one is
+        for col in ("insertion", "removal"):
+            d = tc.indexes
+            del d[f"edge_{col}_order"]
+            with pytest.raises(
+                TypeError,
+                match="^edge_insertion_order and "
+                "edge_removal_order must be specified "
+                "together$",
+            ):
+                tc.indexes = d
+
+        tc = msprime.simulate(
+            10, recombination_rate=10, random_seed=42
+        ).tables._ll_tables
+        modify_indexes = tc.indexes
+        shape = modify_indexes["edge_insertion_order"].shape
+        modify_indexes["edge_insertion_order"] = np.zeros(shape, dtype=np.int32)
+        modify_indexes["edge_removal_order"] = np.zeros(shape, dtype=np.int32)
+        tc.indexes = modify_indexes
+        ts = _tskit.TreeSequence()
+        with pytest.raises(
+            _tskit.LibraryError,
+            match="^Bad edges: contradictory children for a given"
+            " parent over an interval$",
+        ):
+            ts.load_tables(tc, build_indexes=False)
+
+        modify_indexes["edge_insertion_order"] = np.full(shape, 2 ** 30, dtype=np.int32)
+        modify_indexes["edge_removal_order"] = np.full(shape, 2 ** 30, dtype=np.int32)
+        tc.indexes = modify_indexes
+        ts = _tskit.TreeSequence()
+        with pytest.raises(_tskit.LibraryError, match="^Edge out of bounds$"):
+            ts.load_tables(tc, build_indexes=False)
 
 
 class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
@@ -560,6 +657,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         tables.nodes.add_row(flags=1, time=0)
         tables.nodes.add_row(flags=1, time=0)
         tables.sites.add_row(0.1, "A")
+        tables.build_index()
         ts = _tskit.TreeSequence(0)
         ts.load_tables(tables)
         G = ts.get_genotype_matrix(isolated_as_missing=False)
@@ -657,6 +755,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             table = getattr(tables, f"{table_name}s")
             table.metadata_schema = f"{table_name} test metadata schema"
         # Read back via ll tree sequence
+        tables.build_index()
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         schemas = ts.get_table_metadata_schemas()
@@ -673,6 +772,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     def test_metadata(self):
         tables = _tskit.TableCollection(1)
+        tables.build_index()
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         assert ts.get_metadata() == b""
@@ -684,6 +784,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     def test_metadata_schema(self):
         tables = _tskit.TableCollection(1)
+        tables.build_index()
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         assert ts.get_metadata_schema() == ""
@@ -725,6 +826,34 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             x1 = ts1.get_kc_distance(ts2, lambda_)
             x2 = ts2.get_kc_distance(ts1, lambda_)
             self.assertAlmostEqual(x1, x2)
+
+    def test_load_tables_build_indexes(self):
+        for ts in self.get_example_tree_sequences():
+            tables = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts.dump_tables(tables)
+            tables.drop_index()
+
+            # Tables not in tc but rebuilt
+            ts2 = _tskit.TreeSequence()
+            ts2.load_tables(tables, build_indexes=True)
+            tables2 = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts2.dump_tables(tables2)
+            assert tables2.has_index()
+
+            # Tables not in tc, not rebuilt so error
+            ts3 = _tskit.TreeSequence()
+            with pytest.raises(
+                _tskit.LibraryError, match="Table collection must be indexed"
+            ):
+                ts3.load_tables(tables)
+
+            # Tables in tc, not rebuilt
+            tables.build_index()
+            ts4 = _tskit.TreeSequence()
+            ts4.load_tables(tables, build_indexes=False)
+            tables4 = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts4.dump_tables(tables4)
+            assert tables4.has_index()
 
 
 class StatsInterfaceMixin:
@@ -1517,6 +1646,7 @@ class TestVariantGenerator(LowLevelTestCase):
         tables.nodes.add_row(flags=1, time=0)
         tables.nodes.add_row(flags=1, time=0)
         tables.sites.add_row(0.1, "A")
+        tables.build_index()
         ts = _tskit.TreeSequence(0)
         ts.load_tables(tables)
         variant = list(_tskit.VariantGenerator(ts))[0]
@@ -2268,6 +2398,7 @@ class TestTree(LowLevelTestCase):
         tables.nodes.add_row(flags=1)
         tables.nodes.add_row(flags=1, time=1)
         tables.edges.add_row(0, 1, 1, 0)
+        tables.build_index()
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         t1 = _tskit.Tree(ts, options=_tskit.SAMPLE_LISTS)

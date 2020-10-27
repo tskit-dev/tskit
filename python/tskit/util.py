@@ -248,7 +248,7 @@ def intervals_to_np_array(intervals, start, end):
 def negate_intervals(intervals, start, end):
     """
     Returns the set of intervals *not* covered by the specified set of
-    disjoint intervals in the specfied range.
+    disjoint intervals in the specified range.
     """
     intervals = intervals_to_np_array(intervals, start, end)
     other_intervals = []

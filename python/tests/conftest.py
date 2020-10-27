@@ -70,7 +70,7 @@ def pytest_collection_modifyitems(config, items):
 
 @fixture(scope="session")
 def simple_ts_fixture():
-    return msprime.simulate(2, random_seed=42)
+    return msprime.simulate(10, random_seed=42)
 
 
 @fixture(scope="session")
