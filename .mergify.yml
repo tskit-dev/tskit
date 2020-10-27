@@ -6,13 +6,13 @@ pull_request_rules:
       - base=main
       - label=AUTOMERGE-REQUESTED
       - status-success=pre-commit
+      - status-success=test
+      - status-success=build-deploy-docs
       - "status-success=ci/circleci: build"
       #- status-success=codecov/patch
       #- status-success=codecov/project/c-tests
       #- status-success=codecov/project/python-c-tests
       #- status-success=codecov/project/python-tests
-      - status-success=continuous-integration/appveyor/pr
-      - status-success=continuous-integration/travis-ci/pr
     actions:
       merge:
         strict: smart
