@@ -719,7 +719,7 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
 }
 
 static int
-tsk_individual_table_dump(tsk_individual_table_t *self, kastore_t *store)
+tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "individuals/flags", (void *) self->flags, self->num_rows, KAS_UINT32 },
@@ -1211,7 +1211,7 @@ out:
 }
 
 static int
-tsk_node_table_dump(tsk_node_table_t *self, kastore_t *store)
+tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "nodes/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
@@ -1725,7 +1725,7 @@ tsk_edge_table_equals(
 }
 
 static int
-tsk_edge_table_dump(tsk_edge_table_t *self, kastore_t *store)
+tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store)
 {
     int ret = TSK_ERR_IO;
 
@@ -2330,7 +2330,7 @@ out:
 }
 
 static int
-tsk_site_table_dump(tsk_site_table_t *self, kastore_t *store)
+tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "sites/position", (void *) self->position, self->num_rows, KAS_FLOAT64 },
@@ -2916,7 +2916,7 @@ out:
 }
 
 static int
-tsk_mutation_table_dump(tsk_mutation_table_t *self, kastore_t *store)
+tsk_mutation_table_dump(const tsk_mutation_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "mutations/site", (void *) self->site, self->num_rows, KAS_INT32 },
@@ -3413,7 +3413,7 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
 }
 
 static int
-tsk_migration_table_dump(tsk_migration_table_t *self, kastore_t *store)
+tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "migrations/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
@@ -3848,7 +3848,7 @@ tsk_population_table_equals(const tsk_population_table_t *self,
 }
 
 static int
-tsk_population_table_dump(tsk_population_table_t *self, kastore_t *store)
+tsk_population_table_dump(const tsk_population_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "populations/metadata", (void *) self->metadata, self->metadata_length,
@@ -4330,7 +4330,7 @@ tsk_provenance_table_equals(const tsk_provenance_table_t *self,
 }
 
 static int
-tsk_provenance_table_dump(tsk_provenance_table_t *self, kastore_t *store)
+tsk_provenance_table_dump(const tsk_provenance_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "provenances/timestamp", (void *) self->timestamp, self->timestamp_length,
@@ -8216,7 +8216,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_dump_indexes(tsk_table_collection_t *self, kastore_t *store)
+tsk_table_collection_dump_indexes(const tsk_table_collection_t *self, kastore_t *store)
 {
     int ret = 0;
     write_table_col_t write_cols[] = {

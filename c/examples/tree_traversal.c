@@ -65,7 +65,7 @@ traverse_stack(tsk_tree_t *tree)
 static void
 traverse_upwards(tsk_tree_t *tree)
 {
-    tsk_id_t *samples = tsk_treeseq_get_samples(tree->tree_sequence);
+    const tsk_id_t *samples = tsk_treeseq_get_samples(tree->tree_sequence);
     tsk_size_t num_samples = tsk_treeseq_get_num_samples(tree->tree_sequence);
     tsk_size_t j;
     tsk_id_t u;

@@ -31,7 +31,7 @@
 #include <tskit/stats.h>
 
 static void
-tsk_ld_calc_check_state(tsk_ld_calc_t *self)
+tsk_ld_calc_check_state(const tsk_ld_calc_t *self)
 {
     uint32_t u;
     uint32_t num_nodes = (uint32_t) tsk_treeseq_get_num_nodes(self->tree_sequence);
@@ -48,9 +48,9 @@ tsk_ld_calc_check_state(tsk_ld_calc_t *self)
 }
 
 void
-tsk_ld_calc_print_state(tsk_ld_calc_t *self, FILE *out)
+tsk_ld_calc_print_state(const tsk_ld_calc_t *self, FILE *out)
 {
-    fprintf(out, "tree_sequence = %p\n", (void *) self->tree_sequence);
+    fprintf(out, "tree_sequence = %p\n", (const void *) self->tree_sequence);
     fprintf(out, "outer tree index = %d\n", (int) self->outer_tree->index);
     fprintf(out, "outer tree interval = (%f, %f)\n", self->outer_tree->left,
         self->outer_tree->right);
@@ -61,7 +61,7 @@ tsk_ld_calc_print_state(tsk_ld_calc_t *self, FILE *out)
 }
 
 int TSK_WARN_UNUSED
-tsk_ld_calc_init(tsk_ld_calc_t *self, tsk_treeseq_t *tree_sequence)
+tsk_ld_calc_init(tsk_ld_calc_t *self, const tsk_treeseq_t *tree_sequence)
 {
     int ret = TSK_ERR_GENERIC;
 

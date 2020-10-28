@@ -181,7 +181,7 @@ verify_trees(tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *parents)
     tsk_id_t u, j, v;
     uint32_t mutation_index, site_index;
     tsk_size_t k, l, tree_sites_length;
-    tsk_site_t *sites = NULL;
+    const tsk_site_t *sites = NULL;
     tsk_tree_t tree;
     size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
     size_t num_sites = tsk_treeseq_get_num_sites(ts);
@@ -474,8 +474,8 @@ verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
 /* When we keep all sites in simplify, the genotypes for the subset of the
  * samples should be the same as the original */
 static void
-verify_simplify_genotypes(
-    tsk_treeseq_t *ts, tsk_treeseq_t *subset, tsk_id_t *samples, size_t num_samples)
+verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
+    const tsk_id_t *samples, size_t num_samples)
 {
     int ret;
     size_t m = tsk_treeseq_get_num_sites(ts);
@@ -483,7 +483,7 @@ verify_simplify_genotypes(
     tsk_variant_t *variant, *subset_variant;
     size_t j, k;
     int8_t a1, a2;
-    tsk_id_t *sample_index_map;
+    const tsk_id_t *sample_index_map;
 
     sample_index_map = tsk_treeseq_get_sample_index_map(ts);
 
@@ -529,13 +529,13 @@ verify_simplify_genotypes(
 }
 
 static void
-verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset, tsk_id_t *samples,
-    size_t num_samples, tsk_id_t *node_map)
+verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
+    const tsk_id_t *samples, size_t num_samples, tsk_id_t *node_map)
 {
     int ret;
     tsk_node_t n1, n2;
     tsk_tree_t full_tree, subset_tree;
-    tsk_site_t *tree_sites;
+    const tsk_site_t *tree_sites;
     tsk_size_t tree_sites_length;
     uint32_t j, k;
     tsk_id_t u, mrca1, mrca2;
@@ -647,7 +647,7 @@ verify_simplify(tsk_treeseq_t *ts)
     tsk_size_t n = tsk_treeseq_get_num_samples(ts);
     tsk_size_t num_samples[] = { 0, 1, 2, 3, n / 2, n - 1, n };
     tsk_size_t j;
-    tsk_id_t *sample;
+    const tsk_id_t *sample;
     tsk_id_t *node_map = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
     tsk_treeseq_t subset;
     tsk_flags_t options = TSK_FILTER_SITES;
@@ -695,7 +695,7 @@ verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *t
     size_t j, num_samples, n, k;
     tsk_id_t stop, sample_index;
     tsk_tree_t tree;
-    tsk_id_t *samples;
+    const tsk_id_t *samples;
 
     n = tsk_treeseq_get_num_samples(ts);
     samples = tsk_treeseq_get_samples(ts);
@@ -822,7 +822,7 @@ verify_sample_sets_for_tree(tsk_tree_t *tree)
     tsk_id_t u, v;
     size_t tmp, n, num_nodes, num_samples;
     tsk_id_t *stack, *samples;
-    tsk_treeseq_t *ts = tree->tree_sequence;
+    const tsk_treeseq_t *ts = tree->tree_sequence;
     tsk_id_t *sample_index_map = ts->sample_index_map;
     const tsk_id_t *list_left = tree->left_sample;
     const tsk_id_t *list_right = tree->right_sample;
@@ -1402,8 +1402,8 @@ test_simplest_general_samples(void)
                         "0.75 0\n";
     const char *mutations = "0    2     1\n"
                             "1    0     1";
-    tsk_id_t samples[2] = { 0, 2 };
-    tsk_id_t *s;
+    const tsk_id_t samples[2] = { 0, 2 };
+    const tsk_id_t *s;
     int ret;
 
     tsk_treeseq_t ts, simplified;
@@ -3577,7 +3577,7 @@ test_single_tree_general_samples_iter(void)
                         "0  6   1   5,6\n"
                         "0  6   0   1,2\n";
     tsk_id_t parents[] = { TSK_NULL, 0, 0, 2, 2, 1, 1 };
-    tsk_id_t *samples;
+    const tsk_id_t *samples;
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     tsk_id_t u, v, w;
@@ -5351,7 +5351,7 @@ test_genealogical_nearest_neighbours_errors(void)
 {
     int ret;
     tsk_treeseq_t ts;
-    tsk_id_t *reference_sets[2];
+    const tsk_id_t *reference_sets[2];
     tsk_id_t reference_set_0[4], reference_set_1[4];
     tsk_id_t focal[] = { 0, 1, 2, 3 };
     size_t reference_set_size[2];

@@ -249,7 +249,7 @@ run_simplify(const char *input_filename,
     int verbose)
 {
     tsk_treeseq_t ts, subset;
-    tsk_id_t *samples;
+    const tsk_id_t *samples;
     int flags = 0;
     int ret;
 

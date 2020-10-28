@@ -6088,7 +6088,7 @@ static PyObject *
 TreeSequence_get_samples(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    tsk_id_t *samples;
+    const tsk_id_t *samples;
     PyArrayObject *samples_array = NULL;
     npy_intp dim;
 
@@ -6119,7 +6119,7 @@ TreeSequence_genealogical_nearest_neighbours(
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "focal", "reference_sets", NULL };
-    tsk_id_t **reference_sets = NULL;
+    const tsk_id_t **reference_sets = NULL;
     size_t *reference_set_size = NULL;
     PyObject *focal = NULL;
     PyObject *reference_sets_list = NULL;
@@ -6249,7 +6249,7 @@ TreeSequence_mean_descendants(TreeSequence *self, PyObject *args, PyObject *kwds
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "reference_sets", NULL };
-    tsk_id_t **reference_sets = NULL;
+    const tsk_id_t **reference_sets = NULL;
     size_t *reference_set_size = NULL;
     PyObject *reference_sets_list = NULL;
     PyArrayObject **reference_set_arrays = NULL;
