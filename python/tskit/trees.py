@@ -5308,6 +5308,7 @@ class TreeSequence:
         windows=None,
         mode=None,
         span_normalise=True,
+        polarised=False,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -5340,6 +5341,7 @@ class TreeSequence:
             indexes,
             mode=mode,
             span_normalise=span_normalise,
+            polarised=polarised,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -5512,9 +5514,6 @@ class TreeSequence:
         :ref:`span normalise <sec_stats_span_normalise>`,
         and :ref:`return value <sec_stats_output_format>`.
 
-        As a special case, an index ``(j, j)`` will compute the
-        :meth:`diversity <.TreeSequence.diversity>` of ``sample_set[j]``.
-
         What is computed depends on ``mode``:
 
         "site"
@@ -5553,6 +5552,7 @@ class TreeSequence:
             windows=windows,
             mode=mode,
             span_normalise=span_normalise,
+            polarised=True,
         )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):

@@ -2752,6 +2752,7 @@ out:
     return ret;
 }
 
+static int
 relatedness_summary_func(size_t state_dim, const double *state, 
     size_t result_dim, double *result, void *params)
 {
@@ -2769,7 +2770,7 @@ relatedness_summary_func(size_t state_dim, const double *state,
 
     for (k = 0; k < state_dim; k++) {
         num += args.sample_set_sizes[k];
-    } 
+    }
 
     if (num != sumx) {
         c = 1;
