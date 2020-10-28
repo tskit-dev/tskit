@@ -4,6 +4,9 @@
 
 **Features**
 
+- Added ``Tree.generate_star`` static method to create star-topologies (:user:`hyanwong`,
+  :pr:`934`).
+
 - Added ``equals`` method to TableCollection and each of the tables which
   provides more flexible equality comparisons, for example, allowing
   users to ignore metadata or provenance in the comparison.

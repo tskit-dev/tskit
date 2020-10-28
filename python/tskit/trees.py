@@ -30,6 +30,7 @@ import concurrent.futures
 import copy
 import functools
 import itertools
+import json
 import math
 import os
 import textwrap
@@ -45,6 +46,7 @@ import tskit.drawing as drawing
 import tskit.exceptions as exceptions
 import tskit.formats as formats
 import tskit.metadata as metadata_module
+import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.util as util
 import tskit.vcf as vcf
@@ -2341,6 +2343,52 @@ class Tree:
         :rtype: float
         """
         return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
+
+    @staticmethod
+    def generate_star(num_leaves, *, span=1, branch_length=1, record_provenance=True):
+        """
+        Generate a single :class:<Tree> whose leaf nodes all have the same parent (i.e.
+        a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
+
+        .. note::
+            This is similar to ``tskit.Tree.unrank((0,0), n, span=span)`` but is more
+            efficient for large n. However, the ``unrank`` method provides
+            a concise way of generating alternative (non-star) topologies.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must be
+            be 2 or greater).
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The length of every branch in the tree (equivalent
+            to the time of the root node).
+        :return: A star-shaped tree. Its corresponding :class:`TreeSequence` is available
+            via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        if num_leaves < 2:
+            raise ValueError("The number of leaves must be 2 or greater")
+        tc = tables.TableCollection(sequence_length=span)
+        tc.nodes.set_columns(
+            flags=np.full(num_leaves, NODE_IS_SAMPLE, dtype=np.uint32),
+            time=np.zeros(num_leaves),
+        )
+        root = tc.nodes.add_row(time=branch_length)
+        tc.edges.set_columns(
+            left=np.full(num_leaves, 0),
+            right=np.full(num_leaves, span),
+            parent=np.full(num_leaves, root, dtype=np.int32),
+            child=np.arange(num_leaves, dtype=np.int32),
+        )
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            # TODO also make sure we convert all the arguments so that they are
+            # definitely JSON encodable.
+            parameters = {"command": "generate_star", "TODO": "add parameters"}
+            tc.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+        return tc.tree_sequence().first()
 
 
 def load(file):
