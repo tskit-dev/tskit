@@ -78,6 +78,7 @@ def genetic_relatedness(ts):
     # NOTE: I'm outputting a matrix here just for convenience; the proposal
     # is that the tskit method *not* output a matrix, and use the indices argument
     sample_sets = [[u] for u in ts.samples()]
+    # sample_sets = [[0], [1]]
     n = len(sample_sets)
     num_samples = sum(map(len, sample_sets))
 
@@ -97,6 +98,37 @@ def genetic_relatedness(ts):
     ).reshape((n, n))
 
 
+def c_genetic_relatedness(ts, sample_sets, indexes):
+    n = len(indexes)
+    state_dim = len(sample_sets)
+
+    def f(x):
+        # x[i] gives the number of descendants in sample set i below the branch
+        sumx = 0
+        num = 0
+        c = 0
+        for k in range(state_dim):
+            sumx += x[k]
+
+        for k in range(state_dim):
+            num += len(sample_sets[k])
+
+        if num != sumx:
+            c = 1
+
+        result = np.zeros(n)
+        for k in range(n):
+            i = indexes[k][0]
+            j = indexes[k][1]
+            result[k] = x[i] * x[j] * c
+
+        return result
+
+    return ts.sample_count_stat(
+        sample_sets, f, output_dim=n, mode="branch", span_normalise=True, polarised=True
+    )
+
+
 class TestCovariance(unittest.TestCase):
     """
     Tests on covariance matrix computation
@@ -111,13 +143,16 @@ class TestCovariance(unittest.TestCase):
             (n1, n2) for n1, n2 in itertools.combinations_with_replacement(range(n), 2)
         ]
         cov3 = np.zeros((n, n))
+        cov4 = np.zeros((n, n))
         i_upper = np.triu_indices(n)
         cov3[i_upper] = ts.genetic_relatedness(
             sample_sets, indexes, mode="branch", span_normalise=True
         )
+        cov4[i_upper] = c_genetic_relatedness(ts, sample_sets, indexes)
         cov3 = np.maximum(cov3, cov3.transpose())
-        # cov2 = ts_covariance_incremental(ts)
+        cov4 = np.maximum(cov4, cov4.transpose())
         assert np.allclose(cov1, cov2)
+        assert np.allclose(cov1, cov4)
         assert np.allclose(cov1, cov3)
 
     def verify_errors(self, ts):
