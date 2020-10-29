@@ -42,6 +42,7 @@ jobs:
         run: make -C docs
 
       - name: Checkout docs site
+        if: github.repository_owner == 'tskit-dev'
         uses: actions/checkout@v2
         with:
           repository: tskit-dev/tskit-docs
@@ -49,14 +50,14 @@ jobs:
           path: tskit-docs
 
       - name: Copy our docs to the PR specific location
-        if: github.event.pull_request
+        if: github.repository_owner == 'tskit-dev' && github.event.pull_request
         run: |
           cd tskit-docs
           rm -rf ${{github.event.pull_request.number}}
           cp -r ../docs/_build/html ${{github.event.pull_request.number}}
 
       - name: Copy our docs to the tag specific location
-        if: (!github.event.pull_request)
+        if: github.repository_owner == 'tskit-dev' && !github.event.pull_request
         run: |
           cd tskit-docs
           export DEST=`echo ${GITHUB_REF} | sed -e "s/refs\/heads\///g" |  sed -e "s/refs\/tags\///g"`
@@ -64,6 +65,7 @@ jobs:
           cp -r ../docs/_build/html $DEST
 
       - name: Commit and push the docs
+        if: github.repository_owner == 'tskit-dev'
         run: |
           cd tskit-docs
           git config user.name Adminbot-tskit
@@ -73,7 +75,7 @@ jobs:
           git push
 
       - name: Comment on PR
-        if: github.event.pull_request
+        if: github.repository_owner == 'tskit-dev' && github.event.pull_request
         uses: mshick/add-pr-comment@v1
         with:
           message: |
