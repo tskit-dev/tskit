@@ -2,7 +2,7 @@ attrs==20.2.0
 autodocsumm==0.1.13
 biopython==1.78
 black==20.8b1
-breathe==4.20.0
+breathe==4.23.0
 codecov==2.1.9
 coverage==5.3
 flake8==3.8.3
