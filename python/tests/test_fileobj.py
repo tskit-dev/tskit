@@ -41,6 +41,7 @@ import tskit
 
 
 IS_WINDOWS = platform.system() == "Windows"
+IS_OSX = platform.system() == "Darwin"
 
 
 class TestPath:
@@ -283,7 +284,7 @@ def server_process(q):
     server.serve_forever()
 
 
-@pytest.mark.skipif(IS_WINDOWS, reason="Errors on Windows")
+@pytest.mark.skipif(IS_WINDOWS or IS_OSX, reason="Errors on systems without proper fds")
 class TestSocket:
     @fixture
     def client_fd(self):

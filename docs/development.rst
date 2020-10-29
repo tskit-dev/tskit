@@ -924,19 +924,14 @@ A number of different continuous integration providers are used, which run diffe
 combinations of tests on different platforms, as well as running various
 checks for code quality.
 
-- A `Github action <https://help.github.com/en/actions>`_ runs some code style and quality checks.
+- A `Github action <https://help.github.com/en/actions>`_ runs some code style and
+  quality checks along with running the Python test suite on Linux, OSX and Windows. It
+  uses conda for those dependencies which are tricky to compile on all systems. An
+  additional action builds the docs and posts a link to preview them.
 
 - `CircleCI <https://circleci.com/>`_ runs all Python tests using the apt-get
   infrastructure for system requirements. We also runs C tests, compiled
   using gcc and clang, and check for memory leaks using valgrind.
-  Documentation is also built to check for any errors.
-
-- `Travis CI <https://travis-ci.org/>`_ runs Python tests on Linux and OSX using the
-  `Conda <https://conda.io/docs/>`__ infrastructure for the system level
-  requirements.
-
-- `AppVeyor <https://www.appveyor.com/>`_ runs Python tests on
-  Windows using conda.
 
 - `CodeCov <https://codecov.io/gh>`__ tracks test coverage in Python and C.
 
