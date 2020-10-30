@@ -2762,6 +2762,7 @@ relatedness_summary_func(size_t state_dim, const double *state,
     size_t k;
     int c = 0;
     double sumx = 0;
+    double meanx;
     double num = 0;
 
     for (k = 0; k < state_dim; k++) {
@@ -2775,15 +2776,12 @@ relatedness_summary_func(size_t state_dim, const double *state,
     if (num != sumx) {
         c = 1;
     }
-
-    // printf("num = %0.7f\n", num);
-    // printf("sumx = %0.7f\n", sumx);
-    // printf("c = %d\n", c);
-
+    meanx = sumx / (double) state_dim;
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        result[k] = x[i] * x[j] * c;
+        // result[k] = x[i] * x[j] * c;
+        result[k] = (x[i] - meanx) * (x[j] - meanx);
     }
     return 0;
 }

@@ -1334,6 +1334,17 @@ test_paper_ex_divergence(void)
 }
 
 static void
+test_paper_ex_relatedness_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_relatedness);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_paper_ex_Y2_errors(void)
 {
     tsk_treeseq_t ts;
@@ -1679,6 +1690,7 @@ main(int argc, char **argv)
         { "test_paper_ex_Y1", test_paper_ex_Y1 },
         { "test_paper_ex_divergence_errors", test_paper_ex_divergence_errors },
         { "test_paper_ex_divergence", test_paper_ex_divergence },
+        { "test_paper_ex_relatedness_errors", test_paper_ex_relatedness_errors },
         { "test_paper_ex_Y2_errors", test_paper_ex_Y2_errors },
         { "test_paper_ex_Y2", test_paper_ex_Y2 },
         { "test_paper_ex_f2_errors", test_paper_ex_f2_errors },
