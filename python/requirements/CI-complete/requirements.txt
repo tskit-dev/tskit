@@ -6,7 +6,7 @@ breathe==4.23.0
 codecov==2.1.10
 coverage==5.3
 flake8==3.8.4
-h5py==2.10.0
+h5py==3.0.0
 jsonschema==3.2.0
 kastore==0.3.1
 msgpack==1.0.0
