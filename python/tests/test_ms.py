@@ -89,7 +89,7 @@ class TestNumReplicates(unittest.TestCase):
     """
 
     def verify_num_replicates(self, tree_seq, num_replicates):
-        if isinstance(tree_seq, collections.Iterable):
+        if isinstance(tree_seq, collections.abc.Iterable):
             with tempfile.TemporaryDirectory() as temp_dir:
                 ms_file_path = os.path.join(temp_dir, "testing_ms_file.txt")
                 with open(ms_file_path, "w") as f:
@@ -133,7 +133,7 @@ class TestNumHaplotypes(unittest.TestCase):
     """
 
     def verify_num_haplotypes(self, tree_seq, tree_seq2, num_replicates):
-        if isinstance(tree_seq, collections.Iterable):
+        if isinstance(tree_seq, collections.abc.Iterable):
             with tempfile.TemporaryDirectory() as temp_dir:
                 ms_file_path = os.path.join(temp_dir, "testing_ms_file.txt")
                 with open(ms_file_path, "w") as f:
@@ -182,7 +182,7 @@ class TestNumSites(unittest.TestCase):
     """
 
     def verify_num_sites(self, tree_seq, tree_seq2, num_replicates):
-        if isinstance(tree_seq, collections.Iterable):
+        if isinstance(tree_seq, collections.abc.Iterable):
             with tempfile.TemporaryDirectory() as temp_dir:
                 ms_file_path = os.path.join(temp_dir, "testing_ms_file.txt")
                 with open(ms_file_path, "w") as f:
@@ -244,7 +244,7 @@ class TestGenotypes(unittest.TestCase):
         return gens_array
 
     def verify_genotypes(self, tree_seq, tree_seq2, num_replicates):
-        if isinstance(tree_seq, collections.Iterable):
+        if isinstance(tree_seq, collections.abc.Iterable):
             with tempfile.TemporaryDirectory() as temp_dir:
                 ms_file_path = os.path.join(temp_dir, "testing_ms_file.txt")
                 with open(ms_file_path, "w") as f:
@@ -302,7 +302,7 @@ class TestPositions(unittest.TestCase):
         return positions
 
     def verify_positions(self, tree_seq, tree_seq2, num_replicates):
-        if isinstance(tree_seq, collections.Iterable):
+        if isinstance(tree_seq, collections.abc.Iterable):
             with tempfile.TemporaryDirectory() as temp_dir:
                 ms_file_path = os.path.join(temp_dir, "testing_ms_file.txt")
                 with open(ms_file_path, "w") as f:
