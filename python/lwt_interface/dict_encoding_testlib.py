@@ -609,8 +609,8 @@ class TestRequiredAndOptionalColumns:
         del d["indexes"]
         lwt = lwt_module.LightweightTableCollection()
         lwt.fromdict(d)
-        # and a tc without indexes doesn't have the key
-        assert "indexes" not in lwt.asdict()
+        # and a tc without indexes has empty dict
+        assert lwt.asdict()["indexes"] == {}
 
         # Both columns must be provided, if one is
         for col in ("insertion", "removal"):

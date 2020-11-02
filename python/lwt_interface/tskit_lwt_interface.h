@@ -1594,11 +1594,6 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
     };
 
     for (j = 0; j < sizeof(table_descs) / sizeof(*table_descs); j++) {
-        if (strcmp(table_descs[j].name, "indexes") == 0
-            && !tsk_table_collection_has_index(tables, 0)) {
-            continue;
-        }
-
         table_dict = PyDict_New();
         if (table_dict == NULL) {
             goto out;

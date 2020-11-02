@@ -146,7 +146,7 @@ class TableCollectionIndexes:
     edge_removal_order: np.ndarray = attr.ib(default=None)
 
     def asdict(self):
-        return attr.asdict(self)
+        return attr.asdict(self, filter=lambda k, v: v is not None)
 
 
 def keep_with_offset(keep, data, offset):
@@ -2081,7 +2081,7 @@ class TableCollection:
     @property
     def indexes(self):
         indexes = self._ll_tables.indexes
-        return TableCollectionIndexes(**indexes) if indexes is not None else None
+        return TableCollectionIndexes(**indexes)
 
     @indexes.setter
     def indexes(self, indexes):
@@ -2140,7 +2140,7 @@ class TableCollection:
         map of table names to the tables themselves was returned.
         """
         ret = {
-            "encoding_version": (1, 1),
+            "encoding_version": (1, 2),
             "sequence_length": self.sequence_length,
             "metadata_schema": str(self.metadata_schema),
             "metadata": self.metadata_schema.encode_row(self.metadata),
@@ -2152,9 +2152,8 @@ class TableCollection:
             "mutations": self.mutations.asdict(),
             "populations": self.populations.asdict(),
             "provenances": self.provenances.asdict(),
+            "indexes": self.indexes.asdict(),
         }
-        if self.indexes is not None:
-            ret["indexes"] = self.indexes.asdict()
         return ret
 
     @property

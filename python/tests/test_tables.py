@@ -1326,10 +1326,7 @@ class TestTableCollectionIndexes:
         index = tskit.TableCollectionIndexes()
         assert index.edge_insertion_order is None
         assert index.edge_removal_order is None
-        assert index.asdict() == {
-            "edge_insertion_order": None,
-            "edge_removal_order": None,
-        }
+        assert index.asdict() == {}
 
 
 class TestSortTables:
@@ -2265,7 +2262,7 @@ class TestTableCollection:
         t = ts.tables
         self.add_metadata(t)
         d1 = {
-            "encoding_version": (1, 1),
+            "encoding_version": (1, 2),
             "sequence_length": t.sequence_length,
             "metadata_schema": str(t.metadata_schema),
             "metadata": t.metadata_schema.encode_row(t.metadata),
@@ -2606,6 +2603,41 @@ class TestTableCollection:
         tables = simple_ts_fixture.dump_tables()
         tables.drop_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
+
+    def test_asdict_lwt_concordence(self, ts_fixture):
+        def check_concordence(d1, d2):
+            assert set(d1.keys()) == set(d2.keys())
+            for k1, v1 in d1.items():
+                v2 = d2[k1]
+                assert type(v1) == type(v2)
+                if type(v1) == dict:
+                    assert set(v1.keys()) == set(v2.keys())
+                    for sk1, sv1 in v1.items():
+                        sv2 = v2[sk1]
+                        assert type(sv1) == type(sv2)
+                        if type(sv1) == np.ndarray:
+                            assert np.array_equal(sv1, sv2) or (
+                                np.all(tskit.is_unknown_time(sv1))
+                                and np.all(tskit.is_unknown_time(sv2))
+                            )
+                        elif type(sv1) in [bytes, str]:
+                            assert sv1 == sv2
+                        else:
+                            raise AssertionError()
+
+                else:
+                    assert v1 == v2
+
+        tables = ts_fixture.dump_tables()
+        assert tables.has_index()
+        lwt = _tskit.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        check_concordence(lwt.asdict(), tables.asdict())
+
+        tables.drop_index()
+        lwt = _tskit.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        check_concordence(lwt.asdict(), tables.asdict())
 
 
 class TestEqualityOptions:
