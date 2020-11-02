@@ -6506,7 +6506,7 @@ def write_ms(
     are sample size and number of replicates. The second line has a 0 as a substitute
     for the random seed.
     """
-    if not isinstance(tree_sequence, collections.Iterable):
+    if not isinstance(tree_sequence, collections.abc.Iterable):
         tree_sequence = [tree_sequence]
 
     i = 0
