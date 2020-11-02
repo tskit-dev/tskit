@@ -2092,6 +2092,28 @@ class TestTree(HighLevelTestCase):
                 newick_c = tree.newick(precision=precision)
                 assert newick_c == newick_py
 
+    def test_bifurcating_newick(self):
+        for n_tips in range(2, 6):
+            ts = msprime.simulate(n_tips, random_seed=1)  # msprime trees are binary
+            for tree in ts.trees():
+                base_newick = tree.newick(include_branch_lengths=False).strip(";")
+                for i in range(n_tips):
+                    # Each tip number (i+1) mentioned once
+                    assert base_newick.count(str(i + 1)) == 1
+                # Binary newick trees have 3 chars per extra tip: "(,)"
+                assert len(base_newick) == n_tips + 3 * (n_tips - 1)
+
+    def test_newick_topology_equiv(self):
+        replace_numeric = {ord(x): None for x in "1234567890:."}
+        for ts in get_example_tree_sequences():
+            for tree in ts.trees():
+                if tree.num_roots > 1:
+                    continue
+                plain_newick = tree.newick(node_labels={}, include_branch_lengths=False)
+                newick1 = tree.newick().translate(replace_numeric)
+                newick2 = tree.newick(node_labels={}).translate(replace_numeric)
+                assert newick1 == newick2 == plain_newick
+
     def test_newick_buffer_too_small_bug(self):
         nodes = io.StringIO(
             """\

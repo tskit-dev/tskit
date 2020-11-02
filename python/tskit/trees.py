@@ -2154,10 +2154,10 @@ class Tree:
                 yield from iterator(u)
 
     # TODO make this a bit less embarrassing by using an iterative method.
-    def __build_newick(self, node, precision, node_labels):
+    def __build_newick(self, *, node, precision, node_labels, include_branch_lengths):
         """
         Simple recursive version of the newick generator used when non-default
-        node labels are needed.
+        node labels are needed, or when branch lengths are omitted
         """
         label = node_labels.get(node, "")
         if self.is_leaf(node):
@@ -2166,12 +2166,26 @@ class Tree:
             s = "("
             for child in self.children(node):
                 branch_length = self.branch_length(child)
-                subtree = self.__build_newick(child, precision, node_labels)
-                s += subtree + ":{0:.{1}f},".format(branch_length, precision)
+                subtree = self.__build_newick(
+                    node=child,
+                    precision=precision,
+                    node_labels=node_labels,
+                    include_branch_lengths=include_branch_lengths,
+                )
+                if include_branch_lengths:
+                    subtree += ":{0:.{1}f}".format(branch_length, precision)
+                s += subtree + ","
             s = s[:-1] + f"){label}"
         return s
 
-    def newick(self, precision=14, root=None, node_labels=None):
+    def newick(
+        self,
+        precision=14,  # Should probably be keyword only, left positional for legacy use
+        *,
+        root=None,
+        node_labels=None,
+        include_branch_lengths=True,
+    ):
         """
         Returns a `newick encoding <https://en.wikipedia.org/wiki/Newick_format>`_
         of this tree. If the ``root`` argument is specified, return a representation
@@ -2193,6 +2207,8 @@ class Tree:
         :param dict node_labels: If specified, show custom labels for the nodes
             that are present in the map. Any nodes not specified in the map will
             not have a node label.
+        :param include_branch_lengths: If True (default), output branch lengths in the
+            Newick string. If False, only output the topology, without branch lengths.
         :return: A newick representation of this tree.
         :rtype: str
         """
@@ -2204,6 +2220,9 @@ class Tree:
                     "newick trees, one for each root."
                 )
             root = self.root
+        if not include_branch_lengths and node_labels is None:
+            # C code always puts branch lengths: force Py code by setting default labels
+            node_labels = {i: str(i + 1) for i in self.leaves()}
         if node_labels is None:
             root_time = max(1, self.time(root))
             max_label_size = math.ceil(math.log10(self.tree_sequence.num_nodes))
@@ -2216,7 +2235,15 @@ class Tree:
             )
             s = s.decode()
         else:
-            return self.__build_newick(root, precision, node_labels) + ";"
+            s = (
+                self.__build_newick(
+                    node=root,
+                    precision=precision,
+                    node_labels=node_labels,
+                    include_branch_lengths=include_branch_lengths,
+                )
+                + ";"
+            )
         return s
 
     def as_dict_of_dicts(self):
@@ -4547,7 +4574,7 @@ class TreeSequence:
         for tree in self.trees():
             start_interval = "{0:.{1}f}".format(tree.interval.left, precision)
             end_interval = "{0:.{1}f}".format(tree.interval.right, precision)
-            newick = tree.newick(precision, node_labels=node_labels)
+            newick = tree.newick(precision=precision, node_labels=node_labels)
             s += f"\tTREE tree{start_interval}_{end_interval} = {newick}\n"
 
         s += "END;\n"

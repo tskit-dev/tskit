@@ -4,6 +4,9 @@
 
 **Features**
 
+- ``Tree.newick()`` now has extra option ``include_branch_lengths`` to allow branch
+  lengths to be omitted (:user:`hyanwong`, :pr:`931`).
+
 - Added ``Tree.generate_star`` static method to create star-topologies (:user:`hyanwong`,
   :pr:`934`).
 
@@ -28,6 +31,7 @@
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
+- All arguments to ``Tree.newick()`` except precision are now keyword-only.
 
 --------------------
 [0.3.2] - 2020-09-29
