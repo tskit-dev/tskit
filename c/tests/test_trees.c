@@ -186,7 +186,7 @@ verify_trees(tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *parents)
     size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
     size_t num_sites = tsk_treeseq_get_num_sites(ts);
     size_t num_mutations = tsk_treeseq_get_num_mutations(ts);
-    double *breakpoints = tsk_treeseq_get_breakpoints(ts);
+    const double *breakpoints = tsk_treeseq_get_breakpoints(ts);
 
     ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);

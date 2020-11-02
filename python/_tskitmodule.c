@@ -6015,7 +6015,7 @@ static PyObject *
 TreeSequence_get_breakpoints(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    double *breakpoints;
+    const double *breakpoints;
     PyArrayObject *array = NULL;
     npy_intp dims;
 
@@ -6335,7 +6335,7 @@ out:
 /* Run the Python callable that takes X as parameter and must return a
  * 1D array of length M that we copy in to the Y array */
 static int
-general_stat_func(size_t K, double *X, size_t M, double *Y, void *params)
+general_stat_func(size_t K, const double *X, size_t M, double *Y, void *params)
 {
     int ret = TSK_PYTHON_CALLBACK_ERROR;
     PyObject *callable = (PyObject *) params;
@@ -6585,10 +6585,6 @@ out:
     return ret;
 }
 
-typedef int one_way_weighted_method(tsk_treeseq_t *self, tsk_size_t num_weights,
-    double *weights, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options);
-
 static PyObject *
 TreeSequence_one_way_weighted_method(
     TreeSequence *self, PyObject *args, PyObject *kwds, one_way_weighted_method *method)
@@ -6661,10 +6657,6 @@ out:
     Py_XDECREF(result_array);
     return ret;
 }
-
-typedef int one_way_covariates_method(tsk_treeseq_t *self, tsk_size_t num_weights,
-    double *weights, tsk_size_t num_covariates, double *covariates,
-    tsk_size_t num_windows, double *windows, double *result, tsk_flags_t options);
 
 static PyObject *
 TreeSequence_one_way_covariates_method(TreeSequence *self, PyObject *args,
@@ -6754,10 +6746,6 @@ out:
     Py_XDECREF(result_array);
     return ret;
 }
-
-typedef int one_way_sample_stat_method(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_windows,
-    double *windows, double *result, tsk_flags_t options);
 
 static PyObject *
 TreeSequence_one_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwds,
@@ -6946,11 +6934,6 @@ TreeSequence_Y1(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_one_way_stat_method(self, args, kwds, tsk_treeseq_Y1);
 }
-
-typedef int general_sample_stat_method(tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    tsk_size_t *sample_set_sizes, tsk_id_t *sample_sets, tsk_size_t num_indexes,
-    tsk_id_t *indexes, tsk_size_t num_windows, double *windows, double *result,
-    tsk_flags_t options);
 
 static PyObject *
 TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwds,
