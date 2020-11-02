@@ -1172,14 +1172,7 @@ out:
     return ret;
 }
 
-// TODO REMOVE THIS ONCE INDEXES IN LWT
-#ifdef __GNUC__
-#define VARIABLE_IS_NOT_USED __attribute__((unused))
-#else
-#define VARIABLE_IS_NOT_USED
-#endif
-
-VARIABLE_IS_NOT_USED static int
+static int
 parse_indexes_dict(tsk_table_collection_t *tables, PyObject *dict)
 {
     int err;
@@ -1409,6 +1402,21 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         goto out;
     }
 
+    /* indexes */
+    value = get_table_dict_value(tables_dict, "indexes", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        if (!PyDict_Check(value)) {
+            PyErr_SetString(PyExc_TypeError, "not a dictionary");
+            goto out;
+        }
+        if (parse_indexes_dict(tables, value) != 0) {
+            goto out;
+        }
+    }
+
     ret = 0;
 out:
     return ret;
@@ -1550,6 +1558,18 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { NULL },
     };
 
+    struct table_col indexes_cols[] = {
+        { "edge_insertion_order", (void *) tables->indexes.edge_insertion_order,
+            tables->indexes.num_edges, NPY_INT32 },
+        { "edge_removal_order", (void *) tables->indexes.edge_removal_order,
+            tables->indexes.num_edges, NPY_INT32 },
+        { NULL },
+    };
+
+    struct table_col no_indexes_cols[] = {
+        { NULL },
+    };
+
     struct table_desc table_descs[] = {
         { "individuals", individual_cols, tables->individuals.metadata_schema,
             tables->individuals.metadata_schema_length },
@@ -1566,6 +1586,11 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { "populations", population_cols, tables->populations.metadata_schema,
             tables->populations.metadata_schema_length },
         { "provenances", provenance_cols, NULL, 0 },
+        /* We don't want to insert empty indexes, return an empty dict if there are none
+         */
+        { "indexes",
+            tsk_table_collection_has_index(tables, 0) ? indexes_cols : no_indexes_cols,
+            NULL, 0 },
     };
 
     for (j = 0; j < sizeof(table_descs) / sizeof(*table_descs); j++) {
@@ -1605,6 +1630,7 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         Py_DECREF(table_dict);
         table_dict = NULL;
     }
+
     ret = 0;
 out:
     Py_XDECREF(array);
@@ -1627,7 +1653,7 @@ dump_tables_dict(tsk_table_collection_t *tables)
     }
 
     /* Dict representation version */
-    val = Py_BuildValue("ll", 1, 1);
+    val = Py_BuildValue("ll", 1, 2);
     if (val == NULL) {
         goto out;
     }

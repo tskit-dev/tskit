@@ -142,11 +142,11 @@ class ProvenanceTableRow:
 
 @attr.s(**attr_options)
 class TableCollectionIndexes:
-    edge_insertion_order: np.ndarray
-    edge_removal_order: np.ndarray
+    edge_insertion_order: np.ndarray = attr.ib(default=None)
+    edge_removal_order: np.ndarray = attr.ib(default=None)
 
     def asdict(self):
-        return attr.asdict(self)
+        return attr.asdict(self, filter=lambda k, v: v is not None)
 
 
 def keep_with_offset(keep, data, offset):
@@ -2080,7 +2080,12 @@ class TableCollection:
 
     @property
     def indexes(self):
-        return TableCollectionIndexes(**self._ll_tables.indexes)
+        indexes = self._ll_tables.indexes
+        return TableCollectionIndexes(**indexes)
+
+    @indexes.setter
+    def indexes(self, indexes):
+        self._ll_tables.indexes = indexes.asdict()
 
     @property
     def sequence_length(self):
@@ -2134,8 +2139,8 @@ class TableCollection:
         Note: the semantics of this method changed at tskit 0.1.0. Previously a
         map of table names to the tables themselves was returned.
         """
-        return {
-            "encoding_version": (1, 1),
+        ret = {
+            "encoding_version": (1, 2),
             "sequence_length": self.sequence_length,
             "metadata_schema": str(self.metadata_schema),
             "metadata": self.metadata_schema.encode_row(self.metadata),
@@ -2147,7 +2152,9 @@ class TableCollection:
             "mutations": self.mutations.asdict(),
             "populations": self.populations.asdict(),
             "provenances": self.provenances.asdict(),
+            "indexes": self.indexes.asdict(),
         }
+        return ret
 
     @property
     def name_map(self):
@@ -2278,7 +2285,6 @@ class TableCollection:
             tables.metadata = tables.metadata_schema.decode_row(tables_dict["metadata"])
         except KeyError:
             pass
-
         tables.individuals.set_columns(**tables_dict["individuals"])
         tables.nodes.set_columns(**tables_dict["nodes"])
         tables.edges.set_columns(**tables_dict["edges"])
@@ -2287,6 +2293,12 @@ class TableCollection:
         tables.mutations.set_columns(**tables_dict["mutations"])
         tables.populations.set_columns(**tables_dict["populations"])
         tables.provenances.set_columns(**tables_dict["provenances"])
+
+        # Indexes must be last as other wise the check for their consistency will fail
+        try:
+            tables.indexes = TableCollectionIndexes(**tables_dict["indexes"])
+        except KeyError:
+            pass
         return tables
 
     def copy(self):

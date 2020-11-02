@@ -5226,26 +5226,31 @@ TableCollection_get_indexes(TableCollection *self, void *closure)
         goto out;
     }
 
-    insertion = table_get_column_array(self->tables->indexes.num_edges,
-        self->tables->indexes.edge_insertion_order, NPY_INT32, sizeof(tsk_id_t));
-    if (insertion == NULL) {
-        goto out;
-    }
-    removal = table_get_column_array(self->tables->indexes.num_edges,
-        self->tables->indexes.edge_removal_order, NPY_INT32, sizeof(tsk_id_t));
-    if (removal == NULL) {
-        goto out;
-    }
     indexes_dict = PyDict_New();
     if (indexes_dict == NULL) {
         goto out;
     }
-    if (PyDict_SetItemString(indexes_dict, "edge_insertion_order", insertion) != 0) {
-        goto out;
+
+    if (tsk_table_collection_has_index(self->tables, 0)) {
+        insertion = table_get_column_array(self->tables->indexes.num_edges,
+            self->tables->indexes.edge_insertion_order, NPY_INT32, sizeof(tsk_id_t));
+        if (insertion == NULL) {
+            goto out;
+        }
+        removal = table_get_column_array(self->tables->indexes.num_edges,
+            self->tables->indexes.edge_removal_order, NPY_INT32, sizeof(tsk_id_t));
+        if (removal == NULL) {
+            goto out;
+        }
+
+        if (PyDict_SetItemString(indexes_dict, "edge_insertion_order", insertion) != 0) {
+            goto out;
+        }
+        if (PyDict_SetItemString(indexes_dict, "edge_removal_order", removal) != 0) {
+            goto out;
+        }
     }
-    if (PyDict_SetItemString(indexes_dict, "edge_removal_order", removal) != 0) {
-        goto out;
-    }
+
     ret = indexes_dict;
     indexes_dict = NULL;
 out:

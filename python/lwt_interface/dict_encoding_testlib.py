@@ -148,7 +148,7 @@ def get_example_tables():
 class TestEncodingVersion:
     def test_version(self):
         lwt = lwt_module.LightweightTableCollection()
-        assert lwt.asdict()["encoding_version"] == (1, 1)
+        assert lwt.asdict()["encoding_version"] == (1, 2)
 
 
 class TestRoundTrip:
@@ -270,6 +270,7 @@ class TestMissingData:
             "metadata",
             "metadata_schema",
             "encoding_version",
+            "indexes",
         }
         for table_name in table_names:
             d = tables.asdict()
@@ -292,6 +293,7 @@ class TestBadTypes:
             "metadata",
             "metadata_schema",
             "encoding_version",
+            "indexes",
         }
         for table_name in table_names:
             table_dict = d[table_name]
@@ -313,7 +315,7 @@ class TestBadTypes:
     def test_bad_top_level_types(self):
         tables = get_example_tables()
         d = tables.asdict()
-        for key in set(d.keys()) - {"encoding_version"}:
+        for key in set(d.keys()) - {"encoding_version", "indexes"}:
             bad_type_dict = tables.asdict()
             # A list should be a ValueError for both the tables and sequence_length
             bad_type_dict[key] = ["12345"]
@@ -336,6 +338,7 @@ class TestBadLengths:
             "metadata",
             "metadata_schema",
             "encoding_version",
+            "indexes",
         }
         for table_name in sorted(table_names):
             table_dict = d[table_name]
@@ -353,6 +356,30 @@ class TestBadLengths:
 
     def test_zero_rows(self):
         self.verify(0)
+
+    def test_bad_index_length(self):
+        tables = get_example_tables()
+        for col in ("insertion", "removal"):
+            d = tables.asdict()
+            d["indexes"][f"edge_{col}_order"] = d["indexes"][f"edge_{col}_order"][:-1]
+            lwt = lwt_module.LightweightTableCollection()
+            with pytest.raises(
+                ValueError,
+                match="^edge_insertion_order and"
+                " edge_removal_order must be the same"
+                " length$",
+            ):
+                lwt.fromdict(d)
+        d = tables.asdict()
+        for col in ("insertion", "removal"):
+            d["indexes"][f"edge_{col}_order"] = d["indexes"][f"edge_{col}_order"][:-1]
+        lwt = lwt_module.LightweightTableCollection()
+        with pytest.raises(
+            ValueError,
+            match="^edge_insertion_order and edge_removal_order must be"
+            " the same length as the number of edges$",
+        ):
+            lwt.fromdict(d)
 
 
 class TestRequiredAndOptionalColumns:
@@ -562,6 +589,41 @@ class TestRequiredAndOptionalColumns:
             "provenances",
             ["record", "record_offset", "timestamp", "timestamp_offset"],
         )
+
+    def test_index(self):
+        tables = get_example_tables()
+        d = tables.asdict()
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        other = lwt.asdict()
+        assert np.array_equal(
+            d["indexes"]["edge_insertion_order"],
+            other["indexes"]["edge_insertion_order"],
+        )
+        assert np.array_equal(
+            d["indexes"]["edge_removal_order"], other["indexes"]["edge_removal_order"]
+        )
+
+        # index is optional
+        d = tables.asdict()
+        del d["indexes"]
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        # and a tc without indexes has empty dict
+        assert lwt.asdict()["indexes"] == {}
+
+        # Both columns must be provided, if one is
+        for col in ("insertion", "removal"):
+            d = tables.asdict()
+            del d["indexes"][f"edge_{col}_order"]
+            lwt = lwt_module.LightweightTableCollection()
+            with pytest.raises(
+                TypeError,
+                match="^edge_insertion_order and "
+                "edge_removal_order must be specified "
+                "together$",
+            ):
+                lwt.fromdict(d)
 
     def test_top_level_metadata(self):
         tables = get_example_tables()
