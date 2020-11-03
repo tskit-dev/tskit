@@ -2753,8 +2753,8 @@ out:
 }
 
 static int
-relatedness_summary_func(size_t state_dim, const double *state, 
-    size_t result_dim, double *result, void *params)
+relatedness_summary_func(size_t state_dim, const double *state, size_t result_dim,
+    double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
     const double *x = state;
@@ -2778,9 +2778,9 @@ relatedness_summary_func(size_t state_dim, const double *state,
 
 int
 tsk_treeseq_relatedness(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
-    const tsk_id_t *index_tuples, tsk_size_t num_windows, const double *windows, double *result,
-    tsk_flags_t options)
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
+    const double *windows, double *result, tsk_flags_t options)
 {
     int ret = 0;
     ret = check_sample_stat_inputs(num_sample_sets, 2, num_index_tuples, index_tuples);
@@ -2795,7 +2795,7 @@ out:
 }
 
 static int
-Y2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim, 
+Y2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result_dim,
     double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
