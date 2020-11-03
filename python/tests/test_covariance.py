@@ -29,83 +29,22 @@ import unittest
 
 import msprime
 import numpy as np
-import pytest
 
-import tests.tsutil as tsutil
 import tskit
 
 
-def check_cov_tree_inputs(tree):
-    if not len(tree.roots) == 1:
-        raise ValueError("Trees must have one root")
-    for u in tree.nodes():
-        if tree.num_children(u) == 1:
-            raise ValueError("Unary nodes are not supported")
-
-
-def naive_tree_covariance(tree):
-    """
-    Returns the (branch) covariance matrix for the sample nodes in a tree. The
-    covariance between a pair of nodes is the distance from the root to their
-    most recent common ancestor.
-    """
-    samples = tree.tree_sequence.samples()
-    check_cov_tree_inputs(tree)
-    n = samples.shape[0]
-    cov = np.zeros((n, n))
-    for n1, n2 in itertools.combinations_with_replacement(range(n), 2):
-        mrca = tree.mrca(samples[n1], samples[n2])
-        cov[n1, n2] = tree.time(tree.root) - tree.time(mrca)
-        cov[n2, n1] = cov[n1, n2]
-    return cov
-
-
-def naive_ts_covariance(ts):
-    """
-    Returns the (branch) covariance matrix for the sample nodes in a tree
-    sequence. The covariance between a pair of nodes is the weighted sum of the
-    tree covariance, with the weights given by the spans of the trees.
-    """
-    samples = ts.samples()
-    n = samples.shape[0]
-    cov = np.zeros((n, n))
-    for tree in ts.trees():
-        cov += naive_tree_covariance(tree) * tree.span
-    return cov / ts.sequence_length
-
-
-def naive_genotype_covariance(ts):
+def naive_genotype_covariance(ts, proportion=False):
     G = ts.genotype_matrix()
-    # p = G.shape[0]
+    denominator = ts.sequence_length
+    if proportion:
+        all_samples = ts.samples()
+        num = ts.segregating_sites(all_samples)
+        denominator = denominator * num
     G = G.T - np.mean(G, axis=1)
-    return G @ G.T  # / p
+    return G @ G.T / denominator
 
 
-def genetic_relatedness(ts, mode="site", polarised=True):
-    # NOTE: I'm outputting a matrix here just for convenience; the proposal
-    # is that the tskit method *not* output a matrix, and use the indices argument
-    sample_sets = [[u] for u in ts.samples()]
-    # sample_sets = [[0], [1]]
-    n = len(sample_sets)
-    num_samples = sum(map(len, sample_sets))
-
-    def f(x):
-        # x[i] gives the number of descendants in sample set i below the branch
-        return np.array(
-            [x[i] * x[j] * (sum(x) != num_samples) for i in range(n) for j in range(n)]
-        )
-
-    return ts.sample_count_stat(
-        sample_sets,
-        f,
-        output_dim=n * n,
-        mode=mode,
-        span_normalise=True,
-        polarised=polarised,
-    ).reshape((n, n))
-
-
-def genotype_relatedness(ts, polarised=False):
+def genotype_relatedness(ts, polarised=False, proportion=False):
     n = ts.num_samples
     sample_sets = [[u] for u in ts.samples()]
 
@@ -118,20 +57,25 @@ def genotype_relatedness(ts, polarised=False):
             ]
         )
 
+    denominator = 2 - polarised
+    if proportion:
+        all_samples = list({u for s in sample_sets for u in s})
+        num = ts.segregating_sites(all_samples)
+        denominator = denominator * num
     return (
         ts.sample_count_stat(
             sample_sets,
             f,
             output_dim=n * n,
             mode="site",
-            span_normalise=False,
+            span_normalise=True,
             polarised=polarised,
         ).reshape((n, n))
-        / 2
+        / denominator
     )
 
 
-def c_genotype_relatedness(ts, sample_sets, indexes):
+def c_genotype_relatedness(ts, sample_sets, indexes, polarised=False, proportion=False):
     m = len(indexes)
     state_dim = len(sample_sets)
 
@@ -144,17 +88,25 @@ def c_genotype_relatedness(ts, sample_sets, indexes):
         for k in range(m):
             i = indexes[k][0]
             j = indexes[k][1]
-            result[k] = (x[i] - meanx) * (x[j] - meanx) / 2
+            result[k] = (x[i] - meanx) * (x[j] - meanx)
         return result
 
-    return ts.sample_count_stat(
-        sample_sets,
-        f,
-        output_dim=m,
-        mode="site",
-        span_normalise=False,
-        polarised=False,
-        strict=False,
+    denominator = 2 - polarised
+    if proportion:
+        all_samples = list({u for s in sample_sets for u in s})
+        num = ts.segregating_sites(all_samples)
+        denominator = denominator * num
+    return (
+        ts.sample_count_stat(
+            sample_sets,
+            f,
+            output_dim=m,
+            mode="site",
+            span_normalise=True,
+            polarised=False,
+            strict=False,
+        )
+        / denominator
     )
 
 
@@ -164,9 +116,7 @@ class TestCovariance(unittest.TestCase):
     """
 
     def verify(self, ts):
-        # cov1 = naive_ts_covariance(ts)
         cov1 = naive_genotype_covariance(ts)
-        # cov2 = genetic_relatedness(ts)
         cov2 = genotype_relatedness(ts)
         sample_sets = [[u] for u in ts.samples()]
         n = len(sample_sets)
@@ -176,28 +126,15 @@ class TestCovariance(unittest.TestCase):
         cov3 = np.zeros((n, n))
         cov4 = np.zeros((n, n))
         i_upper = np.triu_indices(n)
-        cov3[i_upper] = (
-            ts.genetic_relatedness(
-                sample_sets, indexes, mode="site", span_normalise=False
-            )
-            / 2
-        )  # NOTE: divided by 2 to reflect unpolarised
+        cov3[i_upper] = c_genotype_relatedness(ts, sample_sets, indexes)
         cov3 = cov3 + cov3.T - np.diag(cov3.diagonal())
-        cov4[i_upper] = c_genotype_relatedness(ts, sample_sets, indexes)
+        cov4[i_upper] = ts.genetic_relatedness(
+            sample_sets, indexes, mode="site", span_normalise=True
+        )
         cov4 = cov4 + cov4.T - np.diag(cov4.diagonal())
-        # assert np.allclose(cov2, cov3)
         assert np.allclose(cov1, cov2)
-        assert np.allclose(cov1, cov4)
         assert np.allclose(cov1, cov3)
-
-    def verify_errors(self, ts):
-        with pytest.raises(ValueError):
-            naive_ts_covariance(ts)
-
-    def test_errors_multiroot_tree(self):
-        ts = msprime.simulate(15, random_seed=10, mutation_rate=1)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
-        self.verify_errors(ts)
+        assert np.allclose(cov1, cov4)
 
     def test_single_coalescent_tree(self):
         ts = msprime.simulate(10, random_seed=1, length=10, mutation_rate=1)

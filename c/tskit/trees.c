@@ -2760,27 +2760,17 @@ relatedness_summary_func(size_t state_dim, const double *state,
     const double *x = state;
     tsk_id_t i, j;
     size_t k;
-    int c = 0;
     double sumx = 0;
     double meanx;
-    double num = 0;
 
     for (k = 0; k < state_dim; k++) {
         sumx += x[k];
     }
 
-    for (k = 0; k < state_dim; k++) {
-        num += args.sample_set_sizes[k];
-    }
-
-    if (num != sumx) {
-        c = 1;
-    }
     meanx = sumx / (double) state_dim;
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        // result[k] = x[i] * x[j] * c;
         result[k] = (x[i] - meanx) * (x[j] - meanx);
     }
     return 0;
