@@ -225,7 +225,7 @@ tsk_ls_hmm_reset(tsk_ls_hmm_t *self)
     double n = self->num_samples;
     tsk_size_t j;
     tsk_id_t u;
-    tsk_id_t *samples;
+    const tsk_id_t *samples;
     tsk_size_t N = self->num_nodes;
 
     memset(self->parent, 0xff, N * sizeof(*self->parent));
@@ -384,7 +384,7 @@ tsk_ls_hmm_get_allele_index(tsk_ls_hmm_t *self, tsk_id_t site, const char *allel
 
 static int
 tsk_ls_hmm_update_probabilities(
-    tsk_ls_hmm_t *self, tsk_site_t *site, int8_t haplotype_state)
+    tsk_ls_hmm_t *self, const tsk_site_t *site, int8_t haplotype_state)
 {
     int ret = 0;
     tsk_id_t root;
@@ -896,7 +896,8 @@ out:
 }
 
 static int
-tsk_ls_hmm_process_site(tsk_ls_hmm_t *self, tsk_site_t *site, int8_t haplotype_state)
+tsk_ls_hmm_process_site(
+    tsk_ls_hmm_t *self, const tsk_site_t *site, int8_t haplotype_state)
 {
     int ret = 0;
     double x, normalisation_factor;
@@ -941,7 +942,7 @@ tsk_ls_hmm_run(tsk_ls_hmm_t *self, int8_t *haplotype,
 {
     int ret = 0;
     int t_ret;
-    tsk_site_t *sites;
+    const tsk_site_t *sites;
     tsk_size_t j, num_sites;
 
     self->next_probability = next_probability;
@@ -1307,7 +1308,7 @@ tsk_compressed_matrix_decode(tsk_compressed_matrix_t *self, double *values)
     int t_ret;
     tsk_tree_t tree;
     tsk_size_t j, num_tree_sites;
-    tsk_site_t *sites = NULL;
+    const tsk_site_t *sites = NULL;
     tsk_id_t site_id;
     double *site_array;
 
