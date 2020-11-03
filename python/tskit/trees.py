@@ -5546,7 +5546,7 @@ class TreeSequence:
                 span_normalise=span_normalise,
                 polarised=polarised,
             )
-            / (2 - polarised)
+            / 2
         )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
