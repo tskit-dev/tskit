@@ -1,12 +1,18 @@
+comment:
+  layout: "diff, flags, files"
 coverage:
+  require_ci_to_pass: false
   status:
     project:
       python-tests:
         target: 95%
-        flags: python_tests
+        flags: python-tests
       python-c-tests:
         target: 85%
-        flags: python_c_tests
+        flags: python-c-tests
       c-tests:
         target: 85%
-        flags: c_tests
+        flags: c-tests
+      lwt-tests:
+        target: 85%
+        flags: lwt-tests
