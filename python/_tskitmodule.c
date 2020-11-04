@@ -6946,7 +6946,7 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "sample_set_sizes", "sample_sets", "indexes", "windows",
-        "mode", "span_normalise", NULL };
+        "mode", "span_normalise", "polarised", NULL };
     PyObject *sample_set_sizes = NULL;
     PyObject *sample_sets = NULL;
     PyObject *indexes = NULL;
@@ -6960,14 +6960,15 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
     npy_intp *shape;
     tsk_flags_t options = 0;
     char *mode = NULL;
-    int span_normalise = 1;
+    int span_normalise = true;
+    int polarised = false;
     int err;
 
     if (TreeSequence_check_tree_sequence(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|si", kwlist, &sample_set_sizes,
-            &sample_sets, &indexes, &windows, &mode, &span_normalise)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|sii", kwlist, &sample_set_sizes,
+            &sample_sets, &indexes, &windows, &mode, &span_normalise, &polarised)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -6975,6 +6976,9 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
     }
     if (span_normalise) {
         options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
     }
     if (parse_sample_sets(sample_set_sizes, &sample_set_sizes_array, sample_sets,
             &sample_sets_array, &num_sample_sets)
@@ -7026,6 +7030,12 @@ static PyObject *
 TreeSequence_divergence(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_k_way_stat_method(self, args, kwds, 2, tsk_treeseq_divergence);
+}
+
+static PyObject *
+TreeSequence_relatedness(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_k_way_stat_method(self, args, kwds, 2, tsk_treeseq_relatedness);
 }
 
 static PyObject *
@@ -7345,6 +7355,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_divergence,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes diveregence between sample sets." },
+    { .ml_name = "relatedness",
+        .ml_meth = (PyCFunction) TreeSequence_relatedness,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes genetic relatedness between sample sets." },
     { .ml_name = "Y1",
         .ml_meth = (PyCFunction) TreeSequence_Y1,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

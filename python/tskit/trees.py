@@ -5308,6 +5308,7 @@ class TreeSequence:
         windows=None,
         mode=None,
         span_normalise=True,
+        polarised=False,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -5340,6 +5341,7 @@ class TreeSequence:
             indexes,
             mode=mode,
             span_normalise=span_normalise,
+            polarised=polarised,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -5495,6 +5497,57 @@ class TreeSequence:
     #                 A[w, i, j] = A[w, j, i] = x[w][k]
     #                 k += 1
     #     return A
+
+    def genetic_relatedness(
+        self,
+        sample_sets,
+        indexes=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
+        polarised=False,
+        proportion=True,
+    ):
+        """
+        Computes genetic relatedness between (and within) pairs of
+        sets of nodes from ``sample_sets``.
+        Operates on ``k = 2`` sample sets at a time; please see the
+        :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
+        section for details on how the ``sample_sets`` and ``indexes`` arguments are
+        interpreted and how they interact with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>`,
+        :ref:`mode <sec_stats_mode>`,
+        :ref:`span normalise <sec_stats_span_normalise>`,
+        :ref:`polarised <sec_stats_polarisation>`,
+        and :ref:`return value <sec_stats_output_format>`.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+        :param list indexes: A list of 2-tuples, or None.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :param bool proportion: Whether to divide the result by the number of
+            segregating sites (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        return (
+            self.__k_way_sample_set_stat(
+                self._ll_tree_sequence.relatedness,
+                2,
+                sample_sets,
+                indexes=indexes,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
+            )
+            / 2
+        )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
