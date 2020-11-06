@@ -7035,7 +7035,8 @@ TreeSequence_divergence(TreeSequence *self, PyObject *args, PyObject *kwds)
 static PyObject *
 TreeSequence_genetic_relatedness(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
-    return TreeSequence_k_way_stat_method(self, args, kwds, 2, tsk_treeseq_genetic_relatedness);
+    return TreeSequence_k_way_stat_method(
+        self, args, kwds, 2, tsk_treeseq_genetic_relatedness);
 }
 
 static PyObject *
