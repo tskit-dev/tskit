@@ -5535,18 +5535,15 @@ class TreeSequence:
             segregating sites (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        return (
-            self.__k_way_sample_set_stat(
-                self._ll_tree_sequence.relatedness,
-                2,
-                sample_sets,
-                indexes=indexes,
-                windows=windows,
-                mode=mode,
-                span_normalise=span_normalise,
-                polarised=polarised,
-            )
-            / 2
+        return self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.genetic_relatedness,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
         )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):

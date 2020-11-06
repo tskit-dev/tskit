@@ -33,7 +33,7 @@ import numpy as np
 import tskit
 
 
-def naive_genotype_covariance(ts, proportion=False):
+def naive_genetic_relatedness(ts, proportion=False):
     G = ts.genotype_matrix()
     denominator = ts.sequence_length
     if proportion:
@@ -44,7 +44,7 @@ def naive_genotype_covariance(ts, proportion=False):
     return G @ G.T / denominator
 
 
-def genotype_relatedness(ts, polarised=False, proportion=False):
+def genetic_relatedness(ts, polarised=False, proportion=False):
     n = ts.num_samples
     sample_sets = [[u] for u in ts.samples()]
 
@@ -75,7 +75,7 @@ def genotype_relatedness(ts, polarised=False, proportion=False):
     )
 
 
-def c_genotype_relatedness(ts, sample_sets, indexes, polarised=False, proportion=False):
+def c_genetic_relatedness(ts, sample_sets, indexes, polarised=False, proportion=False):
     m = len(indexes)
     state_dim = len(sample_sets)
 
@@ -116,8 +116,8 @@ class TestCovariance(unittest.TestCase):
     """
 
     def verify(self, ts):
-        cov1 = naive_genotype_covariance(ts)
-        cov2 = genotype_relatedness(ts)
+        cov1 = naive_genetic_relatedness(ts)
+        cov2 = genetic_relatedness(ts)
         sample_sets = [[u] for u in ts.samples()]
         n = len(sample_sets)
         indexes = [
@@ -126,7 +126,7 @@ class TestCovariance(unittest.TestCase):
         cov3 = np.zeros((n, n))
         cov4 = np.zeros((n, n))
         i_upper = np.triu_indices(n)
-        cov3[i_upper] = c_genotype_relatedness(ts, sample_sets, indexes)
+        cov3[i_upper] = c_genetic_relatedness(ts, sample_sets, indexes)
         cov3 = cov3 + cov3.T - np.diag(cov3.diagonal())
         cov4[i_upper] = ts.genetic_relatedness(
             sample_sets, indexes, mode="site", span_normalise=True
