@@ -1334,7 +1334,7 @@ test_paper_ex_divergence(void)
 }
 
 static void
-test_paper_ex_relatedness(void)
+test_paper_ex_genetic_relatedness(void)
 {
     tsk_treeseq_t ts;
     tsk_id_t samples[] = { 0, 1, 2, 3 };
@@ -1346,20 +1346,20 @@ test_paper_ex_relatedness(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
-    ret = tsk_treeseq_relatedness(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0,
-        NULL, &result, TSK_STAT_SITE);
+    ret = tsk_treeseq_genetic_relatedness(&ts, 2, sample_set_sizes, samples, 1,
+        set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
 }
 
 static void
-test_paper_ex_relatedness_errors(void)
+test_paper_ex_genetic_relatedness_errors(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    verify_two_way_stat_func_errors(&ts, tsk_treeseq_relatedness);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_genetic_relatedness);
     tsk_treeseq_free(&ts);
 }
 
@@ -1709,8 +1709,9 @@ main(int argc, char **argv)
         { "test_paper_ex_Y1", test_paper_ex_Y1 },
         { "test_paper_ex_divergence_errors", test_paper_ex_divergence_errors },
         { "test_paper_ex_divergence", test_paper_ex_divergence },
-        { "test_paper_ex_relatedness_errors", test_paper_ex_relatedness_errors },
-        { "test_paper_ex_relatedness", test_paper_ex_relatedness },
+        { "test_paper_ex_genetic_relatedness_errors",
+            test_paper_ex_genetic_relatedness_errors },
+        { "test_paper_ex_genetic_relatedness", test_paper_ex_genetic_relatedness },
         { "test_paper_ex_Y2_errors", test_paper_ex_Y2_errors },
         { "test_paper_ex_Y2", test_paper_ex_Y2 },
         { "test_paper_ex_f2_errors", test_paper_ex_f2_errors },
