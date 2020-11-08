@@ -249,7 +249,7 @@ class PartialTopologyCounter:
         children = []
         for sample_set_indexes, rank in child_topologies:
             n = len(sample_set_indexes)
-            t = RankTree.unrank(rank, n, list(sample_set_indexes))
+            t = RankTree.unrank(n, rank, list(sample_set_indexes))
             children.append(t)
         children.sort(key=RankTree.canonical_order)
         return RankTree(children).rank()
@@ -432,7 +432,7 @@ class RankTree:
         return self._label_rank
 
     @staticmethod
-    def unrank(rank, num_leaves, labels=None):
+    def unrank(num_leaves, rank, labels=None):
         """
         Produce a ``RankTree`` of the given ``rank`` with ``num_leaves`` leaves,
         labelled with ``labels``. Labels must be sorted, and if ``None`` default
@@ -441,18 +441,18 @@ class RankTree:
         shape_rank, label_rank = rank
         if shape_rank < 0 or label_rank < 0:
             raise ValueError("Rank is out of bounds.")
-        unlabelled = RankTree.shape_unrank(shape_rank, num_leaves)
+        unlabelled = RankTree.shape_unrank(num_leaves, shape_rank)
         return unlabelled.label_unrank(label_rank, labels)
 
     @staticmethod
-    def shape_unrank(shape_rank, n):
+    def shape_unrank(n, shape_rank):
         """
         Generate an unlabelled tree with n leaves with a shape corresponding to
         the `shape_rank`.
         """
         part, child_shape_ranks = children_shape_ranks(shape_rank, n)
         children = [
-            RankTree.shape_unrank(rk, k) for rk, k in zip(child_shape_ranks, part)
+            RankTree.shape_unrank(k, rk) for k, rk in zip(part, child_shape_ranks)
         ]
 
         t = RankTree(children=children)
@@ -753,8 +753,8 @@ def num_tree_pairings(part):
     return total
 
 
-def num_labellings(shape_rk, n):
-    return RankTree.shape_unrank(shape_rk, n).num_labellings()
+def num_labellings(n, shape_rk):
+    return RankTree.shape_unrank(n, shape_rk).num_labellings()
 
 
 def children_shape_ranks(rank, n):

@@ -849,7 +849,7 @@ class Tree:
         return combinatorics.RankTree.from_tsk_tree(self).rank()
 
     @staticmethod
-    def unrank(rank, num_leaves, *, span=1):
+    def unrank(num_leaves, rank, *, span=1):
         """
         Reconstruct the tree of the given ``rank``
         (see :meth:`tskit.Tree.rank`) with ``num_leaves`` leaves.
@@ -859,8 +859,8 @@ class Tree:
         See the :ref:`sec_tree_ranks` section for details on ranking and
         unranking trees and what constitutes valid ranks.
 
-        :param tuple(int) rank: The rank of the tree to generate.
         :param int num_leaves: The number of leaves of the tree to generate.
+        :param tuple(int) rank: The rank of the tree to generate.
         :param float span: The genomic span of the returned tree. The tree will cover
             the interval :math:`[0, \\text{span})` and the :attr:`~Tree.tree_sequence`
             from which the tree is taken will have its
@@ -869,7 +869,7 @@ class Tree:
         :raises: ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
-        return combinatorics.RankTree.unrank(rank, num_leaves).to_tsk_tree(span=span)
+        return combinatorics.RankTree.unrank(num_leaves, rank).to_tsk_tree(span=span)
 
     def count_topologies(self, sample_sets=None):
         """
@@ -2378,7 +2378,7 @@ class Tree:
         a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
 
         .. note::
-            This is similar to ``tskit.Tree.unrank((0,0), n, span=span)`` but is more
+            This is similar to ``tskit.Tree.unrank(n, (0,0), span=span)`` but is more
             efficient for large n. However, the ``unrank`` method provides
             a concise way of generating alternative (non-star) topologies.
 
