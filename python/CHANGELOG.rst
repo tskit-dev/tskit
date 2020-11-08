@@ -42,6 +42,10 @@
 
 **Breaking changes**
 
+- The argument order of ``Tree.unrank`` and ``combinatorics.num_labellings`` now
+  positions the number of leaves before the tree rank
+  (:user:`daniel-goldstein`, :issue:`950`, :pr:`978`)
+
 - Change several methods (``simplify()``, ``trees()``, ``Tree()``) so most parameters
   are keyword only, not positional. This allows reordering of parameters, so
   that deprecated parameters can be moved, and the parameter order in similar functions,
