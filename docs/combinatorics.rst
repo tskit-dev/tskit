@@ -89,7 +89,7 @@ method.
 .. code-block:: python
 
     for rank in [(0, 0), (1, 0), (1, 1), (1, 2)]:
-        t = Tree.unrank(rank, num_leaves=3)
+        t = Tree.unrank(3, rank)
         display(SVG(t.draw(node_labels={0: 0, 1: 1, 2: 2}, order="tree")))
 
 .. image:: _static/topology_0_0.svg
@@ -116,7 +116,7 @@ samples are synonymous with leaves.
 
     rank_counts = collections.Counter(t.rank() for t in ts.trees())
     most_freq_rank, count = rank_counts.most_common(1)[0]
-    Tree.unrank(most_freq_rank, num_leaves=ts.num_samples())
+    Tree.unrank(ts.num_samples(), most_freq_rank)
 
 .. _sec_enumerating_topologies:
 

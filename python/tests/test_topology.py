@@ -7928,7 +7928,7 @@ class TestExampleTrees:
         for extra_params in [{}, {"span": 2.5}]:
             for n in range(2, 6):
                 ts = tskit.Tree.generate_star(n, **extra_params).tree_sequence
-                equiv_ts = tskit.Tree.unrank((0, 0), n, **extra_params).tree_sequence
+                equiv_ts = tskit.Tree.unrank(n, (0, 0), **extra_params).tree_sequence
                 assert ts.tables.equals(equiv_ts.tables, ignore_provenance=True)
 
     def test_star_bad_params(self):
@@ -7947,7 +7947,7 @@ class TestExampleTrees:
         branch_length = 10
         n = 7
         ts = tskit.Tree.generate_star(n, branch_length=branch_length).tree_sequence
-        topological_equiv_ts = tskit.Tree.unrank((0, 0), n).tree_sequence
+        topological_equiv_ts = tskit.Tree.unrank(n, (0, 0)).tree_sequence
 
         assert ts.node(ts.first().root).time == branch_length
         assert ts.kc_distance(topological_equiv_ts) == 0

@@ -201,7 +201,7 @@ class TestRankTree:
 
     def test_all_labellings_roundtrip(self):
         n = 5
-        rank_tree = RankTree.unrank((comb.num_shapes(n) - 1, 0), n)
+        rank_tree = RankTree.unrank(n, (comb.num_shapes(n) - 1, 0))
         tsk_tree = rank_tree.to_tsk_tree()
         rank_tree_labellings = RankTree.all_labellings(rank_tree)
         tsk_tree_labellings = tskit.all_tree_labellings(tsk_tree)
@@ -212,18 +212,18 @@ class TestRankTree:
         for n in range(6):
             for shape_rank, t in enumerate(RankTree.all_unlabelled_trees(n)):
                 for label_rank, labelled_tree in enumerate(RankTree.all_labellings(t)):
-                    unranked = RankTree.unrank((shape_rank, label_rank), n)
+                    unranked = RankTree.unrank(n, (shape_rank, label_rank))
                     assert labelled_tree == unranked
 
         # The number of labelled trees gets very big quickly
         for n in range(6, 10):
             for shape_rank in range(comb.num_shapes(n)):
                 rank = (shape_rank, 0)
-                unranked = RankTree.unrank(rank, n)
+                unranked = RankTree.unrank(n, rank)
                 assert rank, unranked.rank()
 
-                rank = (shape_rank, comb.num_labellings(shape_rank, n) - 1)
-                unranked = RankTree.unrank(rank, n)
+                rank = (shape_rank, comb.num_labellings(n, shape_rank) - 1)
+                unranked = RankTree.unrank(n, rank)
                 assert rank, unranked.rank()
 
     def test_unrank_errors(self):
@@ -243,14 +243,14 @@ class TestRankTree:
 
         invalid_shape = (comb.num_shapes(10), 0)
         self.verify_unrank_errors(invalid_shape, 10)
-        invalid_labelling = (0, comb.num_labellings(0, 10))
+        invalid_labelling = (0, comb.num_labellings(10, 0))
         self.verify_unrank_errors(invalid_labelling, 10)
 
     def verify_unrank_errors(self, rank, n):
         with pytest.raises(ValueError):
-            RankTree.unrank(rank, n)
+            RankTree.unrank(n, rank)
         with pytest.raises(ValueError):
-            tskit.Tree.unrank(rank, n)
+            tskit.Tree.unrank(n, rank)
 
     def test_shape_rank(self):
         for n in range(10):
@@ -260,12 +260,12 @@ class TestRankTree:
     def test_shape_unrank(self):
         for n in range(6):
             for rank, tree in enumerate(RankTree.all_unlabelled_trees(n)):
-                t = RankTree.shape_unrank(rank, n)
+                t = RankTree.shape_unrank(n, rank)
                 assert tree.shape_equal(t)
 
         for n in range(2, 9):
             for shape_rank, tree in enumerate(RankTree.all_unlabelled_trees(n)):
-                tsk_tree = tskit.Tree.unrank((shape_rank, 0), n)
+                tsk_tree = tskit.Tree.unrank(n, (shape_rank, 0))
                 assert shape_rank == tree.shape_rank()
                 shape_rank, _ = tsk_tree.rank()
                 assert shape_rank == tree.shape_rank()
@@ -290,7 +290,7 @@ class TestRankTree:
     def test_unrank_rank_round_trip(self):
         for n in range(6):  # Can do more but gets slow pretty quickly after 6
             for shape_rank in range(comb.num_shapes(n)):
-                tree = RankTree.shape_unrank(shape_rank, n)
+                tree = RankTree.shape_unrank(n, shape_rank)
                 tree = tree.label_unrank(0)
                 assert tree.shape_rank() == shape_rank
                 for label_rank in range(tree.num_labellings()):
@@ -349,12 +349,12 @@ class TestRankTree:
     def test_unranking_is_canonical(self):
         for n in range(7):
             for shape_rank in range(comb.num_shapes(n)):
-                for label_rank in range(comb.num_labellings(shape_rank, n)):
-                    t = RankTree.shape_unrank(shape_rank, n)
+                for label_rank in range(comb.num_labellings(n, shape_rank)):
+                    t = RankTree.shape_unrank(n, shape_rank)
                     assert t.is_canonical()
                     t = t.label_unrank(label_rank)
                     assert t.is_canonical()
-                    t = tskit.Tree.unrank((shape_rank, label_rank), n)
+                    t = tskit.Tree.unrank(n, (shape_rank, label_rank))
                     assert RankTree.from_tsk_tree(t).is_canonical()
 
     def test_to_from_tsk_tree(self):
@@ -377,8 +377,8 @@ class TestRankTree:
             RankTree.from_tsk_tree(t)
 
     def test_to_tsk_tree_errors(self):
-        alpha_tree = RankTree.unrank((0, 0), 3, ["A", "B", "C"])
-        out_of_bounds_tree = RankTree.unrank((0, 0), 3, [2, 3, 4])
+        alpha_tree = RankTree.unrank(3, (0, 0), ["A", "B", "C"])
+        out_of_bounds_tree = RankTree.unrank(3, (0, 0), [2, 3, 4])
         with pytest.raises(ValueError):
             alpha_tree.to_tsk_tree()
         with pytest.raises(ValueError):
@@ -403,7 +403,7 @@ class TestRankTree:
         n = 5
         span = 8
         # Create a start tree, with a single root
-        tsk_tree = tskit.Tree.unrank((0, 0), n, span=span)
+        tsk_tree = tskit.Tree.unrank(n, (0, 0), span=span)
         assert tsk_tree.num_nodes == n + 1
         assert tsk_tree.interval.left == 0
         assert tsk_tree.interval.right == span
@@ -413,21 +413,21 @@ class TestRankTree:
         n = 14
         shape = 22
         labelling = 0
-        tree = RankTree.unrank((shape, labelling), n)
-        tsk_tree = tskit.Tree.unrank((shape, labelling), n)
+        tree = RankTree.unrank(n, (shape, labelling))
+        tsk_tree = tskit.Tree.unrank(n, (shape, labelling))
         assert tree.rank() == tsk_tree.rank()
 
         n = 10
         shape = 95
-        labelling = comb.num_labellings(shape, n) // 2
-        tree = RankTree.unrank((shape, labelling), n)
-        tsk_tree = tskit.Tree.unrank((shape, labelling), n)
+        labelling = comb.num_labellings(n, shape) // 2
+        tree = RankTree.unrank(n, (shape, labelling))
+        tsk_tree = tskit.Tree.unrank(n, (shape, labelling))
         assert tree.rank() == tsk_tree.rank()
 
     def test_symmetrical_trees(self):
         for n in range(2, 18, 2):
             last_rank = comb.num_shapes(n) - 1
-            t = RankTree.shape_unrank(last_rank, n)
+            t = RankTree.shape_unrank(n, last_rank)
             assert t.is_symmetrical()
 
     def test_equal(self):
