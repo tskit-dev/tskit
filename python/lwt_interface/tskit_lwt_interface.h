@@ -1786,6 +1786,9 @@ LightweightTableCollection_fromdict(LightweightTableCollection *self, PyObject *
     PyObject *ret = NULL;
     PyObject *dict = NULL;
 
+    if (LightweightTableCollection_check_state(self) != 0) {
+        goto out;
+    }
     if (!PyArg_ParseTuple(args, "O!", &PyDict_Type, &dict)) {
         goto out;
     }

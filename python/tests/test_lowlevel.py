@@ -24,6 +24,7 @@
 Test cases for the low level C interface to tskit.
 """
 import collections
+import inspect
 import itertools
 import os
 import platform
@@ -399,6 +400,9 @@ class TestTableMethodsErrors:
                 ll_table.equals(None)
             with pytest.raises(TypeError):
                 ll_table.equals(ll_table, no_such_arg="")
+            uninit_other = type(ll_table).__new__(type(ll_table))
+            with pytest.raises(SystemError):
+                ll_table.equals(uninit_other)
 
     def test_get_row_bad_args(self, ts_fixture):
         for ll_table in self.yield_tables(ts_fixture):
@@ -2553,3 +2557,32 @@ class TestModuleFunctions:
     def test_tskit_version(self):
         version = _tskit.get_tskit_version()
         assert version == (0, 99, 8)
+
+
+def test_uninitialised():
+    # These methods work from an instance that has a NULL ref so don't check
+    skip_list = ["TreeSequence_load", "TreeSequence_load_tables"]
+    for cls_name, cls in inspect.getmembers(_tskit):
+        if (
+            type(cls) == type
+            and not issubclass(cls, Exception)
+            and not issubclass(cls, tuple)
+        ):
+            methods = []
+            attributes = []
+            for name, value in inspect.getmembers(cls):
+                if not name.startswith("__") and f"{cls_name}_{name}" not in skip_list:
+                    if inspect.isdatadescriptor(value):
+                        attributes.append(name)
+                    else:
+                        methods.append(name)
+            uninitialised = cls.__new__(cls)
+            for attr in attributes:
+                with pytest.raises((SystemError, ValueError)):
+                    getattr(uninitialised, attr)
+                with pytest.raises((SystemError, ValueError, AttributeError)):
+                    setattr(uninitialised, attr, None)
+            for method_name in methods:
+                method = getattr(uninitialised, method_name)
+                with pytest.raises((SystemError, ValueError)):
+                    method()
