@@ -5535,7 +5535,19 @@ class TreeSequence:
             segregating sites (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        return self.__k_way_sample_set_stat(
+        if proportion:
+            # TODO this should be done in C also
+            all_samples = list({u for s in sample_sets for u in s})
+            denominator = self.segregating_sites(
+                sample_sets=all_samples,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+            )
+        else:
+            denominator = 1
+
+        numerator = self.__k_way_sample_set_stat(
             self._ll_tree_sequence.genetic_relatedness,
             2,
             sample_sets,
@@ -5545,6 +5557,7 @@ class TreeSequence:
             span_normalise=span_normalise,
             polarised=polarised,
         )
+        return numerator / denominator
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """

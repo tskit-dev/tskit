@@ -33,7 +33,7 @@ import numpy as np
 import tskit
 
 
-def naive_genetic_relatedness(ts, proportion=False):
+def naive_genetic_relatedness(ts, proportion=True):
     G = ts.genotype_matrix()
     denominator = ts.sequence_length
     if proportion:
@@ -44,7 +44,7 @@ def naive_genetic_relatedness(ts, proportion=False):
     return G @ G.T / denominator
 
 
-def genetic_relatedness(ts, polarised=False, proportion=False):
+def genetic_relatedness(ts, polarised=False, proportion=True):
     n = ts.num_samples
     sample_sets = [[u] for u in ts.samples()]
 
@@ -75,7 +75,7 @@ def genetic_relatedness(ts, polarised=False, proportion=False):
     )
 
 
-def c_genetic_relatedness(ts, sample_sets, indexes, polarised=False, proportion=False):
+def c_genetic_relatedness(ts, sample_sets, indexes, polarised=False, proportion=True):
     m = len(indexes)
     state_dim = len(sample_sets)
 
@@ -115,9 +115,9 @@ class TestCovariance(unittest.TestCase):
     Tests on covariance matrix computation
     """
 
-    def verify(self, ts):
-        cov1 = naive_genetic_relatedness(ts)
-        cov2 = genetic_relatedness(ts)
+    def verify(self, ts, proportion=True):
+        cov1 = naive_genetic_relatedness(ts, proportion=proportion)
+        cov2 = genetic_relatedness(ts, proportion=proportion)
         sample_sets = [[u] for u in ts.samples()]
         n = len(sample_sets)
         indexes = [
@@ -126,10 +126,16 @@ class TestCovariance(unittest.TestCase):
         cov3 = np.zeros((n, n))
         cov4 = np.zeros((n, n))
         i_upper = np.triu_indices(n)
-        cov3[i_upper] = c_genetic_relatedness(ts, sample_sets, indexes)
+        cov3[i_upper] = c_genetic_relatedness(
+            ts, sample_sets, indexes, proportion=proportion
+        )
         cov3 = cov3 + cov3.T - np.diag(cov3.diagonal())
         cov4[i_upper] = ts.genetic_relatedness(
-            sample_sets, indexes, mode="site", span_normalise=True
+            sample_sets,
+            indexes,
+            mode="site",
+            span_normalise=True,
+            proportion=proportion,
         )
         cov4 = cov4 + cov4.T - np.diag(cov4.diagonal())
         assert np.allclose(cov1, cov2)
@@ -139,6 +145,7 @@ class TestCovariance(unittest.TestCase):
     def test_single_coalescent_tree(self):
         ts = msprime.simulate(10, random_seed=1, length=10, mutation_rate=1)
         self.verify(ts)
+        self.verify(ts, proportion=False)
 
     def test_coalescent_trees(self):
         ts = msprime.simulate(
@@ -146,6 +153,7 @@ class TestCovariance(unittest.TestCase):
         )
         assert ts.num_trees > 2
         self.verify(ts)
+        self.verify(ts, proportion=False)
 
     def test_internal_samples(self):
         nodes = io.StringIO(
@@ -194,13 +202,15 @@ class TestCovariance(unittest.TestCase):
             nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
         )
         self.verify(ts)
+        self.verify(ts, proportion=False)
 
     def validate_trees(self, n):
         for seed in range(1, 10):
             ts = msprime.simulate(
-                n, random_seed=seed, recombination_rate=1, mutation_rate=1
+                n, random_seed=seed, recombination_rate=1, mutation_rate=2
             )
             self.verify(ts)
+            self.verify(ts, proportion=False)
 
     def test_sample_5(self):
         self.validate_trees(5)
@@ -234,6 +244,7 @@ class TestCovariance(unittest.TestCase):
             assert found
 
             self.verify(ts)
+            self.verify(ts, proportion=False)
 
     def test_non_binary_sample_10(self):
         self.validate_nonbinary_trees(10)
