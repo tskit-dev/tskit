@@ -533,6 +533,13 @@ of the failing lines:
 
     $ python3 -m pytest --tb=line
 
+If you need to see the output of tests (e.g. ``print`` statements) then you need to use
+these flags to run a single thread and capture output:
+
+.. code-block:: bash
+
+    $ python3 -m pytest -n0 -vs
+
 All new code must have high test coverage, which will be checked as part of the
 :ref:`sec_development_continuous_integration`
 tests by `CodeCov <https://codecov.io/gh/tskit-dev/tskit/>`__.
