@@ -34,6 +34,10 @@
 - Added ``TreeSequence.__repr__`` to display a summary for terminal usage.
   (:user:`benjeffery`, :issue:`938`, :pr:`985`)
 
+- Added ``TableCollection.dump`` and ``TableCollection.load``. This allows table
+  collections that are not valid tree sequences to be manipulated.
+  (:user:`benjeffery`, :issue:`14`, :pr:`986`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.

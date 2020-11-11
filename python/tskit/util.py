@@ -23,6 +23,7 @@
 Module responsible for various utility functions used in other modules.
 """
 import json
+import os
 
 import numpy as np
 
@@ -435,3 +436,33 @@ def tree_sequence_html(ts):
               </div>
             </div>
             """  # noqa: B950
+
+
+def convert_file_like_to_open_file(file_like, mode):
+    # Get ourselves a local version of the file. The semantics here are complex
+    # because need to support a range of inputs and the free behaviour is
+    # slightly different on each.
+    _file = None
+    local_file = True
+    try:
+        # First, see if we can interpret the argument as a pathlike object.
+        path = os.fspath(file_like)
+        _file = open(path, mode)
+    except TypeError:
+        pass
+    if _file is None:
+        # Now we try to open file. If it's not a pathlike object, it could be
+        # an integer fd or object with a fileno method. In this case we
+        # must make sure that close is **not** called on the fd.
+        try:
+            _file = open(file_like, mode, closefd=False, buffering=0)
+        except TypeError:
+            pass
+    if _file is None:
+        # Assume that this is a file **but** we haven't opened it, so we must
+        # not close it.
+        if mode == "wb" and not hasattr(file_like, "write"):
+            raise TypeError("file object must have a write method")
+        _file = file_like
+        local_file = False
+    return _file, local_file

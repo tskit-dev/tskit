@@ -32,7 +32,6 @@ import functools
 import itertools
 import json
 import math
-import os
 import textwrap
 import warnings
 from typing import Any
@@ -2430,38 +2429,7 @@ def load(file):
         stored in the specified file path.
     :rtype: :class:`tskit.TreeSequence`
     """
-    # Get ourselves a local version of the file. The semantics here are complex
-    # because need to support a range of inputs and the free behaviour is
-    # slightly different on each.
-    _file = None
-    local_file = True
-    try:
-        # First, see if we can interpret the argument as a pathlike object.
-        path = os.fspath(file)
-        _file = open(path, "rb")
-    except TypeError:
-        pass
-    if _file is None:
-        # Now we try to open file. If it's not a pathlike object, it could be
-        # an integer fd or object with a fileno method. In this case we
-        # must make sure that close is **not** called on the fd.
-        try:
-            _file = open(file, "rb", closefd=False, buffering=0)
-        except TypeError:
-            pass
-    if _file is None:
-        # Assume that this is a file **but** we haven't opened it, so we must
-        # not close it.
-        _file = file
-        local_file = False
-    try:
-        return TreeSequence.load(_file)
-    except exceptions.FileFormatError as e:
-        # TODO Fix this for new file semantics
-        formats.raise_hdf5_format_error(path, e)
-    finally:
-        if local_file:
-            _file.close()
+    return TreeSequence.load(file)
 
 
 def parse_individuals(
@@ -3071,10 +3039,18 @@ class TreeSequence:
         return [tree.copy() for tree in self.trees(**kwargs)]
 
     @classmethod
-    def load(cls, file):
-        ts = _tskit.TreeSequence()
-        ts.load(file)
-        return TreeSequence(ts)
+    def load(cls, file_or_path):
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
+        try:
+            ts = _tskit.TreeSequence()
+            ts.load(file)
+            return TreeSequence(ts)
+        except exceptions.FileFormatError as e:
+            # TODO Fix this for new file semantics
+            formats.raise_hdf5_format_error(file_or_path, e)
+        finally:
+            if local_file:
+                file.close()
 
     @classmethod
     def load_tables(cls, tables, *, build_indexes=False):
@@ -3082,43 +3058,18 @@ class TreeSequence:
         ts.load_tables(tables._ll_tables, build_indexes=build_indexes)
         return TreeSequence(ts)
 
-    def dump(self, file):
+    def dump(self, file_or_path):
         """
-        Writes the tree sequence to the specified file object.
+        Writes the tree sequence to the specified path or file object.
 
-        :param str file: The file object or path to write the TreeSequence to.
+        :param str file_or_path: The file object or path to write the TreeSequence to.
         """
-        # Get ourselves a local version of the file. The semantics here are complex
-        # because need to support a range of inputs and the free behaviour is
-        # slightly different on each.
-        _file = None
-        local_file = True
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
         try:
-            # First, see if we can interpret the argument as a pathlike object.
-            path = os.fspath(file)
-            _file = open(path, "wb")
-        except TypeError:
-            pass
-        if _file is None:
-            # Now we try to open file. If it's not a pathlike object, it could be
-            # an integer fd or object with a fileno method. In this case we
-            # must make sure that close is **not** called on the fd.
-            try:
-                _file = open(file, "wb", closefd=False)
-            except TypeError:
-                pass
-        if _file is None:
-            # Assume that this is a file **but** we haven't opened it, so we must
-            # not close it.
-            if not hasattr(file, "write"):
-                raise TypeError("file object must have a write method")
-            _file = file
-            local_file = False
-        try:
-            self._ll_tree_sequence.dump(_file)
+            self._ll_tree_sequence.dump(file)
         finally:
             if local_file:
-                _file.close()
+                file.close()
 
     @property
     def tables_dict(self):
