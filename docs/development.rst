@@ -1109,7 +1109,8 @@ release on GitHub using the pattern ``C_MAJOR.MINOR.PATCH``, with::
 
 Then prepare a release for the tag on GitHub, copying across the changelog.
 Running ``python docs/convert_changelog.py`` will format the changelog for GitHub.
-After release, start a section in the changelog for new developments.
+After release, start a section in the changelog for new developments and close the
+GitHub issue milestone of the release.
 
 ------
 Python
@@ -1134,7 +1135,8 @@ the release looks good there, then create a release on Github based on the tag y
 pushed. Copy the changelog into the release. Running ``python docs/convert_changelog.py``
 will format the changelog for GitHub. Publishing this release will cause the github
 action to deploy to the `production PyPI <https://pypi.org/project/tskit/>`_.
-After release, start a section in the changelog for new developments.
+After release, start a section in the changelog for new developments and close the
+GitHub issue milestone of the release.
 
 
 
