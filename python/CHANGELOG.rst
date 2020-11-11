@@ -31,6 +31,9 @@
 - Added ``TreeSequence._repr_html_`` for use in jupyter notebooks.
   (:user:`benjeffery`, :issue:`872`, :pr:`923`)
 
+- Added ``TreeSequence.__repr__`` to display a summary for terminal usage.
+  (:user:`benjeffery`, :issue:`938`, :pr:`985`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.

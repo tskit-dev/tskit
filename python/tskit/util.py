@@ -287,6 +287,15 @@ def naturalsize(value):
 
 
 def obj_to_collapsed_html(d, name=None, open_depth=0):
+    """
+    Recursively make an HTML representation of python objects.
+
+    :param str name: Name for this object
+    :param int open_depth: By default sub-sections are collapsed. If this number is
+    non-zero the first layers up to open_depth will be opened.
+    :return: The HTML as a string
+    :rtype: str
+    """
     opened = "open" if open_depth > 0 else ""
     open_depth -= 1
     name = str(name) + ":" if name is not None else ""
@@ -314,6 +323,51 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
                 """
     else:
         return f"{name} {d}"
+
+
+def unicode_table(rows, title=None, header=None):
+    """
+    Convert a table (list of lists) of strings to a unicode table.
+
+    :param list[list[str]] rows: List of rows, each of which is a list of strings for
+    each cell. The first column will be left justified, the others right. Each row must
+    have the same number of cells.
+    :param str title: If specified the first output row will be a single cell
+    containing this string, left-justified. [optional]
+    :param list[str] header: Specifies a row above the main rows which will be in double
+    lined borders and left justified. Must be same length as each row. [optional]
+    :return: The table as a string
+    :rtype: str
+    """
+    if header is not None:
+        all_rows = [header] + rows
+    else:
+        all_rows = rows
+    widths = [
+        max(len(row[i_col]) for row in all_rows) for i_col in range(len(all_rows[0]))
+    ]
+    out = []
+    if title is not None:
+        w = sum(widths) + len(rows[1]) - 1
+        out += [
+            f"╔{'═' * w}╗\n" f"║{title.ljust(w)}║\n",
+            f"╠{'╤'.join('═' * w for w in widths)}╣\n",
+        ]
+    if header is not None:
+        out += [
+            f"╔{'╤'.join('═' * w for w in widths)}╗\n"
+            f"║{'│'.join(cell.ljust(w) for cell,w in zip(header,widths))}║\n",
+            f"╠{'╪'.join('═' * w for w in widths)}╣\n",
+        ]
+    out += [
+        f"╟{'┼'.join('─' * w for w in widths)}╢\n".join(
+            f"║{row[0].ljust(widths[0])}│"
+            + f"{'│'.join(cell.rjust(w) for cell, w in zip(row[1:], widths[1:]))}║\n"
+            for row in rows
+        ),
+        f"╚{'╧'.join('═' * w for w in widths)}╝\n",
+    ]
+    return "".join(out)
 
 
 def tree_sequence_html(ts):

@@ -3334,6 +3334,33 @@ class TreeSequence:
                 )
                 print(row, file=provenances)
 
+    def __repr__(self):
+        ts_rows = [
+            ["Trees", str(self.num_trees)],
+            ["Sequence Length", str(self.sequence_length)],
+            ["Sample Nodes", str(self.num_samples)],
+            ["Total Size TODO", util.naturalsize(99999)],
+        ]
+        header = ["Table", "Rows", "Size", "Has Metadata"]
+        table_rows = []
+        for name, table in self.tables.name_map.items():
+            table_rows.append(
+                [
+                    str(s)
+                    for s in [
+                        name.capitalize(),
+                        table.num_rows,
+                        "TODO",
+                        "Yes"
+                        if hasattr(table, "metadata") and len(table.metadata) > 0
+                        else "No",
+                    ]
+                ]
+            )
+        return util.unicode_table(ts_rows, title="TreeSequence") + util.unicode_table(
+            table_rows, header=header
+        )
+
     def _repr_html_(self):
         """
         Called by jupyter notebooks to render a TreeSequence

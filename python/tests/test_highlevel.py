@@ -34,6 +34,7 @@ import pathlib
 import pickle
 import platform
 import random
+import re
 import shutil
 import tempfile
 import unittest
@@ -1459,6 +1460,14 @@ class TestTreeSequence(HighLevelTestCase):
             assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
             for table in ts.tables.name_map:
                 assert f"<td>{table.capitalize()}</td>" in html
+
+    def test_repr(self):
+        for ts in get_example_tree_sequences():
+            s = repr(ts)
+            assert len(s) > 999
+            assert re.search(rf"║Trees *│ *{ts.num_trees}║", s)
+            for table in ts.tables.name_map:
+                assert re.search(rf"║{table.capitalize()} *│", s)
 
 
 class TestTreeSequenceMethodSignatures:
