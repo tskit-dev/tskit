@@ -124,7 +124,8 @@ jobs:
           name: Run Python tests
           command: |
             cd python
-            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n16 tests
+            ./untilfail.sh pytest -l --full-trace -n16  tests
+            #python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n16 tests
 
       - run:
           name: Upload Python coverage

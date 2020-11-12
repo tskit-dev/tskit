@@ -117,7 +117,7 @@ jobs:
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-          pytest -xv -n2
+          ./untilfail.sh pytest -l --full-trace -n2 -vs tests/test_tree_stats.py
 
 
 
