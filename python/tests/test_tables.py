@@ -27,7 +27,9 @@ between simulations and the tree sequence.
 import io
 import json
 import math
+import pathlib
 import pickle
+import platform
 import random
 import time
 import unittest
@@ -2604,8 +2606,8 @@ class TestTableCollection:
         tables.drop_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 
-    def test_asdict_lwt_concordence(self, ts_fixture):
-        def check_concordence(d1, d2):
+    def test_asdict_lwt_concordance(self, ts_fixture):
+        def check_concordance(d1, d2):
             assert set(d1.keys()) == set(d2.keys())
             for k1, v1 in d1.items():
                 v2 = d2[k1]
@@ -2632,12 +2634,46 @@ class TestTableCollection:
         assert tables.has_index()
         lwt = _tskit.LightweightTableCollection()
         lwt.fromdict(tables.asdict())
-        check_concordence(lwt.asdict(), tables.asdict())
+        check_concordance(lwt.asdict(), tables.asdict())
 
         tables.drop_index()
         lwt = _tskit.LightweightTableCollection()
         lwt.fromdict(tables.asdict())
-        check_concordence(lwt.asdict(), tables.asdict())
+        check_concordance(lwt.asdict(), tables.asdict())
+
+    def test_dump_pathlib(self, ts_fixture, tmp_path):
+        path = pathlib.Path(tmp_path) / "tmp.trees"
+        assert path.exists
+        assert path.is_file
+        tc = ts_fixture.dump_tables()
+        tc.dump(path)
+        other_tc = tskit.TableCollection.load(path)
+        assert tc == other_tc
+
+    @pytest.mark.skipif(platform.system() == "Windows", reason="Windows doesn't raise")
+    def test_dump_load_errors(self, ts_fixture):
+        tc = ts_fixture.dump_tables()
+        # Try to dump/load files we don't have access to or don't exist.
+        for func in [tc.dump, tskit.TableCollection.load]:
+            for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
+                with pytest.raises(OSError):
+                    func(f)
+                try:
+                    func(f)
+                except OSError as e:
+                    message = str(e)
+                    assert len(message) > 0
+            f = "/" + 4000 * "x"
+            with pytest.raises(OSError):
+                func(f)
+            try:
+                func(f)
+            except OSError as e:
+                message = str(e)
+            assert "File name too long" in message
+            for bad_filename in [[], None, {}]:
+                with pytest.raises(TypeError):
+                    func(bad_filename)
 
 
 class TestEqualityOptions:

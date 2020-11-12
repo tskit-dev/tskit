@@ -1292,6 +1292,9 @@ class TestTreeSequence(HighLevelTestCase):
             except OSError as e:
                 message = str(e)
             assert "File name too long" in message
+            for bad_filename in [[], None, {}]:
+                with pytest.raises(TypeError):
+                    func(bad_filename)
 
     def test_tables_sequence_length_round_trip(self):
         for sequence_length in [0.1, 1, 10, 100]:

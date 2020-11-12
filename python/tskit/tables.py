@@ -2258,6 +2258,28 @@ class TableCollection:
     def __getstate__(self):
         return self.asdict()
 
+    @classmethod
+    def load(cls, file_or_path):
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
+        ll_tc = _tskit.TableCollection(1)
+        ll_tc.load(file)
+        tc = TableCollection(1)
+        tc._ll_tables = ll_tc
+        return tc
+
+    def dump(self, file_or_path):
+        """
+        Writes the table collection to the specified path or file object.
+
+        :param str file_or_path: The file object or path to write the TreeSequence to.
+        """
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
+        try:
+            self._ll_tables.dump(file)
+        finally:
+            if local_file:
+                file.close()
+
     # Unpickle support
     def __setstate__(self, state):
         self.__init__(state["sequence_length"])

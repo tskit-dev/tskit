@@ -27,18 +27,14 @@ import collections
 import inspect
 import itertools
 import os
-import platform
 import random
 import tempfile
-import unittest
 
 import msprime
 import numpy as np
 import pytest
 
 import _tskit
-
-IS_WINDOWS = platform.system() == "Windows"
 
 
 def get_tracked_sample_counts(st, tracked_samples):
@@ -70,7 +66,7 @@ def get_sample_counts(tree_sequence, st):
     return nu
 
 
-class LowLevelTestCase(unittest.TestCase):
+class LowLevelTestCase:
     """
     Superclass of tests for the low-level interface.
     """
@@ -165,6 +161,32 @@ class TestTableCollection(LowLevelTestCase):
     """
     Tests for the low-level TableCollection class
     """
+
+    def test_file_errors(self):
+        tc1 = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc1)
+
+        def loader(*args):
+            tc = _tskit.TableCollection(1)
+            tc.load(*args)
+
+        for func in [tc1.dump, loader]:
+            with pytest.raises(TypeError):
+                func()
+            for bad_type in [None, [], {}]:
+                with pytest.raises(TypeError):
+                    func(bad_type)
+
+    def test_dump_equality(self, tmp_path):
+        for ts in self.get_example_tree_sequences():
+            tc = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts.dump_tables(tc)
+            with open(tmp_path / "tmp.trees", "wb") as f:
+                tc.dump(f)
+            with open(tmp_path / "tmp.trees", "rb") as f:
+                tc2 = _tskit.TableCollection()
+                tc2.load(f)
+            assert tc.equals(tc2)
 
     def test_reference_deletion(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
@@ -518,7 +540,6 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     def tearDown(self):
         os.unlink(self.temp_file)
 
-    @pytest.mark.skipif(IS_WINDOWS, reason="File permissions on Windows")
     def test_file_errors(self):
         ts1 = self.get_example_tree_sequence()
 
@@ -565,38 +586,23 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                         max_node = node
             assert max_node + 1 == ts.get_num_nodes()
 
-    def verify_dump_equality(self, ts):
-        """
-        Verifies that we can dump a copy of the specified tree sequence
-        to the specified file, and load an identical copy.
-        """
-        with open(self.temp_file, "wb") as f:
-            ts.dump(f)
-        with open(self.temp_file, "rb") as f:
-            ts2 = _tskit.TreeSequence()
-            ts2.load(f)
-        assert ts.get_num_samples() == ts2.get_num_samples()
-        assert ts.get_sequence_length() == ts2.get_sequence_length()
-        assert ts.get_num_mutations() == ts2.get_num_mutations()
-        assert ts.get_num_nodes() == ts2.get_num_nodes()
-        records1 = [ts.get_edge(j) for j in range(ts.get_num_edges())]
-        records2 = [ts2.get_edge(j) for j in range(ts2.get_num_edges())]
-        assert records1 == records2
-        mutations1 = [ts.get_mutation(j) for j in range(ts.get_num_mutations())]
-        mutations2 = [ts2.get_mutation(j) for j in range(ts2.get_num_mutations())]
-        assert mutations1 == mutations2
-        provenances1 = [ts.get_provenance(j) for j in range(ts.get_num_provenances())]
-        provenances2 = [ts2.get_provenance(j) for j in range(ts2.get_num_provenances())]
-        assert provenances1 == provenances2
-
-    def test_dump_equality(self):
+    def test_dump_equality(self, tmp_path):
         for ts in self.get_example_tree_sequences():
             tables = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
             ts.dump_tables(tables)
             tables.compute_mutation_times()
             ts = _tskit.TreeSequence()
             ts.load_tables(tables)
-            self.verify_dump_equality(ts)
+            with open(tmp_path / "temp.trees", "wb") as f:
+                ts.dump(f)
+            with open(tmp_path / "temp.trees", "rb") as f:
+                ts2 = _tskit.TreeSequence()
+                ts2.load(f)
+            tc = _tskit.TableCollection(ts.get_sequence_length())
+            ts.dump_tables(tc)
+            tc2 = _tskit.TableCollection(ts2.get_sequence_length())
+            ts2.dump_tables(tc2)
+            assert tc.equals(tc2)
 
     def verify_mutations(self, ts):
         mutations = [ts.get_mutation(j) for j in range(ts.get_num_mutations())]
@@ -829,7 +835,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         for lambda_ in [-1, 0, 1, 1000, -1e300]:
             x1 = ts1.get_kc_distance(ts2, lambda_)
             x2 = ts2.get_kc_distance(ts1, lambda_)
-            self.assertAlmostEqual(x1, x2)
+            assert x1 == x2
 
     def test_load_tables_build_indexes(self):
         for ts in self.get_example_tree_sequences():
@@ -2423,7 +2429,7 @@ class TestTree(LowLevelTestCase):
         for lambda_ in [-1, 0, 1, 1000, -1e300]:
             x1 = t1.get_kc_distance(t2, lambda_)
             x2 = t2.get_kc_distance(t1, lambda_)
-            self.assertAlmostEqual(x1, x2)
+            assert x1 == x2
 
     def test_copy(self):
         for ts in self.get_example_tree_sequences():
@@ -2561,7 +2567,11 @@ class TestModuleFunctions:
 
 def test_uninitialised():
     # These methods work from an instance that has a NULL ref so don't check
-    skip_list = ["TreeSequence_load", "TreeSequence_load_tables"]
+    skip_list = [
+        "TableCollection_load",
+        "TreeSequence_load",
+        "TreeSequence_load_tables",
+    ]
     for cls_name, cls in inspect.getmembers(_tskit):
         if (
             type(cls) == type

@@ -4495,6 +4495,26 @@ TableCollection_check_state(TableCollection *self)
     return ret;
 }
 
+static int
+TableCollection_alloc(TableCollection *self)
+{
+    int ret = -1;
+
+    if (self->tables != NULL) {
+        tsk_table_collection_free(self->tables);
+        PyMem_Free(self->tables);
+    }
+    self->tables = PyMem_Malloc(sizeof(tsk_table_collection_t));
+    if (self->tables == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    memset(self->tables, 0, sizeof(*self->tables));
+    ret = 0;
+out:
+    return ret;
+}
+
 static void
 TableCollection_dealloc(TableCollection *self)
 {
@@ -5449,6 +5469,82 @@ out:
     return ret;
 }
 
+static PyObject *
+TableCollection_dump(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    FILE *file = NULL;
+    PyObject *py_file = NULL;
+    PyObject *ret = NULL;
+    static char *kwlist[] = { "file", NULL };
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &py_file)) {
+        goto out;
+    }
+
+    file = make_file(py_file, "wb");
+    if (file == NULL) {
+        goto out;
+    }
+
+    err = tsk_table_collection_dumpf(self->tables, file, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    if (file != NULL) {
+        (void) fclose(file);
+    }
+    return ret;
+}
+
+static PyObject *
+TableCollection_load(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *py_file;
+    FILE *file = NULL;
+    static char *kwlist[] = { "file", NULL };
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &py_file)) {
+        goto out;
+    }
+    file = make_file(py_file, "rb");
+    if (file == NULL) {
+        goto out;
+    }
+    /* Set unbuffered mode to ensure no more bytes are read than requested.
+     * Buffered reads could read beyond the end of the current store in a
+     * multi-store file or stream. This data would be discarded when we
+     * fclose() the file below, such that attempts to load the next store
+     * will fail. */
+    if (setvbuf(file, NULL, _IONBF, 0) != 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        goto out;
+    }
+    err = TableCollection_alloc(self);
+    if (err != 0) {
+        goto out;
+    }
+    err = tsk_table_collection_loadf(self->tables, file, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    if (file != NULL) {
+        (void) fclose(file);
+    }
+    return ret;
+}
+
 static PyGetSetDef TableCollection_getsetters[] = {
     { .name = "individuals",
         .get = (getter) TableCollection_get_individuals,
@@ -5553,6 +5649,14 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_meth = (PyCFunction) TableCollection_has_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns True if the TableCollection is indexed." },
+    { .ml_name = "dump",
+        .ml_meth = (PyCFunction) TableCollection_dump,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Writes the table collection out to the specified file." },
+    { .ml_name = "load",
+        .ml_meth = (PyCFunction) TableCollection_load,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Loads the table collection out to the specified file." },
     { NULL } /* Sentinel */
 };
 
@@ -7340,11 +7444,11 @@ static PyMethodDef TreeSequence_methods[] = {
     { .ml_name = "dump",
         .ml_meth = (PyCFunction) TreeSequence_dump,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
-        .ml_doc = "Writes the tree sequence out to the specified path." },
+        .ml_doc = "Writes the tree sequence out to the specified file." },
     { .ml_name = "load",
         .ml_meth = (PyCFunction) TreeSequence_load,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
-        .ml_doc = "Loads a tree sequence from the specified path." },
+        .ml_doc = "Loads a tree sequence from the specified file." },
     { .ml_name = "load_tables",
         .ml_meth = (PyCFunction) TreeSequence_load_tables,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
