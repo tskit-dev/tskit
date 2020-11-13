@@ -46,6 +46,7 @@
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
 - All arguments to ``Tree.newick()`` except precision are now keyword-only.
+- Renamed ``ts.trait_regression`` to ``ts.trait_linear_model``.
 
 --------------------
 [0.3.2] - 2020-09-29

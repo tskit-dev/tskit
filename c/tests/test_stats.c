@@ -1181,18 +1181,18 @@ test_paper_ex_trait_correlation(void)
 }
 
 static void
-test_paper_ex_trait_regression_errors(void)
+test_paper_ex_trait_linear_model_errors(void)
 {
     tsk_treeseq_t ts;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    verify_one_way_weighted_covariate_func_errors(&ts, tsk_treeseq_trait_regression);
+    verify_one_way_weighted_covariate_func_errors(&ts, tsk_treeseq_trait_linear_model);
     tsk_treeseq_free(&ts);
 }
 
 static void
-test_paper_ex_trait_regression(void)
+test_paper_ex_trait_linear_model(void)
 {
     tsk_treeseq_t ts;
     double result;
@@ -1211,7 +1211,7 @@ test_paper_ex_trait_regression(void)
     covariates[4] = covariates[6] = 0.0;
     covariates[5] = covariates[7] = 1.0;
 
-    ret = tsk_treeseq_trait_regression(
+    ret = tsk_treeseq_trait_linear_model(
         &ts, 1, weights, 2, covariates, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 0.0, 1e-6);
@@ -1697,9 +1697,9 @@ main(int argc, char **argv)
         { "test_paper_ex_trait_correlation_errors",
             test_paper_ex_trait_correlation_errors },
         { "test_paper_ex_trait_correlation", test_paper_ex_trait_correlation },
-        { "test_paper_ex_trait_regression_errors",
-            test_paper_ex_trait_regression_errors },
-        { "test_paper_ex_trait_regression", test_paper_ex_trait_regression },
+        { "test_paper_ex_trait_linear_model_errors",
+            test_paper_ex_trait_linear_model_errors },
+        { "test_paper_ex_trait_linear_model", test_paper_ex_trait_linear_model },
         { "test_paper_ex_diversity_errors", test_paper_ex_diversity_errors },
         { "test_paper_ex_diversity", test_paper_ex_diversity },
         { "test_paper_ex_segregating_sites_errors",

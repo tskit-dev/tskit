@@ -4305,13 +4305,13 @@ class TestSiteTraitCorrelation(
 
 
 ##############################
-# Trait regression
+# Trait linear_model
 ##############################
 
 
-def regression(y, x, z):
+def linear_model(y, x, z):
     """
-    Returns the squared coefficient of x in the least-squares linear regression
+    Returns the squared coefficient of x in the least-squares linear model
     :   y ~ x + z
     where x and y are vectors and z is a matrix.
     Note that if z is None then the output is
@@ -4336,10 +4336,10 @@ def regression(y, x, z):
         return coefs[0] * coefs[0]
 
 
-def site_trait_regression(ts, W, Z, windows=None, span_normalise=True):
+def site_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
     """
     For each site, and for each trait w (column of W), computes the coefficient
-    of site in the linear regression:
+    of site in the linear model:
       w ~ site + Z
     """
     windows = ts.parse_windows(windows)
@@ -4363,7 +4363,7 @@ def site_trait_regression(ts, W, Z, windows=None, span_normalise=True):
                     for a in alleles:
                         p = np.mean(hX == a)
                         if p > 0 and p < 1:
-                            S += regression(w, hX == a, Z) / 2
+                            S += linear_model(w, hX == a, Z) / 2
             if site_in_window:
                 out[j, i] = S
                 if span_normalise:
@@ -4371,9 +4371,9 @@ def site_trait_regression(ts, W, Z, windows=None, span_normalise=True):
     return out
 
 
-def branch_trait_regression(ts, W, Z, windows=None, span_normalise=True):
+def branch_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
     """
-    For each branch, computes the regression of each column of W onto the split
+    For each branch, fits the linear_model of each column of W onto the split
     induced by the branch and the covariates Z, multiplied by the length of the branch,
     returning the squared coefficient of the column of W.
     """
@@ -4400,7 +4400,7 @@ def branch_trait_regression(ts, W, Z, windows=None, span_normalise=True):
                 for u in range(ts.num_nodes):
                     below = np.in1d(samples, list(tr.samples(u)))
                     branch_length = tr.branch_length(u)
-                    SS += regression(w, below, Z) * branch_length
+                    SS += linear_model(w, below, Z) * branch_length
                 S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
             if has_trees:
                 out[j, i] = S
@@ -4409,9 +4409,9 @@ def branch_trait_regression(ts, W, Z, windows=None, span_normalise=True):
     return out
 
 
-def node_trait_regression(ts, W, Z, windows=None, span_normalise=True):
+def node_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
     """
-    For each node, computes the regression of each columns of W on the split
+    For each node, fits the linear model of each columns of W on the split
     induced by above/below the node and the covariates Z, returning the squared
     coefficient of the column of W.
     """
@@ -4434,7 +4434,7 @@ def node_trait_regression(ts, W, Z, windows=None, span_normalise=True):
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
                     below = np.in1d(samples, list(tr.samples(u)))
-                    SS[u] += regression(w, below, Z)
+                    SS[u] += linear_model(w, below, Z)
                 S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
             out[j, :, i] = S
             if span_normalise:
@@ -4442,16 +4442,16 @@ def node_trait_regression(ts, W, Z, windows=None, span_normalise=True):
     return out
 
 
-def trait_regression(ts, W, Z, windows=None, mode="site", span_normalise=True):
+def trait_linear_model(ts, W, Z, windows=None, mode="site", span_normalise=True):
     method_map = {
-        "site": site_trait_regression,
-        "node": node_trait_regression,
-        "branch": branch_trait_regression,
+        "site": site_trait_linear_model,
+        "node": node_trait_linear_model,
+        "branch": branch_trait_linear_model,
     }
     return method_map[mode](ts, W, Z, windows=windows, span_normalise=span_normalise)
 
 
-class TestTraitRegression(StatsTestCase, WeightStatsMixin):
+class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -4492,9 +4492,9 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
             example_windows(ts),
             p=0.04,
         ):
-            self.verify_trait_regression(ts, W, Z, windows=windows)
+            self.verify_trait_linear_model(ts, W, Z, windows=windows)
 
-    def verify_trait_regression(self, ts, W, Z, windows):
+    def verify_trait_linear_model(self, ts, W, Z, windows):
         n, result_dim = W.shape
         tZ = self.transform_covariates(Z)
         n, k = tZ.shape
@@ -4539,10 +4539,10 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
             sigma2 = general_stat(
                 ts, gW, wrapped_summary_func, windows, mode=self.mode, span_normalise=sn
             )
-            sigma3 = ts.trait_regression(
+            sigma3 = ts.trait_linear_model(
                 W, Z, windows=windows, mode=self.mode, span_normalise=sn
             )
-            sigma4 = trait_regression(
+            sigma4 = trait_linear_model(
                 ts, W, Z, windows=windows, mode=self.mode, span_normalise=sn
             )
 
@@ -4554,17 +4554,17 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
-class TraitRegressionMixin:
+class TraitLinearModelMixin:
     def test_interface(self):
         ts = self.get_example_ts()
         W = np.array([np.arange(ts.num_samples)]).T
         Z = np.ones((ts.num_samples, 1))
-        sigma1 = ts.trait_regression(W, Z=Z, mode=self.mode)
-        sigma2 = ts.trait_regression(W, Z=Z, windows=None, mode=self.mode)
-        sigma3 = ts.trait_regression(
+        sigma1 = ts.trait_linear_model(W, Z=Z, mode=self.mode)
+        sigma2 = ts.trait_linear_model(W, Z=Z, windows=None, mode=self.mode)
+        sigma3 = ts.trait_linear_model(
             W, Z=Z, windows=[0.0, ts.sequence_length], mode=self.mode
         )
-        sigma4 = ts.trait_regression(
+        sigma4 = ts.trait_linear_model(
             W, Z=None, windows=[0.0, ts.sequence_length], mode=self.mode
         )
         assert sigma1.shape == sigma2.shape
@@ -4581,35 +4581,42 @@ class TraitRegressionMixin:
         Z = np.ones((ts.num_samples, 1))
         # singular covariates
         with pytest.raises(ValueError):
-            ts.trait_regression(
+            ts.trait_linear_model(
                 W,
                 np.ones((ts.num_samples, 2)),
                 mode=self.mode,
             )
         # wrong dimensions of W
         with pytest.raises(ValueError):
-            ts.trait_regression(W[1:, :], Z, mode=self.mode)
+            ts.trait_linear_model(W[1:, :], Z, mode=self.mode)
         # wrong dimensions of Z
         with pytest.raises(ValueError):
-            ts.trait_regression(W, Z[1:, :], mode=self.mode)
+            ts.trait_linear_model(W, Z[1:, :], mode=self.mode)
+
+    def test_deprecation(self):
+        ts = self.get_example_ts()
+        W = np.array([np.arange(ts.num_samples)]).T
+        Z = np.ones((ts.num_samples, 1))
+        with pytest.warns(FutureWarning):
+            ts.trait_regression(W, Z=Z, mode=self.mode)
 
 
 @pytest.mark.slow
-class TestBranchTraitRegression(
-    TestTraitRegression, TopologyExamplesMixin, TraitRegressionMixin
+class TestBranchTraitLinearModel(
+    TestTraitLinearModel, TopologyExamplesMixin, TraitLinearModelMixin
 ):
     mode = "branch"
 
 
 @pytest.mark.slow
-class TestNodeTraitRegression(
-    TestTraitRegression, TopologyExamplesMixin, TraitRegressionMixin
+class TestNodeTraitLinearModel(
+    TestTraitLinearModel, TopologyExamplesMixin, TraitLinearModelMixin
 ):
     mode = "node"
 
 
-class TestSiteTraitRegression(
-    TestTraitRegression, MutatedTopologyExamplesMixin, TraitRegressionMixin
+class TestSiteTraitLinearModel(
+    TestTraitLinearModel, MutatedTopologyExamplesMixin, TraitLinearModelMixin
 ):
     mode = "site"
 
@@ -5073,15 +5080,15 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertArrayAlmostEqual(ts_mean_cor, true_branch_cor)
         self.assertArrayAlmostEqual(ts_mean_cor, py_mean_cor)
 
-        # trait regression:
+        # trait linear_model:
         # r = cor * sd(y) / sd(x) = cov / var(x)
         # geno_var = allele_freqs * (1 - allele_freqs) * (3 / (3 - 1))
         geno_var = np.var(haplotypes, axis=1) * (3 / (3 - 1))
         trait_var = np.var(traits, axis=0) * (3 / (3 - 1))
-        py_r = trait_regression(
+        py_r = trait_linear_model(
             ts, traits, None, mode="site", windows="sites", span_normalise=False
         )
-        ts_r = ts.trait_regression(
+        ts_r = ts.trait_linear_model(
             traits, None, mode="site", windows="sites", span_normalise=False
         )
         self.assertArrayAlmostEqual(py_r, ts_r)

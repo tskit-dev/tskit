@@ -1117,14 +1117,14 @@ class TestTraitCorrelation(LowLevelTestCase, WeightMixin):
         return ts, ts.trait_correlation
 
 
-class TestTraitRegression(LowLevelTestCase, WeightCovariateMixin):
+class TestTraitLinearModel(LowLevelTestCase, WeightCovariateMixin):
     """
     Tests for trait correlation.
     """
 
     def get_method(self):
         ts = self.get_example_tree_sequence()
-        return ts, ts.trait_regression
+        return ts, ts.trait_linear_model
 
 
 class TestSegregatingSites(LowLevelTestCase, OneWaySampleStatsMixin):

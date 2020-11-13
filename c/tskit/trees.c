@@ -2518,7 +2518,7 @@ out:
 }
 
 static int
-trait_regression_summary_func(size_t state_dim, const double *state, size_t result_dim,
+trait_linear_model_summary_func(size_t state_dim, const double *state, size_t result_dim,
     double *result, void *params)
 {
     covariates_stat_params_t args = *(covariates_stat_params_t *) params;
@@ -2564,7 +2564,7 @@ trait_regression_summary_func(size_t state_dim, const double *state, size_t resu
 }
 
 int
-tsk_treeseq_trait_regression(const tsk_treeseq_t *self, tsk_size_t num_weights,
+tsk_treeseq_trait_linear_model(const tsk_treeseq_t *self, tsk_size_t num_weights,
     const double *weights, tsk_size_t num_covariates, const double *covariates,
     tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options)
 {
@@ -2622,8 +2622,8 @@ tsk_treeseq_trait_regression(const tsk_treeseq_t *self, tsk_size_t num_weights,
     }
 
     ret = tsk_treeseq_general_stat(self, num_weights + num_covariates + 1, new_weights,
-        num_weights, trait_regression_summary_func, &args, num_windows, windows, result,
-        options);
+        num_weights, trait_linear_model_summary_func, &args, num_windows, windows,
+        result, options);
 
 out:
     tsk_safe_free(V);
