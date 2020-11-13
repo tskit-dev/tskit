@@ -5509,6 +5509,48 @@ class TreeSequence:
         :ref:`polarised <sec_stats_polarisation>`,
         and :ref:`return value <sec_stats_output_format>`.
 
+        What is computed depends on ``mode``:
+
+        "site"
+            Number of pairwise allelic matches in the window between two
+            sample sets relative to the rest of the sample sets. To be precise,
+            let `m(u,v)` denote the total number of alleles shared between
+            nodes `u` and `v`, and let `m(I,J)` be the sum of `m(u,v)` over all
+            nodes `u` in sample set `I` and `v` in sample set `J`. Let `S` and
+            `T` be independently chosen sample sets. Then, for sample sets `I`
+            and `J`, this computes `E[m(I,J) - m(I,S) - m(J,T) + m(S,T)]`.
+            This can also be seen as the covariance of a quantitative trait
+            determined by additive contributions from the genomes in each
+            sample set. Let each allele be associated with an effect drawn from
+            a `N(0,1/2)` distribution, and let the trait value of a sample set
+            be the sum of its allele effects. Then, this computes the covariance
+            between the trait values of two sample sets. For example, to
+            compute covariance between the traits of diploid individuals, each
+            sample set would be the pair of genomes of each individual; if
+            ``proportion=True``, this then corresponds to :math:`K_{c0}` in
+            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_.
+
+        "branch"
+            Total area of branches in the window ancestral to pairs of samples
+            in two sample sets relative to the rest of the sample sets. To be
+            precise, let `B(u,v)` denote the total area of all branches
+            ancestral to nodes `u` and `v`, and let `B(I,J)` be the sum of
+            `B(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
+            `J`. Let `S` and `T` be two independently chosen sample sets. Then
+            for sample sets `I` and `J`, this computes
+            `E[B(I,J) - B(I,S) - B(J,T) + B(S,T)]`.
+
+        "node"
+            For each node, the proportion of the window over which pairs of
+            samples in two sample sets are descendants, relative to the rest of
+            the sample sets. To be precise, for each node `n`, let `N(u,v)`
+            denote the proportion of the window over which samples `u` and `v`
+            are descendants of `n`, and let and let `N(I,J)` be the sum of
+            `N(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
+            `J`. Let `S` and `T` be two independently chosen sample sets. Then
+            for sample sets `I` and `J`, this computes
+            `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]`.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
@@ -5518,8 +5560,12 @@ class TreeSequence:
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
-        :param bool proportion: Whether to divide the result by the number of
-            segregating sites (defaults to True).
+        :param bool proportion: Whether to divide the result by
+            :meth:`.segregating_sites`, called with the same ``windows`` and
+            ``mode`` (defaults to True). Note that this counts sites
+            that are segregating between *any* of the samples of *any* of the
+            sample sets (rather than segregating between all of the samples of
+            the tree sequence).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if proportion:

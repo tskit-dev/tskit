@@ -43,6 +43,7 @@ Single site statistics
 - :meth:`TreeSequence.divergence`
 - :meth:`TreeSequence.segregating_sites`
 - :meth:`TreeSequence.allele_frequency_spectrum`
+- :meth:`TreeSequence.genetic_relatedness`
 
 ------------------------
 Patterson's f statistics
@@ -568,6 +569,12 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
 
    For an unpolarized statistic with biallelic loci, this calculates
    :math:`p_1 (1-p_2) + (1 - p_1) p_2`.
+
+``genetic_relatedness``
+   :math:`f(x_i, x_j) = \frac{1}{2}(x_i - m)(x_j - m)`,
+
+   where :math:`m = \frac{1}{n}\sum_{k=1}^n x_k` with :math:`n` the total number
+   of samples.
 
 ``Y2``
    :math:`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
