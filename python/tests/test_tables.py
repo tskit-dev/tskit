@@ -36,6 +36,7 @@ import unittest
 import warnings
 
 import attr
+import kastore
 import msprime
 import numpy as np
 import pytest
@@ -588,6 +589,15 @@ class CommonTestsMixin:
             # Different types should always be unequal.
             assert t1 is not None
             assert t1 != []
+
+    def test_nbytes(self):
+        for num_rows in [0, 10, 100]:
+            input_data = self.make_input_data(num_rows)
+            table = self.table_class()
+            table.set_columns(**input_data)
+            # We don't have any metadata_schema here, so we can sum over the
+            # columns directly.
+            assert sum(col.nbytes for col in input_data.values()) == table.nbytes
 
     def test_bad_offsets(self):
         for num_rows in [10, 100]:
@@ -2259,10 +2269,23 @@ class TestTableCollection:
         s = str(tables)
         assert len(s) > 0
 
-    def test_asdict(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        t = ts.tables
-        self.add_metadata(t)
+    def test_nbytes(self, tmp_path, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        tables.dump(tmp_path / "tables")
+        store = kastore.load(tmp_path / "tables")
+        for v in store.values():
+            # Check we really have data in every field
+            assert v.nbytes > 0
+        nbytes = sum(
+            array.nbytes
+            for name, array in store.items()
+            # nbytes is the size of asdict, so exclude file format items
+            if name not in ["format/version", "format/name", "uuid"]
+        )
+        assert nbytes == tables.nbytes
+
+    def test_asdict(self, ts_fixture):
+        t = ts_fixture.dump_tables()
         d1 = {
             "encoding_version": (1, 2),
             "sequence_length": t.sequence_length,
@@ -2286,10 +2309,8 @@ class TestTableCollection:
         assert t1.has_index()
         assert t2.has_index()
 
-    def test_from_dict(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        t1 = ts.tables
-        self.add_metadata(t1)
+    def test_from_dict(self, ts_fixture):
+        t1 = ts_fixture.tables
         d = {
             "encoding_version": (1, 1),
             "sequence_length": t1.sequence_length,
@@ -2308,19 +2329,13 @@ class TestTableCollection:
         t2 = tskit.TableCollection.fromdict(d)
         assert t1 == t2
 
-    def test_roundtrip_dict(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        t1 = ts.tables
+    def test_roundtrip_dict(self, ts_fixture):
+        t1 = ts_fixture.tables
         t2 = tskit.TableCollection.fromdict(t1.asdict())
         assert t1 == t2
 
-        self.add_metadata(t1)
-        t2 = tskit.TableCollection.fromdict(t1.asdict())
-        assert t1 == t2
-
-    def test_name_map(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        tables = ts.tables
+    def test_name_map(self, ts_fixture):
+        tables = ts_fixture.tables
         td1 = {
             "individuals": tables.individuals,
             "populations": tables.populations,
@@ -2346,16 +2361,8 @@ class TestTableCollection:
             sequence_length=2
         )
 
-    def test_copy(self):
-        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
-        migration_matrix = [[0, 1], [1, 0]]
-        t1 = msprime.simulate(
-            population_configurations=pop_configs,
-            migration_matrix=migration_matrix,
-            mutation_rate=1,
-            record_migrations=True,
-            random_seed=100,
-        ).dump_tables()
+    def test_copy(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
         assert t1 is not t2
         assert t1 == t2
@@ -2421,16 +2428,8 @@ class TestTableCollection:
         t2.populations.clear()
         assert t1 == t2
 
-    def test_equals_options(self):
-        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
-        migration_matrix = [[0, 1], [1, 0]]
-        t1 = msprime.simulate(
-            population_configurations=pop_configs,
-            migration_matrix=migration_matrix,
-            mutation_rate=1,
-            record_migrations=True,
-            random_seed=1,
-        ).dump_tables()
+    def test_equals_options(self, ts_fixture):
+        t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
 
         t1.provenances.add_row("random stuff")
@@ -2472,9 +2471,8 @@ class TestTableCollection:
             tables = tskit.TableCollection(sequence_length=sequence_length)
             assert tables.sequence_length == sequence_length
 
-    def test_uuid_simulation(self):
-        ts = msprime.simulate(10, random_seed=1)
-        tables = ts.tables
+    def test_uuid_simulation(self, ts_fixture):
+        tables = ts_fixture.tables
         assert tables.file_uuid is None, None
 
     def test_uuid_empty(self):
@@ -2511,9 +2509,8 @@ class TestTableCollection:
         ts = tables.tree_sequence()
         assert ts.tables == tables
 
-    def test_index_from_ts(self):
-        ts = msprime.simulate(10, random_seed=1)
-        tables = ts.dump_tables()
+    def test_index_from_ts(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
         assert tables.has_index()
         tables.drop_index()
         assert not tables.has_index()
@@ -2535,8 +2532,8 @@ class TestTableCollection:
             tables.sequence_length = value
             assert tables.sequence_length == value
 
-    def test_bad_sequence_length(self):
-        tables = msprime.simulate(10, random_seed=1).dump_tables()
+    def test_bad_sequence_length(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
         assert tables.sequence_length == 1
         for value in [-1, 0, -0.99, 0.9999]:
             tables.sequence_length = value
@@ -2552,8 +2549,8 @@ class TestTableCollection:
                 tables.simplify()
             assert tables.sequence_length == value
 
-    def test_sequence_length_longer_than_edges(self):
-        tables = msprime.simulate(10, random_seed=1).dump_tables()
+    def test_sequence_length_longer_than_edges(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
         tables.sequence_length = 2
         ts = tables.tree_sequence()
         assert ts.sequence_length == 2

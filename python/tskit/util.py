@@ -377,7 +377,7 @@ def tree_sequence_html(ts):
                   <tr>
                     <td>{name.capitalize()}</td>
                       <td>{table.num_rows}</td>
-                      <td>TODO! {naturalsize(99999)}</td>
+                      <td>{naturalsize(table.nbytes)}</td>
                       <td style="text-align: center;">
                         {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
         else ''}
@@ -412,7 +412,7 @@ def tree_sequence_html(ts):
                       <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
                       <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
                       <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
-                      <tr><td>Total Size</td><td>TODO! {naturalsize(99999)}</td></tr>
+                      <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
                       <tr>
                         <td>Metadata</td><td style="text-align: left;">{obj_to_collapsed_html(ts.metadata, None, 1) if len(ts.tables.metadata_bytes) > 0 else "No Metadata"}</td></tr>
                     </tbody>

@@ -38,6 +38,10 @@
   collections that are not valid tree sequences to be manipulated.
   (:user:`benjeffery`, :issue:`14`, :pr:`986`)
 
+- Added ``nbytes`` method to tables, ``TableCollection`` and ``TreeSequence`` which
+  reports the size in bytes of those objects.
+  (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`54`, :pr:`871`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
