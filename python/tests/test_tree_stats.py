@@ -930,6 +930,7 @@ class WeightStatsMixin:
         """
         Generate a series of example weights from the specfied tree sequence.
         """
+        np.random.seed(46)
         for k in [min_size, min_size + 1, min_size + 10]:
             W = 1.0 + np.zeros((ts.num_samples, k))
             W[0, :] = 2.0
@@ -3377,6 +3378,7 @@ class TestSampleSets(StatsTestCase):
             ts.sample_count_stat([[ts.num_samples]], self.identity_f(ts), 1)
 
     def test_span_normalise(self):
+        np.random.seed(92)
         ts = self.get_example_ts()
         sample_sets = [[0, 1], [2, 3, 4], [5, 6]]
         windows = ts.sequence_length * np.random.uniform(size=10)
@@ -4323,7 +4325,11 @@ def regression(y, x, z):
         if np.linalg.matrix_rank(xz) == xz.shape[1]:
             z = xz
     xz = np.column_stack([x, z])
-    if np.linalg.matrix_rank(xz) < xz.shape[1]:
+    # check if y is sufficiently independent of the subspace spanned by xz
+    Pz = np.matmul(z, np.linalg.pinv(z))
+    Py = np.matmul(Pz, y)
+    denom = np.sum((y - Py) ** 2)
+    if np.linalg.matrix_rank(xz) < xz.shape[1] or denom < 1e-8:
         return 0.0
     else:
         coefs, _, _, _ = np.linalg.lstsq(xz, y, rcond=None)
@@ -4455,6 +4461,7 @@ class TestTraitRegression(StatsTestCase, WeightStatsMixin):
         return ts
 
     def example_covariates(self, ts):
+        np.random.seed(999)
         N = ts.num_samples
         for k in [1, 2, 5]:
             k = min(k, ts.num_samples)

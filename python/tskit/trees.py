@@ -5675,7 +5675,7 @@ class TreeSequence:
     ):
         """
         For each trait w (i.e., each column of W), performs the least-squares
-        linear regression :math:`w ~ g + Z`,
+        linear regression :math:`w \\sim g + Z`,
         where :math:`g` is inheritance in the tree sequence and the columns of :math:`Z`
         are covariates, and computes the squared coefficient of :math:`g` in this
         regression.
