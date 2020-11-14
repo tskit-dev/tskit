@@ -14,6 +14,8 @@
 - Exposed ``tsk_table_collection_set_indexes`` to the API.
   (:user:`benjeffery`, :issue:`870`, :pr:`921`)
 
+- Renamed ``ts.trait_regression`` to ``ts.trait_linear_model``.
+
 ---------------------
 [0.99.7] - 2020-09-29
 ---------------------

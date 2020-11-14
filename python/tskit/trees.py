@@ -5725,15 +5725,27 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
-    def trait_regression(
+    def trait_regression(self, *args, **kwargs):
+        """
+        Deprecated synonym for
+        :meth:`trait_linear_model <.TreeSequence.trait_linear_model>`.
+        """
+        warnings.warn(
+            "This is deprecated: please use trait_linear_model( ) instead.",
+            FutureWarning,
+        )
+        return self.trait_linear_model(*args, **kwargs)
+
+    def trait_linear_model(
         self, W, Z=None, windows=None, mode="site", span_normalise=True
     ):
         """
-        For each trait w (i.e., each column of W), performs the least-squares
-        linear regression :math:`w \\sim g + Z`,
-        where :math:`g` is inheritance in the tree sequence and the columns of :math:`Z`
-        are covariates, and computes the squared coefficient of :math:`g` in this
-        regression.
+        Finds the relationship between trait and genotype after accounting for
+        covariates.  Concretely, for each trait w (i.e., each column of W),
+        this does a least-squares fit of the linear model :math:`w \\sim g + Z`,
+        where :math:`g` is inheritance in the tree sequence (e.g., genotype)
+        and the columns of :math:`Z` are covariates, and returns the squared
+        coefficient of :math:`g` in this linear model.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
         :ref:`windows <sec_stats_windows>`,
         :ref:`mode <sec_stats_mode>`,
@@ -5741,13 +5753,13 @@ class TreeSequence:
         and :ref:`return value <sec_stats_output_format>`.
         Operates on all samples in the tree sequence.
 
-        Concretely, if `g` is a binary vector that indicates inheritance from an allele,
+        To do this, if `g` is a binary vector that indicates inheritance from an allele,
         branch, or node and `w` is a column of W, there are :math:`k` columns of
         :math:`Z`, and the :math:`k+2`-vector :math:`b` minimises
         :math:`\\sum_i (w_i - b_0 - b_1 g_i - b_2 z_{2,i} - ... b_{k+2} z_{k+2,i})^2`
         then this returns the number :math:`b_1^2`. If :math:`g` lies in the linear span
-        of the columns of :math:`Z`, then :math:`b_1` is set to 0. To perform the
-        regression without covariates (only the intercept), set `Z = None`.
+        of the columns of :math:`Z`, then :math:`b_1` is set to 0. To fit the
+        linear model without covariates (only the intercept), set `Z = None`.
 
         What is computed depends on ``mode``:
 
@@ -5801,7 +5813,7 @@ class TreeSequence:
         Z = np.matmul(Z, np.linalg.inv(K))
         return self.__run_windowed_stat(
             windows,
-            self._ll_tree_sequence.trait_regression,
+            self._ll_tree_sequence.trait_linear_model,
             W,
             Z,
             mode=mode,

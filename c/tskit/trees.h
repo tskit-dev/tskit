@@ -313,7 +313,7 @@ typedef int one_way_covariates_method(const tsk_treeseq_t *self, tsk_size_t num_
     const double *weights, tsk_size_t num_covariates, const double *covariates,
     tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options);
 
-int tsk_treeseq_trait_regression(const tsk_treeseq_t *self, tsk_size_t num_weights,
+int tsk_treeseq_trait_linear_model(const tsk_treeseq_t *self, tsk_size_t num_weights,
     const double *weights, tsk_size_t num_covariates, const double *covariates,
     tsk_size_t num_windows, const double *windows, double *result, tsk_flags_t options);
 

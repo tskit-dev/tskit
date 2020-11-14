@@ -7166,10 +7166,10 @@ TreeSequence_trait_correlation(TreeSequence *self, PyObject *args, PyObject *kwd
 }
 
 static PyObject *
-TreeSequence_trait_regression(TreeSequence *self, PyObject *args, PyObject *kwds)
+TreeSequence_trait_linear_model(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_one_way_covariates_method(
-        self, args, kwds, tsk_treeseq_trait_regression);
+        self, args, kwds, tsk_treeseq_trait_linear_model);
 }
 
 static PyObject *
@@ -7589,10 +7589,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_trait_correlation,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes correlation with traits." },
-    { .ml_name = "trait_regression",
-        .ml_meth = (PyCFunction) TreeSequence_trait_regression,
+    { .ml_name = "trait_linear_model",
+        .ml_meth = (PyCFunction) TreeSequence_trait_linear_model,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
-        .ml_doc = "Computes regression coefficients of each trait." },
+        .ml_doc = "Computes coefficients of a linear model for each trait." },
     { .ml_name = "segregating_sites",
         .ml_meth = (PyCFunction) TreeSequence_segregating_sites,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
