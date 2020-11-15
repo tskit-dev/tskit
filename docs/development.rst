@@ -644,7 +644,12 @@ On Debian/Ubuntu, these can be installed using
 
     $ sudo apt install libcunit1-dev ninja-build meson clang-format-6.0
 
-(A more recent version of meson can alternatively be installed using ``pip``, if you wish.)
+**Notes:**
+
+1. A more recent version of meson can alternatively be installed using ``pip``, if you wish.
+2. Recent versions of Debian do not have clang-format-6.0 available;
+    if so, you can install it instead with ``pip`` by running
+    ``pip3 install clang-format==6.0.1 && ln -s clang-format $(which clang-format)-6.0``.
 
 Conda users can install the basic requirements as follows::
 
