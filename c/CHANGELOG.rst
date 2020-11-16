@@ -11,6 +11,11 @@
   current behaviour. (:user:`mufernando`, :user:`jeromekelleher`,
   :issue:`896`, :pr:`897`, :issue:`913`, :pr:`917`).
 
+- Changed default behaviour of ``tsk_table_collection_clear`` to not clear
+  provenances and added ``options`` argument to optionally clear provenances
+  and schemas.
+  (:user:`benjeffery`, :issue:`929`, :pr:`1001`)
+
 - Exposed ``tsk_table_collection_set_indexes`` to the API.
   (:user:`benjeffery`, :issue:`870`, :pr:`921`)
 

@@ -6547,7 +6547,7 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, size_t num_samples,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_table_collection_clear(self->tables);
+    ret = tsk_table_collection_clear(self->tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -7015,11 +7015,7 @@ simplifier_finalise_references(simplifier_t *self)
         }
     }
 
-    ret = tsk_provenance_table_copy(
-        &self->input_tables.provenances, &self->tables->provenances, TSK_NO_INIT);
-    if (ret != 0) {
-        goto out;
-    }
+    ret = 0;
 out:
     tsk_safe_free(population_referenced);
     tsk_safe_free(individual_referenced);
@@ -9018,12 +9014,63 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_clear(tsk_table_collection_t *self)
+tsk_table_collection_clear(tsk_table_collection_t *self, tsk_flags_t options)
 {
-    tsk_bookmark_t start;
+    int ret = 0;
+    bool clear_provenance = !!(options & TSK_CLEAR_PROVENANCE);
+    bool clear_metadata_schemas = !!(options & TSK_CLEAR_METADATA_SCHEMAS);
+    bool clear_ts_metadata = !!(options & TSK_CLEAR_TS_METADATA_AND_SCHEMA);
+    tsk_bookmark_t rows_to_retain
+        = { .provenances = clear_provenance ? 0 : self->provenances.num_rows };
 
-    memset(&start, 0, sizeof(start));
-    return tsk_table_collection_truncate(self, &start);
+    ret = tsk_table_collection_truncate(self, &rows_to_retain);
+    if (ret != 0) {
+        goto out;
+    }
+
+    if (clear_metadata_schemas) {
+        ret = tsk_individual_table_set_metadata_schema(&self->individuals, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_node_table_set_metadata_schema(&self->nodes, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_edge_table_set_metadata_schema(&self->edges, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_migration_table_set_metadata_schema(&self->migrations, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_site_table_set_metadata_schema(&self->sites, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_mutation_table_set_metadata_schema(&self->mutations, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_population_table_set_metadata_schema(&self->populations, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    if (clear_ts_metadata) {
+        ret = tsk_table_collection_set_metadata(self, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_table_collection_set_metadata_schema(self, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
 }
 
 static int
@@ -9114,7 +9161,7 @@ tsk_table_collection_subset(
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_clear(self);
+    ret = tsk_table_collection_clear(self, 0);
     if (ret != 0) {
         goto out;
     }
@@ -9199,13 +9246,7 @@ tsk_table_collection_subset(
         ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
         goto out;
     }
-
-    // provenance (new record is added in python)
-    ret = tsk_provenance_table_copy(
-        &tables.provenances, &self->provenances, TSK_NO_INIT);
-    if (ret < 0) {
-        goto out;
-    }
+    ret = 0;
 
 out:
     tsk_safe_free(node_map);

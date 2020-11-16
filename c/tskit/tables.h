@@ -727,6 +727,11 @@ typedef struct {
 #define TSK_CMP_IGNORE_METADATA (1 << 2)
 #define TSK_CMP_IGNORE_TIMESTAMPS (1 << 3)
 
+/* Flags for tables collection clear */
+#define TSK_CLEAR_METADATA_SCHEMAS (1 << 0)
+#define TSK_CLEAR_TS_METADATA_AND_SCHEMA (1 << 1)
+#define TSK_CLEAR_PROVENANCE (1 << 2)
+
 /****************************************************************************/
 /* Function signatures */
 /****************************************************************************/
@@ -2251,17 +2256,34 @@ int tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
 int tsk_table_collection_free(tsk_table_collection_t *self);
 
 /**
-@brief Clears all tables in this table collection.
+@brief Clears data tables (and optionally provenances and metadata) in
+this table collection.
 
 @rst
+By default this operation clears all tables except the provenance table, retaining
+table metadata schemas and the tree-sequnce level metadata and schema.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_CLEAR_PROVENANCE
+    Additionally clear the provenance table
+TSK_CLEAR_METADATA_SCHEMAS
+    Additionally clear the table metadata schemas
+TSK_CLEAR_TS_METADATA_AND_SCHEMA
+    Additionally clear the tree-sequence metadata and schema
+
 No memory is freed as a result of this operation; please use
 :c:func:`tsk_table_collection_free` to free internal resources.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
+@param options Bitwise clearing options
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_table_collection_clear(tsk_table_collection_t *self);
+int tsk_table_collection_clear(tsk_table_collection_t *self, tsk_flags_t options);
 
 /**
 @brief Returns true if the data in the specified table collection is equal
