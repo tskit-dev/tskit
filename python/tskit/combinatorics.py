@@ -28,10 +28,85 @@ import collections
 import functools
 import heapq
 import itertools
+import random
 
+import attr
 import numpy as np
 
 import tskit
+
+
+@attr.s
+class TreeNode:
+    """
+    Simple linked tree node used for the random binary tree function below.
+    """
+
+    parent = attr.ib(default=None)
+    children = attr.ib(factory=list)
+    label = attr.ib(default=None)
+
+
+def random_binary_tree(leaf_labels, rng):
+    """
+    Based on the description of Remy's method of generating "decorated"
+    random binary trees in TAOCP 7.2.1.6. This is not a direct
+    implementation of Algorithm R, because we are interested in
+    the leaf node labellings.
+    """
+    nodes = [TreeNode(label=leaf_labels[0])]
+    for label in leaf_labels[1:]:
+        n = TreeNode(label=label)
+        x = rng.choice(nodes)
+        internal = TreeNode(parent=x.parent, children=[x, n])
+        if x.parent is not None:
+            index = x.parent.children.index(x)
+            x.parent.children[index] = internal
+        rng.shuffle(internal.children)
+        x.parent = internal
+        n.parent = internal
+        nodes.extend([n, internal])
+
+    # TODO move this to testing code.
+    assert len(nodes) == 2 * len(leaf_labels) - 1
+    for node in nodes:
+        # print("check", node)
+        if node.label is not None:
+            assert len(node.children) == 0
+        for child in node.children:
+            assert child.parent == node
+
+    root = nodes[0]
+    while root.parent is not None:
+        root = root.parent
+    return root
+
+
+def resolve_polytomies(tree, epsilon, seed=None):
+    tables = tree.tree_sequence.dump_tables()
+    tables.keep_intervals([tree.interval], simplify=False)
+    tables.edges.clear()
+    rng = random.Random(seed)
+
+    for u in tree.nodes():
+        if tree.num_children(u) > 2:
+            root = random_binary_tree(tree.children(u), rng)
+            root.label = u
+            time = tree.time(u) - epsilon
+            stack = [(child, time) for child in root.children]
+            while len(stack) > 0:
+                node, time = stack.pop()
+                if node.label is None:
+                    node.label = tables.nodes.add_row(time=time)
+                tables.edges.add_row(*tree.interval, node.parent.label, node.label)
+                for child in node.children:
+                    stack.append((child, time - epsilon))
+        else:
+            for v in tree.children(u):
+                tables.edges.add_row(*tree.interval, u, v)
+    tables.sort()
+    ts = tables.tree_sequence()
+    return ts.at(tree.interval[0])
 
 
 def treeseq_count_topologies(ts, sample_sets):
