@@ -2879,6 +2879,29 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    def clear(
+        self,
+        clear_provenance=False,
+        clear_metadata_schemas=False,
+        clear_ts_metadata_and_schema=False,
+    ):
+        """
+        Remove all rows of the data tables, optionally remove provenance, metadata
+        schemas and ts-level metadata.
+
+        :param bool clear_provenance: If ``True``, remove all rows of the provenance
+            table. (Default: ``False``).
+        :param bool clear_metadata_schemas: If ``True``, clear the table metadata
+            schemas. (Default: ``False``).
+        :param bool clear_ts_metadata_and_schema: If ``True``, clear the tree-sequence
+            level metadata and schema (Default: ``False``).
+        """
+        self._ll_tables.clear(
+            clear_provenance=clear_provenance,
+            clear_metadata_schemas=clear_metadata_schemas,
+            clear_ts_metadata_and_schema=clear_ts_metadata_and_schema,
+        )
+
     def has_index(self):
         """
         Returns True if this TableCollection is indexed.
