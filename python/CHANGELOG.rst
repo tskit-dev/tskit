@@ -77,8 +77,8 @@
 
 **Features**
 
-- Add ``randomly_split_polytomies`` methods for tables and tree sequences
-  (:user:`hyanwong`, :issue:`809`, :pr:`815`)
+- Add ``split_polytomies`` method to the Tree class
+  (:user:`hyanwong`, :user:`jeromekelleher`, :issue:`809`, :pr:`815`)
 
 - Tree accessor functions (e.g. ``ts.first()``, ``ts.at()`` pass extra parameters such as
   ``sample_indexes`` to the underlying ``Tree`` constructor; also ``root_threshold`` can

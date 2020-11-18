@@ -2370,6 +2370,65 @@ class Tree:
         """
         return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
 
+    def split_polytomies(
+        self,
+        *,
+        epsilon=None,
+        method=None,
+        record_provenance=True,
+        random_seed=None,
+    ):
+        """
+        Return a new :class:`.Tree` where extra nodes and edges have been inserted
+        so that any any node ``u`` with greater than 2 children --- a multifurcation
+        or "polytomy" --- is resolved into successive bifurcations. New nodes are
+        inserted at times fractionally less than than the time of node ``u``
+        (controlled by the ``epsilon`` parameter).
+
+        If the ``method`` is ``"random"`` (currently the only option, and the default
+        when no method is specified), then for a node with :math:`n` children, the
+        :math:`(2n - 3)! / (2^(n - 2) (n - 2!))` possible binary trees with equal
+        probability.
+
+        The returned :class`.Tree` will have the same genomic span as this tree,
+        and node IDs will be conserved (that is, node ``u`` in this tree will
+        be the same node in the returned tree). The returned tree is derived from a
+        tree sequence that contains only one non-degenerate tree, that is, where
+        edges cover only the interval spanned by this tree.
+
+        .. note::
+            A tree sequence :ref:`requires<sec_valid_tree_sequence_requirements>` that
+            parents be older than children and that mutations are younger than the
+            parent of the edge on which they lie. If ``epsilon`` is not small enough,
+            compared to the distance between a polytomy and its oldest child (or oldest
+            child mutation) these requirements may not be met. In this case an error is
+            raised, recommending a smaller epsilon value be used.
+
+        :param epsilon: A small time period used to separate each newly inserted node.
+            For a given polytomy of degree :math:`n`, the :math:`n-2` extra nodes are
+            inserted with the oldest at time ``epsilon`` less than the original parent,
+            ``u``, and successive nodes at time ``epsilon`` from each other. Times
+            are allocated to different levels of the tree, such that any newly
+            inserted sibling nodes will have the same time. (Default :math:`1e-10`).
+        :param str method: The method used to break polytomies. Currently only "random"
+            is supported, which can also be specified by ``method=None``
+            (Default: ``None``).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds must be between 1 and
+            :math:`2^32 − 1`.
+        :return: A new tree with polytomies split into random bifurcations.
+        :rtype: tskit.Tree
+        """
+        return combinatorics.split_polytomies(
+            self,
+            epsilon=epsilon,
+            method=method,
+            record_provenance=record_provenance,
+            random_seed=random_seed,
+        )
+
     @staticmethod
     def generate_star(num_leaves, *, span=1, branch_length=1, record_provenance=True):
         """
@@ -6535,65 +6594,6 @@ class TreeSequence:
             ]
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
-
-    def split_polytomies(
-        self,
-        *,
-        epsilon=None,
-        method=None,
-        record_provenance=True,
-        random_seed=None,
-    ):
-        """
-        Return a new tree sequence where extra nodes and edges have been inserted
-        so that any any node ``u`` with greater than 2 children --- a multifurcation
-        or "polytomy" --- is resolved into successive bifurcations. New nodes are
-        inserted at times fractionally less than than the time of node ``u``
-        (controlled by the ``epsilon`` parameter).
-
-        Polytomies are split per node, not per tree, so that if an identical
-        polytomy spans several trees, it will be resolved into a single
-        set of bifurcating splits. However, if on shifting to a new genomic
-        region, the children of node ``u`` change, either being added or removed,
-        an entirely new resolution of the node will be applied to that
-        region.
-
-        If the ``method`` is ``"random"`` (currently the only option, and the default
-        when no method is specified), then for a node with :math:`n` children, the
-        :math:`(2n - 3)!!` possible bifurcating topologies are produced with equal
-        probability.
-
-        .. note::
-            A tree sequence :ref:`requires<sec_valid_tree_sequence_requirements>` that
-            parents be older than children and that mutations are younger than the
-            parent of the edge on which they lie. If ``epsilon`` is not small enough,
-            compared to the distance between a polytomy and its oldest child (or oldest
-            child mutation) these requirements may not be met. In this case an error is
-            raised, recommending a smaller epsilon value be used.
-
-        :param epsilon: A small time period used to separate each newly inserted node.
-            For a given polytomy of degree :math:`n`, the :math:`n-2` extra nodes are
-            inserted with the oldest at time ``epsilon`` less than the original parent,
-            ``u``, and successive nodes at time ``epsilon`` from each other.
-            (Default :math:`1e-10`).
-        :param str method: The method used to break polytomies. Currently only "random"
-            is supported, which can also be specified by ``method=None``
-            (Default: ``None``).
-        :param bool record_provenance: If True, add details of this operation to the
-            provenance information of the returned tree sequence. (Default: True).
-        :param int random_seed: The random seed. If this is None, a random seed will
-            be automatically generated. Valid random seeds must be between 1 and
-            :math:`2^32 − 1`.
-        :return: A new tree sequence with polytomies split into random bifurcations.
-        :rtype: tskit.TreeSequence
-        """
-        return combinatorics.split_polytomies(
-            self,
-            epsilon=epsilon,
-            method=method,
-            record_provenance=record_provenance,
-            random_seed=random_seed,
-        )
 
     ############################################
     #
