@@ -306,7 +306,7 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
                   <span class="tskit-details-label">{name}</span>
                   <details {opened}>
                     <summary>dict</summary>
-                    {"".join(obj_to_collapsed_html(val, key, open_depth)
+                    {"".join(f"{obj_to_collapsed_html(val, key, open_depth)}<br/>"
                              for key, val in d.items())}
                   </details>
                 </div>

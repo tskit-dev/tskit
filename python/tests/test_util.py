@@ -377,21 +377,26 @@ def test_naturalsize(value, expected):
         (
             {"a": 1},
             '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
-            "t</summary>a:1</details></div>",
+            "t</summary>a:1<br/></details></div>",
         ),
         (
             {"b": [1, 2, 3]},
             '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
             't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
-            ">list</summary>1<br/>2<br/>3<br/></details></div></details></div>",
+            ">list</summary>1<br/>2<br/>3<br/></details></div><br/></details></div>",
         ),
         (
             {"b": [1, 2, {"c": 1}]},
             '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
             't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
             '>list</summary>1<br/>2<br/><div><spanclass="tskit-details-label"></span><de'
-            "tails><summary>dict</summary>c:1</details></div><br/></details></div></deta"
-            "ils></div>",
+            "tails><summary>dict</summary>c:1<br/></details></div><br/></details></div><"
+            "br/></details></div>",
+        ),
+        (
+            {"a": "1", "b": "2"},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            "t</summary>a:1<br/>b:2<br/></details></div>",
         ),
     ],
 )
