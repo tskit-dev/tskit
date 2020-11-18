@@ -45,6 +45,10 @@
   reports the size in bytes of those objects.
   (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`54`, :pr:`871`)
 
+- Added ``TableCollection.clear`` to clear data table rows and optionally
+  provenances, table schemas and tree-sequence level metadata and schema.
+  (:user:`benjeffery`, :issue:`929`, :pr:`1001`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.

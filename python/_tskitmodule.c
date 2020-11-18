@@ -5470,6 +5470,45 @@ out:
 }
 
 static PyObject *
+TableCollection_clear(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    tsk_flags_t options = 0;
+    int clear_provenance = false;
+    int clear_metadata_schemas = false;
+    int clear_ts_metadata = false;
+    static char *kwlist[] = { "clear_provenance", "clear_metadata_schemas",
+        "clear_ts_metadata_and_schema", NULL };
+
+    if (TableCollection_check_state(self)) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iii", kwlist, &clear_provenance,
+            &clear_metadata_schemas, &clear_ts_metadata)) {
+        goto out;
+    }
+    if (clear_provenance) {
+        options |= TSK_CLEAR_PROVENANCE;
+    }
+    if (clear_metadata_schemas) {
+        options |= TSK_CLEAR_METADATA_SCHEMAS;
+    }
+    if (clear_ts_metadata) {
+        options |= TSK_CLEAR_TS_METADATA_AND_SCHEMA;
+    }
+
+    err = tsk_table_collection_clear(self->tables, options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_dump(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
@@ -5649,6 +5688,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_meth = (PyCFunction) TableCollection_has_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns True if the TableCollection is indexed." },
+    { .ml_name = "clear",
+        .ml_meth = (PyCFunction) TableCollection_clear,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Clears table contents, and optionally provenances and metadata" },
     { .ml_name = "dump",
         .ml_meth = (PyCFunction) TableCollection_dump,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

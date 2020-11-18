@@ -2369,6 +2369,42 @@ class TestTableCollection:
         t1.edges.clear()
         assert t1 != t2
 
+    def test_clear_table(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        tables.clear()
+        data_tables = [
+            "individuals",
+            "nodes",
+            "edges",
+            "migrations",
+            "sites",
+            "mutations",
+            "populations",
+        ]
+        for table in data_tables:
+            assert getattr(tables, f"{table}").num_rows == 0
+            assert str(getattr(tables, f"{table}").metadata_schema) != ""
+        assert tables.provenances.num_rows > 0
+        assert len(tables.metadata) > 0
+        assert str(tables.metadata_schema) != ""
+
+        tables.clear(clear_provenance=True)
+        assert tables.provenances.num_rows == 0
+        for table in data_tables:
+            assert str(getattr(tables, f"{table}").metadata_schema) != ""
+        assert len(tables.metadata) > 0
+        assert str(tables.metadata_schema) != ""
+
+        tables.clear(clear_metadata_schemas=True)
+        for table in data_tables:
+            assert str(getattr(tables, f"{table}").metadata_schema) == ""
+        assert len(tables.metadata) > 0
+        assert str(tables.metadata_schema) != 0
+
+        tables.clear(clear_ts_metadata_and_schema=True)
+        assert len(tables.metadata) == 0
+        assert str(tables.metadata_schema) == ""
+
     def test_equals(self):
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]

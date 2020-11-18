@@ -576,14 +576,7 @@ def py_subset(tables, nodes, record_provenance=True):
     if np.any(nodes > tables.nodes.num_rows) or np.any(nodes < 0):
         raise ValueError("Nodes out of bounds.")
     full = tables.copy()
-    # there is no table collection clear in the py API
-    tables.nodes.clear()
-    tables.individuals.clear()
-    tables.populations.clear()
-    tables.edges.clear()
-    tables.migrations.clear()
-    tables.sites.clear()
-    tables.mutations.clear()
+    tables.clear()
     # mapping from old to new ids
     node_map = {}
     ind_map = {tskit.NULL: tskit.NULL}

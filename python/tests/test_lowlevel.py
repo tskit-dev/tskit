@@ -865,6 +865,45 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             ts4.dump_tables(tables4)
             assert tables4.has_index()
 
+    def test_clear_table(self, ts_fixture):
+        tables = _tskit.TableCollection(
+            sequence_length=ts_fixture.get_sequence_length()
+        )
+        ts_fixture.ll_tree_sequence.dump_tables(tables)
+        tables.clear()
+        data_tables = [
+            "individuals",
+            "nodes",
+            "edges",
+            "migrations",
+            "sites",
+            "mutations",
+            "populations",
+        ]
+        for table in data_tables:
+            assert getattr(tables, f"{table}").num_rows == 0
+            assert len(getattr(tables, f"{table}").metadata_schema) != 0
+        assert tables.provenances.num_rows > 0
+        assert len(tables.metadata) > 0
+        assert len(tables.metadata_schema) > 0
+
+        tables.clear(clear_provenance=True)
+        assert tables.provenances.num_rows == 0
+        for table in data_tables:
+            assert len(getattr(tables, f"{table}").metadata_schema) != 0
+        assert len(tables.metadata) > 0
+        assert len(tables.metadata_schema) > 0
+
+        tables.clear(clear_metadata_schemas=True)
+        for table in data_tables:
+            assert len(getattr(tables, f"{table}").metadata_schema) == 0
+        assert len(tables.metadata) > 0
+        assert len(tables.metadata_schema) > 0
+
+        tables.clear(clear_ts_metadata_and_schema=True)
+        assert len(tables.metadata) == 0
+        assert len(tables.metadata_schema) == 0
+
 
 class StatsInterfaceMixin:
     """
