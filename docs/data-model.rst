@@ -958,7 +958,8 @@ Accessing roots
 ===============
 
 The roots of a tree are defined as the unique endpoints of upward paths
-starting from sample nodes. Thus, trees can have multiple roots in ``tskit``.
+starting from sample nodes (if no path leads upward from a sample node,
+that node is also a root). Thus, trees can have multiple roots in ``tskit``.
 For example, if we delete the edge joining ``6`` and ``7`` in the previous
 example, we get a tree with two roots:
 
