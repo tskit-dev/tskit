@@ -2247,6 +2247,7 @@ class TableCollection:
     def equals(
         self,
         other,
+        *,
         ignore_metadata=False,
         ignore_ts_metadata=False,
         ignore_provenance=False,
