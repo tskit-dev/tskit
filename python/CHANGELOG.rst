@@ -65,6 +65,11 @@
   of arrays.
   (:user:`benjeffery`, :issue:`1025`, :pr:`1029`)
 
+- The ``map_mutations`` method previously used the Fitch parsimony method, but this
+  does not produce parsimonious results on non-binary trees. We now now use the
+  Hartigan parsimony algorithm, which does. (:user:`jeromekelleher`,
+  :issue:`987`, :pr:`1030`).
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
