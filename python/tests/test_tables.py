@@ -2502,6 +2502,9 @@ class TestTableCollection:
         assert t1.equals(t2)
         assert t2.equals(t1)
 
+        with pytest.raises(TypeError):
+            t1.equals(t2, True)
+
     def test_sequence_length(self):
         for sequence_length in [0, 1, 100.1234]:
             tables = tskit.TableCollection(sequence_length=sequence_length)
