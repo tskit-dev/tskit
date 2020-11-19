@@ -36,7 +36,7 @@ import numpy as np
 import tskit
 
 
-@attr.s
+@attr.s(eq=False)
 class TreeNode:
     """
     Simple linked tree node used for the random binary tree function below.
