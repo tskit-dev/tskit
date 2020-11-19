@@ -2406,6 +2406,7 @@ class TestTableCollection:
         assert str(tables.metadata_schema) == ""
 
     def test_equals(self):
+        # Here we don't use the fixture as we'd like to run the same sim twice
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
         migration_matrix = [[0, 1], [1, 0]]
         t1 = msprime.simulate(

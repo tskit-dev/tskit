@@ -13,11 +13,14 @@
 - Added ``Tree.generate_star`` static method to create star-topologies (:user:`hyanwong`,
   :pr:`934`).
 
-- Added ``equals`` method to TableCollection and each of the tables which
+- Added ``equals`` method to TreeSequence, TableCollection and each of the tables which
   provides more flexible equality comparisons, for example, allowing
   users to ignore metadata or provenance in the comparison.
   (:user:`mufernando`, :user:`jeromekelleher`, :issue:`896`, :pr:`897`,
   :issue:`913`, :pr:`917`).
+
+- Added ``__eq__`` to TreeSequence.
+  (:user:`benjeffery`, :issue:`1011`, :pr:`1020`)
 
 - ``ts.dump`` and ``tskit.load`` now support reading and writing file objects such as
   FIFOs and sockets. (:user:`benjeffery`, :issue:`657`, :pr:`909`)
