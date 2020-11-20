@@ -44,34 +44,6 @@ import tskit
 import tskit.provenance as provenance
 
 
-def ts_equal(ts_1, ts_2, compare_provenances=True):
-    """
-    Check equality of tree sequences, ignoring provenance timestamps (but not contents)
-    """
-    return tables_equal(ts_1.tables, ts_2.tables, compare_provenances)
-
-
-def tables_equal(table_collection_1, table_collection_2, compare_provenances=True):
-    """
-    Check equality of tables, ignoring provenance timestamps (but not contents)
-    """
-    tc_dict_1 = table_collection_1.name_map
-    tc_dict_2 = table_collection_2.name_map
-    for table_name in tc_dict_1.keys():
-        table_1 = tc_dict_1[table_name]
-        table_2 = tc_dict_2[table_name]
-        if table_name == "provenances":
-            if compare_provenances:
-                if np.any(table_1.record != table_2.record):
-                    return False
-                if np.any(table_1.record_offset != table_2.record_offset):
-                    return False
-        else:
-            if table_1 != table_2:
-                return False
-    return True
-
-
 def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=True):
     """
     Simple Python implementation of keep_intervals.
@@ -7378,7 +7350,7 @@ class TestKeepIntervals(TopologyTestCase):
         simple_keep_intervals(t1, intervals, simplify, record_provenance)
         t2 = tables.copy()
         t2.keep_intervals(intervals, simplify, record_provenance)
-        assert tables_equal(t1, t2)
+        assert t1.equals(t2, ignore_timestamps=True)
         return t2
 
     def test_migration_error(self):
@@ -7586,13 +7558,13 @@ class TestKeepDeleteIntervalsExamples:
         ts_delete = ts.delete_intervals(
             [[0, 0.25], [0.5, 1.0]], record_provenance=False
         )
-        assert ts_equal(ts_keep, ts_delete)
+        assert ts_keep == ts_delete
 
     def test_ts_single_tree_delete_middle(self):
         ts = msprime.simulate(10, random_seed=2)
         ts_keep = ts.delete_intervals([[0.25, 0.5]], record_provenance=False)
         ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
-        assert ts_equal(ts_keep, ts_delete)
+        assert ts_keep == ts_delete
 
 
 class TestTrim(unittest.TestCase):
@@ -7837,11 +7809,11 @@ class TestTrim(unittest.TestCase):
         ts = msprime.simulate(10, recombination_rate=2, mutation_rate=50, random_seed=2)
         ts = ts.delete_intervals([[0.1, 0.5]])
         trimmed_ts = ts.ltrim(record_provenance=False)
-        assert ts_equal(ts, trimmed_ts)
+        assert ts == trimmed_ts
         trimmed_ts = ts.rtrim(record_provenance=False)
-        assert ts_equal(ts, trimmed_ts)
+        assert ts == trimmed_ts
         trimmed_ts = ts.trim(record_provenance=False)
-        assert ts_equal(ts, trimmed_ts)
+        assert ts == trimmed_ts
 
     def test_failure_with_migrations(self):
         # All trim functions fail if migrations present

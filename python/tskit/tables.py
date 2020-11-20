@@ -2278,7 +2278,7 @@ class TableCollection:
         :param bool ignore_provenance: If True the provenance tables are
             not included in the comparison.
         :param bool ignore_timestamps: If True the provenance timestamp column
-            is ignored in the comparision. If ``ignore_provenance`` is True, this
+            is ignored in the comparison. If ``ignore_provenance`` is True, this
             parameter has no effect.
         :return: True if other is equal to this table collection; False otherwise.
         :rtype: bool

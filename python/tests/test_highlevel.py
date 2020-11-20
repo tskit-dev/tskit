@@ -1478,6 +1478,94 @@ class TestTreeSequence(HighLevelTestCase):
         )
         assert nbytes == ts_fixture.nbytes
 
+    def test_equals(self):
+        # Here we don't use the fixture as we'd like to run the same sim twice
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 1], [1, 0]]
+        t1 = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            mutation_rate=1,
+            record_migrations=True,
+            random_seed=1,
+        )
+        t2 = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            mutation_rate=1,
+            record_migrations=True,
+            random_seed=1,
+        )
+
+        assert t1 == t1
+        assert t1 == t1.dump_tables().tree_sequence()
+        assert t1.dump_tables().tree_sequence() == t1
+
+        # The provenances may or may not be equal depending on the clock
+        # precision for record. So clear them first.
+        tb1 = t1.dump_tables()
+        tb2 = t2.dump_tables()
+        tb1.provenances.clear()
+        tb2.provenances.clear()
+        t1 = tb1.tree_sequence()
+        t2 = tb2.tree_sequence()
+
+        assert t1 == t2
+        assert t1 == t2
+        assert not (t1 != t2)
+        # We don't do more as this is the same code path as TableCollection.__eq__
+
+    def test_equals_options(self, ts_fixture):
+        t1 = ts_fixture
+        # Take a copy
+        t2 = ts_fixture.dump_tables().tree_sequence()
+
+        def modify(ts, func):
+            tc = ts.dump_tables()
+            func(tc)
+            return tc.tree_sequence()
+
+        t1 = modify(t1, lambda tc: tc.provenances.add_row("random stuff"))
+        assert not (t1 == t2)
+        assert t1.equals(t2, ignore_provenance=True)
+        assert t2.equals(t1, ignore_provenance=True)
+        assert not (t1.equals(t2))
+        assert not (t2.equals(t1))
+        t1 = modify(t1, lambda tc: tc.provenances.clear())
+        t2 = modify(t2, lambda tc: tc.provenances.clear())
+        assert t1.equals(t2)
+        assert t2.equals(t1)
+
+        tc = t1.dump_tables()
+        tc.metadata_schema = tskit.MetadataSchema({"codec": "json", "type": "object"})
+        t1 = tc.tree_sequence()
+        tc = t1.dump_tables()
+        tc.metadata = {"hello": "world"}
+        t1 = tc.tree_sequence()
+
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_ts_metadata=True)
+        assert not t2.equals(t1)
+        assert t2.equals(t1, ignore_ts_metadata=True)
+        tc = t2.dump_tables()
+        tc.metadata_schema = t1.metadata_schema
+        t2 = tc.tree_sequence()
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_ts_metadata=True)
+        assert not t2.equals(t1)
+        assert t2.equals(t1, ignore_ts_metadata=True)
+
+        t1 = modify(t1, lambda tc: tc.provenances.add_row("random stuff"))
+        assert not t1.equals(t2)
+        assert not t1.equals(t2, ignore_ts_metadata=True)
+        assert not t1.equals(t2, ignore_provenance=True)
+        assert t1.equals(t2, ignore_ts_metadata=True, ignore_provenance=True)
+
+        t1 = modify(t1, lambda tc: tc.provenances.clear())
+        t2 = modify(t2, lambda tc: setattr(tc, "metadata", t1.metadata))  # noqa: B010
+        assert t1.equals(t2)
+        assert t2.equals(t1)
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)

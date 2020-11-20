@@ -3014,6 +3014,30 @@ class TreeSequence:
     def __setstate__(self, tc):
         self._ll_tree_sequence = tc.tree_sequence().ll_tree_sequence
 
+    def __eq__(self, other):
+        return self.tables == other.tables
+
+    def equals(
+        self,
+        other,
+        *,
+        ignore_metadata=False,
+        ignore_ts_metadata=False,
+        ignore_provenance=False,
+        ignore_timestamps=False,
+    ):
+        """
+        Returns True if  `self` and `other` are equal. Uses the underlying table equlity,
+        see :meth:`TableCollection.equals` for details and options.
+        """
+        return self.tables.equals(
+            other.tables,
+            ignore_metadata=ignore_metadata,
+            ignore_ts_metadata=ignore_ts_metadata,
+            ignore_provenance=ignore_provenance,
+            ignore_timestamps=ignore_timestamps,
+        )
+
     @property
     def ll_tree_sequence(self):
         return self.get_ll_tree_sequence()
