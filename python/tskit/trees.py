@@ -62,6 +62,19 @@ BaseInterval = collections.namedtuple("BaseInterval", ["left", "right"])
 
 
 class Interval(BaseInterval):
+    """
+    A tuple of 2 numbers, ``[left, right)``, defining an interval over the genome.
+
+    :ivar left: The left hand end of the interval. By convention this value is included
+        in the interval.
+    :vartype left: float
+    :ivar right: The right hand end of the iterval. By convention this value is *not*
+        included in the interval, i.e. the interval is half-open.
+    :vartype right: float
+    :ivar span: The span of the genome covered by this interval, simply ``right-left``.
+    :vartype span: float
+    """
+
     @property
     def span(self):
         return self.right - self.left
@@ -3932,6 +3945,43 @@ class TreeSequence:
             sample_counts=sample_counts,
         )
         return TreeIterator(tree)
+
+    def coiterate(self, other, **kwargs):
+        """
+        Returns an iterator over the pairs of trees for each distinct
+        interval in the specified pair of tree sequences.
+
+        :param TreeSequence other: The other tree sequence from which to take trees. The
+            sequence length must be the same as the current tree sequence.
+        :param \\**kwargs: Further named arguments that will be passed to the
+            :meth:`.trees` method when constructing the returned trees.
+
+        :return: An iterator returning successive tuples of the form
+            ``(interval, tree_self, tree_other)``. For example, the first item returned
+            will consist of an tuple of the initial interval, the first tree of the
+            current tree sequence, and the first tree of the ``other`` tree sequence;
+            the ``.left`` attribute of the initial interval will be 0 and the ``.right``
+            attribute will be the smallest non-zero breakpoint of the 2 tree sequences.
+        :rtype: iter(:class:`Interval`, :class:`Tree`, :class:`Tree`)
+
+        """
+        if self.sequence_length != other.sequence_length:
+            raise ValueError("Tree sequences must be of equal sequence length.")
+        L = self.sequence_length
+        trees1 = self.trees(**kwargs)
+        trees2 = other.trees(**kwargs)
+        tree1 = next(trees1)
+        tree2 = next(trees2)
+        right = 0
+        while right != L:
+            left = right
+            right = min(tree1.interval[1], tree2.interval[1])
+            yield Interval(left, right), tree1, tree2
+            # Advance
+            if tree1.interval[1] == right:
+                tree1 = next(trees1, None)
+            if tree2.interval[1] == right:
+                tree2 = next(trees2, None)
 
     def haplotypes(
         self,
