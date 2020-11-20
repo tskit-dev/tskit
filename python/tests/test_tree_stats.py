@@ -1773,6 +1773,315 @@ class TestSiteDivergence(TestDivergence, MutatedTopologyExamplesMixin):
 
 
 ############################################
+# Genetic relatedness
+############################################
+
+
+def site_genetic_relatedness(
+    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+):
+    out = np.zeros((len(windows) - 1, len(indexes)))
+    samples = [u for u in ts.samples()]
+    all_samples = list({u for s in sample_sets for u in s})
+    sample_ind = [samples.index(x) for x in all_samples]
+    haps = ts.genotype_matrix(isolated_as_missing=False).T
+    haps = haps[sample_ind]
+    denom = np.ones(len(windows))
+    if proportion:
+        denom = ts.segregating_sites(
+            sample_sets=all_samples,
+            windows=windows,
+            mode="site",
+            span_normalise=span_normalise,
+        )
+    alleles = np.unique(haps)
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        site_positions = [x.position for x in ts.sites()]
+        for i, (ix, iy) in enumerate(indexes):
+            X = sample_sets[ix]
+            Y = sample_sets[iy]
+            S = 0
+            for a in alleles:
+                this_haps = haps == a
+                haps_mean = this_haps.mean(axis=0)
+                haps_centered = this_haps - haps_mean
+                for k in range(ts.num_sites):
+                    if (site_positions[k] >= begin) and (site_positions[k] < end):
+                        for x in X:
+                            x_index = np.where(all_samples == x)[0][0]
+                            for y in Y:
+                                y_index = np.where(all_samples == y)[0][0]
+                                S += (
+                                    haps_centered[x_index][k]
+                                    * haps_centered[y_index][k]
+                                    / 2
+                                )
+            with np.errstate(invalid="ignore", divide="ignore"):
+                out[j][i] = S / denom[j]
+            if span_normalise:
+                out[j][i] /= end - begin
+    return out
+
+
+def branch_genetic_relatedness(
+    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+):
+    out = np.zeros((len(windows) - 1, len(indexes)))
+    all_samples = list({u for s in sample_sets for u in s})
+    denom = np.ones(len(windows))
+    if proportion:
+        denom = ts.segregating_sites(
+            sample_sets=all_samples,
+            windows=windows,
+            mode="branch",
+            span_normalise=span_normalise,
+        )
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for tr in ts.trees():
+            if tr.interval[1] <= begin:
+                continue
+            if tr.interval[0] >= end:
+                break
+            branches = [(c, tr.parent(c)) for c in tr.nodes()]
+            span = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+            for B in branches:
+                v = B[0]
+                area = tr.branch_length(v) * span
+                haps = np.zeros(len(all_samples))
+                for x, u in enumerate(all_samples):
+                    haps[x] = np.int(tr.is_descendant(u, v))
+                haps_mean = haps.mean()
+                haps_centered = haps - haps_mean
+                for i, (ix, iy) in enumerate(indexes):
+                    X = sample_sets[ix]
+                    Y = sample_sets[iy]
+                    for x in X:
+                        x_index = np.where(all_samples == x)[0][0]
+                        for y in Y:
+                            y_index = np.where(all_samples == y)[0][0]
+                            out[j][i] += (
+                                area * haps_centered[x_index] * haps_centered[y_index]
+                            )
+        for i in range(len(indexes)):
+            with np.errstate(invalid="ignore", divide="ignore"):
+                out[j][i] /= denom[j]
+            if span_normalise:
+                out[j][i] /= end - begin
+    return out
+
+
+def node_genetic_relatedness(
+    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+):
+    out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
+    all_samples = list({u for s in sample_sets for u in s})
+    denom = np.ones((len(windows), ts.num_nodes))
+    if proportion:
+        denom = ts.segregating_sites(
+            sample_sets=all_samples,
+            windows=windows,
+            mode="node",
+            span_normalise=span_normalise,
+        )
+    for j in range(len(windows) - 1):
+        begin = windows[j]
+        end = windows[j + 1]
+        for tr in ts.trees():
+            span = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+            if tr.interval[1] <= begin:
+                continue
+            if tr.interval[0] >= end:
+                break
+            for v in tr.nodes():
+                haps = np.zeros(len(all_samples))
+                for x, u in enumerate(all_samples):
+                    haps[x] = np.int(tr.is_descendant(u, v))
+                haps_mean = haps.mean()
+                haps_centered = haps - haps_mean
+                for i, (ix, iy) in enumerate(indexes):
+                    X = sample_sets[ix]
+                    Y = sample_sets[iy]
+                    for x in X:
+                        x_index = np.where(all_samples == x)[0][0]
+                        for y in Y:
+                            y_index = np.where(all_samples == y)[0][0]
+                            out[j][v][i] += (
+                                haps_centered[x_index] * haps_centered[y_index] * span
+                            )
+        for i in range(len(indexes)):
+            for v in ts.nodes():
+                iV = v.id
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    out[j, iV, i] /= denom[j, iV]
+                if span_normalise:
+                    out[j, iV, i] /= end - begin
+    return out
+
+
+def genetic_relatedness(
+    ts,
+    sample_sets,
+    indexes=None,
+    windows=None,
+    mode="site",
+    span_normalise=True,
+    proportion=True,
+):
+    """
+    Computes genetic relatedness between two random choices from x
+    over the window specified.
+    """
+    windows = ts.parse_windows(windows)
+    if indexes is None:
+        indexes = [(0, 1)]
+    method_map = {
+        "site": site_genetic_relatedness,
+        "node": node_genetic_relatedness,
+        "branch": branch_genetic_relatedness,
+    }
+    return method_map[mode](
+        ts,
+        sample_sets,
+        indexes=indexes,
+        windows=windows,
+        span_normalise=span_normalise,
+        proportion=proportion,
+    )
+
+
+class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
+
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify_definition(
+        self,
+        ts,
+        sample_sets,
+        indexes,
+        windows,
+        summary_func,
+        ts_method,
+        definition,
+        proportion,
+    ):
+        def wrapped_summary_func(x):
+            with suppress_division_by_zero_warning():
+                return summary_func(x)
+
+        W = np.array([[u in A for A in sample_sets] for u in ts.samples()], dtype=float)
+        # Determine output_dim of the function
+        M = len(wrapped_summary_func(W[0]))
+        denom = 1
+        if proportion:
+            all_samples = list({u for s in sample_sets for u in s})
+            denom = ts.segregating_sites(
+                sample_sets=[all_samples], windows=windows, mode=self.mode
+            )
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            sigma1 = (
+                ts.general_stat(W, wrapped_summary_func, M, windows, mode=self.mode)
+                / denom
+            )
+            sigma2 = (
+                general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
+                / denom
+            )
+        sigma3 = ts_method(
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=self.mode,
+            proportion=proportion,
+        )
+        sigma4 = definition(
+            ts,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=self.mode,
+            proportion=proportion,
+        )
+        assert sigma1.shape == sigma2.shape
+        assert sigma1.shape == sigma3.shape
+        assert sigma1.shape == sigma4.shape
+        self.assertArrayAlmostEqual(sigma1, sigma2)
+        self.assertArrayAlmostEqual(sigma1, sigma3)
+        self.assertArrayAlmostEqual(sigma1, sigma4)
+
+    def verify_sample_sets_indexes(self, ts, sample_sets, indexes, windows):
+
+        n = np.array([len(x) for x in sample_sets])
+        n_total = sum(n)
+
+        def f(x):
+            mx = np.sum(x) / n_total
+            return np.array(
+                [(x[i] - n[i] * mx) * (x[j] - n[j] * mx) / 2 for i, j in indexes]
+            )
+
+        for proportion in [True, False]:
+            self.verify_definition(
+                ts,
+                sample_sets,
+                indexes,
+                windows,
+                f,
+                ts.genetic_relatedness,
+                genetic_relatedness,
+                proportion,
+            )
+
+
+class TestBranchGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
+    mode = "branch"
+
+
+class TestNodeGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
+    mode = "node"
+
+
+class TestSiteGeneticRelatedness(TestGeneticRelatedness, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+    def test_match_K_c0(self):
+        # This test checks that ts.genetic_relatedness() matches K_c0
+        # from Speed & Balding (2014) https://www.nature.com/articles/nrg3821
+        ts = msprime.simulate(
+            10, mutation_rate=0.01, length=100, recombination_rate=0.01, random_seed=23
+        )
+        samples = [u for u in ts.samples()]
+        sample_sets = [[0, 1], [2, 3], [4, 5]]
+        all_samples = list({u for s in sample_sets for u in s})
+        sample_ind = [samples.index(x) for x in all_samples]
+        indexes = [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)]
+        A = ts.genetic_relatedness(
+            sample_sets, indexes=indexes, mode="site", span_normalise=False
+        )
+        # Genotype covariance as in Speed and Balding
+        G = ts.genotype_matrix().T
+        G = G[sample_ind]
+        G_centered = G - G.mean(axis=0)
+        B = np.zeros(len(indexes))
+        for i, (ix, iy) in enumerate(indexes):
+            x1 = sample_sets[ix][0]
+            x2 = sample_sets[ix][1]
+            y1 = sample_sets[iy][0]
+            y2 = sample_sets[iy][1]
+            B[i] = (
+                (G_centered[x1] + G_centered[x2])
+                @ (G_centered[y1] + G_centered[y2])
+                / ts.segregating_sites(sample_sets=all_samples, span_normalise=False)
+            )
+        self.assertArrayAlmostEqual(A, B)
+
+
+############################################
 # Fst
 ############################################
 

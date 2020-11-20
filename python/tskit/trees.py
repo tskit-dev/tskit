@@ -5758,7 +5758,7 @@ class TreeSequence:
             # TODO this should be done in C also
             all_samples = list({u for s in sample_sets for u in s})
             denominator = self.segregating_sites(
-                sample_sets=all_samples,
+                sample_sets=[all_samples],
                 windows=windows,
                 mode=mode,
                 span_normalise=span_normalise,
@@ -5776,7 +5776,10 @@ class TreeSequence:
             span_normalise=span_normalise,
             polarised=polarised,
         )
-        return numerator / denominator
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out = numerator / denominator
+
+        return out
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
