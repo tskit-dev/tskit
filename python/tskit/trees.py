@@ -30,7 +30,6 @@ import concurrent.futures
 import copy
 import functools
 import itertools
-import json
 import math
 import textwrap
 import warnings
@@ -45,7 +44,6 @@ import tskit.drawing as drawing
 import tskit.exceptions as exceptions
 import tskit.formats as formats
 import tskit.metadata as metadata_module
-import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.util as util
 import tskit.vcf as vcf
@@ -861,12 +859,14 @@ class Tree:
         return combinatorics.RankTree.from_tsk_tree(self).rank()
 
     @staticmethod
-    def unrank(num_leaves, rank, *, span=1):
+    def unrank(num_leaves, rank, *, span=1, branch_length=1):
         """
         Reconstruct the tree of the given ``rank``
         (see :meth:`tskit.Tree.rank`) with ``num_leaves`` leaves.
-        The labels and times of internal nodes are chosen arbitrarily, and
-        the time of each leaf is 0.
+        The labels and times of internal nodes are assigned by a postorder
+        traversal of the nodes, such that the time of each internal node
+        is the maximum time of its children plus the specified ``branch_length``.
+        The time of each leaf is 0.
 
         See the :ref:`sec_tree_ranks` section for details on ranking and
         unranking trees and what constitutes valid ranks.
@@ -877,11 +877,13 @@ class Tree:
             the interval :math:`[0, \\text{span})` and the :attr:`~Tree.tree_sequence`
             from which the tree is taken will have its
             :attr:`~tskit.TreeSequence.sequence_length` equal to ``span``.
+        :param: float branch_length: The minimum length of a branch in this tree.
         :rtype: Tree
         :raises: ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
-        return combinatorics.RankTree.unrank(num_leaves, rank).to_tsk_tree(span=span)
+        rank_tree = combinatorics.RankTree.unrank(num_leaves, rank)
+        return rank_tree.to_tsk_tree(span=span, branch_length=branch_length)
 
     def count_topologies(self, sample_sets=None):
         """
@@ -2445,13 +2447,11 @@ class Tree:
     @staticmethod
     def generate_star(num_leaves, *, span=1, branch_length=1, record_provenance=True):
         """
-        Generate a single :class:<Tree> whose leaf nodes all have the same parent (i.e.
+        Generate a :class:<Tree> whose leaf nodes all have the same parent (i.e.
         a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
 
-        .. note::
-            This is similar to ``tskit.Tree.unrank(n, (0,0), span=span)`` but is more
-            efficient for large n. However, the ``unrank`` method provides
-            a concise way of generating alternative (non-star) topologies.
+        The tree produced by this method is identical to
+        ``tskit.Tree.unrank(n, (0, 0))``, but generated more efficiently for large ``n``.
 
         :param int num_leaves: The number of leaf nodes in the returned tree (must be
             be 2 or greater).
@@ -2464,29 +2464,82 @@ class Tree:
             via the :attr:`.tree_sequence` attribute.
         :rtype: Tree
         """
-        if num_leaves < 2:
-            raise ValueError("The number of leaves must be 2 or greater")
-        tc = tables.TableCollection(sequence_length=span)
-        tc.nodes.set_columns(
-            flags=np.full(num_leaves, NODE_IS_SAMPLE, dtype=np.uint32),
-            time=np.zeros(num_leaves),
+        return combinatorics.generate_star(
+            num_leaves,
+            span=span,
+            branch_length=branch_length,
+            record_provenance=record_provenance,
         )
-        root = tc.nodes.add_row(time=branch_length)
-        tc.edges.set_columns(
-            left=np.full(num_leaves, 0),
-            right=np.full(num_leaves, span),
-            parent=np.full(num_leaves, root, dtype=np.int32),
-            child=np.arange(num_leaves, dtype=np.int32),
+
+    @staticmethod
+    def generate_balanced(
+        num_leaves, *, arity=2, span=1, branch_length=1, record_provenance=True
+    ):
+        """
+        Generate a :class:<Tree> with the specified number of leaves that is maximally
+        balanced. By default, the tree returned is binary, such that for each
+        node that subtends :math:`n` leaves, the left child will subtend
+        :math:`\\floor{n / 2}` leaves and the right child the remainder. Balanced
+        trees with higher arity can also generated using the ``arity`` parameter,
+        where the leaves subtending a node are distributed among its children
+        analogously.
+
+        In the returned tree, the leaf nodes are all at time 0, marked as samples,
+        and labelled 0 to n from left-to-right. Internal node IDs are assigned
+        sequentially from n in a postorder traversal, and the time of an internal
+        node is the maximum time of its children plus the specified ``branch_length``.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must be
+            be 2 or greater).
+        :param int arity: The maximum number of children a node can have in the returned
+            tree.
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The minimum length of a branch in the tree (see
+            above for details on how internal node times are assigned).
+        :return: A balanced tree. Its corresponding :class:`TreeSequence` is available
+            via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_balanced(
+            num_leaves,
+            arity=arity,
+            span=span,
+            branch_length=branch_length,
+            record_provenance=record_provenance,
         )
-        if record_provenance:
-            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
-            # TODO also make sure we convert all the arguments so that they are
-            # definitely JSON encodable.
-            parameters = {"command": "generate_star", "TODO": "add parameters"}
-            tc.provenances.add_row(
-                record=json.dumps(provenance.get_provenance_dict(parameters))
-            )
-        return tc.tree_sequence().first()
+
+    @staticmethod
+    def generate_comb(num_leaves, *, span=1, branch_length=1, record_provenance=True):
+        """
+        Generate a :class:<Tree> in which all internal nodes have two children
+        and the left child is a leaf. This is a "comb", "ladder" or "pectinate"
+        phylogeny, and also known as a `caterpiller tree
+        <https://en.wikipedia.org/wiki/Caterpillar_tree>`_.
+
+        The leaf nodes are all at time 0, marked as samples,
+        and labelled 0 to n from left-to-right. Internal node IDs are assigned
+        sequentially from n as we ascend the tree, and the time of an internal
+        node is the maximum time of its children plus the specified ``branch_length``.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must be
+            be 2 or greater).
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The length of every branch in the tree (equivalent
+            to the time of the root node).
+        :return: A star-shaped tree. Its corresponding :class:`TreeSequence` is available
+            via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_comb(
+            num_leaves,
+            span=span,
+            branch_length=branch_length,
+            record_provenance=record_provenance,
+        )
 
 
 def load(file):
