@@ -28,10 +28,132 @@ import collections
 import functools
 import heapq
 import itertools
+import json
+import random
 
+import attr
 import numpy as np
 
 import tskit
+
+
+@attr.s(eq=False)
+class TreeNode:
+    """
+    Simple linked tree class used to generate tree topologies.
+    """
+
+    parent = attr.ib(default=None)
+    children = attr.ib(factory=list)
+    label = attr.ib(default=None)
+
+    @staticmethod
+    def random_binary_tree(leaf_labels, rng):
+        """
+        Returns a random binary tree where the leaves have the specified
+        labels using the specified random.Random instance. The root node
+        of this tree is returned.
+
+        Based on the description of Remy's method of generating "decorated"
+        random binary trees in TAOCP 7.2.1.6. This is not a direct
+        implementation of Algorithm R, because we are interested in
+        the leaf node labellings.
+
+        The pre-fascicle text is available here, page 16:
+        http://www.cs.utsa.edu/~wagner/knuth/fasc4a.pdf
+        """
+        nodes = [TreeNode(label=leaf_labels[0])]
+        for label in leaf_labels[1:]:
+            # Choose a node x randomly and insert a new internal node above
+            # it with the (n + 1)th labelled leaf as its sibling.
+            x = rng.choice(nodes)
+            new_leaf = TreeNode(label=label)
+            new_internal = TreeNode(parent=x.parent, children=[x, new_leaf])
+            if x.parent is not None:
+                index = x.parent.children.index(x)
+                x.parent.children[index] = new_internal
+            rng.shuffle(new_internal.children)
+            x.parent = new_internal
+            new_leaf.parent = new_internal
+            nodes.extend([new_leaf, new_internal])
+
+        root = nodes[0]
+        while root.parent is not None:
+            root = root.parent
+        return root
+
+
+def split_polytomies(
+    tree,
+    *,
+    epsilon=None,
+    method=None,
+    record_provenance=True,
+    random_seed=None,
+):
+    """
+    Return a new tree where extra nodes and edges have been inserted
+    so that any any node with more than two children is resolved into
+    a binary tree.
+
+    For further documentation, please refer to the :meth:`Tree.split_polytomies`
+    method, which is the usual route through which this function is called.
+    """
+    allowed_methods = ["random"]
+    if epsilon is None:
+        epsilon = 1e-10
+    if method is None:
+        method = "random"
+    if method not in allowed_methods:
+        raise ValueError(f"Method must be chosen from {allowed_methods}")
+
+    tables = tree.tree_sequence.dump_tables()
+    tables.keep_intervals([tree.interval], simplify=False)
+    tables.edges.clear()
+    rng = random.Random(random_seed)
+
+    for u in tree.nodes():
+        if tree.num_children(u) > 2:
+            root = TreeNode.random_binary_tree(tree.children(u), rng)
+            root.label = u
+            time = tree.time(u) - epsilon
+            stack = [(child, time) for child in root.children]
+            while len(stack) > 0:
+                node, time = stack.pop()
+                if node.label is None:
+                    node.label = tables.nodes.add_row(time=time)
+                tables.edges.add_row(*tree.interval, node.parent.label, node.label)
+                for child in node.children:
+                    stack.append((child, time - epsilon))
+        else:
+            for v in tree.children(u):
+                tables.edges.add_row(*tree.interval, u, v)
+
+    if record_provenance:
+        parameters = {"command": "split_polytomies"}
+        tables.provenances.add_row(
+            record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
+        )
+    try:
+        tables.sort()
+        ts = tables.tree_sequence()
+    except tskit.LibraryError as e:
+        msg = str(e)
+        if msg.startswith(
+            "A mutation's time must be < the parent node of the edge on which it occurs"
+        ):
+            e.args += (
+                f"Epsilon={epsilon} not small enough to create new nodes below a "
+                "polytomy, due to the time of a mutation above a child of the polytomy.",
+            )
+        elif msg.startswith("time[parent] must be greater than time[child]"):
+            e.args += (
+                f"Epsilon={epsilon} not small enough to create new nodes below a "
+                "polytomy, due to the time of one of child nodes being too close. ",
+            )
+
+        raise e
+    return ts.at(tree.interval[0])
 
 
 def treeseq_count_topologies(ts, sample_sets):

@@ -26,6 +26,7 @@ Test cases for combinatorial algorithms.
 import collections
 import io
 import itertools
+import random
 
 import msprime
 import numpy as np
@@ -976,3 +977,32 @@ class TestCountTopologies:
         ts = tables.tree_sequence()
         samples = ts.samples()
         self.verify_topologies(ts, sample_sets=[samples[:10], samples[10:]])
+
+
+class TestTreeNode:
+    """
+    Tests for the TreeNode class used to build simple trees in memory.
+    """
+
+    @pytest.mark.parametrize("n", [2, 3, 5, 10])
+    def test_random_binary_tree(self, n):
+        # Note this doesn't check any statistical properties of the returned
+        # trees, just that a single instance returned in a valid binary tree.
+        rng = random.Random(32)
+        labels = range(n)
+        root = comb.TreeNode.random_binary_tree(labels, rng)
+
+        stack = [root]
+        num_nodes = 0
+        recovered_labels = []
+        while len(stack) > 0:
+            node = stack.pop()
+            num_nodes += 1
+            if node.label is not None:
+                assert len(node.children) == 0
+                recovered_labels.append(node.label)
+            for child in node.children:
+                assert child.parent == node
+                stack.append(child)
+        assert len(recovered_labels) == n
+        assert sorted(recovered_labels) == list(labels)

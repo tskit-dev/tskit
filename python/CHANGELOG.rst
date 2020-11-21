@@ -77,6 +77,9 @@
 
 **Features**
 
+- Add ``split_polytomies`` method to the Tree class
+  (:user:`hyanwong`, :user:`jeromekelleher`, :issue:`809`, :pr:`815`)
+
 - Tree accessor functions (e.g. ``ts.first()``, ``ts.at()`` pass extra parameters such as
   ``sample_indexes`` to the underlying ``Tree`` constructor; also ``root_threshold`` can
   be specified when calling ``ts.trees()`` (:user:`hyanwong`, :issue:`847`, :pr:`848`)
