@@ -4758,6 +4758,95 @@ class TestBadTrees:
             tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
 
+class TestCoiteration:
+    """
+    Test ability to iterate over multiple (currently 2) tree sequences simultaneously
+    """
+
+    def test_identical_ts(self):
+        ts = msprime.simulate(4, recombination_rate=1, random_seed=123)
+        assert ts.num_trees > 1
+        total_iterations = 0
+        for tree, (_, t1, t2) in zip(ts.trees(), ts.coiterate(ts)):
+            total_iterations += 1
+            assert tree == t1 == t2
+        assert ts.num_trees == total_iterations
+
+    def test_intervals(self):
+        ts1 = msprime.simulate(4, recombination_rate=1, random_seed=1)
+        assert ts1.num_trees > 1
+        one_tree_ts = msprime.simulate(5, random_seed=2)
+        multi_tree_ts = msprime.simulate(5, recombination_rate=1, random_seed=2)
+        assert multi_tree_ts.num_trees > 1
+        for ts2 in (one_tree_ts, multi_tree_ts):
+            bp1 = set(ts1.breakpoints())
+            bp2 = set(ts2.breakpoints())
+            assert bp1 != bp2
+            breaks = set()
+            for interval, t1, t2 in ts1.coiterate(ts2):
+                assert set(interval) <= set(t1.interval) | set(t2.interval)
+                breaks.add(interval.left)
+                breaks.add(interval.right)
+                assert t1.tree_sequence == ts1
+                assert t2.tree_sequence == ts2
+            assert breaks == bp1 | bp2
+
+    def test_simple_ts(self):
+        nodes = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       0           1
+        4       0           2
+        """
+        edges1 = """\
+        left    right   parent  child
+        0       0.2       3       0,1
+        0       0.2       4       2,3
+        0.2     1         3       2,1
+        0.2     1         4       0,3
+        """
+        edges2 = """\
+        left    right   parent  child
+        0       0.8       3       2,1
+        0       0.8       4       0,3
+        0.8     1         3       0,1
+        0.8     1         4       2,3
+        """
+        ts1 = tskit.load_text(io.StringIO(nodes), io.StringIO(edges1), strict=False)
+        ts2 = tskit.load_text(io.StringIO(nodes), io.StringIO(edges2), strict=False)
+        coiterator = ts1.coiterate(ts2)
+        interval, tree1, tree2 = next(coiterator)
+        assert interval.left == 0
+        assert interval.right == 0.2
+        assert tree1 == ts1.at_index(0)
+        assert tree2 == ts2.at_index(0)
+        interval, tree1, tree2 = next(coiterator)
+        assert interval.left == 0.2
+        assert interval.right == 0.8
+        assert tree1 == ts1.at_index(1)
+        assert tree2 == ts2.at_index(0)
+        interval, tree1, tree2 = next(coiterator)
+        assert interval.left == 0.8
+        assert interval.right == 1
+        assert tree1 == ts1.at_index(1)
+        assert tree2 == ts2.at_index(1)
+
+    def test_nonequal_lengths(self):
+        ts1 = msprime.simulate(4, random_seed=1, length=2)
+        ts2 = msprime.simulate(4, random_seed=1)
+        with pytest.raises(ValueError, match="equal sequence length"):
+            next(ts1.coiterate(ts2))
+
+    def test_kwargs(self):
+        ts = msprime.simulate(4, recombination_rate=1, random_seed=123)
+        for _, t1, t2 in ts.coiterate(ts):
+            assert t1.num_tracked_samples() == t2.num_tracked_samples() == 0
+        for _, t1, t2 in ts.coiterate(ts, tracked_samples=ts.samples()):
+            assert t1.num_tracked_samples() == t2.num_tracked_samples() == 4
+
+
 class SimplifyTestBase:
     """
     Base class for simplify tests.
@@ -5695,9 +5784,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
         new_to_input_map = {
             value: key for key, value in enumerate(node_map) if value != tskit.NULL
         }
-        for (left, right), input_tree, tree_with_roots in tsutil.coiterate(
-            ts, ts_with_roots
-        ):
+        for (left, right), input_tree, tree_with_roots in ts.coiterate(ts_with_roots):
             input_roots = input_tree.roots
             assert len(tree_with_roots.roots) > 0
             for root in tree_with_roots.roots:

@@ -86,6 +86,9 @@ directly, but are the return types for the various iterators provided by the
 .. autoclass:: Edge()
     :members:
 
+.. autoclass:: Interval()
+    :members:
+
 .. autoclass:: Site()
     :members:
 

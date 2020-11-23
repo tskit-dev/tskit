@@ -4,6 +4,10 @@
 
 **Features**
 
+- Expose ``TreeSequence.coiterate()`` method to allow iteration over 2 sequences
+  simultaneously, aiding comparison of trees from two sequences.
+  (:user:`jeromekelleher`, :user:`hyanwong`, :issue:`1021`, :pr:`1022`)
+
 - tskit is now supported on, and has wheels for, python3.9.
   (:user:`benjeffery`, :issue:`982`, :pr:`907`)
 
