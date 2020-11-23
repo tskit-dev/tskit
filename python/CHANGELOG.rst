@@ -70,6 +70,9 @@
   Hartigan parsimony algorithm, which does. (:user:`jeromekelleher`,
   :issue:`987`, :pr:`1030`).
 
+- The ``flag`` argument to tables' ``add_row`` was treating the value as signed.
+  (:user:`benjeffery`, :issue:`1027`, :pr:`1031`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
