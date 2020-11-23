@@ -2309,6 +2309,12 @@ class TestTableCollection:
         assert t1.has_index()
         assert t2.has_index()
 
+    def test_asdict_lifecycle(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        tables_dict = tables.asdict()
+        del tables
+        assert tskit.TableCollection.fromdict(tables_dict) == ts_fixture.dump_tables()
+
     def test_from_dict(self, ts_fixture):
         t1 = ts_fixture.tables
         d = {
