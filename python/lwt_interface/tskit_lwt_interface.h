@@ -1600,10 +1600,12 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         }
         col = table_descs[j].cols;
         while (col->name != NULL) {
-            array = PyArray_SimpleNewFromData(1, &col->num_rows, col->type, col->data);
+            array = (PyObject *) PyArray_EMPTY(1, &col->num_rows, col->type, 0);
             if (array == NULL) {
                 goto out;
             }
+            memcpy(PyArray_DATA((PyArrayObject *) array), col->data,
+                col->num_rows * PyArray_ITEMSIZE((PyArrayObject *) array));
             if (PyDict_SetItemString(table_dict, col->name, array) != 0) {
                 goto out;
             }

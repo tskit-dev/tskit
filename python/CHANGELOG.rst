@@ -56,6 +56,12 @@
   provenances, table schemas and tree-sequence level metadata and schema.
   (:user:`benjeffery`, :issue:`929`, :pr:`1001`)
 
+**Bugfixes**
+
+- ``LightWeightTableCollection.asdict`` and ``TableCollection.asdict`` now return copies
+  of arrays.
+  (:user:`benjeffery`, :issue:`1025`, :pr:`1029`)
+
 **Breaking changes**
 
 - The argument to ``ts.dump`` and ``tskit.load`` has been renamed `file` from `path`.
