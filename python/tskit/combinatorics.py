@@ -37,6 +37,30 @@ import numpy as np
 import tskit
 
 
+def equal_chunks(lst, k):
+    """
+    Yield k successive equally sized chunks from lst of size n.
+
+    If k >= n, we return n chunks of size 1.
+
+    Otherwise, we always return k chunks. The first k - 1 chunks will
+    contain exactly n // k items, and the last chunk the remainder.
+    """
+    n = len(lst)
+    if k <= 0 or int(k) != k:
+        raise ValueError("Number of chunks must be a positive integer")
+
+    if n > 0:
+        chunk_size = max(1, n // k)
+        offset = 0
+        j = 0
+        while offset < n - chunk_size and j < k - 1:
+            yield lst[offset : offset + chunk_size]
+            offset += chunk_size
+            j += 1
+        yield lst[offset:]
+
+
 @attr.s(eq=False)
 class TreeNode:
     """
@@ -81,6 +105,135 @@ class TreeNode:
         while root.parent is not None:
             root = root.parent
         return root
+
+    @classmethod
+    def balanced_tree(cls, leaf_labels, arity):
+        """
+        Returns a balanced tree of the specified arity. At each node the
+        leaf labels are split equally among the arity children using the
+        equal_chunks method.
+        """
+        assert len(leaf_labels) > 0
+        if len(leaf_labels) == 1:
+            root = cls(label=leaf_labels[0])
+        else:
+            children = [
+                cls.balanced_tree(chunk, arity)
+                for chunk in equal_chunks(leaf_labels, arity)
+            ]
+            root = cls(children=children)
+            for child in children:
+                child.parent = root
+        return root
+
+
+def generate_star(num_leaves, *, span, branch_length, record_provenance):
+    """
+    Generate a star tree for the specified number of leaves.
+
+    See the documentation for Tree.generate_balanced for more details.
+    """
+    if num_leaves < 2:
+        raise ValueError("The number of leaves must be 2 or greater")
+    tables = tskit.TableCollection(sequence_length=span)
+    tables.nodes.set_columns(
+        flags=np.full(num_leaves, tskit.NODE_IS_SAMPLE, dtype=np.uint32),
+        time=np.zeros(num_leaves),
+    )
+    root = tables.nodes.add_row(time=branch_length)
+    tables.edges.set_columns(
+        left=np.full(num_leaves, 0),
+        right=np.full(num_leaves, span),
+        parent=np.full(num_leaves, root, dtype=np.int32),
+        child=np.arange(num_leaves, dtype=np.int32),
+    )
+    if record_provenance:
+        # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+        # TODO also make sure we convert all the arguments so that they are
+        # definitely JSON encodable.
+        parameters = {"command": "generate_star", "TODO": "add parameters"}
+        tables.provenances.add_row(
+            record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
+        )
+    return tables.tree_sequence().first()
+
+
+def generate_comb(num_leaves, *, span, branch_length, record_provenance):
+    """
+    Generate a comb tree for the specified number of leaves.
+
+    See the documentation for Tree.generate_balanced for more details.
+    """
+    if num_leaves < 2:
+        raise ValueError("The number of leaves must be 2 or greater")
+    tables = tskit.TableCollection(sequence_length=span)
+    tables.nodes.set_columns(
+        flags=np.full(num_leaves, tskit.NODE_IS_SAMPLE, dtype=np.uint32),
+        time=np.zeros(num_leaves),
+    )
+    right_child = num_leaves - 1
+    time = branch_length
+    for left_child in range(num_leaves - 2, -1, -1):
+        parent = tables.nodes.add_row(time=time)
+        time += branch_length
+        tables.edges.add_row(0, span, parent, left_child)
+        tables.edges.add_row(0, span, parent, right_child)
+        right_child = parent
+
+    if record_provenance:
+        # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+        # TODO also make sure we convert all the arguments so that they are
+        # definitely JSON encodable.
+        parameters = {"command": "generate_comb", "TODO": "add parameters"}
+        tables.provenances.add_row(
+            record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
+        )
+    return tables.tree_sequence().first()
+
+
+def generate_balanced(num_leaves, *, arity, span, branch_length, record_provenance):
+    """
+    Generate a balanced tree for the specified number of leaves.
+
+    See the documentation for Tree.generate_balanced for more details.
+    """
+    if num_leaves < 1:
+        raise ValueError("The number of leaves must be at least 1")
+    if arity < 2:
+        raise ValueError("The arity must be at least 2")
+
+    tables = tskit.TableCollection(span)
+    for _ in range(num_leaves):
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+
+    def assign_internal_labels(node):
+        if len(node.children) == 0:
+            node.time = 0
+        else:
+            max_child_time = 0
+            for child in node.children:
+                assign_internal_labels(child)
+                max_child_time = max(max_child_time, child.time)
+            node.time = max_child_time + branch_length
+            node.label = tables.nodes.add_row(time=node.time)
+            for child in node.children:
+                tables.edges.add_row(0, span, node.label, child.label)
+
+    root = TreeNode.balanced_tree(range(num_leaves), arity)
+    # Do a postorder traversal to assign the internal node labels and times.
+    assign_internal_labels(root)
+    tables.sort()
+
+    if record_provenance:
+        # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+        # TODO also make sure we convert all the arguments so that they are
+        # definitely JSON encodable.
+        parameters = {"command": "generate_balanced", "TODO": "add parameters"}
+        tables.provenances.add_row(
+            record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
+        )
+
+    return tables.tree_sequence().first()
 
 
 def split_polytomies(
@@ -640,14 +793,17 @@ class RankTree:
 
         return RankTree.from_tsk_tree_node(tree, tree.root)
 
-    def to_tsk_tree(self, span=1):
+    def to_tsk_tree(self, span=1, branch_length=1):
         """
-        Convert a ``RankTree`` into the only tree in a new tree sequence.
+        Convert a ``RankTree`` into the only tree in a new tree sequence. Internal
+        nodes and their times are assigned via a postorder traversal of the tree.
 
         :param float span: The genomic span of the returned tree. The tree will cover
             the interval :math:`[0, span)` and the :attr:`~Tree.tree_sequence` from which
             the tree is taken will have its :attr:`~tskit.TreeSequence.sequence_length`
             equal to ``span``.
+        :param float branch_length: The minimum length of a branch in the returned
+            tree.
         """
         if set(self.labels) != set(range(self.num_leaves)):
             raise ValueError("Labels set must be equivalent to [0, num_leaves)")
@@ -660,9 +816,8 @@ class RankTree:
                 return node.label
 
             child_ids = [add_node(child) for child in node.children]
-            # Arbitrarily set parent time +1 from their oldest child
             max_child_time = max(tables.nodes.time[c] for c in child_ids)
-            parent_id = tables.nodes.add_row(time=max_child_time + 1)
+            parent_id = tables.nodes.add_row(time=max_child_time + branch_length)
             for child_id in child_ids:
                 tables.edges.add_row(0, span, parent_id, child_id)
 
