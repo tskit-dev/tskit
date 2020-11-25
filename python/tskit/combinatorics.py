@@ -238,6 +238,45 @@ def generate_balanced(
     return tables.tree_sequence().first(**kwargs)
 
 
+def generate_random(
+    num_leaves, *, arity, span, branch_length, random_seed, record_provenance
+):
+    """
+    Generate a random tree, with equiprobable distribution over topologies
+
+    See the documentation for :meth:`Tree.generate_random` for more details.
+    """
+    if arity != 2:
+        raise NotImplementedError(
+            "Currently you can only use arity=2, generating random bifurcating trees"
+        )
+    root_time = (num_leaves - 1) * branch_length
+    tree = generate_star(
+        num_leaves,
+        span=span,
+        branch_length=root_time,
+        record_provenance=False,
+    ).split_polytomies(
+        random_seed=random_seed,
+        epsilon=branch_length,
+        method="random",
+        record_provenance=False,
+    )
+
+    if record_provenance:
+        tables = tree.tree_sequence.dump_tables()
+        # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+        # TODO also make sure we convert all the arguments so that they are
+        # definitely JSON encodable.
+        parameters = {"command": "generate_random", "TODO": "add parameters"}
+        tables.provenances.add_row(
+            record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
+        )
+        tree = tables.tree_sequence().first()
+        print(tables.provenances)
+    return tree
+
+
 def split_polytomies(
     tree,
     *,
@@ -252,8 +291,7 @@ def split_polytomies(
     so that any any node with more than two children is resolved into
     a binary tree.
 
-    For further documentation, please refer to the :meth:`Tree.split_polytomies`
-    method, which is the usual route through which this function is called.
+    See the documentation for :meth:`Tree.split_polytomies` for more details.
     """
     allowed_methods = ["random"]
     if method is None:

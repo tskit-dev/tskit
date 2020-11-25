@@ -2584,6 +2584,54 @@ class Tree:
             **kwargs,
         )
 
+    @staticmethod
+    def generate_random(
+        num_leaves,
+        *,
+        arity=2,
+        span=1,
+        branch_length=1,
+        random_seed=None,
+        record_provenance=True,
+    ):
+        """
+        Generate a random :class:<Tree> with :math:`n` = ``num_leaves``
+        leaves with an equal probability of returning any valid topology.
+
+        The leaf nodes are marked as samples, labelled 0 to n, and placed at time 0.
+        The root node is placed at time ``(num_leaves - 1) * branch_length``, and
+        the other non-leaf nodes placed at a time of ``branch_length`` from each
+        other and from the root.
+
+        .. note::
+            The returned tree has not been created under any explicit model of
+            evolution. In order to simulate such trees, additional software
+            such as `msprime <https://github.com/tskit-dev/msprime>`` is required.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must
+            be 2 or greater).
+        :param int arity: The number of children of each internal node. If this is
+            2 (the default) then a strictly bifurcating (binary) tree is generated
+            chosen at random from the :math:`(2n - 3)! / (2^(n - 2) (n - 2!))`
+            possible topologies.
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The time separating successive non-leaf nodes
+            from each other.
+        :return: A random tree. Its corresponding :class:`TreeSequence` is available
+            via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_random(
+            num_leaves,
+            arity=arity,
+            span=span,
+            branch_length=branch_length,
+            random_seed=random_seed,
+            record_provenance=record_provenance,
+        )
+
 
 def load(file):
     """
