@@ -2528,10 +2528,10 @@ class Tree:
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
             property of the returned :class:<Tree>.
-        :param float branch_length: The length of every branch in the tree (equivalent
-            to the time of the root node).
-        :return: A star-shaped tree. Its corresponding :class:`TreeSequence` is available
-            via the :attr:`.tree_sequence` attribute.
+        :param float branch_length: The branch length between each internal node; the
+            root node is therefore placed at time ``branch_length * (num_leaves - 1)``.
+        :return: A comb-shaped bifurcating tree. Its corresponding :class:`TreeSequence`
+            is available via the :attr:`.tree_sequence` attribute.
         :rtype: Tree
         """
         return combinatorics.generate_comb(
