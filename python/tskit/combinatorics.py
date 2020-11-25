@@ -131,7 +131,7 @@ def generate_star(num_leaves, *, span, branch_length, record_provenance):
     """
     Generate a star tree for the specified number of leaves.
 
-    See the documentation for Tree.generate_balanced for more details.
+    See the documentation for :meth:`Tree.generate_star` for more details.
     """
     if num_leaves < 2:
         raise ValueError("The number of leaves must be 2 or greater")
@@ -162,7 +162,7 @@ def generate_comb(num_leaves, *, span, branch_length, record_provenance):
     """
     Generate a comb tree for the specified number of leaves.
 
-    See the documentation for Tree.generate_balanced for more details.
+    See the documentation for :meth:`Tree.generate_comb` for more details.
     """
     if num_leaves < 2:
         raise ValueError("The number of leaves must be 2 or greater")
@@ -195,7 +195,7 @@ def generate_balanced(num_leaves, *, arity, span, branch_length, record_provenan
     """
     Generate a balanced tree for the specified number of leaves.
 
-    See the documentation for Tree.generate_balanced for more details.
+    See the documentation for :meth:`Tree.generate_balanced` for more details.
     """
     if num_leaves < 1:
         raise ValueError("The number of leaves must be at least 1")

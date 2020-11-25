@@ -2454,7 +2454,7 @@ class Tree:
         ``tskit.Tree.unrank(n, (0, 0))``, but generated more efficiently for large ``n``.
 
         :param int num_leaves: The number of leaf nodes in the returned tree (must be
-            be 2 or greater).
+            2 or greater).
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
             property of the returned :class:<Tree>.
@@ -2524,7 +2524,7 @@ class Tree:
         node is the maximum time of its children plus the specified ``branch_length``.
 
         :param int num_leaves: The number of leaf nodes in the returned tree (must be
-            be 2 or greater).
+            2 or greater).
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
             property of the returned :class:<Tree>.
