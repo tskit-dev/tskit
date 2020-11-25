@@ -1333,6 +1333,19 @@ class TestPolytomySplitting:
         split_tree = tree.split_polytomies(random_seed=14, tracked_samples=[0, 1])
         assert split_tree.num_tracked_samples() == 2
 
+    @pytest.mark.slow
+    @pytest.mark.parametrize("n", [3, 4, 5])
+    def test_all_topologies(self, n):
+        N = num_leaf_labelled_binary_trees(n)
+        ranks = collections.Counter()
+        for seed in range(20 * N):
+            star = tskit.Tree.generate_star(n)
+            random_tree = star.split_polytomies(random_seed=seed)
+            ranks[random_tree.rank()] += 1
+        # There are N possible binary trees here, we should have seen them
+        # all with high probability after 20 N attempts.
+        assert len(ranks) == N
+
 
 class TreeGeneratorTestBase:
     """
@@ -1460,8 +1473,11 @@ class TestGenerateBalanced(TreeGeneratorTestBase):
                 assert tree.time(u) == tree.time(v) + branch_length
 
 
-class TestGenerateRandom(TreeGeneratorTestBase):
-    method_name = "generate_random"
+class TestGenerateRandomBinary(TreeGeneratorTestBase):
+    method_name = "generate_random_binary"
+
+    def method(self, n, **kwargs):
+        return tskit.Tree.generate_random_binary(n, random_seed=53, **kwargs)
 
     @pytest.mark.slow
     @pytest.mark.parametrize("n", [3, 4, 5])
@@ -1469,23 +1485,27 @@ class TestGenerateRandom(TreeGeneratorTestBase):
         N = num_leaf_labelled_binary_trees(n)
         ranks = collections.Counter()
         for seed in range(20 * N):
-            random_tree = tskit.Tree.generate_random(n, random_seed=seed)
+            random_tree = tskit.Tree.generate_random_binary(n, random_seed=seed)
             ranks[random_tree.rank()] += 1
         # There are N possible binary trees here, we should have seen them
         # all with high probability after 20 N attempts.
         assert len(ranks) == N
 
-    @pytest.mark.skip(
-        reason="random tree via random_split does not create leaves in a defined order"
-    )
+    @pytest.mark.parametrize("n", range(2, 10))
     def test_leaves(self, n):
-        pass
+        tree = tskit.Tree.generate_random_binary(n, random_seed=1234)
+        # The leaves should be a permutation of range(n)
+        assert list(sorted(tree.leaves())) == list(range(n))
 
-    @pytest.mark.skip(
-        reason="random tree via random_split does not create nodes in a defined order"
-    )
-    def test_rank_unrank_round_trip(self, n):
-        pass
+    @pytest.mark.parametrize("seed", range(1, 20))
+    def test_rank_unrank_round_trip_seeds(self, seed):
+        n = 10
+        tree1 = tskit.Tree.generate_random_binary(n, random_seed=seed)
+        rank = tree1.rank()
+        tree2 = tskit.Tree.unrank(n, rank)
+        tables1 = tree1.tree_sequence.tables
+        tables2 = tree2.tree_sequence.tables
+        assert tables1.equals(tables2, ignore_provenance=True)
 
 
 class TestGenerateComb(TreeGeneratorTestBase):

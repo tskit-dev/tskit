@@ -71,6 +71,33 @@ class TreeNode:
     children = attr.ib(factory=list)
     label = attr.ib(default=None)
 
+    def as_tables(self, *, num_leaves, span, branch_length):
+        """
+        Convert the tree rooted at this node into an equivalent
+        TableCollection. Internal nodes are allocated in postorder.
+        """
+        tables = tskit.TableCollection(span)
+        for _ in range(num_leaves):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+
+        def assign_internal_labels(node):
+            if len(node.children) == 0:
+                node.time = 0
+            else:
+                max_child_time = 0
+                for child in node.children:
+                    assign_internal_labels(child)
+                    max_child_time = max(max_child_time, child.time)
+                node.time = max_child_time + branch_length
+                node.label = tables.nodes.add_row(time=node.time)
+                for child in node.children:
+                    tables.edges.add_row(0, span, node.label, child.label)
+
+        # Do a postorder traversal to assign the internal node labels and times.
+        assign_internal_labels(self)
+        tables.sort()
+        return tables
+
     @staticmethod
     def random_binary_tree(leaf_labels, rng):
         """
@@ -104,6 +131,24 @@ class TreeNode:
         root = nodes[0]
         while root.parent is not None:
             root = root.parent
+
+        # Canonicalise the order of the children within a node. This
+        # is given by (num_leaves, min_label). See also the
+        # RankTree.canonical_order function for the definition of
+        # how these are ordered during rank/unrank.
+
+        def reorder_children(node):
+            if len(node.children) == 0:
+                return 1, node.label
+            keys = [reorder_children(child) for child in node.children]
+            if keys[0] > keys[1]:
+                node.children = node.children[::-1]
+            return (
+                sum(leaf_count for leaf_count, _ in keys),
+                min(min_label for _, min_label in keys),
+            )
+
+        reorder_children(root)
         return root
 
     @classmethod
@@ -204,27 +249,10 @@ def generate_balanced(
     if arity < 2:
         raise ValueError("The arity must be at least 2")
 
-    tables = tskit.TableCollection(span)
-    for _ in range(num_leaves):
-        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
-
-    def assign_internal_labels(node):
-        if len(node.children) == 0:
-            node.time = 0
-        else:
-            max_child_time = 0
-            for child in node.children:
-                assign_internal_labels(child)
-                max_child_time = max(max_child_time, child.time)
-            node.time = max_child_time + branch_length
-            node.label = tables.nodes.add_row(time=node.time)
-            for child in node.children:
-                tables.edges.add_row(0, span, node.label, child.label)
-
     root = TreeNode.balanced_tree(range(num_leaves), arity)
-    # Do a postorder traversal to assign the internal node labels and times.
-    assign_internal_labels(root)
-    tables.sort()
+    tables = root.as_tables(
+        num_leaves=num_leaves, span=span, branch_length=branch_length
+    )
 
     if record_provenance:
         # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
@@ -238,43 +266,33 @@ def generate_balanced(
     return tables.tree_sequence().first(**kwargs)
 
 
-def generate_random(
-    num_leaves, *, arity, span, branch_length, random_seed, record_provenance
+def generate_random_binary(
+    num_leaves, *, span, branch_length, random_seed, record_provenance, **kwargs
 ):
     """
-    Generate a random tree, with equiprobable distribution over topologies
+    Sample a leaf-labelled binary tree uniformly.
 
-    See the documentation for :meth:`Tree.generate_random` for more details.
+    See the documentation for :meth:`Tree.generate_random_binary` for more details.
     """
-    if arity != 2:
-        raise NotImplementedError(
-            "Currently you can only use arity=2, generating random bifurcating trees"
-        )
-    root_time = (num_leaves - 1) * branch_length
-    tree = generate_star(
-        num_leaves,
-        span=span,
-        branch_length=root_time,
-        record_provenance=False,
-    ).split_polytomies(
-        random_seed=random_seed,
-        epsilon=branch_length,
-        method="random",
-        record_provenance=False,
+    if num_leaves < 1:
+        raise ValueError("The number of leaves must be at least 1")
+
+    rng = random.Random(random_seed)
+    root = TreeNode.random_binary_tree(range(num_leaves), rng)
+    tables = root.as_tables(
+        num_leaves=num_leaves, span=span, branch_length=branch_length
     )
 
     if record_provenance:
-        tables = tree.tree_sequence.dump_tables()
         # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
         # TODO also make sure we convert all the arguments so that they are
         # definitely JSON encodable.
-        parameters = {"command": "generate_random", "TODO": "add parameters"}
+        parameters = {"command": "generate_random_binary", "TODO": "add parameters"}
         tables.provenances.add_row(
             record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
         )
-        tree = tables.tree_sequence().first()
-        print(tables.provenances)
-    return tree
+    ts = tables.tree_sequence()
+    return ts.first(**kwargs)
 
 
 def split_polytomies(

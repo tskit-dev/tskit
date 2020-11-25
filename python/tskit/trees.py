@@ -2585,23 +2585,25 @@ class Tree:
         )
 
     @staticmethod
-    def generate_random(
+    def generate_random_binary(
         num_leaves,
         *,
-        arity=2,
         span=1,
         branch_length=1,
         random_seed=None,
         record_provenance=True,
+        **kwargs,
     ):
         """
-        Generate a random :class:<Tree> with :math:`n` = ``num_leaves``
-        leaves with an equal probability of returning any valid topology.
+        Generate a random binary :class:<Tree> with :math:`n` = ``num_leaves``
+        leaves with an equal probability of returning any topology and
+        leaf label permutation among the :math:`(2n - 3)! / (2^(n - 2) (n - 2)!)`
+        leaf-labelled binary trees.
 
-        The leaf nodes are marked as samples, labelled 0 to n, and placed at time 0.
-        The root node is placed at time ``(num_leaves - 1) * branch_length``, and
-        the other non-leaf nodes placed at a time of ``branch_length`` from each
-        other and from the root.
+        The leaf nodes are marked as samples, labelled 0 to n, and placed at
+        time 0. Internal node IDs are assigned sequentially from n as we ascend
+        the tree, and the time of an internal node is the maximum time of its
+        children plus the specified ``branch_length``.
 
         .. note::
             The returned tree has not been created under any explicit model of
@@ -2610,26 +2612,30 @@ class Tree:
 
         :param int num_leaves: The number of leaf nodes in the returned tree (must
             be 2 or greater).
-        :param int arity: The number of children of each internal node. If this is
-            2 (the default) then a strictly bifurcating (binary) tree is generated
-            chosen at random from the :math:`(2n - 3)! / (2^(n - 2) (n - 2!))`
-            possible topologies.
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
             property of the returned :class:<Tree>.
-        :param float branch_length: The time separating successive non-leaf nodes
-            from each other.
-        :return: A random tree. Its corresponding :class:`TreeSequence` is available
-            via the :attr:`.tree_sequence` attribute.
+        :param float branch_length: The minimum time between parent and child nodes.
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds must be between 1 and
+            :math:`2^32 − 1`.
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_comb(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
+        :return: A random binary tree. Its corresponding :class:`TreeSequence` is
+            available via the :attr:`.tree_sequence` attribute.
         :rtype: Tree
         """
-        return combinatorics.generate_random(
+        return combinatorics.generate_random_binary(
             num_leaves,
-            arity=arity,
             span=span,
             branch_length=branch_length,
             random_seed=random_seed,
             record_provenance=record_provenance,
+            **kwargs,
         )
 
 

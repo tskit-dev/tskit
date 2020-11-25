@@ -4,6 +4,9 @@
 
 **Features**
 
+- Added ``Tree.generate_random_binary`` static method to create random
+  binary trees (:user:`hyanwong`, :user:`jeromekelleher`, :pr:`1037`).
+
 - Change the default behaviour of Tree.split_polytomies to generate
   the shortest possible branch lengths instead of a fixed epsilon of
   1e-10. (:user:`jeromekelleher`, :issue:`1089`, :pr:`1090`)
