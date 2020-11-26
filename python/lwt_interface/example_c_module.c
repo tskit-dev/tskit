@@ -38,7 +38,96 @@
 
 #include "tskit_lwt_interface.h"
 
+static PyObject * 
+example_receiving(PyObject *self, PyObject *args) {
+    int err = -1;
+    PyObject* ret = NULL;
+    LightweightTableCollection *tables = NULL;
+    tsk_treeseq_t tree_seq;
+    tsk_tree_t tree;
+
+    memset(&tree, 0, sizeof(tsk_tree_t));
+    memset(&tree_seq, 0, sizeof(tsk_treeseq_t));
+    
+    /* Get the tables from the args */
+    if (!PyArg_ParseTuple(args, "O!", &LightweightTableCollectionType, &tables)) {
+        goto out;
+    }
+
+    /* Check that the tables are init'd to prevent seg faults */
+    if (LightweightTableCollection_check_state(tables) != 0) {
+        goto out;
+    }
+
+    /* Build a tree sequence from the tables */
+    err = tsk_treeseq_init(&tree_seq, tables->tables, 0);
+    if (err < 0) {
+        handle_tskit_error(err);
+        goto out;
+    }
+    
+    /* Get the first tree */
+    err = tsk_tree_init(&tree, &tree_seq, 0);
+    if (err < 0) {
+        handle_tskit_error(err);
+        goto out;
+    }
+    err = tsk_tree_first(&tree);
+    if (err < 0) {
+        handle_tskit_error(err);
+        goto out;
+    }
+    
+    /* Return true if the tree has more than one root */
+    ret = Py_BuildValue("O", tsk_tree_get_num_roots(&tree) > 1 ? Py_True: Py_False);
+    
+out:
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&tree_seq);
+    return ret;
+}
+
+static PyObject * example_modifying(PyObject *self, PyObject *args) {
+    int err = -1;
+    PyObject* ret = NULL;
+    LightweightTableCollection *tables = NULL;
+
+    if (!PyArg_ParseTuple(args, "O!", &LightweightTableCollectionType, &tables)) {
+        goto out;
+    }
+
+    /* Check that the tables are init'd to prevent seg faults */
+    if (LightweightTableCollection_check_state(tables) != 0) {
+        goto out;
+    }
+
+    /* Modify the tables, note the need to check for error states and handle them */
+    err = tsk_table_collection_clear(tables->tables, 0);
+    if (err < 0) {
+        handle_tskit_error(err);
+        goto out;
+    }
+    err = tsk_node_table_add_row(&tables->tables->nodes, 0, 0, 0, 0, NULL, 0);
+    if (err < 0) {
+        handle_tskit_error(err);
+        goto out;
+    }
+    err = tsk_node_table_add_row(&tables->tables->nodes, 0, 0, 0, 0, NULL, 0);
+    if (err < 0) {
+        handle_tskit_error(err);
+        goto out;
+    }
+
+    /* Only set the return after no errors */
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+
 static PyMethodDef example_c_module_methods[] = {
+    {"example_receiving", (PyCFunction) example_receiving, METH_VARARGS, "Example of function receiving tables"},
+    {"example_modifying", (PyCFunction) example_modifying, METH_VARARGS, "Example of function modifying tables"},
     { NULL, NULL, 0, NULL } /* sentinel */
 };
 
@@ -60,7 +149,9 @@ PyInit_example_c_module(void)
     if (register_lwt_class(module) != 0) {
         return NULL;
     }
+
     /* Put your own functions/class definitions here, as usual */
+
 
     return module;
 }
