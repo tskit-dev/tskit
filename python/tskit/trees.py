@@ -3443,7 +3443,7 @@ class TreeSequence:
                 )
                 print(row, file=provenances)
 
-    def __repr__(self):
+    def __str__(self):
         ts_rows = [
             ["Trees", str(self.num_trees)],
             ["Sequence Length", str(self.sequence_length)],

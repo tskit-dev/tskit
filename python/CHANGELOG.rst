@@ -44,7 +44,7 @@
 - Added ``TreeSequence._repr_html_`` for use in jupyter notebooks.
   (:user:`benjeffery`, :issue:`872`, :pr:`923`)
 
-- Added ``TreeSequence.__repr__`` to display a summary for terminal usage.
+- Added ``TreeSequence.__str__`` to display a summary for terminal usage.
   (:user:`benjeffery`, :issue:`938`, :pr:`985`)
 
 - Added ``TableCollection.dump`` and ``TableCollection.load``. This allows table
