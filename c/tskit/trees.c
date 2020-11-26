@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 
 #include <tskit/trees.h>
 
@@ -4268,6 +4269,7 @@ get_smallest_set_bit(uint64_t v)
     uint64_t t = 1;
     int8_t r = 0;
 
+    assert(v != 0);
     while ((v & t) == 0) {
         t <<= 1;
         r++;
@@ -4275,9 +4277,14 @@ get_smallest_set_bit(uint64_t v)
     return r;
 }
 
+#define HARTIGAN_MAX_ALLELES 64
+
 /* This interface is experimental. In the future, we should provide the option to
  * use a general cost matrix, in which case we'll use the Sankoff algorithm. For
  * now this is unused.
+ *
+ * The algorithm used here is Hartigan parsimony, "Minimum Mutation Fits to a
+ * Given Tree", Biometrics 1973.
  */
 int TSK_WARN_UNUSED
 tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
@@ -4286,42 +4293,50 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
     tsk_state_transition_t **r_transitions)
 {
     int ret = 0;
+    struct stack_elem {
+        tsk_id_t node;
+        tsk_id_t transition_parent;
+        int8_t state;
+    };
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
     const tsk_size_t num_nodes = self->num_nodes;
     const tsk_id_t *restrict left_child = self->left_child;
     const tsk_id_t *restrict right_sib = self->right_sib;
     const tsk_id_t *restrict parent = self->parent;
     const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
-    uint64_t root_state;
-    int8_t *restrict state = malloc(num_nodes * sizeof(*state));
-    uint64_t *restrict A = calloc(num_nodes, sizeof(*A));
-    tsk_id_t *restrict stack = malloc(num_nodes * sizeof(*stack));
-    tsk_id_t *restrict parent_stack = malloc(num_nodes * sizeof(*parent_stack));
-    tsk_id_t postorder_parent, transition_parent, root, u, v;
+    uint64_t optimal_root_set;
+    uint64_t *restrict optimal_set = calloc(num_nodes, sizeof(*optimal_set));
+    tsk_id_t *restrict postorder_stack = malloc(num_nodes * sizeof(*postorder_stack));
+    struct stack_elem *restrict preorder_stack
+        = malloc(num_nodes * sizeof(*preorder_stack));
+    tsk_id_t postorder_parent, root, u, v;
     /* The largest possible number of transitions is one over every sample */
     tsk_state_transition_t *transitions = malloc(num_samples * sizeof(*transitions));
-    tsk_size_t j;
-    int8_t ancestral_state;
+    int8_t allele, ancestral_state;
     int stack_top;
-    tsk_size_t num_transitions;
+    struct stack_elem s;
+    tsk_size_t j, num_transitions, max_allele_count;
+    tsk_size_t allele_count[HARTIGAN_MAX_ALLELES];
     tsk_size_t non_missing = 0;
+    int8_t num_alleles = 0;
 
-    if (A == NULL || stack == NULL || parent_stack == NULL || state == NULL
+    if (optimal_set == NULL || preorder_stack == NULL || postorder_stack == NULL
         || transitions == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     for (j = 0; j < num_samples; j++) {
-        if (genotypes[j] >= 64 || genotypes[j] < TSK_MISSING_DATA) {
+        if (genotypes[j] >= HARTIGAN_MAX_ALLELES || genotypes[j] < TSK_MISSING_DATA) {
             ret = TSK_ERR_BAD_GENOTYPE;
             goto out;
         }
         u = self->tree_sequence->samples[j];
         if (genotypes[j] == TSK_MISSING_DATA) {
             /* All bits set */
-            A[u] = UINT64_MAX;
+            optimal_set[u] = UINT64_MAX;
         } else {
-            A[u] = set_bit(A[u], genotypes[j]);
+            optimal_set[u] = set_bit(optimal_set[u], genotypes[j]);
+            num_alleles = TSK_MAX(genotypes[j], num_alleles);
             non_missing++;
         }
     }
@@ -4330,79 +4345,92 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         ret = TSK_ERR_GENOTYPES_ALL_MISSING;
         goto out;
     }
+    num_alleles++;
 
-    root_state = 0;
     for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
         /* Do a post order traversal */
-        stack[0] = root;
+        postorder_stack[0] = root;
         stack_top = 0;
         postorder_parent = TSK_NULL;
         while (stack_top >= 0) {
-            u = stack[stack_top];
+            u = postorder_stack[stack_top];
             if (left_child[u] != TSK_NULL && u != postorder_parent) {
                 for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
                     stack_top++;
-                    stack[stack_top] = v;
+                    postorder_stack[stack_top] = v;
                 }
             } else {
                 stack_top--;
                 postorder_parent = parent[u];
 
                 /* Visit u */
-                if (!(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
-                    /* Get the intersection of the child sets */
-                    A[u] = UINT64_MAX; /* Set all the bits for u */
-                    for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                        A[u] &= A[v];
+                memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+                    for (allele = 0; allele < num_alleles; allele++) {
+                        allele_count[allele] += bit_is_set(optimal_set[v], allele);
                     }
-                    if (A[u] == 0) {
-                        /* Intersection is empty, so get the union */
-                        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                            A[u] |= A[v];
+                }
+                if (!(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
+                    max_allele_count = 0;
+                    for (allele = 0; allele < num_alleles; allele++) {
+                        max_allele_count
+                            = TSK_MAX(max_allele_count, allele_count[allele]);
+                    }
+                    for (allele = 0; allele < num_alleles; allele++) {
+                        if (allele_count[allele] == max_allele_count) {
+                            optimal_set[u] = set_bit(optimal_set[u], allele);
                         }
                     }
                 }
             }
         }
-        root_state |= A[root];
     }
-    ancestral_state = get_smallest_set_bit(root_state);
+
+    optimal_root_set = 0;
+    /* TODO it's annoying that this is essentially the same as the
+     * visit function above. It would be nice if we had an extra
+     * node that was the parent of all roots, then the algorithm
+     * would work as-is */
+    memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+    for (root = self->left_root; root != TSK_NULL; root = right_sib[root]) {
+        for (allele = 0; allele < num_alleles; allele++) {
+            allele_count[allele] += bit_is_set(optimal_set[root], allele);
+        }
+    }
+    max_allele_count = 0;
+    for (allele = 0; allele < num_alleles; allele++) {
+        max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
+    }
+    for (allele = 0; allele < num_alleles; allele++) {
+        if (allele_count[allele] == max_allele_count) {
+            optimal_root_set = set_bit(optimal_root_set, allele);
+        }
+    }
+    ancestral_state = get_smallest_set_bit(optimal_root_set);
 
     num_transitions = 0;
     for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
-        transition_parent = TSK_NULL;
-        state[root] = ancestral_state;
-        if (!bit_is_set(A[root], ancestral_state)) {
-            state[root] = get_smallest_set_bit(A[root]);
-            transitions[num_transitions].node = root;
-            transitions[num_transitions].parent = TSK_NULL;
-            transitions[num_transitions].state = state[root];
-            transition_parent = (tsk_id_t) num_transitions;
-            num_transitions++;
-        }
         /* Do a preorder traversal */
-        stack[0] = root;
-        parent_stack[0] = transition_parent;
+        preorder_stack[0].node = root;
+        preorder_stack[0].state = ancestral_state;
+        preorder_stack[0].transition_parent = TSK_NULL;
         stack_top = 0;
         while (stack_top >= 0) {
-            u = stack[stack_top];
-            transition_parent = parent_stack[stack_top];
+            s = preorder_stack[stack_top];
             stack_top--;
 
-            for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+            if (!bit_is_set(optimal_set[s.node], s.state)) {
+                s.state = get_smallest_set_bit(optimal_set[s.node]);
+                transitions[num_transitions].node = s.node;
+                transitions[num_transitions].parent = s.transition_parent;
+                transitions[num_transitions].state = s.state;
+                s.transition_parent = (tsk_id_t) num_transitions;
+                num_transitions++;
+            }
+            for (v = left_child[s.node]; v != TSK_NULL; v = right_sib[v]) {
                 stack_top++;
-                stack[stack_top] = v;
-                state[v] = state[u];
-                if (!bit_is_set(A[v], state[u])) {
-                    state[v] = get_smallest_set_bit(A[v]);
-                    transitions[num_transitions].node = v;
-                    transitions[num_transitions].parent = transition_parent;
-                    transitions[num_transitions].state = state[v];
-                    parent_stack[stack_top] = (tsk_id_t) num_transitions;
-                    num_transitions++;
-                } else {
-                    parent_stack[stack_top] = transition_parent;
-                }
+                s.node = v;
+                preorder_stack[stack_top] = s;
             }
         }
     }
@@ -4414,17 +4442,14 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
 out:
     tsk_safe_free(transitions);
     /* Cannot safe_free because of 'restrict' */
-    if (A != NULL) {
-        free(A);
+    if (optimal_set != NULL) {
+        free(optimal_set);
     }
-    if (stack != NULL) {
-        free(stack);
+    if (preorder_stack != NULL) {
+        free(preorder_stack);
     }
-    if (parent_stack != NULL) {
-        free(parent_stack);
-    }
-    if (state != NULL) {
-        free(state);
+    if (postorder_stack != NULL) {
+        free(postorder_stack);
     }
     return ret;
 }
