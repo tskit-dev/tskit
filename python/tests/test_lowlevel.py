@@ -432,6 +432,23 @@ class TestTableMethodsErrors:
             with pytest.raises(TypeError):
                 ll_table.get_row(no_such_arg="")
 
+    @pytest.mark.parametrize("table", ["nodes", "individuals"])
+    def test_flag_underflow_overflow(self, table):
+        tables = _tskit.TableCollection(1)
+        table = getattr(tables, table)
+        table.add_row(flags=0)
+        table.add_row(flags=(1 << 32) - 1)
+        with pytest.raises(OverflowError, match="unsigned int32 >= than 2\\^32"):
+            table.add_row(flags=1 << 32)
+        with pytest.raises(OverflowError, match="int too big to convert"):
+            table.add_row(flags=1 << 64)
+        with pytest.raises(OverflowError, match="int too big to convert"):
+            table.add_row(flags=1 << 256)
+        with pytest.raises(
+            ValueError, match="Can't convert negative value to unsigned int"
+        ):
+            table.add_row(flags=-1)
+
     def test_index(self):
         tc = msprime.simulate(10, random_seed=42).tables._ll_tables
         assert tc.indexes["edge_insertion_order"].dtype == np.int32

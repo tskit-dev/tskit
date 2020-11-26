@@ -736,6 +736,31 @@ out:
     return ret;
 }
 
+static int
+uint32_converter(PyObject *py_obj, uint32_t *uint_out)
+{
+    long long temp_long;
+    int ret = 0;
+
+    if (!PyArg_Parse(py_obj, "L", &temp_long)) {
+        goto out;
+    }
+    if (temp_long > UINT32_MAX) {
+        PyErr_SetString(PyExc_OverflowError, "unsigned int32 >= than 2^32");
+        goto out;
+    }
+    if (temp_long < 0) {
+        PyErr_SetString(
+            PyExc_ValueError, "Can't convert negative value to unsigned int");
+        goto out;
+    }
+
+    uint_out[0] = (uint32_t) temp_long;
+    ret = 1;
+out:
+    return ret;
+}
+
 /*===================================================================
  * IndividualTable
  *===================================================================
@@ -823,8 +848,8 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "|iOO", kwlist, &flags, &py_location, &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&OO", kwlist, &uint32_converter,
+            &flags, &py_location, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -1302,8 +1327,8 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|idiiO", kwlist, &flags, &time,
-            &population, &individual, &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&diiO", kwlist, &uint32_converter,
+            &flags, &time, &population, &individual, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
