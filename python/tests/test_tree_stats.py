@@ -881,8 +881,12 @@ def example_sample_sets(ts, min_size=1):
         yield [samples[:1]]
     if ts.num_samples > 2 and min_size <= 2:
         yield [samples[:2], samples[2:]]
+    if ts.num_samples > 4 and min_size <= 2:
+        yield [samples[:2], samples[2:4]]
     if ts.num_samples > 7 and min_size <= 4:
         yield [samples[:2], samples[2:4], samples[4:6], samples[6:]]
+    if ts.num_samples > 8 and min_size <= 4:
+        yield [samples[:2], samples[2:4], samples[4:6], samples[6:8]]
 
 
 def example_sample_set_index_pairs(sample_sets):
