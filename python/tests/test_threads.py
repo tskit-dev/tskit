@@ -34,6 +34,7 @@ import tests.tsutil as tsutil
 import tskit
 
 IS_WINDOWS = platform.system() == "Windows"
+IS_OSX = platform.system() == "Darwin"
 
 
 def run_threads(worker, num_threads):
@@ -138,9 +139,12 @@ class TestLdCalculatorReplicates:
             assert results[j][0] == m - j - 1
 
 
-# Temporarily skipping these on Windows. See
-# https://github.com/jeromekelleher/tskit/issues/344
-@pytest.mark.skipif(IS_WINDOWS, reason="Can't test thread support on Windows.")
+# Temporarily skipping these on Windows and OSX See
+# https://github.com/tskit-dev/tskit/issues/344
+# https://github.com/tskit-dev/tskit/issues/1041
+@pytest.mark.skipif(
+    IS_WINDOWS or IS_OSX, reason="Can't test thread support on Windows."
+)
 class TestTables:
     """
     Tests to ensure that attempts to access tables in threads correctly
