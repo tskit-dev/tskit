@@ -1752,9 +1752,10 @@ class TestLdCalculator(LowLevelTestCase):
             calc.get_r2_array(buff, 0, max_distance=-1)
         with pytest.raises(ValueError):
             calc.get_r2_array(buff, 0, direction=1000)
+
         # TODO this API is poor, we should explicitly catch these negative
         # size errors.
-        for bad_max_mutations in [-2, -3, -(2 ** 32)]:
+        for bad_max_mutations in [-2, -3]:
             with pytest.raises(BufferError):
                 calc.get_r2_array(buff, 0, max_mutations=bad_max_mutations)
         for bad_start_pos in [-1, n, n + 1]:
