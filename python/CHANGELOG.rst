@@ -4,6 +4,10 @@
 
 **Features**
 
+- Add ``TreeSequence.genetic_relatedness`` for calculating genetic relatedness between
+  pairs of sets of nodes (:user:`brieuclehmann`, :issue:`1021`, :pr:`1023`, :issue:`974`,
+  :issue:`973`, :pr:`898`).
+
 - Expose ``TreeSequence.coiterate()`` method to allow iteration over 2 sequences
   simultaneously, aiding comparison of trees from two sequences
   (:user:`jeromekelleher`, :user:`hyanwong`, :issue:`1021`, :pr:`1022`).

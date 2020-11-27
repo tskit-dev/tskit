@@ -2,6 +2,15 @@
 [0.99.8] - 2020-11-27
 ---------------------
 
+**Features**
+
+- Add ``tsk_treeseq_genetic_relatedness`` for calculating genetic relatedness between
+  pairs of sets of nodes (:user:`brieuclehmann`, :issue:`1021`, :pr:`1023`, :issue:`974`,
+  :issue:`973`, :pr:`898`).
+
+- Exposed ``tsk_table_collection_set_indexes`` to the API
+  (:user:`benjeffery`, :issue:`870`, :pr:`921`).
+
 **Breaking changes**
 
 - Added an ``options`` argument to ``tsk_table_collection_equals``
@@ -14,9 +23,6 @@
 - Changed default behaviour of ``tsk_table_collection_clear`` to not clear
   provenances and added ``options`` argument to optionally clear provenances
   and schemas (:user:`benjeffery`, :issue:`929`, :pr:`1001`).
-
-- Exposed ``tsk_table_collection_set_indexes`` to the API
-  (:user:`benjeffery`, :issue:`870`, :pr:`921`).
 
 - Renamed ``ts.trait_regression`` to ``ts.trait_linear_model``.
 
