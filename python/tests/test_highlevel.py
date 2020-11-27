@@ -1456,9 +1456,9 @@ class TestTreeSequence(HighLevelTestCase):
             for table in ts.tables.name_map:
                 assert f"<td>{table.capitalize()}</td>" in html
 
-    def test_repr(self):
+    def test_str(self):
         for ts in get_example_tree_sequences():
-            s = repr(ts)
+            s = str(ts)
             assert len(s) > 999
             assert re.search(rf"║Trees *│ *{ts.num_trees}║", s)
             for table in ts.tables.name_map:
