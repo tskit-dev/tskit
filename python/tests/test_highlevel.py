@@ -492,7 +492,7 @@ class HighLevelTestCase:
             next(iter2)
         assert ts.get_num_trees() == num_trees
         assert breakpoints == list(ts.breakpoints())
-        assert length == ts.get_sequence_length()
+        assert length == pytest.approx(ts.get_sequence_length())
 
 
 class TestNumpySamples:
