@@ -1,15 +1,15 @@
 --------------------
-[0.X.X] - 2020-XX-XX
+[0.3.3] - 2020-11-27
 --------------------
 
 **Features**
 
 - Expose ``TreeSequence.coiterate()`` method to allow iteration over 2 sequences
-  simultaneously, aiding comparison of trees from two sequences.
-  (:user:`jeromekelleher`, :user:`hyanwong`, :issue:`1021`, :pr:`1022`)
+  simultaneously, aiding comparison of trees from two sequences
+  (:user:`jeromekelleher`, :user:`hyanwong`, :issue:`1021`, :pr:`1022`).
 
-- tskit is now supported on, and has wheels for, python3.9.
-  (:user:`benjeffery`, :issue:`982`, :pr:`907`)
+- tskit is now supported on, and has wheels for, python3.9
+  (:user:`benjeffery`, :issue:`982`, :pr:`907`).
 
 - ``Tree.newick()`` now has extra option ``include_branch_lengths`` to allow branch
   lengths to be omitted (:user:`hyanwong`, :pr:`931`).
@@ -22,56 +22,55 @@
 
 - Added ``equals`` method to TreeSequence, TableCollection and each of the tables which
   provides more flexible equality comparisons, for example, allowing
-  users to ignore metadata or provenance in the comparison.
+  users to ignore metadata or provenance in the comparison
   (:user:`mufernando`, :user:`jeromekelleher`, :issue:`896`, :pr:`897`,
   :issue:`913`, :pr:`917`).
 
-- Added ``__eq__`` to TreeSequence.
-  (:user:`benjeffery`, :issue:`1011`, :pr:`1020`)
+- Added ``__eq__`` to TreeSequence
+  (:user:`benjeffery`, :issue:`1011`, :pr:`1020`).
 
 - ``ts.dump`` and ``tskit.load`` now support reading and writing file objects such as
-  FIFOs and sockets. (:user:`benjeffery`, :issue:`657`, :pr:`909`)
+  FIFOs and sockets (:user:`benjeffery`, :issue:`657`, :pr:`909`).
 
-- Added ``tskit.write_ms`` for writing to MS format.
-  (:user:`saurabhbelsare`, :issue:`727`, :pr:`854`)
+- Added ``tskit.write_ms`` for writing to MS format
+  (:user:`saurabhbelsare`, :issue:`727`, :pr:`854`).
 
-- Added ``TableCollection.indexes`` for access to the edge insertion/removal order indexes.
-  (:user:`benjeffery`, :issue:`4`, :pr:`916`)
+- Added ``TableCollection.indexes`` for access to the edge insertion/removal order indexes
+  (:user:`benjeffery`, :issue:`4`, :pr:`916`).
 
-- The dictionary representation of a TableCollection now contains its index.
-  (:user:`benjeffery`, :issue:`870`, :pr:`921`)
+- The dictionary representation of a TableCollection now contains its index
+  (:user:`benjeffery`, :issue:`870`, :pr:`921`).
 
-- Added ``TreeSequence._repr_html_`` for use in jupyter notebooks.
-  (:user:`benjeffery`, :issue:`872`, :pr:`923`)
+- Added ``TreeSequence._repr_html_`` for use in jupyter notebooks
+  (:user:`benjeffery`, :issue:`872`, :pr:`923`).
 
-- Added ``TreeSequence.__str__`` to display a summary for terminal usage.
-  (:user:`benjeffery`, :issue:`938`, :pr:`985`)
+- Added ``TreeSequence.__str__`` to display a summary for terminal usage
+  (:user:`benjeffery`, :issue:`938`, :pr:`985`).
 
 - Added ``TableCollection.dump`` and ``TableCollection.load``. This allows table
-  collections that are not valid tree sequences to be manipulated.
-  (:user:`benjeffery`, :issue:`14`, :pr:`986`)
+  collections that are not valid tree sequences to be manipulated
+  (:user:`benjeffery`, :issue:`14`, :pr:`986`).
 
 - Added ``nbytes`` method to tables, ``TableCollection`` and ``TreeSequence`` which
-  reports the size in bytes of those objects.
-  (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`54`, :pr:`871`)
+  reports the size in bytes of those objects
+  (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`54`, :pr:`871`).
 
 - Added ``TableCollection.clear`` to clear data table rows and optionally
-  provenances, table schemas and tree-sequence level metadata and schema.
-  (:user:`benjeffery`, :issue:`929`, :pr:`1001`)
+  provenances, table schemas and tree-sequence level metadata and schema
+  (:user:`benjeffery`, :issue:`929`, :pr:`1001`).
 
 **Bugfixes**
 
 - ``LightWeightTableCollection.asdict`` and ``TableCollection.asdict`` now return copies
-  of arrays.
-  (:user:`benjeffery`, :issue:`1025`, :pr:`1029`)
+  of arrays (:user:`benjeffery`, :issue:`1025`, :pr:`1029`).
 
 - The ``map_mutations`` method previously used the Fitch parsimony method, but this
   does not produce parsimonious results on non-binary trees. We now now use the
-  Hartigan parsimony algorithm, which does. (:user:`jeromekelleher`,
+  Hartigan parsimony algorithm, which does (:user:`jeromekelleher`,
   :issue:`987`, :pr:`1030`).
 
-- The ``flag`` argument to tables' ``add_row`` was treating the value as signed.
-  (:user:`benjeffery`, :issue:`1027`, :pr:`1031`)
+- The ``flag`` argument to tables' ``add_row`` was treating the value as signed
+  (:user:`benjeffery`, :issue:`1027`, :pr:`1031`).
 
 **Breaking changes**
 

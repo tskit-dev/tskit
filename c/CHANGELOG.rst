@@ -1,5 +1,5 @@
 ---------------------
-[0.99.8] - 2020-XX-XX
+[0.99.8] - 2020-11-27
 ---------------------
 
 **Breaking changes**
@@ -8,16 +8,15 @@
   and table equality methods to allow for more flexible equality criteria
   (e.g., ignore top-level metadata and schema or provenance tables).
   Existing code should add an extra final parameter ``0`` to retain the
-  current behaviour. (:user:`mufernando`, :user:`jeromekelleher`,
+  current behaviour (:user:`mufernando`, :user:`jeromekelleher`,
   :issue:`896`, :pr:`897`, :issue:`913`, :pr:`917`).
 
 - Changed default behaviour of ``tsk_table_collection_clear`` to not clear
   provenances and added ``options`` argument to optionally clear provenances
-  and schemas.
-  (:user:`benjeffery`, :issue:`929`, :pr:`1001`)
+  and schemas (:user:`benjeffery`, :issue:`929`, :pr:`1001`).
 
-- Exposed ``tsk_table_collection_set_indexes`` to the API.
-  (:user:`benjeffery`, :issue:`870`, :pr:`921`)
+- Exposed ``tsk_table_collection_set_indexes`` to the API
+  (:user:`benjeffery`, :issue:`870`, :pr:`921`).
 
 - Renamed ``ts.trait_regression`` to ``ts.trait_linear_model``.
 
@@ -26,10 +25,10 @@
 ---------------------
 
 - Added ``TSK_INCLUDE_TERMINAL`` option to ``tsk_diff_iter_init`` to output the last edges
-  at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`)
+  at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`).
 
 - Added ``tsk_bug_assert`` for assertions that should be compiled into release binaries
-  (:user:`benjeffery`, :pr:`860`)
+  (:user:`benjeffery`, :pr:`860`).
 
 ---------------------
 [0.99.6] - 2020-09-04
