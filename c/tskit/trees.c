@@ -2762,17 +2762,21 @@ genetic_relatedness_summary_func(size_t state_dim, const double *state,
     tsk_id_t i, j;
     size_t k;
     double sumx = 0;
-    double meanx;
+    double sumn = 0;
+    double meanx, ni, nj;
 
     for (k = 0; k < state_dim; k++) {
         sumx += x[k];
+        sumn += args.sample_set_sizes[k];
     }
 
-    meanx = sumx / (double) state_dim;
+    meanx = sumx / sumn;
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        result[k] = (x[i] - meanx) * (x[j] - meanx) / 2;
+        ni = args.sample_set_sizes[i];
+        nj = args.sample_set_sizes[j];
+        result[k] = (x[i] - ni * meanx) * (x[j] - nj * meanx) / 2;
     }
     return 0;
 }
