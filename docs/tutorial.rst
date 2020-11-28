@@ -1211,7 +1211,7 @@ The output is::
 Missing data
 ++++++++++++
 
-The Fitch parsimony algorithm in :meth:`Tree.map_mutations` can also take missing data
+The Hartigan parsimony algorithm in :meth:`Tree.map_mutations` can also take missing data
 into account when finding a set of parsimonious state transitions. We do this by
 specifying the special value ``-1`` as the state, which is treated by the algorithm as
 "could be anything".
