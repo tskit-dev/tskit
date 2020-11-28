@@ -2312,7 +2312,7 @@ class Tree:
         one non-missing observation must be provided. A maximum of 64 alleles are
         supported.
 
-        The current implementation uses the Fitch parsimony algorithm to determine
+        The current implementation uses the Hartigan parsimony algorithm to determine
         the minimum number of state transitions required to explain the data. In this
         model, transitions between any of the non-missing states is equally likely.
 
