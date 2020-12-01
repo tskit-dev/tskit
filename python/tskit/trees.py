@@ -3207,12 +3207,20 @@ class TreeSequence:
         ts.load_tables(tables._ll_tables, build_indexes=build_indexes)
         return TreeSequence(ts)
 
-    def dump(self, file_or_path):
+    def dump(self, file_or_path, zlib_compression=False):
         """
         Writes the tree sequence to the specified path or file object.
 
         :param str file_or_path: The file object or path to write the TreeSequence to.
+        :param bool zlib_compression: This parameter is deprecated and ignored.
         """
+        if zlib_compression:
+            # Note: the msprime CLI before version 1.0 uses this option, so we need
+            # to keep it indefinitely.
+            warnings.warn(
+                "The zlib_compression option is no longer supported and is ignored",
+                RuntimeWarning,
+            )
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
         try:
             self._ll_tree_sequence.dump(file)
