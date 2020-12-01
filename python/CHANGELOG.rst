@@ -1,13 +1,14 @@
 --------------------
-[0.X.X] - 2021-XX-XX
+[0.3.4] - 2020-12-02
 --------------------
 
-**Breaking changes**
+Minor bugfix release.
 
-**Features**
 
 **Bugfixes**
 
+- Reinstate the unused zlib_compression option to tskit.dump, as msprime < 1.0
+  still uses it (:user:`jeromekelleher`, :issue:`1067`).
 
 --------------------
 [0.3.3] - 2020-11-27
