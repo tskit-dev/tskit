@@ -1288,6 +1288,16 @@ class TestTreeSequence(HighLevelTestCase):
                 with pytest.raises(TypeError):
                     func(bad_filename)
 
+    def test_zlib_compression_warning(self, ts_fixture, tmp_path):
+        temp_file = tmp_path / "tmp.trees"
+        with warnings.catch_warnings(record=True) as w:
+            ts_fixture.dump(temp_file, zlib_compression=True)
+            assert len(w) == 1
+            assert issubclass(w[0].category, RuntimeWarning)
+        with warnings.catch_warnings(record=True) as w:
+            ts_fixture.dump(temp_file, zlib_compression=False)
+            assert len(w) == 0
+
     def test_tables_sequence_length_round_trip(self):
         for sequence_length in [0.1, 1, 10, 100]:
             ts = msprime.simulate(5, length=sequence_length, random_seed=1)
