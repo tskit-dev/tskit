@@ -1,6 +1,6 @@
 attrs==20.2.0
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
-breathe==4.23.0
+breathe==4.24.0
 h5py==3.1.0
 jsonschema==3.2.0
 numpy==1.19.4
