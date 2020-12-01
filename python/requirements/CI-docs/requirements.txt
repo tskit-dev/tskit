@@ -1,4 +1,4 @@
-attrs==20.2.0
+attrs==20.3.0
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 breathe==4.24.0
 h5py==3.1.0
