@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <float.h>
+#include <assert.h>
 
 #include <tskit/haplotype_matching.h>
 
@@ -88,7 +89,8 @@ tsk_ls_hmm_print_state(tsk_ls_hmm_t *self, FILE *out)
     fprintf(out, "num_samples     = %d\n", self->num_samples);
     fprintf(out, "num_values      = %d\n", (int) self->num_values);
     fprintf(out, "max_values      = %d\n", (int) self->max_values);
-    fprintf(out, "num_fitch_words = %d\n", (int) self->num_fitch_words);
+    fprintf(out, "num_optimal_value_set_words = %d\n",
+        (int) self->num_optimal_value_set_words);
 
     fprintf(out, "sites::\n");
     for (l = 0; l < self->num_sites; l++) {
@@ -214,7 +216,7 @@ tsk_ls_hmm_free(tsk_ls_hmm_t *self)
     tsk_safe_free(self->values);
     tsk_safe_free(self->num_transition_samples);
     tsk_safe_free(self->transition_parent);
-    tsk_safe_free(self->fitch_sets);
+    tsk_safe_free(self->optimal_value_sets);
     return 0;
 }
 
@@ -500,8 +502,8 @@ tsk_ls_hmm_discretise_values(tsk_ls_hmm_t *self)
 }
 
 /*
- * TODO We also have this function in tree.s where it's used in the Fitch
- * calculations (which are slightly different). It would be good to bring
+ * TODO We also have these function in tree.c where they're used in the
+ * parsimony calculations (which are slightly different). It would be good to bring
  * these together, or at least avoid having the same function in two
  * files. Keeping it as it is for now so that it can be inlined, since
  * it's perf-sensitive. */
@@ -515,13 +517,25 @@ get_smallest_set_bit(uint64_t v)
      */
     uint64_t t = 1;
     tsk_id_t r = 0;
-    tsk_bug_assert(v != 0);
+    assert(v != 0);
 
     while ((v & t) == 0) {
         t <<= 1;
         r++;
     }
     return r;
+}
+
+static inline uint64_t
+set_bit(uint64_t value, uint8_t bit)
+{
+    return value | (1ULL << bit);
+}
+
+static inline bool
+bit_is_set(uint64_t value, uint8_t bit)
+{
+    return (value & (1ULL << bit)) != 0;
 }
 
 static inline tsk_id_t
@@ -538,9 +552,9 @@ get_smallest_element(const uint64_t *restrict A, size_t u, size_t num_words)
     return j * 64 + get_smallest_set_bit(a[j]);
 }
 
-#define MAX_FITCH_WORDS 256
+#define MAX_PARSIMONY_WORDS 256
 /* static variables are zero-initialised by default. */
-static const uint64_t zero_block[MAX_FITCH_WORDS];
+static const uint64_t zero_block[MAX_PARSIMONY_WORDS];
 
 static inline bool
 all_zero(const uint64_t *restrict A, size_t u, size_t num_words)
@@ -558,23 +572,36 @@ element_in(const uint64_t *restrict A, size_t u, const tsk_id_t state, size_t nu
     size_t index = ((size_t) u) * num_words + (size_t)(state / 64);
     return (A[index] & (1ULL << (state % 64))) != 0;
 }
+
 static inline void
-set_fitch(uint64_t *restrict A, const tsk_id_t u, const size_t num_words, tsk_id_t state)
+set_optimal_value(
+    uint64_t *restrict A, const tsk_id_t u, const size_t num_words, tsk_id_t state)
 {
     size_t index = ((size_t) u) * num_words + (size_t)(state / 64);
     tsk_bug_assert(((size_t) state) / 64 < num_words);
     A[index] |= 1ULL << (state % 64);
 }
 
+/* TODO the implementation here isn't particularly optimal and the way things
+ * were organised was really driven by the old Fitch parsimony algorithm
+ * (which only worked on binary trees. In particular, we should be working
+ * word-by-word where possible rather than iterating by values like we do here.
+ * Needs to be reworked when we're documenting/writing up this algorithm.
+ */
+
 static void
-compute_fitch_1(uint64_t *restrict A, const tsk_id_t *restrict left_child,
-    const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state)
+compute_optimal_value_1(uint64_t *restrict A, const tsk_id_t *restrict left_child,
+    const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state,
+    const size_t num_values)
 {
     tsk_id_t v;
-    uint64_t a_union = 0;
-    uint64_t a_inter = UINT64_MAX;
     uint64_t child;
+    tsk_size_t value_count[64], max_value_count;
+    uint8_t j;
 
+    assert(num_values < 64);
+
+    memset(value_count, 0, num_values * sizeof(*value_count));
     for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
         child = A[v];
         /* If the set for a given child is empty, then we know it inherits
@@ -582,135 +609,116 @@ compute_fitch_1(uint64_t *restrict A, const tsk_id_t *restrict left_child,
         if (child == 0) {
             child = 1ULL << parent_state;
         }
-        a_union |= child;
-        a_inter &= child;
-    }
-    A[u] = a_inter;
-    if (a_inter == 0) {
-        A[u] = a_union;
-    }
-}
-
-static void
-compute_fitch_2(uint64_t *restrict A, const tsk_id_t *restrict left_child,
-    const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state)
-{
-    tsk_id_t v;
-    uint64_t a_union[2] = { 0, 0 };
-    uint64_t a_inter[2] = { UINT64_MAX, UINT64_MAX };
-    uint64_t child[2];
-    const tsk_id_t state_index = parent_state / 64;
-    const uint64_t state_word = 1ULL << (parent_state % 64);
-
-    for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-        child[0] = A[2 * v];
-        child[1] = A[2 * v + 1];
-        /* If the set for a given child is empty, then we know it inherits
-         * directly from the parent state and must be a singleton set. */
-        if (child[0] == 0 && child[1] == 0) {
-            child[state_index] = state_word;
+        for (j = 0; j < num_values; j++) {
+            value_count[j] += bit_is_set(child, j);
         }
-        /* printf("\tFITCH child %d = %d: %d\n", v, (int) child, (int) A[v]); */
-        a_union[0] |= child[0];
-        a_union[1] |= child[1];
-        a_inter[0] &= child[0];
-        a_inter[1] &= child[1];
     }
-    A[2 * u] = a_inter[0];
-    A[2 * u + 1] = a_inter[1];
-    if (a_inter[0] == 0 && a_inter[1] == 0) {
-        A[2 * u] = a_union[0];
-        A[2 * u + 1] = a_union[1];
+    max_value_count = 0;
+    for (j = 0; j < num_values; j++) {
+        max_value_count = TSK_MAX(max_value_count, value_count[j]);
+    }
+    A[u] = 0;
+    for (j = 0; j < num_values; j++) {
+        if (value_count[j] == max_value_count) {
+            A[u] = set_bit(A[u], j);
+        }
     }
 }
 
 static void
-compute_fitch_general(uint64_t *restrict A, const tsk_id_t *restrict left_child,
+compute_optimal_value_general(uint64_t *restrict A, const tsk_id_t *restrict left_child,
     const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state,
-    const size_t num_words)
+    const size_t num_values, const size_t num_words)
 {
     tsk_id_t v;
-    uint64_t a_union[MAX_FITCH_WORDS];
-    uint64_t a_inter[MAX_FITCH_WORDS];
-    uint64_t child[MAX_FITCH_WORDS];
-    uint64_t *src;
-    size_t base;
-    bool child_all_zero, inter_all_zero;
+    uint64_t child[MAX_PARSIMONY_WORDS];
+    uint64_t *Au;
+    size_t base, word, bit;
+    bool child_all_zero;
     const tsk_id_t state_index = parent_state / 64;
     const uint64_t state_word = 1ULL << (parent_state % 64);
-    int j;
+    tsk_size_t value_count[64 * MAX_PARSIMONY_WORDS], max_value_count;
+    size_t j;
 
-    tsk_bug_assert(num_words <= MAX_FITCH_WORDS);
+    tsk_bug_assert(num_values < 64 * MAX_PARSIMONY_WORDS);
+    tsk_bug_assert(num_words <= MAX_PARSIMONY_WORDS);
+    for (j = 0; j < num_values; j++) {
+        value_count[j] = 0;
+    }
 
-    memset(a_union, 0, num_words * sizeof(*a_union));
-    memset(a_inter, 0xff, num_words * sizeof(*a_inter));
     for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
         child_all_zero = true;
         base = ((size_t) v) * num_words;
-        for (j = 0; j < (int) num_words; j++) {
-            child[j] = A[base + (size_t) j];
-            child_all_zero = child_all_zero && (child[j] == 0);
+        for (word = 0; word < num_words; word++) {
+            child[word] = A[base + word];
+            child_all_zero = child_all_zero && (child[word] == 0);
         }
         /* If the set for a given child is empty, then we know it inherits
          * directly from the parent state and must be a singleton set. */
         if (child_all_zero) {
             child[state_index] = state_word;
         }
-        for (j = 0; j < (int) num_words; j++) {
-            a_union[j] |= child[j];
-            a_inter[j] &= child[j];
+        for (j = 0; j < num_values; j++) {
+            word = j / 64;
+            bit = j % 64;
+            assert(word < num_words);
+            value_count[j] += bit_is_set(child[word], (uint8_t) bit);
         }
     }
-    inter_all_zero = true;
-    for (j = 0; j < (int) num_words; j++) {
-        inter_all_zero = inter_all_zero && (a_inter[j] == 0);
+    max_value_count = 0;
+    for (j = 0; j < num_values; j++) {
+        max_value_count = TSK_MAX(max_value_count, value_count[j]);
     }
 
-    src = a_inter;
-    if (inter_all_zero) {
-        src = a_union;
+    Au = A + ((size_t) u * num_words);
+    for (word = 0; word < num_words; word++) {
+        Au[word] = 0;
     }
-    for (j = 0; j < (int) num_words; j++) {
-        A[((size_t) u) * num_words + (size_t) j] = src[j];
+    for (j = 0; j < num_values; j++) {
+        if (value_count[j] == max_value_count) {
+            word = j / 64;
+            bit = j % 64;
+            Au[word] = set_bit(Au[word], (uint8_t) bit);
+        }
     }
 }
 
 static void
-compute_fitch(uint64_t *restrict A, const tsk_id_t *restrict left_child,
+compute_optimal_value(uint64_t *restrict A, const tsk_id_t *restrict left_child,
     const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state,
-    const size_t num_words)
+    const size_t num_values, const size_t num_words)
 {
     if (num_words == 1) {
-        compute_fitch_1(A, left_child, right_sib, u, parent_state);
-    } else if (num_words == 2) {
-        compute_fitch_2(A, left_child, right_sib, u, parent_state);
+        compute_optimal_value_1(A, left_child, right_sib, u, parent_state, num_values);
     } else {
-        compute_fitch_general(A, left_child, right_sib, u, parent_state, num_words);
+        compute_optimal_value_general(
+            A, left_child, right_sib, u, parent_state, num_values, num_words);
     }
 }
 
 static int
-tsk_ls_hmm_setup_fitch_sets(tsk_ls_hmm_t *self)
+tsk_ls_hmm_setup_optimal_value_sets(tsk_ls_hmm_t *self)
 {
     int ret = 0;
 
-    /* We expect that most of the time there will be one word per fitch set,
+    /* We expect that most of the time there will be one word per optimal_value set,
      * but there will be times when we need more than one word. This approach
      * lets us expand the memory if we need to, but when the number of
      * values goes back below 64 we revert to using one word per set. We
      * could in principle release back the memory as well, but it doesn't seem
      * worth the bother. */
-    self->num_fitch_words = (self->num_values / 64) + 1;
-    if (self->num_fitch_words > MAX_FITCH_WORDS) {
+    self->num_optimal_value_set_words = (self->num_values / 64) + 1;
+    if (self->num_optimal_value_set_words > MAX_PARSIMONY_WORDS) {
         ret = TSK_ERR_TOO_MANY_VALUES;
         goto out;
     }
     if (self->num_values >= self->max_values) {
-        self->max_values = self->num_fitch_words * 64;
-        tsk_safe_free(self->fitch_sets);
-        self->fitch_sets
-            = calloc(self->num_nodes * self->num_fitch_words, sizeof(*self->fitch_sets));
-        if (self->fitch_sets == NULL) {
+        self->max_values = self->num_optimal_value_set_words * 64;
+        tsk_safe_free(self->optimal_value_sets);
+        self->optimal_value_sets
+            = calloc(self->num_nodes * self->num_optimal_value_set_words,
+                sizeof(*self->optimal_value_sets));
+        if (self->optimal_value_sets == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
         }
@@ -720,7 +728,7 @@ out:
 }
 
 static int
-tsk_ls_hmm_build_fitch_sets(tsk_ls_hmm_t *self)
+tsk_ls_hmm_build_optimal_value_sets(tsk_ls_hmm_t *self)
 {
     int ret = 0;
     const double *restrict node_time = self->tree_sequence->tables->nodes.time;
@@ -730,8 +738,8 @@ tsk_ls_hmm_build_fitch_sets(tsk_ls_hmm_t *self)
     const tsk_value_transition_t *restrict T = self->transitions;
     const tsk_id_t *restrict T_index = self->transition_index;
     tsk_argsort_t *restrict order = self->transition_time_order;
-    const size_t num_fitch_words = self->num_fitch_words;
-    uint64_t *restrict A = self->fitch_sets;
+    const size_t num_optimal_value_set_words = self->num_optimal_value_set_words;
+    uint64_t *restrict A = self->optimal_value_sets;
     size_t j;
     tsk_id_t u, v, state, parent_state;
 
@@ -752,9 +760,10 @@ tsk_ls_hmm_build_fitch_sets(tsk_ls_hmm_t *self)
             state = T[order[j].index].value_index;
             if (left_child[u] == TSK_NULL) {
                 /* leaf node */
-                set_fitch(A, u, num_fitch_words, state);
+                set_optimal_value(A, u, num_optimal_value_set_words, state);
             } else {
-                compute_fitch(A, left_child, right_sib, u, state, num_fitch_words);
+                compute_optimal_value(A, left_child, right_sib, u, state,
+                    self->num_values, num_optimal_value_set_words);
             }
             v = parent[u];
             if (v != TSK_NULL) {
@@ -765,8 +774,8 @@ tsk_ls_hmm_build_fitch_sets(tsk_ls_hmm_t *self)
                 parent_state = T[T_index[v]].value_index;
                 v = parent[u];
                 while (T_index[v] == TSK_NULL) {
-                    compute_fitch(
-                        A, left_child, right_sib, v, parent_state, num_fitch_words);
+                    compute_optimal_value(A, left_child, right_sib, v, parent_state,
+                        self->num_values, num_optimal_value_set_words);
                     v = parent[v];
                     tsk_bug_assert(v != TSK_NULL);
                 }
@@ -788,8 +797,8 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
     tsk_value_transition_t *restrict T = self->transitions;
     tsk_value_transition_t *restrict T_old = self->transitions_copy;
     tsk_transition_stack_t *stack = self->transition_stack;
-    uint64_t *restrict A = self->fitch_sets;
-    const size_t num_fitch_words = self->num_fitch_words;
+    uint64_t *restrict A = self->optimal_value_sets;
+    const size_t num_optimal_value_set_words = self->num_optimal_value_set_words;
     tsk_transition_stack_t s, child_s;
     tsk_id_t root, u, v;
     int stack_top = 0;
@@ -802,8 +811,8 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
     for (root = self->tree.left_root; root != TSK_NULL; root = right_sib[root]) {
         stack[0].tree_node = root;
         stack[0].old_state = T_old[T_index[root]].value_index;
-        /* tsk_bug_assert(self->num_fitch_words == 1); */
-        stack[0].new_state = get_smallest_element(A, (size_t) root, num_fitch_words);
+        stack[0].new_state
+            = get_smallest_element(A, (size_t) root, num_optimal_value_set_words);
         stack[0].transition_parent = 0;
         stack_top = 0;
 
@@ -822,10 +831,11 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
                 if (T_index[v] != TSK_NULL) {
                     child_s.old_state = T_old[T_index[v]].value_index;
                 }
-                if (!all_zero(A, (size_t) v, num_fitch_words)) {
-                    if (!element_in(A, (size_t) v, s.new_state, num_fitch_words)) {
-                        child_s.new_state
-                            = get_smallest_element(A, (size_t) v, num_fitch_words);
+                if (!all_zero(A, (size_t) v, num_optimal_value_set_words)) {
+                    if (!element_in(
+                            A, (size_t) v, s.new_state, num_optimal_value_set_words)) {
+                        child_s.new_state = get_smallest_element(
+                            A, (size_t) v, num_optimal_value_set_words);
                         child_s.transition_parent = (tsk_id_t) self->num_transitions;
                         /* Add a new transition */
                         tsk_bug_assert(self->num_transitions < self->max_transitions);
@@ -850,14 +860,15 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
         }
     }
 
-    /* Unset the old T_index pointers and Fitch sets. */
+    /* Unset the old T_index pointers and optimal_value sets. */
     for (j = 0; j < old_num_transitions; j++) {
         u = T_old[j].tree_node;
         if (u != TSK_NULL) {
             T_index[u] = TSK_NULL;
-            while (u != TSK_NULL && !all_zero(A, (size_t) u, num_fitch_words)) {
-                memset(A + ((size_t) u) * num_fitch_words, 0,
-                    num_fitch_words * sizeof(uint64_t));
+            while (
+                u != TSK_NULL && !all_zero(A, (size_t) u, num_optimal_value_set_words)) {
+                memset(A + ((size_t) u) * num_optimal_value_set_words, 0,
+                    num_optimal_value_set_words * sizeof(uint64_t));
                 u = parent[u];
             }
         }
@@ -879,11 +890,11 @@ tsk_ls_hmm_compress(tsk_ls_hmm_t *self)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ls_hmm_setup_fitch_sets(self);
+    ret = tsk_ls_hmm_setup_optimal_value_sets(self);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ls_hmm_build_fitch_sets(self);
+    ret = tsk_ls_hmm_build_optimal_value_sets(self);
     if (ret != 0) {
         goto out;
     }

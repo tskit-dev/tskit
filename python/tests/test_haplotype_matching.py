@@ -407,27 +407,29 @@ class LsHmmAlgorithm:
             if st.tree_node != -1:
                 st.value_index = np.searchsorted(values, st.value)
 
-        union = np.zeros(len(values), dtype=int)
-        inter = np.ones(len(values), dtype=int)
         child = np.zeros(len(values), dtype=int)
+        num_values = len(values)
+        value_count = np.zeros(num_values, dtype=int)
 
         def compute(u, parent_state):
-            union[:] = 0
-            inter[:] = 1
+            value_count[:] = 0
             for v in tree.children(u):
-                child[:] = A[v]
+                child[:] = optimal_set[v]
                 # If the set for a given child is empty, then we know it inherits
                 # directly from the parent state and must be a singleton set.
                 if np.sum(child) == 0:
                     child[parent_state] = 1
-                np.logical_or(union, child, out=union)
-                np.logical_and(inter, child, out=inter)
-            if np.sum(inter) > 0:
-                A[u] = inter
-            else:
-                A[u] = union
+                for j in range(num_values):
+                    value_count[j] += child[j]
+            max_value_count = np.max(value_count)
+            # NOTE: we need to set the set to zero here because we actually
+            # visit some nodes more than once during the postorder traversal.
+            # This would seem to be wasteful, so we should revisit this when
+            # cleaning up the algorithm logic.
+            optimal_set[u, :] = 0
+            optimal_set[u, value_count == max_value_count] = 1
 
-        A = np.zeros((tree.tree_sequence.num_nodes, len(values)), dtype=int)
+        optimal_set = np.zeros((tree.tree_sequence.num_nodes, len(values)), dtype=int)
         t_node_time = [
             -1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T
         ]
@@ -441,7 +443,8 @@ class LsHmmAlgorithm:
                 if tree.is_internal(u):
                     compute(u, state)
                 else:
-                    A[u, state] = 1
+                    # A[u, state] = 1
+                    optimal_set[u, state] = 1
                 # Find parent state
                 v = tree.parent(u)
                 if v != -1:
@@ -458,7 +461,8 @@ class LsHmmAlgorithm:
         T_parent = []
 
         old_state = T_old[T_index[tree.root]].value_index
-        new_state = np.where(A[tree.root] == 1)[0][0]
+        new_state = np.argmax(optimal_set[tree.root])
+
         T.append(ValueTransition(tree_node=tree.root, value=values[new_state]))
         T_parent.append(-1)
         stack = [(tree.root, old_state, new_state, 0)]
@@ -468,11 +472,12 @@ class LsHmmAlgorithm:
                 old_child_state = old_state
                 if T_index[v] != -1:
                     old_child_state = T_old[T_index[v]].value_index
-                if np.sum(A[v]) > 0:
+                if np.sum(optimal_set[v]) > 0:
                     new_child_state = new_state
                     child_t_parent = t_parent
-                    if A[v, new_state] == 0:
-                        new_child_state = np.where(A[v] == 1)[0][0]
+
+                    if optimal_set[v, new_state] == 0:
+                        new_child_state = np.argmax(optimal_set[v])
                         child_t_parent = len(T)
                         T_parent.append(t_parent)
                         T.append(
@@ -978,6 +983,11 @@ class LiStephensBase:
 
     def test_jukes_cantor_n_15(self):
         ts = msprime.simulate(15, mutation_rate=2, random_seed=2)
+        ts = tsutil.jukes_cantor(ts, num_sites=10, mu=0.1, seed=10)
+        self.verify(ts, tskit.ALLELES_ACGT)
+
+    def test_jukes_cantor_balanced_ternary(self):
+        ts = tskit.Tree.generate_balanced(27, arity=3).tree_sequence
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=0.1, seed=10)
         self.verify(ts, tskit.ALLELES_ACGT)
 
