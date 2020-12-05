@@ -29,13 +29,14 @@ it clear in test code.
 
 For example to use the `ts` fixture (a tree sequence with data in all fields) in a test:
 
-def test_something(ts):
-    assert ts.some_method() == expected
+class TestClass:
+    def test_something(self, ts_fixture):
+        assert ts_fixture.some_method() == expected
 
 Fixtures can be parameterised etc. see https://docs.pytest.org/en/stable/fixture.html
 
-Note that fixtures have a "scope" for example `ts` below is only created once per
-test session and re-used for subsequent tests.
+Note that fixtures have a "scope" for example `ts_fixture` below is only created once
+per test session and re-used for subsequent tests.
 """
 import msprime
 import pytest
