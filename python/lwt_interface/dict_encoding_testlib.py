@@ -217,13 +217,13 @@ class TestMissingData:
             tables.metadata
 
     def test_missing_metadata_schema(self, tables):
-        assert str(tables.metadata_schema) != ""
+        assert repr(tables.metadata_schema) != ""
         d = tables.asdict()
         del d["metadata_schema"]
         lwt = lwt_module.LightweightTableCollection()
         lwt.fromdict(d)
         tables = tskit.TableCollection.fromdict(lwt.asdict())
-        assert str(tables.metadata_schema) == ""
+        assert repr(tables.metadata_schema) == ""
 
     def test_missing_tables(self, tables):
         d = tables.asdict()
@@ -466,7 +466,7 @@ class TestRequiredAndOptionalColumns:
         out = lwt.asdict()
         assert "metadata_schema" not in out[table_name]
         tables = tskit.TableCollection.fromdict(out)
-        assert str(getattr(tables, table_name).metadata_schema) == ""
+        assert repr(getattr(tables, table_name).metadata_schema) == ""
 
     def test_individuals(self, tables):
         self.verify_required_columns(tables, "individuals", ["flags"])
@@ -595,7 +595,7 @@ class TestRequiredAndOptionalColumns:
         out = lwt.asdict()
         assert "metadata_schema" not in out
         tables = tskit.TableCollection.fromdict(out)
-        assert str(tables.metadata_schema) == ""
+        assert repr(tables.metadata_schema) == ""
         # Missing is tested in TestMissingData above
 
 

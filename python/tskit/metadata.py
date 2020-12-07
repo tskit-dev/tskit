@@ -26,6 +26,7 @@ import abc
 import collections
 import copy
 import json
+import pprint
 import struct
 from itertools import islice
 from typing import Any
@@ -530,8 +531,11 @@ class MetadataSchema:
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return self._string
+
+    def __str__(self) -> str:
+        return pprint.pformat(self._schema)
 
     def __eq__(self, other) -> bool:
         return self._string == other._string
