@@ -1641,10 +1641,10 @@ class TestTreeSequenceMetadata:
     def test_tree_sequence_metadata_schema(self):
         tc = tskit.TableCollection(1)
         ts = tc.tree_sequence()
-        assert str(ts.metadata_schema) == str(tskit.MetadataSchema(None))
+        assert repr(ts.metadata_schema) == repr(tskit.MetadataSchema(None))
         tc.metadata_schema = self.metadata_schema
         ts = tc.tree_sequence()
-        assert str(ts.metadata_schema) == str(self.metadata_schema)
+        assert repr(ts.metadata_schema) == repr(self.metadata_schema)
         with pytest.raises(AttributeError):
             del ts.metadata_schema
         with pytest.raises(AttributeError):
@@ -1676,17 +1676,19 @@ class TestTreeSequenceMetadata:
             schema = tskit.MetadataSchema({"codec": "json", "TEST": f"{table}-SCHEMA"})
             # Check via table API
             getattr(tables, f"{table}s").metadata_schema = schema
-            assert str(getattr(tables, f"{table}s").metadata_schema) == str(schema)
-            for other_table in self.metadata_tables:
-                if other_table != table:
-                    assert str(getattr(tables, f"{other_table}s").metadata_schema) == ""
-            # Check via tree-sequence API
-            new_ts = tskit.TreeSequence.load_tables(tables)
-            assert str(getattr(new_ts.table_metadata_schemas, table)) == str(schema)
+            assert repr(getattr(tables, f"{table}s").metadata_schema) == repr(schema)
             for other_table in self.metadata_tables:
                 if other_table != table:
                     assert (
-                        str(getattr(new_ts.table_metadata_schemas, other_table)) == ""
+                        repr(getattr(tables, f"{other_table}s").metadata_schema) == ""
+                    )
+            # Check via tree-sequence API
+            new_ts = tskit.TreeSequence.load_tables(tables)
+            assert repr(getattr(new_ts.table_metadata_schemas, table)) == repr(schema)
+            for other_table in self.metadata_tables:
+                if other_table != table:
+                    assert (
+                        repr(getattr(new_ts.table_metadata_schemas, other_table)) == ""
                     )
             # Can't set schema via this API
             with pytest.raises(AttributeError):

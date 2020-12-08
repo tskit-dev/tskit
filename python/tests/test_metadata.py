@@ -28,6 +28,7 @@ import io
 import json
 import os
 import pickle
+import pprint
 import struct
 import tempfile
 import unittest
@@ -318,10 +319,21 @@ class TestMetadataModule:
             "additionalProperties": False,
         }
         ms = metadata.MetadataSchema(schema)
-        assert str(ms) == tskit.canonical_json(schema)
+        assert repr(ms) == tskit.canonical_json(schema)
         # Missing required properties
         with pytest.raises(exceptions.MetadataValidationError):
             ms.validate_and_encode_row({})
+
+    def test_schema_str(self):
+        schema = {
+            "codec": "json",
+            "title": "Example Metadata",
+            "type": "object",
+            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+            "required": ["one", "two"],
+            "additionalProperties": False,
+        }
+        assert str(metadata.MetadataSchema(schema)) == pprint.pformat(schema)
 
     def test_register_codec(self):
         class TestCodec(metadata.AbstractMetadataCodec):
@@ -367,7 +379,7 @@ class TestMetadataModule:
             codec="json",
         )
         assert json.dumps(schema) != json.dumps(schema2)
-        assert str(metadata.MetadataSchema(schema)) == str(
+        assert repr(metadata.MetadataSchema(schema)) == repr(
             metadata.MetadataSchema(schema2)
         )
 
@@ -433,7 +445,7 @@ class TestMetadataModule:
 
     def test_null_codec(self):
         ms = metadata.MetadataSchema(None)
-        assert str(ms) == ""
+        assert repr(ms) == ""
         row = b"Some binary data that tskit can't interpret "
         # Encode/decode are no-ops
         assert row == ms.validate_and_encode_row(row)

@@ -725,19 +725,19 @@ class MetadataTestsMixin:
         metadata_schema2 = metadata.MetadataSchema({"codec": "json"})
         table = self.table_class()
         # Default is no-op metadata codec
-        assert str(table.metadata_schema) == str(metadata.MetadataSchema(None))
+        assert repr(table.metadata_schema) == repr(metadata.MetadataSchema(None))
         # Set
         table.metadata_schema = self.metadata_schema
-        assert str(table.metadata_schema) == str(self.metadata_schema)
+        assert repr(table.metadata_schema) == repr(self.metadata_schema)
         # Overwrite
         table.metadata_schema = metadata_schema2
-        assert str(table.metadata_schema) == str(metadata_schema2)
+        assert repr(table.metadata_schema) == repr(metadata_schema2)
         # Remove
-        table.metadata_schema = ""
-        assert str(table.metadata_schema) == str(metadata.MetadataSchema(None))
+        table.metadata_schema = metadata.MetadataSchema(None)
+        assert repr(table.metadata_schema) == repr(metadata.MetadataSchema(None))
         # Set after remove
         table.metadata_schema = self.metadata_schema
-        assert str(table.metadata_schema) == str(self.metadata_schema)
+        assert repr(table.metadata_schema) == repr(self.metadata_schema)
         # Del should fail
         with pytest.raises(AttributeError):
             del table.metadata_schema
@@ -2289,7 +2289,7 @@ class TestTableCollection:
         d1 = {
             "encoding_version": (1, 2),
             "sequence_length": t.sequence_length,
-            "metadata_schema": str(t.metadata_schema),
+            "metadata_schema": repr(t.metadata_schema),
             "metadata": t.metadata_schema.encode_row(t.metadata),
             "individuals": t.individuals.asdict(),
             "populations": t.populations.asdict(),
@@ -2320,7 +2320,7 @@ class TestTableCollection:
         d = {
             "encoding_version": (1, 1),
             "sequence_length": t1.sequence_length,
-            "metadata_schema": str(t1.metadata_schema),
+            "metadata_schema": repr(t1.metadata_schema),
             "metadata": t1.metadata_schema.encode_row(t1.metadata),
             "individuals": t1.individuals.asdict(),
             "populations": t1.populations.asdict(),
@@ -2389,27 +2389,27 @@ class TestTableCollection:
         ]
         for table in data_tables:
             assert getattr(tables, f"{table}").num_rows == 0
-            assert str(getattr(tables, f"{table}").metadata_schema) != ""
+            assert repr(getattr(tables, f"{table}").metadata_schema) != ""
         assert tables.provenances.num_rows > 0
         assert len(tables.metadata) > 0
-        assert str(tables.metadata_schema) != ""
+        assert repr(tables.metadata_schema) != ""
 
         tables.clear(clear_provenance=True)
         assert tables.provenances.num_rows == 0
         for table in data_tables:
-            assert str(getattr(tables, f"{table}").metadata_schema) != ""
+            assert repr(getattr(tables, f"{table}").metadata_schema) != ""
         assert len(tables.metadata) > 0
-        assert str(tables.metadata_schema) != ""
+        assert repr(tables.metadata_schema) != ""
 
         tables.clear(clear_metadata_schemas=True)
         for table in data_tables:
-            assert str(getattr(tables, f"{table}").metadata_schema) == ""
+            assert repr(getattr(tables, f"{table}").metadata_schema) == ""
         assert len(tables.metadata) > 0
-        assert str(tables.metadata_schema) != 0
+        assert repr(tables.metadata_schema) != 0
 
         tables.clear(clear_ts_metadata_and_schema=True)
         assert len(tables.metadata) == 0
-        assert str(tables.metadata_schema) == ""
+        assert repr(tables.metadata_schema) == ""
 
     def test_equals(self):
         # Here we don't use the fixture as we'd like to run the same sim twice
@@ -2840,19 +2840,19 @@ class TestTableCollectionMetadata:
         tc = tskit.TableCollection(1)
         metadata_schema2 = metadata.MetadataSchema({"codec": "json"})
         # Default is no-op metadata codec
-        assert str(tc.metadata_schema) == str(metadata.MetadataSchema(None))
+        assert repr(tc.metadata_schema) == repr(metadata.MetadataSchema(None))
         # Set
         tc.metadata_schema = self.metadata_schema
-        assert str(tc.metadata_schema) == str(self.metadata_schema)
+        assert repr(tc.metadata_schema) == repr(self.metadata_schema)
         # Overwrite
         tc.metadata_schema = metadata_schema2
-        assert str(tc.metadata_schema) == str(metadata_schema2)
+        assert repr(tc.metadata_schema) == repr(metadata_schema2)
         # Remove
-        tc.metadata_schema = ""
-        assert str(tc.metadata_schema) == str(metadata.MetadataSchema(None))
+        tc.metadata_schema = metadata.MetadataSchema(None)
+        assert repr(tc.metadata_schema) == repr(metadata.MetadataSchema(None))
         # Set after remove
         tc.metadata_schema = self.metadata_schema
-        assert str(tc.metadata_schema) == str(self.metadata_schema)
+        assert repr(tc.metadata_schema) == repr(self.metadata_schema)
         # Del should fail
         with pytest.raises(AttributeError):
             del tc.metadata_schema

@@ -569,7 +569,7 @@ class TestDumpFormat(TestFileFormat):
         assert format_version[0] == CURRENT_FILE_MAJOR
         assert format_version[1] == CURRENT_FILE_MINOR
         assert ts.sequence_length == store["sequence_length"][0]
-        assert str(ts.metadata_schema) == "".join(store["metadata_schema"].astype("U"))
+        assert repr(ts.metadata_schema) == "".join(store["metadata_schema"].astype("U"))
 
         # Load another copy from file so we can check the uuid.
         other_ts = tskit.load(self.temp_file)
@@ -591,7 +591,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.individuals.metadata_offset, store["individuals/metadata_offset"]
         )
-        assert str(tables.individuals.metadata_schema) == "".join(
+        assert repr(tables.individuals.metadata_schema) == "".join(
             store["individuals/metadata_schema"].astype("U")
         )
 
@@ -603,7 +603,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.nodes.metadata_offset, store["nodes/metadata_offset"]
         )
-        assert str(tables.nodes.metadata_schema) == "".join(
+        assert repr(tables.nodes.metadata_schema) == "".join(
             store["nodes/metadata_schema"].astype("U")
         )
 
@@ -615,7 +615,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.edges.metadata_offset, store["edges/metadata_offset"]
         )
-        assert str(tables.edges.metadata_schema) == "".join(
+        assert repr(tables.edges.metadata_schema) == "".join(
             store["edges/metadata_schema"].astype("U")
         )
 
@@ -650,7 +650,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.migrations.metadata_offset, store["migrations/metadata_offset"]
         )
-        assert str(tables.migrations.metadata_schema) == "".join(
+        assert repr(tables.migrations.metadata_schema) == "".join(
             store["migrations/metadata_schema"].astype("U")
         )
 
@@ -666,7 +666,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.sites.metadata_offset, store["sites/metadata_offset"]
         )
-        assert str(tables.sites.metadata_schema) == "".join(
+        assert repr(tables.sites.metadata_schema) == "".join(
             store["sites/metadata_schema"].astype("U")
         )
 
@@ -687,7 +687,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.mutations.metadata_offset, store["mutations/metadata_offset"]
         )
-        assert str(tables.mutations.metadata_schema) == "".join(
+        assert repr(tables.mutations.metadata_schema) == "".join(
             store["mutations/metadata_schema"].astype("U")
         )
 
@@ -697,7 +697,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.populations.metadata_offset, store["populations/metadata_offset"]
         )
-        assert str(tables.populations.metadata_schema) == "".join(
+        assert repr(tables.populations.metadata_schema) == "".join(
             store["populations/metadata_schema"].astype("U")
         )
 

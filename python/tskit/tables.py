@@ -326,7 +326,7 @@ class BaseTable:
         ret = {col: getattr(self, col) for col in self.column_names}
         # Not all tables have metadata
         try:
-            ret["metadata_schema"] = str(self.metadata_schema)
+            ret["metadata_schema"] = repr(self.metadata_schema)
         except AttributeError:
             pass
         return ret
@@ -411,7 +411,8 @@ class MetadataMixin:
 
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
-        self.ll_table.metadata_schema = str(schema)
+        self.ll_table.metadata_schema = repr(schema)
+        self._update_metadata_schema_cache_from_ll()
         self._update_metadata_schema_cache_from_ll()
 
     def decode_row(self, row: Tuple[Any]) -> Tuple:
@@ -2135,8 +2136,8 @@ class TableCollection:
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
         # Check the schema is a valid schema instance by roundtripping it.
-        metadata.parse_metadata_schema(str(schema))
-        self._ll_tables.metadata_schema = str(schema)
+        metadata.parse_metadata_schema(repr(schema))
+        self._ll_tables.metadata_schema = repr(schema)
 
     @property
     def metadata(self) -> Any:
@@ -2168,7 +2169,7 @@ class TableCollection:
         ret = {
             "encoding_version": (1, 2),
             "sequence_length": self.sequence_length,
-            "metadata_schema": str(self.metadata_schema),
+            "metadata_schema": repr(self.metadata_schema),
             "metadata": self.metadata_schema.encode_row(self.metadata),
             "individuals": self.individuals.asdict(),
             "nodes": self.nodes.asdict(),
@@ -2211,7 +2212,7 @@ class TableCollection:
             (
                 8,  # sequence_length takes 8 bytes
                 len(self.metadata_bytes),
-                len(str(self.metadata_schema).encode()),
+                len(repr(self.metadata_schema).encode()),
                 self.indexes.nbytes,
                 sum(table.nbytes for table in self.name_map.values()),
             )
