@@ -1255,6 +1255,11 @@ class TestPolytomySplitting:
         record = json.loads(ts_split.provenance(ts_split.num_provenances - 1).record)
         assert record["parameters"]["command"] != "split_polytomies"
 
+    def test_kwargs(self):
+        tree = self.tree_polytomy_4()
+        split_tree = tree.split_polytomies(random_seed=14, tracked_samples=[0, 1])
+        assert split_tree.num_tracked_samples() == 2
+
 
 class TreeGeneratorTestBase:
     """
@@ -1315,6 +1320,10 @@ class TreeGeneratorTestBase:
         tables1 = tree1.tree_sequence.tables
         tables2 = tree2.tree_sequence.tables
         assert tables1.equals(tables2, ignore_provenance=True)
+
+    def test_kwargs(self):
+        tree = self.method(3, tracked_samples=[0, 1])
+        assert tree.num_tracked_samples() == 2
 
 
 class TestGenerateStar(TreeGeneratorTestBase):
