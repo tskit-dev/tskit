@@ -156,10 +156,10 @@ def insert_branch_sites(ts):
     return tables.tree_sequence()
 
 
-def insert_multichar_mutations(ts, seed=1, max_len=10):
+def insert_multichar_mutations(ts, seed=1, max_len=10, min_len=0, num_muts=1):
     """
     Returns a copy of the specified tree sequence with multiple chararacter
-    mutations on a randomly chosen branch in every tree.
+    mutations on num_muts randomly chosen branches in every tree.
     """
     rng = random.Random(seed)
     letters = ["A", "C", "T", "G"]
@@ -167,17 +167,19 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
     tables.sites.clear()
     tables.mutations.clear()
     for tree in ts.trees():
-        ancestral_state = rng.choice(letters) * rng.randint(0, max_len)
+        ancestral_state = rng.choice(letters) * rng.randint(min_len, max_len)
         site = tables.sites.add_row(
             position=tree.interval[0], ancestral_state=ancestral_state
         )
         nodes = list(tree.nodes())
         nodes.remove(tree.root)
-        u = rng.choice(nodes)
-        derived_state = ancestral_state
-        while ancestral_state == derived_state:
-            derived_state = rng.choice(letters) * rng.randint(0, max_len)
-        tables.mutations.add_row(site=site, node=u, derived_state=derived_state)
+        mut_nodes = rng.sample(nodes, min(len(nodes), num_muts))
+        for u in tree.nodes(order="preorder"):
+            if u in mut_nodes:
+                derived_state = ancestral_state
+                while ancestral_state == derived_state:
+                    derived_state = rng.choice(letters) * rng.randint(min_len, max_len)
+                tables.mutations.add_row(site=site, node=u, derived_state=derived_state)
     add_provenance(tables.provenances, "insert_multichar_mutations")
     return tables.tree_sequence()
 

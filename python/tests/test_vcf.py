@@ -230,8 +230,14 @@ class ExamplesMixin:
         self.verify(ts)
 
     def test_single_tree_multichar_mutations(self):
-        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
-        ts = tsutil.insert_multichar_mutations(ts)
+        ts = msprime.simulate(8, random_seed=1, mutation_rate=1)
+        ts = tsutil.insert_multichar_mutations(ts, num_muts=6, min_len=1)
+        ts = tsutil.insert_individuals(ts, ploidy=2)
+        self.verify(ts)
+
+    def single_tree_no_mutations(self):
+        ts = msprime.simulate(8, random_seed=1, mutation_rate=1)
+        ts = tsutil.insert_multichar_mutations(ts, num_muts=0, min_len=1)
         ts = tsutil.insert_individuals(ts, ploidy=2)
         self.verify(ts)
 
@@ -376,7 +382,10 @@ class TestRecordsEqual(ExamplesMixin):
             assert pyvcf_record.CHROM == pysam_record.chrom
             assert pyvcf_record.POS == pysam_record.pos
             assert pyvcf_record.ID == pysam_record.id
-            assert pyvcf_record.ALT == list(pysam_record.alts)
+            if len(pyvcf_record.ALT) == 1 and pyvcf_record.ALT[0] is None:
+                assert list(pysam_record.alts) == ["."]
+            else:
+                assert pyvcf_record.ALT == list(pysam_record.alts)
             assert pyvcf_record.REF == pysam_record.ref
             assert pysam_record.filter[0].name == "PASS"
             assert pyvcf_record.FORMAT == "GT"
@@ -387,7 +396,7 @@ class TestRecordsEqual(ExamplesMixin):
                 pyvcf_sample = pyvcf_record.samples[index]
                 pysam_sample = pysam_record.samples[name]
                 pyvcf_alleles = pyvcf_sample.gt_bases.split("|")
-                assert list(pysam_sample.alleles) == pyvcf_alleles
+                assert pyvcf_alleles == list(pysam_sample.alleles)
 
     def verify(self, ts):
         for indivs, _num_indivs in example_individuals(ts):
@@ -470,6 +479,12 @@ class TestInterface:
         with pytest.raises(ValueError):
             ts.write_vcf(io.StringIO(), individuals=[1, 2, ts.num_individuals])
 
+    def test_nucleotide_and_mapper(self):
+        ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+        ts = tsutil.insert_individuals(ts, ploidy=2)
+        with pytest.raises(ValueError):
+            ts.write_vcf(io.StringIO(), nucleotide_alleles=True, allele_mapper=0)
+
 
 class TestRoundTripIndividuals(ExamplesMixin):
     """
@@ -488,8 +503,11 @@ class TestRoundTripIndividuals(ExamplesMixin):
                     ts.variants(samples=samples), vcf_reader
                 ):
                     assert vcf_row.POS == np.round(variant.site.position)
-                    assert variant.alleles[0] == vcf_row.REF
-                    assert list(variant.alleles[1:]) == vcf_row.ALT
+                    var_alleles = list(variant.alleles)
+                    if len(var_alleles) == 1:
+                        var_alleles.append("None")
+                    assert vcf_row.REF == var_alleles[0]
+                    assert var_alleles[1:] == vcf_row.ALT
                     j = 0
                     for individual, sample in itertools.zip_longest(
                         map(ts.individual, indivs), vcf_row.samples
@@ -499,8 +517,80 @@ class TestRoundTripIndividuals(ExamplesMixin):
                         assert len(calls) == len(individual.nodes)
                         for allele_call, call in zip(allele_calls, calls):
                             assert int(call) == variant.genotypes[j]
-                            assert allele_call == variant.alleles[variant.genotypes[j]]
+                            assert allele_call == str(var_alleles[variant.genotypes[j]])
                             j += 1
+
+
+class TestNucleotideAlleles(ExamplesMixin):
+    """
+    Tests that we can round-trip genotype data through VCF using pyvcf
+    after remapping to nucleotides.
+    """
+
+    def verify(self, ts):
+        nucleotides = ["A", "C", "G", "T"]
+        for indivs, _num_indivs in example_individuals(ts):
+            with ts_to_pyvcf(
+                ts, individuals=indivs, nucleotide_alleles=True
+            ) as vcf_reader:
+                samples = []
+                if indivs is None:
+                    indivs = range(ts.num_individuals)
+                for ind in map(ts.individual, indivs):
+                    samples.extend(ind.nodes)
+                for variant, vcf_row in itertools.zip_longest(
+                    ts.variants(samples=samples), vcf_reader
+                ):
+                    assert vcf_row.POS == np.round(variant.site.position)
+                    assert nucleotides[0] == vcf_row.REF
+                    vcf_alleles = [vcf_row.REF] + vcf_row.ALT
+                    vcf_genotypes = []
+                    for a in vcf_alleles:
+                        n = 0
+                        b = 1
+                        for x in str(a):
+                            n += (1 + nucleotides.index(x)) * b
+                            b *= 4
+                        vcf_genotypes.append(n - 1)
+                    j = 0
+                    for individual, sample in itertools.zip_longest(
+                        map(ts.individual, indivs), vcf_row.samples
+                    ):
+                        calls = sample.data.GT.split("|")
+                        allele_calls = sample.gt_bases.split("|")
+                        assert len(calls) == len(individual.nodes)
+                        for _, call in zip(allele_calls, calls):
+                            assert vcf_genotypes[int(call)] == variant.genotypes[j]
+                            j += 1
+
+
+class TestAlleleMapper:
+    def test_all_As(self):
+        ts = msprime.simulate(8, random_seed=1, mutation_rate=1)
+        ts = tsutil.insert_multichar_mutations(ts, num_muts=8, min_len=1)
+        ts = tsutil.insert_individuals(ts, ploidy=2)
+
+        def to_A(v):
+            return ["A"], np.repeat(0, len(v.alleles))
+
+        indivs = range(ts.num_individuals)
+        with ts_to_pyvcf(ts, allele_mapper=to_A) as vcf_reader:
+            samples = []
+            for ind in map(ts.individual, indivs):
+                samples.extend(ind.nodes)
+            for _, vcf_row in itertools.zip_longest(
+                ts.variants(samples=samples), vcf_reader
+            ):
+                assert "A" == vcf_row.REF
+                for individual, sample in itertools.zip_longest(
+                    map(ts.individual, indivs), vcf_row.samples
+                ):
+                    calls = sample.data.GT.split("|")
+                    allele_calls = sample.gt_bases.split("|")
+                    assert len(calls) == len(individual.nodes)
+                    for allele_call, call in zip(allele_calls, calls):
+                        assert int(call) == 0
+                        assert allele_call == "A"
 
 
 class TestLimitations:

@@ -4670,6 +4670,8 @@ class TreeSequence:
         individuals=None,
         individual_names=None,
         position_transform=None,
+        nucleotide_alleles=False,
+        allele_mapper=None,
     ):
         """
         Writes a VCF formatted file to the specified file-like object.
@@ -4726,6 +4728,8 @@ class TreeSequence:
         check that the alleles result in a valid VCF---for example, it is possible
         to use the tab character as an allele, leading to a broken VCF.
 
+        Empty alleles (i.e., alleles that are "") are written as ".".
+
         The ``position_transform`` argument provides a way to flexibly translate
         the genomic location of sites in tskit to the appropriate value in VCF.
         There are two fundamental differences in the way that tskit and VCF define
@@ -4739,6 +4743,19 @@ class TreeSequence:
         tskit uses 0-based. However, how coordinates are transformed depends
         on the VCF parser, and so we do **not** account for this change in
         coordinate system by default.
+
+        The ``allele_mapper`` argument allows the user to remap alleles in the
+        tree sequence (e.g., from integers to nucleotides). The value of
+        ``allele_mapper`` should be a function that takes a `.Variant` object
+        and returns a tuple of ``alleles, genotype_map``. The first should be
+        a list of unique alleles that will be output to the VCF file:
+        ``alleles[0]`` will be the REF allele and the remainder will be the ALT
+        alleles. The second, ``genotype_map``, is a numpy array of length equal
+        to the length of the number of alleles of the Variant object, and with
+        values that index ``alleles``.  This maps genotypes in the tree
+        sequence to genotypes in the output VCF. For Variant argument ``v``, if
+        ``v.alleles[j]`` should be mapped to ``alleles[k]`` in the output VCF,
+        then ``genotype_map[j]`` should be equal to ``k``.
 
         Example usage:
 
@@ -4809,7 +4826,41 @@ class TreeSequence:
             pre 0.2.0 legacy behaviour of rounding values to the nearest integer
             (starting from 1) and avoiding the output of identical positions
             by incrementing is used.
+        :param nucleotide_alleles: If True, remaps existing alleles to
+            nucleotides, by recording the anestral state as 'A', and the
+            sequence of derived states as nucleotide strings in the order C, G,
+            T, AA, CA, GA, TA, AC.... This may be necessary to allow some
+            software to parse the VCF file.
+        :param allele_mapper: A callable that provides a mapping from the
+            alleles of the tree sequence to alleles in the output VCF (see
+            above for details). If None, no remapping is done, and alleles
+            in the output are ancestral and derived states.
         """
+        if nucleotide_alleles and (allele_mapper is not None):
+            raise ValueError(
+                "Cannot specify both allele_mapper and nucleotide_alleles."
+            )
+        if nucleotide_alleles:
+
+            def nucleotide_mapper(variant):
+                nucleotides = ["A", "C", "G", "T"]
+                alleles = []
+                idx = [0]
+                for _ in variant.alleles:
+                    alleles.append("".join([nucleotides[i] for i in idx]))
+                    j = 0
+                    while j < len(idx) and idx[j] == 3:
+                        idx[j] = 0
+                        j += 1
+                    if j < len(idx):
+                        idx[j] += 1
+                    else:
+                        idx = idx + [0]
+                genotype_map = np.arange(len(alleles))
+                return alleles, np.array(genotype_map)
+
+            allele_mapper = nucleotide_mapper
+
         writer = vcf.VcfWriter(
             self,
             ploidy=ploidy,
@@ -4817,6 +4868,7 @@ class TreeSequence:
             individuals=individuals,
             individual_names=individual_names,
             position_transform=position_transform,
+            allele_mapper=allele_mapper,
         )
         writer.write(output)
 

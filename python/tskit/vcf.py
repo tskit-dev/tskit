@@ -58,6 +58,7 @@ class VcfWriter:
         individuals=None,
         individual_names=None,
         position_transform=None,
+        allele_mapper=None,
     ):
         self.tree_sequence = tree_sequence
         self.contig_id = contig_id
@@ -97,6 +98,17 @@ class VcfWriter:
             # so it's simpler to stay with this rule that was inherited
             # from the legacy VCF output code.
             self.contig_length = max(self.transformed_positions[-1], self.contig_length)
+        if allele_mapper is None:
+
+            def no_op(v):
+                return (
+                    v.alleles,
+                    np.arange(len(v.alleles)),
+                )
+
+            self.allele_mapper = no_op
+        else:
+            self.allele_mapper = allele_mapper
 
     def __make_sample_mapping(self, ploidy):
         """
@@ -187,8 +199,16 @@ class VcfWriter:
                     "on GitHub if this limitation affects you."
                 )
             pos = self.transformed_positions[variant.index]
-            ref = variant.alleles[0]
-            alt = ",".join(variant.alleles[1:])
+            alleles, genotype_map = self.allele_mapper(variant)
+            if len(alleles) > 9:
+                raise ValueError(
+                    "More than 9 alleles not currently supported. Please open an issue "
+                    "on GitHub if this limitation affects you."
+                )
+            ref = alleles[0]
+            alt = ",".join(alleles[1:])
+            if len(alt) == 0:
+                alt = "."
             print(
                 self.contig_id,
                 pos,
@@ -203,8 +223,7 @@ class VcfWriter:
                 end="\t",
                 file=output,
             )
-            variant.genotypes += ord("0")
-            gt_array[indexes] = variant.genotypes
+            gt_array[indexes] = genotype_map[variant.genotypes] + ord("0")
             g_bytes = memoryview(gt_array).tobytes()
             g_str = g_bytes.decode()
             print(g_str, end="", file=output)
