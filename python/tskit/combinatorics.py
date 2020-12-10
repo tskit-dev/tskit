@@ -127,7 +127,7 @@ class TreeNode:
         return root
 
 
-def generate_star(num_leaves, *, span, branch_length, record_provenance):
+def generate_star(num_leaves, *, span, branch_length, record_provenance, **kwargs):
     """
     Generate a star tree for the specified number of leaves.
 
@@ -155,10 +155,10 @@ def generate_star(num_leaves, *, span, branch_length, record_provenance):
         tables.provenances.add_row(
             record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
         )
-    return tables.tree_sequence().first()
+    return tables.tree_sequence().first(**kwargs)
 
 
-def generate_comb(num_leaves, *, span, branch_length, record_provenance):
+def generate_comb(num_leaves, *, span, branch_length, record_provenance, **kwargs):
     """
     Generate a comb tree for the specified number of leaves.
 
@@ -188,10 +188,12 @@ def generate_comb(num_leaves, *, span, branch_length, record_provenance):
         tables.provenances.add_row(
             record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
         )
-    return tables.tree_sequence().first()
+    return tables.tree_sequence().first(**kwargs)
 
 
-def generate_balanced(num_leaves, *, arity, span, branch_length, record_provenance):
+def generate_balanced(
+    num_leaves, *, arity, span, branch_length, record_provenance, **kwargs
+):
     """
     Generate a balanced tree for the specified number of leaves.
 
@@ -233,7 +235,7 @@ def generate_balanced(num_leaves, *, arity, span, branch_length, record_provenan
             record=json.dumps(tskit.provenance.get_provenance_dict(parameters))
         )
 
-    return tables.tree_sequence().first()
+    return tables.tree_sequence().first(**kwargs)
 
 
 def split_polytomies(
@@ -243,6 +245,7 @@ def split_polytomies(
     method=None,
     record_provenance=True,
     random_seed=None,
+    **kwargs,
 ):
     """
     Return a new tree where extra nodes and edges have been inserted
@@ -306,7 +309,7 @@ def split_polytomies(
             )
 
         raise e
-    return ts.at(tree.interval[0])
+    return ts.at(tree.interval[0], **kwargs)
 
 
 def treeseq_count_topologies(ts, sample_sets):

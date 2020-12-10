@@ -2392,6 +2392,7 @@ class Tree:
         method=None,
         record_provenance=True,
         random_seed=None,
+        **kwargs,
     ):
         """
         Return a new :class:`.Tree` where extra nodes and edges have been inserted
@@ -2433,6 +2434,10 @@ class Tree:
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds must be between 1 and
             :math:`2^32 − 1`.
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tree.split_polytomies(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
         :return: A new tree with polytomies split into random bifurcations.
         :rtype: tskit.Tree
         """
@@ -2442,10 +2447,13 @@ class Tree:
             method=method,
             record_provenance=record_provenance,
             random_seed=random_seed,
+            **kwargs,
         )
 
     @staticmethod
-    def generate_star(num_leaves, *, span=1, branch_length=1, record_provenance=True):
+    def generate_star(
+        num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
+    ):
         """
         Generate a :class:<Tree> whose leaf nodes all have the same parent (i.e.
         a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
@@ -2460,6 +2468,12 @@ class Tree:
             property of the returned :class:<Tree>.
         :param float branch_length: The length of every branch in the tree (equivalent
             to the time of the root node).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_star(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
         :return: A star-shaped tree. Its corresponding :class:`TreeSequence` is available
             via the :attr:`.tree_sequence` attribute.
         :rtype: Tree
@@ -2469,11 +2483,18 @@ class Tree:
             span=span,
             branch_length=branch_length,
             record_provenance=record_provenance,
+            **kwargs,
         )
 
     @staticmethod
     def generate_balanced(
-        num_leaves, *, arity=2, span=1, branch_length=1, record_provenance=True
+        num_leaves,
+        *,
+        arity=2,
+        span=1,
+        branch_length=1,
+        record_provenance=True,
+        **kwargs,
     ):
         """
         Generate a :class:<Tree> with the specified number of leaves that is maximally
@@ -2498,6 +2519,12 @@ class Tree:
             property of the returned :class:<Tree>.
         :param float branch_length: The minimum length of a branch in the tree (see
             above for details on how internal node times are assigned).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_balanced(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
         :return: A balanced tree. Its corresponding :class:`TreeSequence` is available
             via the :attr:`.tree_sequence` attribute.
         :rtype: Tree
@@ -2508,10 +2535,13 @@ class Tree:
             span=span,
             branch_length=branch_length,
             record_provenance=record_provenance,
+            **kwargs,
         )
 
     @staticmethod
-    def generate_comb(num_leaves, *, span=1, branch_length=1, record_provenance=True):
+    def generate_comb(
+        num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
+    ):
         """
         Generate a :class:<Tree> in which all internal nodes have two children
         and the left child is a leaf. This is a "comb", "ladder" or "pectinate"
@@ -2530,6 +2560,12 @@ class Tree:
             property of the returned :class:<Tree>.
         :param float branch_length: The branch length between each internal node; the
             root node is therefore placed at time ``branch_length * (num_leaves - 1)``.
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_comb(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
         :return: A comb-shaped bifurcating tree. Its corresponding :class:`TreeSequence`
             is available via the :attr:`.tree_sequence` attribute.
         :rtype: Tree
@@ -2539,6 +2575,7 @@ class Tree:
             span=span,
             branch_length=branch_length,
             record_provenance=record_provenance,
+            **kwargs,
         )
 
 
