@@ -1085,9 +1085,6 @@ class TestPolytomySplitting:
     7       0.8      1.0      6       1,2,3,4
     """
 
-    def tree_polytomy_4(self):
-        return tskit.Tree.generate_star(4)
-
     def ts_polytomy_44344(self):
         return tskit.load_text(
             nodes=io.StringIO(self.nodes_polytomy_44344),
@@ -1221,14 +1218,15 @@ class TestPolytomySplitting:
 
     def test_bad_method(self):
         with pytest.raises(ValueError, match="Method"):
-            self.tree_polytomy_4().split_polytomies(method="something_else")
+            tskit.Tree.generate_star(4).split_polytomies(method="something_else")
 
     def test_epsilon_for_nodes(self):
+        tree = tskit.Tree.generate_star(3, branch_length=1)
         with pytest.raises(
-            tskit.LibraryError,
-            match="not small enough to create new nodes below a polytomy",
+            ValueError,
+            match=f"node {tree.root} too close.*epsilon=1.*try epsilon=0.5",
         ):
-            self.tree_polytomy_4().split_polytomies(epsilon=1, random_seed=12)
+            tree.split_polytomies(epsilon=1, random_seed=12)
 
     def test_epsilon_for_mutations(self):
         tables = tskit.Tree.generate_star(3).tree_sequence.dump_tables()
@@ -1245,7 +1243,7 @@ class TestPolytomySplitting:
             tree.split_polytomies(epsilon=0.5, random_seed=123)
 
     def test_provenance(self):
-        tree = self.tree_polytomy_4()
+        tree = tskit.Tree.generate_star(4)
         ts_split = tree.split_polytomies(random_seed=14).tree_sequence
         record = json.loads(ts_split.provenance(ts_split.num_provenances - 1).record)
         assert record["parameters"]["command"] == "split_polytomies"
@@ -1256,7 +1254,7 @@ class TestPolytomySplitting:
         assert record["parameters"]["command"] != "split_polytomies"
 
     def test_kwargs(self):
-        tree = self.tree_polytomy_4()
+        tree = tskit.Tree.generate_star(4)
         split_tree = tree.split_polytomies(random_seed=14, tracked_samples=[0, 1])
         assert split_tree.num_tracked_samples() == 2
 

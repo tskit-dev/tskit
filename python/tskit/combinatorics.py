@@ -267,23 +267,36 @@ def split_polytomies(
     tables.keep_intervals([tree.interval], simplify=False)
     tables.edges.clear()
     rng = random.Random(random_seed)
+    node_too_close = None
 
     for u in tree.nodes():
         if tree.num_children(u) > 2:
             root = TreeNode.random_binary_tree(tree.children(u), rng)
             root.label = u
-            time = tree.time(u) - epsilon
-            stack = [(child, time) for child in root.children]
+            root_time = tree.time(u)
+            stack = [(child, 1) for child in root.children]
             while len(stack) > 0:
-                node, time = stack.pop()
+                node, depth = stack.pop()
                 if node.label is None:
-                    node.label = tables.nodes.add_row(time=time)
+                    node.label = tables.nodes.add_row(time=root_time - depth * epsilon)
+                else:  # Is an existing node
+                    if root_time - (depth - 1) * epsilon <= tree.time(node.label):
+                        new_epsilon = (root_time - tree.time(node.label)) / depth
+                        if node_too_close is None or node_too_close[0] > new_epsilon:
+                            node_too_close = [new_epsilon, root.label, node.label]
+                    # TODO: also check time of oldest mutation above this node
                 tables.edges.add_row(*tree.interval, node.parent.label, node.label)
                 for child in node.children:
-                    stack.append((child, time - epsilon))
+                    stack.append((child, depth + 1))
         else:
             for v in tree.children(u):
                 tables.edges.add_row(*tree.interval, u, v)
+    if node_too_close is not None:
+        new_epsilon, parent, child = node_too_close
+        raise ValueError(
+            f"Child node {child} of polytomy at node {parent} too close "
+            f"for epsilon={epsilon}; try epsilon={new_epsilon}"
+        )
 
     if record_provenance:
         parameters = {"command": "split_polytomies"}
@@ -295,6 +308,8 @@ def split_polytomies(
         ts = tables.tree_sequence()
     except tskit.LibraryError as e:
         msg = str(e)
+        # Should have caught parent-child time problems
+        assert not msg.startswith("time[parent] must be greater than time[child]")
         if msg.startswith(
             "A mutation's time must be < the parent node of the edge on which it occurs"
         ):
@@ -302,12 +317,6 @@ def split_polytomies(
                 f"Epsilon={epsilon} not small enough to create new nodes below a "
                 "polytomy, due to the time of a mutation above a child of the polytomy.",
             )
-        elif msg.startswith("time[parent] must be greater than time[child]"):
-            e.args += (
-                f"Epsilon={epsilon} not small enough to create new nodes below a "
-                "polytomy, due to the time of one of child nodes being too close. ",
-            )
-
         raise e
     return ts.at(tree.interval[0], **kwargs)
 
