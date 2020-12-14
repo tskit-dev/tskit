@@ -2398,8 +2398,25 @@ class Tree:
         Return a new :class:`.Tree` where extra nodes and edges have been inserted
         so that any any node ``u`` with greater than 2 children --- a multifurcation
         or "polytomy" --- is resolved into successive bifurcations. New nodes are
-        inserted at times fractionally less than than the time of node ``u``
-        (controlled by the ``epsilon`` parameter).
+        inserted at times fractionally less than than the time of node ``u``.
+        Times are allocated to different levels of the tree, such that any newly
+        inserted sibling nodes will have the same time.
+
+        By default, the times of the newly generated children of a particular
+        node are the minimum representable distance in floating point arithmetic
+        from their parents (using the `nextafter
+        <https://numpy.org/doc/stable/reference/generated/numpy.nextafter.html>`_
+        function). Thus, the generated branches have the shortest possible nonzero
+        length. A fixed branch length between inserted nodes and their parents
+        can also be specified by using the ``epsilon`` parameter.
+
+        .. note::
+            A tree sequence :ref:`requires<sec_valid_tree_sequence_requirements>` that
+            parents be older than children and that mutations are younger than the
+            parent of the edge on which they lie. If a fixed ``epsilon`` is specifed
+            and is not small enough compared to the distance between a polytomy and
+            its oldest child (or oldest child mutation) these requirements may not
+            be met. In this case an error will be raised.
 
         If the ``method`` is ``"random"`` (currently the only option, and the default
         when no method is specified), then for a node with :math:`n` children, the
@@ -2412,20 +2429,9 @@ class Tree:
         tree sequence that contains only one non-degenerate tree, that is, where
         edges cover only the interval spanned by this tree.
 
-        .. note::
-            A tree sequence :ref:`requires<sec_valid_tree_sequence_requirements>` that
-            parents be older than children and that mutations are younger than the
-            parent of the edge on which they lie. If ``epsilon`` is not small enough,
-            compared to the distance between a polytomy and its oldest child (or oldest
-            child mutation) these requirements may not be met. In this case an error is
-            raised, recommending a smaller epsilon value be used.
-
-        :param epsilon: A small time period used to separate each newly inserted node.
-            For a given polytomy of degree :math:`n`, the :math:`n-2` extra nodes are
-            inserted with the oldest at time ``epsilon`` less than the original parent,
-            ``u``, and successive nodes at time ``epsilon`` from each other. Times
-            are allocated to different levels of the tree, such that any newly
-            inserted sibling nodes will have the same time. (Default :math:`1e-10`).
+        :param epsilon: If specified, the fixed branch length between inserted
+            nodes and their parents. If None (the default), the minimal possible
+            nonzero branch length is generated for each node.
         :param str method: The method used to break polytomies. Currently only "random"
             is supported, which can also be specified by ``method=None``
             (Default: ``None``).

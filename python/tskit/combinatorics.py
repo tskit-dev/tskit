@@ -256,8 +256,6 @@ def split_polytomies(
     method, which is the usual route through which this function is called.
     """
     allowed_methods = ["random"]
-    if epsilon is None:
-        epsilon = 1e-10
     if method is None:
         method = "random"
     if method not in allowed_methods:
@@ -272,15 +270,57 @@ def split_polytomies(
         if tree.num_children(u) > 2:
             root = TreeNode.random_binary_tree(tree.children(u), rng)
             root.label = u
-            time = tree.time(u) - epsilon
-            stack = [(child, time) for child in root.children]
+            root_time = tree.time(u)
+            stack = [(child, root_time) for child in root.children]
             while len(stack) > 0:
-                node, time = stack.pop()
+                node, parent_time = stack.pop()
                 if node.label is None:
-                    node.label = tables.nodes.add_row(time=time)
+                    if epsilon is None:
+                        child_time = np.nextafter(parent_time, -np.inf)
+                    else:
+                        child_time = parent_time - epsilon
+                    node.label = tables.nodes.add_row(time=child_time)
+                else:
+                    assert len(node.children) == 0
+                    # This is a leaf node connecting back into the original tree
+                    child_time = tree.time(node.label)
+                if parent_time <= child_time:
+                    u = root.label
+                    min_child_time = min(tree.time(v) for v in tree.children(u))
+                    min_time = root_time - min_child_time
+                    message = (
+                        f"Cannot resolve the degree {tree.num_children(u)} "
+                        f"polytomy rooted at node {u} with minimum time difference "
+                        f"of {min_time} to the resolved leaves."
+                    )
+                    if epsilon is None:
+                        message += (
+                            " The time difference between nodes is so small that "
+                            "more nodes cannot be inserted between within the limits "
+                            "of floating point precision."
+                        )
+                    else:
+                        # We can also have parent_time == child_time if epsilon is
+                        # chosen such that we exactly divide up the branch in the
+                        # original tree. We avoid saying this is caused by a
+                        # too-small epsilon by noting it can only happen when we
+                        # are at leaf node in the randomly generated tree.
+                        if parent_time == child_time and len(node.children) > 0:
+                            message += (
+                                f" The fixed epsilon value of {epsilon} is too small, "
+                                "resulting in the parent and child times being equal "
+                                "within the limits of numerical precision."
+                            )
+                        else:
+                            message += (
+                                f" The fixed epsilon value of {epsilon} is too large, "
+                                "resulting in the parent time being less than the child "
+                                "time."
+                            )
+                    raise tskit.LibraryError(message)
                 tables.edges.add_row(*tree.interval, node.parent.label, node.label)
                 for child in node.children:
-                    stack.append((child, time - epsilon))
+                    stack.append((child, child_time))
         else:
             for v in tree.children(u):
                 tables.edges.add_row(*tree.interval, u, v)
@@ -295,19 +335,23 @@ def split_polytomies(
         ts = tables.tree_sequence()
     except tskit.LibraryError as e:
         msg = str(e)
+        # We should have caught all topology time travel above.
+        assert not msg.startswith("time[parent] must be greater than time[child]")
         if msg.startswith(
             "A mutation's time must be < the parent node of the edge on which it occurs"
         ):
-            e.args += (
-                f"Epsilon={epsilon} not small enough to create new nodes below a "
-                "polytomy, due to the time of a mutation above a child of the polytomy.",
-            )
-        elif msg.startswith("time[parent] must be greater than time[child]"):
-            e.args += (
-                f"Epsilon={epsilon} not small enough to create new nodes below a "
-                "polytomy, due to the time of one of child nodes being too close. ",
-            )
-
+            if epsilon is not None:
+                msg = (
+                    f"epsilon={epsilon} not small enough to create new nodes below a "
+                    "polytomy, due to the time of a mutation above a child of the "
+                    "polytomy."
+                )
+            else:
+                msg = (
+                    "Cannot split polytomy: mutation with numerical precision "
+                    "of the parent time."
+                )
+            e.args += (msg,)
         raise e
     return ts.at(tree.interval[0], **kwargs)
 

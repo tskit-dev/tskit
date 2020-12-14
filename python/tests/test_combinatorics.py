@@ -1085,9 +1085,6 @@ class TestPolytomySplitting:
     7       0.8      1.0      6       1,2,3,4
     """
 
-    def tree_polytomy_4(self):
-        return tskit.Tree.generate_star(4)
-
     def ts_polytomy_44344(self):
         return tskit.load_text(
             nodes=io.StringIO(self.nodes_polytomy_44344),
@@ -1109,15 +1106,19 @@ class TestPolytomySplitting:
         assert len(ranks) == N
 
     def verify_trees(self, source_tree, split_tree, epsilon=None):
-        if epsilon is None:
-            epsilon = 1e-10
         N = 0
         for u in split_tree.nodes():
             assert split_tree.num_children(u) < 3
             N += 1
             if u >= source_tree.tree_sequence.num_nodes:
                 # This is a new node
-                assert epsilon == pytest.approx(split_tree.branch_length(u))
+                branch_length = split_tree.branch_length(u)
+                if epsilon is not None:
+                    assert epsilon == pytest.approx(branch_length)
+                else:
+                    assert branch_length > 0
+                    assert 0 == pytest.approx(branch_length)
+
         assert N == len(list(split_tree.leaves())) * 2 - 1
         for u in source_tree.nodes():
             if source_tree.num_children(u) <= 2:
@@ -1135,6 +1136,34 @@ class TestPolytomySplitting:
         eps = 10
         split = tree.split_polytomies(random_seed=12234, epsilon=eps)
         self.verify_trees(tree, split, epsilon=eps)
+
+    def test_small_epsilon(self):
+        tree = tskit.Tree.generate_star(10, branch_length=1e-20)
+        eps = 1e-22
+        split = tree.split_polytomies(random_seed=12234, epsilon=eps)
+        self.verify_trees(tree, split, epsilon=eps)
+
+    def test_nextafter_near_zero(self):
+        tree = tskit.Tree.generate_star(3, branch_length=np.finfo(float).tiny)
+        split = tree.split_polytomies(random_seed=234)
+        self.verify_trees(tree, split)
+
+    def test_nextafter_large_tree(self):
+        tree = tskit.Tree.generate_star(100)
+        split = tree.split_polytomies(random_seed=32)
+        self.verify_trees(tree, split)
+        for u in tree.nodes():
+            if tree.parent(u) != tskit.NULL and not tree.is_leaf(u):
+                parent_time = tree.time(tree.parent(u))
+                child_time = tree.time(u)
+                assert child_time == np.nextafter(parent_time, 0)
+            if tree.is_leaf(u):
+                assert tree.branch_length(u) == pytest.approx(1)
+
+    def test_epsilon_near_one(self):
+        tree = tskit.Tree.generate_star(3, branch_length=1)
+        split = tree.split_polytomies(random_seed=234, epsilon=np.finfo(float).eps)
+        self.verify_trees(tree, split)
 
     def verify_tree_sequence_splits(self, ts):
         n_poly = 0
@@ -1220,15 +1249,55 @@ class TestPolytomySplitting:
         assert tables.equals(t2.tree_sequence.tables, ignore_provenance=True)
 
     def test_bad_method(self):
+        tree = tskit.Tree.generate_star(3)
         with pytest.raises(ValueError, match="Method"):
-            self.tree_polytomy_4().split_polytomies(method="something_else")
+            tree.split_polytomies(method="something_else")
 
-    def test_epsilon_for_nodes(self):
+    @pytest.mark.parametrize("epsilon", [10, 1.1, 1.0])
+    def test_epsilon_too_large(self, epsilon):
+        tree = tskit.Tree.generate_star(3)
+        msg = (
+            "Cannot resolve the degree 3 polytomy rooted at node 3 "
+            "with minimum time difference of 1.0 to the resolved leaves. "
+            f"The fixed epsilon value of {epsilon} is too large, resulting in the "
+            "parent time being less than the child time."
+        )
         with pytest.raises(
             tskit.LibraryError,
-            match="not small enough to create new nodes below a polytomy",
+            match=msg,
         ):
-            self.tree_polytomy_4().split_polytomies(epsilon=1, random_seed=12)
+            tree.split_polytomies(epsilon=epsilon, random_seed=12)
+
+    def test_epsilon_too_small(self):
+        tree = tskit.Tree.generate_star(3)
+        msg = (
+            "Cannot resolve the degree 3 polytomy rooted at node 3 "
+            "with minimum time difference of 1.0 to the resolved leaves. "
+            "The fixed epsilon value of 0 is too small, resulting in the "
+            "parent and child times being equal within the limits of "
+            "numerical precision."
+        )
+        with pytest.raises(
+            tskit.LibraryError,
+            match=msg,
+        ):
+            tree.split_polytomies(epsilon=0, random_seed=12)
+
+    def test_unsplittable_branch(self):
+        branch_length = np.nextafter(0, 1)
+        tree = tskit.Tree.generate_star(3, branch_length=branch_length)
+        msg = (
+            "Cannot resolve the degree 3 polytomy rooted at node 3 with "
+            "minimum time difference of 5e-324 to the resolved leaves. "
+            "The time difference between nodes is so small that more nodes "
+            "cannot be inserted between within the limits of floating point "
+            "precision."
+        )
+        with pytest.raises(
+            tskit.LibraryError,
+            match=msg,
+        ):
+            tree.split_polytomies(random_seed=12)
 
     def test_epsilon_for_mutations(self):
         tables = tskit.Tree.generate_star(3).tree_sequence.dump_tables()
@@ -1244,8 +1313,25 @@ class TestPolytomySplitting:
         ):
             tree.split_polytomies(epsilon=0.5, random_seed=123)
 
+    def test_mutation_within_eps_parent(self):
+        tables = tskit.Tree.generate_star(3).tree_sequence.dump_tables()
+        site = tables.sites.add_row(position=0.5, ancestral_state="0")
+        branch_length = np.nextafter(1, 0)
+        tables.mutations.add_row(
+            site=site, time=branch_length, node=0, derived_state="1"
+        )
+        tables.mutations.add_row(
+            site=site, time=branch_length, node=1, derived_state="1"
+        )
+        tree = tables.tree_sequence().first()
+        with pytest.raises(
+            tskit.LibraryError,
+            match="Cannot split polytomy: mutation with numerical precision",
+        ):
+            tree.split_polytomies(random_seed=123)
+
     def test_provenance(self):
-        tree = self.tree_polytomy_4()
+        tree = tskit.Tree.generate_star(4)
         ts_split = tree.split_polytomies(random_seed=14).tree_sequence
         record = json.loads(ts_split.provenance(ts_split.num_provenances - 1).record)
         assert record["parameters"]["command"] == "split_polytomies"
@@ -1256,7 +1342,7 @@ class TestPolytomySplitting:
         assert record["parameters"]["command"] != "split_polytomies"
 
     def test_kwargs(self):
-        tree = self.tree_polytomy_4()
+        tree = tskit.Tree.generate_star(4)
         split_tree = tree.split_polytomies(random_seed=14, tracked_samples=[0, 1])
         assert split_tree.num_tracked_samples() == 2
 
