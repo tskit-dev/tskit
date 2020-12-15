@@ -1,4 +1,14 @@
 --------------------
+[0.3.5] - 2021-XX-XX
+--------------------
+
+**Features**
+
+- Change the default behaviour of Tree.split_polytomies to generate
+  the shortest possible branch lengths instead of a fixed epsilon of
+  1e-10. (:user:`jeromekelleher`, :issue:`1089`, :pr:`1090`)
+
+--------------------
 [0.3.4] - 2020-12-02
 --------------------
 
