@@ -21,6 +21,13 @@
 - ``default`` in metadata schemas is used to fill in missing values when encoding for
   the struct codec. (:user:`benjeffery`, :issue:`1073`, :pr:`1116`).
 
+- Added ``canonical`` option to table collection sorting (:user:`mufernando`,
+  :user:`petrelharp`, :issue:`705`)
+
+- Added various arguments to ``TreeSequence.subset``, to allow for stable
+  population indexing and lossless node reordering with subset.
+  (:user:`petrelharp`, :pr:`1097`)
+
 --------------------
 [0.3.4] - 2020-12-02
 --------------------

@@ -5133,42 +5133,83 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
-    def subset(self, nodes, record_provenance=True):
+    def subset(
+        self,
+        nodes,
+        record_provenance=True,
+        filter_populations=True,
+        filter_individuals=True,
+        filter_sites=True,
+        canonicalise=False,
+    ):
         """
         Returns a tree sequence modified to contain only the entries referring to
         the provided list of nodes, with nodes reordered according to the order
-        they appear in the ``nodes`` argument. Specifically, this subsets and reorders
-        each of the tables as follows:
+        they appear in the ``nodes`` argument. Note that this does *not* retain
+        the ancestry of these nodes - for that, see ::meth::`.simplify`.
+        Specifically, this subsets and reorders each of the tables of the tree
+        sequence as follows:
 
         1. Nodes: if in the list of nodes, and in the order provided.
-        2. Individuals and Populations: if referred to by a retained node,
-           and in the order first seen when traversing the list of retained nodes.
+
+        2. Individuals and Populations: if referred to by a retained node, and
+        in the order first seen when traversing the list of retained nodes.
+
         3. Edges: if both parent and child are retained nodes.
+
         4. Mutations: if the mutation's node is a retained node.
+
         5. Sites: if any mutations remain at the site after removing mutations.
 
-        Retained edges, mutations, and sites appear in the same
-        order as in the original tables.
+        Retained edges, mutations, and sites appear in the same order as in the
+        original tree sequence.
 
         If ``nodes`` is the entire list of nodes in the tables, then the
-        resulting tables will be identical to the original tables, but with
-        nodes (and individuals and populations) reordered.
+        resulting tree sequence will be identical to the original tree
+        sequence, but with nodes (and individuals and populations) reordered.
 
-        To instead subset the tables to a given portion of the *genome*, see
+        Note that individuals or populations not referred to by any remaining
+        nodes, and sites not referred to by any remaining mutations,
+        will be removed. This behavior is modified by setting ``filter_populations``,
+        ``filter_individuals``, and/or ``filter_sites`` to False,
+        in which case the relevant tables will remain unchanged. (This can be
+        helpful, for instance, to keep population IDs stable.)
+
+        The ``canonicalise`` option reorders as above but retains even
+        unreferenced individuals, populations, and sites; unreferenced
+        individuals and populations will be last. This is useful to reorder
+        without losing information.
+
+        To instead subset the tree sequence to a given portion of the *genome*, see
         :meth:`.keep_intervals`.
 
         **Note:** This is quite different from :meth:`.simplify`: the resulting
-        tables contain only the nodes given, not ancestral ones as well, and
+        tree sequence contain only the nodes given, not ancestral ones as well, and
         does not simplify the relationships in any way.
 
         :param list nodes: The list of nodes for which to retain information. This
             may be a numpy array (or array-like) object (dtype=np.int32).
         :param bool record_provenance: If True, add details of this operation to the
             provenance information of the returned tree sequence. (Default: True).
+        :param bool filter_populations: Whether to remove populations not referenced by
+            retained nodes. If False, the population table will remain unchanged.
+        :param bool filter_individuals: Whether to remove individuals not referenced by
+            retained nodes. If False, the individuals table will remain unchanged.
+        :param bool filter_sites: Whether to remove sites not referenced by
+            retained mutations. If False, the site table will remain unchanged.
+        :param bool canonicalise: If True, retains all unused entries, putting
+            unreferenced individuals and populations last.
         :rtype: .TreeSequence
         """
         tables = self.dump_tables()
-        tables.subset(nodes, record_provenance)
+        tables.subset(
+            nodes,
+            record_provenance=record_provenance,
+            filter_populations=filter_populations,
+            filter_individuals=filter_individuals,
+            filter_sites=filter_sites,
+            canonicalise=canonicalise,
+        )
         return tables.tree_sequence()
 
     def union(

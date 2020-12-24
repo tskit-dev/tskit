@@ -2692,6 +2692,24 @@ class TableCollection:
         self._ll_tables.sort(edge_start)
         # TODO add provenance
 
+    def canonicalise(self):
+        """
+        This puts the tables in *canonical* form - to do this, the individual
+        and population tables are sorted by the first node that refers to each
+        (see :meth:`TreeSequence.subset`, and note that individuals and
+        populations not referred to by any nodes will be put at the end of the
+        tables in their original order).  Then, the remaining tables are sorted
+        as in :meth:`.sort`, with the modification that mutations are sorted by
+        site, then time, then number of descendant mutations (ensuring that
+        parent mutations occur before children), then node, then original order
+        in the tables. This ensures that any two tables with the same
+        information should be identical after canonical sorting, unless they
+        have multiple individuals or populations without nodes that refer to
+        them.
+        """
+        self._ll_tables.canonicalise()
+        # TODO add provenance
+
     def compute_mutation_parents(self):
         """
         Modifies the tables in place, computing the ``parent`` column of the
@@ -2739,6 +2757,9 @@ class TableCollection:
         duplicate ``position`` (and keeping only the *first* entry for each
         site), and renumbering the ``site`` column of the mutation table
         appropriately.  This requires the site table to be sorted by position.
+
+        ..warning:: This method does not sort the tables afterwards, so
+            mutations may no longer be sorted by time.
         """
         self._ll_tables.deduplicate_sites()
         # TODO add provenance
@@ -3015,20 +3036,46 @@ class TableCollection:
         """
         self._ll_tables.drop_index()
 
-    def subset(self, nodes, record_provenance=True):
+    def subset(
+        self,
+        nodes,
+        record_provenance=True,
+        filter_populations=True,
+        filter_individuals=True,
+        filter_sites=True,
+        canonicalise=False,
+    ):
         """
         Modifies the tables in place to contain only the entries referring to
-        the provided list of nodes, with nodes reordered according to the order
-        they appear in the list. See :meth:`TreeSequence.subset` for a more
-        detailed description.
+        the provided list of node IDs, with nodes reordered according to the
+        order they appear in the list. See :meth:`TreeSequence.subset` for a
+        more detailed description.
+
+        Note: there are no sortedness requirements on the tables.
 
         :param list nodes: The list of nodes for which to retain information. This
             may be a numpy array (or array-like) object (dtype=np.int32).
         :param bool record_provenance: Whether to record a provenance entry
             in the provenance table for this operation.
+        :param bool filter_populations: Whether to remove populations not referenced by
+            retained nodes. If False, the population table will not be altered
+            in any way.
+        :param bool filter_individuals: Whether to remove individuals not referenced by
+            retained nodes. If False, the individuals table will not be altered
+            in any way.
+        :param bool filter_sites: Whether to remove sites not referenced by
+            retained mutations. If False, the site table will remain unchanged.
+        :param bool canonicalise: If True, retains all unused entries, putting
+            unreferenced individuals and populations last.
         """
         nodes = util.safe_np_int_cast(nodes, np.int32)
-        self._ll_tables.subset(nodes)
+        self._ll_tables.subset(
+            nodes,
+            filter_populations=filter_populations,
+            filter_individuals=filter_individuals,
+            filter_sites=filter_sites,
+            canonicalise=canonicalise,
+        )
         if record_provenance:
             parameters = {"command": "subset", "nodes": nodes.tolist()}
             self.provenances.add_row(

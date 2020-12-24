@@ -635,6 +635,8 @@ typedef struct _tsk_table_sorter_t {
     tsk_table_collection_t *tables;
     /** @brief The edge sorting function. If set to NULL, edges are not sorted. */
     int (*sort_edges)(struct _tsk_table_sorter_t *self, tsk_size_t start);
+    /** @brief The mutation sorting function. */
+    int (*sort_mutations)(struct _tsk_table_sorter_t *self);
     /** @brief An opaque pointer for use by client code */
     void *user_data;
     /** @brief Mapping from input site IDs to output site IDs */
@@ -698,7 +700,7 @@ typedef struct {
 
 /**@} */
 
-/* Flags for simplify() */
+/* Flags for simplify() and/or subset() */
 #define TSK_FILTER_SITES (1 << 0)
 #define TSK_FILTER_POPULATIONS (1 << 1)
 #define TSK_FILTER_INDIVIDUALS (1 << 2)
@@ -706,6 +708,7 @@ typedef struct {
 #define TSK_KEEP_UNARY (1 << 4)
 #define TSK_KEEP_INPUT_ROOTS (1 << 5)
 #define TSK_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
+#define TSK_CANONICALISE (1 << 7)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_EDGE_ORDERING (1 << 0)
@@ -740,7 +743,7 @@ typedef struct {
 #define TSK_CMP_IGNORE_METADATA (1 << 2)
 #define TSK_CMP_IGNORE_TIMESTAMPS (1 << 3)
 
-/* Flags for tables collection clear */
+/* Flags for table collection clear */
 #define TSK_CLEAR_METADATA_SCHEMAS (1 << 0)
 #define TSK_CLEAR_TS_METADATA_AND_SCHEMA (1 << 1)
 #define TSK_CLEAR_PROVENANCE (1 << 2)
@@ -2651,6 +2654,22 @@ int tsk_table_collection_sort(
     tsk_table_collection_t *self, const tsk_bookmark_t *start, tsk_flags_t options);
 
 /**
+@brief Puts the tables into canonical order.
+
+@rst
+This method puts tables in canonical order, which exceeds the usual
+sortedness requirements in such a way that randomly reshuffled tables are
+guaranteed to always be sorted to the same order (with the exception of
+individuals or populations that are not referenced by any nodes). In
+particular, this method puts mutation parents before their children.
+
+@endrst
+
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_canonicalise(tsk_table_collection_t *self, tsk_flags_t options);
+
+/**
 @brief Simplify the tables to remove redundant information.
 
 @rst
@@ -2732,18 +2751,32 @@ they appear in the ``nodes`` argument. Specifically, this subsets and reorders
 each of the tables as follows:
 
 1. Nodes: if in the list of nodes, and in the order provided.
-2. Individuals and Populations: if referred to by a retained node,
-   and in the order first seen when traversing the list of retained nodes.
-3. Edges: if both parent and child are retained nodes.
-4. Mutations: if the mutation's node is a retained node.
-5. Sites: if any mutations remain at the site after removing mutations.
+2. Individuals, if `TSK_FILTER_INDIVIDUALS`: if referred to by a retained node,
+    and in the order first seen when traversing the list of retained nodes.
+3. Populations, if `TSK_FILTER_POPULATIONS`: the same as Individuals.
+4. Edges: if both parent and child are retained nodes.
+5. Mutations: if the mutation's node is a retained node.
+6. Sites, if `TSK_FILTER_SITES`: if any mutations remain at the site after
+    removing mutations.
 
 Retained edges, mutations, and sites appear in the same
-order as in the original tables.
+order as in the original tables. If any of `TSK_FILTER_INDIVIDUALS`,
+`TSK_FILTER_POPULATIONS`, or `TSK_FILTER_SITES` are *not* provided,
+then the respective tables will be *unchanged*.
 
 If ``nodes`` is the entire list of nodes in the tables, then the
 resulting tables will be identical to the original tables, but with
 nodes (and individuals and populations) reordered.
+
+An additional option, `TSK_CANONICALISE`, will reorder both individual and
+population tables, as described above if `TSK_FILTER_INDIVIDUALS` and
+`TSK_FILTER_POPULATIONS` were provided, but will retain any unreferenced
+individuals and populations at the end of the individual and population tables.
+It will also keep unreferenced sites (as if `TSK_FILTER_SITES` was not
+provided).  This is useful so that this can be used to reorder the tables
+without losing information.
+
+This function does *not* require the tables to be sorted.
 
 .. note:: Migrations are currently not supported by susbset, and an error will
     be raised if we attempt call subset on a table collection with greater
@@ -2753,10 +2786,11 @@ nodes (and individuals and populations) reordered.
 @param self A pointer to a tsk_table_collection_t object.
 @param nodes An array of num_nodes valid node IDs.
 @param num_nodes The number of node IDs in the input nodes array.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_table_collection_subset(
-    tsk_table_collection_t *self, const tsk_id_t *nodes, tsk_size_t num_nodes);
+int tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
+    tsk_size_t num_nodes, tsk_flags_t options);
 
 /**
 @brief Forms the node-wise union of two table collections.
@@ -3039,7 +3073,7 @@ Runs the sorting process:
    bounds of the edge table.
 3. Sort the site table, building the mapping between site IDs in the
    current and sorted tables.
-4. Sort the mutation table.
+4. Sort the mutation table, using the ``sort_mutations`` pointer.
 
 If an error occurs during the execution of a user-supplied
 sorting function a non-zero value must be returned. This value

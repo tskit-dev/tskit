@@ -357,10 +357,6 @@ tsk_strerror_internal(int err)
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
             ret = "Only binary mutations are supported for this operation";
             break;
-        case TSK_ERR_UNION_NOT_SUPPORTED:
-            ret = "Union is not supported for cases where there is non-shared"
-                  "history older than the shared history of the two Table Collections";
-            break;
 
         /* Stats errors */
         case TSK_ERR_BAD_NUM_WINDOWS:
