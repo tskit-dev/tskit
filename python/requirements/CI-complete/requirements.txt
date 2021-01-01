@@ -14,7 +14,7 @@ numpy==1.19.4
 portion==2.1.4
 pyparsing==2.4.7
 pysam==0.16.0.1
-pytest==6.1.2
+pytest==6.2.1
 pytest-cov==2.10.1
 pytest-xdist==2.1.0
 python-jsonschema-objects==0.3.13
