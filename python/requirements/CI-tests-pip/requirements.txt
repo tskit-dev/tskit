@@ -10,7 +10,7 @@ xmlunittest==0.5.0
 biopython==1.78
 kastore==0.3.1
 networkx==2.5
-msgpack==1.0.0
+msgpack==1.0.2
 python-jsonschema-objects==0.3.13
 newick==1.0.0
 PyVCF==0.6.8
