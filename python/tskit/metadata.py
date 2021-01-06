@@ -455,6 +455,10 @@ class StructCodec(AbstractMetadataCodec):
             elif type(obj) == dict:
                 ret = {k: enforce_fixed_properties(v) for k, v in obj.items()}
                 if ret.get("type") == "object":
+                    if ret.get("additional_properties"):
+                        raise ValueError(
+                            "Struct codec does not support additional_properties"
+                        )
                     ret["required"] = list(ret.get("properties", {}).keys())
                     ret["additionalProperties"] = False
                 return ret

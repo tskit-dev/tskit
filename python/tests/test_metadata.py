@@ -1478,6 +1478,18 @@ class TestStructCodecErrors:
         ):
             metadata.MetadataSchema(schema).validate_and_encode_row(data2)
 
+    def test_additional_properties(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "additional_properties": True,
+            "properties": {},
+        }
+        with pytest.raises(
+            ValueError, match="Struct codec does not support additional_properties"
+        ):
+            metadata.MetadataSchema(schema)
+
 
 class TestSLiMDecoding:
     """
