@@ -548,8 +548,16 @@ class MetadataSchema:
 
     @property
     def schema(self) -> Optional[Mapping[str, Any]]:
-        # Make schema read-only
-        return self._schema
+        # Return a copy to avoid unintentional mutation
+        return copy.deepcopy(self._schema)
+
+    def asdict(self) -> Optional[Mapping[str, Any]]:
+        """
+        Returns a dict representation of this schema. One possible use of this is to
+        modify this dict and then pass it to the ``MetadataSchema`` constructor to create
+        a similar schema.
+        """
+        return self.schema
 
     def validate_and_encode_row(self, row: Any) -> bytes:
         """
