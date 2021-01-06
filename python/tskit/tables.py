@@ -510,9 +510,13 @@ class IndividualTable(BaseTable, MetadataMixin):
             array describing the location of this individual. If not specified
             or None, a zero-dimensional location is stored.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added node.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags=flags, location=location, metadata=metadata)
 
@@ -718,9 +722,13 @@ class NodeTable(BaseTable, MetadataMixin):
         :param int individual: The ID of the individual in which the new node was born.
             Defaults to :data:`tskit.NULL`.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added node.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags, time, population, individual, metadata)
 
@@ -913,9 +921,13 @@ class EdgeTable(BaseTable, MetadataMixin):
         :param int parent: The ID of parent node.
         :param int child: The ID of child node.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added edge.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, parent, child, metadata)
 
@@ -1127,9 +1139,13 @@ class MigrationTable(BaseTable, MetadataMixin):
         :param int dest: The ID of the destination population.
         :param float time: The time of the migration event.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added migration.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, node, source, dest, time, metadata)
 
@@ -1334,9 +1350,13 @@ class SiteTable(BaseTable, MetadataMixin):
         :param float position: The position of this site in genome coordinates.
         :param str ancestral_state: The state of this site at the root of the tree.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added site.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(position, ancestral_state, metadata)
 
@@ -1560,11 +1580,15 @@ class MutationTable(BaseTable, MetadataMixin):
         :param int parent: The ID of the parent mutation. If not specified,
             defaults to :attr:`NULL`.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added mutation.
         :param float time: The occurrence time for the new mutation. If not specified,
             defaults to ``UNKNOWN_TIME``, indicating the time is unknown.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(
             site,
@@ -1763,9 +1787,13 @@ class PopulationTable(BaseTable, MetadataMixin):
         :attr:`metadata_schema<tskit.PopulationTable.metadata_schema>`.
 
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added population.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 

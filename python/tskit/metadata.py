@@ -510,6 +510,7 @@ class MetadataSchema:
             self._validate_row = validate_bytes
             self.encode_row = NOOPCodec({}).encode
             self.decode_row = NOOPCodec({}).decode
+            self.empty_value = b""
         else:
             try:
                 TSKITMetadataSchemaValidator.check_schema(schema)
@@ -530,6 +531,7 @@ class MetadataSchema:
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
+            self.empty_value = {}
 
     def __repr__(self) -> str:
         return self._string

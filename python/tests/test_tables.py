@@ -760,6 +760,21 @@ class MetadataTestsMixin:
                 }
             )
 
+    def test_default_metadata_add_row(self):
+        row_data = self.input_data_for_add_row()
+        del row_data["metadata"]
+
+        table = self.table_class()
+        table.add_row(**row_data)
+        assert table[0].metadata == b""
+        assert table[0].metadata == table.metadata_schema.empty_value
+
+        table = self.table_class()
+        table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+        table.add_row(**row_data)
+        assert table[0].metadata == {}
+        assert table[0].metadata == table.metadata_schema.empty_value
+
     def test_row_round_trip_metadata_schema(self):
         data = self.metadata_example_data()
         table = self.table_class()

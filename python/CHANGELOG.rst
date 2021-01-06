@@ -11,6 +11,11 @@
   the shortest possible branch lengths instead of a fixed epsilon of
   1e-10. (:user:`jeromekelleher`, :issue:`1089`, :pr:`1090`)
 
+- Default value metadata in ``add_row`` functions is now schema-dependant, so that
+  ``metadata={}`` is no longer needed as an argument when a schema is present
+  (:user:`benjeffery`, :issue:`1084`).
+
+
 --------------------
 [0.3.4] - 2020-12-02
 --------------------
