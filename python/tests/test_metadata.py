@@ -347,11 +347,15 @@ class TestMetadataModule:
         ms = metadata.parse_metadata_schema("")
         assert isinstance(ms, metadata.MetadataSchema)
         assert ms.schema is None
+        assert ms.asdict() is None
 
         # json gives MetaDataSchema with json codec
         ms = metadata.parse_metadata_schema(json.dumps({"codec": "json"}))
         assert isinstance(ms, metadata.MetadataSchema)
         assert ms.schema == {"codec": "json"}
+        assert ms.asdict() == {"codec": "json"}
+        # check we get a copy
+        assert ms.asdict() is not ms._schema
 
         # Bad JSON gives error
         with pytest.raises(ValueError):
