@@ -2948,6 +2948,7 @@ class TableCollection:
         self,
         other,
         node_mapping,
+        offset_time=None,
         check_shared_equality=True,
         add_populations=True,
         record_provenance=True,
@@ -2966,6 +2967,7 @@ class TableCollection:
             should be the index of the equivalent node in ``self``, or
             ``tskit.NULL`` if the node is not present in ``self`` (in which case it
             will be added to self).
+        :param float offset_time: Time to offset ``other`` by
         :param bool check_shared_equality: If True, the shared portions of the
             table collections will be checked for equality.
         :param bool add_populations: If True, nodes new to ``self`` will be
@@ -2974,6 +2976,10 @@ class TableCollection:
             in the provenance table for this operation.
         """
         node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
+
+        # adjust table time
+        # adjust sample flags
+
         self._ll_tables.union(
             other._ll_tables,
             node_mapping,
