@@ -3026,22 +3026,26 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
-    def time_join(recent_ts, ancient_ts, time, continue_nodes=None):
+    def time_join(self, recent_ts, time, continue_nodes=None):
         if continue_nodes is None:
-            continue_nodes = ancient_ts.samples()
+            continue_nodes = self.samples()
 
         new_tables = recent_ts.tables
         new_nodes = np.empty(0)
-        for root in set().union(*[set(t.roots) for t in recent_ts.trees()]):
-            # root is just an id, make sure I actually get the node
-            if root.time == time:
-                new_nodes = np.append(new_nodes, root)
-            elif root.time < time:
-                n = new_tables.nodes.add_row(time=time)
-                # need to get the tree to be able to get the interval
-                # new_tables.edges.add_row(
-                #    parent=n, child=t.root, left=t.interval.left, right=t.interval.right
-                # )
+        # NOTE - edges will be unique because of their interval
+        for t in recent_ts.trees():
+            for root in t.roots:
+                root = recent_ts.node(root)
+                if root.time == time:
+                    new_nodes = np.append(new_nodes, root)
+                elif root.time < time:
+                    n = new_tables.nodes.add_row(time=time)
+                    new_tables.edges.add_row(
+                        parent=n,
+                        child=root,
+                        left=t.interval.left,
+                        right=t.interval.right,
+                    )
                 new_nodes = np.append(new_nodes, n)
             else:
                 raise RuntimeError
@@ -3060,7 +3064,7 @@ class TableCollection:
             continue_nodes, len(new_nodes), replace=False
         )
 
-        tables = ancient_ts.tables
+        tables = self.tables
         tables.set_samples(continue_nodes, samples=False)
         tables.union(
             recent_ts.tables,
