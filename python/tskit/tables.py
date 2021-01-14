@@ -2976,10 +2976,10 @@ class TableCollection:
         self,
         other,
         node_mapping,
-        offset_time=None,
         check_shared_equality=True,
         add_populations=True,
         record_provenance=True,
+        shift_time=0.0,
     ):
         """
         Modifies the table collection in place by adding the non-shared
@@ -3005,8 +3005,8 @@ class TableCollection:
         """
         node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
 
-        # adjust table time
-        # adjust sample flags
+        if shift_time > 0.0:
+            self._ll_tables.set_time(shift_time)
 
         self._ll_tables.union(
             other._ll_tables,
@@ -3025,6 +3025,91 @@ class TableCollection:
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
+
+    def time_join(recent_ts, ancient_ts, time, continue_nodes=None):
+        if continue_nodes is None:
+            continue_nodes = ancient_ts.samples()
+
+        new_tables = recent_ts.tables
+        new_nodes = np.empty(0)
+        for root in set().union(*[set(t.roots) for t in recent_ts.trees()]):
+            # root is just an id, make sure I actually get the node
+            if root.time == time:
+                new_nodes = np.append(new_nodes, root)
+            elif root.time < time:
+                n = new_tables.nodes.add_row(time=time)
+                # need to get the tree to be able to get the interval
+                # new_tables.edges.add_row(
+                #    parent=n, child=t.root, left=t.interval.left, right=t.interval.right
+                # )
+                new_nodes = np.append(new_nodes, n)
+            else:
+                raise RuntimeError
+        recent_ts = new_tables.tree_sequence()
+
+        if len(new_nodes) > len(continue_nodes):
+            raise RuntimeError(
+                f"""More lineages present at the longest-ago end of `recent_ts` \
+                than there are nodes in `continue_nodes`. \
+                Setting sample_size={len(continue_nodes)} or leaving it to default \
+                will ensure compliance."""
+            )
+
+        node_map = np.repeat(tskit.NULL, recent_ts.num_nodes)
+        node_map[new_nodes] = np.random.choice(
+            continue_nodes, len(new_nodes), replace=False
+        )
+
+        tables = ancient_ts.tables
+        tables.set_samples(continue_nodes, samples=False)
+        tables.union(
+            recent_ts.tables,
+            node_map,
+            add_populations=False,
+            check_shared_equality=False,
+            shift_time=time,
+        )
+
+        return tables.tree_sequence()
+
+    def set_samples(self, nodes, samples=True):
+        value = np.uint32(tskit.NODE_IS_SAMPLE)
+        if samples is False:
+            value = np.uint32(0)
+
+        self.nodes.set_columns(
+            flags=np.array(
+                [value if i in nodes else f for i, f in enumerate(self.nodes.flags)]
+            ),
+            time=self.nodes.time,
+            population=self.nodes.population,
+            individual=self.nodes.individual,
+            metadata=self.nodes.metadata,
+            metadata_offset=self.nodes.metadata_offset,
+            metadata_schema=json.dumps(self.nodes.metadata_schema.schema),
+        )
+
+    def set_time(self, time):
+        self.nodes.set_columns(
+            flags=self.nodes.flags,
+            time=self.nodes.time + time,
+            population=self.nodes.population,
+            individual=self.nodes.individual,
+            metadata=self.nodes.metadata,
+            metadata_offset=self.nodes.metadata_offset,
+            metadata_schema=json.dumps(self.nodes.metadata_schema.schema),
+        )
+        self.mutations.set_columns(
+            site=self.mutations.site,
+            node=self.mutations.node,
+            time=self.mutations.time + time,
+            derived_state=self.mutations.derived_state,
+            derived_state_offset=self.mutations.derived_state_offset,
+            parent=self.mutations.parent,
+            metadata=self.mutations.metadata,
+            metadata_offset=self.mutations.metadata_offset,
+            metadata_schema=json.dumps(self.mutations.metadata_schema.schema),
+        )
 
     def find_ibd(self, samples, max_time=None, min_length=None):
         max_time = sys.float_info.max if max_time is None else max_time
