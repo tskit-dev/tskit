@@ -15,6 +15,8 @@
   ``metadata={}`` is no longer needed as an argument when a schema is present
   (:user:`benjeffery`, :issue:`1084`).
 
+- ``default`` in metadata schemas is used to fill in missing values when encoding for
+  the struct codec. (:user:`benjeffery`, :issue:`1073`, :pr:`1116`).
 
 --------------------
 [0.3.4] - 2020-12-02

@@ -1006,6 +1006,23 @@ class TestStructCodec:
         assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
         assert ms.decode_row(ms.validate_and_encode_row(None)) is None
 
+    def test_default_values(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "b", "default": 42},
+                "float": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        ms = metadata.MetadataSchema(schema)
+        row_data = {"float": 5.5}
+        assert ms.validate_and_encode_row(row_data) == b"\x00\x00\x00\x00\x00\x00\x16@*"
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == {
+            "float": 5.5,
+            "int": 42,
+        }
+
 
 class TestStructCodecRoundTrip:
     def round_trip(self, schema, row_data):
@@ -1493,6 +1510,37 @@ class TestStructCodecErrors:
             ValueError, match="Struct codec does not support additional_properties"
         ):
             metadata.MetadataSchema(schema)
+
+    def test_unrequired_property_needs_default(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "i"},
+                "float": {"type": "number", "binaryFormat": "d"},
+            },
+            "required": ["float"],
+        }
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError,
+            match="Optional property 'int' must have a default value",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_no_default_implies_required(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "i", "default": 5},
+                "float": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        self.encode(schema, {"float": 5.5})
+        with pytest.raises(
+            exceptions.MetadataValidationError, match="'float' is a required property"
+        ):
+            self.encode(schema, {})
 
 
 class TestSLiMDecoding:
