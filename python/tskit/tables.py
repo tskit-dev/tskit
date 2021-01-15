@@ -3006,7 +3006,7 @@ class TableCollection:
         node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
 
         if shift_time > 0.0:
-            self._ll_tables.set_time(shift_time)
+            self.set_time(shift_time)
 
         self._ll_tables.union(
             other._ll_tables,
@@ -3026,29 +3026,32 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
-    def time_join(self, recent_ts, time, continue_nodes=None):
+    def time_join(self, recent, time, continue_nodes=None):
+        ancient_ts = self.tree_sequence()
+        recent_ts = recent.tree_sequence()
         if continue_nodes is None:
-            continue_nodes = self.samples()
+            continue_nodes = ancient_ts.samples()
 
         new_tables = recent_ts.tables
-        new_nodes = np.empty(0)
-        # NOTE - edges will be unique because of their interval
+        new_nodes = np.empty(0, dtype=np.uint32)
         for t in recent_ts.trees():
-            for root in t.roots:
-                root = recent_ts.node(root)
+            for root_id in t.roots:
+                root = recent_ts.node(root_id)
                 if root.time == time:
-                    new_nodes = np.append(new_nodes, root)
+                    new_nodes = np.append(new_nodes, root_id)
                 elif root.time < time:
                     n = new_tables.nodes.add_row(time=time)
                     new_tables.edges.add_row(
-                        parent=n,
-                        child=root,
                         left=t.interval.left,
                         right=t.interval.right,
+                        parent=n,
+                        child=root_id,
                     )
-                new_nodes = np.append(new_nodes, n)
-            else:
-                raise RuntimeError
+                    new_nodes = np.append(new_nodes, n)
+                else:
+                    raise RuntimeError(
+                        f"Root found older than join time (age = {root.time})"
+                    )
         recent_ts = new_tables.tree_sequence()
 
         if len(new_nodes) > len(continue_nodes):
@@ -3060,11 +3063,12 @@ class TableCollection:
             )
 
         node_map = np.repeat(tskit.NULL, recent_ts.num_nodes)
+
         node_map[new_nodes] = np.random.choice(
             continue_nodes, len(new_nodes), replace=False
         )
 
-        tables = self.tables
+        tables = ancient_ts.tables
         tables.set_samples(continue_nodes, samples=False)
         tables.union(
             recent_ts.tables,
