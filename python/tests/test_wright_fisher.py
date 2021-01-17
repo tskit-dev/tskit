@@ -25,11 +25,11 @@ Test various functions using messy tables output by a forwards-time simulator.
 """
 import itertools
 import random
-import unittest
 
 import msprime
 import numpy as np
 import numpy.testing as nt
+import pytest
 
 import tests as tests
 import tests.tsutil as tsutil
@@ -216,7 +216,7 @@ def wf_sim(
     return sim.run(ngens)
 
 
-class TestSimulation(unittest.TestCase):
+class TestSimulation:
     """
     Tests that the simulations produce the output we expect.
     """
@@ -233,9 +233,9 @@ class TestSimulation(unittest.TestCase):
             seed=self.random_seed,
             record_migrations=True,
         )
-        self.assertEqual(tables.nodes.num_rows, 5 * 4 * (1 + 1))
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.migrations.num_rows, 5 * 4)
+        assert tables.nodes.num_rows == 5 * 4 * (1 + 1)
+        assert tables.edges.num_rows > 0
+        assert tables.migrations.num_rows == 5 * 4
 
     def test_multipop_mig_deep(self):
         N = 10
@@ -249,12 +249,12 @@ class TestSimulation(unittest.TestCase):
             seed=self.random_seed,
             record_migrations=True,
         )
-        self.assertGreater(tables.nodes.num_rows, (num_pops * N * ngens) + N)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 0)
-        self.assertEqual(tables.mutations.num_rows, 0)
-        self.assertGreaterEqual(tables.migrations.num_rows, N * num_pops * ngens)
-        self.assertEqual(tables.populations.num_rows, num_pops)
+        assert tables.nodes.num_rows > (num_pops * N * ngens) + N
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 0
+        assert tables.mutations.num_rows == 0
+        assert tables.migrations.num_rows >= N * num_pops * ngens
+        assert tables.populations.num_rows == num_pops
         # sort does not support mig
         tables.migrations.clear()
         # making sure trees are valid
@@ -262,7 +262,7 @@ class TestSimulation(unittest.TestCase):
         tables.simplify()
         ts = tables.tree_sequence()
         sample_pops = tables.nodes.population[ts.samples()]
-        self.assertEqual(np.unique(sample_pops).size, num_pops)
+        assert np.unique(sample_pops).size == num_pops
 
     def test_multipop_mig_no_deep(self):
         N = 5
@@ -277,12 +277,12 @@ class TestSimulation(unittest.TestCase):
             seed=self.random_seed,
             record_migrations=True,
         )
-        self.assertEqual(tables.nodes.num_rows, num_pops * N * (ngens + 1))
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 0)
-        self.assertEqual(tables.mutations.num_rows, 0)
-        self.assertEqual(tables.migrations.num_rows, N * num_pops * ngens)
-        self.assertEqual(tables.populations.num_rows, num_pops)
+        assert tables.nodes.num_rows == num_pops * N * (ngens + 1)
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 0
+        assert tables.mutations.num_rows == 0
+        assert tables.migrations.num_rows == N * num_pops * ngens
+        assert tables.populations.num_rows == num_pops
         # sort does not support mig
         tables.migrations.clear()
         # making sure trees are valid
@@ -290,81 +290,81 @@ class TestSimulation(unittest.TestCase):
         tables.simplify()
         ts = tables.tree_sequence()
         sample_pops = tables.nodes.population[ts.samples()]
-        self.assertEqual(np.unique(sample_pops).size, num_pops)
+        assert np.unique(sample_pops).size == num_pops
 
     def test_non_overlapping_generations(self):
         tables = wf_sim(N=10, ngens=10, survival=0.0, seed=self.random_seed)
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 0)
-        self.assertEqual(tables.mutations.num_rows, 0)
-        self.assertEqual(tables.migrations.num_rows, 0)
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 0
+        assert tables.mutations.num_rows == 0
+        assert tables.migrations.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
         # All trees should have exactly one root and all internal nodes should
         # have arity > 1
         for tree in ts.trees():
-            self.assertEqual(tree.num_roots, 1)
+            assert tree.num_roots == 1
             leaves = set(tree.leaves(tree.root))
-            self.assertEqual(leaves, set(ts.samples()))
+            assert leaves == set(ts.samples())
             for u in tree.nodes():
                 if tree.is_internal(u):
-                    self.assertGreater(len(tree.children(u)), 1)
+                    assert len(tree.children(u)) > 1
 
     def test_overlapping_generations(self):
         tables = wf_sim(N=30, ngens=10, survival=0.85, seed=self.random_seed)
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 0)
-        self.assertEqual(tables.mutations.num_rows, 0)
-        self.assertEqual(tables.migrations.num_rows, 0)
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 0
+        assert tables.mutations.num_rows == 0
+        assert tables.migrations.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
         for tree in ts.trees():
-            self.assertEqual(tree.num_roots, 1)
+            assert tree.num_roots == 1
 
     def test_one_generation_no_deep_history(self):
         N = 20
         tables = wf_sim(N=N, ngens=1, deep_history=False, seed=self.random_seed)
-        self.assertEqual(tables.nodes.num_rows, 2 * N)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 0)
-        self.assertEqual(tables.mutations.num_rows, 0)
-        self.assertEqual(tables.migrations.num_rows, 0)
+        assert tables.nodes.num_rows == 2 * N
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 0
+        assert tables.mutations.num_rows == 0
+        assert tables.migrations.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
         ts = tables.tree_sequence()
         for tree in ts.trees():
             all_samples = set()
             for root in tree.roots:
                 root_samples = set(tree.samples(root))
-                self.assertEqual(len(root_samples & all_samples), 0)
+                assert len(root_samples & all_samples) == 0
                 all_samples |= root_samples
-            self.assertEqual(all_samples, set(ts.samples()))
+            assert all_samples == set(ts.samples())
 
     def test_many_generations_no_deep_history(self):
         N = 10
         ngens = 100
         tables = wf_sim(N=N, ngens=ngens, deep_history=False, seed=self.random_seed)
-        self.assertEqual(tables.nodes.num_rows, N * (ngens + 1))
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 0)
-        self.assertEqual(tables.mutations.num_rows, 0)
-        self.assertEqual(tables.migrations.num_rows, 0)
+        assert tables.nodes.num_rows == N * (ngens + 1)
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 0
+        assert tables.mutations.num_rows == 0
+        assert tables.migrations.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
         ts = tables.tree_sequence()
         # We are assuming that everything has coalesced and we have single-root trees
         for tree in ts.trees():
-            self.assertEqual(tree.num_roots, 1)
+            assert tree.num_roots == 1
 
     def test_with_mutations(self):
         N = 10
@@ -374,23 +374,23 @@ class TestSimulation(unittest.TestCase):
         ts = tables.tree_sequence()
         ts = tsutil.jukes_cantor(ts, 10, 0.1, seed=self.random_seed)
         tables = ts.tables
-        self.assertGreater(tables.sites.num_rows, 0)
-        self.assertGreater(tables.mutations.num_rows, 0)
+        assert tables.sites.num_rows > 0
+        assert tables.mutations.num_rows > 0
         samples = np.where(tables.nodes.flags == tskit.NODE_IS_SAMPLE)[0].astype(
             np.int32
         )
         tables.sort()
         tables.simplify(samples)
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertGreater(tables.sites.num_rows, 0)
-        self.assertGreater(tables.mutations.num_rows, 0)
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows > 0
+        assert tables.mutations.num_rows > 0
         ts = tables.tree_sequence()
-        self.assertEqual(ts.sample_size, N)
+        assert ts.sample_size == N
         for hap in ts.haplotypes():
-            self.assertEqual(len(hap), ts.num_sites)
+            assert len(hap) == ts.num_sites
 
     def test_with_recurrent_mutations(self):
         # actually with only ONE site, at 0.0
@@ -401,32 +401,32 @@ class TestSimulation(unittest.TestCase):
         ts = tables.tree_sequence()
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=self.random_seed)
         tables = ts.tables
-        self.assertEqual(tables.sites.num_rows, 1)
-        self.assertGreater(tables.mutations.num_rows, 0)
+        assert tables.sites.num_rows == 1
+        assert tables.mutations.num_rows > 0
         # before simplify
         for h in ts.haplotypes():
-            self.assertEqual(len(h), 1)
+            assert len(h) == 1
         # after simplify
         tables.sort()
         tables.simplify()
-        self.assertGreater(tables.nodes.num_rows, 0)
-        self.assertGreater(tables.edges.num_rows, 0)
-        self.assertEqual(tables.sites.num_rows, 1)
-        self.assertGreater(tables.mutations.num_rows, 0)
+        assert tables.nodes.num_rows > 0
+        assert tables.edges.num_rows > 0
+        assert tables.sites.num_rows == 1
+        assert tables.mutations.num_rows > 0
         ts = tables.tree_sequence()
-        self.assertEqual(ts.sample_size, N)
+        assert ts.sample_size == N
         for hap in ts.haplotypes():
-            self.assertEqual(len(hap), ts.num_sites)
+            assert len(hap) == ts.num_sites
 
 
-class TestIncrementalBuild(unittest.TestCase):
+class TestIncrementalBuild:
     """
     Tests for incrementally building a tree sequence from forward time
     simulations.
     """
 
 
-class TestSimplify(unittest.TestCase):
+class TestSimplify:
     """
     Tests for simplify on cases generated by the Wright-Fisher simulator.
     """
@@ -435,17 +435,17 @@ class TestSimplify(unittest.TestCase):
         nt.assert_equal(x, y)
 
     def assertTreeSequencesEqual(self, ts1, ts2):
-        self.assertEqual(list(ts1.samples()), list(ts2.samples()))
-        self.assertEqual(ts1.sequence_length, ts2.sequence_length)
+        assert list(ts1.samples()) == list(ts2.samples())
+        assert ts1.sequence_length == ts2.sequence_length
         ts1_tables = ts1.dump_tables()
         ts2_tables = ts2.dump_tables()
         # print("compare")
         # print(ts1_tables.nodes)
         # print(ts2_tables.nodes)
-        self.assertEqual(ts1_tables.nodes, ts2_tables.nodes)
-        self.assertEqual(ts1_tables.edges, ts2_tables.edges)
-        self.assertEqual(ts1_tables.sites, ts2_tables.sites)
-        self.assertEqual(ts1_tables.mutations, ts2_tables.mutations)
+        assert ts1_tables.nodes == ts2_tables.nodes
+        assert ts1_tables.edges == ts2_tables.edges
+        assert ts1_tables.sites == ts2_tables.sites
+        assert ts1_tables.mutations == ts2_tables.mutations
 
     def get_wf_sims(self, seed):
         """
@@ -480,10 +480,10 @@ class TestSimplify(unittest.TestCase):
                     k += 1
                 lefts.sort()
                 rights.sort()
-                self.assertEqual(lefts[0], 0.0)
-                self.assertEqual(rights[-1], 1.0)
+                assert lefts[0] == 0.0
+                assert rights[-1] == 1.0
                 for k in range(len(lefts) - 1):
-                    self.assertEqual(lefts[k + 1], rights[k])
+                    assert lefts[k + 1] == rights[k]
 
     def verify_simplify(self, ts, new_ts, samples, node_map):
         """
@@ -517,10 +517,10 @@ class TestSimplify(unittest.TestCase):
             for pair in pairs:
                 mapped_pair = [node_map[u] for u in pair]
                 mrca1 = old_tree.get_mrca(*pair)
-                self.assertNotEqual(mrca1, tskit.NULL)
+                assert mrca1 != tskit.NULL
                 mrca2 = new_tree.get_mrca(*mapped_pair)
-                self.assertNotEqual(mrca2, tskit.NULL)
-                self.assertEqual(node_map[mrca1], mrca2)
+                assert mrca2 != tskit.NULL
+                assert node_map[mrca1] == mrca2
         mut_parent = tsutil.compute_mutation_parent(ts=ts)
         self.assertArrayEqual(mut_parent, ts.tables.mutations.parent)
 
@@ -528,21 +528,20 @@ class TestSimplify(unittest.TestCase):
         """
         Check that haplotypes are unchanged by simplify.
         """
-        sub_ts, node_map = ts.simplify(
-            samples, map_nodes=True, filter_zero_mutation_sites=False
-        )
+        sub_ts, node_map = ts.simplify(samples, map_nodes=True, filter_sites=False)
         # Sites tables should be equal
-        self.assertEqual(ts.tables.sites, sub_ts.tables.sites)
+        assert ts.tables.sites == sub_ts.tables.sites
         sub_haplotypes = dict(zip(sub_ts.samples(), sub_ts.haplotypes()))
         all_haplotypes = dict(zip(ts.samples(), ts.haplotypes()))
         mapped_ids = []
         for node_id, h in all_haplotypes.items():
             mapped_node_id = node_map[node_id]
             if mapped_node_id in sub_haplotypes:
-                self.assertEqual(h, sub_haplotypes[mapped_node_id])
+                assert h == sub_haplotypes[mapped_node_id]
                 mapped_ids.append(mapped_node_id)
-        self.assertEqual(sorted(mapped_ids), sorted(sub_ts.samples()))
+        assert sorted(mapped_ids) == sorted(sub_ts.samples())
 
+    @pytest.mark.slow
     def test_simplify(self):
         #  check that simplify(big set) -> simplify(subset) equals simplify(subset)
         seed = 23
@@ -551,7 +550,7 @@ class TestSimplify(unittest.TestCase):
             s = tests.Simplifier(ts, ts.samples())
             py_full_ts, py_full_map = s.simplify()
             full_ts, full_map = ts.simplify(ts.samples(), map_nodes=True)
-            self.assertTrue(all(py_full_map == full_map))
+            assert all(py_full_map == full_map)
             self.assertTreeSequencesEqual(full_ts, py_full_ts)
 
             for nsamples in [2, 5, 10]:
@@ -565,6 +564,7 @@ class TestSimplify(unittest.TestCase):
                 self.verify_simplify(ts, small_ts, sub_samples, small_map)
                 self.verify_haplotypes(ts, samples=sub_samples)
 
+    @pytest.mark.slow
     def test_simplify_tables(self):
         seed = 71
         for ts in self.get_wf_sims(seed=seed):
@@ -578,5 +578,5 @@ class TestSimplify(unittest.TestCase):
                 other_tables = small_ts.dump_tables()
                 tables.provenances.clear()
                 other_tables.provenances.clear()
-                self.assertEqual(tables, other_tables)
+                assert tables == other_tables
                 self.verify_simplify(ts, small_ts, sub_samples, node_map)

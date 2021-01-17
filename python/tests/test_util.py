@@ -26,9 +26,9 @@ import collections
 import itertools
 import math
 import pickle
-import unittest
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
 import tests.tsutil as tsutil
@@ -36,14 +36,14 @@ import tskit.util as util
 from tskit import UNKNOWN_TIME
 
 
-class TestCanonicalJSON(unittest.TestCase):
+class TestCanonicalJSON:
     def test_canonical_json(self):
-        self.assertEqual(util.canonical_json([3, 2, 1]), "[3,2,1]")
-        self.assertEqual(
-            util.canonical_json(collections.OrderedDict(c=3, b=2, a=1)),
-            '{"a":1,"b":2,"c":3}',
+        assert util.canonical_json([3, 2, 1]) == "[3,2,1]"
+        assert (
+            util.canonical_json(collections.OrderedDict(c=3, b=2, a=1))
+            == '{"a":1,"b":2,"c":3}'
         )
-        self.assertEqual(
+        assert (
             util.canonical_json(
                 collections.OrderedDict(
                     c="3",
@@ -58,31 +58,31 @@ class TestCanonicalJSON(unittest.TestCase):
                     ),
                     a="1",
                 )
-            ),
-            '{"a":"1","b":{" space":42,"1":"number",'
-            '"_":"underscore","b":1,"z":{}},"c":"3"}',
+            )
+            == '{"a":"1","b":{" space":42,"1":"number",'
+            '"_":"underscore","b":1,"z":{}},"c":"3"}'
         )
 
 
-class TestUnknownTime(unittest.TestCase):
+class TestUnknownTime:
     def test_unknown_time_bad_types(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.is_unknown_time("bad")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.is_unknown_time(np.array(["bad"]))
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.is_unknown_time(["bad"])
 
     def test_unknown_time_scalar(self):
-        self.assertTrue(math.isnan(UNKNOWN_TIME))
-        self.assertTrue(util.is_unknown_time(UNKNOWN_TIME))
-        self.assertFalse(util.is_unknown_time(math.nan))
-        self.assertFalse(util.is_unknown_time(np.nan))
-        self.assertFalse(util.is_unknown_time(0))
-        self.assertFalse(util.is_unknown_time(math.inf))
-        self.assertFalse(util.is_unknown_time(1))
-        self.assertFalse(util.is_unknown_time(None))
-        self.assertFalse(util.is_unknown_time([None]))
+        assert math.isnan(UNKNOWN_TIME)
+        assert util.is_unknown_time(UNKNOWN_TIME)
+        assert not util.is_unknown_time(math.nan)
+        assert not util.is_unknown_time(np.nan)
+        assert not util.is_unknown_time(0)
+        assert not util.is_unknown_time(math.inf)
+        assert not util.is_unknown_time(1)
+        assert not util.is_unknown_time(None)
+        assert not util.is_unknown_time([None])
 
     def test_unknown_time_array(self):
         test_arrays = (
@@ -105,7 +105,7 @@ class TestUnknownTime(unittest.TestCase):
         )
 
 
-class TestNumpyArrayCasting(unittest.TestCase):
+class TestNumpyArrayCasting:
     """
     Tests that the safe_np_int_cast() function works.
     """
@@ -119,12 +119,12 @@ class TestNumpyArrayCasting(unittest.TestCase):
             for test_array in [[0, 1], (0, 1), np.array([0, 1]), target]:
                 converted = util.safe_np_int_cast(test_array, dtype=dtype)
                 # Use pickle to test exact equality including dtype
-                self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+                assert pickle.dumps(converted) == pickle.dumps(target)
             # Nested array
             target = np.array([[0, 1], [2, 3]], dtype=dtype)
             for test_array in [[[0, 1], [2, 3]], np.array([[0, 1], [2, 3]]), target]:
                 converted = util.safe_np_int_cast(test_array, dtype=dtype)
-                self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+                assert pickle.dumps(converted) == pickle.dumps(target)
 
     def test_copy(self):
         # Check that a copy is not returned if copy=False & the original matches
@@ -132,24 +132,24 @@ class TestNumpyArrayCasting(unittest.TestCase):
         for dtype in self.dtypes_to_test:
             for orig in (np.array([0, 1], dtype=dtype), np.array([], dtype=dtype)):
                 converted = util.safe_np_int_cast(orig, dtype=dtype, copy=True)
-                self.assertNotEqual(id(orig), id(converted))
+                assert id(orig) != id(converted)
                 converted = util.safe_np_int_cast(orig, dtype=dtype, copy=False)
-                self.assertEqual(id(orig), id(converted))
+                assert id(orig) == id(converted)
         for dtype in [d for d in self.dtypes_to_test if d != np.int64]:
             # non numpy arrays, or arrays of a different dtype don't get converted
             for orig in ([0, 1], np.array([0, 1], dtype=np.int64)):
                 converted = util.safe_np_int_cast(orig, dtype=dtype, copy=False)
-                self.assertNotEqual(id(orig), id(converted))
+                assert id(orig) != id(converted)
 
     def test_empty_arrays(self):
         # Empty arrays of any type (including float) should be allowed
         for dtype in self.dtypes_to_test:
             target = np.array([], dtype=dtype)
             converted = util.safe_np_int_cast([], dtype=dtype)
-            self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+            assert pickle.dumps(converted) == pickle.dumps(target)
             target = np.array([[]], dtype=dtype)
             converted = util.safe_np_int_cast([[]], dtype=dtype)
-            self.assertEqual(pickle.dumps(converted), pickle.dumps(target))
+            assert pickle.dumps(converted) == pickle.dumps(target)
 
     def test_bad_types(self):
         # Shouldn't be able to convert a float (possibility of rounding error)
@@ -161,26 +161,23 @@ class TestNumpyArrayCasting(unittest.TestCase):
                 [{}],
                 np.array([0, 1], dtype=np.float),
             ]:
-                self.assertRaises(TypeError, util.safe_np_int_cast, bad_type, dtype)
+                with pytest.raises(TypeError):
+                    util.safe_np_int_cast(bad_type, dtype)
 
     def test_overflow(self):
         for dtype in self.dtypes_to_test:
             for bad_node in [np.iinfo(dtype).min - 1, np.iinfo(dtype).max + 1]:
-                self.assertRaises(  # Test plain array
-                    OverflowError, util.safe_np_int_cast, [0, bad_node], dtype
-                )
-                self.assertRaises(  # Test numpy array
-                    OverflowError, util.safe_np_int_cast, np.array([0, bad_node]), dtype
-                )
+                with pytest.raises(OverflowError):
+                    util.safe_np_int_cast([0, bad_node], dtype)
+                with pytest.raises(OverflowError):
+                    util.safe_np_int_cast(np.array([0, bad_node]), dtype)
             for good_node in [np.iinfo(dtype).min, np.iinfo(dtype).max]:
                 target = np.array([good_node], dtype=dtype)
-                self.assertEqual(  # Test plain array
-                    pickle.dumps(target),
-                    pickle.dumps(util.safe_np_int_cast([good_node], dtype)),
+                assert pickle.dumps(target) == pickle.dumps(
+                    util.safe_np_int_cast([good_node], dtype)
                 )
-                self.assertEqual(  # Test numpy array
-                    pickle.dumps(target),
-                    pickle.dumps(util.safe_np_int_cast(np.array([good_node]), dtype)),
+                assert pickle.dumps(target) == pickle.dumps(
+                    util.safe_np_int_cast(np.array([good_node]), dtype)
                 )
 
     def test_nonrectangular_input(self):
@@ -196,46 +193,47 @@ class TestNumpyArrayCasting(unittest.TestCase):
             for bad_input in bad_inputs:
                 # On some platforms and Python / numpy versions, a ValueError
                 # occurs instead
-                with self.assertRaises((TypeError, ValueError)):
-                    util.safe_np_int_cast(bad_input, dtype)
+                with pytest.raises((TypeError, ValueError)):
+                    with pytest.deprecated_call():
+                        util.safe_np_int_cast(bad_input, dtype)
 
 
-class TestIntervalOps(unittest.TestCase):
+class TestIntervalOps:
     """
     Test cases for the interval operations used in masks and slicing operations.
     """
 
     def test_bad_intervals(self):
         for bad_type in [{}, Exception]:
-            with self.assertRaises(TypeError):
+            with pytest.raises(TypeError):
                 util.intervals_to_np_array(bad_type, 0, 1)
         for bad_depth in [[[[]]]]:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 util.intervals_to_np_array(bad_depth, 0, 1)
         for bad_shape in [[[0], [0]], [[[0, 1, 2], [0, 1]]]]:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 util.intervals_to_np_array(bad_shape, 0, 1)
 
         # Out of bounds
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.intervals_to_np_array([[-1, 0]], 0, 1)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.intervals_to_np_array([[0, 1]], 1, 2)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.intervals_to_np_array([[0, 1]], 0, 0.5)
 
         # Overlapping intervals
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             util.intervals_to_np_array([[0, 1], [0.9, 2.0]], 0, 10)
 
         # Empty intervals
         for bad_interval in [[0, 0], [1, 0]]:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 util.intervals_to_np_array([bad_interval], 0, 10)
 
     def test_empty_interval_list(self):
         intervals = util.intervals_to_np_array([], 0, 10)
-        self.assertEqual(len(intervals), 0)
+        assert len(intervals) == 0
 
     def test_negate_intervals(self):
         L = 10
@@ -247,10 +245,10 @@ class TestIntervalOps(unittest.TestCase):
             ([[0, 1], [2, 3], [3, 4], [5, 6]], [[1, 2], [4, 5], [6, L]]),
         ]
         for source, dest in cases:
-            self.assertTrue(np.array_equal(util.negate_intervals(source, 0, L), dest))
+            assert np.array_equal(util.negate_intervals(source, 0, L), dest)
 
 
-class TestStringPacking(unittest.TestCase):
+class TestStringPacking:
     """
     Tests the code for packing and unpacking unicode string data into numpy arrays.
     """
@@ -258,18 +256,18 @@ class TestStringPacking(unittest.TestCase):
     def test_simple_string_case(self):
         strings = ["hello", "world"]
         packed, offset = util.pack_strings(strings)
-        self.assertEqual(list(offset), [0, 5, 10])
-        self.assertEqual(packed.shape, (10,))
+        assert list(offset) == [0, 5, 10]
+        assert packed.shape == (10,)
         returned = util.unpack_strings(packed, offset)
-        self.assertEqual(returned, strings)
+        assert returned == strings
 
     def verify_packing(self, strings):
         packed, offset = util.pack_strings(strings)
-        self.assertEqual(packed.dtype, np.int8)
-        self.assertEqual(offset.dtype, np.uint32)
-        self.assertEqual(packed.shape[0], offset[-1])
+        assert packed.dtype == np.int8
+        assert offset.dtype == np.uint32
+        assert packed.shape[0] == offset[-1]
         returned = util.unpack_strings(packed, offset)
-        self.assertEqual(strings, returned)
+        assert strings == returned
 
     def test_regular_cases(self):
         for n in range(10):
@@ -285,7 +283,7 @@ class TestStringPacking(unittest.TestCase):
         self.verify_packing(["abcdé", "€"])
 
 
-class TestBytePacking(unittest.TestCase):
+class TestBytePacking:
     """
     Tests the code for packing and unpacking binary data into numpy arrays.
     """
@@ -293,18 +291,18 @@ class TestBytePacking(unittest.TestCase):
     def test_simple_string_case(self):
         strings = [b"hello", b"world"]
         packed, offset = util.pack_bytes(strings)
-        self.assertEqual(list(offset), [0, 5, 10])
-        self.assertEqual(packed.shape, (10,))
+        assert list(offset) == [0, 5, 10]
+        assert packed.shape == (10,)
         returned = util.unpack_bytes(packed, offset)
-        self.assertEqual(returned, strings)
+        assert returned == strings
 
     def verify_packing(self, data):
         packed, offset = util.pack_bytes(data)
-        self.assertEqual(packed.dtype, np.int8)
-        self.assertEqual(offset.dtype, np.uint32)
-        self.assertEqual(packed.shape[0], offset[-1])
+        assert packed.dtype == np.int8
+        assert offset.dtype == np.uint32
+        assert packed.shape[0] == offset[-1]
         returned = util.unpack_bytes(packed, offset)
-        self.assertEqual(data, returned)
+        assert data == returned
         return returned
 
     def test_random_cases(self):
@@ -318,10 +316,10 @@ class TestBytePacking(unittest.TestCase):
         pickled = [pickle.dumps(d) for d in data]
         unpacked = self.verify_packing(pickled)
         unpickled = [pickle.loads(p) for p in unpacked]
-        self.assertEqual(data, unpickled)
+        assert data == unpickled
 
 
-class TestArrayPacking(unittest.TestCase):
+class TestArrayPacking:
     """
     Tests the code for packing and unpacking numpy data into numpy arrays.
     """
@@ -329,20 +327,20 @@ class TestArrayPacking(unittest.TestCase):
     def test_simple_case(self):
         lists = [[0], [1.125, 1.25]]
         packed, offset = util.pack_arrays(lists)
-        self.assertEqual(list(offset), [0, 1, 3])
-        self.assertEqual(list(packed), [0, 1.125, 1.25])
+        assert list(offset) == [0, 1, 3]
+        assert list(packed) == [0, 1.125, 1.25]
         returned = util.unpack_arrays(packed, offset)
         for a1, a2 in itertools.zip_longest(lists, returned):
-            self.assertEqual(a1, list(a2))
+            assert a1 == list(a2)
 
     def verify_packing(self, data):
         packed, offset = util.pack_arrays(data)
-        self.assertEqual(packed.dtype, np.float64)
-        self.assertEqual(offset.dtype, np.uint32)
-        self.assertEqual(packed.shape[0], offset[-1])
+        assert packed.dtype == np.float64
+        assert offset.dtype == np.uint32
+        assert packed.shape[0] == offset[-1]
         returned = util.unpack_arrays(packed, offset)
         for a1, a2 in itertools.zip_longest(data, returned):
-            self.assertTrue(np.array_equal(a1, a2))
+            assert np.array_equal(a1, a2)
         return returned
 
     def test_regular_cases(self):
@@ -351,3 +349,93 @@ class TestArrayPacking(unittest.TestCase):
             self.verify_packing(data)
             data = [1 / (1 + np.arange(n)) for _ in range(n)]
             self.verify_packing(data)
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (0, "0 Bytes"),
+        (1, "1 Byte"),
+        (300, "300 Bytes"),
+        (3000, "2.9 KiB"),
+        (3000000, "2.9 MiB"),
+        (10 ** 26 * 30, "2481.5 YiB"),
+    ],
+)
+def test_naturalsize(value, expected):
+    assert util.naturalsize(value) == expected
+    if value != 0:
+        assert util.naturalsize(-value) == "-" + expected
+    else:
+        assert util.naturalsize(-value) == expected
+
+
+@pytest.mark.parametrize(
+    "obj, expected",
+    [
+        (0, "Test:0"),
+        (
+            {"a": 1},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            "t</summary>a:1<br/></details></div>",
+        ),
+        (
+            {"b": [1, 2, 3]},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
+            ">list</summary>1<br/>2<br/>3<br/></details></div><br/></details></div>",
+        ),
+        (
+            {"b": [1, 2, {"c": 1}]},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
+            '>list</summary>1<br/>2<br/><div><spanclass="tskit-details-label"></span><de'
+            "tails><summary>dict</summary>c:1<br/></details></div><br/></details></div><"
+            "br/></details></div>",
+        ),
+        (
+            {"a": "1", "b": "2"},
+            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
+            "t</summary>a:1<br/>b:2<br/></details></div>",
+        ),
+    ],
+)
+def test_obj_to_collapsed_html(obj, expected):
+    assert (
+        util.obj_to_collapsed_html(obj, "Test", 1).replace(" ", "").replace("\n", "")
+        == expected
+    )
+
+
+def test_unicode_table():
+    assert (
+        util.unicode_table(
+            [["5", "6", "7", "8"], ["90", "10", "11", "12"]],
+            header=["1", "2", "3", "4"],
+        )
+        == """╔══╤══╤══╤══╗
+║1 │2 │3 │4 ║
+╠══╪══╪══╪══╣
+║5 │ 6│ 7│ 8║
+╟──┼──┼──┼──╢
+║90│10│11│12║
+╚══╧══╧══╧══╝
+"""
+    )
+
+    assert (
+        util.unicode_table(
+            [["1", "2", "3", "4"], ["5", "6", "7", "8"], ["90", "10", "11", "12"]],
+            title="TITLE",
+        )
+        == """╔═══════════╗
+║TITLE      ║
+╠══╤══╤══╤══╣
+║1 │ 2│ 3│ 4║
+╟──┼──┼──┼──╢
+║5 │ 6│ 7│ 8║
+╟──┼──┼──┼──╢
+║90│10│11│12║
+╚══╧══╧══╧══╝
+"""
+    )

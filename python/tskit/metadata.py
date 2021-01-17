@@ -26,6 +26,7 @@ import abc
 import collections
 import copy
 import json
+import pprint
 import struct
 from itertools import islice
 from typing import Any
@@ -454,6 +455,10 @@ class StructCodec(AbstractMetadataCodec):
             elif type(obj) == dict:
                 ret = {k: enforce_fixed_properties(v) for k, v in obj.items()}
                 if ret.get("type") == "object":
+                    if ret.get("additional_properties"):
+                        raise ValueError(
+                            "Struct codec does not support additional_properties"
+                        )
                     ret["required"] = list(ret.get("properties", {}).keys())
                     ret["additionalProperties"] = False
                 return ret
@@ -509,6 +514,7 @@ class MetadataSchema:
             self._validate_row = validate_bytes
             self.encode_row = NOOPCodec({}).encode
             self.decode_row = NOOPCodec({}).decode
+            self.empty_value = b""
         else:
             try:
                 TSKITMetadataSchemaValidator.check_schema(schema)
@@ -529,17 +535,29 @@ class MetadataSchema:
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
+            self.empty_value = {}
+
+    def __repr__(self) -> str:
+        return self._string
 
     def __str__(self) -> str:
-        return self._string
+        return pprint.pformat(self._schema)
 
     def __eq__(self, other) -> bool:
         return self._string == other._string
 
     @property
     def schema(self) -> Optional[Mapping[str, Any]]:
-        # Make schema read-only
-        return self._schema
+        # Return a copy to avoid unintentional mutation
+        return copy.deepcopy(self._schema)
+
+    def asdict(self) -> Optional[Mapping[str, Any]]:
+        """
+        Returns a dict representation of this schema. One possible use of this is to
+        modify this dict and then pass it to the ``MetadataSchema`` constructor to create
+        a similar schema.
+        """
+        return self.schema
 
     def validate_and_encode_row(self, row: Any) -> bytes:
         """

@@ -13,13 +13,15 @@ msgpack>=1.0.0
 msprime
 networkx
 newick
-nose
 numpy
 packaging
 portion
 pre-commit
 pyparsing 
 pysam
+pytest
+pytest-cov
+pytest-xdist
 python_jsonschema_objects
 PyVCF
 sphinx

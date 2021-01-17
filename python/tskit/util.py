@@ -23,6 +23,7 @@
 Module responsible for various utility functions used in other modules.
 """
 import json
+import os
 
 import numpy as np
 
@@ -248,7 +249,7 @@ def intervals_to_np_array(intervals, start, end):
 def negate_intervals(intervals, start, end):
     """
     Returns the set of intervals *not* covered by the specified set of
-    disjoint intervals in the specfied range.
+    disjoint intervals in the specified range.
     """
     intervals = intervals_to_np_array(intervals, start, end)
     other_intervals = []
@@ -260,3 +261,208 @@ def negate_intervals(intervals, start, end):
     if last_right != end:
         other_intervals.append((last_right, end))
     return np.array(other_intervals)
+
+
+def naturalsize(value):
+    """
+    Format a number of bytes like a human readable filesize (e.g. 10 kiB)
+    """
+    # Taken from https://github.com/jmoiron/humanize
+    suffix = ("KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB")
+    base = 1024
+    format_ = "%.1f"
+
+    bytes_ = float(value)
+    abs_bytes = abs(bytes_)
+
+    if abs_bytes == 1:
+        return "%d Byte" % bytes_
+    elif abs_bytes < base:
+        return "%d Bytes" % bytes_
+
+    for i, s in enumerate(suffix):
+        unit = base ** (i + 2)
+        if abs_bytes < unit:
+            return (format_ + " %s") % ((base * bytes_ / unit), s)
+    return (format_ + " %s") % ((base * bytes_ / unit), s)
+
+
+def obj_to_collapsed_html(d, name=None, open_depth=0):
+    """
+    Recursively make an HTML representation of python objects.
+
+    :param str name: Name for this object
+    :param int open_depth: By default sub-sections are collapsed. If this number is
+    non-zero the first layers up to open_depth will be opened.
+    :return: The HTML as a string
+    :rtype: str
+    """
+    opened = "open" if open_depth > 0 else ""
+    open_depth -= 1
+    name = str(name) + ":" if name is not None else ""
+    if type(d) == dict:
+        return f"""
+                <div>
+                  <span class="tskit-details-label">{name}</span>
+                  <details {opened}>
+                    <summary>dict</summary>
+                    {"".join(f"{obj_to_collapsed_html(val, key, open_depth)}<br/>"
+                             for key, val in d.items())}
+                  </details>
+                </div>
+                """
+    elif type(d) == list:
+        return f"""
+                <div>
+                  <span class="tskit-details-label">{name}</span>
+                  <details {opened}>
+                    <summary>list</summary>
+                    {"".join(f"{obj_to_collapsed_html(val, None, open_depth)}<br/>"
+                             for val in d)}
+                  </details>
+                </div>
+                """
+    else:
+        return f"{name} {d}"
+
+
+def unicode_table(rows, title=None, header=None):
+    """
+    Convert a table (list of lists) of strings to a unicode table.
+
+    :param list[list[str]] rows: List of rows, each of which is a list of strings for
+    each cell. The first column will be left justified, the others right. Each row must
+    have the same number of cells.
+    :param str title: If specified the first output row will be a single cell
+    containing this string, left-justified. [optional]
+    :param list[str] header: Specifies a row above the main rows which will be in double
+    lined borders and left justified. Must be same length as each row. [optional]
+    :return: The table as a string
+    :rtype: str
+    """
+    if header is not None:
+        all_rows = [header] + rows
+    else:
+        all_rows = rows
+    widths = [
+        max(len(row[i_col]) for row in all_rows) for i_col in range(len(all_rows[0]))
+    ]
+    out = []
+    if title is not None:
+        w = sum(widths) + len(rows[1]) - 1
+        out += [
+            f"╔{'═' * w}╗\n" f"║{title.ljust(w)}║\n",
+            f"╠{'╤'.join('═' * w for w in widths)}╣\n",
+        ]
+    if header is not None:
+        out += [
+            f"╔{'╤'.join('═' * w for w in widths)}╗\n"
+            f"║{'│'.join(cell.ljust(w) for cell,w in zip(header,widths))}║\n",
+            f"╠{'╪'.join('═' * w for w in widths)}╣\n",
+        ]
+    out += [
+        f"╟{'┼'.join('─' * w for w in widths)}╢\n".join(
+            f"║{row[0].ljust(widths[0])}│"
+            + f"{'│'.join(cell.rjust(w) for cell, w in zip(row[1:], widths[1:]))}║\n"
+            for row in rows
+        ),
+        f"╚{'╧'.join('═' * w for w in widths)}╝\n",
+    ]
+    return "".join(out)
+
+
+def tree_sequence_html(ts):
+    table_rows = "".join(
+        f"""
+                  <tr>
+                    <td>{name.capitalize()}</td>
+                      <td>{table.num_rows}</td>
+                      <td>{naturalsize(table.nbytes)}</td>
+                      <td style="text-align: center;">
+                        {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
+        else ''}
+                      </td>
+                    </tr>
+                """
+        for name, table in ts.tables.name_map.items()
+    )
+    return f"""
+            <div>
+              <style>
+                .tskit-table thead tr th {{text-align: left;}}
+                .tskit-table tbody tr td:first-of-type {{text-align: left;}}
+                .tskit-details-label {{vertical-align: top; padding-right:5px;}}
+                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
+                .tskit-table-set-table {{margin: 12px 0 0 12px;}}
+                details {{display: inline-block;}}
+                summary {{cursor: pointer; outline: 0; display: list-item;}}
+              </style>
+              <div class="tskit-table-set">
+                <div class="tskit-table-set-table">
+                  <table class="tskit-table">
+                    <thead>
+                      <tr>
+                        <th style="padding:0;line-height:21px;">
+                          <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;"src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
+                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-treesequence-class"> Tree Sequence
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
+                      <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
+                      <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
+                      <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
+                      <tr>
+                        <td>Metadata</td><td style="text-align: left;">{obj_to_collapsed_html(ts.metadata, None, 1) if len(ts.tables.metadata_bytes) > 0 else "No Metadata"}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="tskit-table-set-table">
+                  <table class="tskit-table">
+                    <thead>
+                      <tr>
+                        <th style="line-height:21px;">Table</th>
+                        <th>Rows</th>
+                        <th>Size</th>
+                        <th>Has Metadata</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {table_rows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            """  # noqa: B950
+
+
+def convert_file_like_to_open_file(file_like, mode):
+    # Get ourselves a local version of the file. The semantics here are complex
+    # because need to support a range of inputs and the free behaviour is
+    # slightly different on each.
+    _file = None
+    local_file = True
+    try:
+        # First, see if we can interpret the argument as a pathlike object.
+        path = os.fspath(file_like)
+        _file = open(path, mode)
+    except TypeError:
+        pass
+    if _file is None:
+        # Now we try to open file. If it's not a pathlike object, it could be
+        # an integer fd or object with a fileno method. In this case we
+        # must make sure that close is **not** called on the fd.
+        try:
+            _file = open(file_like, mode, closefd=False, buffering=0)
+        except TypeError:
+            pass
+    if _file is None:
+        # Assume that this is a file **but** we haven't opened it, so we must
+        # not close it.
+        if mode == "wb" and not hasattr(file_like, "write"):
+            raise TypeError("file object must have a write method")
+        _file = file_like
+        local_file = False
+    return _file, local_file

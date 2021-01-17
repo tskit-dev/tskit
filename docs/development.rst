@@ -148,15 +148,28 @@ Workflow
 Git workflow
 ------------
 
+If you would like to make an addition/fix to tskit, then follow the steps below
+to get things set up.
+If you would just like to review someone else's proposed changes
+(either to the code or to the docs), then
+skip to :ref:`sec_development_workflow_anothers_commit`.
+
+0.  Open an `issue <http://github.com/tskit-dev/tskit/issues>`_ with your proposed
+    functionality/fix. If adding or changing the public API close thought should be given to
+    names and signatures of proposed functions. If consensus is reached that your
+    proposed addition should be added to the codebase, proceed!
+
 1. Make your own `fork <https://help.github.com/articles/fork-a-repo/>`_
    of the ``tskit`` repository on GitHub, and
    `clone <https://help.github.com/articles/cloning-a-repository/>`_
    a local copy as detailed in :ref:`sec_development_getting_started_environment`.
+
 2. Make sure that your local repository has been configured with an
    `upstream remote <https://help.github
    .com/articles/configuring-a-remote-for-a-fork/>`_::
 
    $ git remote add upstream git@github.com:tskit-dev/tskit.git
+
 
 3. Create a "topic branch" to work on. One reliable way to do it
    is to follow this recipe::
@@ -165,20 +178,101 @@ Git workflow
     $ git checkout upstream/main
     $ git checkout -b topic_branch_name
 
-4. As you work on your topic branch you can add commits to it. Once you're
-   ready to share this, you can then open a `pull request
-   <https://help.github.com/articles/about-pull-requests/>`__. Your PR will
-   be reviewed by some of the maintainers, who may ask you to make changes.
-   If you'd like to open the PR but feel that the code isn't ready
-   for review yet, please use the "Draft" option on GitHub.
-5. If your topic branch has been around for a long time and has gotten
-   out of date with the main repository, we might ask you to
-   `rebase <https://help.github.com/articles/about-git-rebase/>`_
-   or to "squash" your commits into one.
 
-Please follow `this guide
-<https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_
-for step-by-step instructions on rebasing and squashing commits.
+4. Write your code following the outline in :ref:`sec_development_best_practices`.
+   As you work on your topic branch you can add commits to it. Once you're
+   ready to share this, you can then open a `pull request (PR)
+   <https://help.github.com/articles/about-pull-requests/>`_. This can be done at any
+   time! You don't have to have code that is completely functional and tested to get
+   feedback. Use the drop-down button to create a "draft PR" to indicate that it's not
+   done, and explain in the comments what feedback you need and/or what you think needs
+   to be done.
+
+5. As you code it is best to `rebase <https://stdpopsim.readthedocs.io/en/
+   latest/development.html#rebasing>`_ your work onto the ``main`` branch periodically
+   (e.g. once a week) to keep up with changes. If you merge ``main`` via ``git pull upstream main``
+   it will create a much more complex rebase when your code is finally ready to be
+   incorporated into the main branch, so should be avoided.
+
+6. Once you're done coding add content to the tutorial and other documentation pages if
+   appropriate.
+
+7. Update the change logs at ``python/CHANGELOG.rst`` and ``c/CHANGELOG.rst``, taking care
+   to document any breaking changes separately in a "breaking changes" section.
+
+8. Push your changes to your topic branch and either open the PR or, if you
+   opened a draft PR above change it to a non-draft PR by clicking "Ready to
+   Review".
+
+9. The tskit community will review the code, asking you to make changes where appropriate.
+   This usually takes at least two rounds of review.
+
+10. Once the review process is complete, squash the commits to the minimal set of changes -
+    usually one or  commits. Please follow
+    `this guide <https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing>`_ for
+    step-by-step instructions on rebasing and squashing commits.
+
+11. Your PR will be merged, time to celebrate! 🎉🍾
+
+
+.. _sec_development_workflow_anothers_commit:
+
+----------------------------------------
+Checking out someone else's pull request
+----------------------------------------
+
+Sometimes you want to just check out someone else's pull request,
+for the purpose of trying it out and giving them feedback.
+To do this, you first need your own local version of the git repository,
+so you should first do steps 1 and 2 above.
+(Strictly speaking, you don't need a fork on github
+if you don't plan to edit, but it won't hurt.)
+Continuing from there, let's say you want to check out the current
+state of the code on `pull request #854 <https://github.com/tskit-dev/tskit/pull/854>`_.
+(So, below you should replace ``854`` with the number of the pull request
+that you actually want to investigate.)
+Then, continuing from above:
+
+3. Fetch the pull request, and store it as a local branch.
+   For instance, to name the local branch ``my_pr_copy``::
+    
+       $ git fetch upstream pull/854/head:my_pr_copy
+   
+   You should probably call the branch something more descriptive,
+   though. (Also note that you might need to put ``origin`` instead
+   of ``upstream`` for the remote repository name: see ``git remote -v``
+   for a list of possible remotes.)
+
+4. Check out the pull request's local branch::
+
+       $ git checkout my_pr_copy
+
+Now, your repository will be in exactly the same state as
+that of the person who's submitted the pull request.
+Great! Now you can test things out.
+
+To view the documentation,
+``cd docs && make``, which should build the documentation,
+and then navigate your web browser to the ``docs/_build/html/``
+subdirectory.
+
+To test out changes to the *code*, you can change to the ``python/`` subdirectory,
+and run ``make`` to compile the C code.
+If you then execute ``python`` from this subdirectory (and only this one!),
+it will use the modified version of the package.
+(For instance, you might want to
+open an interactive ``python`` shell from the ``python/`` subdirectory,
+or running ``python3 -m pytest`` from this subdirectory.)
+
+After you're done, you should do::
+
+    $ git checkout main
+
+to get your repository back to the "main" branch of development.
+If the pull request is changed and you want to do the same thing again,
+then first *delete* your local copy (by doing ``git branch -d my_pr_copy``)
+and repeat the steps again.
+
 
 .. _sec_development_workflow_pre_commit:
 
@@ -382,25 +476,32 @@ Tests
 -----
 
 The tests are defined in the ``tests`` directory, and run using
-`nose <http://nose.readthedocs.io/en/latest/>`_. If you want to run
-the tests in a particular module (say, ``test_tables.py``), use:
+`pytest <https://docs.pytest.org/en/stable/>`_ from the `python` directory.
+If you want to run the tests in a particular module (say, ``test_tables.py``), use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs tests/test_tables.py
+    $ python3 -m pytest tests/test_tables.py
 
 To run all the tests in a particular class in this module (say, ``TestNodeTable``)
 use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs tests/test_tables.py:TestNodeTable
+    $ python3 -m pytest tests/test_tables.py::TestNodeTable
 
 To run a specific test case in this class (say, ``test_copy``) use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs tests/test_tables.py:TestNodeTable.test_copy
+    $ python3 -m pytest tests/test_tables.py::TestNodeTable::test_copy
+
+You can also run tests with a keyword expression search. For example this will
+run all tests that have ``TestNodeTable`` but not ``copy`` in their name:
+
+.. code-block:: bash
+
+    $ python3 -m pytest -k "TestNodeTable and not copy"
 
 When developing your own tests, it is much quicker to run the specific tests
 that you are developing rather than rerunning large sections of the test
@@ -410,14 +511,34 @@ To run all of the tests, we can use:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs
+    $ python3 -m pytest
 
-As tskit's test suite is large, it is helpful to run the tests in parallel, e.g.:
+By default the tests are run on 4 cores, if you have more you can specify:
 
 .. code-block:: bash
 
-    $ python3 -m nose -vs --processes=8 --process-timeout=5000
+    $ python3 -m pytest -n8
 
+A few of the tests take most of the time, we can skip the slow tests to get the test run
+under 20 seconds on an modern workstation:
+
+.. code-block:: bash
+
+    $ python3 -m pytest --skip-slow
+
+If you have a lot of failing tests it can be useful to have a shorter summary
+of the failing lines:
+
+.. code-block:: bash
+
+    $ python3 -m pytest --tb=line
+
+If you need to see the output of tests (e.g. ``print`` statements) then you need to use
+these flags to run a single thread and capture output:
+
+.. code-block:: bash
+
+    $ python3 -m pytest -n0 -vs
 
 All new code must have high test coverage, which will be checked as part of the
 :ref:`sec_development_continuous_integration`
@@ -521,9 +642,14 @@ On Debian/Ubuntu, these can be installed using
 
 .. code-block:: bash
 
-    $ sudo apt install libcunit1-dev ninja-build meson clang-format
+    $ sudo apt install libcunit1-dev ninja-build meson clang-format-6.0
 
-(A more recent version of meson can alternatively be installed using ``pip``, if you wish.)
+**Notes:**
+
+1. A more recent version of meson can alternatively be installed using ``pip``, if you wish.
+2. Recent versions of Debian do not have clang-format-6.0 available;
+    if so, you can install it instead with ``pip`` by running
+    ``pip3 install clang-format==6.0.1 && ln -s clang-format $(which clang-format)-6.0``.
 
 Conda users can install the basic requirements as follows::
 
@@ -540,14 +666,12 @@ Code style
 
 C code is formatted using
 `clang-format <https://clang.llvm.org/docs/ClangFormat.html>`_
-with a custom configuration.
-To ensure that your code is correctly formatted, you can run
+with a custom configuration and version 6.0. This is checked as part of the pre-commit
+checks. To manually format run:
 
 .. code-block:: bash
 
-    clang-format -i c/tskit/* c/tests/*.c c/tests/*.h
-
-before submitting a pull request.
+    clang-format-6.0 -i c/tskit/* c/tests/*.c c/tests/*.h
 
 Vim users may find the
 `vim-clang-format <https://github.com/rhysd/vim-clang-format>`_
@@ -767,11 +891,11 @@ be very useful. For example, to run a particular test case, we can do:
 .. code-block:: bash
 
     $ gdb python3
-    (gdb) run -m nose -vs tests/test_lowlevel.py
+    (gdb) run -m pytest tests/test_lowlevel.py
 
 
-    (gdb) run  -m nose -vs tests/test_tables.py:TestNodeTable.test_copy
-    Starting program: /usr/bin/python3 -m nose -vs tests/test_tables.py:TestNodeTable.test_copy
+    (gdb) run  -m pytest -vs tests/test_tables.py::TestNodeTable::test_copy
+    Starting program: /usr/bin/python3 run  -m pytest tests/test_tables.py::TestNodeTable::test_copy
     [Thread debugging using libthread_db enabled]
     Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
     [New Thread 0x7ffff1e48700 (LWP 1503)]
@@ -780,12 +904,10 @@ be very useful. For example, to run a particular test case, we can do:
     [Thread 0x7fffeee46700 (LWP 1505) exited]
     [Thread 0x7fffef647700 (LWP 1504) exited]
     [Thread 0x7ffff1e48700 (LWP 1503) exited]
-    test_copy (tests.test_tables.TestNodeTable) ... ok
+    collected 1 item
 
-    ----------------------------------------------------------------------
-    Ran 1 test in 0.001s
+    tests/test_tables.py::TestNodeTable::test_copy PASSED
 
-    OK
     [Inferior 1 (process 1499) exited normally]
     (gdb)
 
@@ -814,19 +936,14 @@ A number of different continuous integration providers are used, which run diffe
 combinations of tests on different platforms, as well as running various
 checks for code quality.
 
-- A `Github action <https://help.github.com/en/actions>`_ runs some code style and quality checks.
+- A `Github action <https://help.github.com/en/actions>`_ runs some code style and
+  quality checks along with running the Python test suite on Linux, OSX and Windows. It
+  uses conda for those dependencies which are tricky to compile on all systems. An
+  additional action builds the docs and posts a link to preview them.
 
 - `CircleCI <https://circleci.com/>`_ runs all Python tests using the apt-get
   infrastructure for system requirements. We also runs C tests, compiled
   using gcc and clang, and check for memory leaks using valgrind.
-  Documentation is also built to check for any errors.
-
-- `Travis CI <https://travis-ci.org/>`_ runs Python tests on Linux and OSX using the
-  `Conda <https://conda.io/docs/>`__ infrastructure for the system level
-  requirements.
-
-- `AppVeyor <https://www.appveyor.com/>`_ runs Python tests on
-  Windows using conda.
 
 - `CodeCov <https://codecov.io/gh>`__ tracks test coverage in Python and C.
 
@@ -843,58 +960,143 @@ tskit codebase.
 Note that this guide covers the most complex case of adding a new function to both
 the C and Python APIs.
 
-0.  Open an `issue <http://github.com/tskit-dev/tskit/issues>`_ with your proposed
-    functionality. If consensus is reached that your proposed addition should be
-    added to the codebase, proceed!
-1.  Create a new branch on your fork of tskit-dev (see :ref:`sec_development_getting_started`
-    above). Then open a `pull request <http://github.com/tskit-dev/tskit/pulls>`_ on GitHub,
-    with an initial description of your planned addition.
-2.  Write your function in Python: in ``python/tests/`` find the test module that
+1.  Write your function in Python: in ``python/tests/`` find the test module that
     pertains to the functionality you wish to add. For instance, the kc_distance
     metric was added to
     `test_topology.py <https://github.com/tskit-dev/tskit/blob/main/python/tests/test_topology.py>`_.
     Add a python version of your function here.
-3.  Create a new class in this module to write unit tests for your function: in addition
+2.  Create a new class in this module to write unit tests for your function: in addition
     to making sure that your function is correct, make sure it fails on inappropriate inputs.
     This can often require judgement. For instance, :meth:`Tree.kc_distance` fails on a tree
     with multiple roots, but allows users to input parameter values that are nonsensical,
     as long as they don't break functionality. See the
     `TestKCMetric <https://github.com/tskit-dev/tskit/blob/4e707ea04adca256036669cd852656a08ec45590/python/tests/test_topology.py#L293>`_ for example.
-4.  Write your function in C: check out the :ref:`sec_c_api` for guidance. There
+3.  Write your function in C: check out the :ref:`sec_c_api` for guidance. There
     are also many examples in the
     `c directory <https://github.com/tskit-dev/tskit/tree/main/c/tskit>`_.
     Your function will probably go in
     `trees.c <https://github.com/tskit-dev/tskit/blob/main/c/tskit/trees.c>`_.
-5.  Write a few tests for your function in C: again, write your tests in
+4.  Write a few tests for your function in C: again, write your tests in
     `tskit/c/tests/test_tree.c <https://github.com/tskit-dev/tskit/blob/main/c/tests/test_trees.c>`_.
     The key here is code coverage, you don't need to worry as much about covering every
     corner case, as we will proceed to link this function to the Python tests you
     wrote earlier.
-6.  Create a low-level definition of your function using Python's C API: this will
+5.  Create a low-level definition of your function using Python's C API: this will
     go in `_tskitmodule.c
     <https://github.com/tskit-dev/tskit/blob/main/python/_tskitmodule.c>`_.
-7.  Test your low-level implementation in `tskit/python/tests/test_lowlevel.py
+6.  Test your low-level implementation in `tskit/python/tests/test_lowlevel.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tests/test_lowlevel.py>`_:
     again, these tests don't need to be as comprehensive as your first python tests,
     instead, they should focus on the interface, e.g., does the function behave
     correctly on malformed inputs?
-8.  Link your C function to the Python API: write a function in tskit's Python API,
+7.  Link your C function to the Python API: write a function in tskit's Python API,
     for example the kc_distance function lives in
     `tskit/python/tskit/trees.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
-9.  Modify your Python tests to test the new C-linked function: if you followed
+8.  Modify your Python tests to test the new C-linked function: if you followed
     the example of other tests, you might need to only add a single line of code
     here. In this case, the tests are well factored so that we can easily compare
     the results from both the Python and C versions.
-10. Write a docstring for your function in the Python API: for instance, the kc_distance
+9. Write a docstring for your function in the Python API: for instance, the kc_distance
     docstring is in
     `tskit/python/tskit/trees.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
     Ensure that your docstring renders correctly by building the documentation
     (see :ref:`sec_development_documentation`).
-11. Update your Pull Request (`rebasing <https://stdpopsim.readthedocs.io/en/
-    latest/development.html#rebasing>`_ if necessary!) and let the community check
-    your work.
+
+
+***************
+Troubleshooting
+***************
+
+--------------------------
+pre-commit is blocking me!
+--------------------------
+
+You might be having a hard time committing because of the "pre-commit" checks
+(described above). First, consider: the pre-commit hooks are supposed to make your life *easier*,
+not add a layer of frustration to contributing.
+So, you should feel free to just ask git to skip the pre-commit!
+There's no shame in a broken build - you can get it fixed up (and we'll help)
+before it's merged into the rest of the project.
+To skip, just append `--no-verify` to the `git commit` command.
+Below are some more specific situations.
+
+----------------------------------------------
+pre-commit complains about files I didn't edit
+----------------------------------------------
+
+For instance, suppose you have *not* edited `util.py` and yet:
+
+.. code-block:: bash
+
+   > git commit -a -m 'dev docs'
+   python/tskit/util.py:117:26: E203 whitespace before ':'
+   python/tskit/util.py:135:31: E203 whitespace before ':'
+   python/tskit/util.py:195:23: E203 whitespace before ':'
+   python/tskit/util.py:213:36: E203 whitespace before ':'
+   ... lots more, gah, what is this ...
+
+First, check (with `git status`) that you didn't actually edit `util.py`.
+Then, you should **not** try to fix these errors; this is **not your problem**.
+You might first try restarting your pre-commit, by running
+
+.. code-block:: bash
+
+   pre-commit clean
+   pre-commit gc
+
+You might also check you don't have other pre-commit hook files in `.git/hooks`.
+If this doesn't fix the problem,
+then you should just *skip* the pre-commit (but alert us to the problem),
+by appending `--no-verify`:
+
+.. code-block:: bash
+
+   > git commit -a -m 'dev docs' --no-verify
+   [main 46f3f2e] dev docs
+    1 file changed, 43 insertions(+)
+
+Now you can go ahead and push your changes!
+
+
+--------------------
+pre-commit won't run
+--------------------
+
+For instance:
+
+.. code-block:: bash
+
+   > git commit -a -m 'fixed all the things'
+   /usr/bin/env: ‘python3.7’: No such file or directory
+
+What the heck? Why is this even looking for python3.7?
+This is because of the "pre-commit hook", mentioned above.
+As above, you can proceed by just appending `--no-verify`:
+
+.. code-block:: bash
+
+   > git commit -a -m 'fixed all the things' --no-verify
+   [main 99a01da] fixed all the things
+    1 file changed, 10 insertions(+)
+
+We'll help you sort it out in the PR.
+But, you should fix the problem at some point. In this case,
+uninstalling and reinstalling the pre-commit hooks fixed the problem:
+
+.. code-block:: bash
+
+   > pre-commit uninstall
+   pre-commit uninstalled
+   Restored previous hooks to .git/hooks/pre-commit
+   > pre-commit install -f
+   pre-commit installed at .git/hooks/pre-commit
+   > # do some more edits
+   > git commit -a -m 'wrote the docs'
+   [main 79b81ff] fixed all the things
+    1 file changed, 42 insertions(+)
+      
 
 ***********************
 Releasing a new version
@@ -918,7 +1120,9 @@ release on GitHub using the pattern ``C_MAJOR.MINOR.PATCH``, with::
     git push upstream --tags
 
 Then prepare a release for the tag on GitHub, copying across the changelog.
-After release, start a section in the changelog for new developments.
+Running ``python docs/convert_changelog.py`` will format the changelog for GitHub.
+After release, start a section in the changelog for new developments and close the
+GitHub issue milestone of the release.
 
 ------
 Python
@@ -940,10 +1144,11 @@ This will trigger a build of the distribution artifacts for Python
 on `Github Actions <https://github.com/tskit-dev/tskit/actions>`_. and deploy
 them to the `test PyPI <https://test.pypi.org/project/tskit/>`_. Check
 the release looks good there, then create a release on Github based on the tag you
-pushed. Copy the changelog into the release. Publishing this release will cause
-the github action to deploy to the
-`production PyPI <https://pypi.org/project/tskit/>`_.
-After release, start a section in the changelog for new developments.
+pushed. Copy the changelog into the release. Running ``python docs/convert_changelog.py``
+will format the changelog for GitHub. Publishing this release will cause the github
+action to deploy to the `production PyPI <https://pypi.org/project/tskit/>`_.
+After release, start a section in the changelog for new developments and close the
+GitHub issue milestone of the release.
 
 
 

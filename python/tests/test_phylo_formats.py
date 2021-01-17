@@ -28,6 +28,7 @@ import unittest
 
 import msprime
 import newick
+import pytest
 from Bio.Nexus import Nexus
 
 import tskit
@@ -56,7 +57,7 @@ class TreeExamples(unittest.TestCase):
             if len(e.children) > 2:
                 found = True
                 break
-        self.assertTrue(found)
+        assert found
         return ts
 
     def get_binary_example(self):
@@ -88,25 +89,76 @@ class TestNewick(TreeExamples):
     external Newick parser.
     """
 
-    def verify_newick_topology(self, tree, root=None, node_labels=None):
+    # 3 methods to return example tree sequences with internal samples:
+    # (copied from test_highlevel.py)
+    def all_nodes_samples_example(self):
+        n = 5
+        ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
+        assert ts.num_mutations > 0
+        tables = ts.dump_tables()
+        nodes = tables.nodes
+        flags = nodes.flags
+        # Set all nodes to be samples.
+        flags[:] = tskit.NODE_IS_SAMPLE
+        nodes.flags = flags
+        return tables.tree_sequence()
+
+    def only_internal_samples_example(self):
+        n = 5
+        ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
+        assert ts.num_mutations > 0
+        tables = ts.dump_tables()
+        nodes = tables.nodes
+        flags = nodes.flags
+        # Set just internal nodes to be samples.
+        flags[:] = 0
+        flags[n:] = tskit.NODE_IS_SAMPLE
+        nodes.flags = flags
+        return tables.tree_sequence()
+
+    def mixed_node_samples_example(self):
+        n = 5
+        ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
+        assert ts.num_mutations > 0
+        tables = ts.dump_tables()
+        nodes = tables.nodes
+        flags = nodes.flags
+        # Set a mixture of internal and leaf samples.
+        flags[:] = 0
+        flags[n // 2 : n + n // 2] = tskit.NODE_IS_SAMPLE
+        nodes.flags = flags
+        return tables.tree_sequence()
+
+    def verify_newick_topology(
+        self, tree, root=None, node_labels=None, include_branch_lengths=True
+    ):
         if root is None:
             root = tree.root
-        ns = tree.newick(precision=16, root=root, node_labels=node_labels)
+        ns = tree.newick(
+            precision=16,
+            root=root,
+            node_labels=node_labels,
+            include_branch_lengths=include_branch_lengths,
+        )
         if node_labels is None:
             leaf_labels = {u: str(u + 1) for u in tree.leaves(root)}
         else:
             leaf_labels = {u: node_labels[u] for u in tree.leaves(root)}
-        newick_tree = newick.loads(ns)[0]
+        # default newick lib outputs 0.0 if length is None => replace the length_parser
+        newick_tree = newick.loads(
+            ns, length_parser=lambda x: None if x is None else float(x)
+        )[0]
         leaf_names = newick_tree.get_leaf_names()
-        self.assertEqual(sorted(leaf_names), sorted(leaf_labels.values()))
+        assert sorted(leaf_names) == sorted(leaf_labels.values())
         for u in tree.leaves(root):
             name = leaf_labels[u]
             node = newick_tree.get_node(name)
             while u != root:
-                self.assertAlmostEqual(node.length, tree.branch_length(u))
+                branch_len = tree.branch_length(u) if include_branch_lengths else None
+                self.assertAlmostEqual(node.length, branch_len)
                 node = node.ancestor
                 u = tree.parent(u)
-            self.assertIsNone(node.ancestor)
+            assert node.ancestor is None
 
     def test_nonbinary_tree(self):
         ts = self.get_nonbinary_example()
@@ -121,7 +173,8 @@ class TestNewick(TreeExamples):
     def test_multiroot(self):
         ts = self.get_multiroot_example()
         t = ts.first()
-        self.assertRaises(ValueError, t.newick)
+        with pytest.raises(ValueError):
+            t.newick()
         for root in t.roots:
             self.verify_newick_topology(t, root=root)
 
@@ -147,19 +200,46 @@ class TestNewick(TreeExamples):
         labels = {u: f"x_{u}" for u in tree.nodes()}
         ns = tree.newick(node_labels=labels)
         root = newick.loads(ns)[0]
-        self.assertEqual(root.name, labels[tree.root])
-        self.assertEqual(sorted([n.name for n in root.walk()]), sorted(labels.values()))
+        assert root.name == labels[tree.root]
+        assert sorted([n.name for n in root.walk()]) == sorted(labels.values())
 
     def test_single_node_label(self):
         tree = msprime.simulate(5, random_seed=2).first()
         labels = {tree.root: "XXX"}
         ns = tree.newick(node_labels=labels)
         root = newick.loads(ns)[0]
-        self.assertEqual(root.name, labels[tree.root])
-        self.assertEqual(
-            [n.name for n in root.walk()],
-            [labels[tree.root]] + [None for _ in range(len(list(tree.nodes())) - 1)],
-        )
+        assert root.name == labels[tree.root]
+        assert [n.name for n in root.walk()] == [labels[tree.root]] + [
+            None for _ in range(len(list(tree.nodes())) - 1)
+        ]
+
+    def test_no_lengths(self):
+        t = msprime.simulate(5, random_seed=2).first()
+        self.verify_newick_topology(t, include_branch_lengths=False)
+
+    def test_samples_differ_from_leaves(self):
+        for ts in (
+            self.all_nodes_samples_example(),
+            self.only_internal_samples_example(),
+            self.mixed_node_samples_example(),
+        ):
+            for t in ts.trees():
+                self.verify_newick_topology(t)
+
+    def test_no_lengths_equiv(self):
+        for ts in (
+            self.all_nodes_samples_example(),
+            self.only_internal_samples_example(),
+            self.mixed_node_samples_example(),
+        ):
+            for t in ts.trees():
+                newick_nolengths = t.newick(include_branch_lengths=False)
+                newick_nolengths = newick.loads(newick_nolengths)[0]
+                newick_lengths = t.newick()
+                newick_lengths = newick.loads(newick_lengths)[0]
+                for node in newick_lengths.walk():
+                    node.length = None
+                assert newick.dumps(newick_nolengths) == newick.dumps(newick_lengths)
 
 
 class TestNexus(TreeExamples):
@@ -169,7 +249,7 @@ class TestNexus(TreeExamples):
     """
 
     def verify_tree(self, nexus_tree, tsk_tree):
-        self.assertEqual(len(nexus_tree.get_terminals()), tsk_tree.num_samples())
+        assert len(nexus_tree.get_terminals()) == tsk_tree.num_samples()
 
         bio_node_map = {}
         for node_id in nexus_tree.all_ids():
@@ -184,25 +264,23 @@ class TestNexus(TreeExamples):
                 bio_node.data.branchlength, tsk_tree.branch_length(u)
             )
             if tsk_tree.parent(u) == tskit.NULL:
-                self.assertEqual(bio_node.prev, None)
+                assert bio_node.prev is None
             else:
                 bio_node_parent = nexus_tree.node(bio_node.prev)
                 parent = tsk_tree.tree_sequence.node(tsk_tree.parent(u))
-                self.assertEqual(
-                    bio_node_parent.data.taxon, f"tsk_{parent.id}_{parent.flags}"
-                )
-        self.assertEqual(len(bio_node_map), 0)
+                assert bio_node_parent.data.taxon == f"tsk_{parent.id}_{parent.flags}"
+        assert len(bio_node_map) == 0
 
     def verify_nexus_topology(self, treeseq):
         nexus = treeseq.to_nexus(precision=16)
         nexus_treeseq = Nexus.Nexus(nexus)
-        self.assertEqual(treeseq.num_trees, len(nexus_treeseq.trees))
+        assert treeseq.num_trees == len(nexus_treeseq.trees)
         for tree, nexus_tree in itertools.zip_longest(
             treeseq.trees(), nexus_treeseq.trees
         ):
             name = nexus_tree.name
             split_name = name.split("_")
-            self.assertEqual(len(split_name), 2)
+            assert len(split_name) == 2
             start = float(split_name[0][4:])
             end = float(split_name[1])
             self.assertAlmostEqual(tree.interval[0], start)
@@ -224,7 +302,8 @@ class TestNexus(TreeExamples):
 
     def test_multiroot(self):
         ts = self.get_multiroot_example()
-        self.assertRaises(ValueError, ts.to_nexus)
+        with pytest.raises(ValueError):
+            ts.to_nexus()
 
     def test_many_trees(self):
         ts = msprime.simulate(4, recombination_rate=2, random_seed=123)

@@ -43,6 +43,7 @@ Single site statistics
 - :meth:`TreeSequence.divergence`
 - :meth:`TreeSequence.segregating_sites`
 - :meth:`TreeSequence.allele_frequency_spectrum`
+- :meth:`TreeSequence.genetic_relatedness`
 
 ------------------------
 Patterson's f statistics
@@ -76,10 +77,11 @@ Trait correlations
 
 These methods compute correlations and covariances of traits (i.e., an
 arbitrary vector) with allelic state, possibly in the context of a multivariate
-regression with other covariates (as in GWAS).
+linear model with other covariates (as in GWAS).
 
 - :meth:`TreeSequence.trait_covariance`
 - :meth:`TreeSequence.trait_correlation`
+- :meth:`TreeSequence.trait_linear_model`
 
 ------------------
 Derived statistics
@@ -569,6 +571,12 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
    For an unpolarized statistic with biallelic loci, this calculates
    :math:`p_1 (1-p_2) + (1 - p_1) p_2`.
 
+``genetic_relatedness``
+   :math:`f(x_i, x_j) = \frac{1}{2}(x_i - m)(x_j - m)`,
+
+   where :math:`m = \frac{1}{n}\sum_{k=1}^n x_k` with :math:`n` the total number
+   of samples.
+
 ``Y2``
    :math:`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
 
@@ -607,7 +615,7 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
    where as before :math:`x` is the total number of samples below the node,
    and :math:`n` is the total number of samples.
 
-``trait_regression``
+``trait_linear_model``
    :math:`f(w, z, x) = \frac{1}{2}\left( \frac{w - \sum_{j=1}^k z_j v_j}{x - \sum_{j=1}^k z_j^2} \right)^2`,
 
    where :math:`w` and :math:`x` are as before,

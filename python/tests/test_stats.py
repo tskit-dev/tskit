@@ -28,6 +28,7 @@ import unittest
 
 import msprime
 import numpy as np
+import pytest
 
 import _tskit
 import tests.test_wright_fisher as wf
@@ -75,23 +76,23 @@ class TestLdCalculator(unittest.TestCase):
         m = ts.get_num_sites()
         ldc = tskit.LdCalculator(ts)
         A = ldc.get_r2_matrix()
-        self.assertEqual(A.shape, (m, m))
+        assert A.shape == (m, m)
         B = get_r2_matrix(ts)
-        self.assertTrue(np.allclose(A, B))
+        assert np.allclose(A, B)
 
         # Now look at each row in turn, and verify it's the same
         # when we use get_r2 directly.
         for j in range(m):
             a = ldc.get_r2_array(j, direction=tskit.FORWARD)
             b = A[j, j + 1 :]
-            self.assertEqual(a.shape[0], m - j - 1)
-            self.assertEqual(b.shape[0], m - j - 1)
-            self.assertTrue(np.allclose(a, b))
+            assert a.shape[0] == m - j - 1
+            assert b.shape[0] == m - j - 1
+            assert np.allclose(a, b)
             a = ldc.get_r2_array(j, direction=tskit.REVERSE)
             b = A[j, :j]
-            self.assertEqual(a.shape[0], j)
-            self.assertEqual(b.shape[0], j)
-            self.assertTrue(np.allclose(a[::-1], b))
+            assert a.shape[0] == j
+            assert b.shape[0] == j
+            assert np.allclose(a[::-1], b)
 
         # Now check every cell in the matrix in turn.
         for j in range(m):
@@ -109,20 +110,20 @@ class TestLdCalculator(unittest.TestCase):
         for k in range(j):
             x = mutations[j + k].position - mutations[j].position
             a = ldc.get_r2_array(j, max_distance=x)
-            self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j + 1 : j + 1 + k], a))
+            assert a.shape[0] == k
+            assert np.allclose(A[j, j + 1 : j + 1 + k], a)
             x = mutations[j].position - mutations[j - k].position
             a = ldc.get_r2_array(j, max_distance=x, direction=tskit.REVERSE)
-            self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j - k : j], a[::-1]))
+            assert a.shape[0] == k
+            assert np.allclose(A[j, j - k : j], a[::-1])
         L = ts.get_sequence_length()
         m = len(mutations)
         a = ldc.get_r2_array(0, max_distance=L)
-        self.assertEqual(a.shape[0], m - 1)
-        self.assertTrue(np.allclose(A[0, 1:], a))
+        assert a.shape[0] == m - 1
+        assert np.allclose(A[0, 1:], a)
         a = ldc.get_r2_array(m - 1, max_distance=L, direction=tskit.REVERSE)
-        self.assertEqual(a.shape[0], m - 1)
-        self.assertTrue(np.allclose(A[m - 1, :-1], a[::-1]))
+        assert a.shape[0] == m - 1
+        assert np.allclose(A[m - 1, :-1], a[::-1])
 
     def verify_max_mutations(self, ts):
         """
@@ -134,11 +135,11 @@ class TestLdCalculator(unittest.TestCase):
         j = len(mutations) // 2
         for k in range(j):
             a = ldc.get_r2_array(j, max_mutations=k)
-            self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j + 1 : j + 1 + k], a))
+            assert a.shape[0] == k
+            assert np.allclose(A[j, j + 1 : j + 1 + k], a)
             a = ldc.get_r2_array(j, max_mutations=k, direction=tskit.REVERSE)
-            self.assertEqual(a.shape[0], k)
-            self.assertTrue(np.allclose(A[j, j - k : j], a[::-1]))
+            assert a.shape[0] == k
+            assert np.allclose(A[j, j - k : j], a[::-1])
 
     def test_single_tree_simulated_mutations(self):
         ts = msprime.simulate(20, mutation_rate=10, random_seed=15)
@@ -152,24 +153,26 @@ class TestLdCalculator(unittest.TestCase):
         ldc = tskit.LdCalculator(ts)
         A = ldc.get_r2_matrix()
         B = ldc.r2_matrix()
-        self.assertTrue(np.array_equal(A, B))
+        assert np.array_equal(A, B)
         a = ldc.get_r2_array(0)
         b = ldc.r2_array(0)
-        self.assertTrue(np.array_equal(a, b))
-        self.assertEqual(ldc.get_r2(0, 1), ldc.r2(0, 1))
+        assert np.array_equal(a, b)
+        assert ldc.get_r2(0, 1) == ldc.r2(0, 1)
 
     def test_single_tree_regular_mutations(self):
         ts = msprime.simulate(self.num_test_sites, length=self.num_test_sites)
         ts = tsutil.insert_branch_mutations(ts)
         # We don't support back mutations, so this should fail.
-        self.assertRaises(_tskit.LibraryError, self.verify_matrix, ts)
-        self.assertRaises(_tskit.LibraryError, self.verify_max_distance, ts)
+        with pytest.raises(_tskit.LibraryError):
+            self.verify_matrix(ts)
+        with pytest.raises(_tskit.LibraryError):
+            self.verify_max_distance(ts)
 
     def test_tree_sequence_regular_mutations(self):
         ts = msprime.simulate(
             self.num_test_sites, recombination_rate=1, length=self.num_test_sites
         )
-        self.assertGreater(ts.get_num_trees(), 10)
+        assert ts.get_num_trees() > 10
         t = ts.dump_tables()
         t.sites.reset()
         t.mutations.reset()
@@ -183,7 +186,7 @@ class TestLdCalculator(unittest.TestCase):
 
     def test_tree_sequence_simulated_mutations(self):
         ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10)
-        self.assertGreater(ts.get_num_trees(), 10)
+        assert ts.get_num_trees() > 10
         ts = tsutil.subsample_sites(ts, self.num_test_sites)
         self.verify_matrix(ts)
         self.verify_max_distance(ts)
@@ -230,7 +233,7 @@ def naive_mean_descendants(ts, reference_sets):
     return C
 
 
-class TestMeanDescendants(unittest.TestCase):
+class TestMeanDescendants:
     """
     Tests the TreeSequence.mean_descendants method.
     """
@@ -239,9 +242,9 @@ class TestMeanDescendants(unittest.TestCase):
         C1 = naive_mean_descendants(ts, reference_sets)
         C2 = tsutil.mean_descendants(ts, reference_sets)
         C3 = ts.mean_descendants(reference_sets)
-        self.assertEqual(C1.shape, C2.shape)
-        self.assertTrue(np.allclose(C1, C2))
-        self.assertTrue(np.allclose(C1, C3))
+        assert C1.shape == C2.shape
+        assert np.allclose(C1, C2)
+        assert np.allclose(C1, C3)
         return C1
 
     def test_two_populations_high_migration(self):
@@ -254,7 +257,7 @@ class TestMeanDescendants(unittest.TestCase):
             recombination_rate=3,
             random_seed=5,
         )
-        self.assertGreater(ts.num_trees, 1)
+        assert ts.num_trees > 1
         self.verify(ts, [ts.samples(0), ts.samples(1)])
 
     def test_single_tree(self):
@@ -264,7 +267,7 @@ class TestMeanDescendants(unittest.TestCase):
         for j, samples in enumerate(S):
             tree = next(ts.trees(tracked_samples=samples))
             for u in tree.nodes():
-                self.assertEqual(tree.num_tracked_samples(u), C[u, j])
+                assert tree.num_tracked_samples(u) == C[u, j]
 
     def test_single_tree_partial_samples(self):
         ts = msprime.simulate(6, random_seed=1)
@@ -273,7 +276,7 @@ class TestMeanDescendants(unittest.TestCase):
         for j, samples in enumerate(S):
             tree = next(ts.trees(tracked_samples=samples))
             for u in tree.nodes():
-                self.assertEqual(tree.num_tracked_samples(u), C[u, j])
+                assert tree.num_tracked_samples(u) == C[u, j]
 
     def test_single_tree_all_sample_sets(self):
         ts = msprime.simulate(6, random_seed=1)
@@ -282,11 +285,11 @@ class TestMeanDescendants(unittest.TestCase):
             for j, samples in enumerate(S):
                 tree = next(ts.trees(tracked_samples=samples))
                 for u in tree.nodes():
-                    self.assertEqual(tree.num_tracked_samples(u), C[u, j])
+                    assert tree.num_tracked_samples(u) == C[u, j]
 
     def test_many_trees_all_sample_sets(self):
         ts = msprime.simulate(6, recombination_rate=2, random_seed=1)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_trees > 2
         for S in set_partitions(list(range(ts.num_samples))):
             self.verify(ts, S)
 
@@ -381,7 +384,7 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
     return A
 
 
-class TestGenealogicalNearestNeighbours(unittest.TestCase):
+class TestGenealogicalNearestNeighbours:
     """
     Tests the TreeSequence.genealogical_nearest_neighbours method.
     """
@@ -423,14 +426,14 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         A2 = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
         A3 = ts.genealogical_nearest_neighbours(focal, reference_sets)
         A4 = ts.genealogical_nearest_neighbours(focal, reference_sets, num_threads=3)
-        self.assertTrue(np.array_equal(A3, A4))
-        self.assertEqual(A1.shape, A2.shape)
-        self.assertEqual(A1.shape, A3.shape)
-        self.assertTrue(np.allclose(A1, A2))
-        self.assertTrue(np.allclose(A1, A3))
+        assert np.array_equal(A3, A4)
+        assert A1.shape == A2.shape
+        assert A1.shape == A3.shape
+        assert np.allclose(A1, A2)
+        assert np.allclose(A1, A3)
         if ts.num_edges > 0 and all(ts.node(u).is_sample() for u in focal):
             # When the focal nodes are samples, we can assert some stronger properties.
-            self.assertTrue(np.allclose(np.sum(A1, axis=1), 1))
+            assert np.allclose(np.sum(A1, axis=1), 1)
         return A1
 
     def test_simple_example_all_samples(self):
@@ -440,15 +443,15 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
             strict=False,
         )
         A = self.verify(ts, [[0, 1], [2, 3, 4]], [0])
-        self.assertEqual(list(A[0]), [1, 0])
+        assert list(A[0]) == [1, 0]
         A = self.verify(ts, [[0, 1], [2, 3, 4]], [4])
-        self.assertEqual(list(A[0]), [1, 0])
+        assert list(A[0]) == [1, 0]
         A = self.verify(ts, [[0, 1], [2, 3, 4]], [2])
-        self.assertEqual(list(A[0]), [0, 1])
+        assert list(A[0]) == [0, 1]
         A = self.verify(ts, [[0, 2], [1, 3, 4]], [0])
-        self.assertEqual(list(A[0]), [0, 1])
+        assert list(A[0]) == [0, 1]
         A = self.verify(ts, [[0, 2], [1, 3, 4]], [4])
-        self.assertEqual(list(A[0]), [0.5, 0.5])
+        assert list(A[0]) == [0.5, 0.5]
 
     def test_simple_example_missing_samples(self):
         ts = tskit.load_text(
@@ -457,9 +460,9 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
             strict=False,
         )
         A = self.verify(ts, [[0, 1], [2, 4]], [3])
-        self.assertEqual(list(A[0]), [0, 1])
+        assert list(A[0]) == [0, 1]
         A = self.verify(ts, [[0, 1], [2, 4]], [2])
-        self.assertTrue(np.allclose(A[0], [2 / 3, 1 / 3]))
+        assert np.allclose(A[0], [2 / 3, 1 / 3])
 
     def test_simple_example_internal_focal_node(self):
         ts = tskit.load_text(
@@ -470,18 +473,18 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
         focal = [7]  # An internal node
         reference_sets = [[4, 0, 1], [2, 3]]
         GNN = naive_genealogical_nearest_neighbours(ts, focal, reference_sets)
-        self.assertTrue(np.allclose(GNN[0], np.array([1.0, 0.0])))
+        assert np.allclose(GNN[0], np.array([1.0, 0.0]))
         GNN = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
-        self.assertTrue(np.allclose(GNN[0], np.array([1.0, 0.0])))
+        assert np.allclose(GNN[0], np.array([1.0, 0.0]))
         GNN = ts.genealogical_nearest_neighbours(focal, reference_sets)
-        self.assertTrue(np.allclose(GNN[0], np.array([1.0, 0.0])))
+        assert np.allclose(GNN[0], np.array([1.0, 0.0]))
         focal = [8]  # The root
         GNN = naive_genealogical_nearest_neighbours(ts, focal, reference_sets)
-        self.assertTrue(np.allclose(GNN[0], np.array([0.6, 0.4])))
+        assert np.allclose(GNN[0], np.array([0.6, 0.4]))
         GNN = tsutil.genealogical_nearest_neighbours(ts, focal, reference_sets)
-        self.assertTrue(np.allclose(GNN[0], np.array([0.6, 0.4])))
+        assert np.allclose(GNN[0], np.array([0.6, 0.4]))
         GNN = ts.genealogical_nearest_neighbours(focal, reference_sets)
-        self.assertTrue(np.allclose(GNN[0], np.array([0.6, 0.4])))
+        assert np.allclose(GNN[0], np.array([0.6, 0.4]))
 
     def test_two_populations_high_migration(self):
         ts = msprime.simulate(
@@ -493,7 +496,7 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
             recombination_rate=8,
             random_seed=5,
         )
-        self.assertGreater(ts.num_trees, 1)
+        assert ts.num_trees > 1
         self.verify(ts, [ts.samples(0), ts.samples(1)])
 
     def test_single_tree(self):
@@ -524,7 +527,7 @@ class TestGenealogicalNearestNeighbours(unittest.TestCase):
 
     def test_many_trees_all_sample_sets(self):
         ts = msprime.simulate(6, recombination_rate=2, random_seed=1)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_trees > 2
         for S in set_partitions(list(range(ts.num_samples))):
             self.verify(ts, S)
 
@@ -760,14 +763,14 @@ class TestExactGenealogicalNearestNeighbours(TestGenealogicalNearestNeighbours):
 
         G, lefts, rights = local_gnn(ts, focal, reference_sets)
         for tree in ts.trees():
-            self.assertEqual(lefts[tree.index], tree.interval[0])
-            self.assertEqual(rights[tree.index], tree.interval[1])
+            assert lefts[tree.index] == tree.interval[0]
+            assert rights[tree.index] == tree.interval[1]
 
         for j, u in enumerate(focal):
             T, L = exact_genealogical_nearest_neighbours(ts, u, reference_sets)
-            self.assertTrue(np.allclose(G[j], T.T))
+            assert np.allclose(G[j], T.T)
             # Ignore the cases where the node has no GNNs
             if np.sum(L) > 0:
                 mean = np.sum(T * L, axis=1) / np.sum(L)
-                self.assertTrue(np.allclose(mean, A[j]))
+                assert np.allclose(mean, A[j])
         return A

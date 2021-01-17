@@ -213,7 +213,7 @@ defaults to the null ID (-1).
 
 The ``flags`` column stores information about a particular node, and
 is composed of 32 bitwise boolean values. Currently, the only flag defined
-is ``IS_SAMPLE = 1``, which defines the *sample* status of nodes. Marking
+is ``NODE_IS_SAMPLE = 1``, which defines the *sample* status of nodes. Marking
 a particular node as a "sample" means, for example, that the mutational state
 of the node will be included in the genotypes produced by
 :meth:`TreeSequence.variants`.
@@ -958,7 +958,8 @@ Accessing roots
 ===============
 
 The roots of a tree are defined as the unique endpoints of upward paths
-starting from sample nodes. Thus, trees can have multiple roots in ``tskit``.
+starting from sample nodes (if no path leads upward from a sample node,
+that node is also a root). Thus, trees can have multiple roots in ``tskit``.
 For example, if we delete the edge joining ``6`` and ``7`` in the previous
 example, we get a tree with two roots:
 
@@ -1112,7 +1113,7 @@ The node text format must contain the columns ``is_sample`` and
 <sec_node_table_definition>` for details on these columns.
 
 Note that we do not have a ``flags`` column in the text file format, but
-instead use ``is_sample`` (which may be 0 or 1). Currently, ``IS_SAMPLE`` is
+instead use ``is_sample`` (which may be 0 or 1). Currently, ``NODE_IS_SAMPLE`` is
 the only flag value defined for nodes, and as more flags are defined we will
 allow for extra columns in the text format.
 

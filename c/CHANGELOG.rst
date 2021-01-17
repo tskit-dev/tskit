@@ -1,9 +1,51 @@
 ---------------------
-[0.99.7] - 2020-XX-XX
+[0.99.9] - 2021-XX-XX
+---------------------
+
+**Breaking changes**
+
+**Features**
+
+**Bugfixes**
+
+
+---------------------
+[0.99.8] - 2020-11-27
+---------------------
+
+**Features**
+
+- Add ``tsk_treeseq_genetic_relatedness`` for calculating genetic relatedness between
+  pairs of sets of nodes (:user:`brieuclehmann`, :issue:`1021`, :pr:`1023`, :issue:`974`,
+  :issue:`973`, :pr:`898`).
+
+- Exposed ``tsk_table_collection_set_indexes`` to the API
+  (:user:`benjeffery`, :issue:`870`, :pr:`921`).
+
+**Breaking changes**
+
+- Added an ``options`` argument to ``tsk_table_collection_equals``
+  and table equality methods to allow for more flexible equality criteria
+  (e.g., ignore top-level metadata and schema or provenance tables).
+  Existing code should add an extra final parameter ``0`` to retain the
+  current behaviour (:user:`mufernando`, :user:`jeromekelleher`,
+  :issue:`896`, :pr:`897`, :issue:`913`, :pr:`917`).
+
+- Changed default behaviour of ``tsk_table_collection_clear`` to not clear
+  provenances and added ``options`` argument to optionally clear provenances
+  and schemas (:user:`benjeffery`, :issue:`929`, :pr:`1001`).
+
+- Renamed ``ts.trait_regression`` to ``ts.trait_linear_model``.
+
+---------------------
+[0.99.7] - 2020-09-29
 ---------------------
 
 - Added ``TSK_INCLUDE_TERMINAL`` option to ``tsk_diff_iter_init`` to output the last edges
-  at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`)
+  at the end of a tree sequence (:user:`hyanwong`, :issue:`783`, :pr:`787`).
+
+- Added ``tsk_bug_assert`` for assertions that should be compiled into release binaries
+  (:user:`benjeffery`, :pr:`860`).
 
 ---------------------
 [0.99.6] - 2020-09-04
@@ -22,7 +64,7 @@
 **Breaking changes**
 
 - The macro ``TSK_IMPUTE_MISSING_DATA`` is renamed to ``TSK_ISOLATED_NOT_MISSING``
-  (:user:`benjeffery`, :issue:`716`, :pr:`794`)  
+  (:user:`benjeffery`, :issue:`716`, :pr:`794`)
 
 **New features**
 

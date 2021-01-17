@@ -4,9 +4,9 @@ Tests of IBD finding algorithms.
 import io
 import itertools
 import random
-import unittest
 
 import msprime
+import pytest
 
 import tests.ibd as ibd
 import tests.test_wright_fisher as wf
@@ -265,7 +265,7 @@ def segment_lists_are_equal(val1, val2):
     return True
 
 
-class TestIbdSingleBinaryTree(unittest.TestCase):
+class TestIbdSingleBinaryTree:
 
     #
     # 2        4
@@ -321,17 +321,17 @@ class TestIbdSingleBinaryTree(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
     def test_input_errors(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ibd.IbdFinder(self.ts, sample_pairs=[0])
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             ibd.IbdFinder(self.ts, sample_pairs=[(0, 1, 2)])
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ibd.IbdFinder(self.ts, sample_pairs=[(0, 5)])
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ibd.IbdFinder(self.ts, sample_pairs=[(0, 1), (1, 0)])
 
 
-class TestIbdTwoSamplesTwoTrees(unittest.TestCase):
+class TestIbdTwoSamplesTwoTrees:
 
     # 2
     #             |     3
@@ -381,7 +381,7 @@ class TestIbdTwoSamplesTwoTrees(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
-class TestIbdUnrelatedSamples(unittest.TestCase):
+class TestIbdUnrelatedSamples:
 
     #
     #    2   3
@@ -423,7 +423,7 @@ class TestIbdUnrelatedSamples(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
-class TestIbdNoSamples(unittest.TestCase):
+class TestIbdNoSamples:
     def test_no_samples(self):
         #
         #     2
@@ -448,11 +448,11 @@ class TestIbdNoSamples(unittest.TestCase):
         """
         )
         ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ibd.IbdFinder(ts, sample_pairs=[(0, 1)])
 
 
-class TestIbdSamplesAreDescendants(unittest.TestCase):
+class TestIbdSamplesAreDescendants:
     #
     # 4     5
     # |     |
@@ -507,7 +507,7 @@ class TestIbdSamplesAreDescendants(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
-class TestIbdDifferentPaths(unittest.TestCase):
+class TestIbdDifferentPaths:
     #
     #        4       |      4       |        4
     #       / \      |     / \      |       / \
@@ -566,7 +566,7 @@ class TestIbdDifferentPaths(unittest.TestCase):
 
     # This is a situation where the Python and the C libraries agree,
     # but aren't doing as expected.
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_input_sample_pairs(self):
         ibd_f = ibd.IbdFinder(self.ts, sample_pairs=[(0, 1), (2, 3), (1, 3)])
         ibd_segs = ibd_f.find_ibd_segments()
@@ -589,7 +589,7 @@ class TestIbdDifferentPaths(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
-class TestIbdDifferentPaths2(unittest.TestCase):
+class TestIbdDifferentPaths2:
     #
     #        5         |
     #       / \        |
@@ -635,7 +635,7 @@ class TestIbdDifferentPaths2(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
-class TestIbdPolytomies(unittest.TestCase):
+class TestIbdPolytomies:
     #
     #          5         |         5
     #         / \        |        / \
@@ -727,8 +727,15 @@ class TestIbdPolytomies(unittest.TestCase):
         }
         assert ibd_is_equal(ibd_segs, true_segs)
 
+    def test_duplicate_input_sample_pairs(self):
+        with pytest.raises(tskit.LibraryError):
+            self.ts.tables.find_ibd([(0, 1), (0, 1)])
 
-class TestIbdInternalSamples(unittest.TestCase):
+        with pytest.raises(tskit.LibraryError):
+            self.ts.tables.find_ibd([(0, 1), (1, 0)])
+
+
+class TestIbdInternalSamples:
     #
     #
     #      3
@@ -763,7 +770,7 @@ class TestIbdInternalSamples(unittest.TestCase):
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
-class TestIbdRandomExamples(unittest.TestCase):
+class TestIbdRandomExamples:
     """
     Randomly generated test cases.
     """

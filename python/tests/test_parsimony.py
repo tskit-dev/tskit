@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 Tskit Developers
+# Copyright (c) 2019-2020 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,11 +24,12 @@ Tests for the tree parsimony methods.
 """
 import io
 import itertools
-import unittest
 
+import attr
 import Bio.Phylo.TreeConstruction
 import msprime
 import numpy as np
+import pytest
 
 import tests.tsutil as tsutil
 import tskit
@@ -132,6 +133,8 @@ def fitch_map_mutations(tree, genotypes, alleles):
         else:
             A[u] = 1
     for u in tree.nodes(order="postorder"):
+        if tree.num_children(u) > 2:
+            raise ValueError("Fitch parsimony is for binary trees only")
         if not tree.is_sample(u):
             A[u] = 1
             for v in tree.children(u):
@@ -175,6 +178,76 @@ def fitch_map_mutations(tree, genotypes, alleles):
                     stack.append((v, len(mutations) - 1))
                 else:
                     stack.append((v, parent_mutation))
+    return alleles[ancestral_state], mutations
+
+
+def hartigan_map_mutations(tree, genotypes, alleles):
+    """
+    Returns a Hartigan parsimony reconstruction for the specified set of genotypes.
+    The reconstruction is specified by returning the ancestral state and a
+    list of mutations on the tree. Each mutation is a (node, parent, state)
+    triple, where node is the node over which the transition occurs, the
+    parent is the index of the parent transition above it on the tree (or -1
+    if there is none) and state is the new state.
+    """
+    genotypes = np.array(genotypes)
+    not_missing = genotypes != -1
+    if np.sum(not_missing) == 0:
+        raise ValueError("Must have at least one non-missing genotype")
+    num_alleles = np.max(genotypes[not_missing]) + 1
+    num_nodes = tree.tree_sequence.num_nodes
+
+    # use a numpy array of 0/1 values to represent the set of states
+    # to make the code as similar as possible to the C implementation.
+    optimal_set = np.zeros((num_nodes + 1, num_alleles), dtype=np.int8)
+    for allele, u in zip(genotypes, tree.tree_sequence.samples()):
+        if allele != -1:
+            optimal_set[u, allele] = 1
+        else:
+            optimal_set[u] = 1
+
+    allele_count = np.zeros(num_alleles, dtype=int)
+    for root in tree.roots:
+        for u in tree.nodes(root, order="postorder"):
+            allele_count[:] = 0
+            for v in tree.children(u):
+                for j in range(num_alleles):
+                    allele_count[j] += optimal_set[v, j]
+            if not tree.is_sample(u):
+                max_allele_count = np.max(allele_count)
+                optimal_set[u, allele_count == max_allele_count] = 1
+
+    allele_count[:] = 0
+    for v in tree.roots:
+        for j in range(num_alleles):
+            allele_count[j] += optimal_set[v, j]
+    max_allele_count = np.max(allele_count)
+    optimal_root_set = np.zeros(num_alleles, dtype=int)
+    optimal_root_set[allele_count == max_allele_count] = 1
+    ancestral_state = np.argmax(optimal_root_set)
+
+    @attr.s
+    class StackElement:
+        node = attr.ib()
+        state = attr.ib()
+        mutation_parent = attr.ib()
+
+    mutations = []
+    for root in tree.roots:
+        stack = [StackElement(root, ancestral_state, -1)]
+        while len(stack) > 0:
+            s = stack.pop()
+            if optimal_set[s.node, s.state] == 0:
+                s.state = np.argmax(optimal_set[s.node])
+                mutation = tskit.Mutation(
+                    node=s.node,
+                    derived_state=alleles[s.state],
+                    parent=s.mutation_parent,
+                )
+                s.mutation_parent = len(mutations)
+                mutations.append(mutation)
+            for v in tree.children(s.node):
+                stack.append(StackElement(v, s.state, s.mutation_parent))
     return alleles[ancestral_state], mutations
 
 
@@ -262,7 +335,7 @@ def felsenstein_example():
     return ts.first()
 
 
-class TestSankoff(unittest.TestCase):
+class TestSankoff:
     """
     Tests for the Sankoff algorithm.
     """
@@ -285,7 +358,7 @@ class TestSankoff(unittest.TestCase):
             [2.5, 2.5, 3.5, 3.5],
             [6, 6, 7, 8],
         ]
-        self.assertTrue(np.array_equal(S, np.array(S2)))
+        assert np.array_equal(S, np.array(S2))
 
     def test_felsenstein_example_reconstruct(self):
         tree = felsenstein_example()
@@ -297,20 +370,20 @@ class TestSankoff(unittest.TestCase):
         ancestral_state, transitions = reconstruct_states(
             tree, genotypes, S, cost_matrix
         )
-        self.assertEqual({2: 1, 4: 2, 0: 1}, transitions)
-        self.assertEqual(0, ancestral_state)
+        assert {2: 1, 4: 2, 0: 1} == transitions
+        assert 0 == ancestral_state
 
     def verify_infinite_sites(self, ts):
-        self.assertEqual(ts.num_trees, 1)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_trees == 1
+        assert ts.num_sites > 5
         tree = ts.first()
         for variant in ts.variants():
             ancestral_state, transitions = sankoff_map_mutations(
                 tree, variant.genotypes
             )
-            self.assertEqual(len(transitions), 1)
-            self.assertEqual(ancestral_state, 0)
-            self.assertEqual(transitions[variant.site.mutations[0].node], 1)
+            assert len(transitions) == 1
+            assert ancestral_state == 0
+            assert transitions[variant.site.mutations[0].node] == 1
 
     def test_infinite_sites_binary_n2(self):
         ts = msprime.simulate(2, mutation_rate=10, random_seed=1)
@@ -335,14 +408,14 @@ class TestSankoff(unittest.TestCase):
         self.verify_infinite_sites(ts)
 
     def verify_jukes_cantor(self, ts, cost_matrix):
-        self.assertEqual(ts.num_trees, 1)
-        self.assertGreater(ts.num_mutations, ts.num_sites)
+        assert ts.num_trees == 1
+        assert ts.num_mutations > ts.num_sites
         tree = ts.first()
         for variant in ts.variants():
             single_score = bp_sankoff_score(tree, variant.genotypes, cost_matrix)
             score_matrix = sankoff_score(tree, variant.genotypes, cost_matrix)
             score = np.min(score_matrix[tree.root])
-            self.assertEqual(single_score, score)
+            assert single_score == score
 
     def test_jukes_cantor_n2_simple_matrix(self):
         cost_matrix = np.ones((4, 4))
@@ -375,36 +448,36 @@ class TestSankoff(unittest.TestCase):
         self.verify_jukes_cantor(ts, cost_matrix)
 
 
-class TestFitchParsimonyDistance(unittest.TestCase):
+class TestFitchParsimonyDistance:
     """
     Tests for the Fitch parsimony algorithm.
     """
 
     def verify(self, ts):
-        self.assertEqual(ts.num_trees, 1)
-        self.assertGreater(ts.num_sites, 3)
+        assert ts.num_trees == 1
+        assert ts.num_sites > 3
         tree = ts.first()
         for variant in ts.variants(isolated_as_missing=False):
             score = fitch_score(tree, variant.genotypes)
             bp_score = bp_fitch_score(tree, variant.genotypes)
-            self.assertEqual(bp_score, score)
+            assert bp_score == score
             ancestral_state1, transitions1 = fitch_map_mutations(
                 tree, variant.genotypes, variant.alleles
             )
             ancestral_state2, transitions2 = tree.map_mutations(
                 variant.genotypes, variant.alleles
             )
-            self.assertEqual(ancestral_state1, ancestral_state2)
-            self.assertEqual(transitions1, transitions2)
+            assert ancestral_state1 == ancestral_state2
+            assert len(transitions1) == len(transitions2)
             # The Sankoff algorithm doesn't recontruct the state in the same way.
             # Just a limitation of the implementation.
             ancestral_state3, transitions3 = sankoff_map_mutations(
                 tree, variant.genotypes
             )
-            self.assertEqual(ancestral_state1, variant.alleles[ancestral_state3])
+            assert ancestral_state1 == variant.alleles[ancestral_state3]
             # The algorithms will make slightly different choices on where to put
             # the transitions, but they are equally parsimonious.
-            self.assertEqual(len(transitions1), len(transitions3))
+            assert len(transitions1) == len(transitions3)
 
     def test_infinite_sites_binary_n2(self):
         ts = msprime.simulate(2, mutation_rate=10, random_seed=1)
@@ -442,7 +515,7 @@ class TestFitchParsimonyDistance(unittest.TestCase):
         self.verify(ts)
 
 
-class TestParsimonyBase(unittest.TestCase):
+class TestParsimonyBase:
     """
     Base class for tests of the map_mutations parsimony method.
     """
@@ -450,11 +523,12 @@ class TestParsimonyBase(unittest.TestCase):
     def do_map_mutations(self, tree, genotypes, alleles=None, compare_lib=True):
         if alleles is None:
             alleles = [str(j) for j in range(max(genotypes) + 1)]
-        ancestral_state, transitions = fitch_map_mutations(tree, genotypes, alleles)
+        ancestral_state, transitions = hartigan_map_mutations(tree, genotypes, alleles)
         if compare_lib:
             ancestral_state1, transitions1 = tree.map_mutations(genotypes, alleles)
-            self.assertEqual(ancestral_state, ancestral_state1)
-            self.assertEqual(transitions, transitions1)
+            assert ancestral_state == ancestral_state1
+            assert len(transitions) == len(transitions1)
+            assert transitions == transitions1
         return ancestral_state, transitions
 
 
@@ -493,33 +567,13 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
             ts.haplotypes(isolated_as_missing=False),
             other_ts.haplotypes(isolated_as_missing=False),
         ):
-            self.assertEqual(h1, h2)
+            assert h1 == h2
 
-        # Run again without the mutation parent to make sure we're doing it
-        # properly.
-        tables2 = ts.dump_tables()
-        tables2.sites.clear()
-        tables2.mutations.clear()
-        G = ts.genotype_matrix(isolated_as_missing=False)
-        alleles = [v.alleles for v in ts.variants()]
-        for tree in ts.trees():
-            for site in tree.sites():
-                ancestral_state, mutations = tree.map_mutations(
-                    G[site.id], alleles[site.id]
-                )
-                site_id = tables2.sites.add_row(site.position, ancestral_state)
-                for mutation in mutations:
-                    tables2.mutations.add_row(
-                        site_id,
-                        node=mutation.node,
-                        time=mutation.time,
-                        derived_state=mutation.derived_state,
-                    )
-        tables2.sort()
-        tables2.build_index()
-        tables2.compute_mutation_parents()
-        self.assertEqual(tables.sites, tables2.sites)
-        self.assertEqual(tables.mutations, tables2.mutations)
+        # Make sure we're computing the parent correctly.
+        tables2 = tables.copy()
+        nulled = np.zeros_like(tables.mutations.parent) - 1
+        tables2.mutations.parent = nulled
+        assert np.array_equal(tables.mutations.parent, tables.mutations.parent)
 
     def test_infinite_sites_n3(self):
         ts = msprime.simulate(3, mutation_rate=3, random_seed=3)
@@ -531,7 +585,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
 
     def test_infinite_sites_n20_recombination(self):
         ts = msprime.simulate(20, mutation_rate=3, recombination_rate=2, random_seed=3)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_trees > 2
         self.verify(ts)
 
     def test_infinite_sites_n5_internal_samples(self):
@@ -573,6 +627,12 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(tsutil.jiggle_samples(ts))
 
+    def test_jukes_cantor_balanced_ternary_internal_samples(self):
+        tree = tskit.Tree.generate_balanced(27, arity=3)
+        ts = tsutil.jukes_cantor(tree.tree_sequence, 5, 2, seed=1)
+        assert ts.num_sites > 1
+        self.verify(tsutil.jiggle_samples(ts))
+
     def test_infinite_sites_n20_multiroot(self):
         ts = msprime.simulate(20, mutation_rate=3, random_seed=3)
         self.verify(tsutil.decapitate(ts, ts.num_edges // 2))
@@ -583,11 +643,57 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
         ts = tsutil.jukes_cantor(ts, 15, 2, seed=3)
         self.verify(ts)
 
+    def test_jukes_cantor_balanced_ternary_multiroot(self):
+        ts = tskit.Tree.generate_balanced(50, arity=3).tree_sequence
+        ts = tsutil.decapitate(ts, ts.num_edges // 3)
+        ts = tsutil.jukes_cantor(ts, 15, 2, seed=3)
+        self.verify(ts)
+        assert ts.num_sites > 1
+        self.verify(tsutil.jiggle_samples(ts))
+
     def test_jukes_cantor_n50_multiroot(self):
         ts = msprime.simulate(50, random_seed=1)
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(ts)
+
+    def test_jukes_cantor_root_polytomy_n5(self):
+        tree = tskit.Tree.unrank(5, (1, 0))
+        ts = tsutil.jukes_cantor(tree.tree_sequence, 5, 2, seed=1)
+        assert ts.num_sites > 2
+        self.verify(ts)
+
+    def test_jukes_cantor_leaf_polytomy_n5(self):
+        tree = tskit.Tree.unrank(5, (7, 0))
+        ts = tsutil.jukes_cantor(tree.tree_sequence, 5, 2, seed=1)
+        assert ts.num_sites > 2
+        self.verify(ts)
+
+    @pytest.mark.parametrize(
+        "tree_builder", [tskit.Tree.generate_balanced, tskit.Tree.generate_comb]
+    )
+    @pytest.mark.parametrize("n", [2, 5, 10])
+    def test_many_states_binary(self, tree_builder, n):
+        tree = tree_builder(n)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0.5, "0")
+        for j in range(1, n):
+            tables.mutations.add_row(0, derived_state=str(j), node=j)
+        ts = tables.tree_sequence()
+        assert np.array_equal(ts.genotype_matrix(), [np.arange(n, dtype=np.int8)])
+        self.verify(tables.tree_sequence())
+
+    @pytest.mark.parametrize("arity", [2, 3, 4])
+    @pytest.mark.parametrize("n", [2, 5, 10])
+    def test_many_states_arity(self, n, arity):
+        tree = tskit.Tree.generate_balanced(n, arity=arity)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0.5, "0")
+        for j in range(1, n):
+            tables.mutations.add_row(0, derived_state=str(j), node=j)
+        ts = tables.tree_sequence()
+        assert np.array_equal(ts.genotype_matrix(), [np.arange(n, dtype=np.int8)])
+        self.verify(tables.tree_sequence())
 
 
 class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
@@ -623,11 +729,11 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
                         derived_state=m.derived_state,
                     )
         other_ts = tables.tree_sequence()
-        self.assertEqual(ts.num_samples, other_ts.num_samples)
+        assert ts.num_samples == other_ts.num_samples
         H1 = list(ts.haplotypes(isolated_as_missing=False))
         H2 = list(other_ts.haplotypes(isolated_as_missing=False))
         # All samples except 0 should be reproduced exactly.
-        self.assertEqual(H1[1:], H2[1:])
+        assert H1[1:] == H2[1:]
 
 
 class TestParsimonyMissingData(TestParsimonyBase):
@@ -635,56 +741,81 @@ class TestParsimonyMissingData(TestParsimonyBase):
     Tests that we correctly map_mutations when we have missing data.
     """
 
-    def test_all_missing(self):
-        for n in range(2, 10):
-            ts = msprime.simulate(n, random_seed=2)
-            tree = ts.first()
-            genotypes = np.zeros(n, dtype=np.int8) - 1
-            alleles = ["0", "1"]
-            with self.assertRaises(ValueError):
-                fitch_map_mutations(tree, genotypes, alleles)
-            with self.assertRaises(tskit.LibraryError):
-                tree.map_mutations(genotypes, alleles)
+    @pytest.mark.parametrize("n", range(2, 10))
+    def test_all_missing(self, n):
+        ts = msprime.simulate(n, random_seed=2)
+        tree = ts.first()
+        genotypes = np.zeros(n, dtype=np.int8) - 1
+        alleles = ["0", "1"]
+        with pytest.raises(ValueError):
+            fitch_map_mutations(tree, genotypes, alleles)
+        with pytest.raises(tskit.LibraryError):
+            tree.map_mutations(genotypes, alleles)
 
-    def test_one_non_missing(self):
-        for n in range(2, 10):
-            ts = msprime.simulate(n, random_seed=2)
-            tree = ts.first()
-            for j in range(n):
-                genotypes = np.zeros(n, dtype=np.int8) - 1
-                genotypes[j] = 0
-                ancestral_state, transitions = self.do_map_mutations(
-                    tree, genotypes, ["0", "1"]
-                )
-                self.assertEqual(ancestral_state, "0")
-                self.assertEqual(len(transitions), 0)
-
-    def test_many_states_half_missing(self):
-        for n in range(2, 20):
-            ts = msprime.simulate(n, random_seed=2)
-            tree = ts.first()
+    @pytest.mark.parametrize("n", range(2, 10))
+    def test_one_non_missing(self, n):
+        ts = msprime.simulate(n, random_seed=2)
+        tree = ts.first()
+        for j in range(n):
             genotypes = np.zeros(n, dtype=np.int8) - 1
-            genotypes[0 : n // 2] = np.arange(n // 2, dtype=int)
-            alleles = [str(j) for j in range(n)]
+            genotypes[j] = 0
+            ancestral_state, transitions = self.do_map_mutations(
+                tree, genotypes, ["0", "1"]
+            )
+            assert ancestral_state == "0"
+            assert len(transitions) == 0
+
+    @pytest.mark.parametrize("arity", range(2, 10))
+    def test_one_non_missing_balanced(self, arity):
+        n = 40
+        tree = tskit.Tree.generate_balanced(n, arity=arity)
+        for j in range(n):
+            genotypes = np.zeros(n, dtype=np.int8) - 1
+            genotypes[j] = 0
+            ancestral_state, transitions = self.do_map_mutations(
+                tree, genotypes, ["0", "1"]
+            )
+            assert ancestral_state == "0"
+            assert len(transitions) == 0
+
+    @pytest.mark.parametrize("n", range(2, 10))
+    def test_many_states_half_missing(self, n):
+        ts = msprime.simulate(n, random_seed=2)
+        tree = ts.first()
+        genotypes = np.zeros(n, dtype=np.int8) - 1
+        genotypes[0 : n // 2] = np.arange(n // 2, dtype=int)
+        alleles = [str(j) for j in range(n)]
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes, alleles)
+        assert ancestral_state == "0"
+        assert len(transitions) == max(0, n // 2 - 1)
+
+    @pytest.mark.parametrize("n", range(2, 10))
+    def test_one_missing(self, n):
+        ts = msprime.simulate(n, random_seed=2)
+        tree = ts.first()
+        alleles = [str(j) for j in range(2)]
+        for j in range(n):
+            genotypes = np.zeros(n, dtype=np.int8) - 1
+            genotypes[j] = 0
             ancestral_state, transitions = self.do_map_mutations(
                 tree, genotypes, alleles
             )
-            self.assertEqual(ancestral_state, "0")
-            self.assertEqual(len(transitions), max(0, n // 2 - 1))
+            assert ancestral_state == "0"
+            assert len(transitions) == 0
 
-    def test_one_missing(self):
-        for n in range(2, 10):
-            ts = msprime.simulate(n, random_seed=2)
-            tree = ts.first()
-            alleles = [str(j) for j in range(2)]
-            for j in range(n):
-                genotypes = np.zeros(n, dtype=np.int8) - 1
-                genotypes[j] = 0
-                ancestral_state, transitions = self.do_map_mutations(
-                    tree, genotypes, alleles
-                )
-                self.assertEqual(ancestral_state, "0")
-                self.assertEqual(len(transitions), 0)
+    @pytest.mark.parametrize("arity", range(2, 10))
+    def test_one_missing_balanced(self, arity):
+        n = 40
+        tree = tskit.Tree.generate_balanced(n, arity=arity)
+        alleles = [str(j) for j in range(2)]
+        for j in range(n):
+            genotypes = np.zeros(n, dtype=np.int8) - 1
+            genotypes[j] = 0
+            ancestral_state, transitions = self.do_map_mutations(
+                tree, genotypes, alleles
+            )
+            assert ancestral_state == "0"
+            assert len(transitions) == 0
 
     def test_one_missing_derived_state(self):
         tables = felsenstein_tables()
@@ -696,11 +827,11 @@ class TestParsimonyMissingData(TestParsimonyBase):
         ancestral_state, transitions = self.do_map_mutations(
             ts.first(), genotypes, alleles
         )
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(transitions[0].node, 7)
-        self.assertEqual(transitions[0].parent, -1)
-        self.assertEqual(transitions[0].derived_state, "1")
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0].node == 7
+        assert transitions[0].parent == -1
+        assert transitions[0].derived_state == "1"
 
 
 class TestParsimonyExamples(TestParsimonyBase):
@@ -746,41 +877,31 @@ class TestParsimonyExamples(TestParsimonyBase):
     def test_mutation_over_0(self):
         genotypes = [1, 0, 0, 0, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=0, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=0, parent=-1, derived_state="1")
 
     def test_mutation_over_5(self):
         genotypes = [1, 1, 0, 0, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=5, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=5, parent=-1, derived_state="1")
 
     def test_mutation_over_7(self):
         genotypes = [1, 1, 0, 0, 1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=7, parent=-1, derived_state="1")
 
     def test_mutation_over_7_0(self):
         genotypes = [2, 1, 0, 0, 1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 2)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1")
-        )
-        self.assertEqual(
-            transitions[1], tskit.Mutation(node=0, parent=0, derived_state="2")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=7, parent=-1, derived_state="1")
+        assert transitions[1] == tskit.Mutation(node=0, parent=0, derived_state="2")
 
     def test_mutation_over_7_0_alleles(self):
         genotypes = [2, 1, 0, 0, 1]
@@ -788,79 +909,274 @@ class TestParsimonyExamples(TestParsimonyBase):
         ancestral_state, transitions = self.do_map_mutations(
             self.tree, genotypes, alleles
         )
-        self.assertEqual(ancestral_state, "ANC")
-        self.assertEqual(len(transitions), 2)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="ONE")
-        )
-        self.assertEqual(
-            transitions[1], tskit.Mutation(node=0, parent=0, derived_state="TWO")
-        )
+        assert ancestral_state == "ANC"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=7, parent=-1, derived_state="ONE")
+        assert transitions[1] == tskit.Mutation(node=0, parent=0, derived_state="TWO")
 
     def test_mutation_over_7_missing_data_0(self):
         genotypes = [-1, 1, 0, 0, 1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=7, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=7, parent=-1, derived_state="1")
 
     def test_mutation_over_leaf_sibling_missing(self):
         genotypes = [0, 0, 1, -1, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
         # We assume that the mutation is over the parent of 2 and the missing data
         # so we impute that 3 also has allele 1. This suprising behaviour to me:
         # I would have thought it was more parsimonious to assume that the missing
         # data had the ancestral state. However, the number of *state changes*
         # is the same, which is what the algorithm is minimising.
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1")
-        )
+        assert transitions[0] == tskit.Mutation(node=6, parent=-1, derived_state="1")
 
         # Reverse is the same
         genotypes = [0, 0, -1, 1, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=6, parent=-1, derived_state="1")
 
     def test_mutation_over_6_missing_data_0(self):
         genotypes = [-1, 0, 1, 1, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=6, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=6, parent=-1, derived_state="1")
 
     def test_mutation_over_0_missing_data_4(self):
         genotypes = [1, 0, 0, 0, -1]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 1)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=0, parent=-1, derived_state="1")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=0, parent=-1, derived_state="1")
 
     def test_multi_mutation_missing_data(self):
         genotypes = [1, 2, -1, 0, 0]
         ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
-        self.assertEqual(ancestral_state, "0")
-        self.assertEqual(len(transitions), 2)
-        self.assertEqual(
-            transitions[0], tskit.Mutation(node=5, parent=-1, derived_state="1")
-        )
-        self.assertEqual(
-            transitions[1], tskit.Mutation(node=1, parent=0, derived_state="2")
-        )
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=5, parent=-1, derived_state="1")
+        assert transitions[1] == tskit.Mutation(node=1, parent=0, derived_state="2")
 
 
-class TestReconstructAllTuples(unittest.TestCase):
+class TestParsimonyExamplesPolytomy(TestParsimonyBase):
+    """
+    Some examples on a given non-binary tree.
+    """
+
+    #         9
+    #       ┏━┻━━┓
+    #       7    8
+    #     ┏━┻━┓ ┏┻┓
+    #     6   ┃ ┃ ┃
+    #   ┏━╋━┓ ┃ ┃ ┃
+    #   0 2 4 5 1 3
+
+    nodes = io.StringIO(
+        """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       1           0
+    4       1           0
+    5       1           0
+    6       0           1
+    7       0           2
+    8       0           2
+    9       0           3
+    """
+    )
+    edges = io.StringIO(
+        """\
+    left    right   parent  child
+    0       1       6       0,2,4
+    0       1       7       6,5
+    0       1       8       1,3
+    0       1       9       7,8
+    """
+    )
+
+    tree = tskit.load_text(
+        nodes=nodes,
+        edges=edges,
+        strict=False,
+    ).first()
+
+    def test_all_zeros(self):
+        genotypes = [0, 0, 0, 0, 0, 0]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 0
+
+    def test_mutation_over_8(self):
+        genotypes = [0, 1, 0, 1, 0, 0]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=8, derived_state="1")
+
+    def test_mutation_over_6(self):
+        genotypes = [1, 0, 1, 0, 1, 0]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=6, derived_state="1")
+
+    def test_mutation_over_0_5(self):
+        # Bug reported in https://github.com/tskit-dev/tskit/issues/987
+        genotypes = [1, 0, 0, 0, 0, 1]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=0, derived_state="1")
+        assert transitions[1] == tskit.Mutation(node=5, derived_state="1")
+
+    def test_mutation_over_7_back_mutation_4(self):
+        genotypes = [1, 0, 1, 0, 0, 1]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=7, derived_state="1")
+        assert transitions[1] == tskit.Mutation(node=4, derived_state="0", parent=0)
+
+
+class TestParsimonyExamplesStar(TestParsimonyBase):
+    """
+    Some examples on star topologies.
+    """
+
+    @pytest.mark.parametrize("n", range(3, 8))
+    def test_two_states_freq_n_minus_1(self, n):
+        tree = tskit.Tree.generate_star(n)
+        genotypes = np.zeros(n, dtype=np.int8)
+        genotypes[0] = 1
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=0, derived_state="1")
+
+        genotypes[:] = 1
+        genotypes[0] = 0
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "1"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=0, derived_state="0")
+
+    @pytest.mark.parametrize("n", range(5, 10))
+    def test_two_states_freq_n_minus_2(self, n):
+        tree = tskit.Tree.generate_star(n)
+        genotypes = np.zeros(n, dtype=np.int8)
+        genotypes[0:2] = 1
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=1, derived_state="1")
+        assert transitions[1] == tskit.Mutation(node=0, derived_state="1")
+
+        genotypes[:] = 1
+        genotypes[0:2] = 0
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "1"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=1, derived_state="0")
+        assert transitions[1] == tskit.Mutation(node=0, derived_state="0")
+
+    @pytest.mark.parametrize("n", range(5, 10))
+    def test_three_states_freq_n_minus_2(self, n):
+        tree = tskit.Tree.generate_star(n)
+        genotypes = np.zeros(n, dtype=np.int8)
+        genotypes[0] = 1
+        genotypes[1] = 2
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=1, derived_state="2")
+        assert transitions[1] == tskit.Mutation(node=0, derived_state="1")
+
+    @pytest.mark.parametrize("n", range(2, 10))
+    def test_n_states(self, n):
+        tree = tskit.Tree.generate_star(n)
+        genotypes = np.arange(n, dtype=np.int8)
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == n - 1
+
+    @pytest.mark.parametrize("n", range(3, 10))
+    def test_missing_data(self, n):
+        tree = tskit.Tree.generate_star(n)
+        genotypes = np.zeros(n, dtype=np.int8)
+        genotypes[0] = tskit.MISSING_DATA
+        genotypes[1] = 1
+        ancestral_state, transitions = self.do_map_mutations(tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=1, derived_state="1")
+
+
+class TestParsimonyExamplesBalancedTernary(TestParsimonyBase):
+    """
+    Some examples on a given non-binary tree.
+    """
+
+    tree = tskit.Tree.generate_balanced(27, arity=3)
+    #                                39
+    #         ┏━━━━━━━━━━━━━━━━━━━━━┳━┻━━━━━━━━━━━━━━━━━━━━━━━━┓
+    #        30                    34                         38
+    #   ┏━━━━━╋━━━━━┓      ┏━━━━━━━━╋━━━━━━━━┓        ┏━━━━━━━━╋━━━━━━━━┓
+    #  27    28    29     31       32       33       35       36       37
+    # ┏━╋━┓ ┏━╋━┓ ┏━╋━┓ ┏━━╋━━┓  ┏━━╋━━┓  ┏━━╋━━┓  ┏━━╋━━┓  ┏━━╋━━┓  ┏━━╋━━┓
+    # 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+
+    def test_mutation_over_27_29(self):
+        genotypes = np.zeros(27, dtype=int)
+        genotypes[0:3] = 1
+        genotypes[6:9] = 1
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        # the algorithm chooses a back mutation instead
+        assert transitions[0] == tskit.Mutation(node=30, derived_state="1")
+        assert transitions[1] == tskit.Mutation(node=28, derived_state="0", parent=0)
+
+    def test_three_clades(self):
+        genotypes = np.zeros(27, dtype=int)
+        genotypes[9:18] = 1
+        genotypes[18:27] = 2
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=38, derived_state="2")
+        assert transitions[1] == tskit.Mutation(node=34, derived_state="1")
+
+    def test_nonzero_ancestral_state(self):
+        genotypes = np.ones(27, dtype=int)
+        genotypes[0] = 0
+        genotypes[26] = 0
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "1"
+        assert len(transitions) == 2
+        assert transitions[0] == tskit.Mutation(node=26, derived_state="0")
+        assert transitions[1] == tskit.Mutation(node=0, derived_state="0")
+
+    def test_many_states(self):
+        genotypes = np.arange(27, dtype=int)
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 26
+
+    def test_least_parsimonious(self):
+        genotypes = [0, 1, 2] * 9
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 18
+
+
+class TestReconstructAllTuples:
     """
     Tests that the parsimony algorithm correctly round-trips all possible
     states.
@@ -868,7 +1184,7 @@ class TestReconstructAllTuples(unittest.TestCase):
 
     def verify(self, ts, k):
         tables = ts.dump_tables()
-        self.assertEqual(ts.num_trees, 1)
+        assert ts.num_trees == 1
         tree = ts.first()
         n = ts.num_samples
         m = k ** n
@@ -903,7 +1219,7 @@ class TestReconstructAllTuples(unittest.TestCase):
         for j, variant in enumerate(ts2.variants()):
             alleles = np.array(list(map(int, variant.alleles)), dtype=np.int8)
             G2[j] = alleles[variant.genotypes]
-        self.assertTrue(np.array_equal(G1, G2))
+        assert np.array_equal(G1, G2)
 
     def test_simple_n3_k2(self):
         ts = msprime.simulate(3, random_seed=4)
@@ -932,3 +1248,15 @@ class TestReconstructAllTuples(unittest.TestCase):
     def test_simple_n6_k3(self):
         ts = msprime.simulate(6, random_seed=4)
         self.verify(ts, 3)
+
+    def test_root_polytomy_n5_k4(self):
+        tree = tskit.Tree.unrank(5, (1, 0))
+        self.verify(tree.tree_sequence, 4)
+
+    def test_leaf_polytomy_n5_k4(self):
+        tree = tskit.Tree.unrank(5, (7, 0))
+        self.verify(tree.tree_sequence, 4)
+
+    def test_leaf_polytomy_n5_k5(self):
+        tree = tskit.Tree.unrank(5, (7, 0))
+        self.verify(tree.tree_sequence, 5)

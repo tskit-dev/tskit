@@ -60,6 +60,19 @@ BaseInterval = collections.namedtuple("BaseInterval", ["left", "right"])
 
 
 class Interval(BaseInterval):
+    """
+    A tuple of 2 numbers, ``[left, right)``, defining an interval over the genome.
+
+    :ivar left: The left hand end of the interval. By convention this value is included
+        in the interval.
+    :vartype left: float
+    :ivar right: The right hand end of the iterval. By convention this value is *not*
+        included in the interval, i.e. the interval is half-open.
+    :vartype right: float
+    :ivar span: The span of the genome covered by this interval, simply ``right-left``.
+    :vartype span: float
+    """
+
     @property
     def span(self):
         return self.right - self.left
@@ -849,23 +862,31 @@ class Tree:
         return combinatorics.RankTree.from_tsk_tree(self).rank()
 
     @staticmethod
-    def unrank(rank, num_leaves):
+    def unrank(num_leaves, rank, *, span=1, branch_length=1):
         """
         Reconstruct the tree of the given ``rank``
         (see :meth:`tskit.Tree.rank`) with ``num_leaves`` leaves.
-        The labels and times of internal nodes are chosen arbitrarily, and
-        the time of each leaf is 0.
+        The labels and times of internal nodes are assigned by a postorder
+        traversal of the nodes, such that the time of each internal node
+        is the maximum time of its children plus the specified ``branch_length``.
+        The time of each leaf is 0.
 
         See the :ref:`sec_tree_ranks` section for details on ranking and
         unranking trees and what constitutes valid ranks.
 
-        :param tuple(int) rank: The rank of the tree to generate.
         :param int num_leaves: The number of leaves of the tree to generate.
+        :param tuple(int) rank: The rank of the tree to generate.
+        :param float span: The genomic span of the returned tree. The tree will cover
+            the interval :math:`[0, \\text{span})` and the :attr:`~Tree.tree_sequence`
+            from which the tree is taken will have its
+            :attr:`~tskit.TreeSequence.sequence_length` equal to ``span``.
+        :param: float branch_length: The minimum length of a branch in this tree.
         :rtype: Tree
         :raises: ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
-        return combinatorics.RankTree.unrank(rank, num_leaves).to_tsk_tree()
+        rank_tree = combinatorics.RankTree.unrank(num_leaves, rank)
+        return rank_tree.to_tsk_tree(span=span, branch_length=branch_length)
 
     def count_topologies(self, sample_sets=None):
         """
@@ -2150,10 +2171,10 @@ class Tree:
                 yield from iterator(u)
 
     # TODO make this a bit less embarrassing by using an iterative method.
-    def __build_newick(self, node, precision, node_labels):
+    def __build_newick(self, *, node, precision, node_labels, include_branch_lengths):
         """
         Simple recursive version of the newick generator used when non-default
-        node labels are needed.
+        node labels are needed, or when branch lengths are omitted
         """
         label = node_labels.get(node, "")
         if self.is_leaf(node):
@@ -2162,12 +2183,26 @@ class Tree:
             s = "("
             for child in self.children(node):
                 branch_length = self.branch_length(child)
-                subtree = self.__build_newick(child, precision, node_labels)
-                s += subtree + ":{0:.{1}f},".format(branch_length, precision)
+                subtree = self.__build_newick(
+                    node=child,
+                    precision=precision,
+                    node_labels=node_labels,
+                    include_branch_lengths=include_branch_lengths,
+                )
+                if include_branch_lengths:
+                    subtree += ":{0:.{1}f}".format(branch_length, precision)
+                s += subtree + ","
             s = s[:-1] + f"){label}"
         return s
 
-    def newick(self, precision=14, root=None, node_labels=None):
+    def newick(
+        self,
+        precision=14,  # Should probably be keyword only, left positional for legacy use
+        *,
+        root=None,
+        node_labels=None,
+        include_branch_lengths=True,
+    ):
         """
         Returns a `newick encoding <https://en.wikipedia.org/wiki/Newick_format>`_
         of this tree. If the ``root`` argument is specified, return a representation
@@ -2189,6 +2224,8 @@ class Tree:
         :param dict node_labels: If specified, show custom labels for the nodes
             that are present in the map. Any nodes not specified in the map will
             not have a node label.
+        :param include_branch_lengths: If True (default), output branch lengths in the
+            Newick string. If False, only output the topology, without branch lengths.
         :return: A newick representation of this tree.
         :rtype: str
         """
@@ -2200,6 +2237,9 @@ class Tree:
                     "newick trees, one for each root."
                 )
             root = self.root
+        if not include_branch_lengths and node_labels is None:
+            # C code always puts branch lengths: force Py code by setting default labels
+            node_labels = {i: str(i + 1) for i in self.leaves()}
         if node_labels is None:
             root_time = max(1, self.time(root))
             max_label_size = math.ceil(math.log10(self.tree_sequence.num_nodes))
@@ -2212,7 +2252,15 @@ class Tree:
             )
             s = s.decode()
         else:
-            return self.__build_newick(root, precision, node_labels) + ";"
+            s = (
+                self.__build_newick(
+                    node=root,
+                    precision=precision,
+                    node_labels=node_labels,
+                    include_branch_lengths=include_branch_lengths,
+                )
+                + ";"
+            )
         return s
 
     def as_dict_of_dicts(self):
@@ -2267,7 +2315,7 @@ class Tree:
         one non-missing observation must be provided. A maximum of 64 alleles are
         supported.
 
-        The current implementation uses the Fitch parsimony algorithm to determine
+        The current implementation uses the Hartigan parsimony algorithm to determine
         the minimum number of state transitions required to explain the data. In this
         model, transitions between any of the non-missing states is equally likely.
 
@@ -2340,23 +2388,273 @@ class Tree:
         """
         return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
 
+    def split_polytomies(
+        self,
+        *,
+        epsilon=None,
+        method=None,
+        record_provenance=True,
+        random_seed=None,
+        **kwargs,
+    ):
+        """
+        Return a new :class:`.Tree` where extra nodes and edges have been inserted
+        so that any any node ``u`` with greater than 2 children --- a multifurcation
+        or "polytomy" --- is resolved into successive bifurcations. New nodes are
+        inserted at times fractionally less than than the time of node ``u``.
+        Times are allocated to different levels of the tree, such that any newly
+        inserted sibling nodes will have the same time.
 
-def load(path):
+        By default, the times of the newly generated children of a particular
+        node are the minimum representable distance in floating point arithmetic
+        from their parents (using the `nextafter
+        <https://numpy.org/doc/stable/reference/generated/numpy.nextafter.html>`_
+        function). Thus, the generated branches have the shortest possible nonzero
+        length. A fixed branch length between inserted nodes and their parents
+        can also be specified by using the ``epsilon`` parameter.
+
+        .. note::
+            A tree sequence :ref:`requires<sec_valid_tree_sequence_requirements>` that
+            parents be older than children and that mutations are younger than the
+            parent of the edge on which they lie. If a fixed ``epsilon`` is specifed
+            and is not small enough compared to the distance between a polytomy and
+            its oldest child (or oldest child mutation) these requirements may not
+            be met. In this case an error will be raised.
+
+        If the ``method`` is ``"random"`` (currently the only option, and the default
+        when no method is specified), then for a node with :math:`n` children, the
+        :math:`(2n - 3)! / (2^(n - 2) (n - 2!))` possible binary trees with equal
+        probability.
+
+        The returned :class`.Tree` will have the same genomic span as this tree,
+        and node IDs will be conserved (that is, node ``u`` in this tree will
+        be the same node in the returned tree). The returned tree is derived from a
+        tree sequence that contains only one non-degenerate tree, that is, where
+        edges cover only the interval spanned by this tree.
+
+        :param epsilon: If specified, the fixed branch length between inserted
+            nodes and their parents. If None (the default), the minimal possible
+            nonzero branch length is generated for each node.
+        :param str method: The method used to break polytomies. Currently only "random"
+            is supported, which can also be specified by ``method=None``
+            (Default: ``None``).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds must be between 1 and
+            :math:`2^32 − 1`.
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tree.split_polytomies(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
+        :return: A new tree with polytomies split into random bifurcations.
+        :rtype: tskit.Tree
+        """
+        return combinatorics.split_polytomies(
+            self,
+            epsilon=epsilon,
+            method=method,
+            record_provenance=record_provenance,
+            random_seed=random_seed,
+            **kwargs,
+        )
+
+    @staticmethod
+    def generate_star(
+        num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
+    ):
+        """
+        Generate a :class:<Tree> whose leaf nodes all have the same parent (i.e.
+        a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
+
+        The tree produced by this method is identical to
+        ``tskit.Tree.unrank(n, (0, 0))``, but generated more efficiently for large ``n``.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must be
+            2 or greater).
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The length of every branch in the tree (equivalent
+            to the time of the root node).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_star(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
+        :return: A star-shaped tree. Its corresponding :class:`TreeSequence` is available
+            via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_star(
+            num_leaves,
+            span=span,
+            branch_length=branch_length,
+            record_provenance=record_provenance,
+            **kwargs,
+        )
+
+    @staticmethod
+    def generate_balanced(
+        num_leaves,
+        *,
+        arity=2,
+        span=1,
+        branch_length=1,
+        record_provenance=True,
+        **kwargs,
+    ):
+        """
+        Generate a :class:<Tree> with the specified number of leaves that is maximally
+        balanced. By default, the tree returned is binary, such that for each
+        node that subtends :math:`n` leaves, the left child will subtend
+        :math:`\\floor{n / 2}` leaves and the right child the remainder. Balanced
+        trees with higher arity can also generated using the ``arity`` parameter,
+        where the leaves subtending a node are distributed among its children
+        analogously.
+
+        In the returned tree, the leaf nodes are all at time 0, marked as samples,
+        and labelled 0 to n from left-to-right. Internal node IDs are assigned
+        sequentially from n in a postorder traversal, and the time of an internal
+        node is the maximum time of its children plus the specified ``branch_length``.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must be
+            be 2 or greater).
+        :param int arity: The maximum number of children a node can have in the returned
+            tree.
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The minimum length of a branch in the tree (see
+            above for details on how internal node times are assigned).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_balanced(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
+        :return: A balanced tree. Its corresponding :class:`TreeSequence` is available
+            via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_balanced(
+            num_leaves,
+            arity=arity,
+            span=span,
+            branch_length=branch_length,
+            record_provenance=record_provenance,
+            **kwargs,
+        )
+
+    @staticmethod
+    def generate_comb(
+        num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
+    ):
+        """
+        Generate a :class:<Tree> in which all internal nodes have two children
+        and the left child is a leaf. This is a "comb", "ladder" or "pectinate"
+        phylogeny, and also known as a `caterpiller tree
+        <https://en.wikipedia.org/wiki/Caterpillar_tree>`_.
+
+        The leaf nodes are all at time 0, marked as samples,
+        and labelled 0 to n from left-to-right. Internal node IDs are assigned
+        sequentially from n as we ascend the tree, and the time of an internal
+        node is the maximum time of its children plus the specified ``branch_length``.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must be
+            2 or greater).
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The branch length between each internal node; the
+            root node is therefore placed at time ``branch_length * (num_leaves - 1)``.
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_comb(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
+        :return: A comb-shaped bifurcating tree. Its corresponding :class:`TreeSequence`
+            is available via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_comb(
+            num_leaves,
+            span=span,
+            branch_length=branch_length,
+            record_provenance=record_provenance,
+            **kwargs,
+        )
+
+    @staticmethod
+    def generate_random_binary(
+        num_leaves,
+        *,
+        span=1,
+        branch_length=1,
+        random_seed=None,
+        record_provenance=True,
+        **kwargs,
+    ):
+        """
+        Generate a random binary :class:<Tree> with :math:`n` = ``num_leaves``
+        leaves with an equal probability of returning any topology and
+        leaf label permutation among the :math:`(2n - 3)! / (2^(n - 2) (n - 2)!)`
+        leaf-labelled binary trees.
+
+        The leaf nodes are marked as samples, labelled 0 to n, and placed at
+        time 0. Internal node IDs are assigned sequentially from n as we ascend
+        the tree, and the time of an internal node is the maximum time of its
+        children plus the specified ``branch_length``.
+
+        .. note::
+            The returned tree has not been created under any explicit model of
+            evolution. In order to simulate such trees, additional software
+            such as `msprime <https://github.com/tskit-dev/msprime>`` is required.
+
+        :param int num_leaves: The number of leaf nodes in the returned tree (must
+            be 2 or greater).
+        :param float span: The span of the tree, and therefore the
+            :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
+            property of the returned :class:<Tree>.
+        :param float branch_length: The minimum time between parent and child nodes.
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds must be between 1 and
+            :math:`2^32 − 1`.
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :param \\**kwargs: Further arguments used as parameters when constructing the
+            returned :class:`Tree`. For example
+            ``tskit.Tree.generate_comb(sample_lists=True)`` will
+            return a :class:`Tree` created with ``sample_lists=True``.
+        :return: A random binary tree. Its corresponding :class:`TreeSequence` is
+            available via the :attr:`.tree_sequence` attribute.
+        :rtype: Tree
+        """
+        return combinatorics.generate_random_binary(
+            num_leaves,
+            span=span,
+            branch_length=branch_length,
+            random_seed=random_seed,
+            record_provenance=record_provenance,
+            **kwargs,
+        )
+
+
+def load(file):
     """
-    Loads a tree sequence from the specified file path. This file must be in the
+    Loads a tree sequence from the specified file object or path. The file must be in the
     :ref:`tree sequence file format <sec_tree_sequence_file_format>` produced by the
     :meth:`TreeSequence.dump` method.
 
-    :param str path: The file path of the ``.trees`` file containing the
+    :param str file: The file object or path of the ``.trees`` file containing the
         tree sequence we wish to load.
     :return: The tree sequence object containing the information
         stored in the specified file path.
     :rtype: :class:`tskit.TreeSequence`
     """
-    try:
-        return TreeSequence.load(path)
-    except exceptions.FileFormatError as e:
-        formats.raise_hdf5_format_error(path, e)
+    return TreeSequence.load(file)
 
 
 def parse_individuals(
@@ -2941,6 +3239,30 @@ class TreeSequence:
     def __setstate__(self, tc):
         self._ll_tree_sequence = tc.tree_sequence().ll_tree_sequence
 
+    def __eq__(self, other):
+        return self.tables == other.tables
+
+    def equals(
+        self,
+        other,
+        *,
+        ignore_metadata=False,
+        ignore_ts_metadata=False,
+        ignore_provenance=False,
+        ignore_timestamps=False,
+    ):
+        """
+        Returns True if  `self` and `other` are equal. Uses the underlying table equlity,
+        see :meth:`TableCollection.equals` for details and options.
+        """
+        return self.tables.equals(
+            other.tables,
+            ignore_metadata=ignore_metadata,
+            ignore_ts_metadata=ignore_ts_metadata,
+            ignore_provenance=ignore_provenance,
+            ignore_timestamps=ignore_timestamps,
+        )
+
     @property
     def ll_tree_sequence(self):
         return self.get_ll_tree_sequence()
@@ -2966,31 +3288,45 @@ class TreeSequence:
         return [tree.copy() for tree in self.trees(**kwargs)]
 
     @classmethod
-    def load(cls, path):
-        ts = _tskit.TreeSequence()
-        ts.load(str(path))
-        return TreeSequence(ts)
+    def load(cls, file_or_path):
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
+        try:
+            ts = _tskit.TreeSequence()
+            ts.load(file)
+            return TreeSequence(ts)
+        except exceptions.FileFormatError as e:
+            # TODO Fix this for new file semantics
+            formats.raise_hdf5_format_error(file_or_path, e)
+        finally:
+            if local_file:
+                file.close()
 
     @classmethod
-    def load_tables(cls, tables):
+    def load_tables(cls, tables, *, build_indexes=False):
         ts = _tskit.TreeSequence()
-        ts.load_tables(tables._ll_tables)
+        ts.load_tables(tables._ll_tables, build_indexes=build_indexes)
         return TreeSequence(ts)
 
-    def dump(self, path, zlib_compression=False):
+    def dump(self, file_or_path, zlib_compression=False):
         """
-        Writes the tree sequence to the specified file path.
+        Writes the tree sequence to the specified path or file object.
 
-        :param str path: The file path to write the TreeSequence to.
+        :param str file_or_path: The file object or path to write the TreeSequence to.
         :param bool zlib_compression: This parameter is deprecated and ignored.
         """
         if zlib_compression:
+            # Note: the msprime CLI before version 1.0 uses this option, so we need
+            # to keep it indefinitely.
             warnings.warn(
                 "The zlib_compression option is no longer supported and is ignored",
                 RuntimeWarning,
             )
-        # Convert the path to str to allow us use Pathlib inputs
-        self._ll_tree_sequence.dump(str(path))
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
+        try:
+            self._ll_tree_sequence.dump(file)
+        finally:
+            if local_file:
+                file.close()
 
     @property
     def tables_dict(self):
@@ -3018,6 +3354,15 @@ class TreeSequence:
         :rtype: TableCollection
         """
         return self.dump_tables()
+
+    @property
+    def nbytes(self):
+        """
+        Returns the total number of bytes required to store the data
+        in this tree sequence. Note that this may not be equal to
+        the actual memory footprint.
+        """
+        return self.tables.nbytes
 
     def dump_tables(self):
         """
@@ -3205,6 +3550,39 @@ class TreeSequence:
                     record=provenance.record,
                 )
                 print(row, file=provenances)
+
+    def __str__(self):
+        ts_rows = [
+            ["Trees", str(self.num_trees)],
+            ["Sequence Length", str(self.sequence_length)],
+            ["Sample Nodes", str(self.num_samples)],
+            ["Total Size", util.naturalsize(self.nbytes)],
+        ]
+        header = ["Table", "Rows", "Size", "Has Metadata"]
+        table_rows = []
+        for name, table in self.tables.name_map.items():
+            table_rows.append(
+                [
+                    str(s)
+                    for s in [
+                        name.capitalize(),
+                        table.num_rows,
+                        util.naturalsize(table.nbytes),
+                        "Yes"
+                        if hasattr(table, "metadata") and len(table.metadata) > 0
+                        else "No",
+                    ]
+                ]
+            )
+        return util.unicode_table(ts_rows, title="TreeSequence") + util.unicode_table(
+            table_rows, header=header
+        )
+
+    def _repr_html_(self):
+        """
+        Called by jupyter notebooks to render a TreeSequence
+        """
+        return util.tree_sequence_html(self)
 
     # num_samples was originally called sample_size, and so we must keep sample_size
     # around as a deprecated alias.
@@ -3729,6 +4107,43 @@ class TreeSequence:
         )
         return TreeIterator(tree)
 
+    def coiterate(self, other, **kwargs):
+        """
+        Returns an iterator over the pairs of trees for each distinct
+        interval in the specified pair of tree sequences.
+
+        :param TreeSequence other: The other tree sequence from which to take trees. The
+            sequence length must be the same as the current tree sequence.
+        :param \\**kwargs: Further named arguments that will be passed to the
+            :meth:`.trees` method when constructing the returned trees.
+
+        :return: An iterator returning successive tuples of the form
+            ``(interval, tree_self, tree_other)``. For example, the first item returned
+            will consist of an tuple of the initial interval, the first tree of the
+            current tree sequence, and the first tree of the ``other`` tree sequence;
+            the ``.left`` attribute of the initial interval will be 0 and the ``.right``
+            attribute will be the smallest non-zero breakpoint of the 2 tree sequences.
+        :rtype: iter(:class:`Interval`, :class:`Tree`, :class:`Tree`)
+
+        """
+        if self.sequence_length != other.sequence_length:
+            raise ValueError("Tree sequences must be of equal sequence length.")
+        L = self.sequence_length
+        trees1 = self.trees(**kwargs)
+        trees2 = other.trees(**kwargs)
+        tree1 = next(trees1)
+        tree2 = next(trees2)
+        right = 0
+        while right != L:
+            left = right
+            right = min(tree1.interval[1], tree2.interval[1])
+            yield Interval(left, right), tree1, tree2
+            # Advance
+            if tree1.interval[1] == right:
+                tree1 = next(trees1, None)
+            if tree2.interval[1] == right:
+                tree2 = next(trees2, None)
+
     def haplotypes(
         self,
         *,
@@ -3799,7 +4214,7 @@ class TreeSequence:
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
-                DeprecationWarning,
+                FutureWarning,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -3836,7 +4251,7 @@ class TreeSequence:
                     alleles[i] = allele_int8
             H[:, var.site.id] = alleles[var.genotypes]
         for h in H:
-            yield h.tostring().decode("ascii")
+            yield h.tobytes().decode("ascii")
 
     def variants(
         self,
@@ -3920,7 +4335,7 @@ class TreeSequence:
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
-                DeprecationWarning,
+                FutureWarning,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -3994,7 +4409,7 @@ class TreeSequence:
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
-                DeprecationWarning,
+                FutureWarning,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -4447,7 +4862,7 @@ class TreeSequence:
         for tree in self.trees():
             start_interval = "{0:.{1}f}".format(tree.interval.left, precision)
             end_interval = "{0:.{1}f}".format(tree.interval.right, precision)
-            newick = tree.newick(precision, node_labels=node_labels)
+            newick = tree.newick(precision=precision, node_labels=node_labels)
             s += f"\tTREE tree{start_interval}_{end_interval} = {newick}\n"
 
         s += "END;\n"
@@ -4599,14 +5014,17 @@ class TreeSequence:
         Returns a copy of this tree sequence for which information in the
         specified list of genomic intervals has been deleted. Edges spanning these
         intervals are truncated or deleted, and sites and mutations falling within
-        them are discarded.
+        them are discarded. Note that it is the information in the intervals that
+        is deleted, not the intervals themselves, so in particular, all samples
+        will be isolated in the deleted intervals.
 
         Note that node IDs may change as a result of this operation,
         as by default :meth:`.simplify` is called on the returned tree sequence
         to remove redundant nodes. If you wish to map node IDs onto the same
         nodes before and after this method has been called, specify ``simplify=False``.
 
-        See also :meth:`.keep_intervals`.
+        See also :meth:`.keep_intervals`, :meth:`.ltrim`, :meth:`.rtrim`, and
+        :ref:`missing data<sec_data_model_missing_data>`.
 
         :param array_like intervals: A list (start, end) pairs describing the
             genomic intervals to delete. Intervals must be non-overlapping and
@@ -4627,14 +5045,17 @@ class TreeSequence:
         Returns a copy of this tree sequence which includes only information in
         the specified list of genomic intervals. Edges are truncated to lie within
         these intervals, and sites and mutations falling outside these intervals
-        are discarded.
+        are discarded.  Note that it is the information outside the intervals that
+        is deleted, not the intervals themselves, so in particular, all samples
+        will be isolated outside of the retained intervals.
 
         Note that node IDs may change as a result of this operation,
         as by default :meth:`.simplify` is called on the returned tree sequence
         to remove redundant nodes. If you wish to map node IDs onto the same
         nodes before and after this method has been called, specify ``simplify=False``.
 
-        See also :meth:`.delete_intervals`.
+        See also :meth:`.keep_intervals`, :meth:`.ltrim`, :meth:`.rtrim`, and
+        :ref:`missing data<sec_data_model_missing_data>`.
 
         :param array_like intervals: A list (start, end) pairs describing the
             genomic intervals to keep. Intervals must be non-overlapping and
@@ -5175,6 +5596,7 @@ class TreeSequence:
         windows=None,
         mode=None,
         span_normalise=True,
+        polarised=False,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -5207,6 +5629,7 @@ class TreeSequence:
             indexes,
             mode=mode,
             span_normalise=span_normalise,
+            polarised=polarised,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -5363,6 +5786,116 @@ class TreeSequence:
     #                 k += 1
     #     return A
 
+    def genetic_relatedness(
+        self,
+        sample_sets,
+        indexes=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
+        polarised=False,
+        proportion=True,
+    ):
+        """
+        Computes genetic relatedness between (and within) pairs of
+        sets of nodes from ``sample_sets``.
+        Operates on ``k = 2`` sample sets at a time; please see the
+        :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
+        section for details on how the ``sample_sets`` and ``indexes`` arguments are
+        interpreted and how they interact with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>`,
+        :ref:`mode <sec_stats_mode>`,
+        :ref:`span normalise <sec_stats_span_normalise>`,
+        :ref:`polarised <sec_stats_polarisation>`,
+        and :ref:`return value <sec_stats_output_format>`.
+
+        What is computed depends on ``mode``:
+
+        "site"
+            Number of pairwise allelic matches in the window between two
+            sample sets relative to the rest of the sample sets. To be precise,
+            let `m(u,v)` denote the total number of alleles shared between
+            nodes `u` and `v`, and let `m(I,J)` be the sum of `m(u,v)` over all
+            nodes `u` in sample set `I` and `v` in sample set `J`. Let `S` and
+            `T` be independently chosen sample sets. Then, for sample sets `I`
+            and `J`, this computes `E[m(I,J) - m(I,S) - m(J,T) + m(S,T)]`.
+            This can also be seen as the covariance of a quantitative trait
+            determined by additive contributions from the genomes in each
+            sample set. Let each allele be associated with an effect drawn from
+            a `N(0,1/2)` distribution, and let the trait value of a sample set
+            be the sum of its allele effects. Then, this computes the covariance
+            between the trait values of two sample sets. For example, to
+            compute covariance between the traits of diploid individuals, each
+            sample set would be the pair of genomes of each individual; if
+            ``proportion=True``, this then corresponds to :math:`K_{c0}` in
+            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_.
+
+        "branch"
+            Total area of branches in the window ancestral to pairs of samples
+            in two sample sets relative to the rest of the sample sets. To be
+            precise, let `B(u,v)` denote the total area of all branches
+            ancestral to nodes `u` and `v`, and let `B(I,J)` be the sum of
+            `B(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
+            `J`. Let `S` and `T` be two independently chosen sample sets. Then
+            for sample sets `I` and `J`, this computes
+            `E[B(I,J) - B(I,S) - B(J,T) + B(S,T)]`.
+
+        "node"
+            For each node, the proportion of the window over which pairs of
+            samples in two sample sets are descendants, relative to the rest of
+            the sample sets. To be precise, for each node `n`, let `N(u,v)`
+            denote the proportion of the window over which samples `u` and `v`
+            are descendants of `n`, and let and let `N(I,J)` be the sum of
+            `N(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
+            `J`. Let `S` and `T` be two independently chosen sample sets. Then
+            for sample sets `I` and `J`, this computes
+            `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]`.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+        :param list indexes: A list of 2-tuples, or None.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :param bool proportion: Whether to divide the result by
+            :meth:`.segregating_sites`, called with the same ``windows`` and
+            ``mode`` (defaults to True). Note that this counts sites
+            that are segregating between *any* of the samples of *any* of the
+            sample sets (rather than segregating between all of the samples of
+            the tree sequence).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        if proportion:
+            # TODO this should be done in C also
+            all_samples = list({u for s in sample_sets for u in s})
+            denominator = self.segregating_sites(
+                sample_sets=[all_samples],
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+            )
+        else:
+            denominator = 1
+
+        numerator = self.__k_way_sample_set_stat(
+            self._ll_tree_sequence.genetic_relatedness,
+            2,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
+        )
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out = numerator / denominator
+
+        return out
+
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -5496,15 +6029,27 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
-    def trait_regression(
+    def trait_regression(self, *args, **kwargs):
+        """
+        Deprecated synonym for
+        :meth:`trait_linear_model <.TreeSequence.trait_linear_model>`.
+        """
+        warnings.warn(
+            "This is deprecated: please use trait_linear_model( ) instead.",
+            FutureWarning,
+        )
+        return self.trait_linear_model(*args, **kwargs)
+
+    def trait_linear_model(
         self, W, Z=None, windows=None, mode="site", span_normalise=True
     ):
         """
-        For each trait w (i.e., each column of W), performs the least-squares
-        linear regression :math:`w ~ g + Z`,
-        where :math:`g` is inheritance in the tree sequence and the columns of :math:`Z`
-        are covariates, and computes the squared coefficient of :math:`g` in this
-        regression.
+        Finds the relationship between trait and genotype after accounting for
+        covariates.  Concretely, for each trait w (i.e., each column of W),
+        this does a least-squares fit of the linear model :math:`w \\sim g + Z`,
+        where :math:`g` is inheritance in the tree sequence (e.g., genotype)
+        and the columns of :math:`Z` are covariates, and returns the squared
+        coefficient of :math:`g` in this linear model.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
         :ref:`windows <sec_stats_windows>`,
         :ref:`mode <sec_stats_mode>`,
@@ -5512,13 +6057,13 @@ class TreeSequence:
         and :ref:`return value <sec_stats_output_format>`.
         Operates on all samples in the tree sequence.
 
-        Concretely, if `g` is a binary vector that indicates inheritance from an allele,
+        To do this, if `g` is a binary vector that indicates inheritance from an allele,
         branch, or node and `w` is a column of W, there are :math:`k` columns of
         :math:`Z`, and the :math:`k+2`-vector :math:`b` minimises
         :math:`\\sum_i (w_i - b_0 - b_1 g_i - b_2 z_{2,i} - ... b_{k+2} z_{k+2,i})^2`
         then this returns the number :math:`b_1^2`. If :math:`g` lies in the linear span
-        of the columns of :math:`Z`, then :math:`b_1` is set to 0. To perform the
-        regression without covariates (only the intercept), set `Z = None`.
+        of the columns of :math:`Z`, then :math:`b_1` is set to 0. To fit the
+        linear model without covariates (only the intercept), set `Z = None`.
 
         What is computed depends on ``mode``:
 
@@ -5572,7 +6117,7 @@ class TreeSequence:
         Z = np.matmul(Z, np.linalg.inv(K))
         return self.__run_windowed_stat(
             windows,
-            self._ll_tree_sequence.trait_regression,
+            self._ll_tree_sequence.trait_linear_model,
             W,
             Z,
             mode=mode,
@@ -5700,6 +6245,16 @@ class TreeSequence:
 
         "node"
             Not supported for this method (raises a ValueError).
+
+        For example, suppose that `S0` is a list of 5 sample IDs, and `S1` is
+        a list of 3 other sample IDs. Then `afs = ts.allele_frequency_spectrum([S0, S1],
+        mode="site", span_normalise=False)` will be a 5x3 numpy array, and if
+        there are six alleles that are present in only one sample of `S0` but
+        two samples of `S1`, then `afs[1,2]` will be equal to 6.  Similarly,
+        `branch_afs = ts.allele_frequency_spectrum([S0, S1], mode="branch",
+        span_normalise=False)` will also be a 5x3 array, and `branch_afs[1,2]`
+        will be the total area (i.e., length times span) of all branches that
+        are above exactly one sample of `S0` and two samples of `S1`.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of samples to compute the joint allele frequency
@@ -6345,3 +6900,108 @@ class TreeSequence:
             "This method is no longer supported. Please use the Tree.newick"
             " method instead"
         )
+
+
+def write_ms(
+    tree_sequence,
+    output,
+    print_trees=False,
+    precision=4,
+    num_replicates=1,
+    write_header=True,
+):
+    """
+    Write ``ms`` formatted output from the genotypes of a tree sequence
+    or an iterator over tree sequences. Usage:
+
+    .. code-block:: python
+
+        import tskit as ts
+
+        tree_sequence = msprime.simulate(
+            sample_size=sample_size,
+            Ne=Ne,
+            length=length,
+            mutation_rate=mutation_rate,
+            recombination_rate=recombination_rate,
+            random_seed=random_seed,
+            num_replicates=num_replicates,
+        )
+        with open("output.ms", "w") as ms_file:
+            ts.write_ms(tree_sequence, ms_file)
+
+    :param ts tree_sequence: The tree sequence (or iterator over tree sequences) to
+        write to ms file
+    :param io.IOBase output: The file-like object to write the ms-style output
+    :param bool print_trees: Boolean parameter to write out newick format trees
+        to output [optional]
+    :param int precision: Numerical precision with which to write the ms
+        output [optional]
+    :param bool write_header: Boolean parameter to write out the header. [optional]
+    :param int num_replicates: Number of replicates simulated [required if
+        num_replicates used in simulation]
+
+    The first line of this ms-style output file written has two arguments which
+    are sample size and number of replicates. The second line has a 0 as a substitute
+    for the random seed.
+    """
+    if not isinstance(tree_sequence, collections.abc.Iterable):
+        tree_sequence = [tree_sequence]
+
+    i = 0
+    for tree_seq in tree_sequence:
+        if i > 0:
+            write_header = False
+        i = i + 1
+
+        if write_header is True:
+            print(
+                f"ms {tree_seq.sample_size} {num_replicates}",
+                file=output,
+            )
+            print("0", file=output)
+
+        print(file=output)
+        print("//", file=output)
+        if print_trees is True:
+            """
+            Print out the trees in ms-format from the specified tree sequence.
+            """
+            if len(tree_seq.trees()) == 1:
+                tree = next(tree_seq.trees())
+                newick = tree.newick(precision=precision)
+                print(newick, file=output)
+            else:
+                for tree in tree_seq.trees():
+                    newick = tree.newick(precision=precision)
+                    print(f"[{tree.span:.{precision}f}]", newick, file=output)
+
+        else:
+            s = tree_seq.get_num_sites()
+            print("segsites:", s, file=output)
+            if s != 0:
+                print("positions: ", end="", file=output)
+                positions = [
+                    variant.position / (tree_seq.sequence_length)
+                    for variant in tree_seq.variants()
+                ]
+                for position in positions:
+                    print(
+                        f"{position:.{precision}f}",
+                        end=" ",
+                        file=output,
+                    )
+                print(file=output)
+
+                genotypes = tree_seq.genotype_matrix()
+                for k in range(tree_seq.num_samples):
+                    tmp_str = "".join(map(str, genotypes[:, k]))
+                    if set(tmp_str).issubset({"0", "1", "-"}):
+                        print(tmp_str, file=output)
+                    else:
+                        raise ValueError(
+                            "This tree sequence contains non-biallelic"
+                            "SNPs and is incompatible with the ms format!"
+                        )
+            else:
+                print(file=output)

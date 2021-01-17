@@ -61,8 +61,8 @@ typedef struct {
 static bool
 check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
-    size_t new_size = (size_t) current_size + (size_t) additional_rows;
-    return new_size > ((size_t) INT32_MAX) + 1;
+    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_rows;
+    return new_size > ((uint64_t) INT32_MAX) + 1;
 }
 
 /* Returns true if adding the specified number of elements would result in overflow
@@ -71,7 +71,7 @@ check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 static bool
 check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
 {
-    size_t new_size = (size_t) current_size + (size_t) additional_elements;
+    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_elements;
     return new_size > UINT32_MAX;
 }
 
@@ -148,7 +148,8 @@ out:
 
 /* Checks that the specified list of offsets is well-formed. */
 static int
-check_offsets(size_t num_rows, tsk_size_t *offsets, tsk_size_t length, bool check_length)
+check_offsets(
+    size_t num_rows, const tsk_size_t *offsets, tsk_size_t length, bool check_length)
 {
     int ret = TSK_ERR_BAD_OFFSET;
     size_t j;
@@ -207,7 +208,7 @@ out:
 
 static int
 write_metadata_schema_header(
-    FILE *out, char *metadata_schema, tsk_size_t metadata_schema_length)
+    FILE *out, const char *metadata_schema, tsk_size_t metadata_schema_length)
 {
     const char *fmt = "#metadata_schema#\n"
                       "%.*s\n"
@@ -414,8 +415,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_individual_table_copy(
-    tsk_individual_table_t *self, tsk_individual_table_t *dest, tsk_flags_t options)
+tsk_individual_table_copy(const tsk_individual_table_t *self,
+    tsk_individual_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -439,8 +440,9 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
-    tsk_flags_t *flags, double *location, tsk_size_t *location_offset, tsk_id_t *parents,
-    tsk_size_t *parents_offset, const char *metadata, tsk_size_t *metadata_offset)
+    const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
+    const tsk_id_t *parents, const tsk_id_t *parents_offset,
+    const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -456,8 +458,9 @@ out:
 
 int
 tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
-    tsk_flags_t *flags, double *location, tsk_size_t *location_offset, tsk_id_t *parents,
-    tsk_size_t *parents_offset, const char *metadata, tsk_size_t *metadata_offset)
+    const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
+    const tsk_id_t *parents, const tsk_id_t *parents_offset,
+    const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length, location_length, parents_length;
@@ -562,8 +565,9 @@ out:
 
 static tsk_id_t
 tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t flags,
-    double *location, tsk_size_t location_length, tsk_id_t *parents,
-    tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length)
+    const double *location, tsk_size_t location_length, const char *metadata,
+    const tsk_id_t *parents, const tsk_size_t parents_length,
+    tsk_size_t metadata_length)
 {
 
     tsk_bug_assert(self->num_rows < self->max_rows);
@@ -589,8 +593,9 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
 
 tsk_id_t
 tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
-    double *location, tsk_size_t location_length, tsk_id_t *parents,
-    tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length)
+    const double *location, tsk_size_t location_length, const char *metadata,
+    const tsk_id_t *parents, tsk_size_t parents_length,
+    tsk_size_t metadata_length)
 {
     int ret = 0;
 
@@ -655,12 +660,12 @@ tsk_individual_table_free(tsk_individual_table_t *self)
 }
 
 void
-tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
+tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "tsk_individual_tbl: %p:\n", (void *) self);
+    fprintf(out, "tsk_individual_tbl: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
         (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
@@ -702,7 +707,7 @@ tsk_individual_table_print_state(tsk_individual_table_t *self, FILE *out)
 
 static inline void
 tsk_individual_table_get_row_unsafe(
-    tsk_individual_table_t *self, tsk_id_t index, tsk_individual_t *row)
+    const tsk_individual_table_t *self, tsk_id_t index, tsk_individual_t *row)
 {
     row->id = (tsk_id_t) index;
     row->flags = self->flags[index];
@@ -722,7 +727,7 @@ tsk_individual_table_get_row_unsafe(
 
 int
 tsk_individual_table_get_row(
-    tsk_individual_table_t *self, tsk_id_t index, tsk_individual_t *row)
+    const tsk_individual_table_t *self, tsk_id_t index, tsk_individual_t *row)
 {
     int ret = 0;
 
@@ -744,7 +749,7 @@ tsk_individual_table_set_metadata_schema(tsk_individual_table_t *self,
 }
 
 int
-tsk_individual_table_dump_text(tsk_individual_table_t *self, FILE *out)
+tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
 {
     int ret = TSK_ERR_IO;
     tsk_size_t j, k;
@@ -802,26 +807,28 @@ out:
 }
 
 bool
-tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_table_t *other)
+tsk_individual_table_equals(const tsk_individual_table_t *self,
+    const tsk_individual_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        ret = memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t))
-                  == 0
-              && memcmp(self->location_offset, other->location_offset,
-                     (self->num_rows + 1) * sizeof(tsk_size_t))
-                     == 0
-              && memcmp(self->location, other->location,
-                     self->location_length * sizeof(double))
-                     == 0
-              && memcmp(self->parents_offset, other->parents_offset,
-                     (self->num_rows + 1) * sizeof(tsk_size_t))
-                     == 0
-              && memcmp(self->parents, other->parents,
-                     self->parents_length * sizeof(tsk_id_t))
-                     == 0
+    bool ret
+        = self->num_rows == other->num_rows
+          && memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t)) == 0
+          && memcmp(self->location_offset, other->location_offset,
+                 (self->num_rows + 1) * sizeof(tsk_size_t))
+                 == 0
+          && memcmp(
+                 self->location, other->location, self->location_length * sizeof(double))
+                 == 0
+          && memcmp(self->parents_offset, other->parents_offset,
+                (self->num_rows + 1) * sizeof(tsk_size_t))
+                == 0
+          && memcmp(self->parents, other->parents,
+                  self->parents_length * sizeof(tsk_id_t))
+                == 0;
+
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_length == other->metadata_length
+              && self->metadata_schema_length == other->metadata_schema_length
               && memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
@@ -836,7 +843,7 @@ tsk_individual_table_equals(tsk_individual_table_t *self, tsk_individual_table_t
 }
 
 static int
-tsk_individual_table_dump(tsk_individual_table_t *self, kastore_t *store)
+tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "individuals/flags", (void *) self->flags, self->num_rows, KAS_UINT32 },
@@ -1037,7 +1044,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_node_table_copy(tsk_node_table_t *self, tsk_node_table_t *dest, tsk_flags_t options)
+tsk_node_table_copy(
+    const tsk_node_table_t *self, tsk_node_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -1060,8 +1068,8 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_node_table_set_columns(tsk_node_table_t *self, tsk_size_t num_rows,
-    tsk_flags_t *flags, double *time, tsk_id_t *population, tsk_id_t *individual,
-    const char *metadata, tsk_size_t *metadata_offset)
+    const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
+    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -1077,8 +1085,8 @@ out:
 
 int
 tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
-    tsk_flags_t *flags, double *time, tsk_id_t *population, tsk_id_t *individual,
-    const char *metadata, tsk_size_t *metadata_offset)
+    const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
+    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length;
@@ -1213,12 +1221,12 @@ tsk_node_table_free(tsk_node_table_t *self)
 }
 
 void
-tsk_node_table_print_state(tsk_node_table_t *self, FILE *out)
+tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out)
 {
     size_t j, k;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "tsk_node_tbl: %p:\n", (void *) self);
+    fprintf(out, "tsk_node_tbl: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
         (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
@@ -1251,7 +1259,7 @@ tsk_node_table_set_metadata_schema(tsk_node_table_t *self, const char *metadata_
 }
 
 int
-tsk_node_table_dump_text(tsk_node_table_t *self, FILE *out)
+tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out)
 {
     int ret = TSK_ERR_IO;
     size_t j;
@@ -1283,21 +1291,22 @@ out:
 }
 
 bool
-tsk_node_table_equals(tsk_node_table_t *self, tsk_node_table_t *other)
+tsk_node_table_equals(
+    const tsk_node_table_t *self, const tsk_node_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        ret = memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
-              && memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t))
-                     == 0
-              && memcmp(self->population, other->population,
-                     self->num_rows * sizeof(tsk_id_t))
-                     == 0
-              && memcmp(self->individual, other->individual,
-                     self->num_rows * sizeof(tsk_id_t))
-                     == 0
+    bool ret
+        = self->num_rows == other->num_rows
+          && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
+          && memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t)) == 0
+          && memcmp(
+                 self->population, other->population, self->num_rows * sizeof(tsk_id_t))
+                 == 0
+          && memcmp(
+                 self->individual, other->individual, self->num_rows * sizeof(tsk_id_t))
+                 == 0;
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_length == other->metadata_length
+              && self->metadata_schema_length == other->metadata_schema_length
               && memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
@@ -1312,7 +1321,8 @@ tsk_node_table_equals(tsk_node_table_t *self, tsk_node_table_t *other)
 }
 
 static inline void
-tsk_node_table_get_row_unsafe(tsk_node_table_t *self, tsk_id_t index, tsk_node_t *row)
+tsk_node_table_get_row_unsafe(
+    const tsk_node_table_t *self, tsk_id_t index, tsk_node_t *row)
 {
     row->id = (tsk_id_t) index;
     row->flags = self->flags[index];
@@ -1325,7 +1335,7 @@ tsk_node_table_get_row_unsafe(tsk_node_table_t *self, tsk_id_t index, tsk_node_t
 }
 
 int
-tsk_node_table_get_row(tsk_node_table_t *self, tsk_id_t index, tsk_node_t *row)
+tsk_node_table_get_row(const tsk_node_table_t *self, tsk_id_t index, tsk_node_t *row)
 {
     int ret = 0;
 
@@ -1339,7 +1349,7 @@ out:
 }
 
 static int
-tsk_node_table_dump(tsk_node_table_t *self, kastore_t *store)
+tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "nodes/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
@@ -1573,7 +1583,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_edge_table_copy(tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t options)
+tsk_edge_table_copy(
+    const tsk_edge_table_t *self, tsk_edge_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
     char *metadata = NULL;
@@ -1609,9 +1620,9 @@ out:
 }
 
 int
-tsk_edge_table_set_columns(tsk_edge_table_t *self, tsk_size_t num_rows, double *left,
-    double *right, tsk_id_t *parent, tsk_id_t *child, const char *metadata,
-    tsk_size_t *metadata_offset)
+tsk_edge_table_set_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
+    const double *left, const double *right, const tsk_id_t *parent,
+    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret = 0;
 
@@ -1626,9 +1637,9 @@ out:
 }
 
 int
-tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows, double *left,
-    double *right, tsk_id_t *parent, tsk_id_t *child, const char *metadata,
-    tsk_size_t *metadata_offset)
+tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
+    const double *left, const double *right, const tsk_id_t *parent,
+    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length;
@@ -1723,7 +1734,8 @@ tsk_edge_table_free(tsk_edge_table_t *self)
 }
 
 static inline void
-tsk_edge_table_get_row_unsafe(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row)
+tsk_edge_table_get_row_unsafe(
+    const tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row)
 {
     row->id = (tsk_id_t) index;
     row->left = self->left[index];
@@ -1741,7 +1753,7 @@ tsk_edge_table_get_row_unsafe(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t
 }
 
 int
-tsk_edge_table_get_row(tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row)
+tsk_edge_table_get_row(const tsk_edge_table_t *self, tsk_id_t index, tsk_edge_t *row)
 {
     int ret = 0;
 
@@ -1755,12 +1767,12 @@ out:
 }
 
 void
-tsk_edge_table_print_state(tsk_edge_table_t *self, FILE *out)
+tsk_edge_table_print_state(const tsk_edge_table_t *self, FILE *out)
 {
     int ret;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "edge_table: %p:\n", (void *) self);
+    fprintf(out, "edge_table: %p:\n", (const void *) self);
     fprintf(out, "options         = 0x%X\n", self->options);
     fprintf(out, "num_rows        = %d\tmax= %d\tincrement = %d)\n",
         (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
@@ -1781,7 +1793,7 @@ tsk_edge_table_set_metadata_schema(tsk_edge_table_t *self, const char *metadata_
 }
 
 int
-tsk_edge_table_dump_text(tsk_edge_table_t *self, FILE *out)
+tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out)
 {
     tsk_id_t j;
     int ret = TSK_ERR_IO;
@@ -1811,45 +1823,47 @@ out:
 }
 
 bool
-tsk_edge_table_equals(tsk_edge_table_t *self, tsk_edge_table_t *other)
+tsk_edge_table_equals(
+    const tsk_edge_table_t *self, const tsk_edge_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
     bool metadata_equal;
+    bool ret
+        = self->num_rows == other->num_rows
+          && memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
+          && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
+          && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->child, other->child, self->num_rows * sizeof(tsk_id_t)) == 0;
 
-    if (self->num_rows == other->num_rows
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        if (tsk_edge_table_has_metadata(self) && tsk_edge_table_has_metadata(other)) {
-            metadata_equal = memcmp(self->metadata_offset, other->metadata_offset,
-                                 (self->num_rows + 1) * sizeof(tsk_size_t))
-                                 == 0
-                             && memcmp(self->metadata, other->metadata,
-                                    self->metadata_length * sizeof(char))
-                                    == 0;
-
-        } else {
-            /* The only way that the metadata lengths can be equal (which
-             * we've already tests) if either one or the other of the tables
-             * hasn't got metadata is if they are both zero. */
-            tsk_bug_assert(self->metadata_length == 0);
-            metadata_equal = true;
-        }
-        ret = memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
-              && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
-              && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t))
-                     == 0
-              && memcmp(self->child, other->child, self->num_rows * sizeof(tsk_id_t))
-                     == 0
-              && metadata_equal
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_schema_length == other->metadata_schema_length
               && memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
+        metadata_equal = false;
+        if (self->metadata_length == other->metadata_length) {
+            if (tsk_edge_table_has_metadata(self)
+                && tsk_edge_table_has_metadata(other)) {
+                metadata_equal = memcmp(self->metadata_offset, other->metadata_offset,
+                                     (self->num_rows + 1) * sizeof(tsk_size_t))
+                                     == 0
+                                 && memcmp(self->metadata, other->metadata,
+                                        self->metadata_length * sizeof(char))
+                                        == 0;
+            } else {
+                /* The only way that the metadata lengths can be equal (which
+                 * we've already tested) and either one or the other of the tables
+                 * hasn't got metadata is if they are both zero length. */
+                tsk_bug_assert(self->metadata_length == 0);
+                metadata_equal = true;
+            }
+        }
+        ret = ret && metadata_equal;
     }
     return ret;
 }
 
 static int
-tsk_edge_table_dump(tsk_edge_table_t *self, kastore_t *store)
+tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store)
 {
     int ret = TSK_ERR_IO;
 
@@ -2175,8 +2189,9 @@ out:
 
 int
 tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
-    double *position, const char *ancestral_state, tsk_size_t *ancestral_state_offset,
-    const char *metadata, tsk_size_t *metadata_offset)
+    const double *position, const char *ancestral_state,
+    const tsk_size_t *ancestral_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret = 0;
     tsk_size_t j, ancestral_state_length, metadata_length;
@@ -2247,7 +2262,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_site_table_copy(tsk_site_table_t *self, tsk_site_table_t *dest, tsk_flags_t options)
+tsk_site_table_copy(
+    const tsk_site_table_t *self, tsk_site_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -2270,9 +2286,10 @@ out:
 }
 
 int
-tsk_site_table_set_columns(tsk_site_table_t *self, tsk_size_t num_rows, double *position,
-    const char *ancestral_state, tsk_size_t *ancestral_state_offset,
-    const char *metadata, tsk_size_t *metadata_offset)
+tsk_site_table_set_columns(tsk_site_table_t *self, tsk_size_t num_rows,
+    const double *position, const char *ancestral_state,
+    const tsk_size_t *ancestral_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret = 0;
 
@@ -2287,21 +2304,23 @@ out:
 }
 
 bool
-tsk_site_table_equals(tsk_site_table_t *self, tsk_site_table_t *other)
+tsk_site_table_equals(
+    const tsk_site_table_t *self, const tsk_site_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->ancestral_state_length == other->ancestral_state_length
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        ret = memcmp(self->position, other->position, self->num_rows * sizeof(double))
-                  == 0
-              && memcmp(self->ancestral_state_offset, other->ancestral_state_offset,
-                     (self->num_rows + 1) * sizeof(tsk_size_t))
-                     == 0
-              && memcmp(self->ancestral_state, other->ancestral_state,
-                     self->ancestral_state_length * sizeof(char))
-                     == 0
+    bool ret
+        = self->num_rows == other->num_rows
+          && self->ancestral_state_length == other->ancestral_state_length
+          && memcmp(self->position, other->position, self->num_rows * sizeof(double))
+                 == 0
+          && memcmp(self->ancestral_state_offset, other->ancestral_state_offset,
+                 (self->num_rows + 1) * sizeof(tsk_size_t))
+                 == 0
+          && memcmp(self->ancestral_state, other->ancestral_state,
+                 self->ancestral_state_length * sizeof(char))
+                 == 0;
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_length == other->metadata_length
+              && self->metadata_schema_length == other->metadata_schema_length
               && memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
@@ -2350,12 +2369,12 @@ tsk_site_table_free(tsk_site_table_t *self)
 }
 
 void
-tsk_site_table_print_state(tsk_site_table_t *self, FILE *out)
+tsk_site_table_print_state(const tsk_site_table_t *self, FILE *out)
 {
     int ret;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "site_table: %p:\n", (void *) self);
+    fprintf(out, "site_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows = %d\t(max= %d\tincrement = %d)\n", (int) self->num_rows,
         (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "ancestral_state_length = %d\t(max= %d\tincrement = %d)\n",
@@ -2376,7 +2395,8 @@ tsk_site_table_print_state(tsk_site_table_t *self, FILE *out)
 }
 
 static inline void
-tsk_site_table_get_row_unsafe(tsk_site_table_t *self, tsk_id_t index, tsk_site_t *row)
+tsk_site_table_get_row_unsafe(
+    const tsk_site_table_t *self, tsk_id_t index, tsk_site_t *row)
 {
     row->id = (tsk_id_t) index;
     row->position = self->position[index];
@@ -2393,7 +2413,7 @@ tsk_site_table_get_row_unsafe(tsk_site_table_t *self, tsk_id_t index, tsk_site_t
 }
 
 int
-tsk_site_table_get_row(tsk_site_table_t *self, tsk_id_t index, tsk_site_t *row)
+tsk_site_table_get_row(const tsk_site_table_t *self, tsk_id_t index, tsk_site_t *row)
 {
     int ret = 0;
 
@@ -2415,7 +2435,7 @@ tsk_site_table_set_metadata_schema(tsk_site_table_t *self, const char *metadata_
 }
 
 int
-tsk_site_table_dump_text(tsk_site_table_t *self, FILE *out)
+tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
 {
     size_t j;
     int ret = TSK_ERR_IO;
@@ -2448,7 +2468,7 @@ out:
 }
 
 static int
-tsk_site_table_dump(tsk_site_table_t *self, kastore_t *store)
+tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "sites/position", (void *) self->position, self->num_rows, KAS_FLOAT64 },
@@ -2730,9 +2750,10 @@ out:
 
 int
 tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time,
-    const char *derived_state, tsk_size_t *derived_state_offset, const char *metadata,
-    tsk_size_t *metadata_offset)
+    const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
+    const double *time, const char *derived_state,
+    const tsk_size_t *derived_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret = 0;
     tsk_size_t j, derived_state_length, metadata_length;
@@ -2820,7 +2841,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_mutation_table_copy(
-    tsk_mutation_table_t *self, tsk_mutation_table_t *dest, tsk_flags_t options)
+    const tsk_mutation_table_t *self, tsk_mutation_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -2844,9 +2865,10 @@ out:
 
 int
 tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time,
-    const char *derived_state, tsk_size_t *derived_state_offset, const char *metadata,
-    tsk_size_t *metadata_offset)
+    const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
+    const double *time, const char *derived_state,
+    const tsk_size_t *derived_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret = 0;
 
@@ -2861,24 +2883,25 @@ out:
 }
 
 bool
-tsk_mutation_table_equals(tsk_mutation_table_t *self, tsk_mutation_table_t *other)
+tsk_mutation_table_equals(const tsk_mutation_table_t *self,
+    const tsk_mutation_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->derived_state_length == other->derived_state_length
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        ret = memcmp(self->site, other->site, self->num_rows * sizeof(tsk_id_t)) == 0
-              && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
-              && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t))
-                     == 0
-              && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
-              && memcmp(self->derived_state_offset, other->derived_state_offset,
-                     (self->num_rows + 1) * sizeof(tsk_size_t))
-                     == 0
-              && memcmp(self->derived_state, other->derived_state,
-                     self->derived_state_length * sizeof(char))
-                     == 0
+    bool ret
+        = self->num_rows == other->num_rows
+          && self->derived_state_length == other->derived_state_length
+          && memcmp(self->site, other->site, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
+          && memcmp(self->derived_state_offset, other->derived_state_offset,
+                 (self->num_rows + 1) * sizeof(tsk_size_t))
+                 == 0
+          && memcmp(self->derived_state, other->derived_state,
+                 self->derived_state_length * sizeof(char))
+                 == 0;
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_length == other->metadata_length
+              && self->metadata_schema_length == other->metadata_schema_length
               && memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
@@ -2933,12 +2956,12 @@ tsk_mutation_table_free(tsk_mutation_table_t *self)
 }
 
 void
-tsk_mutation_table_print_state(tsk_mutation_table_t *self, FILE *out)
+tsk_mutation_table_print_state(const tsk_mutation_table_t *self, FILE *out)
 {
     int ret;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "mutation_table: %p:\n", (void *) self);
+    fprintf(out, "mutation_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows = %d\tmax= %d\tincrement = %d)\n", (int) self->num_rows,
         (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "derived_state_length = %d\tmax= %d\tincrement = %d)\n",
@@ -2959,7 +2982,7 @@ tsk_mutation_table_print_state(tsk_mutation_table_t *self, FILE *out)
 
 static inline void
 tsk_mutation_table_get_row_unsafe(
-    tsk_mutation_table_t *self, tsk_id_t index, tsk_mutation_t *row)
+    const tsk_mutation_table_t *self, tsk_id_t index, tsk_mutation_t *row)
 {
     row->id = (tsk_id_t) index;
     row->site = self->site[index];
@@ -2976,7 +2999,7 @@ tsk_mutation_table_get_row_unsafe(
 
 int
 tsk_mutation_table_get_row(
-    tsk_mutation_table_t *self, tsk_id_t index, tsk_mutation_t *row)
+    const tsk_mutation_table_t *self, tsk_id_t index, tsk_mutation_t *row)
 {
     int ret = 0;
 
@@ -2998,7 +3021,7 @@ tsk_mutation_table_set_metadata_schema(tsk_mutation_table_t *self,
 }
 
 int
-tsk_mutation_table_dump_text(tsk_mutation_table_t *self, FILE *out)
+tsk_mutation_table_dump_text(const tsk_mutation_table_t *self, FILE *out)
 {
     int ret = TSK_ERR_IO;
     int err;
@@ -3031,7 +3054,7 @@ out:
 }
 
 static int
-tsk_mutation_table_dump(tsk_mutation_table_t *self, kastore_t *store)
+tsk_mutation_table_dump(const tsk_mutation_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "mutations/site", (void *) self->site, self->num_rows, KAS_INT32 },
@@ -3242,8 +3265,9 @@ out:
 
 int
 tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
-    double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
-    double *time, const char *metadata, tsk_size_t *metadata_offset)
+    const double *left, const double *right, const tsk_id_t *node,
+    const tsk_id_t *source, const tsk_id_t *dest, const double *time,
+    const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length;
@@ -3299,7 +3323,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_migration_table_copy(
-    tsk_migration_table_t *self, tsk_migration_table_t *dest, tsk_flags_t options)
+    const tsk_migration_table_t *self, tsk_migration_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -3323,8 +3347,9 @@ out:
 
 int
 tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
-    double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
-    double *time, const char *metadata, tsk_size_t *metadata_offset)
+    const double *left, const double *right, const tsk_id_t *node,
+    const tsk_id_t *source, const tsk_id_t *dest, const double *time,
+    const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -3409,12 +3434,12 @@ tsk_migration_table_free(tsk_migration_table_t *self)
 }
 
 void
-tsk_migration_table_print_state(tsk_migration_table_t *self, FILE *out)
+tsk_migration_table_print_state(const tsk_migration_table_t *self, FILE *out)
 {
     int ret;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "migration_table: %p:\n", (void *) self);
+    fprintf(out, "migration_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows = %d\tmax= %d\tincrement = %d)\n", (int) self->num_rows,
         (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
@@ -3427,7 +3452,7 @@ tsk_migration_table_print_state(tsk_migration_table_t *self, FILE *out)
 
 static inline void
 tsk_migration_table_get_row_unsafe(
-    tsk_migration_table_t *self, tsk_id_t index, tsk_migration_t *row)
+    const tsk_migration_table_t *self, tsk_id_t index, tsk_migration_t *row)
 {
     row->id = (tsk_id_t) index;
     row->left = self->left[index];
@@ -3443,7 +3468,7 @@ tsk_migration_table_get_row_unsafe(
 
 int
 tsk_migration_table_get_row(
-    tsk_migration_table_t *self, tsk_id_t index, tsk_migration_t *row)
+    const tsk_migration_table_t *self, tsk_id_t index, tsk_migration_t *row)
 {
     int ret = 0;
 
@@ -3465,7 +3490,7 @@ tsk_migration_table_set_metadata_schema(tsk_migration_table_t *self,
 }
 
 int
-tsk_migration_table_dump_text(tsk_migration_table_t *self, FILE *out)
+tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out)
 {
     size_t j;
     int ret = TSK_ERR_IO;
@@ -3497,19 +3522,21 @@ out:
 }
 
 bool
-tsk_migration_table_equals(tsk_migration_table_t *self, tsk_migration_table_t *other)
+tsk_migration_table_equals(const tsk_migration_table_t *self,
+    const tsk_migration_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        ret = memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
-              && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
-              && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
-              && memcmp(self->source, other->source, self->num_rows * sizeof(tsk_id_t))
-                     == 0
-              && memcmp(self->dest, other->dest, self->num_rows * sizeof(tsk_id_t)) == 0
-              && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
+    bool ret
+        = self->num_rows == other->num_rows
+          && memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
+          && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
+          && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->source, other->source, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->dest, other->dest, self->num_rows * sizeof(tsk_id_t)) == 0
+          && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0;
+
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_length == other->metadata_length
+              && self->metadata_schema_length == other->metadata_schema_length
               && memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
@@ -3524,7 +3551,7 @@ tsk_migration_table_equals(tsk_migration_table_t *self, tsk_migration_table_t *o
 }
 
 static int
-tsk_migration_table_dump(tsk_migration_table_t *self, kastore_t *store)
+tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "migrations/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
@@ -3703,8 +3730,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_population_table_copy(
-    tsk_population_table_t *self, tsk_population_table_t *dest, tsk_flags_t options)
+tsk_population_table_copy(const tsk_population_table_t *self,
+    tsk_population_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -3727,7 +3754,7 @@ out:
 
 int
 tsk_population_table_set_columns(tsk_population_table_t *self, tsk_size_t num_rows,
-    const char *metadata, tsk_size_t *metadata_offset)
+    const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -3742,7 +3769,7 @@ out:
 
 int
 tsk_population_table_append_columns(tsk_population_table_t *self, tsk_size_t num_rows,
-    const char *metadata, tsk_size_t *metadata_offset)
+    const char *metadata, const tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length;
@@ -3845,12 +3872,12 @@ tsk_population_table_free(tsk_population_table_t *self)
 }
 
 void
-tsk_population_table_print_state(tsk_population_table_t *self, FILE *out)
+tsk_population_table_print_state(const tsk_population_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "population_table: %p:\n", (void *) self);
+    fprintf(out, "population_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
         (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "metadata_length  = %d\tmax= %d\tincrement = %d)\n",
@@ -3873,7 +3900,7 @@ tsk_population_table_print_state(tsk_population_table_t *self, FILE *out)
 
 static inline void
 tsk_population_table_get_row_unsafe(
-    tsk_population_table_t *self, tsk_id_t index, tsk_population_t *row)
+    const tsk_population_table_t *self, tsk_id_t index, tsk_population_t *row)
 {
     row->id = (tsk_id_t) index;
     row->metadata_length
@@ -3883,7 +3910,7 @@ tsk_population_table_get_row_unsafe(
 
 int
 tsk_population_table_get_row(
-    tsk_population_table_t *self, tsk_id_t index, tsk_population_t *row)
+    const tsk_population_table_t *self, tsk_id_t index, tsk_population_t *row)
 {
     int ret = 0;
 
@@ -3905,7 +3932,7 @@ tsk_population_table_set_metadata_schema(tsk_population_table_t *self,
 }
 
 int
-tsk_population_table_dump_text(tsk_population_table_t *self, FILE *out)
+tsk_population_table_dump_text(const tsk_population_table_t *self, FILE *out)
 {
     int ret = TSK_ERR_IO;
     int err;
@@ -3935,15 +3962,19 @@ out:
 }
 
 bool
-tsk_population_table_equals(tsk_population_table_t *self, tsk_population_table_t *other)
+tsk_population_table_equals(const tsk_population_table_t *self,
+    const tsk_population_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->metadata_length == other->metadata_length
-        && self->metadata_schema_length == other->metadata_schema_length) {
-        ret = memcmp(self->metadata_offset, other->metadata_offset,
-                  (self->num_rows + 1) * sizeof(tsk_size_t))
-                  == 0
+    /* Since we only have the metadata column in the table currently, equality
+     * reduces to comparing the number of rows if we disable metadata comparison.
+     */
+    bool ret = self->num_rows == other->num_rows;
+    if (!(options & TSK_CMP_IGNORE_METADATA)) {
+        ret = ret && self->metadata_length == other->metadata_length
+              && self->metadata_schema_length == other->metadata_schema_length
+              && memcmp(self->metadata_offset, other->metadata_offset,
+                     (self->num_rows + 1) * sizeof(tsk_size_t))
+                     == 0
               && memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
@@ -3955,7 +3986,7 @@ tsk_population_table_equals(tsk_population_table_t *self, tsk_population_table_t
 }
 
 static int
-tsk_population_table_dump(tsk_population_table_t *self, kastore_t *store)
+tsk_population_table_dump(const tsk_population_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "populations/metadata", (void *) self->metadata, self->metadata_length,
@@ -4156,8 +4187,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_provenance_table_copy(
-    tsk_provenance_table_t *self, tsk_provenance_table_t *dest, tsk_flags_t options)
+tsk_provenance_table_copy(const tsk_provenance_table_t *self,
+    tsk_provenance_table_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -4175,8 +4206,8 @@ out:
 
 int
 tsk_provenance_table_set_columns(tsk_provenance_table_t *self, tsk_size_t num_rows,
-    char *timestamp, tsk_size_t *timestamp_offset, char *record,
-    tsk_size_t *record_offset)
+    const char *timestamp, const tsk_size_t *timestamp_offset, const char *record,
+    const tsk_size_t *record_offset)
 {
     int ret;
 
@@ -4192,8 +4223,8 @@ out:
 
 int
 tsk_provenance_table_append_columns(tsk_provenance_table_t *self, tsk_size_t num_rows,
-    char *timestamp, tsk_size_t *timestamp_offset, char *record,
-    tsk_size_t *record_offset)
+    const char *timestamp, const tsk_size_t *timestamp_offset, const char *record,
+    const tsk_size_t *record_offset)
 {
     int ret;
     tsk_size_t j, timestamp_length, record_length;
@@ -4327,12 +4358,12 @@ tsk_provenance_table_free(tsk_provenance_table_t *self)
 }
 
 void
-tsk_provenance_table_print_state(tsk_provenance_table_t *self, FILE *out)
+tsk_provenance_table_print_state(const tsk_provenance_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
     fprintf(out, TABLE_SEP);
-    fprintf(out, "provenance_table: %p:\n", (void *) self);
+    fprintf(out, "provenance_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
         (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
     fprintf(out, "timestamp_length  = %d\tmax= %d\tincrement = %d)\n",
@@ -4362,7 +4393,7 @@ tsk_provenance_table_print_state(tsk_provenance_table_t *self, FILE *out)
 
 static inline void
 tsk_provenance_table_get_row_unsafe(
-    tsk_provenance_table_t *self, tsk_id_t index, tsk_provenance_t *row)
+    const tsk_provenance_table_t *self, tsk_id_t index, tsk_provenance_t *row)
 {
     row->id = (tsk_id_t) index;
     row->timestamp_length
@@ -4374,7 +4405,7 @@ tsk_provenance_table_get_row_unsafe(
 
 int
 tsk_provenance_table_get_row(
-    tsk_provenance_table_t *self, tsk_id_t index, tsk_provenance_t *row)
+    const tsk_provenance_table_t *self, tsk_id_t index, tsk_provenance_t *row)
 {
     int ret = 0;
 
@@ -4388,7 +4419,7 @@ out:
 }
 
 int
-tsk_provenance_table_dump_text(tsk_provenance_table_t *self, FILE *out)
+tsk_provenance_table_dump_text(const tsk_provenance_table_t *self, FILE *out)
 {
     int ret = TSK_ERR_IO;
     int err;
@@ -4414,28 +4445,30 @@ out:
 }
 
 bool
-tsk_provenance_table_equals(tsk_provenance_table_t *self, tsk_provenance_table_t *other)
+tsk_provenance_table_equals(const tsk_provenance_table_t *self,
+    const tsk_provenance_table_t *other, tsk_flags_t options)
 {
-    bool ret = false;
-    if (self->num_rows == other->num_rows
-        && self->timestamp_length == other->timestamp_length) {
-        ret = memcmp(self->timestamp_offset, other->timestamp_offset,
-                  (self->num_rows + 1) * sizeof(tsk_size_t))
-                  == 0
-              && memcmp(self->timestamp, other->timestamp,
-                     self->timestamp_length * sizeof(char))
-                     == 0
-              && memcmp(self->record_offset, other->record_offset,
+    bool ret = self->num_rows == other->num_rows
+               && self->record_length == other->record_length
+               && memcmp(self->record_offset, other->record_offset,
+                      (self->num_rows + 1) * sizeof(tsk_size_t))
+                      == 0
+               && memcmp(self->record, other->record, self->record_length * sizeof(char))
+                      == 0;
+    if (!(options & TSK_CMP_IGNORE_TIMESTAMPS)) {
+        ret = ret && self->timestamp_length == other->timestamp_length
+              && memcmp(self->timestamp_offset, other->timestamp_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->record, other->record, self->record_length * sizeof(char))
+              && memcmp(self->timestamp, other->timestamp,
+                     self->timestamp_length * sizeof(char))
                      == 0;
     }
     return ret;
 }
 
 static int
-tsk_provenance_table_dump(tsk_provenance_table_t *self, kastore_t *store)
+tsk_provenance_table_dump(const tsk_provenance_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "provenances/timestamp", (void *) self->timestamp, self->timestamp_length,
@@ -4517,11 +4550,12 @@ cmp_site(const void *a, const void *b)
     /* Compare sites by position */
     int ret = (ia->position > ib->position) - (ia->position < ib->position);
     if (ret == 0) {
-        /* Within a particular position sort by ID.  This ensures that relative ordering
-         * of multiple sites at the same position is maintained; the redundant sites
-         * will get compacted down by clean_tables(), but in the meantime if the order
-         * of the redundant sites changes it will cause the sort order of mutations to
-         * be corrupted, as the mutations will follow their sites. */
+        /* Within a particular position sort by ID.  This ensures that relative
+         * ordering of multiple sites at the same position is maintained; the
+         * redundant sites will get compacted down by clean_tables(), but in the
+         * meantime if the order of the redundant sites changes it will cause the
+         * sort order of mutations to be corrupted, as the mutations will follow
+         * their sites. */
         ret = (ia->id > ib->id) - (ia->id < ib->id);
     }
     return ret;
@@ -4647,7 +4681,8 @@ tsk_table_sorter_sort_sites(tsk_table_sorter_t *self)
     /* Sort the sites by position */
     qsort(sorted_sites, num_sites, sizeof(*sorted_sites), cmp_site);
 
-    /* Build the mapping from old site IDs to new site IDs and copy back into the table
+    /* Build the mapping from old site IDs to new site IDs and copy back into the
+     * table
      */
     tsk_site_table_clear(sites);
     for (j = 0; j < num_sites; j++) {
@@ -4727,7 +4762,7 @@ out:
 }
 
 int
-tsk_table_sorter_run(tsk_table_sorter_t *self, tsk_bookmark_t *start)
+tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
 {
     int ret = 0;
     tsk_size_t edge_start = 0;
@@ -5271,7 +5306,8 @@ ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, size_t num_samp
         goto out;
     }
 
-    /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size */
+    /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size
+     */
     ret = tsk_blkalloc_init(&self->segment_heap, 8192);
     if (ret != 0) {
         goto out;
@@ -5631,6 +5667,93 @@ out:
     return ret;
 }
 
+static int
+tsk_ibd_finder_index_samples(tsk_ibd_finder_t *self)
+{
+    int ret = 0;
+    size_t i;
+    tsk_id_t idx;
+
+    self->paired_nodes_index
+        = calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
+
+    if (self->paired_nodes_index == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < self->num_nodes; ++i) {
+        self->paired_nodes_index[i] = -1;
+    }
+
+    for (i = 0; i < 2 * self->num_pairs; ++i) {
+        self->paired_nodes_index[self->pairs[i]] = 1;
+    }
+
+    self->num_unique_nodes_in_pair = 0;
+    idx = 0;
+    for (i = 0; i < self->num_nodes; ++i) {
+        if (self->paired_nodes_index[i] == 1) {
+            ++self->num_unique_nodes_in_pair;
+            self->paired_nodes_index[i] = idx;
+            ++idx;
+        }
+    }
+
+out:
+    return ret;
+}
+
+// NOTE: future travellers may want to refactor
+// this to only allocate the upper triangle of the matrix.
+// Doing so would save a good bit of memory, but would
+// imply trickier indexing here and in
+// tsk_ibd_finder_find_sample_pair_index2.
+static int
+tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
+{
+    int ret = 0;
+    size_t i;
+    tsk_id_t sample0, sample1;
+    tsk_id_t row, col;
+    size_t matrix_size = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
+
+    self->pair_map = calloc(matrix_size, sizeof(*self->pair_map));
+    if (self->pair_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < matrix_size; ++i) {
+        self->pair_map[i] = -1;
+    }
+
+    for (i = 0; i < self->num_pairs; ++i) {
+        sample0 = self->pairs[2 * i];
+        sample1 = self->pairs[2 * i + 1];
+
+        row = TSK_MIN(
+            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
+        col = TSK_MAX(
+            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
+
+        tsk_bug_assert(row >= 0);
+        tsk_bug_assert(col >= 0);
+
+        if (self->pair_map[(size_t) row * self->num_unique_nodes_in_pair + (size_t) col]
+            != -1) {
+            ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
+            goto out;
+        }
+
+        self->pair_map[(size_t) row * self->num_unique_nodes_in_pair + (size_t) col]
+            = (int64_t) i;
+    }
+
+out:
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     tsk_id_t *pairs, tsk_size_t num_pairs)
@@ -5677,6 +5800,16 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     }
 
     ret = tsk_ibd_finder_init_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_ibd_finder_index_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_ibd_finder_build_pair_map(self);
     if (ret != 0) {
         goto out;
     }
@@ -5743,18 +5876,21 @@ static int
 tsk_ibd_finder_find_sample_pair_index2(
     tsk_ibd_finder_t *self, tsk_id_t sample0, tsk_id_t sample1)
 {
-    int i = 0;
     int ret = -1;
     tsk_id_t s0, s1;
+    size_t row, col;
 
-    for (i = 0; i < (tsk_id_t) self->num_pairs; i++) {
-        s0 = self->pairs[2 * i];
-        s1 = self->pairs[2 * i + 1];
-        if ((s0 == sample0 && s1 == sample1) || (s0 == sample1 && s1 == sample0)) {
-            ret = i;
-            goto out;
-        }
+    s0 = self->paired_nodes_index[sample0];
+    s1 = self->paired_nodes_index[sample1];
+
+    if (s0 < 0 || s1 < 0) {
+        goto out;
     }
+
+    row = TSK_MIN((size_t) s0, (size_t) s1);
+    col = TSK_MAX((size_t) s0, (size_t) s1);
+
+    ret = (int) self->pair_map[row * self->num_unique_nodes_in_pair + col];
 out:
     return ret;
 }
@@ -5976,9 +6112,11 @@ tsk_ibd_finder_free(tsk_ibd_finder_t *self)
     tsk_safe_free(self->ibd_segments_tail);
     tsk_blkalloc_free(&self->segment_heap);
     tsk_safe_free(self->is_sample);
+    tsk_safe_free(self->paired_nodes_index);
     tsk_safe_free(self->ancestor_map_head);
     tsk_safe_free(self->ancestor_map_tail);
     tsk_safe_free(self->segment_queue);
+    tsk_safe_free(self->pair_map);
     return 0;
 }
 
@@ -6446,7 +6584,7 @@ out:
 }
 
 static int
-simplifier_init_samples(simplifier_t *self, tsk_id_t *samples)
+simplifier_init_samples(simplifier_t *self, const tsk_id_t *samples)
 {
     int ret = 0;
     size_t j;
@@ -6478,7 +6616,7 @@ out:
 }
 
 static int
-simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
+simplifier_init(simplifier_t *self, const tsk_id_t *samples, size_t num_samples,
     tsk_table_collection_t *tables, tsk_flags_t options)
 {
     int ret = 0;
@@ -6514,7 +6652,8 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
     }
     memcpy(self->samples, samples, num_samples * sizeof(tsk_id_t));
 
-    /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size */
+    /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size
+     */
     ret = tsk_blkalloc_init(&self->segment_heap, 8192);
     if (ret != 0) {
         goto out;
@@ -6546,7 +6685,7 @@ simplifier_init(simplifier_t *self, tsk_id_t *samples, size_t num_samples,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_table_collection_clear(self->tables);
+    ret = tsk_table_collection_clear(self->tables, 0);
     if (ret != 0) {
         goto out;
     }
@@ -6942,8 +7081,8 @@ simplifier_finalise_references(simplifier_t *self)
         goto out;
     }
 
-    /* TODO Migrations fit reasonably neatly into the pattern that we have here. We can
-     * consider references to populations from migration objects in the same way
+    /* TODO Migrations fit reasonably neatly into the pattern that we have here. We
+     * can consider references to populations from migration objects in the same way
      * as from nodes, so that we only remove a population if its referenced by
      * neither. Mapping the population IDs in migrations is then easy. In principle
      * nodes are similar, but the semantics are slightly different because we've
@@ -7015,11 +7154,7 @@ simplifier_finalise_references(simplifier_t *self)
         }
     }
 
-    ret = tsk_provenance_table_copy(
-        &self->input_tables.provenances, &self->tables->provenances, TSK_NO_INIT);
-    if (ret != 0) {
-        goto out;
-    }
+    ret = 0;
 out:
     tsk_safe_free(population_referenced);
     tsk_safe_free(individual_referenced);
@@ -7194,7 +7329,7 @@ cmp_index_sort(const void *a, const void *b)
 }
 
 static int
-tsk_table_collection_check_offsets(tsk_table_collection_t *self)
+tsk_table_collection_check_offsets(const tsk_table_collection_t *self)
 {
     int ret = 0;
 
@@ -7245,7 +7380,7 @@ out:
 
 static int
 tsk_table_collection_check_node_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options)
+    const tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t j;
@@ -7280,7 +7415,7 @@ out:
 
 static int
 tsk_table_collection_check_edge_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options)
+    const tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t j;
@@ -7393,7 +7528,7 @@ out:
 
 static int TSK_WARN_UNUSED
 tsk_table_collection_check_site_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options)
+    const tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t j;
@@ -7431,7 +7566,7 @@ out:
 
 static int TSK_WARN_UNUSED
 tsk_table_collection_check_mutation_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options)
+    const tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t j;
@@ -7527,8 +7662,8 @@ tsk_table_collection_check_mutation_integrity(
                     ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
                     goto out;
                 }
-                /* Check time ordering, we do this after the time checks above, so that
-                more specific errors trigger first */
+                /* Check time ordering, we do this after the time checks above, so
+                that more specific errors trigger first */
                 if (mutation_time > last_known_time) {
                     ret = TSK_ERR_UNSORTED_MUTATIONS;
                     goto out;
@@ -7543,7 +7678,7 @@ out:
 
 static int TSK_WARN_UNUSED
 tsk_table_collection_check_migration_integrity(
-    tsk_table_collection_t *self, tsk_flags_t options)
+    const tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_size_t j;
@@ -7599,7 +7734,7 @@ out:
 }
 
 static tsk_id_t TSK_WARN_UNUSED
-tsk_table_collection_check_tree_integrity(tsk_table_collection_t *self)
+tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
 {
     tsk_id_t ret = 0;
     size_t j, k;
@@ -7693,7 +7828,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_check_index_integrity(tsk_table_collection_t *self)
+tsk_table_collection_check_index_integrity(const tsk_table_collection_t *self)
 {
     int ret = 0;
     tsk_id_t j;
@@ -7720,7 +7855,8 @@ out:
 }
 
 tsk_id_t TSK_WARN_UNUSED
-tsk_table_collection_check_integrity(tsk_table_collection_t *self, tsk_flags_t options)
+tsk_table_collection_check_integrity(
+    const tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -7776,7 +7912,7 @@ out:
 }
 
 void
-tsk_table_collection_print_state(tsk_table_collection_t *self, FILE *out)
+tsk_table_collection_print_state(const tsk_table_collection_t *self, FILE *out)
 {
     fprintf(out, "Table collection state\n");
     fprintf(out, "sequence_length = %f\n", self->sequence_length);
@@ -7861,30 +7997,42 @@ tsk_table_collection_free(tsk_table_collection_t *self)
     return 0;
 }
 
-/* Returns true if all the tables and collection metadata are equal. Note
- * this does *not* consider the indexes, since these are derived from the
- * tables. We do not consider the file_uuids either, since this is a property of
- * the file that set of tables is stored in. */
 bool
-tsk_table_collection_equals(tsk_table_collection_t *self, tsk_table_collection_t *other)
+tsk_table_collection_equals(const tsk_table_collection_t *self,
+    const tsk_table_collection_t *other, tsk_flags_t options)
 {
-    bool ret = self->sequence_length == other->sequence_length
-               && self->metadata_length == other->metadata_length
-               && self->metadata_schema_length == other->metadata_schema_length
-               && memcmp(self->metadata, other->metadata,
-                      self->metadata_length * sizeof(char))
-                      == 0
-               && memcmp(self->metadata_schema, other->metadata_schema,
-                      self->metadata_schema_length * sizeof(char))
-                      == 0
-               && tsk_individual_table_equals(&self->individuals, &other->individuals)
-               && tsk_node_table_equals(&self->nodes, &other->nodes)
-               && tsk_edge_table_equals(&self->edges, &other->edges)
-               && tsk_migration_table_equals(&self->migrations, &other->migrations)
-               && tsk_site_table_equals(&self->sites, &other->sites)
-               && tsk_mutation_table_equals(&self->mutations, &other->mutations)
-               && tsk_population_table_equals(&self->populations, &other->populations)
-               && tsk_provenance_table_equals(&self->provenances, &other->provenances);
+    bool ret
+        = self->sequence_length == other->sequence_length
+          && tsk_individual_table_equals(
+                 &self->individuals, &other->individuals, options)
+          && tsk_node_table_equals(&self->nodes, &other->nodes, options)
+          && tsk_edge_table_equals(&self->edges, &other->edges, options)
+          && tsk_migration_table_equals(&self->migrations, &other->migrations, options)
+          && tsk_site_table_equals(&self->sites, &other->sites, options)
+          && tsk_mutation_table_equals(&self->mutations, &other->mutations, options)
+          && tsk_population_table_equals(
+                 &self->populations, &other->populations, options);
+
+    /* TSK_CMP_IGNORE_TS_METADATA is implied by TSK_CMP_IGNORE_METADATA */
+    if (options & TSK_CMP_IGNORE_METADATA) {
+        options |= TSK_CMP_IGNORE_TS_METADATA;
+    }
+    if (!(options & TSK_CMP_IGNORE_TS_METADATA)) {
+        ret = ret
+              && (self->metadata_length == other->metadata_length
+                     && self->metadata_schema_length == other->metadata_schema_length
+                     && memcmp(self->metadata, other->metadata,
+                            self->metadata_length * sizeof(char))
+                            == 0
+                     && memcmp(self->metadata_schema, other->metadata_schema,
+                            self->metadata_schema_length * sizeof(char))
+                            == 0);
+    }
+    if (!(options & TSK_CMP_IGNORE_PROVENANCE)) {
+        ret = ret
+              && tsk_provenance_table_equals(
+                     &self->provenances, &other->provenances, options);
+    }
     return ret;
 }
 
@@ -7904,8 +8052,8 @@ tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
         metadata_schema, metadata_schema_length);
 }
 
-static int
-tsk_table_collection_set_index(tsk_table_collection_t *self,
+int
+tsk_table_collection_set_indexes(tsk_table_collection_t *self,
     tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order)
 {
     int ret = 0;
@@ -7928,7 +8076,7 @@ out:
 
 bool
 tsk_table_collection_has_index(
-    tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
+    const tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     return self->indexes.edge_insertion_order != NULL
            && self->indexes.edge_removal_order != NULL
@@ -8010,8 +8158,8 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_copy(
-    tsk_table_collection_t *self, tsk_table_collection_t *dest, tsk_flags_t options)
+tsk_table_collection_copy(const tsk_table_collection_t *self,
+    tsk_table_collection_t *dest, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -8055,7 +8203,7 @@ tsk_table_collection_copy(
     }
     dest->sequence_length = self->sequence_length;
     if (tsk_table_collection_has_index(self, 0)) {
-        ret = tsk_table_collection_set_index(
+        ret = tsk_table_collection_set_indexes(
             dest, self->indexes.edge_insertion_order, self->indexes.edge_removal_order);
         if (ret != 0) {
             goto out;
@@ -8203,7 +8351,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_dump_indexes(tsk_table_collection_t *self, kastore_t *store)
+tsk_table_collection_dump_indexes(const tsk_table_collection_t *self, kastore_t *store)
 {
     int ret = 0;
     write_table_col_t write_cols[] = {
@@ -8248,7 +8396,7 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self, kastore_t *store
             ret = TSK_ERR_FILE_FORMAT;
             goto out;
         }
-        ret = tsk_table_collection_set_index(
+        ret = tsk_table_collection_set_indexes(
             self, edge_insertion_order, edge_removal_order);
         if (ret != 0) {
             goto out;
@@ -8526,7 +8674,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_simplify(tsk_table_collection_t *self, tsk_id_t *samples,
+tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samples,
     tsk_size_t num_samples, tsk_flags_t options, tsk_id_t *node_map)
 {
     int ret = 0;
@@ -8611,7 +8759,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_table_collection_sort(
-    tsk_table_collection_t *self, tsk_bookmark_t *start, tsk_flags_t options)
+    tsk_table_collection_t *self, const tsk_bookmark_t *start, tsk_flags_t options)
 {
     int ret = 0;
     tsk_table_sorter_t sorter;
@@ -8897,8 +9045,9 @@ tsk_table_collection_compute_mutation_times(
                 denominator[mutations.node[mutation]]++;
                 mutation++;
             }
-            /* Go over the mutations again assigning times. As the sorting requirements
-               guarantee that parents are before children, we assign oldest first */
+            /* Go over the mutations again assigning times. As the sorting
+               requirements guarantee that parents are before children, we assign
+               oldest first */
             for (j = first_mutation; j < mutation; j++) {
                 u = mutations.node[j];
                 numerator[u]++;
@@ -8945,7 +9094,7 @@ out:
 
 int
 tsk_table_collection_record_num_rows(
-    tsk_table_collection_t *self, tsk_bookmark_t *position)
+    const tsk_table_collection_t *self, tsk_bookmark_t *position)
 {
     position->individuals = self->individuals.num_rows;
     position->nodes = self->nodes.num_rows;
@@ -9004,17 +9153,68 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_clear(tsk_table_collection_t *self)
+tsk_table_collection_clear(tsk_table_collection_t *self, tsk_flags_t options)
 {
-    tsk_bookmark_t start;
+    int ret = 0;
+    bool clear_provenance = !!(options & TSK_CLEAR_PROVENANCE);
+    bool clear_metadata_schemas = !!(options & TSK_CLEAR_METADATA_SCHEMAS);
+    bool clear_ts_metadata = !!(options & TSK_CLEAR_TS_METADATA_AND_SCHEMA);
+    tsk_bookmark_t rows_to_retain
+        = { .provenances = clear_provenance ? 0 : self->provenances.num_rows };
 
-    memset(&start, 0, sizeof(start));
-    return tsk_table_collection_truncate(self, &start);
+    ret = tsk_table_collection_truncate(self, &rows_to_retain);
+    if (ret != 0) {
+        goto out;
+    }
+
+    if (clear_metadata_schemas) {
+        ret = tsk_individual_table_set_metadata_schema(&self->individuals, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_node_table_set_metadata_schema(&self->nodes, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_edge_table_set_metadata_schema(&self->edges, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_migration_table_set_metadata_schema(&self->migrations, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_site_table_set_metadata_schema(&self->sites, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_mutation_table_set_metadata_schema(&self->mutations, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_population_table_set_metadata_schema(&self->populations, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    if (clear_ts_metadata) {
+        ret = tsk_table_collection_set_metadata(self, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_table_collection_set_metadata_schema(self, "", 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
 }
 
 static int
 tsk_table_collection_add_and_remap_node(tsk_table_collection_t *self,
-    tsk_table_collection_t *other, tsk_id_t node_id, tsk_id_t *individual_map,
+    const tsk_table_collection_t *other, tsk_id_t node_id, tsk_id_t *individual_map,
     tsk_id_t *population_map, tsk_id_t *node_map, bool add_populations)
 {
     int ret = 0;
@@ -9079,7 +9279,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_table_collection_subset(
-    tsk_table_collection_t *self, tsk_id_t *nodes, tsk_size_t num_nodes)
+    tsk_table_collection_t *self, const tsk_id_t *nodes, tsk_size_t num_nodes)
 {
     int ret = 0;
     tsk_id_t k, i, new_parent, new_child, new_node;
@@ -9101,7 +9301,7 @@ tsk_table_collection_subset(
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_clear(self);
+    ret = tsk_table_collection_clear(self, 0);
     if (ret != 0) {
         goto out;
     }
@@ -9186,13 +9386,7 @@ tsk_table_collection_subset(
         ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
         goto out;
     }
-
-    // provenance (new record is added in python)
-    ret = tsk_provenance_table_copy(
-        &tables.provenances, &self->provenances, TSK_NO_INIT);
-    if (ret < 0) {
-        goto out;
-    }
+    ret = 0;
 
 out:
     tsk_safe_free(node_map);
@@ -9205,8 +9399,9 @@ out:
 }
 
 static int
-tsk_check_subset_equality(tsk_table_collection_t *self, tsk_table_collection_t *other,
-    tsk_id_t *other_node_mapping, tsk_size_t num_shared_nodes)
+tsk_check_subset_equality(tsk_table_collection_t *self,
+    const tsk_table_collection_t *other, const tsk_id_t *other_node_mapping,
+    tsk_size_t num_shared_nodes)
 {
     int ret = 0;
     tsk_id_t k, i;
@@ -9242,14 +9437,6 @@ tsk_check_subset_equality(tsk_table_collection_t *self, tsk_table_collection_t *
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_provenance_table_clear(&other_copy.provenances);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_provenance_table_clear(&self_copy.provenances);
-    if (ret != 0) {
-        goto out;
-    }
     ret = tsk_table_collection_subset(&self_copy, self_nodes, num_shared_nodes);
     if (ret != 0) {
         goto out;
@@ -9258,7 +9445,8 @@ tsk_check_subset_equality(tsk_table_collection_t *self, tsk_table_collection_t *
     if (ret != 0) {
         goto out;
     }
-    if (!tsk_table_collection_equals(&self_copy, &other_copy)) {
+    if (!tsk_table_collection_equals(&self_copy, &other_copy,
+            TSK_CMP_IGNORE_TS_METADATA | TSK_CMP_IGNORE_PROVENANCE)) {
         ret = TSK_ERR_UNION_DIFF_HISTORIES;
         goto out;
     }
@@ -9272,8 +9460,9 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_union(tsk_table_collection_t *self, tsk_table_collection_t *other,
-    tsk_id_t *other_node_mapping, tsk_flags_t options)
+tsk_table_collection_union(tsk_table_collection_t *self,
+    const tsk_table_collection_t *other, const tsk_id_t *other_node_mapping,
+    tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t k, i, new_parent, new_child;

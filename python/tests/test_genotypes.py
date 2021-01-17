@@ -24,10 +24,10 @@ Test cases for generating genotypes/haplotypes.
 """
 import itertools
 import random
-import unittest
 
 import msprime
 import numpy as np
+import pytest
 
 import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
@@ -58,7 +58,7 @@ def naive_get_ancestral_haplotypes(ts):
     return A
 
 
-class TestGetAncestralHaplotypes(unittest.TestCase):
+class TestGetAncestralHaplotypes:
     """
     Tests for the engine to the actual ancestors from a simulation.
     """
@@ -74,7 +74,7 @@ class TestGetAncestralHaplotypes(unittest.TestCase):
         nodes.set_columns(time=nodes.time, flags=flags)
         ts = tables.tree_sequence()
         B = ts.genotype_matrix().T
-        self.assertTrue(np.array_equal(A, B))
+        assert np.array_equal(A, B)
 
     def test_single_tree(self):
         ts = msprime.simulate(5, mutation_rate=1, random_seed=234)
@@ -84,8 +84,8 @@ class TestGetAncestralHaplotypes(unittest.TestCase):
         ts = msprime.simulate(
             8, recombination_rate=10, mutation_rate=10, random_seed=234
         )
-        self.assertGreater(ts.num_trees, 1)
-        self.assertGreater(ts.num_sites, 1)
+        assert ts.num_trees > 1
+        assert ts.num_sites > 1
         self.verify(ts)
 
     def test_single_tree_jukes_cantor(self):
@@ -100,8 +100,8 @@ class TestGetAncestralHaplotypes(unittest.TestCase):
 
     def test_many_trees_infinite_sites(self):
         ts = msprime.simulate(6, recombination_rate=2, mutation_rate=2, random_seed=1)
-        self.assertGreater(ts.num_sites, 0)
-        self.assertGreater(ts.num_trees, 2)
+        assert ts.num_sites > 0
+        assert ts.num_trees > 2
         self.verify(ts)
 
     def test_wright_fisher_initial_generation(self):
@@ -111,7 +111,7 @@ class TestGetAncestralHaplotypes(unittest.TestCase):
         tables.sort()
         tables.simplify()
         ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_wright_fisher_simplified(self):
@@ -126,7 +126,7 @@ class TestGetAncestralHaplotypes(unittest.TestCase):
         tables.sort()
         ts = tables.tree_sequence().simplify()
         ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         self.verify(ts)
 
     def test_empty_ts(self):
@@ -157,7 +157,7 @@ def isolated_samples_genotype_matrix(ts):
     return G
 
 
-class TestVariantGenerator(unittest.TestCase):
+class TestVariantGenerator:
     """
     Tests the variants() method to ensure the output is consistent.
     """
@@ -166,7 +166,7 @@ class TestVariantGenerator(unittest.TestCase):
         ts = msprime.simulate(
             10, length=10, recombination_rate=1, mutation_rate=10, random_seed=3
         )
-        self.assertGreater(ts.get_num_mutations(), 10)
+        assert ts.get_num_mutations() > 10
         return ts
 
     def test_as_bytes(self):
@@ -178,48 +178,48 @@ class TestVariantGenerator(unittest.TestCase):
         for variant in ts.variants():
             A[variant.index] = variant.genotypes
         for variant in ts.variants(as_bytes=True):
-            self.assertIsInstance(variant.genotypes, bytes)
-            B[variant.index] = np.fromstring(variant.genotypes, np.uint8) - ord("0")
-        self.assertTrue(np.all(A == B))
+            assert isinstance(variant.genotypes, bytes)
+            B[variant.index] = np.frombuffer(variant.genotypes, np.uint8) - ord("0")
+        assert np.all(A == B)
         bytes_variants = list(ts.variants(as_bytes=True))
         for j, variant in enumerate(bytes_variants):
-            self.assertEqual(j, variant.index)
-            row = np.fromstring(variant.genotypes, np.uint8) - ord("0")
-            self.assertTrue(np.all(A[j] == row))
+            assert j == variant.index
+            row = np.frombuffer(variant.genotypes, np.uint8) - ord("0")
+            assert np.all(A[j] == row)
 
     def test_as_bytes_fails(self):
         ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
-        self.assertRaises(ValueError, list, ts.variants(as_bytes=True))
+        with pytest.raises(ValueError):
+            list(ts.variants(as_bytes=True))
 
     def test_dtype(self):
         ts = self.get_tree_sequence()
         for var in ts.variants():
-            self.assertEqual(var.genotypes.dtype, np.int8)
+            assert var.genotypes.dtype == np.int8
 
     def test_dtype_conversion(self):
         # Check if we hit any issues if we assume the variants are uint8
         # as they were prior to version 0.2.0
         ts = self.get_tree_sequence()
         G = ts.genotype_matrix().astype(np.uint8)
-        self.assertEqual(G.dtype, np.uint8)
+        assert G.dtype == np.uint8
         for var in ts.variants():
-            self.assertTrue(np.array_equal(G[var.index], var.genotypes))
-            self.assertTrue(np.all(G[var.index] == var.genotypes))
-            self.assertEqual(
-                [var.alleles[g] for g in var.genotypes],
-                [var.alleles[g] for g in G[var.index]],
-            )
+            assert np.array_equal(G[var.index], var.genotypes)
+            assert np.all(G[var.index] == var.genotypes)
+            assert [var.alleles[g] for g in var.genotypes] == [
+                var.alleles[g] for g in G[var.index]
+            ]
             G[var.index, :] = var.genotypes
-            self.assertTrue(np.array_equal(G[var.index], var.genotypes))
+            assert np.array_equal(G[var.index], var.genotypes)
 
     def test_multichar_alleles(self):
         ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
         for var in ts.variants():
-            self.assertEqual(len(var.alleles), 2)
-            self.assertEqual(var.site.ancestral_state, var.alleles[0])
-            self.assertEqual(var.site.mutations[0].derived_state, var.alleles[1])
-            self.assertTrue(all(0 <= var.genotypes))
-            self.assertTrue(all(var.genotypes <= 1))
+            assert len(var.alleles) == 2
+            assert var.site.ancestral_state == var.alleles[0]
+            assert var.site.mutations[0].derived_state == var.alleles[1]
+            assert all(0 <= var.genotypes)
+            assert all(var.genotypes <= 1)
 
     def test_many_alleles(self):
         ts = self.get_tree_sequence()
@@ -228,26 +228,25 @@ class TestVariantGenerator(unittest.TestCase):
         tables.mutations.clear()
         # This gives us a total of 360 permutations.
         alleles = list(map("".join, itertools.permutations("ABCDEF", 4)))
-        self.assertGreater(len(alleles), 127)
+        assert len(alleles) > 127
         tables.sites.add_row(0, alleles[0])
         parent = -1
         num_alleles = 1
         for allele in alleles[1:]:
             ts = tables.tree_sequence()
             if num_alleles > 127:
-                self.assertRaises(exceptions.LibraryError, next, ts.variants())
+                with pytest.raises(exceptions.LibraryError):
+                    next(ts.variants())
             else:
                 var = next(ts.variants())
-                self.assertFalse(var.has_missing_data)
-                self.assertEqual(var.num_alleles, num_alleles)
-                self.assertEqual(len(var.alleles), num_alleles)
-                self.assertEqual(list(var.alleles), alleles[:num_alleles])
-                self.assertEqual(
-                    var.alleles[var.genotypes[0]], alleles[num_alleles - 1]
-                )
+                assert not var.has_missing_data
+                assert var.num_alleles == num_alleles
+                assert len(var.alleles) == num_alleles
+                assert list(var.alleles) == alleles[:num_alleles]
+                assert var.alleles[var.genotypes[0]] == alleles[num_alleles - 1]
                 for u in ts.samples():
                     if u != 0:
-                        self.assertEqual(var.alleles[var.genotypes[u]], alleles[0])
+                        assert var.alleles[var.genotypes[u]] == alleles[0]
             tables.mutations.add_row(0, 0, allele, parent=parent)
             parent += 1
             num_alleles += 1
@@ -261,29 +260,28 @@ class TestVariantGenerator(unittest.TestCase):
         tables.nodes.add_row(flags=1, time=0)
         # This gives us a total of 360 permutations.
         alleles = list(map("".join, itertools.permutations("ABCDEF", 4)))
-        self.assertGreater(len(alleles), 127)
+        assert len(alleles) > 127
         tables.sites.add_row(0, alleles[0])
         parent = -1
         num_alleles = 1
         for allele in alleles[1:]:
             ts = tables.tree_sequence()
             if num_alleles > 127:
-                self.assertRaises(exceptions.LibraryError, next, ts.variants())
+                with pytest.raises(exceptions.LibraryError):
+                    next(ts.variants())
             else:
                 var = next(ts.variants())
-                self.assertTrue(var.has_missing_data)
-                self.assertEqual(var.num_alleles, num_alleles)
-                self.assertEqual(len(var.alleles), num_alleles + 1)
-                self.assertEqual(list(var.alleles)[:-1], alleles[:num_alleles])
-                self.assertIsNone(var.alleles[-1])
-                self.assertEqual(
-                    var.alleles[var.genotypes[0]], alleles[num_alleles - 1]
-                )
-                self.assertEqual(var.genotypes[-1], -1)
+                assert var.has_missing_data
+                assert var.num_alleles == num_alleles
+                assert len(var.alleles) == num_alleles + 1
+                assert list(var.alleles)[:-1] == alleles[:num_alleles]
+                assert var.alleles[-1] is None
+                assert var.alleles[var.genotypes[0]] == alleles[num_alleles - 1]
+                assert var.genotypes[-1] == -1
                 samples = ts.samples()
                 for u in samples[:-1]:
                     if u != 0:
-                        self.assertEqual(var.alleles[var.genotypes[u]], alleles[0])
+                        assert var.alleles[var.genotypes[u]] == alleles[0]
             tables.mutations.add_row(0, 0, allele, parent=parent)
             parent += 1
             num_alleles += 1
@@ -291,14 +289,14 @@ class TestVariantGenerator(unittest.TestCase):
     def test_site_information(self):
         ts = self.get_tree_sequence()
         for site, variant in zip(ts.sites(), ts.variants()):
-            self.assertEqual(site.position, variant.position)
-            self.assertEqual(site, variant.site)
+            assert site.position == variant.position
+            assert site == variant.site
 
     def test_no_mutations(self):
         ts = msprime.simulate(10)
-        self.assertEqual(ts.get_num_mutations(), 0)
+        assert ts.get_num_mutations() == 0
         variants = list(ts.variants())
-        self.assertEqual(len(variants), 0)
+        assert len(variants) == 0
 
     def test_genotype_matrix(self):
         ts = self.get_tree_sequence()
@@ -306,8 +304,8 @@ class TestVariantGenerator(unittest.TestCase):
         for v in ts.variants():
             G[v.index, :] = v.genotypes
         G2 = ts.genotype_matrix()
-        self.assertTrue(np.array_equal(G, G2))
-        self.assertEqual(G2.dtype, np.int8)
+        assert np.array_equal(G, G2)
+        assert G2.dtype == np.int8
 
     def test_recurrent_mutations_over_samples(self):
         ts = self.get_tree_sequence()
@@ -323,13 +321,13 @@ class TestVariantGenerator(unittest.TestCase):
                 tables.mutations.add_row(site=j, node=u, derived_state="1")
         ts = tables.tree_sequence()
         variants = list(ts.variants())
-        self.assertEqual(len(variants), num_sites)
+        assert len(variants) == num_sites
         for site, variant in zip(ts.sites(), variants):
-            self.assertEqual(site.position, variant.position)
-            self.assertEqual(site, variant.site)
-            self.assertEqual(site.id, variant.index)
-            self.assertEqual(variant.alleles, ("0", "1"))
-            self.assertTrue(np.all(variant.genotypes == np.ones(ts.sample_size)))
+            assert site.position == variant.position
+            assert site == variant.site
+            assert site.id == variant.index
+            assert variant.alleles == ("0", "1")
+            assert np.all(variant.genotypes == np.ones(ts.sample_size))
 
     def test_recurrent_mutations_errors(self):
         ts = self.get_tree_sequence()
@@ -344,21 +342,22 @@ class TestVariantGenerator(unittest.TestCase):
                     tables.mutations.add_row(site=site, node=u, derived_state="1")
                     tables.mutations.add_row(site=site, node=sample, derived_state="1")
                     ts_new = tables.tree_sequence()
-                    self.assertRaises(exceptions.LibraryError, list, ts_new.variants())
+                    with pytest.raises(exceptions.LibraryError):
+                        list(ts_new.variants())
 
     def test_zero_samples(self):
         ts = self.get_tree_sequence()
         for var1, var2 in zip(ts.variants(), ts.variants(samples=[])):
-            self.assertEqual(var1.site, var2.site)
-            self.assertEqual(var1.alleles, var2.alleles)
-            self.assertEqual(var2.genotypes.shape[0], 0)
+            assert var1.site == var2.site
+            assert var1.alleles == var2.alleles
+            assert var2.genotypes.shape[0] == 0
 
     def test_samples(self):
         n = 4
         ts = msprime.simulate(
             n, length=5, recombination_rate=1, mutation_rate=5, random_seed=2
         )
-        self.assertGreater(ts.num_sites, 1)
+        assert ts.num_sites > 1
         samples = list(range(n))
         # Generate all possible sample lists.
         for j in range(n + 1):
@@ -366,19 +365,19 @@ class TestVariantGenerator(unittest.TestCase):
                 s = np.array(s, dtype=np.int32)
                 count = 0
                 for var1, var2 in zip(ts.variants(), ts.variants(samples=s)):
-                    self.assertEqual(var1.site, var2.site)
-                    self.assertEqual(var1.alleles, var2.alleles)
-                    self.assertEqual(var2.genotypes.shape, (len(s),))
-                    self.assertTrue(np.array_equal(var1.genotypes[s], var2.genotypes))
+                    assert var1.site == var2.site
+                    assert var1.alleles == var2.alleles
+                    assert var2.genotypes.shape == (len(s),)
+                    assert np.array_equal(var1.genotypes[s], var2.genotypes)
                     count += 1
-                self.assertEqual(count, ts.num_sites)
+                assert count == ts.num_sites
 
     def test_samples_missing_data(self):
         n = 4
         ts = msprime.simulate(
             n, length=5, recombination_rate=1, mutation_rate=5, random_seed=2
         )
-        self.assertGreater(ts.num_sites, 1)
+        assert ts.num_sites > 1
         tables = ts.dump_tables()
         tables.delete_intervals([[0.5, 0.6]])
         tables.sites.add_row(0.5, ancestral_state="0")
@@ -391,12 +390,12 @@ class TestVariantGenerator(unittest.TestCase):
                 s = np.array(s, dtype=np.int32)
                 count = 0
                 for var1, var2 in zip(ts.variants(), ts.variants(samples=s)):
-                    self.assertEqual(var1.site, var2.site)
-                    self.assertEqual(var1.alleles, var2.alleles)
-                    self.assertEqual(var2.genotypes.shape, (len(s),))
-                    self.assertTrue(np.array_equal(var1.genotypes[s], var2.genotypes))
+                    assert var1.site == var2.site
+                    assert var1.alleles == var2.alleles
+                    assert var2.genotypes.shape == (len(s),)
+                    assert np.array_equal(var1.genotypes[s], var2.genotypes)
                     count += 1
-                self.assertEqual(count, ts.num_sites)
+                assert count == ts.num_sites
 
     def test_non_sample_samples(self):
         # We don't have to use sample nodes. This does make the terminology confusing
@@ -410,7 +409,7 @@ class TestVariantGenerator(unittest.TestCase):
             time=tables.nodes.time,
         )
         all_samples_ts = tables.tree_sequence()
-        self.assertEqual(all_samples_ts.num_samples, ts.num_nodes)
+        assert all_samples_ts.num_samples == ts.num_nodes
 
         count = 0
         samples = range(ts.num_nodes)
@@ -418,18 +417,18 @@ class TestVariantGenerator(unittest.TestCase):
             all_samples_ts.variants(isolated_as_missing=False),
             ts.variants(samples=samples, isolated_as_missing=False),
         ):
-            self.assertEqual(var1.site, var2.site)
-            self.assertEqual(var1.alleles, var2.alleles)
-            self.assertEqual(var2.genotypes.shape, (len(samples),))
-            self.assertTrue(np.array_equal(var1.genotypes, var2.genotypes))
+            assert var1.site == var2.site
+            assert var1.alleles == var2.alleles
+            assert var2.genotypes.shape == (len(samples),)
+            assert np.array_equal(var1.genotypes, var2.genotypes)
             count += 1
-        self.assertEqual(count, ts.num_sites)
+        assert count == ts.num_sites
 
     def verify_jukes_cantor(self, ts):
-        self.assertTrue(np.array_equal(ts.genotype_matrix(), ts.genotype_matrix()))
+        assert np.array_equal(ts.genotype_matrix(), ts.genotype_matrix())
         tree = ts.first()
         for variant in ts.variants():
-            self.assertFalse(variant.has_missing_data)
+            assert not variant.has_missing_data
             mutations = {
                 mutation.node: mutation.derived_state
                 for mutation in variant.site.mutations
@@ -439,7 +438,7 @@ class TestVariantGenerator(unittest.TestCase):
                     u = tree.parent(u)
                 state1 = mutations.get(u, variant.site.ancestral_state)
                 state2 = variant.alleles[variant.genotypes[sample_index]]
-                self.assertEqual(state1, state2)
+                assert state1 == state2
 
     def test_jukes_cantor_n5(self):
         ts = msprime.simulate(5, random_seed=2)
@@ -463,28 +462,33 @@ class TestVariantGenerator(unittest.TestCase):
         tables.sort()
         ts = tables.tree_sequence()
         Gnm = ts.genotype_matrix(isolated_as_missing=False)
-        self.assertTrue(np.all(Gnm[0] == 0))
-        self.assertTrue(np.all(Gnm[1] == 0))
-        self.assertTrue(np.all(Gnm[-1] == 0))
-        self.assertTrue(np.all(Gnm[-2] == 0))
+        assert np.all(Gnm[0] == 0)
+        assert np.all(Gnm[1] == 0)
+        assert np.all(Gnm[-1] == 0)
+        assert np.all(Gnm[-2] == 0)
         Gm = isolated_samples_genotype_matrix(ts)
-        self.assertTrue(np.all(Gm[0] == -1))
-        self.assertTrue(np.all(Gm[1] == -1))
-        self.assertTrue(np.all(Gm[-1] == -1))
-        self.assertTrue(np.all(Gm[-2] == -1))
+        assert np.all(Gm[0] == -1)
+        assert np.all(Gm[1] == -1)
+        assert np.all(Gm[-1] == -1)
+        assert np.all(Gm[-2] == -1)
         Gm2 = ts.genotype_matrix(isolated_as_missing=True)
-        self.assertTrue(np.array_equal(Gm, Gm2))
+        assert np.array_equal(Gm, Gm2)
 
         # Test deprecated param
-        Gi = ts.genotype_matrix(impute_missing_data=True)
-        self.assertTrue(np.array_equal(Gnm, Gi))
-        Gni = ts.genotype_matrix(impute_missing_data=False)
-        self.assertTrue(np.array_equal(Gm, Gni))
 
-        G = ts.genotype_matrix(isolated_as_missing=False, impute_missing_data=True)
-        self.assertTrue(np.array_equal(Gnm, G))
-        G = ts.genotype_matrix(isolated_as_missing=True, impute_missing_data=False)
-        self.assertTrue(np.array_equal(Gm, G))
+        with pytest.warns(FutureWarning):
+            Gi = ts.genotype_matrix(impute_missing_data=True)
+        assert np.array_equal(Gnm, Gi)
+        with pytest.warns(FutureWarning):
+            Gni = ts.genotype_matrix(impute_missing_data=False)
+        assert np.array_equal(Gm, Gni)
+
+        with pytest.warns(FutureWarning):
+            G = ts.genotype_matrix(isolated_as_missing=False, impute_missing_data=True)
+        assert np.array_equal(Gnm, G)
+        with pytest.warns(FutureWarning):
+            G = ts.genotype_matrix(isolated_as_missing=True, impute_missing_data=False)
+        assert np.array_equal(Gm, G)
 
     def test_empty_ts_missing_data(self):
         tables = tskit.TableCollection(1.0)
@@ -493,11 +497,11 @@ class TestVariantGenerator(unittest.TestCase):
         tables.sites.add_row(0.5, "A")
         ts = tables.tree_sequence()
         variants = list(ts.variants())
-        self.assertEqual(len(variants), 1)
+        assert len(variants) == 1
         var = variants[0]
-        self.assertEqual(var.alleles, ("A", None))
-        self.assertEqual(var.num_alleles, 1)
-        self.assertTrue(np.all(var.genotypes == -1))
+        assert var.alleles == ("A", None)
+        assert var.num_alleles == 1
+        assert np.all(var.genotypes == -1)
 
     def test_empty_ts_incomplete_samples(self):
         # https://github.com/tskit-dev/tskit/issues/776
@@ -507,9 +511,9 @@ class TestVariantGenerator(unittest.TestCase):
         tables.sites.add_row(0.5, "A")
         ts = tables.tree_sequence()
         variants = list(ts.variants(samples=[0]))
-        self.assertEqual(list(variants[0].genotypes), [-1])
+        assert list(variants[0].genotypes) == [-1]
         variants = list(ts.variants(samples=[1]))
-        self.assertEqual(list(variants[0].genotypes), [-1])
+        assert list(variants[0].genotypes) == [-1]
 
     def test_missing_data_samples(self):
         tables = tskit.TableCollection(1.0)
@@ -521,25 +525,25 @@ class TestVariantGenerator(unittest.TestCase):
 
         # If we have no samples we still get a list of variants.
         variants = list(ts.variants(samples=[]))
-        self.assertEqual(len(variants[0].genotypes), 0)
-        self.assertFalse(variants[0].has_missing_data)
-        self.assertEqual(variants[0].alleles, ("A", "T"))
+        assert len(variants[0].genotypes) == 0
+        assert not variants[0].has_missing_data
+        assert variants[0].alleles == ("A", "T")
 
         # If we have a single sample that's not missing, there's no
         # missing data.
         variants = list(ts.variants(samples=[0]))
-        self.assertEqual(len(variants[0].genotypes), 1)
-        self.assertEqual(variants[0].genotypes[0], 1)
-        self.assertFalse(variants[0].has_missing_data)
-        self.assertEqual(variants[0].alleles, ("A", "T"))
+        assert len(variants[0].genotypes) == 1
+        assert variants[0].genotypes[0] == 1
+        assert not variants[0].has_missing_data
+        assert variants[0].alleles == ("A", "T")
 
         # If we have a single sample that is missing, there is
         # missing data.
         variants = list(ts.variants(samples=[1]))
-        self.assertEqual(len(variants[0].genotypes), 1)
-        self.assertEqual(variants[0].genotypes[0], -1)
-        self.assertTrue(variants[0].has_missing_data)
-        self.assertEqual(variants[0].alleles, ("A", "T", None))
+        assert len(variants[0].genotypes) == 1
+        assert variants[0].genotypes[0] == -1
+        assert variants[0].has_missing_data
+        assert variants[0].alleles == ("A", "T", None)
 
     def test_mutation_over_isolated_sample_not_missing(self):
         tables = tskit.TableCollection(1.0)
@@ -549,11 +553,11 @@ class TestVariantGenerator(unittest.TestCase):
         tables.mutations.add_row(0, 0, "T")
         ts = tables.tree_sequence()
         variants = list(ts.variants())
-        self.assertEqual(len(variants), 1)
+        assert len(variants) == 1
         var = variants[0]
-        self.assertEqual(var.alleles, ("A", "T", None))
-        self.assertEqual(var.num_alleles, 2)
-        self.assertEqual(list(var.genotypes), [1, -1])
+        assert var.alleles == ("A", "T", None)
+        assert var.num_alleles == 2
+        assert list(var.genotypes) == [1, -1]
 
     def test_multiple_mutations_over_isolated_sample(self):
         tables = tskit.TableCollection(1.0)
@@ -564,12 +568,12 @@ class TestVariantGenerator(unittest.TestCase):
         tables.mutations.add_row(0, 0, "G", parent=0)
         ts = tables.tree_sequence()
         variants = list(ts.variants())
-        self.assertEqual(len(variants), 1)
+        assert len(variants) == 1
         var = variants[0]
-        self.assertEqual(var.alleles, ("A", "T", "G", None))
-        self.assertEqual(var.num_alleles, 3)
-        self.assertEqual(len(var.site.mutations), 2)
-        self.assertEqual(list(var.genotypes), [2, -1])
+        assert var.alleles == ("A", "T", "G", None)
+        assert var.num_alleles == 3
+        assert len(var.site.mutations) == 2
+        assert list(var.genotypes) == [2, -1]
 
     def test_snipped_tree_sequence_missing_data(self):
         ts = msprime.simulate(
@@ -586,24 +590,24 @@ class TestVariantGenerator(unittest.TestCase):
         num_missing = 0
         for var in ts.variants():
             if 4 <= var.site.position < 6:
-                self.assertTrue(var.has_missing_data)
-                self.assertTrue(np.all(var.genotypes == tskit.MISSING_DATA))
+                assert var.has_missing_data
+                assert np.all(var.genotypes == tskit.MISSING_DATA)
                 num_missing += 1
             else:
-                self.assertFalse(var.has_missing_data)
-                self.assertTrue(np.all(var.genotypes != tskit.MISSING_DATA))
-            self.assertTrue(np.array_equal(var.genotypes, G[var.site.id]))
-        self.assertEqual(num_missing, 3)
+                assert not var.has_missing_data
+                assert np.all(var.genotypes != tskit.MISSING_DATA)
+            assert np.array_equal(var.genotypes, G[var.site.id])
+        assert num_missing == 3
 
         G = ts.genotype_matrix(isolated_as_missing=False)
         for var in ts.variants(isolated_as_missing=False):
             if 4 <= var.site.position < 6:
-                self.assertFalse(var.has_missing_data)
-                self.assertTrue(np.all(var.genotypes == 0))
+                assert not var.has_missing_data
+                assert np.all(var.genotypes == 0)
             else:
-                self.assertFalse(var.has_missing_data)
-                self.assertTrue(np.all(var.genotypes != tskit.MISSING_DATA))
-            self.assertTrue(np.array_equal(var.genotypes, G[var.site.id]))
+                assert not var.has_missing_data
+                assert np.all(var.genotypes != tskit.MISSING_DATA)
+            assert np.array_equal(var.genotypes, G[var.site.id])
 
     def test_snipped_tree_sequence_mutations_over_isolated(self):
         ts = msprime.simulate(
@@ -627,23 +631,23 @@ class TestVariantGenerator(unittest.TestCase):
         non_missing_found = False
         for var in ts.variants():
             if var.site.position == 4:
-                self.assertTrue(var.has_missing_data)
-                self.assertEqual(var.genotypes[0], 1)
-                self.assertTrue(np.all(var.genotypes[1:] == tskit.MISSING_DATA))
+                assert var.has_missing_data
+                assert var.genotypes[0] == 1
+                assert np.all(var.genotypes[1:] == tskit.MISSING_DATA)
                 missing_found += 1
             elif var.site.position == 5:
-                self.assertFalse(var.has_missing_data)
-                self.assertTrue(np.all(var.genotypes == 0))
+                assert not var.has_missing_data
+                assert np.all(var.genotypes == 0)
                 non_missing_found = 1
             else:
-                self.assertFalse(var.has_missing_data)
-                self.assertTrue(np.all(var.genotypes != tskit.MISSING_DATA))
-            self.assertTrue(np.array_equal(var.genotypes, G[var.site.id]))
-        self.assertTrue(non_missing_found)
-        self.assertTrue(missing_found)
+                assert not var.has_missing_data
+                assert np.all(var.genotypes != tskit.MISSING_DATA)
+            assert np.array_equal(var.genotypes, G[var.site.id])
+        assert non_missing_found
+        assert missing_found
 
 
-class TestHaplotypeGenerator(unittest.TestCase):
+class TestHaplotypeGenerator:
     """
     Tests the haplotype generation code.
     """
@@ -652,10 +656,10 @@ class TestHaplotypeGenerator(unittest.TestCase):
         """
         Verify that the specified set of haplotypes is consistent.
         """
-        self.assertEqual(len(haplotypes), n)
+        assert len(haplotypes) == n
         m = len(haplotypes[0])
         for h in haplotypes:
-            self.assertEqual(len(h), m)
+            assert len(h) == m
         # Examine each column in H; we must have a mixture of 0s and 1s
         for k in range(m):
             zeros = 0
@@ -666,7 +670,7 @@ class TestHaplotypeGenerator(unittest.TestCase):
                 zeros += b == "0"
                 ones += b == "1"
                 col += b
-            self.assertEqual(zeros + ones, n)
+            assert zeros + ones == n
 
     def verify_tree_sequence(self, tree_sequence):
         n = tree_sequence.sample_size
@@ -675,11 +679,11 @@ class TestHaplotypeGenerator(unittest.TestCase):
         A = np.zeros((n, m), dtype="u1")
         B = np.zeros((n, m), dtype="u1")
         for j, h in enumerate(haplotypes):
-            self.assertEqual(len(h), m)
-            A[j] = np.fromstring(h, np.uint8) - ord("0")
+            assert len(h) == m
+            A[j] = np.frombuffer(h.encode("ascii"), np.uint8) - ord("0")
         for variant in tree_sequence.variants():
             B[:, variant.index] = variant.genotypes
-        self.assertTrue(np.all(A == B))
+        assert np.all(A == B)
         self.verify_haplotypes(n, haplotypes)
 
     def verify_simulation(self, n, m, r, theta):
@@ -718,7 +722,7 @@ class TestHaplotypeGenerator(unittest.TestCase):
 
     def test_acgt_mutations(self):
         ts = msprime.simulate(10, mutation_rate=10)
-        self.assertGreater(ts.num_sites, 0)
+        assert ts.num_sites > 0
         tables = ts.tables
         sites = tables.sites
         mutations = tables.mutations
@@ -735,28 +739,31 @@ class TestHaplotypeGenerator(unittest.TestCase):
         )
         tsp = tables.tree_sequence()
         H = [h.replace("0", "A").replace("1", "T") for h in ts.haplotypes()]
-        self.assertEqual(H, list(tsp.haplotypes()))
+        assert H == list(tsp.haplotypes())
 
     def test_fails_multiletter_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.tables
         tables.sites.add_row(0, "ACTG")
         tsp = tables.tree_sequence()
-        self.assertRaises(TypeError, list, tsp.haplotypes())
+        with pytest.raises(TypeError):
+            list(tsp.haplotypes())
 
     def test_fails_deletion_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.tables
         tables.sites.add_row(0, "")
         tsp = tables.tree_sequence()
-        self.assertRaises(TypeError, list, tsp.haplotypes())
+        with pytest.raises(TypeError):
+            list(tsp.haplotypes())
 
     def test_nonascii_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.tables
         tables.sites.add_row(0, chr(169))  # Copyright symbol
         tsp = tables.tree_sequence()
-        self.assertRaises(TypeError, list, tsp.haplotypes())
+        with pytest.raises(TypeError):
+            list(tsp.haplotypes())
 
     def test_recurrent_mutations_over_samples(self):
         ts = msprime.simulate(10, random_seed=2)
@@ -771,7 +778,7 @@ class TestHaplotypeGenerator(unittest.TestCase):
         ts_new = tables.tree_sequence()
         ones = "1" * num_sites
         for h in ts_new.haplotypes():
-            self.assertEqual(ones, h)
+            assert ones == h
 
     def test_recurrent_mutations_errors(self):
         ts = msprime.simulate(10, random_seed=2)
@@ -784,7 +791,8 @@ class TestHaplotypeGenerator(unittest.TestCase):
             tables.mutations.add_row(site=site, node=u, derived_state="1")
             tables.mutations.add_row(site=site, node=tree.root, derived_state="1")
             ts_new = tables.tree_sequence()
-            self.assertRaises(exceptions.LibraryError, list, ts_new.haplotypes())
+            with pytest.raises(exceptions.LibraryError):
+                list(ts_new.haplotypes())
             ts_new.haplotypes()
 
     def test_back_mutations(self):
@@ -799,120 +807,129 @@ class TestHaplotypeGenerator(unittest.TestCase):
         tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
         tables.sites.add_row(0.5, "A")
         ts = tables.tree_sequence()
-        self.assertRaises(ValueError, list, ts.haplotypes(missing_data_character="A"))
+        with pytest.raises(ValueError):
+            list(ts.haplotypes(missing_data_character="A"))
         for c in ("-", ".", "a"):
             h = list(ts.haplotypes(missing_data_character=c))
-            self.assertEqual(h, [c, c])
+            assert h == [c, c]
         h = list(ts.haplotypes(isolated_as_missing=True))
-        self.assertEqual(h, ["-", "-"])
+        assert h == ["-", "-"]
         h = list(ts.haplotypes(isolated_as_missing=False))
-        self.assertEqual(h, ["A", "A"])
+        assert h == ["A", "A"]
         h = list(ts.haplotypes())
-        self.assertEqual(h, ["-", "-"])
+        assert h == ["-", "-"]
         # Test deprecated method
-        h = list(ts.haplotypes(impute_missing_data=True))
-        self.assertEqual(h, ["A", "A"])
-        h = list(ts.haplotypes(impute_missing_data=False))
-        self.assertEqual(h, ["-", "-"])
-        h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
-        self.assertEqual(h, ["-", "-"])
-        h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
-        self.assertEqual(h, ["-", "-"])
-        h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
-        self.assertEqual(h, ["A", "A"])
-        h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=False))
-        self.assertEqual(h, ["A", "A"])
+        with pytest.warns(FutureWarning):
+            h = list(ts.haplotypes(impute_missing_data=True))
+        assert h == ["A", "A"]
+        with pytest.warns(FutureWarning):
+            h = list(ts.haplotypes(impute_missing_data=False))
+        assert h == ["-", "-"]
+        with pytest.warns(FutureWarning):
+            h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
+        assert h == ["-", "-"]
+        with pytest.warns(FutureWarning):
+            h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
+        assert h == ["-", "-"]
+        with pytest.warns(FutureWarning):
+            h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
+        assert h == ["A", "A"]
+        with pytest.warns(FutureWarning):
+            h = list(
+                ts.haplotypes(isolated_as_missing=False, impute_missing_data=False)
+            )
+        assert h == ["A", "A"]
 
 
-class TestUserAlleles(unittest.TestCase):
+class TestUserAlleles:
     """
     Tests the functionality of providing a user-specified allele mapping.
     """
 
     def test_simple_01(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         G1 = ts.genotype_matrix()
         G2 = ts.genotype_matrix(alleles=("0", "1"))
-        self.assertTrue(np.array_equal(G1, G2))
+        assert np.array_equal(G1, G2)
         for v1, v2 in itertools.zip_longest(
             ts.variants(), ts.variants(alleles=("0", "1"))
         ):
-            self.assertEqual(v1.alleles, v2.alleles)
-            self.assertEqual(v1.site, v2.site)
-            self.assertTrue(np.array_equal(v1.genotypes, v2.genotypes))
+            assert v1.alleles == v2.alleles
+            assert v1.site == v2.site
+            assert np.array_equal(v1.genotypes, v2.genotypes)
 
     def test_simple_01_trailing_alleles(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         G1 = ts.genotype_matrix()
         alleles = ("0", "1", "2", "xxxxx")
         G2 = ts.genotype_matrix(alleles=alleles)
-        self.assertTrue(np.array_equal(G1, G2))
+        assert np.array_equal(G1, G2)
         for v1, v2 in itertools.zip_longest(
             ts.variants(), ts.variants(alleles=alleles)
         ):
-            self.assertEqual(v2.alleles, alleles)
-            self.assertEqual(v1.site, v2.site)
-            self.assertTrue(np.array_equal(v1.genotypes, v2.genotypes))
+            assert v2.alleles == alleles
+            assert v1.site == v2.site
+            assert np.array_equal(v1.genotypes, v2.genotypes)
 
     def test_simple_01_leading_alleles(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         G1 = ts.genotype_matrix()
         alleles = ("A", "B", "C", "0", "1")
         G2 = ts.genotype_matrix(alleles=alleles)
-        self.assertTrue(np.array_equal(G1 + 3, G2))
+        assert np.array_equal(G1 + 3, G2)
         for v1, v2 in itertools.zip_longest(
             ts.variants(), ts.variants(alleles=alleles)
         ):
-            self.assertEqual(v2.alleles, alleles)
-            self.assertEqual(v1.site, v2.site)
-            self.assertTrue(np.array_equal(v1.genotypes + 3, v2.genotypes))
+            assert v2.alleles == alleles
+            assert v1.site == v2.site
+            assert np.array_equal(v1.genotypes + 3, v2.genotypes)
 
     def test_simple_01_duplicate_alleles(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         G1 = ts.genotype_matrix()
         alleles = ("0", "0", "1")
         G2 = ts.genotype_matrix(alleles=alleles)
         index = np.where(G1 == 1)
         G1[index] = 2
-        self.assertTrue(np.array_equal(G1, G2))
+        assert np.array_equal(G1, G2)
         for v1, v2 in itertools.zip_longest(
             ts.variants(), ts.variants(alleles=alleles)
         ):
-            self.assertEqual(v2.alleles, alleles)
-            self.assertEqual(v1.site, v2.site)
+            assert v2.alleles == alleles
+            assert v1.site == v2.site
             g = v1.genotypes
             index = np.where(g == 1)
             g[index] = 2
-            self.assertTrue(np.array_equal(g, v2.genotypes))
+            assert np.array_equal(g, v2.genotypes)
 
     def test_simple_acgt(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = msprime.mutate(
             ts, rate=4, random_seed=2, model=msprime.InfiniteSites(msprime.NUCLEOTIDES)
         )
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         alleles = tskit.ALLELES_ACGT
         G = ts.genotype_matrix(alleles=alleles)
         for v1, v2 in itertools.zip_longest(
             ts.variants(), ts.variants(alleles=alleles)
         ):
-            self.assertEqual(v2.alleles, alleles)
-            self.assertEqual(v1.site, v2.site)
+            assert v2.alleles == alleles
+            assert v1.site == v2.site
             h1 = "".join(v1.alleles[g] for g in v1.genotypes)
             h2 = "".join(v2.alleles[g] for g in v2.genotypes)
-            self.assertEqual(h1, h2)
-            self.assertTrue(np.array_equal(v2.genotypes, G[v1.site.id]))
+            assert h1 == h2
+            assert np.array_equal(v2.genotypes, G[v1.site.id])
 
     def test_missing_alleles(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = msprime.mutate(
             ts, rate=4, random_seed=2, model=msprime.InfiniteSites(msprime.NUCLEOTIDES)
         )
-        self.assertGreater(ts.num_sites, 2)
+        assert ts.num_sites > 2
         bad_allele_examples = [
             tskit.ALLELES_01,
             tuple(["A"]),
@@ -921,25 +938,25 @@ class TestUserAlleles(unittest.TestCase):
             tuple(["ACTG"]),
         ]
         for bad_alleles in bad_allele_examples:
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 ts.genotype_matrix(alleles=bad_alleles)
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 list(ts.variants(alleles=bad_alleles))
 
     def test_too_many_alleles(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
         for n in range(128, 138):
             bad_alleles = tuple(["0" for _ in range(n)])
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 ts.genotype_matrix(alleles=bad_alleles)
-            with self.assertRaises(exceptions.LibraryError):
+            with pytest.raises(exceptions.LibraryError):
                 list(ts.variants(alleles=bad_alleles))
 
     def test_zero_allele(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ts.genotype_matrix(alleles=tuple())
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(ts.variants(alleles=tuple()))
 
     def test_missing_data(self):
@@ -955,18 +972,18 @@ class TestUserAlleles(unittest.TestCase):
             G2 = ts.genotype_matrix(
                 isolated_as_missing=isolated_as_missing, alleles=tskit.ALLELES_01
             )
-            self.assertTrue(np.array_equal(G1, G2))
+            assert np.array_equal(G1, G2)
             vars1 = ts.variants(isolated_as_missing=isolated_as_missing)
             vars2 = ts.variants(
                 isolated_as_missing=isolated_as_missing, alleles=tskit.ALLELES_01
             )
             for v1, v2 in itertools.zip_longest(vars1, vars2):
-                self.assertEqual(v2.alleles, v1.alleles)
-                self.assertEqual(v1.site, v2.site)
-                self.assertTrue(np.array_equal(v1.genotypes, v2.genotypes))
+                assert v2.alleles == v1.alleles
+                assert v1.site == v2.site
+                assert np.array_equal(v1.genotypes, v2.genotypes)
 
 
-class TestUserAllelesRoundTrip(unittest.TestCase):
+class TestUserAllelesRoundTrip:
     """
     Tests that we correctly produce haplotypes in a variety of situations for
     the user specified allele map encoding.
@@ -978,11 +995,11 @@ class TestUserAllelesRoundTrip(unittest.TestCase):
         ):
             h1 = [v1.alleles[g] for g in v1.genotypes]
             h2 = [v2.alleles[g] for g in v2.genotypes]
-            self.assertEqual(h1, h2)
+            assert h1 == h2
 
     def test_simple_01(self):
         ts = msprime.simulate(5, mutation_rate=2, random_seed=3)
-        self.assertGreater(ts.num_sites, 3)
+        assert ts.num_sites > 3
         valid_alleles = [
             tskit.ALLELES_01,
             ("0", "1", "xry"),
@@ -998,7 +1015,7 @@ class TestUserAllelesRoundTrip(unittest.TestCase):
         ts = msprime.mutate(
             ts, rate=4, random_seed=3, model=msprime.InfiniteSites(msprime.NUCLEOTIDES)
         )
-        self.assertGreater(ts.num_sites, 3)
+        assert ts.num_sites > 3
         valid_alleles = [
             tskit.ALLELES_ACGT,
             ("A", "C", "T", "G", "AAAAAAAAAAAAAA"),
@@ -1021,7 +1038,7 @@ class TestUserAllelesRoundTrip(unittest.TestCase):
     def test_multichar_mutations(self):
         ts = msprime.simulate(6, random_seed=1, recombination_rate=2)
         ts = tsutil.insert_multichar_mutations(ts)
-        self.assertGreater(ts.num_sites, 5)
+        assert ts.num_sites > 5
         all_alleles = set()
         for var in ts.variants():
             all_alleles.update(var.alleles)
@@ -1035,7 +1052,7 @@ class TestUserAllelesRoundTrip(unittest.TestCase):
         # Add another sample node. This will be missing data everywhere.
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
         ts = tables.tree_sequence()
-        self.assertGreater(ts.num_sites, 3)
+        assert ts.num_sites > 3
         valid_alleles = [
             tskit.ALLELES_01,
             ("0", "1", "xry"),

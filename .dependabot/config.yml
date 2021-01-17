@@ -1,7 +1,28 @@
 version: 1
 update_configs:
   - package_manager: "python"
-    directory: "/python/requirements/CI"
+    directory: "/python/requirements/CI-complete"
+    update_schedule: "monthly"
+    default_reviewers:
+      - "benjeffery"
+    default_labels:
+      - "dependancy-upgrade"
+  - package_manager: "python"
+    directory: "/python/requirements/CI-tests-conda"
+    update_schedule: "monthly"
+    default_reviewers:
+      - "benjeffery"
+    default_labels:
+      - "dependancy-upgrade"
+  - package_manager: "python"
+    directory: "/python/requirements/CI-tests-pip"
+    update_schedule: "monthly"
+    default_reviewers:
+      - "benjeffery"
+    default_labels:
+      - "dependancy-upgrade"
+  - package_manager: "python"
+    directory: "/python/requirements/CI-docs"
     update_schedule: "monthly"
     default_reviewers:
       - "benjeffery"

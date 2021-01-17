@@ -576,14 +576,7 @@ def py_subset(tables, nodes, record_provenance=True):
     if np.any(nodes > tables.nodes.num_rows) or np.any(nodes < 0):
         raise ValueError("Nodes out of bounds.")
     full = tables.copy()
-    # there is no table collection clear in the py API
-    tables.nodes.clear()
-    tables.individuals.clear()
-    tables.populations.clear()
-    tables.edges.clear()
-    tables.migrations.clear()
-    tables.sites.clear()
-    tables.mutations.clear()
+    tables.clear()
     # mapping from old to new ids
     node_map = {}
     ind_map = {tskit.NULL: tskit.NULL}
@@ -1289,27 +1282,3 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
     L[L == 0] = 1
     A /= L.reshape((len(focal), 1))
     return A
-
-
-def coiterate(ts1, ts2, **kwargs):
-    """
-    Returns an iterator over the pairs of trees for each distinct
-    interval in the specified pair of tree sequences.
-    """
-    if ts1.sequence_length != ts2.sequence_length:
-        raise ValueError("Tree sequences must be equal length.")
-    L = ts1.sequence_length
-    trees1 = ts1.trees(**kwargs)
-    trees2 = ts2.trees(**kwargs)
-    tree1 = next(trees1)
-    tree2 = next(trees2)
-    right = 0
-    while right != L:
-        left = right
-        right = min(tree1.interval[1], tree2.interval[1])
-        yield (left, right), tree1, tree2
-        # Advance
-        if tree1.interval[1] == right:
-            tree1 = next(trees1, None)
-        if tree2.interval[1] == right:
-            tree2 = next(trees2, None)

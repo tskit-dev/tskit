@@ -45,8 +45,7 @@ from tskit import UNKNOWN_TIME
 attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 
 
-# note: soon attrs will deprecate cmp; we just need to change this argument to eq
-@attr.s(cmp=False, **attr_options)
+@attr.s(eq=False, **attr_options)
 class IndividualTableRow:
     flags: int
     location: np.ndarray
@@ -143,6 +142,19 @@ class ProvenanceTableRow:
     record: str
 
 
+@attr.s(**attr_options)
+class TableCollectionIndexes:
+    edge_insertion_order: np.ndarray = attr.ib(default=None)
+    edge_removal_order: np.ndarray = attr.ib(default=None)
+
+    def asdict(self):
+        return attr.asdict(self, filter=lambda k, v: v is not None)
+
+    @property
+    def nbytes(self):
+        return self.edge_insertion_order.nbytes + self.edge_removal_order.nbytes
+
+
 def keep_with_offset(keep, data, offset):
     """
     Used when filtering _offset columns in tables
@@ -190,14 +202,50 @@ class BaseTable:
     def max_rows_increment(self):
         return self.ll_table.max_rows_increment
 
-    def __eq__(self, other):
+    @property
+    def nbytes(self) -> int:
+        """
+        Returns the total number of bytes required to store the data
+        in this table. Note that this may not be equal to
+        the actual memory footprint.
+        """
+        # It's not ideal that we run asdict() here to do this as we're
+        # currently creating copies of the column arrays, so it would
+        # be more efficient to have dedicated low-level methods. However,
+        # if we do have read-only views on the underlying memory for the
+        # column arrays then this will be a perfectly good way of
+        # computing the nbytes values and the overhead minimal.
+        d = self.asdict()
+        nbytes = 0
+        # Some tables don't have a metadata_schema
+        metadata_schema = d.pop("metadata_schema", None)
+        if metadata_schema is not None:
+            nbytes += len(metadata_schema.encode())
+        nbytes += sum(col.nbytes for col in d.values())
+        return nbytes
+
+    def equals(self, other, ignore_metadata=False):
+        """
+        Returns True if  `self` and `other` are equal. By default, two tables
+        are considered equal if their columns and metadata schemas are
+        byte-for-byte identical.
+
+        :param other: Another table instance
+        :param bool ignore_metadata: If True exclude metadata and metadata schemas
+            from the comparison.
+        :return: True if other is equal to this table; False otherwise.
+        :rtype: bool
+        """
+        # Note: most tables support ignore_metadata, we can override for those that don't
         ret = False
         if type(other) is type(self):
-            ret = bool(self.ll_table.equals(other.ll_table))
+            ret = bool(
+                self.ll_table.equals(other.ll_table, ignore_metadata=ignore_metadata)
+            )
         return ret
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    def __eq__(self, other):
+        return self.equals(other)
 
     def __len__(self):
         return self.num_rows
@@ -280,7 +328,7 @@ class BaseTable:
         ret = {col: getattr(self, col) for col in self.column_names}
         # Not all tables have metadata
         try:
-            ret["metadata_schema"] = str(self.metadata_schema)
+            ret["metadata_schema"] = repr(self.metadata_schema)
         except AttributeError:
             pass
         return ret
@@ -365,7 +413,8 @@ class MetadataMixin:
 
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
-        self.ll_table.metadata_schema = str(schema)
+        self.ll_table.metadata_schema = repr(schema)
+        self._update_metadata_schema_cache_from_ll()
         self._update_metadata_schema_cache_from_ll()
 
     def decode_row(self, row: Tuple[Any]) -> Tuple:
@@ -469,9 +518,13 @@ class IndividualTable(BaseTable, MetadataMixin):
             array describing the location of this individual. If not specified
             or None, a zero-dimensional location is stored.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added node.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(
             flags=flags, location=location, parents=parents, metadata=metadata
@@ -687,9 +740,13 @@ class NodeTable(BaseTable, MetadataMixin):
         :param int individual: The ID of the individual in which the new node was born.
             Defaults to :data:`tskit.NULL`.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added node.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(flags, time, population, individual, metadata)
 
@@ -882,9 +939,13 @@ class EdgeTable(BaseTable, MetadataMixin):
         :param int parent: The ID of parent node.
         :param int child: The ID of child node.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added edge.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, parent, child, metadata)
 
@@ -1096,9 +1157,13 @@ class MigrationTable(BaseTable, MetadataMixin):
         :param int dest: The ID of the destination population.
         :param float time: The time of the migration event.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added migration.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(left, right, node, source, dest, time, metadata)
 
@@ -1303,9 +1368,13 @@ class SiteTable(BaseTable, MetadataMixin):
         :param float position: The position of this site in genome coordinates.
         :param str ancestral_state: The state of this site at the root of the tree.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added site.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(position, ancestral_state, metadata)
 
@@ -1529,11 +1598,15 @@ class MutationTable(BaseTable, MetadataMixin):
         :param int parent: The ID of the parent mutation. If not specified,
             defaults to :attr:`NULL`.
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added mutation.
         :param float time: The occurrence time for the new mutation. If not specified,
             defaults to ``UNKNOWN_TIME``, indicating the time is unknown.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(
             site,
@@ -1732,9 +1805,13 @@ class PopulationTable(BaseTable, MetadataMixin):
         :attr:`metadata_schema<tskit.PopulationTable.metadata_schema>`.
 
         :param object metadata: Any object that is valid metadata for the table's schema.
+            Defaults to the default metadata value for the table's schema. This is
+            typically ``{}``. For no schema, ``None``.
         :return: The ID of the newly added population.
         :rtype: int
         """
+        if metadata is None:
+            metadata = self.metadata_schema.empty_value
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 
@@ -1840,6 +1917,26 @@ class ProvenanceTable(BaseTable):
         if ll_table is None:
             ll_table = _tskit.ProvenanceTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, ProvenanceTableRow)
+
+    def equals(self, other, ignore_timestamps=False):
+        """
+        Returns True if  `self` and `other` are equal. By default, two provenance
+        tables are considered equal if their columns are byte-for-byte identical.
+
+        :param other: Another provenance table instance
+        :param bool ignore_timestamps: If True exclude the timestamp column
+            from the comparison.
+        :return: True if other is equal to this provenance table; False otherwise.
+        :rtype: bool
+        """
+        ret = False
+        if type(other) is type(self):
+            ret = bool(
+                self.ll_table.equals(
+                    other.ll_table, ignore_timestamps=ignore_timestamps
+                )
+            )
+        return ret
 
     def add_row(self, record, timestamp=None):
         """
@@ -2010,6 +2107,7 @@ class TableCollection:
     :vartype populations: PopulationTable
     :ivar provenances: The provenance table.
     :vartype provenances: ProvenanceTable
+    :ivar index: The edge insertion and removal index.
     :ivar sequence_length: The sequence length defining the coordinate
         space.
     :vartype sequence_length: float
@@ -2054,6 +2152,15 @@ class TableCollection:
         return ProvenanceTable(ll_table=self._ll_tables.provenances)
 
     @property
+    def indexes(self):
+        indexes = self._ll_tables.indexes
+        return TableCollectionIndexes(**indexes)
+
+    @indexes.setter
+    def indexes(self, indexes):
+        self._ll_tables.indexes = indexes.asdict()
+
+    @property
     def sequence_length(self):
         return self._ll_tables.sequence_length
 
@@ -2075,8 +2182,8 @@ class TableCollection:
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
         # Check the schema is a valid schema instance by roundtripping it.
-        metadata.parse_metadata_schema(str(schema))
-        self._ll_tables.metadata_schema = str(schema)
+        metadata.parse_metadata_schema(repr(schema))
+        self._ll_tables.metadata_schema = repr(schema)
 
     @property
     def metadata(self) -> Any:
@@ -2105,10 +2212,10 @@ class TableCollection:
         Note: the semantics of this method changed at tskit 0.1.0. Previously a
         map of table names to the tables themselves was returned.
         """
-        return {
-            "encoding_version": (1, 1),
+        ret = {
+            "encoding_version": (1, 2),
             "sequence_length": self.sequence_length,
-            "metadata_schema": str(self.metadata_schema),
+            "metadata_schema": repr(self.metadata_schema),
             "metadata": self.metadata_schema.encode_row(self.metadata),
             "individuals": self.individuals.asdict(),
             "nodes": self.nodes.asdict(),
@@ -2118,7 +2225,9 @@ class TableCollection:
             "mutations": self.mutations.asdict(),
             "populations": self.populations.asdict(),
             "provenances": self.provenances.asdict(),
+            "indexes": self.indexes.asdict(),
         }
+        return ret
 
     @property
     def name_map(self):
@@ -2137,6 +2246,23 @@ class TableCollection:
             "provenances": self.provenances,
             "sites": self.sites,
         }
+
+    @property
+    def nbytes(self) -> int:
+        """
+        Returns the total number of bytes required to store the data
+        in this table collection. Note that this may not be equal to
+        the actual memory footprint.
+        """
+        return sum(
+            (
+                8,  # sequence_length takes 8 bytes
+                len(self.metadata_bytes),
+                len(repr(self.metadata_schema).encode()),
+                self.indexes.nbytes,
+                sum(table.nbytes for table in self.name_map.values()),
+            )
+        )
 
     def __banner(self, title):
         width = 60
@@ -2165,17 +2291,85 @@ class TableCollection:
         s += str(self.provenances)
         return s
 
-    def __eq__(self, other):
+    def equals(
+        self,
+        other,
+        *,
+        ignore_metadata=False,
+        ignore_ts_metadata=False,
+        ignore_provenance=False,
+        ignore_timestamps=False,
+    ):
+        """
+        Returns True if  `self` and `other` are equal. By default, two table
+        collections are considered equal if their
+
+        - ``sequence_length`` properties are identical;
+        - top-level tree sequence metadata and metadata schemas are
+          byte-wise identical;
+        - constituent tables are byte-wise identical.
+
+        Some of the requirements in this definition can be relaxed using the
+        parameters, which can be used to remove certain parts of the data model
+        from the comparison.
+
+        Table indexes are not considered in the equality comparison.
+
+        :param TableCollection other: Another table collection.
+        :param bool ignore_metadata: If True *all* metadata and metadata schemas
+            will be excluded from the comparison. This includes the top-level
+            tree sequence and constituent table metadata (default=False).
+        :param bool ignore_ts_metadata: If True the top-level tree sequence
+            metadata and metadata schemas will be excluded from the comparison.
+            If ``ignore_metadata`` is True, this parameter has no effect.
+        :param bool ignore_provenance: If True the provenance tables are
+            not included in the comparison.
+        :param bool ignore_timestamps: If True the provenance timestamp column
+            is ignored in the comparison. If ``ignore_provenance`` is True, this
+            parameter has no effect.
+        :return: True if other is equal to this table collection; False otherwise.
+        :rtype: bool
+        """
         ret = False
         if type(other) is type(self):
-            ret = bool(self._ll_tables.equals(other._ll_tables))
+            ret = bool(
+                self._ll_tables.equals(
+                    other._ll_tables,
+                    ignore_metadata=bool(ignore_metadata),
+                    ignore_ts_metadata=bool(ignore_ts_metadata),
+                    ignore_provenance=bool(ignore_provenance),
+                    ignore_timestamps=bool(ignore_timestamps),
+                )
+            )
         return ret
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    def __eq__(self, other):
+        return self.equals(other)
 
     def __getstate__(self):
         return self.asdict()
+
+    @classmethod
+    def load(cls, file_or_path):
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
+        ll_tc = _tskit.TableCollection(1)
+        ll_tc.load(file)
+        tc = TableCollection(1)
+        tc._ll_tables = ll_tc
+        return tc
+
+    def dump(self, file_or_path):
+        """
+        Writes the table collection to the specified path or file object.
+
+        :param str file_or_path: The file object or path to write the TreeSequence to.
+        """
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
+        try:
+            self._ll_tables.dump(file)
+        finally:
+            if local_file:
+                file.close()
 
     # Unpickle support
     def __setstate__(self, state):
@@ -2204,7 +2398,6 @@ class TableCollection:
             tables.metadata = tables.metadata_schema.decode_row(tables_dict["metadata"])
         except KeyError:
             pass
-
         tables.individuals.set_columns(**tables_dict["individuals"])
         tables.nodes.set_columns(**tables_dict["nodes"])
         tables.edges.set_columns(**tables_dict["edges"])
@@ -2213,6 +2406,12 @@ class TableCollection:
         tables.mutations.set_columns(**tables_dict["mutations"])
         tables.populations.set_columns(**tables_dict["populations"])
         tables.provenances.set_columns(**tables_dict["provenances"])
+
+        # Indexes must be last as other wise the check for their consistency will fail
+        try:
+            tables.indexes = TableCollectionIndexes(**tables_dict["indexes"])
+        except KeyError:
+            pass
         return tables
 
     def copy(self):
@@ -2231,12 +2430,15 @@ class TableCollection:
         in canonical form (i.e., does not meet sorting requirements) or cannot be
         interpreted as a tree sequence an exception is raised. The
         :meth:`.sort` method may be used to ensure that input sorting requirements
-        are met.
+        are met. If the table collection does not have indexes they will be
+        built.
 
         :return: A :class:`TreeSequence` instance reflecting the structures
             defined in this set of tables.
         :rtype: .TreeSequence
         """
+        if not self.has_index():
+            self.build_index()
         return tskit.TreeSequence.load_tables(self)
 
     def simplify(
@@ -2308,10 +2510,10 @@ class TableCollection:
         :rtype: numpy.ndarray (dtype=np.int32)
         """
         if filter_zero_mutation_sites is not None:
-            # Deprecated in 0.6.1.
+            # Deprecated in msprime 0.6.1.
             warnings.warn(
                 "filter_zero_mutation_sites is deprecated; use filter_sites instead",
-                DeprecationWarning,
+                FutureWarning,
             )
             filter_sites = filter_zero_mutation_sites
         if samples is None:
@@ -2724,6 +2926,29 @@ class TableCollection:
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
+
+    def clear(
+        self,
+        clear_provenance=False,
+        clear_metadata_schemas=False,
+        clear_ts_metadata_and_schema=False,
+    ):
+        """
+        Remove all rows of the data tables, optionally remove provenance, metadata
+        schemas and ts-level metadata.
+
+        :param bool clear_provenance: If ``True``, remove all rows of the provenance
+            table. (Default: ``False``).
+        :param bool clear_metadata_schemas: If ``True``, clear the table metadata
+            schemas. (Default: ``False``).
+        :param bool clear_ts_metadata_and_schema: If ``True``, clear the tree-sequence
+            level metadata and schema (Default: ``False``).
+        """
+        self._ll_tables.clear(
+            clear_provenance=clear_provenance,
+            clear_metadata_schemas=clear_metadata_schemas,
+            clear_ts_metadata_and_schema=clear_ts_metadata_and_schema,
+        )
 
     def has_index(self):
         """

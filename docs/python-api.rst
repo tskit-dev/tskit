@@ -86,6 +86,9 @@ directly, but are the return types for the various iterators provided by the
 .. autoclass:: Edge()
     :members:
 
+.. autoclass:: Interval()
+    :members:
+
 .. autoclass:: Site()
     :members:
 
@@ -484,9 +487,9 @@ Table functions
 
 .. _sec_metadata_api:
 
-********
-Metadata
-********
+************
+Metadata API
+************
 
 The ``metadata`` module provides validation, encoding and decoding of metadata
 using a schema. See :ref:`sec_metadata`, :ref:`sec_metadata_api_overview` and
@@ -498,16 +501,20 @@ using a schema. See :ref:`sec_metadata`, :ref:`sec_metadata_api_overview` and
 
 .. autofunction:: register_metadata_codec
 
-.. _sec_stats_api:
+.. _sec_combinatorics_api:
 
-*************
-Combinatorics
-*************
-The following are generators for fully enumerating unique tree topologies.
-The position of a tree in the enumeration ``all_trees`` is given by
-:meth:`Tree.rank`. Inversely, a :class:`Tree` can be constructed from a
-position in the enumeration with :meth:`Tree.unrank`.
-See :ref:`sec_combinatorics` for details.
+*****************
+Combinatorics API
+*****************
+
+The combinatorics API deals with tree topologies, allowing them to be counted,
+listed and generated: see :ref:`sec_combinatorics` for a detailed description. Briefly,
+the position of a tree in the enumeration ``all_trees`` can be obtained using the tree's
+:meth:`~Tree.rank` method. Inversely, a :class:`Tree` can be constructed from a position
+in the enumeration with :meth:`Tree.unrank`. Generated trees are associated with a new
+tree sequence containing only that tree for the entire genome (i.e. with
+:attr:`~TreeSequence.num_trees` = 1 and a :attr:`~TreeSequence.sequence_length` equal to
+the :attr:`~Tree.span` of the tree).
 
 .. autofunction:: all_trees
 

@@ -15,7 +15,8 @@ and programs (such as `msprime <https://github.com/tskit-dev/msprime>`_,
 `tsinfer <https://tsinfer.readthedocs.io/en/latest/>`_) that either simulate or
 infer the evolutionary history of genetic sequences. This library provides the
 underlying functionality that such software uses to load, examine, and
-manipulate tree sequences.
+manipulate tree sequences, including efficient methods for calculating
+:ref:`genetic statistics<sec_stats>`.
 
 .. note:: This documentation is under active development and may be incomplete
     in some areas. If you would like to help improve it, please open an issue or

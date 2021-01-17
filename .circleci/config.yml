@@ -23,7 +23,7 @@ jobs:
             libgsl-dev
             # Install meson to the system packages so we can run it as root
             sudo pip install meson==0.55
-            pip install --user -r python/requirements/CI/requirements.txt
+            pip install --user -r python/requirements/CI-complete/requirements.txt
             pip install twine --user
             # Remove tskit installed by msprime
             pip uninstall tskit -y
@@ -37,11 +37,6 @@ jobs:
           name: Compile Python
           command: |
             cd python && make allchecks
-
-      - run:
-          name: Lint Python (pre-commit)
-          command: |
-            pre-commit run --all-files --show-diff-on-failure
 
       - run:
           name: Compile C with gcc
@@ -64,18 +59,9 @@ jobs:
           name: Run gcov & upload coverage.
           command: |
             cd build-gcc
-            # TODO should be able to do this with 'find', but it's tricky and opaque.
-            gcov -pb libtskit.a.p/tskit_core.c.gcno ../c/tskit/core.c
-            gcov -pb libtskit.a.p/tskit_tables.c.gcno ../c/tskit/tables.c
-            gcov -pb libtskit.a.p/tskit_trees.c.gcno ../c/tskit/trees.c
-            gcov -pb libtskit.a.p/tskit_genotypes.c.gcno ../c/tskit/genotypes.c
-            gcov -pb libtskit.a.p/tskit_core.c.gcno ../c/tskit/core.c
-            gcov -pb libtskit.a.p/tskit_convert.c.gcno ../c/tskit/convert.c
-            gcov -pb libtskit.a.p/tskit_stats.c.gcno ../c/tskit/stats.c
-            gcov -pb libtskit.a.p/tskit_haplotype_matching.c.gcno ../c/tskit/haplotype_matching.c
-            gcov -pb libtskit.a.p/tskit_file_format.c.gcno ../c/tskit/file_format.c
+            find ../c/tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../c/tskit/{}
             cd ..
-            bash <(curl -s https://codecov.io/bash) -X gcov -n c_tests
+            bash <(curl -s https://codecov.io/bash) -X gcov -X coveragepy -F c-tests
 
       - run:
           name: Valgrind for C tests.
@@ -116,33 +102,40 @@ jobs:
             make -C c/examples
 
       - run:
-          name: Build docs
+          name: Build example LWT interface code and test
           command: |
-            cd docs && make
+            # We're assuming that the tskit C module has already
+            # been built, as we're testing against the local tskit version.
+            cd python/lwt_interface
+            make allchecks
+            python -m pytest
+
+      - run:
+          name: Upload LWT coverage
+          command: |
+            # Make sure the C coverage reports aren't lying around
+            rm -fR build-gcc
+            ls -R
+            cd python/lwt_interface
+            gcov -pb -o ./build/temp.linux*/*.gcno example_c_module.c
+            bash <(curl -s https://codecov.io/bash) -X gcov -F lwt-tests
 
       - run:
           name: Run Python tests
           command: |
-            PYTHONPATH=python nosetests -v --with-coverage --cover-package tskit \
-              --cover-branches --cover-erase --cover-xml \
-              --cover-inclusive python/tests
+            cd python
+            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n16 tests
 
       - run:
           name: Upload Python coverage
           command: |
             # Make sure the C coverage reports aren't lying around
             rm -fR build-gcc
-            bash <(curl -s https://codecov.io/bash) -X gcov -n python_tests
-            # Clean up reports so we don't upload them twice.
-            rm -f coverage.xml
-
-            # Upload coverage for the Python C API.
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
-            cd ..
-            bash <(curl -s https://codecov.io/bash) -X gcov -n python_c_tests
-            # Clean up reports so we don't upload them twice.
-            rm -f python/*.gcov
+            bash <(curl -s https://codecov.io/bash) -f coverage.xml -F python-tests
+            rm -f coverage.xml
+            bash <(curl -s https://codecov.io/bash) -X gcov -F python-c-tests
 
       - run:
           name: Build Python package

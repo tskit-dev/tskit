@@ -32,6 +32,7 @@ from unittest import mock
 
 import h5py
 import msprime
+import pytest
 
 import tskit
 import tskit.cli as cli
@@ -39,6 +40,7 @@ from . import tsutil
 
 
 class TestException(Exception):
+    __test__ = False
     """
     Custom exception we can throw for testing.
     """
@@ -82,7 +84,7 @@ class TestCli(unittest.TestCase):
         os.unlink(self.temp_file)
 
 
-class TestTskitArgumentParser(unittest.TestCase):
+class TestTskitArgumentParser:
     """
     Tests for the argument parsers in msp.
     """
@@ -92,195 +94,195 @@ class TestTskitArgumentParser(unittest.TestCase):
         cmd = "individuals"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 6)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 6
 
     def test_individuals_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "individuals"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 8)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 8
 
     def test_individuals_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "individuals"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 5)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 5
 
     def test_nodes_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 6)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 6
 
     def test_nodes_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 8)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 8
 
     def test_nodes_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 5)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 5
 
     def test_edges_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "edges"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 6)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 6
 
     def test_edges_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "edges"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 8)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 8
 
     def test_edges_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "edges"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 5)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 5
 
     def test_sites_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "sites"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 6)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 6
 
     def test_sites_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "sites"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 8)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 8
 
     def test_sites_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "sites"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 5)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 5
 
     def test_mutations_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "mutations"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 6)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 6
 
     def test_mutations_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "mutations"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-p", "4"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 4)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 4
 
     def test_mutations_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "mutations"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "9"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 9)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 9
 
     def test_provenances_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "provenances"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.human, False)
+        assert args.tree_sequence == tree_sequence
+        assert not args.human
 
     def test_provenances_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "provenances"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-H"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.human, True)
+        assert args.tree_sequence == tree_sequence
+        assert args.human
 
     def test_provenances_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "provenances"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--human"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.human, True)
+        assert args.tree_sequence == tree_sequence
+        assert args.human
 
-    @unittest.skip("fasta output temporarily disabled")
+    @pytest.mark.skip(reason="fasta output temporarily disabled")
     def test_fasta_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.wrap, 60)
+        assert args.tree_sequence == tree_sequence
+        assert args.wrap == 60
 
-    @unittest.skip("fasta output temporarily disabled")
+    @pytest.mark.skip(reason="fasta output temporarily disabled")
     def test_fasta_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-w", "100"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.wrap, 100)
+        assert args.tree_sequence == tree_sequence
+        assert args.wrap == 100
 
-    @unittest.skip("fasta output temporarily disabled")
+    @pytest.mark.skip(reason="fasta output temporarily disabled")
     def test_fasta_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--wrap", "50"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.wrap, 50)
+        assert args.tree_sequence == tree_sequence
+        assert args.wrap == 50
 
     def test_vcf_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.ploidy, None)
+        assert args.tree_sequence == tree_sequence
+        assert args.ploidy is None
 
     def test_vcf_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-P", "2"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.ploidy, 2)
+        assert args.tree_sequence == tree_sequence
+        assert args.ploidy == 2
 
     def test_vcf_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--ploidy", "5"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.ploidy, 5)
+        assert args.tree_sequence == tree_sequence
+        assert args.ploidy == 5
 
     def test_upgrade_default_values(self):
         parser = cli.get_tskit_parser()
@@ -288,50 +290,50 @@ class TestTskitArgumentParser(unittest.TestCase):
         source = "in.trees"
         destination = "out.trees"
         args = parser.parse_args([cmd, source, destination])
-        self.assertEqual(args.source, source)
-        self.assertEqual(args.destination, destination)
-        self.assertEqual(args.remove_duplicate_positions, False)
+        assert args.source == source
+        assert args.destination == destination
+        assert not args.remove_duplicate_positions
 
     def test_info_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "info"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
+        assert args.tree_sequence == tree_sequence
 
     def test_populations_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "populations"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
+        assert args.tree_sequence == tree_sequence
 
     def test_trees_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 6)
-        self.assertEqual(args.draw, False)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 6
+        assert not args.draw
 
     def test_trees_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "-d", "-p", "8"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 8)
-        self.assertEqual(args.draw, True)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 8
+        assert args.draw
 
     def test_trees_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
         tree_sequence = "test.trees"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5", "--draw"])
-        self.assertEqual(args.tree_sequence, tree_sequence)
-        self.assertEqual(args.precision, 5)
-        self.assertEqual(args.draw, True)
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 5
+        assert args.draw
 
 
 class TestTskitConversionOutput(unittest.TestCase):
@@ -369,7 +371,7 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.dump_text(individuals=f, precision=precision)
             f.seek(0)
             output = f.read().splitlines()
-        self.assertEqual(output, output_individuals)
+        assert output == output_individuals
 
     def test_individuals(self):
         cmd = "individuals"
@@ -377,7 +379,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_individuals = stdout.splitlines()
         self.verify_individuals(output_individuals, precision)
 
@@ -386,7 +388,7 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.dump_text(nodes=f, precision=precision)
             f.seek(0)
             output = f.read().splitlines()
-        self.assertEqual(output, output_nodes)
+        assert output == output_nodes
 
     def test_nodes(self):
         cmd = "nodes"
@@ -394,7 +396,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_nodes = stdout.splitlines()
         self.verify_nodes(output_nodes, precision)
 
@@ -403,7 +405,7 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.dump_text(edges=f, precision=precision)
             f.seek(0)
             output = f.read().splitlines()
-        self.assertEqual(output, output_edges)
+        assert output == output_edges
 
     def test_edges(self):
         cmd = "edges"
@@ -411,7 +413,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_edges = stdout.splitlines()
         self.verify_edges(output_edges, precision)
 
@@ -420,7 +422,7 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.dump_text(sites=f, precision=precision)
             f.seek(0)
             output = f.read().splitlines()
-        self.assertEqual(output, output_sites)
+        assert output == output_sites
 
     def test_sites(self):
         cmd = "sites"
@@ -428,7 +430,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_sites = stdout.splitlines()
         self.verify_sites(output_sites, precision)
 
@@ -437,7 +439,7 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.dump_text(mutations=f, precision=precision)
             f.seek(0)
             output = f.read().splitlines()
-        self.assertEqual(output, output_mutations)
+        assert output == output_mutations
 
     def test_mutations(self):
         cmd = "mutations"
@@ -445,7 +447,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_mutations = stdout.splitlines()
         self.verify_mutations(output_mutations, precision)
 
@@ -454,12 +456,12 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.dump_text(provenances=f)
             f.seek(0)
             output = f.read().splitlines()
-        self.assertEqual(output, output_provenances)
+        assert output == output_provenances
 
     def test_provenances(self):
         cmd = "provenances"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_provenances = stdout.splitlines()
         self.verify_provenances(output_provenances)
 
@@ -468,23 +470,23 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, "-H", self._tree_sequence_file]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_provenances = stdout.splitlines()
         # TODO Check the actual output here.
-        self.assertGreater(len(output_provenances), 0)
+        assert len(output_provenances) > 0
 
     def verify_fasta(self, output_fasta):
         with tempfile.TemporaryFile("w+") as f:
             self._tree_sequence.write_fasta(f)
             f.seek(0)
             fasta = f.read()
-        self.assertEqual(output_fasta, fasta)
+        assert output_fasta == fasta
 
-    @unittest.skip("fasta output temporarily disabled")
+    @pytest.mark.skip(reason="fasta output temporarily disabled")
     def test_fasta(self):
         cmd = "fasta"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         self.verify_fasta(stdout)
 
     def verify_vcf(self, output_vcf):
@@ -492,12 +494,12 @@ class TestTskitConversionOutput(unittest.TestCase):
             self._tree_sequence.write_vcf(f)
             f.seek(0)
             vcf = f.read()
-        self.assertEqual(output_vcf, vcf)
+        assert output_vcf == vcf
 
     def test_vcf(self):
         cmd = "vcf"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         self.verify_vcf(stdout)
 
     def verify_info(self, ts, output_info):
@@ -514,12 +516,12 @@ class TestTskitConversionOutput(unittest.TestCase):
             "trees": ts.num_trees,
             "samples": ts.num_samples,
         }
-        self.assertEqual({k: str(v) for k, v in info.items()}, output_info)
+        assert {k: str(v) for k, v in info.items()} == output_info
 
     def test_info(self):
         cmd = "info"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         output_provenances = {}
         for row in stdout.splitlines():
             name, value = [tok.strip() for tok in row.split(":")]
@@ -530,31 +532,31 @@ class TestTskitConversionOutput(unittest.TestCase):
     def test_trees_no_draw(self):
         cmd = "trees"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         ts = tskit.load(self._tree_sequence_file)
-        self.assertEqual(len(stdout.splitlines()), 3 * ts.num_trees)
+        assert len(stdout.splitlines()) == 3 * ts.num_trees
 
     def test_trees_draw(self):
         cmd = "trees"
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, "-d", self._tree_sequence_file]
         )
-        self.assertEqual(len(stderr), 0)
+        assert len(stderr) == 0
         ts = tskit.load(self._tree_sequence_file)
-        self.assertGreater(len(stdout.splitlines()), 3 * ts.num_trees)
+        assert len(stdout.splitlines()) > 3 * ts.num_trees
 
 
-class TestBadFile(unittest.TestCase):
+class TestBadFile:
     """
     Tests that we deal with IO errors appropriately.
     """
 
     def verify(self, command):
         with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
-            with self.assertRaises(TestException):
+            with pytest.raises(TestException):
                 capture_output(cli.tskit_main, ["info", "/no/such/file"])
             mocked_exit.assert_called_once_with(
-                "Load error: [Errno 2] No such file or directory"
+                "Load error: [Errno 2] No such file or directory: '/no/such/file'"
             )
 
     def test_info(self):
@@ -607,13 +609,13 @@ class TestUpgrade(TestCli):
                 ["upgrade", self.legacy_file_name, self.current_file_name],
             )
             ts2 = tskit.load(self.current_file_name)
-            self.assertEqual(stdout, "")
-            self.assertEqual(stderr, "")
+            assert stdout == ""
+            assert stderr == ""
             # Quick checks to ensure we have the right tree sequence.
             # More thorough checks are done elsewhere.
-            self.assertEqual(ts1.get_sample_size(), ts2.get_sample_size())
-            self.assertEqual(ts1.num_edges, ts2.num_edges)
-            self.assertEqual(ts1.get_num_trees(), ts2.get_num_trees())
+            assert ts1.get_sample_size() == ts2.get_sample_size()
+            assert ts1.num_edges == ts2.num_edges
+            assert ts1.get_num_trees() == ts2.get_num_trees()
 
     def test_duplicate_positions(self):
         ts = msprime.simulate(10, mutation_rate=10)
@@ -626,10 +628,10 @@ class TestUpgrade(TestCli):
                 cli.tskit_main,
                 ["upgrade", "-d", self.legacy_file_name, self.current_file_name],
             )
-            self.assertEqual(stdout, "")
+            assert stdout == ""
             tsp = tskit.load(self.current_file_name)
-            self.assertEqual(tsp.sample_size, ts.sample_size)
-            self.assertEqual(tsp.num_sites, 1)
+            assert tsp.sample_size == ts.sample_size
+            assert tsp.num_sites == 1
 
     def test_duplicate_positions_error(self):
         ts = msprime.simulate(10, mutation_rate=10)
@@ -639,9 +641,9 @@ class TestUpgrade(TestCli):
             root["mutations/position"][:] = 0
             root.close()
             with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
-                with self.assertRaises(TestException):
+                with pytest.raises(TestException):
                     capture_output(
                         cli.tskit_main,
                         ["upgrade", self.legacy_file_name, self.current_file_name],
                     )
-                self.assertEqual(mocked_exit.call_count, 1)
+                assert mocked_exit.call_count == 1

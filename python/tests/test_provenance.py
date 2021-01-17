@@ -26,9 +26,9 @@ Tests for the provenance information attached to tree sequences.
 import json
 import os
 import platform
-import unittest
 
 import msprime
+import pytest
 
 import _tskit
 import tskit
@@ -54,13 +54,13 @@ def get_provenance(
     return document
 
 
-class TestSchema(unittest.TestCase):
+class TestSchema:
     """
     Tests for schema validation.
     """
 
     def test_empty(self):
-        with self.assertRaises(tskit.ProvenanceValidationError):
+        with pytest.raises(tskit.ProvenanceValidationError):
             tskit.validate_provenance({})
 
     def test_missing_keys(self):
@@ -69,37 +69,37 @@ class TestSchema(unittest.TestCase):
         for key in minimal.keys():
             copy = dict(minimal)
             del copy[key]
-            with self.assertRaises(tskit.ProvenanceValidationError):
+            with pytest.raises(tskit.ProvenanceValidationError):
                 tskit.validate_provenance(copy)
         copy = dict(minimal)
         del copy["software"]["name"]
-        with self.assertRaises(tskit.ProvenanceValidationError):
+        with pytest.raises(tskit.ProvenanceValidationError):
             tskit.validate_provenance(copy)
         copy = dict(minimal)
         del copy["software"]["version"]
-        with self.assertRaises(tskit.ProvenanceValidationError):
+        with pytest.raises(tskit.ProvenanceValidationError):
             tskit.validate_provenance(copy)
 
     def test_software_types(self):
         for bad_type in [0, [1, 2, 3], {}]:
             doc = get_provenance(software_name=bad_type)
-            with self.assertRaises(tskit.ProvenanceValidationError):
+            with pytest.raises(tskit.ProvenanceValidationError):
                 tskit.validate_provenance(doc)
             doc = get_provenance(software_version=bad_type)
-            with self.assertRaises(tskit.ProvenanceValidationError):
+            with pytest.raises(tskit.ProvenanceValidationError):
                 tskit.validate_provenance(doc)
 
     def test_schema_version_empth(self):
         doc = get_provenance(schema_version="")
-        with self.assertRaises(tskit.ProvenanceValidationError):
+        with pytest.raises(tskit.ProvenanceValidationError):
             tskit.validate_provenance(doc)
 
     def test_software_empty_strings(self):
         doc = get_provenance(software_name="")
-        with self.assertRaises(tskit.ProvenanceValidationError):
+        with pytest.raises(tskit.ProvenanceValidationError):
             tskit.validate_provenance(doc)
         doc = get_provenance(software_version="")
-        with self.assertRaises(tskit.ProvenanceValidationError):
+        with pytest.raises(tskit.ProvenanceValidationError):
             tskit.validate_provenance(doc)
 
     def test_minimal(self):
@@ -122,7 +122,7 @@ class TestSchema(unittest.TestCase):
         tskit.validate_provenance(extra)
 
 
-class TestOutputProvenance(unittest.TestCase):
+class TestOutputProvenance:
     """
     Check that the schemas we produce in tskit are valid.
     """
@@ -132,16 +132,12 @@ class TestOutputProvenance(unittest.TestCase):
         ts = ts.simplify()
         prov = json.loads(ts.provenance(1).record)
         tskit.validate_provenance(prov)
-        self.assertEqual(prov["parameters"]["command"], "simplify")
-        self.assertEqual(
-            prov["environment"], provenance.get_environment(include_tskit=False)
-        )
-        self.assertEqual(
-            prov["software"], {"name": "tskit", "version": tskit.__version__}
-        )
+        assert prov["parameters"]["command"] == "simplify"
+        assert prov["environment"] == provenance.get_environment(include_tskit=False)
+        assert prov["software"] == {"name": "tskit", "version": tskit.__version__}
 
 
-class TestEnvironment(unittest.TestCase):
+class TestEnvironment:
     """
     Tests for the environment provenance.
     """
@@ -155,7 +151,7 @@ class TestEnvironment(unittest.TestCase):
             "version": platform.version(),
             "machine": platform.machine(),
         }
-        self.assertEqual(env["os"], os)
+        assert env["os"] == os
 
     def test_python(self):
         env = provenance.get_environment()
@@ -163,27 +159,26 @@ class TestEnvironment(unittest.TestCase):
             "implementation": platform.python_implementation(),
             "version": platform.python_version(),
         }
-        self.assertEqual(env["python"], python)
+        assert env["python"] == python
 
     def test_libraries(self):
         kastore_lib = {"version": ".".join(map(str, _tskit.get_kastore_version()))}
         env = provenance.get_environment()
-        self.assertEqual(
-            {"kastore": kastore_lib, "tskit": {"version": tskit.__version__}},
-            env["libraries"],
-        )
+        assert {"kastore": kastore_lib, "tskit": {"version": tskit.__version__}} == env[
+            "libraries"
+        ]
 
         env = provenance.get_environment(include_tskit=False)
-        self.assertEqual({"kastore": kastore_lib}, env["libraries"])
+        assert {"kastore": kastore_lib} == env["libraries"]
 
         extra_libs = {"abc": [], "xyz": {"one": 1}}
         env = provenance.get_environment(include_tskit=False, extra_libs=extra_libs)
         libs = {"kastore": kastore_lib}
         libs.update(extra_libs)
-        self.assertEqual(libs, env["libraries"])
+        assert libs == env["libraries"]
 
 
-class TestGetSchema(unittest.TestCase):
+class TestGetSchema:
     """
     Ensure we return the correct JSON schema.
     """
@@ -193,24 +188,24 @@ class TestGetSchema(unittest.TestCase):
         base = os.path.join(os.path.dirname(__file__), "..", "tskit")
         with open(os.path.join(base, "provenance.schema.json")) as f:
             s2 = json.load(f)
-        self.assertEqual(s1, s2)
+        assert s1 == s2
 
     def test_caching(self):
         n = 10
         schemas = [provenance.get_schema() for _ in range(n)]
         # Ensure all the schemas are different objects.
-        self.assertEqual(len(set(map(id, schemas))), n)
+        assert len(set(map(id, schemas))) == n
         # Ensure the schemas are all equal
         for j in range(n):
-            self.assertEqual(schemas[0], schemas[j])
+            assert schemas[0] == schemas[j]
 
     def test_form(self):
         s = provenance.get_schema()
-        self.assertEqual(s["schema"], "http://json-schema.org/draft-07/schema#")
-        self.assertEqual(s["version"], "1.0.0")
+        assert s["schema"] == "http://json-schema.org/draft-07/schema#"
+        assert s["version"] == "1.0.0"
 
 
-class TestTreeSeqEditMethods(unittest.TestCase):
+class TestTreeSeqEditMethods:
     """
     Ensure that tree sequence 'edit' methods correctly record themselves
     """
@@ -219,10 +214,10 @@ class TestTreeSeqEditMethods(unittest.TestCase):
         ts = msprime.simulate(5, random_seed=1)
         ts_keep = ts.keep_intervals([[0.25, 0.5]])
         ts_del = ts.delete_intervals([[0, 0.25], [0.5, 1.0]])
-        self.assertEqual(ts_keep.num_provenances, ts_del.num_provenances)
+        assert ts_keep.num_provenances == ts_del.num_provenances
         for i, (p1, p2) in enumerate(zip(ts_keep.provenances(), ts_del.provenances())):
             if i == ts_keep.num_provenances - 1:
                 # last one should be different
-                self.assertNotEqual(p1.record, p2.record)
+                assert p1.record != p2.record
             else:
-                self.assertEqual(p1.record, p2.record)
+                assert p1.record == p2.record

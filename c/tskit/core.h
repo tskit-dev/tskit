@@ -37,6 +37,7 @@ extern "C" {
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <limits.h>
 
 #if defined(_TSK_WORKAROUND_FALSE_CLANG_WARNING) && defined(__clang__)
@@ -128,7 +129,7 @@ to the API or ABI are introduced, i.e., the addition of a new function.
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 */
-#define TSK_VERSION_PATCH   7
+#define TSK_VERSION_PATCH   9
 /** @} */
 
 /* Node flags */
@@ -317,6 +318,7 @@ not found in the file.
 
 /* IBD errors */
 #define TSK_ERR_NO_SAMPLE_PAIRS                                    -1500
+#define TSK_ERR_DUPLICATE_SAMPLE_PAIRS                             -1501
 
 // clang-format on
 
