@@ -441,8 +441,8 @@ out:
 int TSK_WARN_UNUSED
 tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
-    const tsk_id_t *parents, const tsk_id_t *parents_offset,
-    const char *metadata, const tsk_size_t *metadata_offset)
+    const tsk_id_t *parents, const tsk_id_t *parents_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -459,8 +459,8 @@ out:
 int
 tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
-    const tsk_id_t *parents, const tsk_id_t *parents_offset,
-    const char *metadata, const tsk_size_t *metadata_offset)
+    const tsk_id_t *parents, const tsk_id_t *parents_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret;
     tsk_size_t j, metadata_length, location_length, parents_length;
@@ -566,8 +566,7 @@ out:
 static tsk_id_t
 tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t flags,
     const double *location, tsk_size_t location_length, const char *metadata,
-    const tsk_id_t *parents, const tsk_size_t parents_length,
-    tsk_size_t metadata_length)
+    const tsk_id_t *parents, const tsk_size_t parents_length, tsk_size_t metadata_length)
 {
 
     tsk_bug_assert(self->num_rows < self->max_rows);
@@ -594,8 +593,7 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
 tsk_id_t
 tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
     const double *location, tsk_size_t location_length, const char *metadata,
-    const tsk_id_t *parents, tsk_size_t parents_length,
-    tsk_size_t metadata_length)
+    const tsk_id_t *parents, tsk_size_t parents_length, tsk_size_t metadata_length)
 {
     int ret = 0;
 
@@ -820,11 +818,11 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
                  self->location, other->location, self->location_length * sizeof(double))
                  == 0
           && memcmp(self->parents_offset, other->parents_offset,
-                (self->num_rows + 1) * sizeof(tsk_size_t))
-                == 0
-          && memcmp(self->parents, other->parents,
-                  self->parents_length * sizeof(tsk_id_t))
-                == 0;
+                 (self->num_rows + 1) * sizeof(tsk_size_t))
+                 == 0
+          && memcmp(
+                 self->parents, other->parents, self->parents_length * sizeof(tsk_id_t))
+                 == 0;
 
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
