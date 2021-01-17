@@ -441,7 +441,7 @@ out:
 int TSK_WARN_UNUSED
 tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
-    const tsk_id_t *parents, const tsk_id_t *parents_offset, const char *metadata,
+    const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
     const tsk_size_t *metadata_offset)
 {
     int ret;
@@ -459,7 +459,7 @@ out:
 int
 tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
-    const tsk_id_t *parents, const tsk_id_t *parents_offset, const char *metadata,
+    const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
     const tsk_size_t *metadata_offset)
 {
     int ret;
@@ -565,8 +565,8 @@ out:
 
 static tsk_id_t
 tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t flags,
-    const double *location, tsk_size_t location_length, const char *metadata,
-    const tsk_id_t *parents, const tsk_size_t parents_length, tsk_size_t metadata_length)
+    const double *location, tsk_size_t location_length, const tsk_id_t *parents,
+    const tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length)
 {
 
     tsk_bug_assert(self->num_rows < self->max_rows);
@@ -592,8 +592,8 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
 
 tsk_id_t
 tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
-    const double *location, tsk_size_t location_length, const char *metadata,
-    const tsk_id_t *parents, tsk_size_t parents_length, tsk_size_t metadata_length)
+    const double *location, tsk_size_t location_length, const tsk_id_t *parents,
+    tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length)
 {
     int ret = 0;
 

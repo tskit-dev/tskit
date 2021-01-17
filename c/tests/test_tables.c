@@ -131,7 +131,7 @@ test_table_collection_equals_options(void)
     CU_ASSERT(ret >= 0);
     ret = tsk_node_table_add_row(&tc1.nodes, TSK_NODE_IS_SAMPLE, 1.0, 0, 0, NULL, 0);
     CU_ASSERT(ret >= 0);
-    ret = tsk_individual_table_add_row(&tc1.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(&tc1.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT(ret >= 0);
     ret = tsk_population_table_add_row(&tc1.populations, NULL, 0);
     CU_ASSERT(ret >= 0);
@@ -5326,9 +5326,11 @@ test_table_collection_clear_with_options(tsk_flags_t options)
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
