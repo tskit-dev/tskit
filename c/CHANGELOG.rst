@@ -6,6 +6,10 @@
 
 **Features**
 
+- Add ``TSK_KEEP_UNARY_IN_INDIVIDUALS`` flag to simplify, which allows the user to
+  keep unary nodes only if they belong to a tabled individual. This is useful for
+  simplification in forwards simulations (:user:`hyanwong`, :issue:`1113`, :pr:`1119`).
+
 **Bugfixes**
 
 

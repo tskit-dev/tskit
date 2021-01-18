@@ -6094,6 +6094,8 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     fprintf(out, "\tkeep_unary              : %d\n", !!(self->options & TSK_KEEP_UNARY));
     fprintf(out, "\tkeep_input_roots        : %d\n",
         !!(self->options & TSK_KEEP_INPUT_ROOTS));
+    fprintf(out, "\tkeep_unary_in_individuals : %d\n",
+        !!(self->options & TSK_KEEP_UNARY_IN_INDIVIDUALS));
 
     fprintf(out, "===\nInput tables\n==\n");
     tsk_table_collection_print_state(&self->input_tables, out);
@@ -6635,8 +6637,16 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
     double left, right, prev_right;
     tsk_id_t ancestry_node;
     tsk_id_t output_id = self->node_id_map[input_id];
+
     bool is_sample = output_id != TSK_NULL;
-    bool keep_unary = !!(self->options & TSK_KEEP_UNARY);
+    bool keep_unary = false;
+    if (self->options & TSK_KEEP_UNARY) {
+        keep_unary = true;
+    }
+    if ((self->options & TSK_KEEP_UNARY_IN_INDIVIDUALS)
+        && (self->tables->nodes.individual[input_id] != TSK_NULL)) {
+        keep_unary = true;
+    }
 
     if (is_sample) {
         /* Free up the existing ancestry mapping. */
@@ -8545,6 +8555,11 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
 
     /* Avoid calling to simplifier_free with uninit'd memory on error branches */
     memset(&simplifier, 0, sizeof(simplifier_t));
+
+    if ((options & TSK_KEEP_UNARY) && (options & TSK_KEEP_UNARY_IN_INDIVIDUALS)) {
+        ret = TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE;
+        goto out;
+    }
 
     /* For now we don't bother with edge metadata, but it can easily be
      * implemented. */

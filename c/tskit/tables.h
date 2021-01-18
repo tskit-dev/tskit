@@ -693,6 +693,7 @@ typedef struct {
 #define TSK_REDUCE_TO_SITE_TOPOLOGY (1 << 3)
 #define TSK_KEEP_UNARY (1 << 4)
 #define TSK_KEEP_INPUT_ROOTS (1 << 5)
+#define TSK_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_EDGE_ORDERING (1 << 0)
@@ -2671,6 +2672,9 @@ TSK_KEEP_INPUT_ROOTS
     By default simplify removes all topology ancestral the MRCAs of the samples.
     This option inserts edges from these MRCAs back to the roots of the input
     trees.
+TSK_KEEP_UNARY_IN_INDIVDUALS
+    This acts like TSK_KEEP_UNARY (and is mutually exclusive with that flag). It
+    keeps unary nodes, but only if the unary node is referenced from an individual.
 
 .. note:: Migrations are currently not supported by simplify, and an error will
     be raised if we attempt call simplify on a table collection with greater

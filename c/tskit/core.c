@@ -470,6 +470,11 @@ tsk_strerror_internal(int err)
         case TSK_ERR_DUPLICATE_SAMPLE_PAIRS:
             ret = "There are duplicate sample pairs.";
             break;
+
+        /* Simplify errors */
+        case TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE:
+            ret = "You cannot specify both KEEP_UNARY and KEEP_UNARY_IN_INDIVDUALS.";
+            break;
     }
     return ret;
 }

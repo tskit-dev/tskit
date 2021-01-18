@@ -320,6 +320,9 @@ not found in the file.
 #define TSK_ERR_NO_SAMPLE_PAIRS                                    -1500
 #define TSK_ERR_DUPLICATE_SAMPLE_PAIRS                             -1501
 
+/* Simplify errors */
+#define TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE                      -1600
+
 // clang-format on
 
 /* This bit is 0 for any errors originating from kastore */
