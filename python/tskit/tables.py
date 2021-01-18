@@ -49,7 +49,7 @@ attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
 class IndividualTableRow:
     flags: int
     location: np.ndarray
-    parents: np.array
+    parents: np.ndarray
     metadata: bytes
 
     def __eq__(self, other):
