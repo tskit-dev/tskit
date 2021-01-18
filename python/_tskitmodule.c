@@ -385,7 +385,8 @@ make_individual_object(const tsk_individual_t *r)
     memcpy(PyArray_DATA(location), r->location, r->location_length * sizeof(double));
     memcpy(PyArray_DATA(parents), r->parents, r->parents_length * sizeof(tsk_id_t));
     memcpy(PyArray_DATA(nodes), r->nodes, r->nodes_length * sizeof(tsk_id_t));
-    ret = Py_BuildValue("IOOOO", (unsigned int) r->flags, location, parents, metadata, nodes);
+    ret = Py_BuildValue(
+        "IOOOO", (unsigned int) r->flags, location, parents, metadata, nodes);
 out:
     Py_XDECREF(location);
     Py_XDECREF(parents);
@@ -860,13 +861,13 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
     npy_intp *shape;
-        static char *kwlist[] = { "flags", "location", "parents", "metadata", NULL };
+    static char *kwlist[] = { "flags", "location", "parents", "metadata", NULL };
 
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&OOO", kwlist, &uint32_converter,
-                                     &flags, &py_location, &py_parents, &py_metadata)) {
+            &flags, &py_location, &py_parents, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -888,8 +889,7 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     if (py_parents != Py_None) {
         /* This ensures that only 1D arrays are accepted. */
         parents_array = (PyArrayObject *) PyArray_FromAny(py_parents,
-                PyArray_DescrFromType(NPY_INT32), 1, 1,
-                NPY_ARRAY_IN_ARRAY, NULL);
+            PyArray_DescrFromType(NPY_INT32), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
         if (parents_array == NULL) {
             goto out;
         }
@@ -897,8 +897,8 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
         parents_length = (tsk_size_t) shape[0];
         parents_data = PyArray_DATA(parents_array);
     }
-    err = tsk_individual_table_add_row(self->table, (tsk_flags_t) flags,
-            location_data, location_length, parents_data, parents_length, metadata, metadata_length);
+    err = tsk_individual_table_add_row(self->table, (tsk_flags_t) flags, location_data,
+        location_length, parents_data, parents_length, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -1131,8 +1131,8 @@ IndividualTable_get_parents(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->parents_length,
-            self->table->parents, NPY_INT32, sizeof(tsk_id_t));
+    ret = table_get_column_array(
+        self->table->parents_length, self->table->parents, NPY_INT32, sizeof(tsk_id_t));
 out:
     return ret;
 }
@@ -1145,8 +1145,8 @@ IndividualTable_get_parents_offset(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1,
-            self->table->parents_offset, NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_column_array(self->table->num_rows + 1, self->table->parents_offset,
+        NPY_UINT32, sizeof(uint32_t));
 out:
     return ret;
 }
