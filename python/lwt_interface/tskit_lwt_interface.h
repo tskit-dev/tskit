@@ -262,8 +262,8 @@ parse_individual_table_dict(
         goto out;
     }
     if (parents_input != Py_None) {
-        parents_array = table_read_column_array(
-            parents_input, NPY_FLOAT64, &parents_length, false);
+        parents_array
+            = table_read_column_array(parents_input, NPY_INT32, &parents_length, false);
         if (parents_array == NULL) {
             goto out;
         }
@@ -1485,6 +1485,10 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { "location", (void *) tables->individuals.location,
             tables->individuals.location_length, NPY_FLOAT64 },
         { "location_offset", (void *) tables->individuals.location_offset,
+            tables->individuals.num_rows + 1, NPY_UINT32 },
+        { "parents", (void *) tables->individuals.parents,
+            tables->individuals.parents_length, NPY_INT32 },
+        { "parents_offset", (void *) tables->individuals.parents_offset,
             tables->individuals.num_rows + 1, NPY_UINT32 },
         { "metadata", (void *) tables->individuals.metadata,
             tables->individuals.metadata_length, NPY_INT8 },

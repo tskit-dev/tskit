@@ -860,7 +860,7 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
         t.add_row(flags=2, parents=[0, 1])
         s = str(t)
         assert len(s) > 0
-        assert len(t) == 2
+        assert len(t) == 3
         assert t[0].flags == 0
         assert list(t[0].location) == []
         assert t[0].metadata == b"123"
@@ -869,7 +869,7 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
         assert t[1].metadata == b"\xf0"
         assert list(t[2].parents) == [0, 1]
         with pytest.raises(IndexError):
-            t.__getitem__(-3)
+            t.__getitem__(-4)
 
     def test_add_row_defaults(self):
         t = tskit.IndividualTable()
@@ -890,7 +890,7 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=123)
         with pytest.raises(ValueError):
             t.add_row(location="1234")
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             t.add_row(parents="forty-two")
 
     def test_packset_location(self):

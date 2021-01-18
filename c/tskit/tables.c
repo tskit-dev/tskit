@@ -296,7 +296,7 @@ tsk_individual_table_expand_parents(
         goto out;
     }
     if ((self->parents_length + additional_length) > self->max_parents_length) {
-        ret = expand_column((void **) &self->parents, new_size, sizeof(tsk_id_t));
+        ret = expand_column((void **) &self->parents, new_size, sizeof(double));
         if (ret != 0) {
             goto out;
         }
