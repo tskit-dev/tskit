@@ -3037,6 +3037,7 @@ class TableCollection:
         :param nodes list:
         :param random_seed int:
         """
+
         if time is None:
             time = recent_ts.max_root_time
 
@@ -3047,7 +3048,9 @@ class TableCollection:
                 if f == np.uint32(tskit.NODE_IS_SAMPLE)
             ]
 
-        new_tables = recent_ts.tables
+        if random_seed is not None:
+            np.random.seed(random_seed)
+
         new_nodes = []
         for t in recent_ts.trees():
             for root_id in t.roots:
@@ -3055,19 +3058,13 @@ class TableCollection:
                 if root.time == time:
                     new_nodes.append(root_id)
                 elif root.time < time:
-                    n = new_tables.nodes.add_row(time=time)
-                    new_tables.edges.add_row(
-                        left=t.interval.left,
-                        right=t.interval.right,
-                        parent=n,
-                        child=root_id,
+                    raise ValueError(
+                        f"Root found younger than join time (age = {root.time})"
                     )
-                    new_nodes.append(root_id)
                 else:
                     raise ValueError(
                         f"Root found older than join time (age = {root.time})"
                     )
-        recent_ts = new_tables.tree_sequence()
 
         if len(new_nodes) > len(nodes):
             raise ValueError(
@@ -3078,17 +3075,9 @@ class TableCollection:
             )
 
         node_map = np.repeat(tskit.NULL, recent_ts.num_nodes)
-
-        # need to use random seed here
-        # allocate an instance of np.random.Random
         node_map[new_nodes] = np.random.choice(nodes, len(new_nodes), replace=False)
 
-        # value = np.uint32(0)
-        value = np.uint32(~tskit.NODE_IS_SAMPLE)
-        new_flags = np.array(
-            [value if i in nodes else f for i, f in enumerate(self.nodes.flags)]
-        )
-        self.nodes.flags = new_flags
+        self.nodes.flags = self.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE)
 
         self.union(
             recent_ts.tables,
@@ -3097,7 +3086,6 @@ class TableCollection:
             check_shared_equality=False,
             shift_time=time,
         )
-        return self
 
     def find_ibd(self, samples, max_time=None, min_length=None):
         max_time = sys.float_info.max if max_time is None else max_time
