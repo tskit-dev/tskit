@@ -90,9 +90,9 @@ const char *paper_ex_sites = "1      0\n"
 const char *paper_ex_mutations = "0      2   1\n"
                                  "1      0   1\n"
                                  "2      5   1\n";
-/* Two (diploid) indivduals */
-const char *paper_ex_individuals = "0      0.2,1.5\n"
-                                   "0      0.0,0.0\n";
+/* Two (diploid) individuals */
+const char *paper_ex_individuals = "0      0.2,1.5    -1,-1\n"
+                                   "0      0.0,0.0    -1,-1\n";
 
 /*** An example of a nonbinary tree sequence ***/
 /*
@@ -592,8 +592,11 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
     char sub_line[MAX_LINE];
     const char *whitespace = " \t";
     char *p, *q;
+    char *p_cont, *q_cont; // re-entrant pointers for strtok_r
     double location[MAX_LINE];
     int location_len;
+    tsk_id_t parents[MAX_LINE];
+    int parents_len;
     int flags;
     char *name;
 
@@ -611,11 +614,11 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
             c++;
         }
         line[k] = '\0';
-        p = strtok(line, whitespace);
+        p = strtok_r(line, whitespace, &p_cont);
         CU_ASSERT_FATAL(p != NULL);
         flags = atoi(p);
 
-        p = strtok(NULL, whitespace);
+        p = strtok_r(NULL, whitespace, &p_cont);
         CU_ASSERT_FATAL(p != NULL);
         // the locations are comma-separated
         location_len = 1;
@@ -628,21 +631,40 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
         }
         CU_ASSERT_FATAL(location_len >= 1);
         strncpy(sub_line, p, MAX_LINE);
-        q = strtok(sub_line, ",");
+        q = strtok_r(sub_line, ",", &q_cont);
         for (k = 0; k < location_len; k++) {
             CU_ASSERT_FATAL(q != NULL);
             location[k] = atof(q);
-            q = strtok(NULL, ",");
+            q = strtok_r(NULL, ",", &q_cont);
         }
         CU_ASSERT_FATAL(q == NULL);
-        p = strtok(NULL, whitespace);
+        p = strtok_r(NULL, whitespace, &p_cont);
+        // the parents are comma-separated
+        parents_len = 1;
+        q = p;
+        while (*q != '\0') {
+            if (*q == ',') {
+                parents_len++;
+            }
+            q++;
+        }
+        CU_ASSERT_FATAL(parents_len >= 1);
+        strncpy(sub_line, p, MAX_LINE);
+        q = strtok_r(sub_line, ",", &q_cont);
+        for (k = 0; k < parents_len; k++) {
+            CU_ASSERT_FATAL(q != NULL);
+            parents[k] = atoi(q);
+            q = strtok_r(NULL, ",", &q_cont);
+        }
+        CU_ASSERT_FATAL(q == NULL);
+        p = strtok_r(NULL, whitespace, &p_cont);
         if (p == NULL) {
             name = "";
         } else {
             name = p;
         }
-        ret = tsk_individual_table_add_row(
-            individual_table, flags, location, location_len, name, strlen(name));
+        ret = tsk_individual_table_add_row(individual_table, flags, location,
+            location_len, parents, parents_len, name, strlen(name));
         CU_ASSERT_FATAL(ret >= 0);
     }
 }
@@ -750,8 +772,8 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
         ret = tsk_population_table_add_row(
             &tables.populations, metadata[m], strlen(metadata[m]));
         CU_ASSERT_EQUAL_FATAL(ret, j);
-        ret = tsk_individual_table_add_row(
-            &tables.individuals, 0, position, 2, metadata[m], strlen(metadata[m]));
+        ret = tsk_individual_table_add_row(&tables.individuals, 0, position, 2, NULL, 0,
+            metadata[m], strlen(metadata[m]));
         CU_ASSERT_EQUAL_FATAL(ret, j);
         ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0, j, j,
             metadata[m], strlen(metadata[m]));

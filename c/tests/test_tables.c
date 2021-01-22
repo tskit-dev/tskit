@@ -131,7 +131,7 @@ test_table_collection_equals_options(void)
     CU_ASSERT(ret >= 0);
     ret = tsk_node_table_add_row(&tc1.nodes, TSK_NODE_IS_SAMPLE, 1.0, 0, 0, NULL, 0);
     CU_ASSERT(ret >= 0);
-    ret = tsk_individual_table_add_row(&tc1.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(&tc1.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT(ret >= 0);
     ret = tsk_population_table_add_row(&tc1.populations, NULL, 0);
     CU_ASSERT(ret >= 0);
@@ -2088,12 +2088,13 @@ test_individual_table(void)
     tsk_individual_table_set_max_rows_increment(&table, 1);
     tsk_individual_table_set_max_metadata_length_increment(&table, 1);
     tsk_individual_table_set_max_location_length_increment(&table, 1);
+    tsk_individual_table_set_max_parents_length_increment(&table, 1);
 
     tsk_individual_table_print_state(&table, _devnull);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         ret = tsk_individual_table_add_row(&table, (tsk_flags_t) j, test_location,
-            spatial_dimension, test_metadata, test_metadata_length);
+            spatial_dimension, NULL, 0, test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret, j);
         CU_ASSERT_EQUAL(table.flags[j], (tsk_flags_t) j);
         for (k = 0; k < spatial_dimension; k++) {
@@ -2172,8 +2173,8 @@ test_individual_table(void)
     for (j = 0; j < (tsk_id_t) num_rows + 1; j++) {
         metadata_offset[j] = (tsk_size_t) j;
     }
-    ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, location, location_offset, metadata, metadata_offset);
+    ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
+        location_offset, NULL, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.flags, flags, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(
@@ -2192,8 +2193,8 @@ test_individual_table(void)
     tsk_individual_table_print_state(&table, _devnull);
 
     /* Append another num_rows onto the end */
-    ret = tsk_individual_table_append_columns(
-        &table, num_rows, flags, location, location_offset, metadata, metadata_offset);
+    ret = tsk_individual_table_append_columns(&table, num_rows, flags, location,
+        location_offset, NULL, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.flags, flags, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(
@@ -2235,30 +2236,31 @@ test_individual_table(void)
     ret = tsk_individual_table_truncate(&table, num_rows + 1);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_TABLE_POSITION);
 
+    // TODO: add tests for parent spec
     /* flags can't be NULL */
-    ret = tsk_individual_table_set_columns(
-        &table, num_rows, NULL, location, location_offset, metadata, metadata_offset);
+    ret = tsk_individual_table_set_columns(&table, num_rows, NULL, location,
+        location_offset, NULL, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     /* location and location offset must be simultaneously NULL or not */
     ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, location, NULL, metadata, metadata_offset);
+        &table, num_rows, flags, location, NULL, NULL, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, NULL, location_offset, metadata, metadata_offset);
+    ret = tsk_individual_table_set_columns(&table, num_rows, flags, NULL,
+        location_offset, NULL, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     /* metadata and metadata offset must be simultaneously NULL or not */
-    ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, location, location_offset, NULL, metadata_offset);
+    ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
+        location_offset, NULL, NULL, NULL, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, location, location_offset, metadata, NULL);
+        &table, num_rows, flags, location, location_offset, NULL, NULL, metadata, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* if location and location_offset are both null, all locations are zero length */
     num_rows = 10;
     memset(location_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.location_offset, location_offset,
                         (num_rows + 1) * sizeof(tsk_size_t)),
@@ -2266,7 +2268,7 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.location_length, 0);
     ret = tsk_individual_table_append_columns(
-        &table, num_rows, flags, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.location_offset, location_offset,
                         (num_rows + 1) * sizeof(tsk_size_t)),
@@ -2284,7 +2286,7 @@ test_individual_table(void)
     num_rows = 10;
     memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, location, location_offset, NULL, NULL);
+        &table, num_rows, flags, location, location_offset, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.flags, flags, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(
@@ -2296,7 +2298,7 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     ret = tsk_individual_table_append_columns(
-        &table, num_rows, flags, location, location_offset, NULL, NULL);
+        &table, num_rows, flags, location, location_offset, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(
         memcmp(table.location, location, spatial_dimension * num_rows * sizeof(double)),
@@ -4311,7 +4313,7 @@ test_table_overflow(void)
     /* Simulate overflows */
     tables.individuals.max_rows = max_rows;
     tables.individuals.num_rows = max_rows;
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, 0, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(&tables.individuals, 0, 0, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
 
     tables.nodes.max_rows = max_rows;
@@ -4366,13 +4368,17 @@ test_column_overflow(void)
 
     /* We can't trigger a column overflow with one element because the parameter
      * value is 32 bit */
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, &zero, 1, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, &zero, 1, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, too_big, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, too_big, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, zeros, 1);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, too_big);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_COLUMN_OVERFLOW);
 
     ret = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, zeros, 1);
@@ -4925,9 +4931,11 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     ret = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -5018,9 +5026,11 @@ test_table_collection_subset_errors(void)
     ret = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -5106,11 +5116,14 @@ test_table_collection_union(void)
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 2, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -5220,9 +5233,11 @@ test_table_collection_union_errors(void)
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -5311,9 +5326,11 @@ test_table_collection_clear_with_options(tsk_flags_t options)
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);

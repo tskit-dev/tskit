@@ -855,6 +855,7 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
     columns = [UInt32Column("flags")]
     ragged_list_columns = [
         (DoubleColumn("location"), UInt32Column("location_offset")),
+        (Int32Column("parents"), UInt32Column("parents_offset")),
         (CharColumn("metadata"), UInt32Column("metadata_offset")),
     ]
     string_colnames = []
@@ -867,17 +868,19 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
         t = tskit.IndividualTable()
         t.add_row(flags=0, location=[], metadata=b"123")
         t.add_row(flags=1, location=(0, 1, 2, 3), metadata=b"\xf0")
+        t.add_row(flags=2, parents=[0, 1])
         s = str(t)
         assert len(s) > 0
-        assert len(t) == 2
+        assert len(t) == 3
         assert t[0].flags == 0
         assert list(t[0].location) == []
         assert t[0].metadata == b"123"
         assert t[1].flags == 1
         assert list(t[1].location) == [0, 1, 2, 3]
         assert t[1].metadata == b"\xf0"
+        assert list(t[2].parents) == [0, 1]
         with pytest.raises(IndexError):
-            t.__getitem__(-3)
+            t.__getitem__(-4)
 
     def test_add_row_defaults(self):
         t = tskit.IndividualTable()
@@ -885,6 +888,8 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
         assert t.flags[0] == 0
         assert len(t.location) == 0
         assert t.location_offset[0] == 0
+        assert len(t.parents) == 0
+        assert t.parents_offset[0] == 0
         assert len(t.metadata) == 0
         assert t.metadata_offset[0] == 0
 
@@ -896,6 +901,8 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=123)
         with pytest.raises(ValueError):
             t.add_row(location="1234")
+        with pytest.raises(ValueError):
+            t.add_row(parents="forty-two")
 
     def test_packset_location(self):
         t = tskit.IndividualTable()

@@ -173,17 +173,23 @@ parse_individual_table_dict(
 {
     int err;
     int ret = -1;
-    size_t num_rows, metadata_length, location_length;
+    size_t num_rows, metadata_length, location_length, parents_length;
     char *metadata_data = NULL;
     double *location_data = NULL;
+    tsk_id_t *parents_data = NULL;
     uint32_t *metadata_offset_data = NULL;
     uint32_t *location_offset_data = NULL;
+    uint32_t *parents_offset_data = NULL;
     PyObject *flags_input = NULL;
     PyArrayObject *flags_array = NULL;
     PyObject *location_input = NULL;
     PyArrayObject *location_array = NULL;
     PyObject *location_offset_input = NULL;
     PyArrayObject *location_offset_array = NULL;
+    PyObject *parents_input = NULL;
+    PyArrayObject *parents_array = NULL;
+    PyObject *parents_offset_input = NULL;
+    PyArrayObject *parents_offset_array = NULL;
     PyObject *metadata_input = NULL;
     PyArrayObject *metadata_array = NULL;
     PyObject *metadata_offset_input = NULL;
@@ -203,6 +209,14 @@ parse_individual_table_dict(
     }
     location_offset_input = get_table_dict_value(dict, "location_offset", false);
     if (location_offset_input == NULL) {
+        goto out;
+    }
+    parents_input = get_table_dict_value(dict, "parents", false);
+    if (parents_input == NULL) {
+        goto out;
+    }
+    parents_offset_input = get_table_dict_value(dict, "parents_offset", false);
+    if (parents_offset_input == NULL) {
         goto out;
     }
     metadata_input = get_table_dict_value(dict, "metadata", false);
@@ -241,6 +255,25 @@ parse_individual_table_dict(
             goto out;
         }
         location_offset_data = PyArray_DATA(location_offset_array);
+    }
+    if ((parents_input == Py_None) != (parents_offset_input == Py_None)) {
+        PyErr_SetString(
+            PyExc_TypeError, "parents and parents_offset must be specified together");
+        goto out;
+    }
+    if (parents_input != Py_None) {
+        parents_array
+            = table_read_column_array(parents_input, NPY_INT32, &parents_length, false);
+        if (parents_array == NULL) {
+            goto out;
+        }
+        parents_data = PyArray_DATA(parents_array);
+        parents_offset_array = table_read_offset_array(
+            parents_offset_input, &num_rows, parents_length, true);
+        if (parents_offset_array == NULL) {
+            goto out;
+        }
+        parents_offset_data = PyArray_DATA(parents_offset_array);
     }
     if ((metadata_input == Py_None) != (metadata_offset_input == Py_None)) {
         PyErr_SetString(
@@ -284,7 +317,8 @@ parse_individual_table_dict(
         }
     }
     err = tsk_individual_table_append_columns(table, num_rows, PyArray_DATA(flags_array),
-        location_data, location_offset_data, metadata_data, metadata_offset_data);
+        location_data, location_offset_data, parents_data, parents_offset_data,
+        metadata_data, metadata_offset_data);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -294,6 +328,8 @@ out:
     Py_XDECREF(flags_array);
     Py_XDECREF(location_array);
     Py_XDECREF(location_offset_array);
+    Py_XDECREF(parents_array);
+    Py_XDECREF(parents_offset_array);
     Py_XDECREF(metadata_array);
     Py_XDECREF(metadata_offset_array);
     return ret;
@@ -1449,6 +1485,10 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { "location", (void *) tables->individuals.location,
             tables->individuals.location_length, NPY_FLOAT64 },
         { "location_offset", (void *) tables->individuals.location_offset,
+            tables->individuals.num_rows + 1, NPY_UINT32 },
+        { "parents", (void *) tables->individuals.parents,
+            tables->individuals.parents_length, NPY_INT32 },
+        { "parents_offset", (void *) tables->individuals.parents_offset,
             tables->individuals.num_rows + 1, NPY_UINT32 },
         { "metadata", (void *) tables->individuals.metadata,
             tables->individuals.metadata_length, NPY_INT8 },

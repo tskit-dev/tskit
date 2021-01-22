@@ -1074,11 +1074,11 @@ test_simplest_unary_with_individuals(void)
                         "0  2   4   2,3\n"
                         "0  1   5   4\n"
                         "1  2   6   4\n";
-    const char *individuals = "0    0.5\n"
-                              "0    1.5,3.1\n"
-                              "0    2.1\n"
-                              "0    3.2\n"
-                              "0    4.2\n";
+    const char *individuals = "0    0.5     -1,-1\n"
+                              "0    1.5,3.1 -1,-1\n"
+                              "0    2.1     -1,-1\n"
+                              "0    3.2     -1,-1\n"
+                              "0    4.2     -1,-1\n";
     const char *nodes_expect = "1  0   0   -1\n"
                                "1  0   0   0\n"
                                "0  1   0   1\n"
@@ -1089,10 +1089,10 @@ test_simplest_unary_with_individuals(void)
                                "2  3   3   1\n"
                                "0  2   4   0,2\n"
                                "1  2   5   4\n";
-    const char *individuals_expect = "0    0.5\n"
-                                     "0    1.5,3.1\n"
-                                     "0    2.1\n"
-                                     "0    3.2\n";
+    const char *individuals_expect = "0    0.5     -1,-1\n"
+                                     "0    1.5,3.1 -1,-1\n"
+                                     "0    2.1     -1,-1\n"
+                                     "0    3.2     -1,-1\n";
     tsk_treeseq_t ts, simplified, expected;
     tsk_id_t sample_ids[] = { 0, 1 };
 
@@ -1887,28 +1887,32 @@ test_simplest_final_gap_tsk_treeseq_mutation_parents(void)
 static void
 test_simplest_individuals(void)
 {
-    const char *individuals = "1      0.25\n"
-                              "2      0.5,0.25\n";
+    const char *individuals = "1      0.25     -1,-1\n"
+                              "2      0.5,0.25 -1,-1\n"
+                              "3      0.3      0,1\n";
     const char *nodes = "1  0   -1  -1\n"
                         "1  0   -1  1\n"
                         "0  0   -1  -1\n"
                         "1  0   -1  0\n"
-                        "0  0   -1  1\n";
+                        "0  0   -1  1\n"
+                        "0  0   -1  2\n";
     tsk_table_collection_t tables;
     tsk_treeseq_t ts;
     tsk_node_t node;
     tsk_individual_t individual;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
     int ret;
+    tsk_id_t pat_id, mat_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 1.0;
     parse_individuals(individuals, &tables.individuals);
-    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 2);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 3);
+
     parse_nodes(nodes, &tables.nodes);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 5);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 6);
 
     ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1927,6 +1931,10 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.flags, 1);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
     CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.25);
+    CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[0], -1);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[1], -1);
+    pat_id = individual.id;
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 3);
 
@@ -1937,9 +1945,25 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.5);
     CU_ASSERT_EQUAL_FATAL(individual.location[1], 0.25);
+    CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[0], -1);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[1], -1);
+    mat_id = individual.id;
     CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 1);
     CU_ASSERT_EQUAL_FATAL(individual.nodes[1], 4);
+
+    ret = tsk_treeseq_get_individual(&ts, 2, &individual);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(individual.id, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.flags, 3);
+    CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
+    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.3);
+    CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[0], pat_id);
+    CU_ASSERT_EQUAL_FATAL(individual.parents[1], mat_id);
+    CU_ASSERT_EQUAL_FATAL(individual.nodes_length, 1);
+    CU_ASSERT_EQUAL_FATAL(individual.nodes[0], 5);
 
     ret = tsk_treeseq_get_individual(&ts, 3, &individual);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
@@ -2005,9 +2029,11 @@ test_simplest_bad_individuals(void)
     tables.nodes.individual[0] = TSK_NULL;
 
     /* add two individuals */
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL(ret, 1);
 
     /* Bad individual ID */
@@ -2788,9 +2814,9 @@ test_simplest_individual_filter(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 1;
-    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, "0", 1);
-    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, "1", 1);
-    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, "2", 1);
+    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, "0", 1);
+    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, "1", 1);
+    tsk_individual_table_add_row(&tables.individuals, 0, NULL, 0, NULL, 0, "2", 1);
     /* Two nodes referring to individual 1 */
     tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
     tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
