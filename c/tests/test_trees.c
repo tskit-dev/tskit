@@ -940,7 +940,18 @@ test_simplest_records(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2,
+        TSK_KEEP_UNARY | TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE);
+    tsk_treeseq_free(&simplified);
+
     ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -978,6 +989,12 @@ test_simplest_nonbinary_records(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 4, TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -993,7 +1010,7 @@ test_simplest_unary_records(void)
     const char *edges = "0  1   2   0\n"
                         "0  1   3   1\n"
                         "0  1   4   2,3\n";
-    tsk_treeseq_t ts, simplified;
+    tsk_treeseq_t ts, simplified, simplified_other;
     tsk_id_t sample_ids[] = { 0, 1 };
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -1019,6 +1036,84 @@ test_simplest_unary_records(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified_other, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(
+        tsk_table_collection_equals(simplified.tables, simplified_other.tables, 0));
+    tsk_treeseq_free(&simplified);
+    tsk_treeseq_free(&simplified_other);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_unary_with_individuals(void)
+{
+    int ret;
+    const char *nodes = "1  0   0   -1\n"
+                        "1  0   0   0\n"
+                        "0  1   0   -1\n"
+                        "0  1   0   1\n"
+                        "0  2   0   -1\n"
+                        "0  3   0   -1\n"
+                        "0  3   0   2\n"
+                        "0  1   0   -1\n"
+                        "0  1   0   3\n"
+                        "0  0   0   -1\n"
+                        "0  0   0   4\n"
+                        "0  1   0   3\n";
+    const char *edges = "0  2   2   0\n"
+                        "0  2   3   1\n"
+                        "2  3   7   0\n"
+                        "2  3   8   1,9\n"
+                        "2  3   11   10\n"
+                        "0  2   4   2,3\n"
+                        "0  1   5   4\n"
+                        "1  2   6   4\n";
+    const char *individuals = "0    0.5\n"
+                              "0    1.5,3.1\n"
+                              "0    2.1\n"
+                              "0    3.2\n"
+                              "0    4.2\n";
+    const char *nodes_expect = "1  0   0   -1\n"
+                               "1  0   0   0\n"
+                               "0  1   0   1\n"
+                               "0  1   0   3\n"
+                               "0  2   0   -1\n"
+                               "0  3   0   2\n";
+    const char *edges_expect = "0  2   2   1\n"
+                               "2  3   3   1\n"
+                               "0  2   4   0,2\n"
+                               "1  2   5   4\n";
+    const char *individuals_expect = "0    0.5\n"
+                                     "0    1.5,3.1\n"
+                                     "0    2.1\n"
+                                     "0    3.2\n";
+    tsk_treeseq_t ts, simplified, expected;
+    tsk_id_t sample_ids[] = { 0, 1 };
+
+    tsk_treeseq_from_text(&ts, 3, nodes, edges, NULL, NULL, NULL, individuals, NULL, 0);
+    tsk_treeseq_from_text(&expected, 3, nodes_expect, edges_expect, NULL, NULL, NULL,
+        individuals_expect, NULL, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&ts), 3.0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 12);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_individuals(&ts), 5);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_populations(&ts), 1);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2,
+        TSK_KEEP_UNARY_IN_INDIVIDUALS | TSK_FILTER_INDIVIDUALS, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(simplified.tables, expected.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    tsk_treeseq_free(&expected);
     tsk_treeseq_free(&ts);
 }
 
@@ -5987,6 +6082,7 @@ main(int argc, char **argv)
         { "test_simplest_records", test_simplest_records },
         { "test_simplest_nonbinary_records", test_simplest_nonbinary_records },
         { "test_simplest_unary_records", test_simplest_unary_records },
+        { "test_simplest_unary_with_individuals", test_simplest_unary_with_individuals },
         { "test_simplest_non_sample_leaf_records",
             test_simplest_non_sample_leaf_records },
         { "test_simplest_degenerate_multiple_root_records",
