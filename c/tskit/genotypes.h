@@ -52,9 +52,8 @@ typedef struct {
     size_t num_samples;
     size_t num_sites;
     const tsk_treeseq_t *tree_sequence;
-    const tsk_id_t *sample_index_map;
-    tsk_id_t *alt_samples;
-    tsk_id_t *alt_sample_index_map;
+    const tsk_id_t *samples;          /* samples being used */
+    const tsk_id_t *sample_index_map; /* reverse index map being used */
     bool user_alleles;
     char *user_alleles_mem;
     size_t tree_site_index;
@@ -63,6 +62,9 @@ typedef struct {
     tsk_tree_t tree;
     tsk_flags_t options;
     tsk_variant_t variant;
+    // private: the following data members are not intended to be used externally
+    tsk_id_t *alt_samples; /* alternative subset of samples to use */
+    tsk_id_t *alt_sample_index_map;
 } tsk_vargen_t;
 
 int tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
