@@ -2886,16 +2886,17 @@ class TableCollection:
             in increasing order. The list of intervals must be interpretable as a
             2D numpy array with shape (N, 2), where N is the number of intervals.
         :param bool simplify: If True, run simplify on the tables so that nodes
-            no longer used are discarded. (Default: True).
+            no longer used are discarded. Must be ``False`` if input tree sequence
+            includes migrations. (Default: True).
         :param bool record_provenance: If ``True``, add details of this operation
             to the provenance table in this TableCollection. (Default: ``True``).
         """
         intervals = util.intervals_to_np_array(intervals, 0, self.sequence_length)
-        if len(self.migrations) > 0:
-            raise ValueError("Migrations not supported by keep_ and delete_ intervals")
 
         edges = self.edges.copy()
         self.edges.clear()
+        migrations = self.migrations.copy()
+        self.migrations.clear()
         keep_sites = np.repeat(False, self.sites.num_rows)
         for s, e in intervals:
             curr_keep_sites = np.logical_and(
@@ -2911,9 +2912,21 @@ class TableCollection:
                 parent=edges.parent[keep_edges],
                 child=edges.child[keep_edges],
             )
+            keep_migrations = np.logical_not(
+                np.logical_or(migrations.right <= s, migrations.left >= e)
+            )
+            self.migrations.append_columns(
+                left=np.fmax(s, migrations.left[keep_migrations]),
+                right=np.fmin(e, migrations.right[keep_migrations]),
+                time=migrations.time[keep_migrations],
+                node=migrations.node[keep_migrations],
+                source=migrations.source[keep_migrations],
+                dest=migrations.dest[keep_migrations],
+            )
         self.delete_sites(
             np.where(np.logical_not(keep_sites))[0], record_provenance=False
         )
+
         self.sort()
         if simplify:
             self.simplify(record_provenance=False)
@@ -2925,7 +2938,13 @@ class TableCollection:
 
     def _check_trim_conditions(self):
         if self.migrations.num_rows > 0:
-            raise ValueError("You cannot trim a tree sequence containing migrations")
+            if (np.min(self.migrations.left) < np.min(self.edges.left)) and (
+                np.max(self.migrations.right) > np.max(self.edges.right)
+            ):
+                raise ValueError(
+                    "Cannot trim a tree sequence with migrations which exist to the"
+                    "left of the leftmost edge or to the right of the rightmost edge."
+                )
         if self.edges.num_rows == 0:
             raise ValueError(
                 "Trimming a tree sequence with no edges would reduce the sequence length"
@@ -2959,6 +2978,14 @@ class TableCollection:
             ancestral_state_offset=self.sites.ancestral_state_offset,
             metadata=self.sites.metadata,
             metadata_offset=self.sites.metadata_offset,
+        )
+        self.migrations.set_columns(
+            left=self.migrations.left - leftmost,
+            right=self.migrations.right - leftmost,
+            time=self.migrations.time,
+            node=self.migrations.node,
+            source=self.migrations.source,
+            dest=self.migrations.dest,
         )
         self.sequence_length = self.sequence_length - leftmost
         if record_provenance:
