@@ -821,12 +821,7 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
         strlen(prov_timestamp), prov_record, strlen(prov_record));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_sort(&tables, 0, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    /* Add in some mock migrations. Must be done after sort as it doesn't support
-     * migrations.
-     * TODO make these consistent with the caterpillar tree topology. */
+    /* TODO make these consistent with the caterpillar tree topology. */
     for (j = 0; j < n - 1; j++) {
         m = j % num_metadatas;
         ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, j, j, j + 1, j + 1.5,
@@ -834,6 +829,8 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
         CU_ASSERT_FATAL(ret >= 0);
     }
 
+    ret = tsk_table_collection_sort(&tables, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);

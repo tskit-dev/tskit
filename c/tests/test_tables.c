@@ -30,6 +30,35 @@
 #include <stdlib.h>
 
 static void
+reverse_migrations(tsk_table_collection_t *tables)
+{
+    int ret;
+    tsk_migration_table_t migrations;
+    tsk_migration_t migration;
+    tsk_id_t j;
+
+    /* Easy way to copy the metadata schema */
+    ret = tsk_migration_table_copy(&tables->migrations, &migrations, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_clear(&migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = (tsk_id_t) tables->migrations.num_rows - 1; j >= 0; j--) {
+        ret = tsk_migration_table_get_row(&tables->migrations, j, &migration);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_migration_table_add_row(&migrations, migration.left, migration.right,
+            migration.node, migration.source, migration.dest, migration.time,
+            migration.metadata, migration.metadata_length);
+        CU_ASSERT_FATAL(ret >= 0);
+    }
+
+    ret = tsk_migration_table_copy(&migrations, &tables->migrations, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_migration_table_free(&migrations);
+}
+
+static void
 reverse_edges(tsk_table_collection_t *tables)
 {
     int ret;
@@ -37,7 +66,10 @@ reverse_edges(tsk_table_collection_t *tables)
     tsk_edge_t edge;
     tsk_id_t j;
 
-    ret = tsk_edge_table_init(&edges, tables->edges.options);
+    /* Easy way to copy the metadata schema */
+    ret = tsk_edge_table_copy(&tables->edges, &edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_clear(&edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = (tsk_id_t) tables->edges.num_rows - 1; j >= 0; j--) {
@@ -3757,18 +3789,25 @@ test_sort_tables_offsets(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_table_collection_sort(&tables, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED);
-
-    tsk_migration_table_clear(&tables.migrations);
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-
     /* Check that setting edge offset = len(edges) does nothing */
     reverse_edges(&tables);
     ret = tsk_table_collection_copy(&tables, &copy, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     memset(&bookmark, 0, sizeof(bookmark));
     bookmark.edges = tables.edges.num_rows;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Check that setting migration offset = len(migrations) does nothing */
+    reverse_migrations(&tables);
+    ret = tsk_table_collection_copy(&tables, &copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.migrations = tables.migrations.num_rows;
     ret = tsk_table_collection_sort(&tables, &bookmark, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
@@ -3942,6 +3981,15 @@ test_sort_tables_errors(void)
     ret = tsk_table_collection_sort(&tables, &pos, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
 
+    memset(&pos, 0, sizeof(pos));
+    pos.migrations = (tsk_size_t) -1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+
+    pos.migrations = tables.migrations.num_rows + 1;
+    ret = tsk_table_collection_sort(&tables, &pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+
     /* Individual, node, population and provenance positions are ignored */
     memset(&pos, 0, sizeof(pos));
     pos.individuals = 1;
@@ -3963,13 +4011,8 @@ test_sort_tables_errors(void)
     ret = tsk_table_collection_sort(&tables, &pos, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    /* Setting migrations, sites or mutations gives a BAD_PARAM. See
+    /* Setting sites or mutations gives a BAD_PARAM. See
      * github.com/tskit-dev/tskit/issues/101 */
-    memset(&pos, 0, sizeof(pos));
-    pos.migrations = 1;
-    ret = tsk_table_collection_sort(&tables, &pos, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
-
     memset(&pos, 0, sizeof(pos));
     pos.sites = 1;
     ret = tsk_table_collection_sort(&tables, &pos, 0);
@@ -3979,12 +4022,6 @@ test_sort_tables_errors(void)
     pos.mutations = 1;
     ret = tsk_table_collection_sort(&tables, &pos, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
-
-    /* Migrations are not supported */
-    tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 0, 0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.migrations.num_rows, 1);
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -4177,6 +4214,51 @@ test_sort_tables_canonical(void)
 
     tsk_table_collection_free(&t2);
     tsk_table_collection_free(&t1);
+}
+
+static void
+test_sort_tables_migrations(void)
+{
+    int ret;
+    tsk_treeseq_t *ts;
+    tsk_table_collection_t tables, copy;
+
+    ts = caterpillar_tree(13, 1, 1);
+    ret = tsk_treeseq_copy_tables(ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tables.migrations.num_rows > 0);
+
+    ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
+
+    reverse_migrations(&tables);
+    CU_ASSERT_FATAL(!tsk_table_collection_equals(&tables, &copy, 0));
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_migration_table_equals(&tables.migrations, &copy.migrations, 0));
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
+
+    /* Make sure we test the deeper comparison keys. The full key is
+     * (time, source, dest, left, node) */
+    tsk_migration_table_clear(&tables.migrations);
+
+    /* params = left, right, node, source, dest, time */
+    tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 0, NULL, 0);
+    tsk_migration_table_add_row(&tables.migrations, 0, 1, 1, 0, 1, 0, NULL, 0);
+    ret = tsk_migration_table_copy(&tables.migrations, &copy.migrations, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    reverse_migrations(&tables);
+    CU_ASSERT_FATAL(!tsk_table_collection_equals(&tables, &copy, 0));
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_migration_table_equals(&tables.migrations, &copy.migrations, 0));
+
+    tsk_table_collection_free(&tables);
+    tsk_table_collection_free(&copy);
+    tsk_treeseq_free(ts);
+    free(ts);
 }
 
 static void
@@ -5942,6 +6024,7 @@ main(int argc, char **argv)
         { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
         { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
         { "test_sort_tables_mutation_times", test_sort_tables_mutation_times },
+        { "test_sort_tables_migrations", test_sort_tables_migrations },
         { "test_edge_update_invalidates_index", test_edge_update_invalidates_index },
         { "test_copy_table_collection", test_copy_table_collection },
         { "test_sort_tables_errors", test_sort_tables_errors },

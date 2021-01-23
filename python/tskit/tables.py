@@ -2686,6 +2686,14 @@ class TableCollection:
         currently rearrange tables so that mutations occur after their mutation parents,
         which is a requirement for valid tree sequences.
 
+        Migrations are sorted by ``time``, ``source``, ``dest``, ``left`` and
+        ``node`` values. This defines a total sort order, such that any permutation
+        of a valid migration table will be sorted into the same output order.
+        Note that this sorting order exceeds the
+        :ref:`migration sorting requirements <sec_migration_requirements>` for a
+        valid tree sequence, which only requires that migrations are sorted by
+        time value.
+
         :param int edge_start: The index in the edge table where sorting starts
             (default=0; must be <= len(edges)).
         """
