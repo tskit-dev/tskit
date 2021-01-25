@@ -159,6 +159,7 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     memset(self, 0, sizeof(tsk_vargen_t));
 
     if (samples == NULL) {
+        self->samples = tsk_treeseq_get_samples(tree_sequence);
         self->num_samples = tsk_treeseq_get_num_samples(tree_sequence);
         self->sample_index_map = tsk_treeseq_get_sample_index_map(tree_sequence);
         num_samples_alloc = self->num_samples;
@@ -171,6 +172,7 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
         if (ret != 0) {
             goto out;
         }
+        self->samples = samples;
         self->num_samples = num_samples;
         self->sample_index_map = self->alt_sample_index_map;
     }
