@@ -500,13 +500,13 @@ class CommonTestsMixin:
             table.set_columns(**input_data)
             html = table._repr_html_()
             if num_rows == 50:
-                assert len(html.splitlines()) == num_rows + 10
+                assert len(html.splitlines()) == num_rows + 11
                 assert (
                     html.split("</tr>")[21]
                     == "\n<tr><td><em>... skipped 10 rows ...</em></td>"
                 )
             else:
-                assert len(html.splitlines()) == num_rows + 19
+                assert len(html.splitlines()) == num_rows + 20
 
     def test_copy(self):
         for num_rows in [0, 10]:

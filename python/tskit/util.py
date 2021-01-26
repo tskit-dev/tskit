@@ -389,7 +389,8 @@ def tree_sequence_html(ts):
     return f"""
             <div>
               <style>
-                .tskit-table thead tr th {{text-align: left;}}
+                .tskit-table thead tr th {{text-align: left;padding: 0.5em 0.5em;}}
+                .tskit-table tbody tr td {{padding: 0.5em 0.5em;}}
                 .tskit-table tbody tr td:first-of-type {{text-align: left;}}
                 .tskit-details-label {{vertical-align: top; padding-right:5px;}}
                 .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}

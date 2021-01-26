@@ -361,7 +361,8 @@ class BaseTable:
                 <style scoped="">
                     .tskit-table tbody tr th:only-of-type {{vertical-align: middle;}}
                     .tskit-table tbody tr th {{vertical-align: top;}}
-                    .tskit-table tbody td {{text-align: right;}}
+                    .tskit-table tbody td {{text-align: right;padding: 0.5em 0.5em;}}
+                    .tskit-table tbody th {{padding: 0.5em 0.5em;}}
                 </style>
                 <table border="1" class="tskit-table">
                     <thead>
