@@ -322,16 +322,21 @@ def single_childify(ts):
         for mut in mutations_on_edge[edge.id]:
             if mut.time < t:
                 tables.mutations.add_row(
-                    mut.site,
-                    mut.node,
-                    mut.time,
-                    mut.derived_state,
-                    mut.parent,
-                    mut.metadata,
+                    site=mut.site,
+                    node=mut.node,
+                    time=mut.time,
+                    derived_state=mut.derived_state,
+                    parent=mut.parent,
+                    metadata=mut.metadata,
                 )
             else:
                 tables.mutations.add_row(
-                    mut.site, u, mut.derived_state, mut.parent, mut.metadata, mut.time
+                    site=mut.site,
+                    node=u,
+                    derived_state=mut.derived_state,
+                    parent=mut.parent,
+                    metadata=mut.metadata,
+                    time=mut.time,
                 )
     tables.sort()
     add_provenance(tables.provenances, "insert_redundant_breakpoints")
@@ -696,6 +701,7 @@ def py_union(tables, other, nodes, record_provenance=True, add_populations=True)
                 node=node_map[mut.node],
                 derived_state=mut.derived_state,
                 parent=tskit.NULL,
+                time=mut.time,
                 metadata=mut.metadata,
             )
             mut_map[other_id] = mut_id

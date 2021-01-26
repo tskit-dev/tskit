@@ -75,7 +75,12 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
                 )
                 for m in site.mutations:
                     tables.mutations.add_row(
-                        site_id, m.node, m.derived_state, tskit.NULL, m.metadata
+                        site=site_id,
+                        node=m.node,
+                        derived_state=m.derived_state,
+                        parent=tskit.NULL,
+                        time=m.time,
+                        metadata=m.metadata,
                     )
     tables.build_index()
     tables.compute_mutation_parents()

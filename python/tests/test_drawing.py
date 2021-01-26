@@ -1772,7 +1772,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_integer_breaks_ts(self):
-        # NB: msprime 1.0 will mean updating this to `simulate(... discrete_genome=True)
+        # TODO update this to use the msprime 1.0 API. Then we'll need to
+        # change to make the floating point breaks the exception.
         recomb_map = msprime.RecombinationMap.uniform_map(
             length=1000, rate=0.005, num_loci=1000
         )
