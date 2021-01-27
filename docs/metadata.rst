@@ -273,7 +273,6 @@ to the individuals in a tree sequence:
             "properties": {
                 "accession_number": {"type": "integer", "binaryFormat": "i"},
                 "collection_date": {
-                    "name": "Collection date",
                     "description": "Date of sample collection in ISO format",
                     "type": "string",
                     "binaryFormat": "10p",
