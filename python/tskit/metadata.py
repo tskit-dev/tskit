@@ -28,6 +28,7 @@ import copy
 import json
 import pprint
 import struct
+from functools import reduce
 from itertools import islice
 from typing import Any
 from typing import Mapping
@@ -109,13 +110,33 @@ def register_metadata_codec(
 
 class JSONCodec(AbstractMetadataCodec):
     def __init__(self, schema: Mapping[str, Any]) -> None:
-        pass
+        # Recurse through the schema finding default values to fill in on decode
+        self.defaults = {}
+
+        def record_defaults(path, sub_schema):
+            if "object" in sub_schema.get("type", "object"):
+                for key, prop in sub_schema.get("properties", {}).items():
+                    record_defaults(path + (key,), prop)
+            if "default" in sub_schema:
+                self.defaults[path] = sub_schema["default"]
+
+        record_defaults((), schema)
 
     def encode(self, obj: Any) -> bytes:
         return tskit.canonical_json(obj).encode()
 
     def decode(self, encoded: bytes) -> Any:
-        return json.loads(encoded.decode())
+        result = json.loads(encoded.decode())
+        # Assign default values
+        for key_path, default_val in self.defaults.items():
+            # Keys can be missing as they can be optional, we insert so we can set
+            # a deeper default
+            to_check = reduce(
+                lambda obj, key: obj.setdefault(key, {}), key_path[:-1], result
+            )
+            if key_path[-1] not in to_check:
+                to_check[key_path[-1]] = default_val
+        return result
 
 
 register_metadata_codec(JSONCodec, "json")
