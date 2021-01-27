@@ -739,11 +739,22 @@ class MetadataTestsMixin:
         table.metadata_schema = self.metadata_schema
         assert repr(table.metadata_schema) == repr(self.metadata_schema)
         # Del should fail
-        with pytest.raises(AttributeError):
+        with pytest.raises(AttributeError, match="can't delete attribute"):
             del table.metadata_schema
         # None should fail
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            TypeError,
+            match="Only instances of tskit.MetadataSchema can be assigned to "
+            "metadata_schema, not <class 'NoneType'>",
+        ):
             table.metadata_schema = None
+        # And dict
+        with pytest.raises(
+            TypeError,
+            match="Only instances of tskit.MetadataSchema can be assigned to "
+            "metadata_schema, not <class 'dict'>",
+        ):
+            table.metadata_schema = {}
 
     def test_default_metadata_schema(self):
         # Default should allow bytes as in pre-exisiting code
