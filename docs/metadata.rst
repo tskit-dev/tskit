@@ -65,8 +65,9 @@ JSON
 When ``json`` is specified as the ``codec`` in the schema the metadata is encoded in
 the human readable `JSON <https://www.json.org/json-en.html>`_ format. As this format
 is human readable and encodes numbers as text it uses more bytes than the ``struct``
-format. However it is simpler to configure as it doesn't have any specific constraints and
-doesn't require any format specifiers for each type in the schema.
+format. However it is simpler to configure as it doesn't require any format specifier
+for each type in the schema. Default values for properties can be specified for only
+the shallowest level of the metadata object.
 
 ------
 struct

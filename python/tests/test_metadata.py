@@ -526,6 +526,47 @@ class TestMetadataModule:
         assert ms.decode_row(ms.validate_and_encode_row(row_data)) == row_data
 
 
+class TestJSONCodec:
+    def test_simple_default(self):
+        schema = {
+            "codec": "json",
+            "type": "object",
+            "properties": {"number": {"type": "number", "default": 5}},
+        }
+        ms = tskit.MetadataSchema(schema)
+        assert ms.decode_row(ms.validate_and_encode_row({})) == {"number": 5}
+        assert ms.decode_row(ms.validate_and_encode_row({"number": 42})) == {
+            "number": 42
+        }
+
+    def test_nested_default_error(self):
+        schema = {
+            "codec": "json",
+            "type": "object",
+            "properties": {
+                "obj": {
+                    "type": "object",
+                    "properties": {
+                        "nested_obj_no_default": {
+                            "type": "object",
+                            "properties": {},
+                        },
+                        "nested_obj": {
+                            "type": "object",
+                            "properties": {},
+                            "default": {"foo": "bar"},
+                        },
+                    },
+                }
+            },
+        }
+        with pytest.raises(
+            tskit.MetadataSchemaValidationError,
+            match="Defaults can only be specified at the top level for JSON codec",
+        ):
+            tskit.MetadataSchema(schema)
+
+
 class TestStructCodec:
     def encode_decode(self, method_name, sub_schema, obj, buffer):
         assert (

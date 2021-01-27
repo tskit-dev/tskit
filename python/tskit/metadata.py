@@ -60,17 +60,19 @@ def replace_root_refs(obj):
 TSKITMetadataSchemaValidator = jsonschema.validators.extend(
     jsonschema.validators.Draft7Validator
 )
-META_SCHEMA: Mapping[str, Any] = copy.deepcopy(TSKITMetadataSchemaValidator.META_SCHEMA)
+deref_meta_schema: Mapping[str, Any] = copy.deepcopy(
+    TSKITMetadataSchemaValidator.META_SCHEMA
+)
 # We need a top-level only required property so we need to rewrite any reference
 # to the top-level schema to a copy in a definition.
-META_SCHEMA = replace_root_refs(META_SCHEMA)
-META_SCHEMA["definitions"]["root"] = copy.deepcopy(META_SCHEMA)
-META_SCHEMA["codec"] = {"type": "string"}
-META_SCHEMA["required"] = ["codec"]
+deref_meta_schema = replace_root_refs(deref_meta_schema)
+deref_meta_schema["definitions"]["root"] = copy.deepcopy(deref_meta_schema)
+deref_meta_schema["codec"] = {"type": "string"}
+deref_meta_schema["required"] = ["codec"]
 # For interoperability reasons, force the top-level to be an object or union
 # of object and null
-META_SCHEMA["properties"]["type"] = {"enum": ["object", ["object", "null"]]}
-TSKITMetadataSchemaValidator.META_SCHEMA = META_SCHEMA
+deref_meta_schema["properties"]["type"] = {"enum": ["object", ["object", "null"]]}
+TSKITMetadataSchemaValidator.META_SCHEMA = deref_meta_schema
 
 
 class AbstractMetadataCodec(metaclass=abc.ABCMeta):
@@ -112,14 +114,44 @@ def register_metadata_codec(
 
 
 class JSONCodec(AbstractMetadataCodec):
+    def default_validator(validator, types, instance, schema):
+        # For json codec defaults must be at the top level
+        if validator.is_type(instance, "object"):
+            for v in instance.get("properties", {}).values():
+                for v2 in v.get("properties", {}).values():
+                    if "default" in v2:
+                        yield jsonschema.ValidationError(
+                            "Defaults can only be specified at the top level"
+                            " for JSON codec"
+                        )
+
+    schema_validator = jsonschema.validators.extend(
+        TSKITMetadataSchemaValidator, {"default": default_validator}
+    )
+
     def __init__(self, schema: Mapping[str, Any]) -> None:
-        pass
+        try:
+            self.schema_validator.check_schema(schema)
+        except jsonschema.exceptions.SchemaError as ve:
+            raise exceptions.MetadataSchemaValidationError(str(ve)) from ve
+
+        # Find default values to fill in on decode, top level only
+        self.defaults = {
+            key: prop["default"]
+            for key, prop in schema.get("properties", {}).items()
+            if "default" in prop
+        }
 
     def encode(self, obj: Any) -> bytes:
         return tskit.canonical_json(obj).encode()
 
     def decode(self, encoded: bytes) -> Any:
-        return json.loads(encoded.decode())
+        result = json.loads(encoded.decode())
+        # Assign default values
+        if isinstance(result, dict):
+            return dict(self.defaults, **result)
+        else:
+            return result
 
 
 register_metadata_codec(JSONCodec, "json")
@@ -137,7 +169,7 @@ class NOOPCodec(AbstractMetadataCodec):
 
 
 def binary_format_validator(validator, types, instance, schema):
-    # We're hooking into jsonschemas validaiton code here, which works by creating
+    # We're hooking into jsonschemas validation code here, which works by creating
     # generators of exceptions, hence the yielding
 
     # Make sure the normal type validation gets done
@@ -183,54 +215,59 @@ StructCodecSchemaValidator = jsonschema.validators.extend(
     TSKITMetadataSchemaValidator,
     {"type": binary_format_validator, "required": required_validator},
 )
-META_SCHEMA: Mapping[str, Any] = copy.deepcopy(StructCodecSchemaValidator.META_SCHEMA)
+struct_meta_schema: Mapping[str, Any] = copy.deepcopy(
+    StructCodecSchemaValidator.META_SCHEMA
+)
 # No union types
-META_SCHEMA["definitions"]["root"]["properties"]["type"] = {
+struct_meta_schema["definitions"]["root"]["properties"]["type"] = {
     "$ref": "#/definitions/simpleTypes"
 }
 # No hetrogeneous arrays
-META_SCHEMA["properties"]["items"] = {"$ref": "#/definitions/root"}
-META_SCHEMA["definitions"]["root"]["properties"]["items"] = META_SCHEMA["properties"][
-    "items"
-]
+struct_meta_schema["properties"]["items"] = {"$ref": "#/definitions/root"}
+struct_meta_schema["definitions"]["root"]["properties"]["items"] = struct_meta_schema[
+    "properties"
+]["items"]
 # binaryFormat matches regex
-META_SCHEMA["properties"]["binaryFormat"] = {
+struct_meta_schema["properties"]["binaryFormat"] = {
     "type": "string",
     "pattern": r"^([cbB\?hHiIlLqQfd]|\d*[spx])$",
 }
-META_SCHEMA["definitions"]["root"]["properties"]["binaryFormat"] = META_SCHEMA[
-    "properties"
-]["binaryFormat"]
+struct_meta_schema["definitions"]["root"]["properties"][
+    "binaryFormat"
+] = struct_meta_schema["properties"]["binaryFormat"]
 # arrayLengthFormat matches regex and has default
-META_SCHEMA["properties"]["arrayLengthFormat"] = {
+struct_meta_schema["properties"]["arrayLengthFormat"] = {
     "type": "string",
     "pattern": r"^[BHILQ]$",
     "default": "L",
 }
-META_SCHEMA["definitions"]["root"]["properties"]["arrayLengthFormat"] = META_SCHEMA[
-    "properties"
-]["arrayLengthFormat"]
+struct_meta_schema["definitions"]["root"]["properties"][
+    "arrayLengthFormat"
+] = struct_meta_schema["properties"]["arrayLengthFormat"]
 # index is numeric
-META_SCHEMA["properties"]["index"] = {"type": "number"}
-META_SCHEMA["definitions"]["root"]["properties"]["index"] = META_SCHEMA["properties"][
-    "index"
-]
+struct_meta_schema["properties"]["index"] = {"type": "number"}
+struct_meta_schema["definitions"]["root"]["properties"]["index"] = struct_meta_schema[
+    "properties"
+]["index"]
 # stringEncoding is string and has default
-META_SCHEMA["properties"]["stringEncoding"] = {"type": "string", "default": "utf-8"}
-META_SCHEMA["definitions"]["root"]["properties"]["stringEncoding"] = META_SCHEMA[
-    "properties"
-]["stringEncoding"]
+struct_meta_schema["properties"]["stringEncoding"] = {
+    "type": "string",
+    "default": "utf-8",
+}
+struct_meta_schema["definitions"]["root"]["properties"][
+    "stringEncoding"
+] = struct_meta_schema["properties"]["stringEncoding"]
 # nullTerminated is a boolean
-META_SCHEMA["properties"]["nullTerminated"] = {"type": "boolean"}
-META_SCHEMA["definitions"]["root"]["properties"]["nullTerminated"] = META_SCHEMA[
-    "properties"
-]["nullTerminated"]
+struct_meta_schema["properties"]["nullTerminated"] = {"type": "boolean"}
+struct_meta_schema["definitions"]["root"]["properties"][
+    "nullTerminated"
+] = struct_meta_schema["properties"]["nullTerminated"]
 # noLengthEncodingExhaustBuffer is a boolean
-META_SCHEMA["properties"]["noLengthEncodingExhaustBuffer"] = {"type": "boolean"}
-META_SCHEMA["definitions"]["root"]["properties"][
+struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"] = {"type": "boolean"}
+struct_meta_schema["definitions"]["root"]["properties"][
     "noLengthEncodingExhaustBuffer"
-] = META_SCHEMA["properties"]["noLengthEncodingExhaustBuffer"]
-StructCodecSchemaValidator.META_SCHEMA = META_SCHEMA
+] = struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"]
+StructCodecSchemaValidator.META_SCHEMA = struct_meta_schema
 
 
 class StructCodec(AbstractMetadataCodec):
@@ -582,8 +619,8 @@ class MetadataSchema:
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
-            # If None is allowed by the schema it gets used even in the presence of
-            # default and required values.
+            # If None is allowed by the schema as the top-level type, it gets used even
+            # in the presence of default and required values.
             if "type" in schema and "null" in schema["type"]:
                 self.empty_value = None
             else:
