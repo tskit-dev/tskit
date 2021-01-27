@@ -275,7 +275,7 @@ class TestRoundTrip(TestFileFormat):
 
     def verify_tree_sequences_equal(self, ts, tsp, simplify=True):
         assert ts.sequence_length == tsp.sequence_length
-        t1 = ts.tables
+        t1 = ts.dump_tables()
         # We need to sort and squash the edges in the new format because it
         # has gone through an edgesets representation. Simplest way to do this
         # is to call simplify.
@@ -286,6 +286,8 @@ class TestRoundTrip(TestFileFormat):
         assert t1.nodes == t2.nodes
         assert t1.edges == t2.edges
         assert t1.sites == t2.sites
+        # The old formats can't represent mutation times so null them out.
+        t1.mutations.time = np.full_like(t1.mutations.time, tskit.UNKNOWN_TIME)
         assert t1.mutations == t2.mutations
 
     def verify_round_trip(self, ts, version):
@@ -816,7 +818,10 @@ class TestOptionalColumns(TestFileFormat):
         del all_data["mutations/time"]
         kastore.dump(all_data, self.temp_file)
         ts3 = tskit.load(self.temp_file)
-        assert ts1.tables == ts3.tables
+        # Null out the time column
+        t1 = ts1.dump_tables()
+        t1.mutations.time = np.full_like(t1.mutations.time, tskit.UNKNOWN_TIME)
+        assert t1 == ts3.tables
 
 
 class TestFileFormatErrors(TestFileFormat):
