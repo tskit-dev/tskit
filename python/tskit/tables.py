@@ -412,8 +412,12 @@ class MetadataMixin:
 
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
+        if not isinstance(schema, metadata.MetadataSchema):
+            raise TypeError(
+                "Only instances of tskit.MetadataSchema can be assigned to "
+                f"metadata_schema, not {type(schema)}"
+            )
         self.ll_table.metadata_schema = repr(schema)
-        self._update_metadata_schema_cache_from_ll()
         self._update_metadata_schema_cache_from_ll()
 
     def decode_row(self, row: Tuple[Any]) -> Tuple:
