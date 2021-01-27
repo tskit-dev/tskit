@@ -2654,10 +2654,10 @@ int tsk_table_collection_sort(
     tsk_table_collection_t *self, const tsk_bookmark_t *start, tsk_flags_t options);
 
 /**
-@brief Puts the tables into canonical order.
+@brief Puts the tables into canonical form.
 
 @rst
-This method puts tables in canonical order, which exceeds the usual
+This method puts tables in canonical form, which exceeds the usual
 sortedness requirements in such a way that randomly reshuffled tables are
 guaranteed to always be sorted to the same order (with the exception of
 individuals or populations that are not referenced by any nodes). In

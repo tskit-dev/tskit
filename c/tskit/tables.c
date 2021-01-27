@@ -8929,7 +8929,6 @@ tsk_table_collection_sort(
     if (ret != 0) {
         goto out;
     }
-
     ret = tsk_table_sorter_run(&sorter, start);
     if (ret != 0) {
         goto out;

@@ -5352,7 +5352,6 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     memset(&start, 0, sizeof(start));
     start.edges = edge_start;
-
     err = tsk_table_collection_sort(self->tables, &start, 0);
     if (err != 0) {
         handle_library_error(err);
@@ -5791,7 +5790,7 @@ static PyMethodDef TableCollection_methods[] = {
     { .ml_name = "canonicalise",
         .ml_meth = (PyCFunction) TableCollection_canonicalise,
         .ml_flags = METH_NOARGS,
-        .ml_doc = "Puts the tables in canonical order." },
+        .ml_doc = "Puts the tables in canonical form." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) TableCollection_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
