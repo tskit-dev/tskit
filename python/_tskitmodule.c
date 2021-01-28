@@ -340,6 +340,7 @@ make_individual_row(const tsk_individual_t *r)
     PyObject *ret = NULL;
     PyObject *metadata = make_metadata(r->metadata, (Py_ssize_t) r->metadata_length);
     PyArrayObject *location = NULL;
+    PyArrayObject *parents = NULL;
     npy_intp dims;
 
     dims = (npy_intp) r->location_length;
@@ -348,9 +349,16 @@ make_individual_row(const tsk_individual_t *r)
         goto out;
     }
     memcpy(PyArray_DATA(location), r->location, r->location_length * sizeof(double));
-    ret = Py_BuildValue("IOO", (unsigned int) r->flags, location, metadata);
+    dims = (npy_intp) r->parents_length;
+    parents = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
+    if (metadata == NULL || parents == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(parents), r->parents, r->parents_length * sizeof(tsk_id_t));
+    ret = Py_BuildValue("IOOO", (unsigned int) r->flags, location, parents, metadata);
 out:
     Py_XDECREF(location);
+    Py_XDECREF(parents);
     Py_XDECREF(metadata);
     return ret;
 }
@@ -361,21 +369,27 @@ make_individual_object(const tsk_individual_t *r)
     PyObject *ret = NULL;
     PyObject *metadata = make_metadata(r->metadata, (Py_ssize_t) r->metadata_length);
     PyArrayObject *location = NULL;
+    PyArrayObject *parents = NULL;
     PyArrayObject *nodes = NULL;
     npy_intp dims;
 
     dims = (npy_intp) r->location_length;
     location = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_FLOAT64);
+    dims = (npy_intp) r->parents_length;
+    parents = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
     dims = (npy_intp) r->nodes_length;
     nodes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
-    if (metadata == NULL || location == NULL || nodes == NULL) {
+    if (metadata == NULL || location == NULL || parents == NULL || nodes == NULL) {
         goto out;
     }
     memcpy(PyArray_DATA(location), r->location, r->location_length * sizeof(double));
+    memcpy(PyArray_DATA(parents), r->parents, r->parents_length * sizeof(tsk_id_t));
     memcpy(PyArray_DATA(nodes), r->nodes, r->nodes_length * sizeof(tsk_id_t));
-    ret = Py_BuildValue("IOOO", (unsigned int) r->flags, location, metadata, nodes);
+    ret = Py_BuildValue(
+        "IOOOO", (unsigned int) r->flags, location, parents, metadata, nodes);
 out:
     Py_XDECREF(location);
+    Py_XDECREF(parents);
     Py_XDECREF(metadata);
     Py_XDECREF(nodes);
     return ret;
@@ -837,19 +851,23 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     unsigned int flags = 0;
     PyObject *py_metadata = Py_None;
     PyObject *py_location = Py_None;
+    PyObject *py_parents = Py_None;
     PyArrayObject *location_array = NULL;
     double *location_data = NULL;
     tsk_size_t location_length = 0;
+    PyArrayObject *parents_array = NULL;
+    tsk_id_t *parents_data = NULL;
+    tsk_size_t parents_length = 0;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
     npy_intp *shape;
-    static char *kwlist[] = { "flags", "location", "metadata", NULL };
+    static char *kwlist[] = { "flags", "location", "parents", "metadata", NULL };
 
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&OO", kwlist, &uint32_converter,
-            &flags, &py_location, &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&OOO", kwlist, &uint32_converter,
+            &flags, &py_location, &py_parents, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -868,8 +886,19 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
         location_length = (tsk_size_t) shape[0];
         location_data = PyArray_DATA(location_array);
     }
+    if (py_parents != Py_None) {
+        /* This ensures that only 1D arrays are accepted. */
+        parents_array = (PyArrayObject *) PyArray_FromAny(py_parents,
+            PyArray_DescrFromType(NPY_INT32), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+        if (parents_array == NULL) {
+            goto out;
+        }
+        shape = PyArray_DIMS(parents_array);
+        parents_length = (tsk_size_t) shape[0];
+        parents_data = PyArray_DATA(parents_array);
+    }
     err = tsk_individual_table_add_row(self->table, (tsk_flags_t) flags, location_data,
-        location_length, metadata, metadata_length);
+        location_length, parents_data, parents_length, metadata, metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -877,6 +906,7 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
     ret = Py_BuildValue("i", err);
 out:
     Py_XDECREF(location_array);
+    Py_XDECREF(parents_array);
     return ret;
 }
 
@@ -1094,6 +1124,34 @@ out:
 }
 
 static PyObject *
+IndividualTable_get_parents(IndividualTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(
+        self->table->parents_length, self->table->parents, NPY_INT32, sizeof(tsk_id_t));
+out:
+    return ret;
+}
+
+static PyObject *
+IndividualTable_get_parents_offset(IndividualTable *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_get_column_array(self->table->num_rows + 1, self->table->parents_offset,
+        NPY_UINT32, sizeof(uint32_t));
+out:
+    return ret;
+}
+
+static PyObject *
 IndividualTable_get_metadata(IndividualTable *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -1180,6 +1238,12 @@ static PyGetSetDef IndividualTable_getsetters[] = {
     { .name = "location_offset",
         .get = (getter) IndividualTable_get_location_offset,
         .doc = "The location offset array" },
+    { .name = "parents",
+        .get = (getter) IndividualTable_get_parents,
+        .doc = "The parents array" },
+    { .name = "parents_offset",
+        .get = (getter) IndividualTable_get_parents_offset,
+        .doc = "The parents offset array" },
     { .name = "metadata",
         .get = (getter) IndividualTable_get_metadata,
         .doc = "The metadata array" },

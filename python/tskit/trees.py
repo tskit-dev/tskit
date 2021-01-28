@@ -161,6 +161,7 @@ class Individual(SimpleContainerWithMetadata):
         id_=None,
         flags=0,
         location=None,
+        parents=None,
         nodes=None,
         encoded_metadata=b"",
         metadata_decoder=lambda metadata: metadata,
@@ -168,6 +169,7 @@ class Individual(SimpleContainerWithMetadata):
         self.id = id_
         self.flags = flags
         self.location = location
+        self.parents = parents
         self._encoded_metadata = encoded_metadata
         self._metadata_decoder = metadata_decoder
         self.nodes = nodes
@@ -179,6 +181,7 @@ class Individual(SimpleContainerWithMetadata):
             and self._encoded_metadata == other._encoded_metadata
             and np.array_equal(self.nodes, other.nodes)
             and np.array_equal(self.location, other.location)
+            and np.array_equal(self.parents, other.parents)
         )
 
 
@@ -4423,11 +4426,18 @@ class TreeSequence:
 
         :rtype: :class:`Individual`
         """
-        flags, location, metadata, nodes = self._ll_tree_sequence.get_individual(id_)
+        (
+            flags,
+            location,
+            parents,
+            metadata,
+            nodes,
+        ) = self._ll_tree_sequence.get_individual(id_)
         return Individual(
             id_=id_,
             flags=flags,
             location=location,
+            parents=parents,
             encoded_metadata=metadata,
             metadata_decoder=self.table_metadata_schemas.individual.decode_row,
             nodes=nodes,

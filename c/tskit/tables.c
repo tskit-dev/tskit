@@ -243,6 +243,11 @@ tsk_individual_table_expand_main_columns(
             goto out;
         }
         ret = expand_column(
+            (void **) &self->parents_offset, new_size + 1, sizeof(tsk_size_t));
+        if (ret != 0) {
+            goto out;
+        }
+        ret = expand_column(
             (void **) &self->metadata_offset, new_size + 1, sizeof(tsk_size_t));
         if (ret != 0) {
             goto out;
@@ -272,6 +277,30 @@ tsk_individual_table_expand_location(
             goto out;
         }
         self->max_location_length = new_size;
+    }
+out:
+    return ret;
+}
+
+static int
+tsk_individual_table_expand_parents(
+    tsk_individual_table_t *self, tsk_size_t additional_length)
+{
+    int ret = 0;
+    tsk_size_t increment
+        = TSK_MAX(additional_length, self->max_parents_length_increment);
+    tsk_size_t new_size = self->max_parents_length + increment;
+
+    if (check_offset_overflow(self->parents_length, increment)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
+    if ((self->parents_length + additional_length) > self->max_parents_length) {
+        ret = expand_column((void **) &self->parents, new_size, sizeof(tsk_id_t));
+        if (ret != 0) {
+            goto out;
+        }
+        self->max_parents_length = new_size;
     }
 out:
     return ret;
@@ -335,6 +364,17 @@ tsk_individual_table_set_max_location_length_increment(
 }
 
 int
+tsk_individual_table_set_max_parents_length_increment(
+    tsk_individual_table_t *self, tsk_size_t max_parents_length_increment)
+{
+    if (max_parents_length_increment == 0) {
+        max_parents_length_increment = DEFAULT_SIZE_INCREMENT;
+    }
+    self->max_parents_length_increment = (tsk_size_t) max_parents_length_increment;
+    return 0;
+}
+
+int
 tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
@@ -344,6 +384,7 @@ tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(o
      * even if the table is empty */
     self->max_rows_increment = 1;
     self->max_location_length_increment = 1;
+    self->max_parents_length_increment = 1;
     self->max_metadata_length_increment = 1;
     ret = tsk_individual_table_expand_main_columns(self, 1);
     if (ret != 0) {
@@ -354,6 +395,11 @@ tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(o
         goto out;
     }
     self->location_offset[0] = 0;
+    ret = tsk_individual_table_expand_parents(self, 1);
+    if (ret != 0) {
+        goto out;
+    }
+    self->parents_offset[0] = 0;
     ret = tsk_individual_table_expand_metadata(self, 1);
     if (ret != 0) {
         goto out;
@@ -361,6 +407,7 @@ tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(o
     self->metadata_offset[0] = 0;
     self->max_rows_increment = DEFAULT_SIZE_INCREMENT;
     self->max_location_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_parents_length_increment = DEFAULT_SIZE_INCREMENT;
     self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
     tsk_individual_table_set_metadata_schema(self, NULL, 0);
 out:
@@ -380,7 +427,8 @@ tsk_individual_table_copy(const tsk_individual_table_t *self,
         }
     }
     ret = tsk_individual_table_set_columns(dest, self->num_rows, self->flags,
-        self->location, self->location_offset, self->metadata, self->metadata_offset);
+        self->location, self->location_offset, self->parents, self->parents_offset,
+        self->metadata, self->metadata_offset);
     if (ret != 0) {
         goto out;
     }
@@ -393,7 +441,8 @@ out:
 int TSK_WARN_UNUSED
 tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
-    const char *metadata, const tsk_size_t *metadata_offset)
+    const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret;
 
@@ -401,8 +450,8 @@ tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_ro
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_individual_table_append_columns(
-        self, num_rows, flags, location, location_offset, metadata, metadata_offset);
+    ret = tsk_individual_table_append_columns(self, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, metadata_offset);
 out:
     return ret;
 }
@@ -410,16 +459,21 @@ out:
 int
 tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
-    const char *metadata, const tsk_size_t *metadata_offset)
+    const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
+    const tsk_size_t *metadata_offset)
 {
     int ret;
-    tsk_size_t j, metadata_length, location_length;
+    tsk_size_t j, metadata_length, location_length, parents_length;
 
     if (flags == NULL) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
     if ((location == NULL) != (location_offset == NULL)) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    if ((parents == NULL) != (parents_offset == NULL)) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
@@ -455,6 +509,29 @@ tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num
             location_length * sizeof(double));
         self->location_length += location_length;
     }
+    if (parents == NULL) {
+        for (j = 0; j < num_rows; j++) {
+            self->parents_offset[self->num_rows + j + 1]
+                = (tsk_size_t) self->parents_length;
+        }
+    } else {
+        ret = check_offsets(num_rows, parents_offset, 0, false);
+        if (ret != 0) {
+            goto out;
+        }
+        for (j = 0; j < num_rows; j++) {
+            self->parents_offset[self->num_rows + j]
+                = (tsk_size_t) self->parents_length + parents_offset[j];
+        }
+        parents_length = parents_offset[num_rows];
+        ret = tsk_individual_table_expand_parents(self, parents_length);
+        if (ret != 0) {
+            goto out;
+        }
+        memcpy(self->parents + self->parents_length, parents,
+            parents_length * sizeof(tsk_id_t));
+        self->parents_length += parents_length;
+    }
     if (metadata == NULL) {
         for (j = 0; j < num_rows; j++) {
             self->metadata_offset[self->num_rows + j + 1]
@@ -480,6 +557,7 @@ tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num
     }
     self->num_rows += (tsk_size_t) num_rows;
     self->location_offset[self->num_rows] = self->location_length;
+    self->parents_offset[self->num_rows] = self->parents_length;
     self->metadata_offset[self->num_rows] = self->metadata_length;
 out:
     return ret;
@@ -487,10 +565,12 @@ out:
 
 static tsk_id_t
 tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t flags,
-    const double *location, tsk_size_t location_length, const char *metadata,
-    tsk_size_t metadata_length)
+    const double *location, tsk_size_t location_length, const tsk_id_t *parents,
+    const tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length)
 {
+
     tsk_bug_assert(self->num_rows < self->max_rows);
+    tsk_bug_assert(self->parents_length + parents_length <= self->max_parents_length);
     tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
     tsk_bug_assert(self->location_length + location_length <= self->max_location_length);
     self->flags[self->num_rows] = flags;
@@ -498,6 +578,10 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
         location_length * sizeof(double));
     self->location_offset[self->num_rows + 1] = self->location_length + location_length;
     self->location_length += location_length;
+    memcpy(self->parents + self->parents_length, parents,
+        parents_length * sizeof(tsk_id_t));
+    self->parents_offset[self->num_rows + 1] = self->parents_length + parents_length;
+    self->parents_length += parents_length;
     memcpy(self->metadata + self->metadata_length, metadata,
         metadata_length * sizeof(char));
     self->metadata_offset[self->num_rows + 1] = self->metadata_length + metadata_length;
@@ -508,8 +592,8 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
 
 tsk_id_t
 tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
-    const double *location, tsk_size_t location_length, const char *metadata,
-    tsk_size_t metadata_length)
+    const double *location, tsk_size_t location_length, const tsk_id_t *parents,
+    tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length)
 {
     int ret = 0;
 
@@ -521,12 +605,17 @@ tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
     if (ret != 0) {
         goto out;
     }
+    ret = tsk_individual_table_expand_parents(self, (tsk_size_t) parents_length);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_individual_table_expand_metadata(self, (tsk_size_t) metadata_length);
     if (ret != 0) {
         goto out;
     }
     ret = tsk_individual_table_add_row_internal(self, flags, location,
-        (tsk_size_t) location_length, metadata, (tsk_size_t) metadata_length);
+        (tsk_size_t) location_length, parents, (tsk_size_t) parents_length, metadata,
+        (tsk_size_t) metadata_length);
 out:
     return ret;
 }
@@ -548,6 +637,7 @@ tsk_individual_table_truncate(tsk_individual_table_t *self, tsk_size_t num_rows)
     }
     self->num_rows = num_rows;
     self->location_length = self->location_offset[num_rows];
+    self->parents_length = self->parents_offset[num_rows];
     self->metadata_length = self->metadata_offset[num_rows];
 out:
     return ret;
@@ -559,6 +649,8 @@ tsk_individual_table_free(tsk_individual_table_t *self)
     tsk_safe_free(self->flags);
     tsk_safe_free(self->location);
     tsk_safe_free(self->location_offset);
+    tsk_safe_free(self->parents);
+    tsk_safe_free(self->parents_offset);
     tsk_safe_free(self->metadata);
     tsk_safe_free(self->metadata_offset);
     tsk_safe_free(self->metadata_schema);
@@ -583,6 +675,7 @@ tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
     write_metadata_schema_header(
         out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "id\tflags\tlocation_offset\tlocation\t");
+    fprintf(out, "parents_offset\tparents\n");
     fprintf(out, "metadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
         fprintf(out, "%d\t%d\t", (int) j, self->flags[j]);
@@ -590,6 +683,14 @@ tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
         for (k = self->location_offset[j]; k < self->location_offset[j + 1]; k++) {
             fprintf(out, "%f", self->location[k]);
             if (k + 1 < self->location_offset[j + 1]) {
+                fprintf(out, ",");
+            }
+        }
+        fprintf(out, "\t");
+        fprintf(out, "%d\t", self->parents_offset[j]);
+        for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
+            fprintf(out, "%d", self->parents[k]);
+            if (k + 1 < self->parents_offset[j + 1]) {
                 fprintf(out, ",");
             }
         }
@@ -611,6 +712,8 @@ tsk_individual_table_get_row_unsafe(
     row->location_length
         = self->location_offset[index + 1] - self->location_offset[index];
     row->location = self->location + self->location_offset[index];
+    row->parents_length = self->parents_offset[index + 1] - self->parents_offset[index];
+    row->parents = self->parents + self->parents_offset[index];
     row->metadata_length
         = self->metadata_offset[index + 1] - self->metadata_offset[index];
     row->metadata = self->metadata + self->metadata_offset[index];
@@ -656,7 +759,7 @@ tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
     if (err < 0) {
         goto out;
     }
-    err = fprintf(out, "id\tflags\tlocation\tmetadata\n");
+    err = fprintf(out, "id\tflags\tlocation\tparents\tmetadata\n");
     if (err < 0) {
         goto out;
     }
@@ -672,6 +775,18 @@ tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
                 goto out;
             }
             if (k + 1 < self->location_offset[j + 1]) {
+                err = fprintf(out, ",");
+                if (err < 0) {
+                    goto out;
+                }
+            }
+        }
+        for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
+            err = fprintf(out, "%d", self->parents[k]);
+            if (err < 0) {
+                goto out;
+            }
+            if (k + 1 < self->parents_offset[j + 1]) {
                 err = fprintf(out, ",");
                 if (err < 0) {
                     goto out;
@@ -701,7 +816,14 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
                  == 0
           && memcmp(
                  self->location, other->location, self->location_length * sizeof(double))
+                 == 0
+          && memcmp(self->parents_offset, other->parents_offset,
+                 (self->num_rows + 1) * sizeof(tsk_size_t))
+                 == 0
+          && memcmp(
+                 self->parents, other->parents, self->parents_length * sizeof(tsk_id_t))
                  == 0;
+
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
@@ -727,6 +849,10 @@ tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
             KAS_FLOAT64 },
         { "individuals/location_offset", (void *) self->location_offset,
             self->num_rows + 1, KAS_UINT32 },
+        { "individuals/parents", (void *) self->parents, self->parents_length,
+            KAS_INT32 },
+        { "individuals/parents_offset", (void *) self->parents_offset,
+            self->num_rows + 1, KAS_UINT32 },
         { "individuals/metadata", (void *) self->metadata, self->metadata_length,
             KAS_UINT8 },
         { "individuals/metadata_offset", (void *) self->metadata_offset,
@@ -744,16 +870,22 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     tsk_flags_t *flags = NULL;
     double *location = NULL;
     tsk_size_t *location_offset = NULL;
+    tsk_id_t *parents = NULL;
+    tsk_size_t *parents_offset = NULL;
     char *metadata = NULL;
     tsk_size_t *metadata_offset = NULL;
     char *metadata_schema = NULL;
-    tsk_size_t num_rows, location_length, metadata_length, metadata_schema_length;
+    tsk_size_t num_rows, location_length, parents_length, metadata_length,
+        metadata_schema_length;
 
     read_table_col_t read_cols[] = {
         { "individuals/flags", (void **) &flags, &num_rows, 0, KAS_UINT32, 0 },
         { "individuals/location", (void **) &location, &location_length, 0, KAS_FLOAT64,
             0 },
         { "individuals/location_offset", (void **) &location_offset, &num_rows, 1,
+            KAS_UINT32, 0 },
+        { "individuals/parents", (void **) &parents, &parents_length, 0, KAS_INT32, 0 },
+        { "individuals/parents_offset", (void **) &parents_offset, &num_rows, 1,
             KAS_UINT32, 0 },
         { "individuals/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8,
             0 },
@@ -771,12 +903,16 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
         ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
+    if (parents_offset[num_rows] != parents_length) {
+        ret = TSK_ERR_BAD_OFFSET;
+        goto out;
+    }
     if (metadata_offset[num_rows] != metadata_length) {
         ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    ret = tsk_individual_table_set_columns(
-        self, num_rows, flags, location, location_offset, metadata, metadata_offset);
+    ret = tsk_individual_table_set_columns(self, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, metadata_offset);
     if (ret != 0) {
         goto out;
     }
@@ -7005,7 +7141,8 @@ simplifier_finalise_references(simplifier_t *self)
         individual_id_map[j] = TSK_NULL;
         if (keep) {
             ret = tsk_individual_table_add_row(&self->tables->individuals, ind.flags,
-                ind.location, ind.location_length, ind.metadata, ind.metadata_length);
+                ind.location, ind.location_length, ind.parents, ind.parents_length,
+                ind.metadata, ind.metadata_length);
             if (ret < 0) {
                 goto out;
             }
@@ -9112,7 +9249,8 @@ tsk_table_collection_add_and_remap_node(tsk_table_collection_t *self,
                 goto out;
             }
             ret = tsk_individual_table_add_row(&self->individuals, ind.flags,
-                ind.location, ind.location_length, ind.metadata, ind.metadata_length);
+                ind.location, ind.location_length, ind.parents, ind.parents_length,
+                ind.metadata, ind.metadata_length);
             if (ret < 0) {
                 goto out;
             }

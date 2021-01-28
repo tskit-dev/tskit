@@ -501,6 +501,8 @@ class TestDumpFormat(TestFileFormat):
             "individuals/metadata",
             "individuals/metadata_offset",
             "individuals/metadata_schema",
+            "individuals/parents",
+            "individuals/parents_offset",
             "metadata",
             "metadata_schema",
             "migrations/dest",

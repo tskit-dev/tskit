@@ -95,6 +95,10 @@ typedef struct {
     const double *location;
     /** @brief Number of spatial dimensions. */
     tsk_size_t location_length;
+    /** @brief IDs of the parents. The number of parents given by ``parents_length``*/
+    tsk_id_t *parents;
+    /** @brief Number of parents. */
+    tsk_size_t parents_length;
     /** @brief Metadata. */
     const char *metadata;
     /** @brief Size of the metadata in bytes. */
@@ -297,6 +301,10 @@ typedef struct {
     tsk_size_t location_length;
     tsk_size_t max_location_length;
     tsk_size_t max_location_length_increment;
+    /** @brief The total length of the parent column. */
+    tsk_size_t parents_length;
+    tsk_size_t max_parents_length;
+    tsk_size_t max_parents_length_increment;
     /** @brief The total length of the metadata column. */
     tsk_size_t metadata_length;
     tsk_size_t max_metadata_length;
@@ -308,6 +316,10 @@ typedef struct {
     double *location;
     /** @brief The location_offset column. */
     tsk_size_t *location_offset;
+    /** @brief The parents column. */
+    tsk_id_t *parents;
+    /** @brief The parents_offset column. */
+    tsk_size_t *parents_offset;
     /** @brief The metadata column. */
     char *metadata;
     /** @brief The metadata_offset column. */
@@ -770,11 +782,10 @@ int tsk_individual_table_free(tsk_individual_table_t *self);
 @brief Adds a row to this individual table.
 
 @rst
-Add a new individual with the specified ``flags``, ``location`` and ``metadata``
-to the table. Copies of the ``location`` and ``metadata`` parameters are taken
-immediately.
-See the :ref:`table definition <sec_individual_table_definition>` for details
-of the columns in this table.
+Add a new individual with the specified ``flags``, ``location``, ``parents`` and
+``metadata`` to the table. Copies of the ``location``, ``parents`` and ``metadata``
+parameters are taken immediately. See the :ref:`table definition
+<sec_individual_table_definition>` for details of the columns in this table.
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -784,6 +795,11 @@ of the columns in this table.
 @param location_length The number of dimensions in the locations position.
     Note this the number of elements in the corresponding double array
     not the number of bytes.
+@param parents A pointer to a ``tsk_id`` array representing the parents
+    of the new individual. Can be ``NULL`` if ``parents_length`` is 0.
+@param parents_length The number of parents.
+    Note this the number of elements in the corresponding ``tsk_id`` array
+    not the number of bytes.
 @param metadata The metadata to be associated with the new individual. This
     is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
 @param metadata_length The size of the metadata array in bytes.
@@ -791,8 +807,8 @@ of the columns in this table.
     or a negative value on failure.
 */
 tsk_id_t tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t flags,
-    const double *location, tsk_size_t location_length, const char *metadata,
-    tsk_size_t metadata_length);
+    const double *location, tsk_size_t location_length, const tsk_id_t *parents,
+    tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length);
 
 /**
 @brief Clears this table, setting the number of rows to zero.
@@ -915,12 +931,14 @@ void tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *
 /* Undocumented methods */
 
 int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
-    const tsk_flags_t *flags, const double *location, const tsk_size_t *location_length,
-    const char *metadata, const tsk_size_t *metadata_length);
+    const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
+    const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
+    const tsk_size_t *metadata_offset);
 int tsk_individual_table_append_columns(tsk_individual_table_t *self,
     tsk_size_t num_rows, const tsk_flags_t *flags, const double *location,
-    const tsk_size_t *location_length, const char *metadata,
-    const tsk_size_t *metadata_length);
+    const tsk_size_t *location_offset, const tsk_id_t *parents,
+    const tsk_size_t *parents_offset, const char *metadata,
+    const tsk_size_t *metadata_offset);
 int tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out);
 int tsk_individual_table_set_max_rows_increment(
     tsk_individual_table_t *self, tsk_size_t max_rows_increment);
@@ -928,6 +946,8 @@ int tsk_individual_table_set_max_metadata_length_increment(
     tsk_individual_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_individual_table_set_max_location_length_increment(
     tsk_individual_table_t *self, tsk_size_t max_location_length_increment);
+int tsk_individual_table_set_max_parents_length_increment(
+    tsk_individual_table_t *self, tsk_size_t max_parents_length_increment);
 
 /**
 @defgroup NODE_TABLE_API_GROUP Node table API.
