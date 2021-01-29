@@ -209,26 +209,29 @@ class TestLoadTextMetadata:
     def test_individuals(self):
         individuals = io.StringIO(
             """\
-        id  flags location     metadata
-        0   1     0.0,1.0,0.0  abc
-        1   1     1.0,2.0      XYZ+
-        2   0     2.0,3.0,0.0  !@#$%^&*()
+        id  flags location     parents  metadata
+        0   1     0.0,1.0,0.0  -1,-1    abc
+        1   1     1.0,2.0      0,0      XYZ+
+        2   0     2.0,3.0,0.0  0,1      !@#$%^&*()
         """
         )
         i = tskit.parse_individuals(
             individuals, strict=False, encoding="utf8", base64_metadata=False
         )
         expected = [
-            (1, [0.0, 1.0, 0.0], "abc"),
-            (1, [1.0, 2.0], "XYZ+"),
-            (0, [2.0, 3.0, 0.0], "!@#$%^&*()"),
+            (1, [0.0, 1.0, 0.0], [-1, -1], "abc"),
+            (1, [1.0, 2.0], [0, 0], "XYZ+"),
+            (0, [2.0, 3.0, 0.0], [0, 1], "!@#$%^&*()"),
         ]
         for a, b in zip(expected, i):
             assert a[0] == b.flags
             assert len(a[1]) == len(b.location)
             for x, y in zip(a[1], b.location):
                 assert x == y
-            assert a[2].encode("utf8") == b.metadata
+            assert len(a[2]) == len(b.parents)
+            for x, y in zip(a[2], b.parents):
+                assert x == y
+        assert a[3].encode("utf8") == b.metadata
 
     def test_nodes(self):
         nodes = io.StringIO(

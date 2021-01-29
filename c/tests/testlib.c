@@ -730,6 +730,7 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     tsk_id_t j, k, last_node, u;
     int state, m;
     double position[2];
+    tsk_id_t parents[2] = { -1, -1 };
     const char *states[] = { "0", "1" };
     const char *metadata[] = { "This", "is", "some", "metadata" };
     const int num_metadatas = sizeof(metadata) / sizeof(*metadata);
@@ -772,8 +773,8 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
         ret = tsk_population_table_add_row(
             &tables.populations, metadata[m], strlen(metadata[m]));
         CU_ASSERT_EQUAL_FATAL(ret, j);
-        ret = tsk_individual_table_add_row(&tables.individuals, 0, position, 2, NULL, 0,
-            metadata[m], strlen(metadata[m]));
+        ret = tsk_individual_table_add_row(&tables.individuals, 0, position, 2, parents,
+            2, metadata[m], strlen(metadata[m]));
         CU_ASSERT_EQUAL_FATAL(ret, j);
         ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0, j, j,
             metadata[m], strlen(metadata[m]));

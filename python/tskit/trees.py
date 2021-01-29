@@ -2690,9 +2690,14 @@ def parse_individuals(
     header = source.readline().strip("\n").split(sep)
     flags_index = header.index("flags")
     location_index = None
+    parents_index = None
     metadata_index = None
     try:
         location_index = header.index("location")
+    except ValueError:
+        pass
+    try:
+        parents_index = header.index("parents")
     except ValueError:
         pass
     try:
@@ -2708,12 +2713,19 @@ def parse_individuals(
                 location_string = tokens[location_index]
                 if len(location_string) > 0:
                     location = tuple(map(float, location_string.split(",")))
+            parents = ()
+            if parents_index is not None:
+                parents_string = tokens[parents_index]
+                if len(parents_string) > 0:
+                    parents = tuple(map(int, parents_string.split(",")))
             metadata = b""
             if metadata_index is not None and metadata_index < len(tokens):
                 metadata = tokens[metadata_index].encode(encoding)
                 if base64_metadata:
                     metadata = base64.b64decode(metadata)
-            table.add_row(flags=flags, location=location, metadata=metadata)
+            table.add_row(
+                flags=flags, location=location, parents=parents, metadata=metadata
+            )
     return table
 
 

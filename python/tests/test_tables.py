@@ -866,19 +866,21 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
 
     def test_simple_example(self):
         t = tskit.IndividualTable()
-        t.add_row(flags=0, location=[], metadata=b"123")
-        t.add_row(flags=1, location=(0, 1, 2, 3), metadata=b"\xf0")
-        t.add_row(flags=2, parents=[0, 1])
+        t.add_row(flags=0, location=[], parents=[], metadata=b"123")
+        t.add_row(
+            flags=1, location=(0, 1, 2, 3), parents=(4, 5, 6, 7), metadata=b"\xf0"
+        )
         s = str(t)
         assert len(s) > 0
-        assert len(t) == 3
+        assert len(t) == 2
         assert t[0].flags == 0
         assert list(t[0].location) == []
+        assert list(t[0].parents) == []
         assert t[0].metadata == b"123"
         assert t[1].flags == 1
         assert list(t[1].location) == [0, 1, 2, 3]
+        assert list(t[1].parents) == [4, 5, 6, 7]
         assert t[1].metadata == b"\xf0"
-        assert list(t[2].parents) == [0, 1]
         with pytest.raises(IndexError):
             t.__getitem__(-4)
 
@@ -914,6 +916,17 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
         t.packset_location([[0], [1, 2, 3]])
         assert list(t[0].location) == [0]
         assert list(t[1].location) == [1, 2, 3]
+
+    def test_packset_parents(self):
+        t = tskit.IndividualTable()
+        t.add_row(flags=0)
+        t.packset_parents([[0, 2]])
+        assert list(t[0].parents) == [0, 2]
+        t.add_row(flags=1)
+        assert list(t[1].parents) == []
+        t.packset_parents([[0], [1, 2, 3]])
+        assert list(t[0].parents) == [0]
+        assert list(t[1].parents) == [1, 2, 3]
 
     def test_missing_time_equal_to_self(self):
         t = tskit.TableCollection(sequence_length=10)
