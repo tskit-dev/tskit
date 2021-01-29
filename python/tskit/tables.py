@@ -2455,6 +2455,7 @@ class TableCollection:
         filter_individuals=True,
         filter_sites=True,
         keep_unary=False,
+        keep_unary_in_individuals=False,
         keep_input_roots=False,
         record_provenance=True,
         filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
@@ -2503,6 +2504,7 @@ class TableCollection:
         :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
             one child) that exist on the path from samples to root will be preserved
             in the output. (Default: False)
+        :param bool keep_unary_in_individuals: TODO DOCUMENT
         :param bool keep_input_roots: If True, insert edges from the MRCAs of the
             samples to the roots in the input trees. If False, no topology older
             than the MRCAs of the samples will be included. (Default: False)
@@ -2535,6 +2537,7 @@ class TableCollection:
             filter_populations=filter_populations,
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary,
+            keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,
         )
         if record_provenance:

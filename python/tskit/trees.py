@@ -4897,6 +4897,7 @@ class TreeSequence:
         filter_individuals=True,
         filter_sites=True,
         keep_unary=False,
+        keep_unary_in_individuals=False,
         keep_input_roots=False,
         record_provenance=True,
         filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
@@ -4982,6 +4983,7 @@ class TreeSequence:
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
             keep_unary=keep_unary,
+            keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,
             record_provenance=record_provenance,
             filter_zero_mutation_sites=filter_zero_mutation_sites,

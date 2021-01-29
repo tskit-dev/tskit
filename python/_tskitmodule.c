@@ -4960,16 +4960,17 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     int filter_individuals = false;
     int filter_populations = false;
     int keep_unary = false;
+    int keep_unary_in_individuals = false;
     int keep_input_roots = false;
     int reduce_to_site_topology = false;
-    static char *kwlist[]
-        = { "samples", "filter_sites", "filter_populations", "filter_individuals",
-              "reduce_to_site_topology", "keep_unary", "keep_input_roots", NULL };
+    static char *kwlist[] = { "samples", "filter_sites", "filter_populations",
+        "filter_individuals", "reduce_to_site_topology", "keep_unary",
+        "keep_unary_in_indivdiuals", "keep_input_roots", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiii", kwlist, &samples,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiii", kwlist, &samples,
             &filter_sites, &filter_populations, &filter_individuals,
             &reduce_to_site_topology, &keep_unary, &keep_input_roots)) {
         goto out;
@@ -4995,6 +4996,9 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     if (keep_unary) {
         options |= TSK_KEEP_UNARY;
+    }
+    if (keep_unary_in_individuals) {
+        options |= TSK_KEEP_UNARY_IN_INDIVIDUALS;
     }
     if (keep_input_roots) {
         options |= TSK_KEEP_INPUT_ROOTS;
