@@ -4108,11 +4108,6 @@ test_sort_tables_canonical(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     t2.sequence_length = 1.0;
 
-    ret = tsk_table_collection_clear(&t1, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_clear(&t2, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
     parse_nodes(nodes, &t1.nodes);
     CU_ASSERT_EQUAL_FATAL(t1.nodes.num_rows, 7);
     parse_individuals(individuals, &t1.individuals);
@@ -5149,8 +5144,7 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     // empty nodes should get empty tables
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, NULL, 0,
-        TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&tables_copy, NULL, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 0);
@@ -5158,11 +5152,10 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(tables_copy.sites.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, 0);
 
-    // unless FILTER_POPULATIONS is not provided
+    // unless NO_CHANGE_POPULATIONS is provided
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(
-        &tables_copy, NULL, 0, TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&tables_copy, NULL, 0, TSK_NO_CHANGE_POPULATIONS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 0);
@@ -5171,28 +5164,28 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     CU_ASSERT_FATAL(
         tsk_population_table_equals(&tables.populations, &tables_copy.populations, 0));
 
-    // or FILTER_INDIVIDUALS
+    // or KEEP_UNREFERENCED
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(
-        &tables_copy, NULL, 0, TSK_FILTER_POPULATIONS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&tables_copy, NULL, 0, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 3);
-    CU_ASSERT_EQUAL_FATAL(tables_copy.populations.num_rows, 0);
-    CU_ASSERT_EQUAL_FATAL(tables_copy.sites.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.populations.num_rows, 2);
     CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, 0);
+    CU_ASSERT_FATAL(tsk_site_table_equals(&tables.sites, &tables_copy.sites, 0));
 
-    // or KEEP_UNUSED_SITES
+    // or both
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_subset(
-        &tables_copy, NULL, 0, TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS);
+        &tables_copy, NULL, 0, TSK_KEEP_UNREFERENCED | TSK_NO_CHANGE_POPULATIONS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
-    CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 0);
-    CU_ASSERT_EQUAL_FATAL(tables_copy.populations.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 3);
     CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, 0);
+    CU_ASSERT_FATAL(
+        tsk_population_table_equals(&tables.populations, &tables_copy.populations, 0));
     CU_ASSERT_FATAL(tsk_site_table_equals(&tables.sites, &tables_copy.sites, 0));
 
     // the identity transformation, since unused inds/pops are at the end
@@ -5201,15 +5194,14 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     }
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_CANONICALISE);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
     // or, remove unused things:
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4,
-        TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_node_table_equals(&tables.nodes, &tables_copy.nodes, 0));
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 2);
@@ -5224,9 +5216,9 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     }
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_CANONICALISE);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_CANONICALISE);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
@@ -5291,7 +5283,7 @@ test_table_collection_subset_unsorted(void)
     }
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 3, TSK_CANONICALISE);
+    ret = tsk_table_collection_subset(&tables_copy, nodes, 3, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
@@ -5469,8 +5461,7 @@ test_table_collection_union(void)
     node_mapping[0] = 0;
     node_mapping[1] = 1;
     node_mapping[2] = 2;
-    ret = tsk_table_collection_subset(&tables_copy, node_mapping, 3,
-        TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&tables_copy, node_mapping, 3, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
@@ -5659,8 +5650,7 @@ test_table_collection_union_middle_merge(void)
 
     ret = tsk_table_collection_union(&ta, &tb, node_mapping, 0);
     CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_table_collection_subset(&ta, node_order, 5,
-        TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&ta, node_order, 5, 0);
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_provenance_table_clear(&ta.provenances);
     CU_ASSERT_EQUAL(ret, 0);

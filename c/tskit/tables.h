@@ -700,7 +700,7 @@ typedef struct {
 
 /**@} */
 
-/* Flags for simplify() and/or subset() */
+/* Flags for simplify() */
 #define TSK_FILTER_SITES (1 << 0)
 #define TSK_FILTER_POPULATIONS (1 << 1)
 #define TSK_FILTER_INDIVIDUALS (1 << 2)
@@ -708,7 +708,10 @@ typedef struct {
 #define TSK_KEEP_UNARY (1 << 4)
 #define TSK_KEEP_INPUT_ROOTS (1 << 5)
 #define TSK_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
-#define TSK_CANONICALISE (1 << 7)
+
+/* Flags for subset() */
+#define TSK_NO_CHANGE_POPULATIONS (1 << 0)
+#define TSK_KEEP_UNREFERENCED (1 << 1)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_EDGE_ORDERING (1 << 0)
@@ -2748,35 +2751,35 @@ int tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *
 Reduces the table collection to contain only the entries referring to
 the provided list of nodes, with nodes reordered according to the order
 they appear in the ``nodes`` argument. Specifically, this subsets and reorders
-each of the tables as follows:
+each of the tables as follows (but see options, below):
 
 1. Nodes: if in the list of nodes, and in the order provided.
-2. Individuals, if `TSK_FILTER_INDIVIDUALS`: if referred to by a retained node,
-    and in the order first seen when traversing the list of retained nodes.
-3. Populations, if `TSK_FILTER_POPULATIONS`: the same as Individuals.
-4. Edges: if both parent and child are retained nodes.
-5. Mutations: if the mutation's node is a retained node.
-6. Sites, if `TSK_FILTER_SITES`: if any mutations remain at the site after
-    removing mutations.
+2. Individuals and Populations: if referred to by a retained node, and in the
+    order first seen when traversing the list of retained nodes.
+3. Edges: if both parent and child are retained nodes.
+4. Mutations: if the mutation's node is a retained node.
+5. Sites: if any mutations remain at the site after removing mutations.
 
 Retained edges, mutations, and sites appear in the same
-order as in the original tables. If any of `TSK_FILTER_INDIVIDUALS`,
-`TSK_FILTER_POPULATIONS`, or `TSK_FILTER_SITES` are *not* provided,
-then the respective tables will be *unchanged*.
-
-If ``nodes`` is the entire list of nodes in the tables, then the
-resulting tables will be identical to the original tables, but with
-nodes (and individuals and populations) reordered.
-
-An additional option, `TSK_CANONICALISE`, will reorder both individual and
-population tables, as described above if `TSK_FILTER_INDIVIDUALS` and
-`TSK_FILTER_POPULATIONS` were provided, but will retain any unreferenced
-individuals and populations at the end of the individual and population tables.
-It will also keep unreferenced sites (as if `TSK_FILTER_SITES` was not
-provided).  This is useful so that this can be used to reorder the tables
-without losing information.
+order as in the original tables.
 
 This function does *not* require the tables to be sorted.
+
+**Options**:
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_NO_CHANGE_POPULATIONS
+    If this flag is provided, the population table will not be changed
+    in any way.
+
+TSK_KEEP_UNREFERENCED
+    If this flag is provided, then unreferenced sites, individuals, and populations
+    will not be removed. If so, the site table will not be changed,
+    unreferenced individuals will be placed last, in their original order, and
+    (unless TSK_NO_CHANGE_POPULATIONS is also provided), unreferenced
+    populations will also be placed last, in their original order.
 
 .. note:: Migrations are currently not supported by susbset, and an error will
     be raised if we attempt call subset on a table collection with greater

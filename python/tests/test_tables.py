@@ -3235,38 +3235,24 @@ class TestSubsetTables:
         yield self.get_wf_example(seed=seed)
 
     def verify_subset_equality(self, tables, nodes):
-        for kp, ki, ks, cn in [
-            [False, False, False, False],
-            [True, False, False, False],
-            [False, True, False, False],
-            [False, False, True, False],
-            [True, True, False, False],
-            [True, False, True, False],
-            [False, True, True, False],
-            [True, True, True, False],
-            [False, False, False, True],
-            [True, False, False, True],
-        ]:
-            sub1 = tables.copy()
-            sub2 = tables.copy()
-            tsutil.py_subset(
-                sub1,
-                nodes,
-                record_provenance=False,
-                filter_populations=kp,
-                filter_individuals=ki,
-                filter_sites=ks,
-                canonicalise=cn,
-            )
-            sub2.subset(
-                nodes,
-                record_provenance=False,
-                filter_populations=kp,
-                filter_individuals=ki,
-                filter_sites=ks,
-                canonicalise=cn,
-            )
-            tsutil.assert_table_collections_equal(sub1, sub2)
+        for rp in [True, False]:
+            for ru in [True, False]:
+                sub1 = tables.copy()
+                sub2 = tables.copy()
+                tsutil.py_subset(
+                    sub1,
+                    nodes,
+                    record_provenance=False,
+                    reorder_populations=rp,
+                    remove_unreferenced=ru,
+                )
+                sub2.subset(
+                    nodes,
+                    record_provenance=False,
+                    reorder_populations=rp,
+                    remove_unreferenced=ru,
+                )
+                tsutil.assert_table_collections_equal(sub1, sub2)
 
     def verify_subset(self, tables, nodes):
         self.verify_subset_equality(tables, nodes)
@@ -3377,7 +3363,7 @@ class TestSubsetTables:
             tsutil.shuffle_tables(tables2, 7000)
             tables2.subset(
                 np.arange(tables.nodes.num_rows),
-                canonicalise=True,
+                remove_unreferenced=False,
             )
             assert tables.nodes.num_rows == tables2.nodes.num_rows
             assert tables.individuals.num_rows == tables2.individuals.num_rows
@@ -3415,46 +3401,27 @@ class TestSubsetTables:
             assert subset.mutations.num_rows == 0
             assert subset.provenances == tables.provenances
 
-    def test_no_filter_sites(self):
+    def test_no_remove_unreferenced(self):
         tables = tskit.TableCollection(sequence_length=10)
         tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
         tables.nodes.add_row(time=1)
         tables.edges.add_row(parent=1, child=0, left=0, right=10)
-        for k in range(10):
+        for k in range(5):
             tables.sites.add_row(position=k, ancestral_state=str(k))
-        sub_tables = tables.copy()
-        sub_tables.subset([], filter_sites=False)
-        assert tables.sites == sub_tables.sites
-        ts = tables.tree_sequence()
-        sub_tables = ts.subset([], filter_sites=False).tables
-        assert tables.sites == sub_tables.sites
-
-    def test_no_filter_populations(self):
-        tables = tskit.TableCollection(sequence_length=10)
-        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
-        tables.nodes.add_row(time=1)
-        tables.edges.add_row(parent=1, child=0, left=0, right=10)
-        for k in range(10):
+        # these are all unused, so should remain unchanged
+        for k in range(5):
             tables.populations.add_row(metadata=str(k).encode())
-        sub_tables = tables.copy()
-        sub_tables.subset([], filter_populations=False)
-        assert tables.populations == sub_tables.populations
-        ts = tables.tree_sequence()
-        sub_tables = ts.subset([], filter_populations=False).tables
-        assert tables.populations == sub_tables.populations
-
-    def test_no_filter_individuals(self):
-        tables = tskit.TableCollection(sequence_length=10)
-        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
-        tables.nodes.add_row(time=1)
-        tables.edges.add_row(parent=1, child=0, left=0, right=10)
-        for k in range(10):
+        for k in range(5):
             tables.individuals.add_row(metadata=str(k).encode())
         sub_tables = tables.copy()
-        sub_tables.subset([], filter_individuals=False)
+        sub_tables.subset([], remove_unreferenced=False)
+        assert tables.sites == sub_tables.sites
+        assert tables.populations == sub_tables.populations
         assert tables.individuals == sub_tables.individuals
         ts = tables.tree_sequence()
-        sub_tables = ts.subset([], filter_individuals=False).tables
+        sub_tables = ts.subset([], remove_unreferenced=False).tables
+        assert tables.sites == sub_tables.sites
+        assert tables.populations == sub_tables.populations
         assert tables.individuals == sub_tables.individuals
 
 
@@ -3623,7 +3590,7 @@ class TestSubsetUnion(unittest.TestCase):
         tables = ts.tables
         # remove unused individuals and populations since if there's more than
         # one of these then it can't be canonically sorted below
-        tables.subset(np.arange(tables.nodes.num_rows), filter_sites=False)
+        tables.subset(np.arange(tables.nodes.num_rows))
         has_unknown_times = np.any(tskit.is_unknown_time(tables.mutations.time))
         if has_unknown_times:
             tsutil.shuffle_tables(tables, seed=2545, keep_mutation_parent_order=True)
@@ -3644,10 +3611,10 @@ class TestSubsetUnion(unittest.TestCase):
         # relationships to target
         target_plus = np.concatenate([target, target_relatives])
         sub1 = tables.copy()
-        sub1.subset(target_plus, filter_populations=False, filter_sites=False)
+        sub1.subset(target_plus, reorder_populations=False)
         # everything else
         new_tables = tables.copy()
-        new_tables.subset(not_target, filter_populations=False, filter_sites=False)
+        new_tables.subset(not_target, reorder_populations=False)
         # and union back together
         mapping12 = [tskit.NULL for _ in target] + [
             not_target.index(n) for n in target_relatives
@@ -3661,7 +3628,7 @@ class TestSubsetUnion(unittest.TestCase):
         for j, t in enumerate(target):
             reorder[t:] -= 1
             reorder[t] = new_tables.nodes.num_rows - len(target) + j
-        new_tables.subset(reorder, filter_sites=False)
+        new_tables.subset(reorder)
         new_tables.canonicalise()
         tables.canonicalise()
         tsutil.assert_table_collections_equal(

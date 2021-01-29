@@ -616,10 +616,8 @@ def py_subset(
     tables,
     nodes,
     record_provenance=True,
-    filter_populations=True,
-    filter_individuals=True,
-    filter_sites=True,
-    canonicalise=False,
+    reorder_populations=True,
+    remove_unreferenced=True,
 ):
     """
     Naive implementation of the TableCollection.subset method using the Python API.
@@ -632,16 +630,10 @@ def py_subset(
     node_map = {}
     ind_map = {tskit.NULL: tskit.NULL}
     pop_map = {tskit.NULL: tskit.NULL}
-    if not filter_populations and not canonicalise:
+    if not reorder_populations:
         for j, pop in enumerate(full.populations):
             pop_map[j] = j
             tables.populations.add_row(metadata=pop.metadata)
-    if not filter_individuals and not canonicalise:
-        for j, ind in enumerate(full.individuals):
-            ind_map[j] = j
-            tables.individuals.add_row(
-                flags=ind.flags, location=ind.location, metadata=ind.metadata
-            )
     for old_id in nodes:
         node = full.nodes[old_id]
         if node.individual not in ind_map and node.individual != tskit.NULL:
@@ -662,7 +654,7 @@ def py_subset(
             node.metadata,
         )
         node_map[old_id] = new_id
-    if canonicalise:
+    if not remove_unreferenced:
         for j, ind in enumerate(full.individuals):
             if j not in ind_map:
                 ind_map[j] = tables.individuals.add_row(
@@ -683,7 +675,7 @@ def py_subset(
     if full.migrations.num_rows > 0:
         raise ValueError("Migrations are currently not supported in this operation.")
     site_map = {}
-    if canonicalise or not filter_sites:
+    if not remove_unreferenced:
         for j, site in enumerate(full.sites):
             site_map[j] = tables.sites.add_row(
                 site.position, site.ancestral_state, site.metadata
@@ -1012,7 +1004,7 @@ def py_sort(tables, canonical=False):
         tables.subset(
             np.arange(tables.nodes.num_rows),
             record_provenance=False,
-            canonicalise=True,
+            remove_unreferenced=False,
         )
         num_descendants = compute_mutation_num_descendants(tables)
 

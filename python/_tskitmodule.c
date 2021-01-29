@@ -5091,19 +5091,17 @@ TableCollection_subset(TableCollection *self, PyObject *args, PyObject *kwds)
     PyArrayObject *nodes_array = NULL;
     npy_intp *shape;
     tsk_flags_t options = 0;
-    int filter_populations = true;
-    int filter_individuals = true;
-    int filter_sites = true;
-    int canonicalise = false;
+    int reorder_populations = true;
+    int remove_unreferenced = true;
     size_t num_nodes;
-    static char *kwlist[] = { "nodes", "filter_populations", "filter_individuals",
-        "filter_sites", "canonicalise", NULL };
+    static char *kwlist[]
+        = { "nodes", "reorder_populations", "remove_unreferenced", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiii", kwlist, &nodes,
-            &filter_populations, &filter_individuals, &filter_sites, &canonicalise)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|ii", kwlist, &nodes,
+            &reorder_populations, &remove_unreferenced)) {
         goto out;
     }
     nodes_array
@@ -5113,17 +5111,11 @@ TableCollection_subset(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     shape = PyArray_DIMS(nodes_array);
     num_nodes = shape[0];
-    if (filter_populations) {
-        options |= TSK_FILTER_POPULATIONS;
+    if (!reorder_populations) {
+        options |= TSK_NO_CHANGE_POPULATIONS;
     }
-    if (filter_individuals) {
-        options |= TSK_FILTER_INDIVIDUALS;
-    }
-    if (filter_sites) {
-        options |= TSK_FILTER_SITES;
-    }
-    if (canonicalise) {
-        options |= TSK_CANONICALISE;
+    if (!remove_unreferenced) {
+        options |= TSK_KEEP_UNREFERENCED;
     }
 
     err = tsk_table_collection_subset(

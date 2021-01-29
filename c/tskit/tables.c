@@ -4983,7 +4983,7 @@ tsk_table_collection_canonicalise(
         nodes[k] = k;
     }
     ret = tsk_table_collection_subset(
-        self, nodes, self->nodes.num_rows, TSK_CANONICALISE);
+        self, nodes, self->nodes.num_rows, TSK_KEEP_UNREFERENCED);
     if (ret != 0) {
         goto out;
     }
@@ -9455,10 +9455,8 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
     tsk_population_t pop;
     tsk_site_t site;
     tsk_mutation_t mut;
-    bool canonicalise = !!(options & TSK_CANONICALISE);
-    bool no_filter_populations = !(options & TSK_FILTER_POPULATIONS);
-    bool no_filter_individuals = !(options & TSK_FILTER_INDIVIDUALS);
-    bool no_filter_sites = !(options & TSK_FILTER_SITES);
+    bool keep_unreferenced = !!(options & TSK_KEEP_UNREFERENCED);
+    bool no_change_populations = !!(options & TSK_NO_CHANGE_POPULATIONS);
 
     ret = tsk_table_collection_copy(self, &tables, 0);
     if (ret != 0) {
@@ -9489,17 +9487,7 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
     memset(site_map, 0xff, tables.sites.num_rows * sizeof(*site_map));
     memset(mutation_map, 0xff, tables.mutations.num_rows * sizeof(*mutation_map));
 
-    if (no_filter_individuals && !canonicalise) {
-        ret = tsk_individual_table_copy(
-            &tables.individuals, &self->individuals, TSK_NO_INIT);
-        if (ret < 0) {
-            goto out;
-        }
-        for (k = 0; k < (tsk_id_t) tables.individuals.num_rows; k++) {
-            individual_map[k] = k;
-        }
-    }
-    if (no_filter_populations && !canonicalise) {
+    if (no_change_populations) {
         ret = tsk_population_table_copy(
             &tables.populations, &self->populations, TSK_NO_INIT);
         if (ret < 0) {
@@ -9518,7 +9506,7 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
             goto out;
         }
     }
-    if (canonicalise) {
+    if (keep_unreferenced) {
         // keep unused individuals and populations
         for (k = 0; k < (tsk_id_t) tables.individuals.num_rows; k++) {
             if (individual_map[k] == TSK_NULL) {
@@ -9575,7 +9563,7 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
     // keep retained sites in their original order
     j = 0;
     for (k = 0; k < (tsk_id_t) tables.sites.num_rows; k++) {
-        if (canonicalise || no_filter_sites || site_map[k] != TSK_NULL) {
+        if (keep_unreferenced || site_map[k] != TSK_NULL) {
             tsk_site_table_get_row_unsafe(&tables.sites, k, &site);
             ret = tsk_site_table_add_row(&self->sites, site.position,
                 site.ancestral_state, site.ancestral_state_length, site.metadata,
@@ -9665,13 +9653,11 @@ tsk_check_subset_equality(tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_subset(&self_copy, self_nodes, num_shared_nodes,
-        TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&self_copy, self_nodes, num_shared_nodes, 0);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_subset(&other_copy, other_nodes, num_shared_nodes,
-        TSK_FILTER_POPULATIONS | TSK_FILTER_INDIVIDUALS | TSK_FILTER_SITES);
+    ret = tsk_table_collection_subset(&other_copy, other_nodes, num_shared_nodes, 0);
     if (ret != 0) {
         goto out;
     }

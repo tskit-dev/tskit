@@ -3040,10 +3040,8 @@ class TableCollection:
         self,
         nodes,
         record_provenance=True,
-        filter_populations=True,
-        filter_individuals=True,
-        filter_sites=True,
-        canonicalise=False,
+        reorder_populations=True,
+        remove_unreferenced=True,
     ):
         """
         Modifies the tables in place to contain only the entries referring to
@@ -3057,24 +3055,18 @@ class TableCollection:
             may be a numpy array (or array-like) object (dtype=np.int32).
         :param bool record_provenance: Whether to record a provenance entry
             in the provenance table for this operation.
-        :param bool filter_populations: Whether to remove populations not referenced by
-            retained nodes. If False, the population table will not be altered
+        :param bool reorder_populations: Whether to reorder the population table
+            (default: True).  If False, the population table will not be altered
             in any way.
-        :param bool filter_individuals: Whether to remove individuals not referenced by
-            retained nodes. If False, the individuals table will not be altered
-            in any way.
-        :param bool filter_sites: Whether to remove sites not referenced by
-            retained mutations. If False, the site table will remain unchanged.
-        :param bool canonicalise: If True, retains all unused entries, putting
-            unreferenced individuals and populations last.
+        :param bool remove_unreferenced: Whether sites, individuals, and populations
+            that are not referred to by any retained entries in the tables should
+            be removed (default: True). See the description for details.
         """
         nodes = util.safe_np_int_cast(nodes, np.int32)
         self._ll_tables.subset(
             nodes,
-            filter_populations=filter_populations,
-            filter_individuals=filter_individuals,
-            filter_sites=filter_sites,
-            canonicalise=canonicalise,
+            reorder_populations=reorder_populations,
+            remove_unreferenced=remove_unreferenced,
         )
         if record_provenance:
             parameters = {"command": "subset", "nodes": nodes.tolist()}
