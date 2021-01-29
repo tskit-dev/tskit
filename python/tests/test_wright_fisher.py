@@ -592,3 +592,58 @@ class TestSimplify:
         other_tables.provenances.clear()
         assert tables == other_tables
         self.verify_simplify(ts, small_ts, sub_samples, node_map)
+
+    @pytest.mark.parametrize("ts", wf_sims)
+    @pytest.mark.parametrize("nsamples", [2, 5])
+    def test_simplify_keep_unary(self, ts, nsamples):
+        np.random.seed(123)
+        ts = tsutil.mark_metadata(ts, "nodes")
+        sub_samples = random.sample(list(ts.samples()), min(nsamples, ts.num_samples))
+        random_nodes = np.random.choice(ts.num_nodes, ts.num_nodes // 2)
+        ts = tsutil.insert_individuals(ts, random_nodes)
+        ts = tsutil.mark_metadata(ts, "individuals")
+
+        for params in [{}, {"keep_unary": True}, {"keep_unary_in_individuals": True}]:
+            sts = ts.simplify(sub_samples, **params)
+            # check samples match
+            assert sts.num_samples == len(sub_samples)
+            for n, sn in zip(sub_samples, sts.samples()):
+                assert ts.node(n).metadata == sts.node(sn).metadata
+
+            # check that nodes are correctly retained: only nodes ancestral to
+            # retained samples, and: by default, only coalescent events; if
+            # keep_unary_in_individuals then also nodes in individuals; if
+            # keep_unary then all such nodes.
+            for t in ts.trees(tracked_samples=sub_samples):
+                st = sts.at(t.interval[0])
+                visited = [False for _ in sts.nodes()]
+                for n, sn in zip(sub_samples, sts.samples()):
+                    last_n = t.num_tracked_samples(n)
+                    while n != tskit.NULL:
+                        ind = ts.node(n).individual
+                        keep = False
+                        if t.num_tracked_samples(n) > last_n:
+                            # a coalescent node
+                            keep = True
+                        if "keep_unary_in_individuals" in params and ind != tskit.NULL:
+                            keep = True
+                        if "keep_unary" in params:
+                            keep = True
+                        if (n in sub_samples) or keep:
+                            visited[sn] = True
+                            assert sn != tskit.NULL
+                            assert ts.node(n).metadata == sts.node(sn).metadata
+                            assert t.num_tracked_samples(n) == st.num_samples(sn)
+                            if ind != tskit.NULL:
+                                sind = sts.node(sn).individual
+                                assert sind != tskit.NULL
+                                assert (
+                                    ts.individual(ind).metadata
+                                    == sts.individual(sind).metadata
+                                )
+                            sn = st.parent(sn)
+                        last_n = t.num_tracked_samples(n)
+                        n = t.parent(n)
+                st_nodes = list(st.nodes())
+                for k, v in enumerate(visited):
+                    assert v == (k in st_nodes)

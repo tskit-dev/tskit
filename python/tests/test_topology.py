@@ -2363,7 +2363,7 @@ class TestUnaryNodes(TopologyTestCase):
     def verify_unary_tree_sequence(self, ts):
         """
         Take the specified tree sequence and produce an equivalent in which
-        unary records have been interspersed.
+        unary records have been interspersed, every other with an associated individual
         """
         assert ts.num_trees > 2
         assert ts.num_mutations > 2
@@ -2371,11 +2371,12 @@ class TestUnaryNodes(TopologyTestCase):
         next_node = ts.num_nodes
         node_times = {j: node.time for j, node in enumerate(ts.nodes())}
         edges = []
-        for e in ts.edges():
+        for i, e in enumerate(ts.edges()):
             node = ts.node(e.parent)
             t = node.time - 1e-14  # Arbitrary small value.
             next_node = len(tables.nodes)
-            tables.nodes.add_row(time=t, population=node.population)
+            indiv = tables.individuals.add_row() if i % 2 == 0 else tskit.NULL
+            tables.nodes.add_row(time=t, population=node.population, individual=indiv)
             edges.append(
                 tskit.Edge(left=e.left, right=e.right, parent=next_node, child=e.child)
             )
@@ -2398,11 +2399,16 @@ class TestUnaryNodes(TopologyTestCase):
         self.assert_haplotypes_equal(ts, ts_simplified)
         self.assert_variants_equal(ts, ts_simplified)
         assert len(list(ts.edge_diffs())) == ts.num_trees
+        assert 0 < ts_new.num_individuals < ts_new.num_nodes
 
-        for keep_unary in [True, False]:
-            s = tests.Simplifier(ts, ts.samples(), keep_unary=keep_unary)
+        for params in [
+            {"keep_unary": False, "keep_unary_in_individuals": False},
+            {"keep_unary": True, "keep_unary_in_individuals": False},
+            {"keep_unary": False, "keep_unary_in_individuals": True},
+        ]:
+            s = tests.Simplifier(ts_new, ts_new.samples(), **params)
             py_ts, py_node_map = s.simplify()
-            lib_ts, lib_node_map = ts.simplify(keep_unary=keep_unary, map_nodes=True)
+            lib_ts, lib_node_map = ts_new.simplify(map_nodes=True, **params)
             py_tables = py_ts.dump_tables()
             py_tables.provenances.clear()
             lib_tables = lib_ts.dump_tables()
