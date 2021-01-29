@@ -2662,9 +2662,19 @@ int tsk_table_collection_sort(
 @rst
 This method puts tables in canonical form, which exceeds the usual
 sortedness requirements in such a way that randomly reshuffled tables are
-guaranteed to always be sorted to the same order (with the exception of
-individuals or populations that are not referenced by any nodes). In
-particular, this method puts mutation parents before their children.
+guaranteed to always be sorted to the same order. In particular, this method
+puts mutation parents before their children.
+
+**Options**:
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_KEEP_UNREFERENCED
+    By default, this will remove any unreferenced sites, populations, and
+    individuals. If this flag is provided, these will be retained, with
+    unreferenced individuals and populations at the end of the tables, in
+    their original order.
 
 @endrst
 

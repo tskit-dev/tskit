@@ -840,8 +840,8 @@ def shuffle_tables(
     Randomizes the order of rows in (possibly) all except the Node table.  Note
     that if mutations are completely shuffled, then TableCollection.sort() will
     not necessarily produce valid tables (unless all mutation times are present
-    and distinct), since it only puts parent mutations before children if
-    canonical=True. However, setting keep_mutation_parent_order to True will
+    and distinct), since currently only canonicalise puts parent mutations
+    before children.  However, setting keep_mutation_parent_order to True will
     maintain the order of mutations within each site.
 
     :param TableCollection tables: The table collection that is shuffled (in place).
@@ -941,14 +941,14 @@ def shuffle_tables(
     return tables
 
 
-def orig_cmp_site(i, j, tables):
+def cmp_site(i, j, tables):
     ret = tables.sites.position[i] - tables.sites.position[j]
     if ret == 0:
         ret = i - j
     return ret
 
 
-def orig_cmp_mutation(i, j, tables, site_order, canonical=False, num_descendants=None):
+def cmp_mutation_canonical(i, j, tables, site_order, num_descendants=None):
     site_i = tables.mutations.site[i]
     site_j = tables.mutations.site[j]
     ret = site_order[site_i] - site_order[site_j]
@@ -958,17 +958,31 @@ def orig_cmp_mutation(i, j, tables, site_order, canonical=False, num_descendants
         and (not tskit.is_unknown_time(tables.mutations.time[j]))
     ):
         ret = tables.mutations.time[j] - tables.mutations.time[i]
-    if canonical:
-        if ret == 0:
-            ret = num_descendants[j] - num_descendants[i]
-        if ret == 0:
-            ret = tables.mutations.node[i] - tables.mutations.node[j]
+    if ret == 0:
+        ret = num_descendants[j] - num_descendants[i]
+    if ret == 0:
+        ret = tables.mutations.node[i] - tables.mutations.node[j]
     if ret == 0:
         ret = i - j
     return ret
 
 
-def orig_cmp_edge(i, j, tables):
+def cmp_mutation(i, j, tables, site_order):
+    site_i = tables.mutations.site[i]
+    site_j = tables.mutations.site[j]
+    ret = site_order[site_i] - site_order[site_j]
+    if (
+        ret == 0
+        and (not tskit.is_unknown_time(tables.mutations.time[i]))
+        and (not tskit.is_unknown_time(tables.mutations.time[j]))
+    ):
+        ret = tables.mutations.time[j] - tables.mutations.time[i]
+    if ret == 0:
+        ret = i - j
+    return ret
+
+
+def cmp_edge(i, j, tables):
     ret = (
         tables.nodes.time[tables.edges.parent[i]]
         - tables.nodes.time[tables.edges.parent[j]]
@@ -992,22 +1006,16 @@ def compute_mutation_num_descendants(tables):
     return num_descendants
 
 
-def py_sort(tables, canonical=False):
-    cmp_edge = orig_cmp_edge
-    cmp_site = orig_cmp_site
-    cmp_mutation = orig_cmp_mutation
-    num_descendants = np.zeros(tables.mutations.num_rows)
-    if canonical:
-        # Reorder nodes, populations, and individuals.
-        # Note that this will keep unreferenced populations and individuals,
-        # but will not put these in canonical order.
-        tables.subset(
-            np.arange(tables.nodes.num_rows),
-            record_provenance=False,
-            remove_unreferenced=False,
-        )
-        num_descendants = compute_mutation_num_descendants(tables)
+def py_canonicalise(tables, remove_unreferenced=True):
+    tables.subset(
+        np.arange(tables.nodes.num_rows),
+        record_provenance=False,
+        remove_unreferenced=remove_unreferenced,
+    )
+    py_sort(tables, use_num_descendants=True)
 
+
+def py_sort(tables, use_num_descendants=False):
     copy = tables.copy()
     tables.edges.clear()
     tables.sites.clear()
@@ -1018,16 +1026,26 @@ def py_sort(tables, canonical=False):
     sorted_sites = sorted(range(copy.sites.num_rows), key=site_key)
     site_id_map = {k: j for j, k in enumerate(sorted_sites)}
     site_order = np.argsort(sorted_sites)
-    mut_key = functools.cmp_to_key(
-        lambda a, b: cmp_mutation(
-            a,
-            b,
-            tables=copy,
-            site_order=site_order,
-            canonical=canonical,
-            num_descendants=num_descendants,
+    if use_num_descendants:
+        num_descendants = compute_mutation_num_descendants(copy)
+        mut_key = functools.cmp_to_key(
+            lambda a, b: cmp_mutation_canonical(
+                a,
+                b,
+                tables=copy,
+                site_order=site_order,
+                num_descendants=num_descendants,
+            )
         )
-    )
+    else:
+        mut_key = functools.cmp_to_key(
+            lambda a, b: cmp_mutation(
+                a,
+                b,
+                tables=copy,
+                site_order=site_order,
+            )
+        )
     sorted_muts = sorted(range(copy.mutations.num_rows), key=mut_key)
     mut_id_map = {k: j for j, k in enumerate(sorted_muts)}
     mut_id_map[tskit.NULL] = tskit.NULL

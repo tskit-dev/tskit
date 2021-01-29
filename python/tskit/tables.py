@@ -2692,22 +2692,32 @@ class TableCollection:
         self._ll_tables.sort(edge_start)
         # TODO add provenance
 
-    def canonicalise(self):
+    def canonicalise(self, remove_unreferenced=True):
         """
         This puts the tables in *canonical* form - to do this, the individual
         and population tables are sorted by the first node that refers to each
-        (see :meth:`TreeSequence.subset`, and note that individuals and
-        populations not referred to by any nodes will be put at the end of the
-        tables in their original order).  Then, the remaining tables are sorted
+        (see :meth:`TreeSequence.subset`) Then, the remaining tables are sorted
         as in :meth:`.sort`, with the modification that mutations are sorted by
         site, then time, then number of descendant mutations (ensuring that
         parent mutations occur before children), then node, then original order
         in the tables. This ensures that any two tables with the same
-        information should be identical after canonical sorting, unless they
-        have multiple individuals or populations without nodes that refer to
-        them.
+        information should be identical after canonical sorting.
+
+        By default, the method removes sites, individuals, and populations that
+        are not referenced (by mutations and nodes, respectively). If it is
+        desired to keep these, pass ``remove_unreferenced=False``, but note that
+        unreferenced individuals and populations are put at the end of the tables,
+        but not in canonical order.
+
+        .. seealso::
+
+            :meth:`.sort` for sorting edges, mutations, and sites, and
+            :meth:`.subset` for reordering nodes, individuals, and populations.
+
+        :param bool remove_unreferenced: Whether to remove unreferenced sites,
+            individuals, and populations.
         """
-        self._ll_tables.canonicalise()
+        self._ll_tables.canonicalise(remove_unreferenced=remove_unreferenced)
         # TODO add provenance
 
     def compute_mutation_parents(self):

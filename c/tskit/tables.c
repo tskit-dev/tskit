@@ -4961,13 +4961,13 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_canonicalise(
-    tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
+tsk_table_collection_canonicalise(tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t k;
     tsk_id_t *nodes = NULL;
     tsk_table_sorter_t sorter;
+    tsk_flags_t subset_options = options & TSK_KEEP_UNREFERENCED;
 
     ret = tsk_table_sorter_init(&sorter, self, 0);
     if (ret != 0) {
@@ -4982,8 +4982,7 @@ tsk_table_collection_canonicalise(
     for (k = 0; k < (tsk_id_t) self->nodes.num_rows; k++) {
         nodes[k] = k;
     }
-    ret = tsk_table_collection_subset(
-        self, nodes, self->nodes.num_rows, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_subset(self, nodes, self->nodes.num_rows, subset_options);
     if (ret != 0) {
         goto out;
     }

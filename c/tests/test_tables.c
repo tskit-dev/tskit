@@ -4087,8 +4087,7 @@ test_sort_tables_canonical(void)
                                "0  3   -1   -1\n";
     const char *individuals_sorted = "0 1.0\n"
                                      "0 3.0\n"
-                                     "0 2.0\n"
-                                     "0 0.0\n";
+                                     "0 2.0\n";
     const char *sites_sorted = "0       0\n"
                                "0.1     0\n"
                                "0.2     0\n";
@@ -4100,6 +4099,10 @@ test_sort_tables_canonical(void)
                                    "2   2  1  -1   2\n"
                                    "2   1  4   4 0.5\n"
                                    "2   1  5   6 0.5\n";
+    const char *individuals_sorted_kept = "0 1.0\n"
+                                          "0 3.0\n"
+                                          "0 2.0\n"
+                                          "0 0.0\n";
 
     ret = tsk_table_collection_init(&t1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4128,16 +4131,45 @@ test_sort_tables_canonical(void)
     parse_nodes(nodes_sorted, &t2.nodes);
     tsk_population_table_add_row(&t2.populations, "C", 1);
     tsk_population_table_add_row(&t2.populations, "A", 1);
-    tsk_population_table_add_row(&t2.populations, "B", 1);
     CU_ASSERT_EQUAL_FATAL(t2.nodes.num_rows, 7);
     parse_individuals(individuals_sorted, &t2.individuals);
-    CU_ASSERT_EQUAL_FATAL(t2.individuals.num_rows, 4);
+    CU_ASSERT_EQUAL_FATAL(t2.individuals.num_rows, 3);
     parse_edges(single_tree_ex_edges, &t2.edges);
     CU_ASSERT_EQUAL_FATAL(t2.edges.num_rows, 6);
     parse_sites(sites_sorted, &t2.sites);
     parse_mutations(mutations_sorted, &t2.mutations);
     CU_ASSERT_EQUAL_FATAL(t2.sites.num_rows, 3);
     CU_ASSERT_EQUAL_FATAL(t2.mutations.num_rows, 8);
+
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
+
+    ret = tsk_table_collection_clear(&t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_clear(&t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // now with KEEP_UNREFERENCED
+    parse_nodes(nodes, &t1.nodes);
+    parse_individuals(individuals, &t1.individuals);
+    tsk_population_table_add_row(&t1.populations, "A", 1);
+    tsk_population_table_add_row(&t1.populations, "B", 1);
+    tsk_population_table_add_row(&t1.populations, "C", 1);
+    parse_edges(single_tree_ex_edges, &t1.edges);
+    parse_sites(sites, &t1.sites);
+    parse_mutations(mutations, &t1.mutations);
+
+    ret = tsk_table_collection_canonicalise(&t1, TSK_KEEP_UNREFERENCED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    parse_nodes(nodes_sorted, &t2.nodes);
+    tsk_population_table_add_row(&t2.populations, "C", 1);
+    tsk_population_table_add_row(&t2.populations, "A", 1);
+    tsk_population_table_add_row(&t2.populations, "B", 1);
+    parse_individuals(individuals_sorted_kept, &t2.individuals);
+    CU_ASSERT_EQUAL_FATAL(t2.individuals.num_rows, 4);
+    parse_edges(single_tree_ex_edges, &t2.edges);
+    parse_sites(sites_sorted, &t2.sites);
+    parse_mutations(mutations_sorted, &t2.mutations);
 
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
 

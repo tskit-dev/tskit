@@ -1408,15 +1408,16 @@ class TestSortTables:
         tsutil.assert_table_collections_equal(tables1, tables2)
 
     def verify_canonical_equality(self, tables, seed):
-        tables1 = tables.copy()
-        tsutil.shuffle_tables(
-            tables1,
-            seed,
-        )
-        tables2 = tables1.copy()
-        tables1.canonicalise()
-        tsutil.py_sort(tables2, canonical=True)
-        tsutil.assert_table_collections_equal(tables1, tables2)
+        for ru in [True, False]:
+            tables1 = tables.copy()
+            tsutil.shuffle_tables(
+                tables1,
+                seed,
+            )
+            tables2 = tables1.copy()
+            tables1.canonicalise(remove_unreferenced=ru)
+            tsutil.py_canonicalise(tables2, remove_unreferenced=ru)
+            tsutil.assert_table_collections_equal(tables1, tables2)
 
     def verify_sort_mutation_consistency(self, orig_tables, seed):
         tables = orig_tables.copy()
@@ -1456,17 +1457,17 @@ class TestSortTables:
         tsutil.assert_table_collections_equal(tables, sorted_tables)
 
         # Now also randomize sites and mutations
-        tables.canonicalise()
+        tables.canonicalise(remove_unreferenced=False)
         sorted_tables = tables.copy()
         tsutil.shuffle_tables(
             tables, seed=1234, shuffle_populations=False, shuffle_individuals=False
         )
-        tables.canonicalise()
+        tables.canonicalise(remove_unreferenced=False)
         tsutil.assert_table_collections_equal(tables, sorted_tables)
 
         # Finally, randomize everything else
         tsutil.shuffle_tables(tables, seed=1234)
-        tables.canonicalise()
+        tables.canonicalise(remove_unreferenced=False)
         tsutil.assert_table_collections_equal(tables, sorted_tables)
 
     def verify_sort(self, tables, seed):

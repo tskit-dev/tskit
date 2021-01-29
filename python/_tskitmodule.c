@@ -5355,15 +5355,25 @@ out:
 }
 
 static PyObject *
-TableCollection_canonicalise(TableCollection *self)
+TableCollection_canonicalise(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
+    tsk_flags_t options = 0;
+    int remove_unreferenced = true;
+    static char *kwlist[] = { "remove_unreferenced", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_table_collection_canonicalise(self->tables, 0);
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &remove_unreferenced)) {
+        goto out;
+    }
+    if (!remove_unreferenced) {
+        options |= TSK_KEEP_UNREFERENCED;
+    }
+
+    err = tsk_table_collection_canonicalise(self->tables, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5781,7 +5791,7 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_doc = "Sorts the tables to satisfy tree sequence requirements." },
     { .ml_name = "canonicalise",
         .ml_meth = (PyCFunction) TableCollection_canonicalise,
-        .ml_flags = METH_NOARGS,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Puts the tables in canonical form." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) TableCollection_equals,
