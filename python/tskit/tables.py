@@ -656,6 +656,21 @@ class IndividualTable(BaseTable, MetadataMixin):
         d["location_offset"] = offset
         self.set_columns(**d)
 
+    def packset_parents(self, parents):
+        """
+        Packs the specified list of parent values and updates the ``parent``
+        and ``parent_offset`` columns. The length of the parents array
+        must be equal to the number of rows in the table.
+
+        :param list parents: A list of list of parent ids, interpreted as numpy int32
+            arrays
+        """
+        packed, offset = util.pack_arrays(parents, np.int32)
+        d = self.asdict()
+        d["parents"] = packed
+        d["parents_offset"] = offset
+        self.set_columns(**d)
+
 
 class NodeTable(BaseTable, MetadataMixin):
     """

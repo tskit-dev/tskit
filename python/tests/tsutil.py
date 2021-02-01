@@ -401,6 +401,8 @@ def add_random_metadata(ts, seed=1, max_length=10):
         flags=individuals.flags,
         location=individuals.location,
         location_offset=individuals.location_offset,
+        parents=individuals.parents,
+        parents_offset=individuals.parents_offset,
         metadata_offset=offset,
         metadata=metadata,
     )
@@ -655,7 +657,10 @@ def py_union(tables, other, nodes, record_provenance=True, add_populations=True)
             if ind_map[node.individual] == tskit.NULL and node.individual != tskit.NULL:
                 ind = other.individuals[node.individual]
                 ind_id = tables.individuals.add_row(
-                    flags=ind.flags, location=ind.location, metadata=ind.metadata
+                    flags=ind.flags,
+                    location=ind.location,
+                    parents=ind.parents,
+                    metadata=ind.metadata,
                 )
                 ind_map[node.individual] = ind_id
             if pop_map[node.population] == tskit.NULL and node.population != tskit.NULL:

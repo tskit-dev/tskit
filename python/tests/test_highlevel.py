@@ -948,6 +948,7 @@ class TestTreeSequence(HighLevelTestCase):
                 assert inds[j] == ts.individual(j)
                 assert inds[j].id == j
                 assert isinstance(inds[j].metadata, bytes)
+                assert isinstance(inds[j].parents, np.ndarray)
                 assert isinstance(inds[j].location, np.ndarray)
                 assert isinstance(inds[j].nodes, np.ndarray)
                 assert ind_node_map[j] == list(inds[j].nodes)
@@ -2969,6 +2970,7 @@ class TestIndividualContainer(SimpleContainersMixin, SimpleContainersWithMetadat
                 id_=j,
                 flags=j,
                 location=[j],
+                parents=[j],
                 nodes=[j],
                 encoded_metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",

@@ -589,6 +589,10 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.individuals.location_offset, store["individuals/location_offset"]
         )
+        assert np.array_equal(tables.individuals.parents, store["individuals/parents"])
+        assert np.array_equal(
+            tables.individuals.parents_offset, store["individuals/parents_offset"]
+        )
         assert np.array_equal(
             tables.individuals.metadata, store["individuals/metadata"]
         )

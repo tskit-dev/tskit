@@ -319,6 +319,7 @@ test_missing_required_column_pairs(void)
     tsk_table_collection_t t;
     const char *required_cols[][2] = {
         { "individuals/location", "individuals/location_offset" },
+        { "individuals/parents", "individuals/parents_offset" },
         { "individuals/metadata", "individuals/metadata_offset" },
         { "mutations/derived_state", "mutations/derived_state_offset" },
         { "mutations/metadata", "mutations/metadata_offset" },
@@ -438,6 +439,7 @@ test_bad_offset_columns(void)
         "edges/metadata_offset",
         "migrations/metadata_offset",
         "individuals/location_offset",
+        "individuals/parents_offset",
         "individuals/metadata_offset",
         "mutations/derived_state_offset",
         "mutations/metadata_offset",
