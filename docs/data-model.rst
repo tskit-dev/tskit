@@ -259,6 +259,7 @@ Column              Type                Description
 ================    ==============      ===========
 flags               uint32              Bitwise flags.
 location            double              Location in arbitrary dimensions
+parents             int32               Ids of parent individuals
 metadata            binary              Individual :ref:`sec_metadata_definition`
 ================    ==============      ===========
 
@@ -280,6 +281,10 @@ dimensions. This column is :ref:`ragged <sec_encoding_ragged_columns>`, and
 so different individuals can have locations with different dimensions (i.e.,
 one individual may have location ``[]`` and another ``[0, 1, 0]``. This could
 therefore be used to store other quantities (e.g., phenotype).
+
+The ``parents`` column stores the ids of other individuals that are the parents of
+an individual. This column is :ref:`ragged <sec_encoding_ragged_columns>` such that an
+individual can have any number of parents.
 
 The ``metadata`` column provides a location for client code to store
 information about each individual. See the :ref:`sec_metadata_definition` section for
@@ -1078,26 +1083,26 @@ Individual text format
 ======================
 
 The individual text format must contain a ``flags`` column.
-Optionally, there may also be a ``location`` and
+Optionally, there may also be ``location``, ``parents`` and
 ``metadata`` columns. See the :ref:`individual table definitions
 <sec_individual_table_definition>` for details on these columns.
 
 Note that there are currently no globally defined ``flags``, but the column
 is still required; a value of ``0`` means that there are no flags set.
 
-The ``location`` column should be a sequence of comma-separated numeric
+The ``location`` and ``parents`` columns should be a sequence of comma-separated numeric
 values. They do not all have to be the same length.
 
 An example individual table::
 
-    flags   location
-    0           0.5,1.2
-    0           1.0,3.4
+    flags       location     parents
+    0           0.5,1.2      -1, -1
+    0           1.0,3.4      0, -1
     0
     0           1.2
-    0           3.5,6.3
-    0           0.5,0.5
-    0           0.5
+    0           3.5,6.3      1,2
+    0           0.5,0.5      3,4
+    0           0.5          -1,-1
     0           0.7,0.6,0.0
     0           0.5,0.0
 

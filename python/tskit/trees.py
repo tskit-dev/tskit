@@ -147,10 +147,13 @@ class Individual(SimpleContainerWithMetadata):
     :ivar location: The spatial location of this individual as a numpy array. The
         location is an empty array if no spatial location is defined.
     :vartype location: numpy.ndarray
+    :ivar parents: The parent individual ids of this individual as a numpy array. The
+        parents is an empty array if no parents are defined.
+    :vartype parents: numpy.ndarray
     :ivar nodes: The IDs of the nodes that are associated with this individual as
         a numpy array (dtype=np.int32). If no nodes are associated with the
         individual this array will be empty.
-    :vartype location: numpy.ndarray
+    :vartype nodes: numpy.ndarray
     :ivar metadata: The decoded :ref:`metadata <sec_metadata_definition>`
          for this individual.
     :vartype metadata: object

@@ -457,6 +457,12 @@ class IndividualTable(BaseTable, MetadataMixin):
     :ivar location_offset: The array of offsets into the location column. See
         :ref:`sec_encoding_ragged_columns` for more details.
     :vartype location_offset: numpy.ndarray, dtype=np.uint32
+    :ivar parents: The flattened array of parent individual ids. See
+        :ref:`sec_encoding_ragged_columns` for more details.
+    :vartype parents: numpy.ndarray, dtype=np.int32
+    :ivar parents_offset: The array of offsets into the parents column. See
+        :ref:`sec_encoding_ragged_columns` for more details.
+    :vartype parents_offset: numpy.ndarray, dtype=np.uint32
     :ivar metadata: The flattened array of binary metadata values. See
         :ref:`sec_tables_api_binary_columns` for more details.
     :vartype metadata: numpy.ndarray, dtype=np.int8
@@ -522,6 +528,8 @@ class IndividualTable(BaseTable, MetadataMixin):
         :param array-like location: A list of numeric values or one-dimensional numpy
             array describing the location of this individual. If not specified
             or None, a zero-dimensional location is stored.
+        :param array-like parents: A list or array of ids of parent individuals. If not
+            specified an empty array is stored.
         :param object metadata: Any object that is valid metadata for the table's schema.
             Defaults to the default metadata value for the table's schema. This is
             typically ``{}``. For no schema, ``None``.
@@ -555,6 +563,8 @@ class IndividualTable(BaseTable, MetadataMixin):
         the table will contain.
         The ``location`` and ``location_offset`` parameters must be supplied
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
+        The ``parents`` and ``parents_offset`` parameters must be supplied
+        together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
         See :ref:`sec_tables_api_binary_columns` for more information and
@@ -568,6 +578,12 @@ class IndividualTable(BaseTable, MetadataMixin):
         :type location: numpy.ndarray, dtype=np.float64
         :param location_offset: The offsets into the ``location`` array.
         :type location_offset: numpy.ndarray, dtype=np.uint32.
+        :param parents: The flattened parents array. Must be specified along
+            with ``parents_offset``. If not specified or None, an empty parents array
+            is stored for each individual.
+        :type parents: numpy.ndarray, dtype=np.int32
+        :param parents_offset: The offsets into the ``parents`` array.
+        :type parents_offset: numpy.ndarray, dtype=np.uint32.
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
             value is stored for each individual.
@@ -606,6 +622,8 @@ class IndividualTable(BaseTable, MetadataMixin):
 
         The ``flags`` array is mandatory and defines the number of
         extra individuals to add to the table.
+        The ``parents`` and ``parents_offset`` parameters must be supplied
+        together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
         The ``location`` and ``location_offset`` parameters must be supplied
         together, and meet the requirements for :ref:`sec_encoding_ragged_columns`.
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
@@ -624,6 +642,11 @@ class IndividualTable(BaseTable, MetadataMixin):
         :param metadata: The flattened metadata array. Must be specified along
             with ``metadata_offset``. If not specified or None, an empty metadata
             value is stored for each individual.
+        :param parents: The flattened parents array. Must be specified along
+            with ``parents_offset``. If not specified or None, an empty parents array
+            is stored for each individual.
+        :type parents: numpy.ndarray, dtype=np.int32
+        :param parents_offset: The offsets into the ``parents`` array.
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
@@ -663,7 +686,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         must be equal to the number of rows in the table.
 
         :param list parents: A list of list of parent ids, interpreted as numpy int32
-            arrays
+            arrays.
         """
         packed, offset = util.pack_arrays(parents, np.int32)
         d = self.asdict()
