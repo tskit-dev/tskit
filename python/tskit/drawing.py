@@ -338,7 +338,7 @@ class SvgTreeSequence:
         axes_right = self.image_size[0] - self.treebox_x_offset
         y = self.image_size[1] - 2 * self.axes_y_offset
         axis = root_group.add(dwg.g(class_="axis"))
-        axis.add(dwg.line((axes_left, y), (axes_right, y), stroke="black"))
+        axis.add(dwg.line((axes_left, y), (axes_right, y)))
         integer_ticks = all(round(label) == label for _, _, label in ticks)
         label_precision = 0 if integer_ticks else 2
 
@@ -372,7 +372,6 @@ class SvgTreeSequence:
                 dwg.line(
                     (rnd(x), rnd(y - tick_len[0])),
                     (rnd(x), rnd(y + tick_len[1])),
-                    stroke="black",
                 )
             )
             add_text_in_group(
@@ -397,7 +396,8 @@ class SvgTree:
     standard_style = (
         ".axis {font-weight: bold}"
         ".tree, .axis {font-size: 14px; text-anchor:middle}"
-        ".edge {stroke: black; fill: none}"
+        "line, path {stroke:black}"
+        ".edge {fill:none}"
         ".node > .sym {fill: black; stroke: none}"
         ".tree text {dominant-baseline: middle}"  # NB: not inherited in css 1.1
         ".tree .lab.lft {text-anchor: end}"
