@@ -1,2 +1,2 @@
-numpy<=1.19.5
+numpy<=1.19.5 #Pinned as we get build errors - check again after 3.6 dropped
 msprime==0.7.4
