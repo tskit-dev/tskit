@@ -15,7 +15,7 @@ portion==2.1.4
 pyparsing==2.4.7
 pysam==0.16.0.1
 pytest==6.2.1
-pytest-cov==2.10.1
+pytest-cov==2.11.1
 pytest-xdist==2.2.0
 python-jsonschema-objects==0.3.13
 PyVCF==0.6.8
