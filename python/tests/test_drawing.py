@@ -28,7 +28,6 @@ import io
 import math
 import os
 import re
-import tempfile
 import xml.dom.minidom
 import xml.etree
 
@@ -1396,16 +1395,16 @@ class TestDrawTextExamples(TestTreeDraw):
                 t.draw_text(max_tree_height=bad_max_tree_height)
 
 
-class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
+class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     """
     Tests the SVG tree drawing.
     """
 
-    def verify_basic_svg(self, svg, width=200, height=200):
+    def verify_basic_svg(self, svg, width=200, height=200, num_trees=1):
         prefix = "{http://www.w3.org/2000/svg}"
         root = xml.etree.ElementTree.fromstring(svg)
         assert root.tag == prefix + "svg"
-        assert width == int(root.attrib["width"])
+        assert width * num_trees == int(root.attrib["width"])
         assert height == int(root.attrib["height"])
 
         # Verify the class structure of the svg
@@ -1435,34 +1434,35 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             cls = group.attrib["class"]
             assert re.search(r"\broot\b", cls)
 
-    def test_draw_file(self):
+    def test_draw_file(self, tmp_path):
+        # NB - deleting tmp_path dir unnecessary: this is done after 3 times by pytest
         t = self.get_binary_tree()
-        fd, filename = tempfile.mkstemp(prefix="tskit_viz_")
-        try:
-            os.close(fd)
-            svg = t.draw(path=filename)
-            assert os.path.getsize(filename) > 0
-            with open(filename) as tmp:
-                other_svg = tmp.read()
-            assert svg == other_svg
-            os.unlink(filename)
+        filename = tmp_path / "tree-draw.svg"
+        print(f"Saving tree.draw() to {filename}")  # `pytest -rP` shows path to SVG
+        svg = t.draw(path=filename)
+        assert os.path.getsize(filename) > 0
+        with open(filename) as tmp:
+            other_svg = tmp.read()
+        assert svg == other_svg
 
-            svg = t.draw_svg(path=filename)
-            assert os.path.getsize(filename) > 0
-            with open(filename) as tmp:
-                other_svg = tmp.read()
-            self.verify_basic_svg(svg)
-            self.verify_basic_svg(other_svg)
+        filename = tmp_path / "tree-draw_svg.svg"
+        print(f"Saving tree.draw_svg() to {filename}")  # `pytest -rP` shows path to SVG
+        svg = t.draw_svg(path=filename)
+        assert os.path.getsize(filename) > 0
+        with open(filename) as tmp:
+            other_svg = tmp.read()
+        self.verify_basic_svg(svg)
+        self.verify_basic_svg(other_svg)
 
-            ts = t.tree_sequence
-            svg = ts.draw_svg(path=filename)
-            assert os.path.getsize(filename) > 0
-            with open(filename) as tmp:
-                other_svg = tmp.read()
-            self.verify_basic_svg(svg)
-            self.verify_basic_svg(other_svg)
-        finally:
-            os.unlink(filename)
+        filename = tmp_path / "ts-draw_svg.svg"
+        print(f"Saving ts.draw_svg() to {filename}")  # `pytest -rP` shows path to SVG
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(path=filename)
+        assert os.path.getsize(filename) > 0
+        with open(filename) as tmp:
+            other_svg = tmp.read()
+        self.verify_basic_svg(svg, num_trees=ts.num_trees)
+        self.verify_basic_svg(other_svg, num_trees=ts.num_trees)
 
     def test_draw_defaults(self):
         t = self.get_binary_tree()
