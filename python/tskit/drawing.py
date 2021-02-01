@@ -363,7 +363,8 @@ class SvgTreeSequence:
                                 (rnd(break_x), rnd(y)),
                                 (rnd(break_x), rnd(y + tick_len[1])),
                             ],
-                            fill="#F1F1F1",
+                            fill="#808080",
+                            fill_opacity=0.1,
                         )
                     )
 
