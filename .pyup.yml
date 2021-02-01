@@ -7,7 +7,7 @@ update: all
 label_prs: dependancy-upgrade
 assignees: benjeffery
 requirements:
-  - python/requirements/CI-complete/requirements.txt:
-  - python/requirements/CI-tests-conda/requirements.txt:
-  - python/requirements/CI-tests-pip/requirements.txt:
-  - python/requirements/CI-docs/requirements.txt:
+  - python/requirements/CI-complete/requirements.txt
+  - python/requirements/CI-tests-conda/requirements.txt
+  - python/requirements/CI-tests-pip/requirements.txt
+  - python/requirements/CI-docs/requirements.txt
