@@ -264,10 +264,10 @@ class SvgTreeSequence:
         root_group = dwg.add(dwg.g(class_="tree-sequence"))
         if x_scale == "physical":
             background = root_group.add(dwg.g(class_="background"))
-            axis_top_padding = 20
+            axis_top_pad = 20
             tick_len = (0, 5)
         else:
-            axis_top_padding = 5
+            axis_top_pad = 5
             tick_len = (5, 5)
         if node_labels is None:
             node_labels = {u: str(u) for u in range(ts.num_nodes)}
@@ -280,7 +280,7 @@ class SvgTreeSequence:
         self.axes_x_offset = 15
         self.axes_y_offset = 10
         self.treebox_x_offset = self.axes_x_offset + 5
-        self.treebox_y_offset = self.axes_y_offset + axis_top_padding
+        self.treebox_y_offset = self.axes_y_offset + axis_top_pad
         treebox_width = size[0] - 2 * self.treebox_x_offset
         treebox_height = size[1] - 2 * self.treebox_y_offset
         tree_width = treebox_width / ts.num_trees
@@ -352,19 +352,18 @@ class SvgTreeSequence:
                     # draw an alternating grey background
                     prev_tree_x, prev_break_x, _ = ticks[i - 1]
                     background.add(
-                        dwg.polygon(
-                            [
-                                (rnd(prev_break_x), rnd(y + tick_len[1])),
-                                (rnd(prev_break_x), rnd(y)),
-                                (rnd(prev_tree_x), rnd(y - axis_top_padding)),
-                                (rnd(prev_tree_x), 0),
-                                (rnd(tree_x), 0),
-                                (rnd(tree_x), rnd(y - axis_top_padding)),
-                                (rnd(break_x), rnd(y)),
-                                (rnd(break_x), rnd(y + tick_len[1])),
-                            ],
-                            fill="#808080",
-                            fill_opacity=0.1,
+                        dwg.path(
+                            f"M{rnd(prev_tree_x):g},0 "
+                            f"l{rnd(tree_x-prev_tree_x):g},0 "
+                            f"l0,{rnd(y - axis_top_pad):g} "
+                            f"l{rnd(break_x-tree_x):g},{rnd(axis_top_pad):g} "
+                            # NB for curves try "c0,{1} {0},0 {0},{1}" instead of above
+                            f"l0,{rnd(tick_len[1]):g} "
+                            f"l{rnd(prev_break_x-break_x):g},0 "
+                            f"l0,{rnd(-tick_len[1]):g} "
+                            f"l{rnd(prev_tree_x-prev_break_x):g},{rnd(-axis_top_pad):g} "
+                            # NB for curves try "c0,{1} {0},0 {0},{1}" instead of above
+                            f"l0,{rnd(axis_top_pad - y):g}z",
                         )
                     )
 
@@ -394,15 +393,16 @@ class SvgTree:
     """
 
     standard_style = (
-        ".axis {font-weight: bold}"
-        ".tree, .axis {font-size: 14px; text-anchor:middle}"
-        "line, path {stroke:black}"
-        ".edge {fill:none}"
+        ".tree-sequence .background path {fill: #808080; fill-opacity:.1}"
+        ".tree-sequence .axis {font-weight: bold}"
+        ".tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}"
+        ".tree-sequence .axis line, .edge {stroke:black; fill:none}"
         ".node > .sym {fill: black; stroke: none}"
+        ".node .mut text {fill: red; font-style: italic}"
+        ".node .mut .sym {stroke: red; stroke-width: 1.5px}"
         ".tree text {dominant-baseline: middle}"  # NB: not inherited in css 1.1
         ".tree .lab.lft {text-anchor: end}"
         ".tree .lab.rgt {text-anchor: start}"
-        ".mut {fill: red; font-style: italic}"
     )
 
     @staticmethod
@@ -461,11 +461,21 @@ class SvgTree:
         self.edge_attrs = {}
         self.node_attrs = {}
         self.node_label_attrs = {}
+        symbol_size = "{:g}".format(rnd(self.symbol_size))
+        half_symbol_size = "{:g}".format(rnd(self.symbol_size / 2))
         for u in tree.nodes():
             self.edge_attrs[u] = {}
             if edge_attrs is not None and u in edge_attrs:
                 self.edge_attrs[u].update(edge_attrs[u])
-            self.node_attrs[u] = {"r": "{:g}".format(rnd(self.symbol_size / 2))}
+            if tree.is_sample(u):
+                # a square: set bespoke svgwrite params
+                self.node_attrs[u] = {
+                    "size": (symbol_size,) * 2,
+                    "insert": ("-" + half_symbol_size,) * 2,
+                }
+            else:
+                # a circle: set bespoke svgwrite param `centre` and default radius
+                self.node_attrs[u] = {"center": (0, 0), "r": half_symbol_size}
             if node_attrs is not None and u in node_attrs:
                 self.node_attrs[u].update(node_attrs[u])
             self.add_class(self.node_attrs[u], "sym")  # class 'sym' for symbol
@@ -486,10 +496,9 @@ class SvgTree:
                 m = mutation.id
                 # We need to offset the rectangle so that it's centred
                 self.mutation_attrs[m] = {
-                    "size": (self.symbol_size, self.symbol_size),
-                    "transform": "translate(-{0:g} -{0:g})".format(
-                        rnd(self.symbol_size / 2)
-                    ),
+                    "d": "M -{0},-{0} l {1},{1} M -{0},{0} l {1},-{1}".format(
+                        half_symbol_size, symbol_size
+                    )
                 }
                 if mutation_attrs is not None and m in mutation_attrs:
                     self.mutation_attrs[m].update(mutation_attrs[m])
@@ -684,7 +693,10 @@ class SvgTree:
 
             # Add node symbol + label next (visually above the edge subtending this node)
             # Symbols
-            curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
+            if self.tree.is_sample(u):
+                curr_svg_group.add(dwg.rect(**self.node_attrs[u]))
+            else:
+                curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
             # Labels
             if tree.is_leaf(u):
                 self.node_label_attrs[u]["transform"] = "translate(0 12)"
@@ -710,7 +722,7 @@ class SvgTree:
                     dwg.g(class_=mutation_class, transform=f"translate(0 {rnd(dy)})")
                 )
                 # Symbols
-                mut_group.add(dwg.rect(insert=o, **self.mutation_attrs[mutation.id]))
+                mut_group.add(dwg.path(**self.mutation_attrs[mutation.id]))
                 # Labels
                 if mutation.node == left_child[tree.parent(mutation.node)]:
                     mut_label_class = "lft"
