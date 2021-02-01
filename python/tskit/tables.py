@@ -2233,7 +2233,7 @@ class TableCollection:
         map of table names to the tables themselves was returned.
         """
         ret = {
-            "encoding_version": (1, 2),
+            "encoding_version": (1, 3),
             "sequence_length": self.sequence_length,
             "metadata_schema": repr(self.metadata_schema),
             "metadata": self.metadata_schema.encode_row(self.metadata),
