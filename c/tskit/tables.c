@@ -9511,8 +9511,8 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
             if (individual_map[k] == TSK_NULL) {
                 tsk_individual_table_get_row_unsafe(&tables.individuals, k, &ind);
                 ret = tsk_individual_table_add_row(&self->individuals, ind.flags,
-                    ind.location, ind.location_length, ind.metadata,
-                    ind.metadata_length);
+                    ind.location, ind.location_length, ind.parents, ind.parents_length,
+                    ind.metadata, ind.metadata_length);
                 if (ret < 0) {
                     goto out;
                 }

@@ -658,7 +658,10 @@ def py_subset(
         for j, ind in enumerate(full.individuals):
             if j not in ind_map:
                 ind_map[j] = tables.individuals.add_row(
-                    ind.flags, ind.location, ind.metadata
+                    ind.flags,
+                    location=ind.location,
+                    parents=ind.parents,
+                    metadata=ind.metadata,
                 )
         for j, ind in enumerate(full.populations):
             if j not in pop_map:
@@ -765,7 +768,6 @@ def py_union(tables, other, nodes, record_provenance=True, add_populations=True)
                 parent=tskit.NULL,
                 time=mut.time,
                 metadata=mut.metadata,
-                time=mut.time,
             )
             mut_map[other_id] = mut_id
     # migration table
