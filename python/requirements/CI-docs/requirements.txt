@@ -1,12 +1,12 @@
 attrs==20.3.0
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
-breathe==4.24.0
+breathe==4.26.1
 h5py==3.1.0
 jsonschema==3.2.0
-numpy==1.19.4
+numpy==1.20.0
 PyGithub==1.54.1
 sphinx==3.3.1
 sphinx-argparse==0.2.5
 sphinx-issues==1.2.0
-sphinx_rtd_theme==0.5.0
-svgwrite==1.4
+sphinx_rtd_theme==0.5.1
+svgwrite==1.4.1
