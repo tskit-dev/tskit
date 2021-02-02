@@ -543,6 +543,7 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
     double time;
     char derived_state[MAX_LINE];
 
+    /* site, node, derived_state, [parent, time] */
     c = 0;
     while (text[c] != '\0') {
         /* Fill in the line */

@@ -3582,7 +3582,7 @@ class TestUnionTables(unittest.TestCase):
                         self.verify_union_equality(*self.split_example(ts, T))
 
 
-class TestSubsetUnion(unittest.TestCase):
+class TestSubsetUnion:
     # Check that we can remove a single individual from a tree sequence and
     # then use union to put it back in again. This is a good test of union,
     # subset, and various sort options.

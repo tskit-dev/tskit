@@ -4077,7 +4077,8 @@ test_sort_tables_canonical(void)
                             "2   2  1  -1   2\n"
                             "1   1  5   7 0.5\n"
                             "1   2  1  -1   2\n"
-                            "1   1  4   2 0.5\n";
+                            "1   1  4   2 0.5\n"
+                            "1   1  6   7 0.5\n";
     const char *nodes_sorted = "1  0   -1    0\n"
                                "1  0    0    1\n"
                                "1  0    1   -1\n"
@@ -4098,7 +4099,8 @@ test_sort_tables_canonical(void)
                                    "2   4  3  -1   3\n"
                                    "2   2  1  -1   2\n"
                                    "2   1  4   4 0.5\n"
-                                   "2   1  5   6 0.5\n";
+                                   "2   1  5   6 0.5\n"
+                                   "2   1  6   6 0.5\n";
     const char *individuals_sorted_kept = "0 1.0\n"
                                           "0 3.0\n"
                                           "0 2.0\n"
@@ -4123,7 +4125,7 @@ test_sort_tables_canonical(void)
     parse_sites(sites, &t1.sites);
     CU_ASSERT_EQUAL_FATAL(t1.sites.num_rows, 3);
     parse_mutations(mutations, &t1.mutations);
-    CU_ASSERT_EQUAL_FATAL(t1.mutations.num_rows, 8);
+    CU_ASSERT_EQUAL_FATAL(t1.mutations.num_rows, 9);
 
     ret = tsk_table_collection_canonicalise(&t1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4139,7 +4141,7 @@ test_sort_tables_canonical(void)
     parse_sites(sites_sorted, &t2.sites);
     parse_mutations(mutations_sorted, &t2.mutations);
     CU_ASSERT_EQUAL_FATAL(t2.sites.num_rows, 3);
-    CU_ASSERT_EQUAL_FATAL(t2.mutations.num_rows, 8);
+    CU_ASSERT_EQUAL_FATAL(t2.mutations.num_rows, 9);
 
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
 

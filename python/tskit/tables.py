@@ -2692,7 +2692,7 @@ class TableCollection:
         self._ll_tables.sort(edge_start)
         # TODO add provenance
 
-    def canonicalise(self, remove_unreferenced=True):
+    def canonicalise(self, remove_unreferenced=None):
         """
         This puts the tables in *canonical* form - to do this, the individual
         and population tables are sorted by the first node that refers to each
@@ -2704,10 +2704,10 @@ class TableCollection:
         information should be identical after canonical sorting.
 
         By default, the method removes sites, individuals, and populations that
-        are not referenced (by mutations and nodes, respectively). If it is
-        desired to keep these, pass ``remove_unreferenced=False``, but note that
-        unreferenced individuals and populations are put at the end of the tables,
-        but not in canonical order.
+        are not referenced (by mutations and nodes, respectively). If you wish
+        to keep these, pass ``remove_unreferenced=False``, but note that
+        unreferenced individuals and populations are put at the end of the tables
+        in their original order.
 
         .. seealso::
 
@@ -2715,8 +2715,11 @@ class TableCollection:
             :meth:`.subset` for reordering nodes, individuals, and populations.
 
         :param bool remove_unreferenced: Whether to remove unreferenced sites,
-            individuals, and populations.
+            individuals, and populations (default=True).
         """
+        remove_unreferenced = (
+            True if remove_unreferenced is None else remove_unreferenced
+        )
         self._ll_tables.canonicalise(remove_unreferenced=remove_unreferenced)
         # TODO add provenance
 
@@ -2768,7 +2771,7 @@ class TableCollection:
         site), and renumbering the ``site`` column of the mutation table
         appropriately.  This requires the site table to be sorted by position.
 
-        ..warning:: This method does not sort the tables afterwards, so
+        .. warning:: This method does not sort the tables afterwards, so
             mutations may no longer be sorted by time.
         """
         self._ll_tables.deduplicate_sites()
@@ -3050,8 +3053,9 @@ class TableCollection:
         self,
         nodes,
         record_provenance=True,
-        reorder_populations=True,
-        remove_unreferenced=True,
+        *,
+        reorder_populations=None,
+        remove_unreferenced=None,
     ):
         """
         Modifies the tables in place to contain only the entries referring to
@@ -3072,6 +3076,12 @@ class TableCollection:
             that are not referred to by any retained entries in the tables should
             be removed (default: True). See the description for details.
         """
+        reorder_populations = (
+            True if reorder_populations is None else reorder_populations
+        )
+        remove_unreferenced = (
+            True if remove_unreferenced is None else remove_unreferenced
+        )
         nodes = util.safe_np_int_cast(nodes, np.int32)
         self._ll_tables.subset(
             nodes,

@@ -871,7 +871,7 @@ def shuffle_tables(
     ind_id_map = {tskit.NULL: tskit.NULL}
     for j, i in randomised_inds:
         ind_id_map[j] = tables.individuals.add_row(
-            flags=i.flags, location=i.location, metadata=i.metadata
+            flags=i.flags, location=i.location, parents=i.parents, metadata=i.metadata
         )
     # nodes (same order, but remapped populations and individuals)
     for n in orig.nodes:

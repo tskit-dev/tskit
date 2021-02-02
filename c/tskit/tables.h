@@ -2660,10 +2660,10 @@ int tsk_table_collection_sort(
 @brief Puts the tables into canonical form.
 
 @rst
-This method puts tables in canonical form, which exceeds the usual
-sortedness requirements in such a way that randomly reshuffled tables are
-guaranteed to always be sorted to the same order. In particular, this method
-puts mutation parents before their children.
+Put tables into canonical form such that randomly reshuffled tables
+are guaranteed to always be sorted in the same order, and redundant
+information is removed. The canonical sorting exceeds the usual
+tree sequence sortedness requirements.
 
 **Options**:
 
@@ -2765,7 +2765,7 @@ each of the tables as follows (but see options, below):
 
 1. Nodes: if in the list of nodes, and in the order provided.
 2. Individuals and Populations: if referred to by a retained node, and in the
-    order first seen when traversing the list of retained nodes.
+   order first seen when traversing the list of retained nodes.
 3. Edges: if both parent and child are retained nodes.
 4. Mutations: if the mutation's node is a retained node.
 5. Sites: if any mutations remain at the site after removing mutations.
