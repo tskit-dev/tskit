@@ -114,7 +114,7 @@ def test_check_ts_full(tmp_path, full_ts):
 class TestEncodingVersion:
     def test_version(self):
         lwt = lwt_module.LightweightTableCollection()
-        assert lwt.asdict()["encoding_version"] == (1, 2)
+        assert lwt.asdict()["encoding_version"] == (1, 3)
 
 
 class TestRoundTrip:
@@ -141,7 +141,9 @@ class TestRoundTrip:
         ts = msprime.simulate(n, mutation_rate=1, random_seed=2)
         tables = ts.dump_tables()
         for j in range(n):
-            tables.individuals.add_row(flags=j, location=(j, j), metadata=b"x" * j)
+            tables.individuals.add_row(
+                flags=j, location=(j, j), parents=(j, j), metadata=b"x" * j
+            )
         self.verify(tables)
 
     def test_sequence_length(self):
@@ -474,9 +476,20 @@ class TestRequiredAndOptionalColumns:
             tables, len(tables.individuals), "individuals", "location"
         )
         self.verify_offset_pair(
+            tables, len(tables.individuals), "individuals", "parents"
+        )
+        self.verify_offset_pair(
             tables, len(tables.individuals), "individuals", "metadata"
         )
         self.verify_metadata_schema(tables, "individuals")
+        # Verify optional parents column
+        d = tables.asdict()
+        d["individuals"]["parents"] = None
+        d["individuals"]["parents_offset"] = None
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        out = lwt.asdict()
+        assert all(val == [] for val in out["individuals"]["parents"])
 
     def test_nodes(self, tables):
         self.verify_offset_pair(tables, len(tables.nodes), "nodes", "metadata")

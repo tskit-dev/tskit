@@ -1695,7 +1695,7 @@ dump_tables_dict(tsk_table_collection_t *tables)
     }
 
     /* Dict representation version */
-    val = Py_BuildValue("ll", 1, 2);
+    val = Py_BuildValue("ll", 1, 3);
     if (val == NULL) {
         goto out;
     }
