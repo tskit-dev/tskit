@@ -2541,9 +2541,11 @@ class TableCollection:
         :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
             one child) that exist on the path from samples to root will be preserved
             in the output. (Default: False)
-        :param bool keep_input_roots: If True, insert edges from the MRCAs of the
-            samples to the roots in the input trees. If False, no topology older
-            than the MRCAs of the samples will be included. (Default: False)
+        :param bool keep_input_roots: Whether to retain history ancestral to the
+            MRCA of the samples. If ``False``, no topology older than the MRCAs of the
+            samples will be included. If ``True`` the roots of all trees in the returned
+            tree sequence will be the same roots as in the original tree sequence.
+            (Default: False)
         :param bool record_provenance: If True, record details of this call to
             simplify in the returned tree sequence's provenance information
             (Default: True).
