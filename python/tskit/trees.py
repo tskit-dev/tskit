@@ -5490,7 +5490,7 @@ class TreeSequence:
 
         .. code-block:: python
 
-            ts.sample_count_stat([A, B], f, windows="site", polarised=False, mode="site")
+            ts.sample_count_stat([A, B], f, 1, windows="sites", polarised=False, mode="site")
 
         would compute, for each site, the product of the derived allele
         frequencies in the two sample sets, in a (num sites, 1) array.  If
@@ -5501,7 +5501,7 @@ class TreeSequence:
         .. note::
             The summary function ``f`` should return zero when given both 0 and
             the sample size (i.e., ``f(0) = 0`` and
-            ``f(np.array([len(x) for x in sample_sets]) = 0``).  This is
+            ``f(np.array([len(x) for x in sample_sets])) = 0``).  This is
             necessary for the statistic to be unaffected by parts of the tree
             sequence ancestral to none or all of the samples, respectively.
 
@@ -5520,7 +5520,7 @@ class TreeSequence:
             window (defaults to True).
         :param bool strict: Whether to check that f(0) and f(total weight) are zero.
         :return: A ndarray with shape equal to (num windows, num statistics).
-        """
+        """  # noqa: B950
         # helper function for common case where weights are indicators of sample sets
         for U in sample_sets:
             if len(U) != len(set(U)):
