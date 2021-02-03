@@ -242,27 +242,42 @@ def insert_random_ploidy_individuals(ts, max_ploidy=5, max_dimension=3, seed=1):
     return tables.tree_sequence()
 
 
-def insert_individuals(ts, samples=None, ploidy=1):
+def insert_individuals(ts, nodes=None, ploidy=1, allow_mixed_ploidy=False):
     """
     Inserts individuals into the tree sequence using the specified list
-    of samples (or all samples if None) with the specified ploidy by combining
-    ploidy-sized chunks of the list.
+    of node (or use all sample nodes if None) with the specified ploidy by combining
+    ploidy-sized chunks of the list. Add metadata to the individuals so we can
+    track them
     """
-    if samples is None:
-        samples = ts.samples()
-    if len(samples) % ploidy != 0:
+    if nodes is None:
+        nodes = ts.samples()
+    if len(nodes) % ploidy != 0 and not allow_mixed_ploidy:
         raise ValueError("number of samples must be divisible by ploidy")
     tables = ts.dump_tables()
     tables.individuals.clear()
     individual = tables.nodes.individual[:]
     individual[:] = tskit.NULL
     j = 0
-    while j < len(samples):
-        nodes = samples[j : j + ploidy]
-        ind_id = tables.individuals.add_row()
-        individual[nodes] = ind_id
+    while j < len(nodes):
+        nodes_in_individual = nodes[j : min(len(nodes), j + ploidy)]
+        # should we warn here if nodes[j : j + ploidy] are at different times?
+        # probably not, as although this is unusual, it is actually allowed
+        ind_id = tables.individuals.add_row(
+            metadata=f"orig_id {tables.individuals.num_rows}".encode()
+        )
+        individual[nodes_in_individual] = ind_id
         j += ploidy
     tables.nodes.individual = individual
+    return tables.tree_sequence()
+
+
+def mark_metadata(ts, table_name, prefix="orig_id:"):
+    """
+    Add metadata to all rows of the form prefix + node_id
+    """
+    tables = ts.dump_tables()
+    table = getattr(tables, table_name)
+    table.packset_metadata([(prefix + str(i)).encode() for i in range(table.num_rows)])
     return tables.tree_sequence()
 
 

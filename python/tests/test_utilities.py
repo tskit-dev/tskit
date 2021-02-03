@@ -138,7 +138,7 @@ class TestInsertIndividuals:
         ts = msprime.simulate(10, random_seed=1)
         assert ts.num_individuals == 0
         samples = ts.samples()[::-1]
-        ts = tsutil.insert_individuals(ts, samples=samples, ploidy=2)
+        ts = tsutil.insert_individuals(ts, nodes=samples, ploidy=2)
         assert ts.num_individuals == 5
         for j, ind in enumerate(ts.individuals()):
             assert list(ind.nodes) == [samples[2 * j + 1], samples[2 * j]]

@@ -592,3 +592,33 @@ class TestSimplify:
         other_tables.provenances.clear()
         assert tables == other_tables
         self.verify_simplify(ts, small_ts, sub_samples, node_map)
+
+    @pytest.mark.parametrize("ts", wf_sims)
+    @pytest.mark.parametrize("nsamples", [2, 5, 10])
+    def test_simplify_keep_unary_in_individuals(self, ts, nsamples):
+        np.random.seed(123)
+        ts = tsutil.mark_metadata(ts, "nodes")
+        random_nodes = np.random.choice(ts.num_nodes, ts.num_nodes // 2)
+        ts = tsutil.insert_individuals(ts, random_nodes)
+        ts = tsutil.mark_metadata(ts, "individuals")
+        md_map = {
+            ts.node(n).metadata: ts.individual(ts.node(n).individual).metadata
+            for n in random_nodes
+        }
+
+        ts = ts.simplify(keep_unary_in_individuals=True)
+
+        # check there are some unary nodes, and each has the original individual
+        num_nonsample_unary = 0
+        for tree in ts.trees():
+            for n in tree.nodes():
+                if tree.num_children(n) == 1:
+                    node = ts.node(n)
+                    if node.is_sample():
+                        continue
+                    num_nonsample_unary += 1
+                    assert node.individual >= 0
+                    assert node.metadata in md_map
+                    orig_metadata = md_map[node.metadata]
+                    assert orig_metadata == ts.individual(node.individual).metadata
+        assert num_nonsample_unary > 0
