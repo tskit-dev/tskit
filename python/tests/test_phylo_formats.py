@@ -24,18 +24,19 @@
 Tests for the newick output feature.
 """
 import itertools
-import unittest
 
 import msprime
 import newick
+import numpy as np
 import pytest
 from Bio.Nexus import Nexus
 
 import tskit
+from . import ts_examples
 from tests import tsutil
 
 
-class TreeExamples(unittest.TestCase):
+class TreeExamples:
     """
     Generates trees for testing the phylo format outputs.
     """
@@ -89,46 +90,6 @@ class TestNewick(TreeExamples):
     external Newick parser.
     """
 
-    # 3 methods to return example tree sequences with internal samples:
-    # (copied from test_highlevel.py)
-    def all_nodes_samples_example(self):
-        n = 5
-        ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
-        assert ts.num_mutations > 0
-        tables = ts.dump_tables()
-        nodes = tables.nodes
-        flags = nodes.flags
-        # Set all nodes to be samples.
-        flags[:] = tskit.NODE_IS_SAMPLE
-        nodes.flags = flags
-        return tables.tree_sequence()
-
-    def only_internal_samples_example(self):
-        n = 5
-        ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
-        assert ts.num_mutations > 0
-        tables = ts.dump_tables()
-        nodes = tables.nodes
-        flags = nodes.flags
-        # Set just internal nodes to be samples.
-        flags[:] = 0
-        flags[n:] = tskit.NODE_IS_SAMPLE
-        nodes.flags = flags
-        return tables.tree_sequence()
-
-    def mixed_node_samples_example(self):
-        n = 5
-        ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
-        assert ts.num_mutations > 0
-        tables = ts.dump_tables()
-        nodes = tables.nodes
-        flags = nodes.flags
-        # Set a mixture of internal and leaf samples.
-        flags[:] = 0
-        flags[n // 2 : n + n // 2] = tskit.NODE_IS_SAMPLE
-        nodes.flags = flags
-        return tables.tree_sequence()
-
     def verify_newick_topology(
         self, tree, root=None, node_labels=None, include_branch_lengths=True
     ):
@@ -154,8 +115,10 @@ class TestNewick(TreeExamples):
             name = leaf_labels[u]
             node = newick_tree.get_node(name)
             while u != root:
-                branch_len = tree.branch_length(u) if include_branch_lengths else None
-                self.assertAlmostEqual(node.length, branch_len)
+                if include_branch_lengths:
+                    assert np.isclose(node.length, tree.branch_length(u))
+                else:
+                    assert node.length is None
                 node = node.ancestor
                 u = tree.parent(u)
             assert node.ancestor is None
@@ -217,29 +180,21 @@ class TestNewick(TreeExamples):
         t = msprime.simulate(5, random_seed=2).first()
         self.verify_newick_topology(t, include_branch_lengths=False)
 
-    def test_samples_differ_from_leaves(self):
-        for ts in (
-            self.all_nodes_samples_example(),
-            self.only_internal_samples_example(),
-            self.mixed_node_samples_example(),
-        ):
-            for t in ts.trees():
-                self.verify_newick_topology(t)
+    @pytest.mark.parametrize("ts_fixture", ts_examples.internal_samples, indirect=True)
+    def test_samples_differ_from_leaves(self, ts_fixture):
+        for t in ts_fixture.trees():
+            self.verify_newick_topology(t)
 
-    def test_no_lengths_equiv(self):
-        for ts in (
-            self.all_nodes_samples_example(),
-            self.only_internal_samples_example(),
-            self.mixed_node_samples_example(),
-        ):
-            for t in ts.trees():
-                newick_nolengths = t.newick(include_branch_lengths=False)
-                newick_nolengths = newick.loads(newick_nolengths)[0]
-                newick_lengths = t.newick()
-                newick_lengths = newick.loads(newick_lengths)[0]
-                for node in newick_lengths.walk():
-                    node.length = None
-                assert newick.dumps(newick_nolengths) == newick.dumps(newick_lengths)
+    @pytest.mark.parametrize("ts_fixture", ts_examples.internal_samples, indirect=True)
+    def test_no_lengths_equiv(self, ts_fixture):
+        for t in ts_fixture.trees():
+            newick_nolengths = t.newick(include_branch_lengths=False)
+            newick_nolengths = newick.loads(newick_nolengths)[0]
+            newick_lengths = t.newick()
+            newick_lengths = newick.loads(newick_lengths)[0]
+            for node in newick_lengths.walk():
+                node.length = None
+            assert newick.dumps(newick_nolengths) == newick.dumps(newick_lengths)
 
 
 class TestNexus(TreeExamples):
@@ -260,9 +215,7 @@ class TestNexus(TreeExamples):
             node = tsk_tree.tree_sequence.node(u)
             label = f"tsk_{node.id}_{node.flags}"
             bio_node = bio_node_map.pop(label)
-            self.assertAlmostEqual(
-                bio_node.data.branchlength, tsk_tree.branch_length(u)
-            )
+            assert np.isclose(bio_node.data.branchlength, tsk_tree.branch_length(u))
             if tsk_tree.parent(u) == tskit.NULL:
                 assert bio_node.prev is None
             else:
@@ -283,8 +236,8 @@ class TestNexus(TreeExamples):
             assert len(split_name) == 2
             start = float(split_name[0][4:])
             end = float(split_name[1])
-            self.assertAlmostEqual(tree.interval[0], start)
-            self.assertAlmostEqual(tree.interval[1], end)
+            assert np.isclose(tree.interval[0], start)
+            assert np.isclose(tree.interval[1], end)
 
             self.verify_tree(nexus_tree, tree)
 

@@ -2725,10 +2725,11 @@ class TestTableCollection:
         tree = next(trees)
         assert len(tree.parent_dict) == 0
 
-    def test_indexes(self, simple_ts_fixture):
+    @pytest.mark.parametrize("ts_fixture", ["simple_ts"], indirect=True)
+    def test_indexes(self, ts_fixture):
         tc = tskit.TableCollection(sequence_length=1)
         assert tc.indexes == tskit.TableCollectionIndexes()
-        tc = simple_ts_fixture.tables
+        tc = ts_fixture.tables
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
         )
@@ -2757,13 +2758,14 @@ class TestTableCollection:
             tc.indexes.edge_removal_order, np.arange(4242, 4242 + 18, dtype=np.int32)
         )
 
-    def test_indexes_roundtrip(self, simple_ts_fixture):
+    @pytest.mark.parametrize("ts_fixture", ["simple_ts"], indirect=True)
+    def test_indexes_roundtrip(self, ts_fixture):
         # Indexes shouldn't be made by roundtripping
         tables = tskit.TableCollection(sequence_length=1)
         assert not tables.has_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 
-        tables = simple_ts_fixture.dump_tables()
+        tables = ts_fixture.dump_tables()
         tables.drop_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 
