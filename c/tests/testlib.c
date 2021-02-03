@@ -543,6 +543,7 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
     double time;
     char derived_state[MAX_LINE];
 
+    /* site, node, derived_state, [parent, time] */
     c = 0;
     while (text[c] != '\0') {
         /* Fill in the line */
@@ -638,30 +639,34 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
             q = strtok_r(NULL, ",", &q_cont);
         }
         CU_ASSERT_FATAL(q == NULL);
+
+        /* parents and name are optional */
         p = strtok_r(NULL, whitespace, &p_cont);
-        // the parents are comma-separated
-        parents_len = 1;
-        q = p;
-        while (*q != '\0') {
-            if (*q == ',') {
-                parents_len++;
+        parents_len = 0;
+        name = "";
+        if (p != NULL) {
+            // the parents are comma-separated
+            parents_len = 1;
+            q = p;
+            while (*q != '\0') {
+                if (*q == ',') {
+                    parents_len++;
+                }
+                q++;
             }
-            q++;
-        }
-        CU_ASSERT_FATAL(parents_len >= 1);
-        strncpy(sub_line, p, MAX_LINE);
-        q = strtok_r(sub_line, ",", &q_cont);
-        for (k = 0; k < parents_len; k++) {
-            CU_ASSERT_FATAL(q != NULL);
-            parents[k] = atoi(q);
-            q = strtok_r(NULL, ",", &q_cont);
-        }
-        CU_ASSERT_FATAL(q == NULL);
-        p = strtok_r(NULL, whitespace, &p_cont);
-        if (p == NULL) {
-            name = "";
-        } else {
-            name = p;
+            CU_ASSERT_FATAL(parents_len >= 1);
+            strncpy(sub_line, p, MAX_LINE);
+            q = strtok_r(sub_line, ",", &q_cont);
+            for (k = 0; k < parents_len; k++) {
+                CU_ASSERT_FATAL(q != NULL);
+                parents[k] = atoi(q);
+                q = strtok_r(NULL, ",", &q_cont);
+            }
+            CU_ASSERT_FATAL(q == NULL);
+            p = strtok_r(NULL, whitespace, &p_cont);
+            if (p != NULL) {
+                name = p;
+            }
         }
         ret = tsk_individual_table_add_row(individual_table, flags, location,
             location_len, parents, parents_len, name, strlen(name));

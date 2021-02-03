@@ -5083,19 +5083,25 @@ out:
 }
 
 static PyObject *
-TableCollection_subset(TableCollection *self, PyObject *args)
+TableCollection_subset(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
     PyObject *nodes = NULL;
     PyArrayObject *nodes_array = NULL;
     npy_intp *shape;
+    tsk_flags_t options = 0;
+    int reorder_populations = true;
+    int remove_unreferenced = true;
     size_t num_nodes;
+    static char *kwlist[]
+        = { "nodes", "reorder_populations", "remove_unreferenced", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTuple(args, "O", &nodes)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|ii", kwlist, &nodes,
+            &reorder_populations, &remove_unreferenced)) {
         goto out;
     }
     nodes_array
@@ -5105,9 +5111,15 @@ TableCollection_subset(TableCollection *self, PyObject *args)
     }
     shape = PyArray_DIMS(nodes_array);
     num_nodes = shape[0];
+    if (!reorder_populations) {
+        options |= TSK_NO_CHANGE_POPULATIONS;
+    }
+    if (!remove_unreferenced) {
+        options |= TSK_KEEP_UNREFERENCED;
+    }
 
     err = tsk_table_collection_subset(
-        self->tables, PyArray_DATA(nodes_array), num_nodes);
+        self->tables, PyArray_DATA(nodes_array), num_nodes, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5333,6 +5345,35 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     memset(&start, 0, sizeof(start));
     start.edges = edge_start;
     err = tsk_table_collection_sort(self->tables, &start, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_canonicalise(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    tsk_flags_t options = 0;
+    int remove_unreferenced = true;
+    static char *kwlist[] = { "remove_unreferenced", NULL };
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &remove_unreferenced)) {
+        goto out;
+    }
+    if (!remove_unreferenced) {
+        options |= TSK_KEEP_UNREFERENCED;
+    }
+
+    err = tsk_table_collection_canonicalise(self->tables, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5732,7 +5773,7 @@ static PyMethodDef TableCollection_methods[] = {
         = "Returns an edge table linking samples to a set of specified ancestors." },
     { .ml_name = "subset",
         .ml_meth = (PyCFunction) TableCollection_subset,
-        .ml_flags = METH_VARARGS,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Subsets the table collection to a set of nodes." },
     { .ml_name = "union",
         .ml_meth = (PyCFunction) TableCollection_union,
@@ -5748,6 +5789,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_meth = (PyCFunction) TableCollection_sort,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Sorts the tables to satisfy tree sequence requirements." },
+    { .ml_name = "canonicalise",
+        .ml_meth = (PyCFunction) TableCollection_canonicalise,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Puts the tables in canonical form." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) TableCollection_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

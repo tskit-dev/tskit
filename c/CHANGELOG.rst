@@ -7,9 +7,20 @@
 - Add ``parents`` to the individual table to enable recording of pedigrees
   (:user:`ivan-krukov`, :user:`benjeffery`, :issue:`852`, :pr:`1125`, :pr:`866`, :pr:`1153`, :pr:`1177`).
 
+- Added a ``tsk_table_collection_canonicalse`` method, that allows checking for equality between
+  tables that are equivalent up to reordering (:user:`petrelharp`, :user:`mufernando`, :pr:`1108`).
+
+- Removed a previous requirement on ``tsk_table_collection_union``, allowing for unioning of
+  new information both above and below shared history (:user:`petrelharp`, :user:`mufernando`, :pr:`1108`).
+
 **Breaking changes**
 
 - Method ``tsk_individual_table_add_row`` has an extra arguments ``parents`` and ``parents_length``.
+
+**Breaking changes**
+
+- Add an ``options`` argument to ``tsk_table_collection_subset`` (:user:`petrelharp`, :pr:`1108`),
+  to allow for retaining the order of populations.
 
 **Bugfixes**
 

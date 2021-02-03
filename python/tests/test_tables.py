@@ -1389,63 +1389,92 @@ class TestTableCollectionIndexes:
 
 class TestSortTables:
     """
-    Tests for the TableCollection.sort() method.
+    Tests for the TableCollection.sort() and TableCollection.canonicalise() methods.
     """
 
     random_seed = 12345
 
-    def verify_randomise_tables(self, ts):
-        tables = ts.dump_tables()
-        tables.compute_mutation_times()
-        ts = tables.tree_sequence()
+    def verify_sort_equality(self, tables, seed):
+        tables1 = tables.copy()
+        tsutil.shuffle_tables(
+            tables1,
+            seed,
+            shuffle_individuals=False,
+            shuffle_populations=False,
+        )
+        tables2 = tables1.copy()
+        tables1.sort()
+        tsutil.py_sort(tables2)
+        tsutil.assert_table_collections_equal(tables1, tables2)
 
-        # Randomise the tables
-        random.seed(self.random_seed)
-        randomised_edges = list(ts.edges())
-        random.shuffle(randomised_edges)
-        tables.edges.clear()
-        for e in randomised_edges:
-            tables.edges.add_row(e.left, e.right, e.parent, e.child)
-        # Verify that import fails for randomised edges
-        with pytest.raises(_tskit.LibraryError):
-            tables.tree_sequence()
-        tables.sort()
-        assert tables == ts.dump_tables()
-
-        tables.sites.clear()
-        tables.mutations.clear()
-        randomised_sites = list(ts.sites())
-        random.shuffle(randomised_sites)
-        # Maps original IDs into their indexes in the randomised table.
-        site_id_map = {}
-        randomised_mutations = []
-        for s in randomised_sites:
-            site_id_map[s.id] = tables.sites.add_row(
-                s.position, ancestral_state=s.ancestral_state, metadata=s.metadata
+    def verify_canonical_equality(self, tables, seed):
+        for ru in [True, False]:
+            tables1 = tables.copy()
+            tsutil.shuffle_tables(
+                tables1,
+                seed,
             )
-            randomised_mutations.extend(s.mutations)
-        random.shuffle(randomised_mutations)
-        for m in randomised_mutations:
-            tables.mutations.add_row(
-                site=site_id_map[m.site],
-                node=m.node,
-                derived_state=m.derived_state,
-                parent=m.parent,
-                metadata=m.metadata,
-                time=m.time,
-            )
-        if ts.num_sites > 1:
-            # Verify that import fails for randomised sites
-            with pytest.raises(_tskit.LibraryError):
-                tables.tree_sequence()
-        tables.sort()
-        assert tables == ts.dump_tables()
+            tables2 = tables1.copy()
+            tables1.canonicalise(remove_unreferenced=ru)
+            tsutil.py_canonicalise(tables2, remove_unreferenced=ru)
+            tsutil.assert_table_collections_equal(tables1, tables2)
 
-        ts_new = tables.tree_sequence()
-        assert ts_new.num_edges == ts.num_edges
-        assert ts_new.num_trees == ts.num_trees
-        assert ts_new.num_sites == ts.num_sites
-        assert ts_new.num_mutations == ts.num_mutations
+    def verify_sort_mutation_consistency(self, orig_tables, seed):
+        tables = orig_tables.copy()
+        mut_map = {s.position: [] for s in tables.sites}
+        for mut in tables.mutations:
+            mut_map[tables.sites[mut.site].position].append(
+                (mut.node, mut.derived_state, mut.metadata)
+            )
+        tsutil.shuffle_tables(
+            tables, seed, shuffle_individuals=False, shuffle_populations=False
+        )
+        for mut in tables.mutations:
+            site = tables.sites[mut.site]
+            assert (mut.node, mut.derived_state, mut.metadata) in mut_map[site.position]
+        tables.sort()
+        for mut in tables.mutations:
+            site = tables.sites[mut.site]
+            assert (mut.node, mut.derived_state, mut.metadata) in mut_map[site.position]
+
+    def verify_randomise_tables(self, orig_tables, seed):
+        # Check we can shuffle everything and then put it back in canonical form
+        tables = orig_tables.copy()
+        tables.sort()
+        sorted_tables = tables.copy()
+
+        # First randomize only edges: this should work without canonical sorting.
+        tsutil.shuffle_tables(
+            tables,
+            seed=seed,
+            shuffle_edges=True,
+            shuffle_populations=False,
+            shuffle_individuals=False,
+            shuffle_sites=False,
+            shuffle_mutations=False,
+        )
+        tables.sort()
+        tsutil.assert_table_collections_equal(tables, sorted_tables)
+
+        # Now also randomize sites and mutations
+        tables.canonicalise(remove_unreferenced=False)
+        sorted_tables = tables.copy()
+        tsutil.shuffle_tables(
+            tables, seed=1234, shuffle_populations=False, shuffle_individuals=False
+        )
+        tables.canonicalise(remove_unreferenced=False)
+        tsutil.assert_table_collections_equal(tables, sorted_tables)
+
+        # Finally, randomize everything else
+        tsutil.shuffle_tables(tables, seed=1234)
+        tables.canonicalise(remove_unreferenced=False)
+        tsutil.assert_table_collections_equal(tables, sorted_tables)
+
+    def verify_sort(self, tables, seed):
+        self.verify_sort_equality(tables, seed)
+        self.verify_canonical_equality(tables, seed)
+        self.verify_sort_mutation_consistency(tables, seed)
+        self.verify_randomise_tables(tables, seed)
 
     def verify_edge_sort_offset(self, ts):
         """
@@ -1481,44 +1510,50 @@ class TestSortTables:
             # Verify the new and old edges are equal.
             assert edges == tables.edges
 
+    def get_wf_example(self, seed):
+        tables = wf.wf_sim(6, 3, num_pops=2, seed=seed, num_loci=3)
+        tables.sort()
+        ts = tables.tree_sequence()
+        return tsutil.insert_individuals(ts, ploidy=2)
+
     def test_single_tree_no_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
-        self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort(ts.tables, 432)
 
     def test_single_tree_no_mutations_metadata(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_randomise_tables(ts)
+        self.verify_sort(ts.tables, 12)
 
     def test_many_trees_no_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
-        self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort(ts.tables, 31)
 
     def test_single_tree_mutations(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         assert ts.num_sites > 2
-        self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort(ts.tables, 83)
 
     def test_single_tree_mutations_metadata(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         assert ts.num_sites > 2
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_randomise_tables(ts)
+        self.verify_sort(ts.tables, 384)
 
     def test_single_tree_multichar_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
-        self.verify_randomise_tables(ts)
+        self.verify_sort(ts.tables, 185)
 
     def test_single_tree_multichar_mutations_metadata(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_randomise_tables(ts)
+        self.verify_sort(ts.tables, 2175)
 
     def test_many_trees_mutations(self):
         ts = msprime.simulate(
@@ -1526,21 +1561,21 @@ class TestSortTables:
         )
         assert ts.num_trees > 2
         assert ts.num_sites > 2
-        self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort(ts.tables, 173)
 
     def test_many_trees_multichar_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
-        self.verify_randomise_tables(ts)
+        self.verify_sort(ts.tables, 16)
 
     def test_many_trees_multichar_mutations_metadata(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_randomise_tables(ts)
+        self.verify_sort(ts.tables, 91)
 
     def get_nonbinary_example(self, mutation_rate):
         ts = msprime.simulate(
@@ -1559,20 +1594,52 @@ class TestSortTables:
                 found = True
                 break
         assert found
+        assert ts.num_trees > 2
         return ts
 
     def test_nonbinary_trees(self):
         ts = self.get_nonbinary_example(mutation_rate=0)
-        assert ts.num_trees > 2
-        self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort(ts.tables, 9182)
 
     def test_nonbinary_trees_mutations(self):
         ts = self.get_nonbinary_example(mutation_rate=2)
         assert ts.num_trees > 2
         assert ts.num_sites > 2
-        self.verify_randomise_tables(ts)
         self.verify_edge_sort_offset(ts)
+        self.verify_sort(ts.tables, 44)
+
+    def test_unknown_times(self):
+        ts = self.get_wf_example(seed=486)
+        ts = tsutil.insert_branch_mutations(ts, mutations_per_branch=2)
+        ts = tsutil.remove_mutation_times(ts)
+        self.verify_sort(ts.tables, 9182)
+
+    def test_no_mutation_parents(self):
+        # we should maintain relative order of mutations when all else fails:
+        # these tables are not canonicalizable (since we don't sort on derived state)
+        rng = random.Random(7000)
+        alleles = ["A", "B", "C", "D", "E", "F", "G"]
+        for t in [0.5, None]:
+            rng.shuffle(alleles)
+            tables = tskit.TableCollection(sequence_length=1)
+            tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+            tables.sites.add_row(position=0, ancestral_state="")
+            for a in alleles:
+                tables.mutations.add_row(site=0, node=0, derived_state=a, time=t)
+            tables_canonical = tables.copy()
+            tables_canonical.canonicalise()
+            tables.sort()
+            for t in (tables, tables_canonical):
+                for a, mut in zip(alleles, t.mutations):
+                    assert a == mut.derived_state
+                self.verify_sort_equality(t, 985)
+                self.verify_sort_mutation_consistency(t, 985)
+
+    def test_discrete_times(self):
+        ts = self.get_wf_example(seed=623)
+        ts = tsutil.insert_discrete_time_mutations(ts)
+        self.verify_sort(ts.tables, 9183)
 
     def test_incompatible_edges(self):
         ts1 = msprime.simulate(10, random_seed=self.random_seed)
@@ -1583,6 +1650,8 @@ class TestSortTables:
         # The edges in tables2 will refer to nodes that don't exist.
         with pytest.raises(_tskit.LibraryError):
             tables2.sort()
+        with pytest.raises(_tskit.LibraryError):
+            tables2.canonicalise()
 
     def test_incompatible_sites(self):
         ts1 = msprime.simulate(10, random_seed=self.random_seed)
@@ -1594,6 +1663,8 @@ class TestSortTables:
         tables1.mutations.set_columns(**tables2.mutations.asdict())
         with pytest.raises(_tskit.LibraryError):
             tables1.sort()
+        with pytest.raises(_tskit.LibraryError):
+            tables1.canonicalise()
 
     def test_incompatible_mutation_nodes(self):
         ts1 = msprime.simulate(2, random_seed=self.random_seed)
@@ -1602,11 +1673,12 @@ class TestSortTables:
         tables1 = ts1.dump_tables()
         tables2 = ts2.dump_tables()
         # The mutations in tables2 will refer to nodes that don't exist.
-        # print(tables2.sites.asdict())
         tables1.sites.set_columns(**tables2.sites.asdict())
         tables1.mutations.set_columns(**tables2.mutations.asdict())
         with pytest.raises(_tskit.LibraryError):
             tables1.sort()
+        with pytest.raises(_tskit.LibraryError):
+            tables1.canonicalise()
 
     def test_empty_tables(self):
         tables = tskit.TableCollection(1)
@@ -3150,7 +3222,7 @@ class TestSubsetTables:
         return ts.tables
 
     def get_wf_example(self, N=5, ngens=2, seed=1249):
-        tables = wf.wf_sim(N, N, seed=seed)
+        tables = wf.wf_sim(N, N, num_pops=2, seed=seed)
         tables.sort()
         ts = tables.tree_sequence()
         # adding muts
@@ -3164,11 +3236,24 @@ class TestSubsetTables:
         yield self.get_wf_example(seed=seed)
 
     def verify_subset_equality(self, tables, nodes):
-        sub1 = tables.copy()
-        sub2 = tables.copy()
-        tsutil.py_subset(sub1, nodes, record_provenance=False)
-        sub2.subset(nodes, record_provenance=False)
-        assert sub1 == sub2
+        for rp in [True, False]:
+            for ru in [True, False]:
+                sub1 = tables.copy()
+                sub2 = tables.copy()
+                tsutil.py_subset(
+                    sub1,
+                    nodes,
+                    record_provenance=False,
+                    reorder_populations=rp,
+                    remove_unreferenced=ru,
+                )
+                sub2.subset(
+                    nodes,
+                    record_provenance=False,
+                    reorder_populations=rp,
+                    remove_unreferenced=ru,
+                )
+                tsutil.assert_table_collections_equal(sub1, sub2)
 
     def verify_subset(self, tables, nodes):
         self.verify_subset_equality(tables, nodes)
@@ -3254,19 +3339,48 @@ class TestSubsetTables:
             assert tables == tables2
 
     def test_subset_all(self):
-        # subsetting to everything shouldn't change things
-        # except the individual ids in the node tables if
-        # there are gaps
+        # subsetting to everything shouldn't change things except the
+        # individual and population ids in the node tables if there are gaps
         for tables in self.get_examples(123583):
             tables2 = tables.copy()
             tables2.subset(np.arange(tables.nodes.num_rows))
-            tables.provenances.clear()
-            tables2.provenances.clear()
             tables.individuals.clear()
             tables2.individuals.clear()
+            assert np.all(tables.nodes.time == tables2.nodes.time)
+            assert np.all(tables.nodes.flags == tables2.nodes.flags)
+            assert np.all(tables.nodes.population == tables2.nodes.population)
+            assert np.all(tables.nodes.metadata == tables2.nodes.metadata)
             tables.nodes.clear()
             tables2.nodes.clear()
-            assert tables == tables2
+            tsutil.assert_table_collections_equal(
+                tables, tables2, ignore_provenance=True
+            )
+
+    def test_shuffled_tables(self):
+        # subset should work on even unsorted tables
+        # (tested more thoroughly in TestSortTables)
+        for tables in self.get_examples(95521):
+            tables2 = tables.copy()
+            tsutil.shuffle_tables(tables2, 7000)
+            tables2.subset(
+                np.arange(tables.nodes.num_rows),
+                remove_unreferenced=False,
+            )
+            assert tables.nodes.num_rows == tables2.nodes.num_rows
+            assert tables.individuals.num_rows == tables2.individuals.num_rows
+            assert tables.populations.num_rows == tables2.populations.num_rows
+            assert tables.edges.num_rows == tables2.edges.num_rows
+            assert tables.sites.num_rows == tables2.sites.num_rows
+            assert tables.mutations.num_rows == tables2.mutations.num_rows
+            tables2 = tables.copy()
+            tsutil.shuffle_tables(tables2, 7001)
+            tables2.subset([])
+            assert tables2.nodes.num_rows == 0
+            assert tables2.individuals.num_rows == 0
+            assert tables2.populations.num_rows == 0
+            assert tables2.edges.num_rows == 0
+            assert tables2.sites.num_rows == 0
+            assert tables2.mutations.num_rows == 0
 
     def test_random_subsets(self):
         rng = np.random.default_rng(1542)
@@ -3288,13 +3402,36 @@ class TestSubsetTables:
             assert subset.mutations.num_rows == 0
             assert subset.provenances == tables.provenances
 
+    def test_no_remove_unreferenced(self):
+        tables = tskit.TableCollection(sequence_length=10)
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.nodes.add_row(time=1)
+        tables.edges.add_row(parent=1, child=0, left=0, right=10)
+        for k in range(5):
+            tables.sites.add_row(position=k, ancestral_state=str(k))
+        # these are all unused, so should remain unchanged
+        for k in range(5):
+            tables.populations.add_row(metadata=str(k).encode())
+        for k in range(5):
+            tables.individuals.add_row(metadata=str(k).encode())
+        sub_tables = tables.copy()
+        sub_tables.subset([], remove_unreferenced=False)
+        assert tables.sites == sub_tables.sites
+        assert tables.populations == sub_tables.populations
+        assert tables.individuals == sub_tables.individuals
+        ts = tables.tree_sequence()
+        sub_tables = ts.subset([], remove_unreferenced=False).tables
+        assert tables.sites == sub_tables.sites
+        assert tables.populations == sub_tables.populations
+        assert tables.individuals == sub_tables.individuals
 
-class TestUnion(unittest.TestCase):
+
+class TestUnionTables(unittest.TestCase):
     """
     Tests for the TableCollection.union method
     """
 
-    def get_msprime_example(self, sample_size=3, T=5, seed=1239):
+    def get_msprime_example(self, sample_size, T, seed):
         # we assume after the split the ts are completely independent
         M = [[0, 0], [0, 0]]
         population_configurations = [
@@ -3319,19 +3456,18 @@ class TestUnion(unittest.TestCase):
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1)
         return ts
 
-    def get_wf_example(self, N=5, T=5, seed=1249):
+    def get_wf_example(self, N, T, seed):
         twopop_tables = wf.wf_sim(N, T, num_pops=2, seed=seed, deep_history=True)
         twopop_tables.sort()
         ts = twopop_tables.tree_sequence()
         ts = ts.simplify()
-        # adding muts
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
         return ts
 
     def split_example(self, ts, T):
-        # splitting two pop ts into disjoint ts
+        # splitting two pop ts *with no migration* into disjoint ts
         shared_nodes = [n.id for n in ts.nodes() if n.time >= T]
         pop1 = list(ts.samples(population=0))
         pop2 = list(ts.samples(population=1))
@@ -3366,13 +3502,21 @@ class TestUnion(unittest.TestCase):
             record_provenance=False,
             add_populations=add_populations,
         )
-        assert uni1.equals(uni2, ignore_ts_metadata=True, ignore_provenance=True)
+        tsutil.assert_table_collections_equal(uni1, uni2, ignore_provenance=True)
         # verifying that subsetting to original nodes return the same table
         orig_nodes = [j for i, j in enumerate(node_mapping) if j != tskit.NULL]
         uni1.subset(orig_nodes)
         # subsetting tables just to make sure order is the same
         tables.subset(orig_nodes)
-        assert uni1.equals(tables, ignore_ts_metadata=True, ignore_provenance=True)
+        tsutil.assert_table_collections_equal(uni1, tables, ignore_provenance=True)
+
+    def test_union_empty(self):
+        ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
+        ts2 = tskit.TableCollection(sequence_length=ts1.sequence_length).tree_sequence()
+        uni = ts1.union(ts2, [])
+        tsutil.assert_table_collections_equal(
+            ts1.tables, uni.tables, ignore_provenance=True
+        )
 
     def test_noshared_example(self):
         ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
@@ -3392,16 +3536,17 @@ class TestUnion(unittest.TestCase):
 
     def test_no_add_pop(self):
         self.verify_union_equality(
-            *self.split_example(self.get_msprime_example(10, 10), 10),
+            *self.split_example(self.get_msprime_example(10, 10, seed=135), 10),
             add_populations=False,
         )
         self.verify_union_equality(
-            *self.split_example(self.get_wf_example(10, 10), 10), add_populations=False
+            *self.split_example(self.get_wf_example(10, 10, seed=157), 10),
+            add_populations=False,
         )
 
     def test_provenance(self):
         tables, other, node_mapping = self.split_example(
-            self.get_msprime_example(5, 2, seed=928), 2
+            self.get_msprime_example(5, T=2, seed=928), 2
         )
         tables_copy = tables.copy()
         tables.union(other, node_mapping)
@@ -3421,10 +3566,93 @@ class TestUnion(unittest.TestCase):
     def test_examples(self):
         for N in [2, 4, 5]:
             for T in [2, 5, 20]:
-                with self.subTest(N=N, T=T):
-                    self.verify_union_equality(
-                        *self.split_example(self.get_msprime_example(N, T), T)
-                    )
-                    self.verify_union_equality(
-                        *self.split_example(self.get_wf_example(N, T), T)
-                    )
+                for mut_times in [True, False]:
+                    with self.subTest(N=N, T=T):
+                        ts = self.get_msprime_example(N, T=T, seed=888)
+                        if mut_times:
+                            tables = ts.tables
+                            tables.compute_mutation_times()
+                            ts = tables.tree_sequence()
+                        self.verify_union_equality(*self.split_example(ts, T))
+                        ts = self.get_wf_example(N=N, T=T, seed=827)
+                        if mut_times:
+                            tables = ts.tables
+                            tables.compute_mutation_times()
+                            ts = tables.tree_sequence()
+                        self.verify_union_equality(*self.split_example(ts, T))
+
+
+class TestSubsetUnion:
+    # Check that we can remove a single individual from a tree sequence and
+    # then use union to put it back in again. This is a good test of union,
+    # subset, and various sort options.
+
+    def verify_subset_union(self, ts):
+        tables = ts.tables
+        # remove unused individuals and populations since if there's more than
+        # one of these then it can't be canonically sorted below
+        tables.subset(np.arange(tables.nodes.num_rows))
+        has_unknown_times = np.any(tskit.is_unknown_time(tables.mutations.time))
+        if has_unknown_times:
+            tsutil.shuffle_tables(tables, seed=2545, keep_mutation_parent_order=True)
+        else:
+            tsutil.shuffle_tables(tables, seed=2545, keep_mutation_parent_order=False)
+        rng = random.Random(2345)
+        target = np.array([rng.choice(list(range(tables.nodes.num_rows)))])
+        if ts.node(target[0]).individual != tskit.NULL:
+            ind = ts.individual(ts.node(target[0]).individual)
+            target = ind.nodes
+        target_relatives = np.concatenate(
+            [
+                tables.edges.parent[np.isin(tables.edges.child, target)],
+                tables.edges.child[np.isin(tables.edges.parent, target)],
+            ]
+        )
+        not_target = [a for a in range(tables.nodes.num_rows) if a not in target]
+        # relationships to target
+        target_plus = np.concatenate([target, target_relatives])
+        sub1 = tables.copy()
+        sub1.subset(target_plus, reorder_populations=False)
+        # everything else
+        new_tables = tables.copy()
+        new_tables.subset(not_target, reorder_populations=False)
+        # and union back together
+        mapping12 = [tskit.NULL for _ in target] + [
+            not_target.index(n) for n in target_relatives
+        ]
+        # union needs tables to be sorted
+        new_tables.sort()
+        sub1.sort()
+        # double-check we're doing the mapping right
+        new_tables.union(sub1, node_mapping=mapping12, add_populations=False)
+        reorder = np.arange(new_tables.nodes.num_rows)
+        for j, t in enumerate(target):
+            reorder[t:] -= 1
+            reorder[t] = new_tables.nodes.num_rows - len(target) + j
+        new_tables.subset(reorder)
+        new_tables.canonicalise()
+        tables.canonicalise()
+        tsutil.assert_table_collections_equal(
+            new_tables, tables, ignore_provenance=True
+        )
+
+    def get_wf_example(self, N, T, seed):
+        twopop_tables = wf.wf_sim(N, T, num_pops=2, seed=seed, deep_history=True)
+        twopop_tables.sort()
+        ts = twopop_tables.tree_sequence()
+        ts = ts.simplify()
+        ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
+        ts = tsutil.add_random_metadata(ts, seed)
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
+        return ts
+
+    def test_no_mutation_times(self):
+        ts = self.get_wf_example(10, 4, seed=925)
+        self.verify_subset_union(ts)
+
+    def test_with_mutation_times(self):
+        ts = self.get_wf_example(10, 4, seed=61)
+        tables = ts.tables
+        tables.compute_mutation_times()
+        ts = tables.tree_sequence()
+        self.verify_subset_union(ts)

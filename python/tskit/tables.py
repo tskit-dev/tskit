@@ -2692,6 +2692,37 @@ class TableCollection:
         self._ll_tables.sort(edge_start)
         # TODO add provenance
 
+    def canonicalise(self, remove_unreferenced=None):
+        """
+        This puts the tables in *canonical* form - to do this, the individual
+        and population tables are sorted by the first node that refers to each
+        (see :meth:`TreeSequence.subset`) Then, the remaining tables are sorted
+        as in :meth:`.sort`, with the modification that mutations are sorted by
+        site, then time, then number of descendant mutations (ensuring that
+        parent mutations occur before children), then node, then original order
+        in the tables. This ensures that any two tables with the same
+        information should be identical after canonical sorting.
+
+        By default, the method removes sites, individuals, and populations that
+        are not referenced (by mutations and nodes, respectively). If you wish
+        to keep these, pass ``remove_unreferenced=False``, but note that
+        unreferenced individuals and populations are put at the end of the tables
+        in their original order.
+
+        .. seealso::
+
+            :meth:`.sort` for sorting edges, mutations, and sites, and
+            :meth:`.subset` for reordering nodes, individuals, and populations.
+
+        :param bool remove_unreferenced: Whether to remove unreferenced sites,
+            individuals, and populations (default=True).
+        """
+        remove_unreferenced = (
+            True if remove_unreferenced is None else remove_unreferenced
+        )
+        self._ll_tables.canonicalise(remove_unreferenced=remove_unreferenced)
+        # TODO add provenance
+
     def compute_mutation_parents(self):
         """
         Modifies the tables in place, computing the ``parent`` column of the
@@ -2739,6 +2770,9 @@ class TableCollection:
         duplicate ``position`` (and keeping only the *first* entry for each
         site), and renumbering the ``site`` column of the mutation table
         appropriately.  This requires the site table to be sorted by position.
+
+        .. warning:: This method does not sort the tables afterwards, so
+            mutations may no longer be sorted by time.
         """
         self._ll_tables.deduplicate_sites()
         # TODO add provenance
@@ -3015,20 +3049,45 @@ class TableCollection:
         """
         self._ll_tables.drop_index()
 
-    def subset(self, nodes, record_provenance=True):
+    def subset(
+        self,
+        nodes,
+        record_provenance=True,
+        *,
+        reorder_populations=None,
+        remove_unreferenced=None,
+    ):
         """
         Modifies the tables in place to contain only the entries referring to
-        the provided list of nodes, with nodes reordered according to the order
-        they appear in the list. See :meth:`TreeSequence.subset` for a more
-        detailed description.
+        the provided list of node IDs, with nodes reordered according to the
+        order they appear in the list. See :meth:`TreeSequence.subset` for a
+        more detailed description.
+
+        Note: there are no sortedness requirements on the tables.
 
         :param list nodes: The list of nodes for which to retain information. This
             may be a numpy array (or array-like) object (dtype=np.int32).
         :param bool record_provenance: Whether to record a provenance entry
             in the provenance table for this operation.
+        :param bool reorder_populations: Whether to reorder the population table
+            (default: True).  If False, the population table will not be altered
+            in any way.
+        :param bool remove_unreferenced: Whether sites, individuals, and populations
+            that are not referred to by any retained entries in the tables should
+            be removed (default: True). See the description for details.
         """
+        reorder_populations = (
+            True if reorder_populations is None else reorder_populations
+        )
+        remove_unreferenced = (
+            True if remove_unreferenced is None else remove_unreferenced
+        )
         nodes = util.safe_np_int_cast(nodes, np.int32)
-        self._ll_tables.subset(nodes)
+        self._ll_tables.subset(
+            nodes,
+            reorder_populations=reorder_populations,
+            remove_unreferenced=remove_unreferenced,
+        )
         if record_provenance:
             parameters = {"command": "subset", "nodes": nodes.tolist()}
             self.provenances.add_row(
