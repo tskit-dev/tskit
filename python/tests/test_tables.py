@@ -31,6 +31,7 @@ import pathlib
 import pickle
 import platform
 import random
+import struct
 import time
 import unittest
 import warnings
@@ -2360,6 +2361,109 @@ class TestSimplifyTables:
         for bad_node in [np.iinfo(np.int32).min - 1, np.iinfo(np.int32).max + 1]:
             with pytest.raises(OverflowError):
                 tables.simplify(samples=np.array([0, bad_node]))
+
+    @pytest.fixture(scope="session")
+    def wf_sim_with_individual_metadata(self):
+        tables = wf.wf_sim(
+            9,
+            10,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=5,
+            record_individuals=True,
+        )
+        assert tables.individuals.num_rows > 50
+        individuals_copy = tables.copy().individuals
+        tables.individuals.clear()
+        tables.individuals.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+        for i, individual in enumerate(individuals_copy):
+            tables.individuals.add_row(
+                flags=individual.flags,
+                location=individual.location,
+                parents=individual.parents,
+                metadata={
+                    "original_id": i,
+                    "original_parents": [int(p) for p in individual.parents],
+                },
+            )
+        tables.sort()
+        return tables
+
+    def test_individual_parent_mapping(self, wf_sim_with_individual_metadata):
+        tables = wf_sim_with_individual_metadata.copy()
+        tables.simplify()
+        ts = tables.tree_sequence()
+        for individual in tables.individuals:
+            for parent, original_parent in zip(
+                individual.parents, individual.metadata["original_parents"]
+            ):
+                if parent != tskit.NULL:
+                    assert (
+                        ts.individual(parent).metadata["original_id"] == original_parent
+                    )
+        assert set(tables.individuals.parents) != {tskit.NULL}
+
+    def test_shuffled_individual_parent_mapping(self, wf_sim_with_individual_metadata):
+        tables = wf_sim_with_individual_metadata.copy()
+        tsutil.shuffle_tables(
+            tables,
+            42,
+            shuffle_edges=False,
+            shuffle_populations=False,
+            shuffle_individuals=True,
+            shuffle_sites=False,
+            shuffle_mutations=False,
+            shuffle_migrations=False,
+        )
+        # Check we have a mixed up order
+        with pytest.raises(
+            tskit.LibraryError,
+            match="Individuals must be provided in an order where"
+            " children are after their parent individuals",
+        ):
+            tables.tree_sequence()
+
+        tables.simplify()
+        metadata = [
+            tables.individuals.metadata_schema.decode_row(m)
+            for m in tskit.unpack_bytes(
+                tables.individuals.metadata, tables.individuals.metadata_offset
+            )
+        ]
+        for individual in tables.individuals:
+            for parent, original_parent in zip(
+                individual.parents, individual.metadata["original_parents"]
+            ):
+                if parent != tskit.NULL:
+                    assert metadata[parent]["original_id"] == original_parent
+        assert set(tables.individuals.parents) != {tskit.NULL}
+
+    def test_individual_mapping(self):
+        tables = wf.wf_sim(
+            9,
+            10,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=5,
+            record_individuals=True,
+        )
+        assert tables.individuals.num_rows > 50
+        node_md = []
+        individual_md = [b""] * tables.individuals.num_rows
+        for i, node in enumerate(tables.nodes):
+            node_md.append(struct.pack("i", i))
+            individual_md[node.individual] = struct.pack("i", i)
+        tables.nodes.packset_metadata(node_md)
+        tables.individuals.packset_metadata(individual_md)
+        tables.sort()
+        tables.simplify()
+        ts = tables.tree_sequence()
+        for node in tables.nodes:
+            if node.individual != tskit.NULL:
+                assert ts.individual(node.individual).metadata == node.metadata
+        assert set(tables.individuals.parents) != {tskit.NULL}
 
     def test_bad_individuals(self, simple_ts_fixture):
         tables = simple_ts_fixture.dump_tables()
