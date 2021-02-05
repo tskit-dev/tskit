@@ -13,6 +13,9 @@
 - Removed a previous requirement on ``tsk_table_collection_union``, allowing for unioning of
   new information both above and below shared history (:user:`petrelharp`, :user:`mufernando`, :pr:`1108`).
 
+- Support migrations in tsk_table_collection_sort. (:user:`jeromekelleher`,
+  :issue:`22`, :issue:`117`, :pr:`1131`).
+
 **Breaking changes**
 
 - Method ``tsk_individual_table_add_row`` has an extra arguments ``parents`` and ``parents_length``.

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3507,9 +3507,8 @@ tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out)
     for (j = 0; j < self->num_rows; j++) {
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
         err = fprintf(out, "%.3f\t%.3f\t%d\t%d\t%d\t%f\t%.*s\n", self->left[j],
-            self->right[j], (int) self->node[j], (int) self->source[j],
-            (int) self->dest[j], self->time[j], metadata_len,
-            self->metadata + self->metadata_offset[j]);
+            self->right[j], self->node[j], self->source[j], self->dest[j], self->time[j],
+            metadata_len, self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -3531,7 +3530,6 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
           && memcmp(self->source, other->source, self->num_rows * sizeof(tsk_id_t)) == 0
           && memcmp(self->dest, other->dest, self->num_rows * sizeof(tsk_id_t)) == 0
           && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0;
-
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
@@ -4545,6 +4543,17 @@ typedef struct {
     int num_descendants;
 } mutation_canonical_sort_t;
 
+typedef struct {
+    double left;
+    double right;
+    tsk_id_t node;
+    tsk_id_t source;
+    tsk_id_t dest;
+    double time;
+    tsk_size_t metadata_offset;
+    tsk_size_t metadata_length;
+} migration_sort_t;
+
 static int
 cmp_site(const void *a, const void *b)
 {
@@ -4629,6 +4638,32 @@ cmp_edge(const void *a, const void *b)
 }
 
 static int
+cmp_migration(const void *a, const void *b)
+{
+    const migration_sort_t *ca = (const migration_sort_t *) a;
+    const migration_sort_t *cb = (const migration_sort_t *) b;
+
+    int ret = (ca->time > cb->time) - (ca->time < cb->time);
+    /* If time values are equal, sort by the source population */
+    if (ret == 0) {
+        ret = (ca->source > cb->source) - (ca->source < cb->source);
+        /* If the source populations are equal, sort by the dest */
+        if (ret == 0) {
+            ret = (ca->dest > cb->dest) - (ca->dest < cb->dest);
+            /* If the dest populations are equal, sort by the left coordinate. */
+            if (ret == 0) {
+                ret = (ca->left > cb->left) - (ca->left < cb->left);
+                /* If everything else is equal, compare by node */
+                if (ret == 0) {
+                    ret = (ca->node > cb->node) - (ca->node < cb->node);
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+static int
 tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
 {
     int ret = 0;
@@ -4679,6 +4714,58 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
     }
 out:
     tsk_safe_free(sorted_edges);
+    tsk_safe_free(old_metadata);
+    return ret;
+}
+
+static int
+tsk_table_sorter_sort_migrations(tsk_table_sorter_t *self, tsk_size_t start)
+{
+    int ret = 0;
+    const tsk_migration_table_t *migrations = &self->tables->migrations;
+    migration_sort_t *m;
+    tsk_size_t j, k, metadata_offset;
+    tsk_size_t n = migrations->num_rows - start;
+    migration_sort_t *sorted_migrations = malloc(n * sizeof(*sorted_migrations));
+    char *old_metadata = malloc(migrations->metadata_length);
+
+    if (sorted_migrations == NULL || old_metadata == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    memcpy(old_metadata, migrations->metadata, migrations->metadata_length);
+    for (j = 0; j < n; j++) {
+        m = sorted_migrations + j;
+        k = start + j;
+        m->left = migrations->left[k];
+        m->right = migrations->right[k];
+        m->node = migrations->node[k];
+        m->source = migrations->source[k];
+        m->dest = migrations->dest[k];
+        m->time = migrations->time[k];
+        m->metadata_offset = migrations->metadata_offset[k];
+        m->metadata_length
+            = migrations->metadata_offset[k + 1] - migrations->metadata_offset[k];
+    }
+    qsort(sorted_migrations, n, sizeof(migration_sort_t), cmp_migration);
+    /* Copy the migrations back into the table. */
+    metadata_offset = 0;
+    for (j = 0; j < n; j++) {
+        m = sorted_migrations + j;
+        k = start + j;
+        migrations->left[k] = m->left;
+        migrations->right[k] = m->right;
+        migrations->node[k] = m->node;
+        migrations->source[k] = m->source;
+        migrations->dest[k] = m->dest;
+        migrations->time[k] = m->time;
+        memcpy(migrations->metadata + metadata_offset, old_metadata + m->metadata_offset,
+            m->metadata_length);
+        migrations->metadata_offset[k] = metadata_offset;
+        metadata_offset += m->metadata_length;
+    }
+out:
+    tsk_safe_free(sorted_migrations);
     tsk_safe_free(old_metadata);
     return ret;
 }
@@ -4868,6 +4955,7 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
 {
     int ret = 0;
     tsk_size_t edge_start = 0;
+    tsk_size_t migration_start = 0;
     bool skip_sites = false;
 
     if (start != NULL) {
@@ -4876,11 +4964,12 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
             goto out;
         }
         edge_start = start->edges;
-
-        if (start->migrations != 0) {
-            ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        if (start->migrations > self->tables->migrations.num_rows) {
+            ret = TSK_ERR_MIGRATION_OUT_OF_BOUNDS;
             goto out;
         }
+        migration_start = start->migrations;
+
         /* We only allow sites and mutations to be specified as a way to
          * skip sorting them entirely. Both sites and mutations must be
          * equal to the number of rows */
@@ -4897,8 +4986,16 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
     if (ret != 0) {
         goto out;
     }
+
     if (self->sort_edges != NULL) {
         ret = self->sort_edges(self, edge_start);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    /* Avoid calling sort_migrations in the common case when it's a no-op */
+    if (self->tables->migrations.num_rows > 0) {
+        ret = tsk_table_sorter_sort_migrations(self, migration_start);
         if (ret != 0) {
             goto out;
         }
@@ -4924,10 +5021,6 @@ tsk_table_sorter_init(
     int ret = 0;
 
     memset(self, 0, sizeof(tsk_table_sorter_t));
-    if (tables->migrations.num_rows != 0) {
-        ret = TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED;
-        goto out;
-    }
     if (!(options & TSK_NO_CHECK_INTEGRITY)) {
         ret = tsk_table_collection_check_integrity(tables, 0);
         if (ret != 0) {

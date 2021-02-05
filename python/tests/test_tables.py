@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1688,6 +1688,49 @@ class TestSortTables:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
+
+
+class TestSortMigrations:
+    """
+    Tests that migrations are correctly ordered when sorting tables.
+    """
+
+    def test_msprime_output_unmodified(self):
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(3)]
+        migration_matrix = [[0, 1, 1], [1, 0, 1], [1, 1, 0]]
+        ts = msprime.simulate(
+            recombination_rate=0.1,
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            record_migrations=True,
+            random_seed=1,
+        )
+        assert ts.num_migrations > 100
+        tables = ts.tables.copy()
+        tables.sort()
+        assert tables.equals(ts.tables, ignore_provenance=True)
+
+    def test_full_sort_order(self):
+        tables = tskit.TableCollection(1)
+        for _ in range(3):
+            tables.nodes.add_row()
+            tables.populations.add_row()
+        for left in [0, 0.5]:
+            for a_time in range(3):
+                for node in range(2):
+                    tables.migrations.add_row(
+                        left=left, right=1, node=node, source=0, dest=1, time=a_time
+                    )
+                    tables.migrations.add_row(
+                        left=left, right=1, node=node, source=1, dest=2, time=a_time
+                    )
+
+        sorted_list = sorted(
+            tables.migrations, key=lambda m: (m.time, m.source, m.dest, m.left, m.node)
+        )
+        assert sorted_list != list(tables.migrations)
+        tables.sort()
+        assert sorted_list == list(tables.migrations)
 
 
 class TestSortMutations:
