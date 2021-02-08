@@ -275,7 +275,7 @@ test_table_collection_simplify_errors(void)
     int ret;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1 };
-
+    const char *individuals = "1      0.25     -2\n";
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
@@ -296,6 +296,14 @@ test_table_collection_simplify_errors(void)
     tables.sites.position[0] = 1.5;
     ret = tsk_table_collection_simplify(&tables, samples, 0, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
+    tsk_site_table_truncate(&tables.sites, 0);
+    tables.sites.position[0] = 0;
+
+    /* Individual out of bounds */
+    parse_individuals(individuals, &tables.individuals);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 1);
+    ret = tsk_table_collection_simplify(&tables, samples, 0, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
 
     /* TODO More tests for this: see
      * https://github.com/tskit-dev/msprime/issues/517 */
@@ -4755,6 +4763,9 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
 {
     int ret;
     tsk_table_collection_t tables;
+    const char *individuals = "1      0.25     -1\n"
+                              "2      0.5,0.25 2\n"
+                              "3      0.5,0.25 0\n";
 
     ret = tsk_table_collection_init(&tables, tc_options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5177,6 +5188,28 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
+    ret = tsk_migration_table_clear(&tables.migrations);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    parse_individuals(individuals, &tables.individuals);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 3);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Check that an individual can't be its own parent */
+    tables.individuals.parents[0] = 0;
+    tables.individuals.parents[1] = 1;
+    tables.individuals.parents[2] = 2;
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.individuals.parents[0] = -2;
+    ret = tsk_table_collection_check_integrity(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
 
     tsk_table_collection_free(&tables);
 }

@@ -2361,6 +2361,13 @@ class TestSimplifyTables:
             with pytest.raises(OverflowError):
                 tables.simplify(samples=np.array([0, bad_node]))
 
+    def test_bad_individuals(self, simple_ts_fixture):
+        tables = simple_ts_fixture.dump_tables()
+        tables.individuals.clear()
+        tables.individuals.add_row(parents=[-2])
+        with pytest.raises(tskit.LibraryError, match="Individual out of bounds"):
+            tables.simplify()
+
 
 class TestTableCollection:
     """

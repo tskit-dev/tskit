@@ -1993,6 +1993,8 @@ test_simplest_bad_individuals(void)
     const char *edges = "0  1   2   0\n"
                         "0  1   2   1\n"
                         "0  1   4   3\n";
+    const char *individuals = "1      0.25     -1\n"
+                              "2      0.5,0.25 0\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
@@ -2028,13 +2030,14 @@ test_simplest_bad_individuals(void)
     tsk_treeseq_free(&ts);
     tables.nodes.individual[0] = TSK_NULL;
 
-    /* add two individuals */
-    ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL(ret, 0);
-    ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
-    CU_ASSERT_EQUAL(ret, 1);
+    /* Add two individuals */
+    parse_individuals(individuals, &tables.individuals);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 2);
+
+    /* Make sure we have a good set of records */
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
 
     /* Bad individual ID */
     tables.nodes.individual[0] = 2;
@@ -2042,6 +2045,24 @@ test_simplest_bad_individuals(void)
     CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
     tsk_treeseq_free(&ts);
     tables.nodes.individual[0] = TSK_NULL;
+
+    /* Bad parent ID */
+    tables.individuals.parents[0] = -2;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    tsk_treeseq_free(&ts);
+    tables.individuals.parents[0] = 42;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    tsk_treeseq_free(&ts);
+    tables.individuals.parents[0] = TSK_NULL;
+
+    /* Unsorted individuals */
+    tables.individuals.parents[0] = 1;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
+    tsk_treeseq_free(&ts);
+    tables.individuals.parents[0] = TSK_NULL;
 
     tsk_treeseq_free(&ts);
     tsk_table_collection_free(&tables);
