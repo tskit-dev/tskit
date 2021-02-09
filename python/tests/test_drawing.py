@@ -27,8 +27,8 @@ import collections
 import io
 import math
 import os
+import pathlib
 import re
-import tempfile
 import xml.dom.minidom
 import xml.etree
 
@@ -205,6 +205,12 @@ class TestTreeDraw:
         return tskit.load_text(
             nodes, edges, sites=sites, mutations=mutations, strict=False
         )
+
+    def fail(self, *args, **kwargs):
+        """
+        Required for xmlunittest.XmlTestMixin to work with pytest not unittest
+        """
+        pytest.fail(*args, **kwargs)
 
 
 def closest_left_node(tree, u):
@@ -1396,16 +1402,16 @@ class TestDrawTextExamples(TestTreeDraw):
                 t.draw_text(max_tree_height=bad_max_tree_height)
 
 
-class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
+class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     """
     Tests the SVG tree drawing.
     """
 
-    def verify_basic_svg(self, svg, width=200, height=200):
+    def verify_basic_svg(self, svg, width=200, height=200, num_trees=1):
         prefix = "{http://www.w3.org/2000/svg}"
         root = xml.etree.ElementTree.fromstring(svg)
         assert root.tag == prefix + "svg"
-        assert width == int(root.attrib["width"])
+        assert width * num_trees == int(root.attrib["width"])
         assert height == int(root.attrib["height"])
 
         # Verify the class structure of the svg
@@ -1435,34 +1441,33 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
             cls = group.attrib["class"]
             assert re.search(r"\broot\b", cls)
 
-    def test_draw_file(self):
+    def test_draw_to_file(self, tmp_path):
+        # NB: to view output files for testing changes to drawing code, it is possible
+        # to save to a fixed directory using e.g. `pytest --basetemp=/tmp/svgtest ...`
         t = self.get_binary_tree()
-        fd, filename = tempfile.mkstemp(prefix="tskit_viz_")
-        try:
-            os.close(fd)
-            svg = t.draw(path=filename)
-            assert os.path.getsize(filename) > 0
-            with open(filename) as tmp:
-                other_svg = tmp.read()
-            assert svg == other_svg
-            os.unlink(filename)
+        filename = tmp_path / "tree-draw.svg"
+        svg = t.draw(path=filename)
+        assert os.path.getsize(filename) > 0
+        with open(filename) as tmp:
+            other_svg = tmp.read()
+        assert svg == other_svg
 
-            svg = t.draw_svg(path=filename)
-            assert os.path.getsize(filename) > 0
-            with open(filename) as tmp:
-                other_svg = tmp.read()
-            self.verify_basic_svg(svg)
-            self.verify_basic_svg(other_svg)
+        filename = tmp_path / "tree-draw_svg.svg"
+        svg = t.draw_svg(path=filename)
+        assert os.path.getsize(filename) > 0
+        with open(filename) as tmp:
+            other_svg = tmp.read()
+        self.verify_basic_svg(svg)
+        self.verify_basic_svg(other_svg)
 
-            ts = t.tree_sequence
-            svg = ts.draw_svg(path=filename)
-            assert os.path.getsize(filename) > 0
-            with open(filename) as tmp:
-                other_svg = tmp.read()
-            self.verify_basic_svg(svg)
-            self.verify_basic_svg(other_svg)
-        finally:
-            os.unlink(filename)
+        filename = tmp_path / "ts-draw_svg.svg"
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(path=filename)
+        assert os.path.getsize(filename) > 0
+        with open(filename) as tmp:
+            other_svg = tmp.read()
+        self.verify_basic_svg(svg, num_trees=ts.num_trees)
+        self.verify_basic_svg(other_svg, num_trees=ts.num_trees)
 
     def test_draw_defaults(self):
         t = self.get_binary_tree()
@@ -1826,15 +1831,15 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         tables = ts.dump_tables()
         tables.edges.clear()
         ts_no_edges = tables.tree_sequence()
-        svg = ts_no_edges.draw_svg()  # This should just be a row of 10 circles
+        svg = ts_no_edges.draw_svg()  # This should just be a row of 10 sample nodes
         self.verify_basic_svg(svg)
-        assert svg.count("circle") == 10
-        assert svg.count("path") == 0
+        assert svg.count("rect") == 10  # Sample nodes are rectangles
+        assert svg.count('path class="edge"') == 0
 
         svg = ts_no_edges.draw_svg(force_root_branch=True)
         self.verify_basic_svg(svg)
-        assert svg.count("circle") == 10
-        assert svg.count("path") == 10
+        assert svg.count("rect") == 10
+        assert svg.count('path class="edge"') == 10
 
         # If there is a mutation, the root branches should be there too
         ts = msprime.mutate(ts, rate=1, random_seed=1)
@@ -1844,9 +1849,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         assert ts_no_edges.num_mutations > 0  # Should have some singletons
         svg = ts_no_edges.draw_svg()
         self.verify_basic_svg(svg)
-        assert svg.count("circle") == 10
-        assert svg.count("path") == 10
-        assert svg.count("rect") == ts_no_edges.num_mutations
+        assert svg.count("rect") == 10
+        assert svg.count('path class="edge"') == 10
+        assert svg.count('path class="sym"') == ts_no_edges.num_mutations
 
     def test_tree_root_branch(self):
         # in the simple_ts, there are root mutations in the first tree but not the second
@@ -1883,7 +1888,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         )
         # Prettify the SVG code for easy inspection
         svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "tree.svg")
+        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "tree.svg"
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
@@ -1895,7 +1900,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         )
         # Prettify the SVG code for easy inspection
         svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "mut_tree.svg")
+        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "mut_tree.svg"
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
@@ -1907,7 +1912,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestCase):
         )
         # Prettify the SVG code for easy inspection
         svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = os.path.join(os.path.dirname(__file__), "data", "svg", "ts.svg")
+        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "ts.svg"
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()

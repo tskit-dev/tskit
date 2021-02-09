@@ -1465,7 +1465,12 @@ class Tree:
         **kwargs,
     ):
         """
-        Return an SVG representation of a single tree.
+        Return an SVG representation of a single tree. Sample nodes are represented as
+        black squares, other nodes are black circles, and mutations are red crosses,
+        although these default styles can be altered (see below). By default, numeric
+        labels are drawn beside nodes and mutations: these can be altered using the
+        ``node_labels`` and ``mutation_labels`` parameters.
+
 
         When working in a Jupyter notebook, use the ``IPython.display.SVG`` function
         to display the SVG output from this function inline in the notebook::
@@ -1489,8 +1494,8 @@ class Tree:
         to the tree structure. Any particular node in the tree will have a corresponding
         group containing child groups (if any) followed by the edge above that node, a
         node symbol, and (potentially) text containing the node label. For example, a
-        simple two tip tree, with tip node ids 0 and 1, and a root node id of 2 will have
-        a structure similar to the following:
+        simple two tip tree, with tip node ids 0 and 1, and a root node id of 2, and with
+        some bespoke labels, will have a structure similar to the following:
 
         .. code-block::
 
@@ -1498,16 +1503,16 @@ class Tree:
               <g class="node n2 root">
                 <g class="node n1 a2 i1 p1 sample leaf">
                   <path class="edge" ... />
-                  <circle class="sym" ... />
+                  <rect class="sym" ... />
                   <text class="lab" ...>Node 1</text>
                 </g>
                 <g class="node n0 a2 i2 p1 sample leaf">
                   <path class="edge" ... />
-                  <circle class="sym" .../>
+                  <rect class="sym" .../>
                   <text class="lab" ...>Node 0</text>
                 </g>
                 <path class="edge" ... />
-                <circle />
+                <circle class="sym" ... />
                 <text class="lab">Root (Node 2)</text>
               </g>
             </g>

@@ -4,6 +4,9 @@
 
 **Features**
 
+- SVG visualization now uses red crosses for mutations, and squares for sample nodes
+  (:user:`hyanwong`,:issue:`1155`, :pr:`1182`).
+
 - Add ``parents`` column to the individual table to allow recording of pedigrees
   (:user:`ivan-krukov`, :user:`benjeffery`, :issue:`852`, :pr:`1125`, :pr:`866`, :pr:`1153`, :pr:`1177`).
 
