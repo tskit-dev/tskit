@@ -246,7 +246,8 @@ not found in the file.
 #define TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE                      -500
 #define TSK_ERR_MUTATION_PARENT_EQUAL                               -501
 #define TSK_ERR_MUTATION_PARENT_AFTER_CHILD                         -502
-#define TSK_ERR_INCONSISTENT_MUTATIONS                              -503
+#define TSK_ERR_MUTATION_PARENT_INCONSISTENT                        -503
+#define TSK_ERR_INCONSISTENT_MUTATIONS                              -504
 #define TSK_ERR_UNSORTED_MUTATIONS                                  -505
 #define TSK_ERR_NON_SINGLE_CHAR_MUTATION                            -506
 #define TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE                     -507
