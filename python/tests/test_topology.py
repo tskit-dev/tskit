@@ -7418,6 +7418,31 @@ class TestKeepSingleInterval(unittest.TestCase):
         assert ts_sliced.at(0.999).total_branch_length == 0
         assert ts_sliced.at_index(-1).total_branch_length == 0
 
+    def test_slice_migrations(self):
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 0.05], [0.05, 0]]
+        ts = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            record_migrations=True,
+            recombination_rate=2,
+            random_seed=1,
+        )
+        ts_sliced = ts.keep_intervals([[0, 1]], simplify=False)
+        assert ts.tables.migrations == ts_sliced.tables.migrations
+        ts_sliced = ts.keep_intervals([[0, 0.5]], simplify=False)
+        assert np.max(ts_sliced.tables.migrations.right) <= 0.5
+        assert ts.num_migrations > ts_sliced.num_migrations
+
+        ts_sliced = ts.keep_intervals([[0.5, 1]], simplify=False)
+        assert np.max(ts_sliced.tables.migrations.left) >= 0.5
+        assert ts.num_migrations > ts_sliced.num_migrations
+
+        ts_sliced = ts.keep_intervals([[0.4, 0.6]], simplify=False)
+        assert np.max(ts_sliced.tables.migrations.right) <= 0.6
+        assert np.max(ts_sliced.tables.migrations.left) >= 0.4
+        assert ts.num_migrations > ts_sliced.num_migrations
+
 
 class TestKeepIntervals(TopologyTestCase):
     """
@@ -7446,10 +7471,18 @@ class TestKeepIntervals(TopologyTestCase):
         return t2
 
     def test_migration_error(self):
-        tables = tskit.TableCollection(1)
-        tables.migrations.add_row(0, 1, 0, 0, 0, 0)
-        with pytest.raises(ValueError):
-            tables.keep_intervals([[0, 1]])
+        # keep_intervals should fail if simplify=True (default)
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 0.05], [0.05, 0]]
+        ts = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            record_migrations=True,
+            recombination_rate=2,
+            random_seed=1,
+        )
+        with pytest.raises(tskit.LibraryError):
+            ts.tables.keep_intervals([[0, 1]])
 
     def test_bad_intervals(self):
         tables = tskit.TableCollection(10)
@@ -7658,6 +7691,24 @@ class TestKeepDeleteIntervalsExamples:
         ts_delete = ts.keep_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         assert ts_keep == ts_delete
 
+    def test_ts_migrations(self):
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 0.05], [0.05, 0]]
+        ts = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            record_migrations=True,
+            recombination_rate=2,
+            random_seed=1,
+        )
+        ts_keep = ts.delete_intervals(
+            [[0.25, 0.5]], record_provenance=False, simplify=False
+        )
+        ts_delete = ts.keep_intervals(
+            [[0, 0.25], [0.5, 1.0]], record_provenance=False, simplify=False
+        )
+        assert ts_keep == ts_delete
+
 
 class TestTrim(unittest.TestCase):
     """
@@ -7781,6 +7832,18 @@ class TestTrim(unittest.TestCase):
         assert ts.num_sites == 3
         return ts
 
+    def migration_sim(self):
+        pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
+        migration_matrix = [[0, 0.05], [0.05, 0]]
+        ts = msprime.simulate(
+            population_configurations=pop_configs,
+            migration_matrix=migration_matrix,
+            record_migrations=True,
+            recombination_rate=2,
+            random_seed=1,
+        )
+        return ts
+
     def test_ltrim_single_tree(self):
         ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
         ts = self.clear_left_mutate(ts, 0.5, 10)
@@ -7831,6 +7894,17 @@ class TestTrim(unittest.TestCase):
         assert trimmed_ts.num_mutations == 7  # We should have deleted 2
         assert np.min(trimmed_ts.tables.edges.left) == 0
         self.verify_ltrim(ts, trimmed_ts)
+
+    def test_ltrim_migrations(self):
+        ts = self.migration_sim()
+        ts = ts.delete_intervals([[0, 0.1]], simplify=False)
+        trimmed_ts = ts.ltrim()
+        assert np.array_equal(
+            trimmed_ts.tables.migrations.left, ts.tables.migrations.left - 0.1
+        )
+        assert np.array_equal(
+            trimmed_ts.tables.migrations.right, ts.tables.migrations.right - 0.1
+        )
 
     def test_rtrim_single_tree(self):
         ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
@@ -7885,6 +7959,13 @@ class TestTrim(unittest.TestCase):
         )
         self.verify_rtrim(ts, trimmed_ts)
 
+    def test_rtrim_migrations(self):
+        ts = self.migration_sim()
+        ts = ts.delete_intervals([[0.9, 1]], simplify=False)
+        trimmed_ts = ts.rtrim()
+        trimmed_rights = trimmed_ts.tables.migrations.right
+        assert np.max(trimmed_rights) == 0.9
+
     def test_trim_multiple_mutations(self):
         ts = self.clear_left_right_234(0.1, 0.5)
         trimmed_ts = ts.trim()
@@ -7908,7 +7989,8 @@ class TestTrim(unittest.TestCase):
         assert ts == trimmed_ts
 
     def test_failure_with_migrations(self):
-        # All trim functions fail if migrations present
+        # All trim functions fail if migrations extend further than rightmost or
+        # leftmost edges
         ts = msprime.simulate(10, recombination_rate=2, random_seed=2)
         ts = ts.keep_intervals([[0.1, 0.5]])
         tables = ts.dump_tables()
