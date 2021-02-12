@@ -325,6 +325,7 @@ not found in the file.
 
 /* Individual errors */
 #define TSK_ERR_UNSORTED_INDIVIDUALS                               -1700
+#define TSK_ERR_INDIVIDUAL_SELF_PARENT                             -1701
 
 // clang-format on
 

@@ -5202,10 +5202,8 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     tables.individuals.parents[0] = 0;
     tables.individuals.parents[1] = 1;
     tables.individuals.parents[2] = 2;
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
     ret = tsk_table_collection_check_integrity(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_SELF_PARENT);
 
     tables.individuals.parents[0] = -2;
     ret = tsk_table_collection_check_integrity(&tables, 0);

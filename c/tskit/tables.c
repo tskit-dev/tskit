@@ -7953,25 +7953,26 @@ tsk_table_collection_check_individual_integrity(
     const tsk_id_t num_individuals = (tsk_id_t) individuals.num_rows;
     const bool check_individual_ordering = options & TSK_CHECK_INDIVIDUAL_ORDERING;
 
-    /* Check parent references are valid */
-    for (j = 0; j < individuals.parents_length; j++) {
-        if (individuals.parents[j] != TSK_NULL
-            && (individuals.parents[j] < 0
-                   || individuals.parents[j] >= num_individuals)) {
-            ret = TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS;
-            goto out;
-        }
-    }
-
-    /* Check parents are ordered */
-    if (check_individual_ordering) {
-        for (j = 0; j < (tsk_size_t) num_individuals; j++) {
-            for (k = individuals.parents_offset[j];
-                 k < individuals.parents_offset[j + 1]; k++) {
-                if (individuals.parents[k] != TSK_NULL
-                    && individuals.parents[k] >= (tsk_id_t) j) {
-                    ret = TSK_ERR_UNSORTED_INDIVIDUALS;
-                }
+    for (j = 0; j < (tsk_size_t) num_individuals; j++) {
+        for (k = individuals.parents_offset[j]; k < individuals.parents_offset[j + 1];
+             k++) {
+            /* Check parent references are valid */
+            if (individuals.parents[k] != TSK_NULL
+                && (individuals.parents[k] < 0
+                       || individuals.parents[k] >= num_individuals)) {
+                ret = TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS;
+                goto out;
+            }
+            /* Check no-one is their own parent */
+            if (individuals.parents[k] == (tsk_id_t) j) {
+                ret = TSK_ERR_INDIVIDUAL_SELF_PARENT;
+                goto out;
+            }
+            /* Check parents are ordered */
+            if (check_individual_ordering && individuals.parents[k] != TSK_NULL
+                && individuals.parents[k] >= (tsk_id_t) j) {
+                ret = TSK_ERR_UNSORTED_INDIVIDUALS;
+                goto out;
             }
         }
     }

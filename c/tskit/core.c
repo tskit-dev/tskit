@@ -480,6 +480,10 @@ tsk_strerror_internal(int err)
             ret = "Individuals must be provided in an order where children are after "
                   "their parent individuals";
             break;
+
+        case TSK_ERR_INDIVIDUAL_SELF_PARENT:
+            ret = "Individuals cannot be their own parents.";
+            break;
     }
     return ret;
 }

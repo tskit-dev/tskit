@@ -2057,6 +2057,13 @@ test_simplest_bad_individuals(void)
     tsk_treeseq_free(&ts);
     tables.individuals.parents[0] = TSK_NULL;
 
+    /* Parent is self */
+    tables.individuals.parents[0] = 0;
+    ret = tsk_treeseq_init(&ts, &tables, load_flags);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_SELF_PARENT);
+    tsk_treeseq_free(&ts);
+    tables.individuals.parents[0] = TSK_NULL;
+
     /* Unsorted individuals */
     tables.individuals.parents[0] = 1;
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
