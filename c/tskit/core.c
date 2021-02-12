@@ -281,6 +281,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_MUTATION_PARENT_AFTER_CHILD:
             ret = "Parent mutation ID must be < current ID";
             break;
+        case TSK_ERR_MUTATION_PARENT_INCONSISTENT:
+            ret = "Mutation parent references form a loop.";
+            break;
         case TSK_ERR_INCONSISTENT_MUTATIONS:
             ret = "Inconsistent mutations: state already equal to derived state";
             break;

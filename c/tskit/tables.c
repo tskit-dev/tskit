@@ -4905,6 +4905,10 @@ tsk_table_sorter_sort_mutations_canonical(tsk_table_sorter_t *self)
         p = mutations->parent[j];
         while (p != TSK_NULL) {
             sorted_mutations[p].num_descendants += 1;
+            if (sorted_mutations[p].num_descendants > (int) num_mutations) {
+                ret = TSK_ERR_MUTATION_PARENT_INCONSISTENT;
+                goto out;
+            }
             p = mutations->parent[p];
         }
     }

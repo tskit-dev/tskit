@@ -4088,6 +4088,48 @@ test_sort_tables_mutation_times(void)
 }
 
 static void
+test_sort_tables_canonical_errors(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_site_table_add_row(&tables.sites, 0.0, "x", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 0.0, "a", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 3, 0.0, "b", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 1, 0.0, "c", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 0.0, "d", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    ret = tsk_table_collection_canonicalise(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_INCONSISTENT);
+
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 0.0, "a", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 3, 0.0, "b", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 1, 0.0, "c", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, -1, 0.0, "d", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    ret = tsk_table_collection_canonicalise(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_sort_tables_canonical(void)
 {
     int ret;
@@ -6028,6 +6070,7 @@ main(int argc, char **argv)
         { "test_edge_update_invalidates_index", test_edge_update_invalidates_index },
         { "test_copy_table_collection", test_copy_table_collection },
         { "test_sort_tables_errors", test_sort_tables_errors },
+        { "test_sort_tables_canonical_errors", test_sort_tables_canonical_errors },
         { "test_sort_tables_canonical", test_sort_tables_canonical },
         { "test_sorter_interface", test_sorter_interface },
         { "test_dump_unindexed", test_dump_unindexed },
