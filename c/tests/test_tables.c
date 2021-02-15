@@ -3859,6 +3859,30 @@ test_sort_tables_offsets(void)
     ret = tsk_table_collection_sort(&tables, &bookmark, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
 
+    /* Individuals must either all be sorted or all skipped */
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Add a parent relation that unsorts the table */
+    tables.individuals.parents[0] = 5;
+    ret = tsk_table_collection_copy(&tables, &copy, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.individuals = tables.individuals.num_rows;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
+
+    /* Check that sorting would have had an effect */
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tables, &copy, 0));
+
+    memset(&bookmark, 0, sizeof(bookmark));
+    bookmark.individuals = tables.individuals.num_rows - 1;
+    ret = tsk_table_collection_sort(&tables, &bookmark, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&copy);
     tsk_treeseq_free(ts);
@@ -3998,12 +4022,7 @@ test_sort_tables_errors(void)
     ret = tsk_table_collection_sort(&tables, &pos, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
 
-    /* Individual, node, population and provenance positions are ignored */
-    memset(&pos, 0, sizeof(pos));
-    pos.individuals = 1;
-    ret = tsk_table_collection_sort(&tables, &pos, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
+    /* Node, population and provenance positions are ignored */
     memset(&pos, 0, sizeof(pos));
     pos.nodes = 1;
     ret = tsk_table_collection_sort(&tables, &pos, 0);
@@ -4309,6 +4328,52 @@ test_sort_tables_migrations(void)
     tsk_table_collection_free(&copy);
     tsk_treeseq_free(ts);
     free(ts);
+}
+
+static void
+test_sort_tables_individuals(void)
+{
+    int ret;
+    tsk_table_collection_t tables, copy;
+    const char *individuals = "1      0.25   2,3 0\n"
+                              "2      0.5    5,-1  1\n"
+                              "3      0.3    -1  2\n"
+                              "4      0.3    -1  3\n"
+                              "5      0.3    3   4\n"
+                              "6      0.3    4   5\n";
+    const char *individuals_cycle = "1      0.2    2  0\n"
+                                    "2      0.5    0  1\n"
+                                    "3      0.3    1  2\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+    parse_individuals(individuals, &tables.individuals);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Check that the sort is stable */
+    ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT(tsk_table_collection_equals(&tables, &copy, 0));
+
+    /* Errors on cycle */
+    tsk_individual_table_clear(&tables.individuals);
+    parse_individuals(individuals_cycle, &tables.individuals);
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_PARENT_CYCLE);
+
+    tsk_table_collection_free(&tables);
+    tsk_table_collection_free(&copy);
 }
 
 static void
@@ -6083,7 +6148,6 @@ main(int argc, char **argv)
             test_link_ancestors_samples_and_ancestors_overlap },
         { "test_link_ancestors_multiple_to_single_tree",
             test_link_ancestors_multiple_to_single_tree },
-        { "test_sort_tables_offsets", test_sort_tables_offsets },
         { "test_ibd_finder", test_ibd_finder },
         { "test_ibd_finder_multiple_trees", test_ibd_finder_multiple_trees },
         { "test_ibd_finder_empty_result", test_ibd_finder_empty_result },
@@ -6093,17 +6157,19 @@ main(int argc, char **argv)
         { "test_ibd_finder_multiple_ibd_paths", test_ibd_finder_multiple_ibd_paths },
         { "test_ibd_finder_odd_topologies", test_ibd_finder_odd_topologies },
         { "test_ibd_finder_errors", test_ibd_finder_errors },
-        { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
-        { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
-        { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
-        { "test_sort_tables_mutation_times", test_sort_tables_mutation_times },
-        { "test_sort_tables_migrations", test_sort_tables_migrations },
-        { "test_edge_update_invalidates_index", test_edge_update_invalidates_index },
-        { "test_copy_table_collection", test_copy_table_collection },
-        { "test_sort_tables_errors", test_sort_tables_errors },
+        { "test_sorter_interface", test_sorter_interface },
         { "test_sort_tables_canonical_errors", test_sort_tables_canonical_errors },
         { "test_sort_tables_canonical", test_sort_tables_canonical },
-        { "test_sorter_interface", test_sorter_interface },
+        { "test_sort_tables_drops_indexes", test_sort_tables_drops_indexes },
+        { "test_sort_tables_edge_metadata", test_sort_tables_edge_metadata },
+        { "test_sort_tables_errors", test_sort_tables_errors },
+        { "test_sort_tables_individuals", test_sort_tables_individuals },
+        { "test_sort_tables_mutation_times", test_sort_tables_mutation_times },
+        { "test_sort_tables_migrations", test_sort_tables_migrations },
+        { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
+        { "test_sort_tables_offsets", test_sort_tables_offsets },
+        { "test_edge_update_invalidates_index", test_edge_update_invalidates_index },
+        { "test_copy_table_collection", test_copy_table_collection },
         { "test_dump_unindexed", test_dump_unindexed },
         { "test_dump_load_empty", test_dump_load_empty },
         { "test_dump_load_unsorted", test_dump_load_unsorted },

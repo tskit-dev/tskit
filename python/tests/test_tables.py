@@ -1400,15 +1400,25 @@ class TestSortTables:
         tsutil.shuffle_tables(
             tables1,
             seed,
-            shuffle_individuals=False,
             shuffle_populations=False,
+        )
+        tables1.individuals.packset_metadata(
+            [bytes(str(i), "utf-8") for i in range(tables1.individuals.num_rows)]
         )
         tables2 = tables1.copy()
         tables1.sort()
         tsutil.py_sort(tables2)
+
+        # TODO - Check the sorted tables are valid ts, currently fails due to mutations
+        # tables1.tree_sequence()
+        # tables2.tree_sequence()
+
         tsutil.assert_table_collections_equal(tables1, tables2)
 
     def verify_canonical_equality(self, tables, seed):
+        # Migrations not supported
+        tables.migrations.clear()
+
         for ru in [True, False]:
             tables1 = tables.copy()
             tsutil.shuffle_tables(
@@ -1427,9 +1437,7 @@ class TestSortTables:
             mut_map[tables.sites[mut.site].position].append(
                 (mut.node, mut.derived_state, mut.metadata)
             )
-        tsutil.shuffle_tables(
-            tables, seed, shuffle_individuals=False, shuffle_populations=False
-        )
+        tsutil.shuffle_tables(tables, seed, shuffle_populations=False)
         for mut in tables.mutations:
             site = tables.sites[mut.site]
             assert (mut.node, mut.derived_state, mut.metadata) in mut_map[site.position]
@@ -1457,11 +1465,13 @@ class TestSortTables:
         tables.sort()
         tsutil.assert_table_collections_equal(tables, sorted_tables)
 
-        # Now also randomize sites and mutations
+        # Now also randomize sites, mutations and individuals
         tables.canonicalise(remove_unreferenced=False)
         sorted_tables = tables.copy()
         tsutil.shuffle_tables(
-            tables, seed=1234, shuffle_populations=False, shuffle_individuals=False
+            tables,
+            seed=1234,
+            shuffle_populations=False,
         )
         tables.canonicalise(remove_unreferenced=False)
         tsutil.assert_table_collections_equal(tables, sorted_tables)
@@ -1470,6 +1480,9 @@ class TestSortTables:
         tsutil.shuffle_tables(tables, seed=1234)
         tables.canonicalise(remove_unreferenced=False)
         tsutil.assert_table_collections_equal(tables, sorted_tables)
+
+        # Check the canonicalised form meets the tree sequence requirements
+        tables.tree_sequence()
 
     def verify_sort(self, tables, seed):
         self.verify_sort_equality(tables, seed)
@@ -1512,10 +1525,31 @@ class TestSortTables:
             assert edges == tables.edges
 
     def get_wf_example(self, seed):
-        tables = wf.wf_sim(6, 3, num_pops=2, seed=seed, num_loci=3)
+        tables = wf.wf_sim(
+            6,
+            3,
+            num_pops=2,
+            seed=seed,
+            num_loci=3,
+            record_migrations=True,
+            record_individuals=True,
+        )
         tables.sort()
         ts = tables.tree_sequence()
-        return tsutil.insert_individuals(ts, ploidy=2)
+        return ts
+
+    def test_wf_example(self):
+        tables = wf.wf_sim(
+            N=6,
+            ngens=3,
+            num_pops=2,
+            mig_rate=1.0,
+            deep_history=False,
+            seed=42,
+            record_migrations=True,
+            record_individuals=True,
+        )
+        self.verify_sort(tables, 42)
 
     def test_single_tree_no_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)

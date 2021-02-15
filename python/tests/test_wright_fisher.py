@@ -464,18 +464,18 @@ class TestSimulation:
         tables = wf_sim(
             N=N, ngens=10, seed=12345, record_individuals=True, deep_history=False
         )
-        tables.sort()
         assert len(tables.individuals) == len(tables.nodes)
+        for node_id, individual in enumerate(tables.nodes.individual):
+            assert node_id == individual
+        tables.sort()
         ts = tables.tree_sequence()
-        for node in ts.nodes():
-            assert node.individual == node.id
-
         for tree in ts.trees():
             for u in tree.nodes():
+                individual = ts.individual(ts.node(u).individual)
                 parent_node = tree.parent(u)
-                # We already know the individual has the same ID as the node
-                individual = ts.individual(u)
-                assert parent_node in individual.parents
+                if parent_node != tskit.NULL:
+                    parent_individual = ts.individual(ts.node(parent_node).individual)
+                    assert parent_individual.id in individual.parents
 
 
 def get_wf_sims(seed):

@@ -5,7 +5,7 @@
 **Features**
 
 - Add ``parents`` to the individual table to enable recording of pedigrees
-  (:user:`ivan-krukov`, :user:`benjeffery`, :issue:`852`, :pr:`1125`, :pr:`866`, :pr:`1153`, :pr:`1177`).
+  (:user:`ivan-krukov`, :user:`benjeffery`, :issue:`852`, :pr:`1125`, :pr:`866`, :pr:`1153`, :pr:`1177`, :pr:`1199`).
 
 - Added a ``tsk_table_collection_canonicalse`` method, that allows checking for equality between
   tables that are equivalent up to reordering (:user:`petrelharp`, :user:`mufernando`, :pr:`1108`).

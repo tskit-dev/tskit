@@ -1016,6 +1016,19 @@ def cmp_edge(i, j, tables):
     return ret
 
 
+def cmp_migration(i, j, tables):
+    ret = tables.migrations.time[i] - tables.migrations.time[j]
+    if ret == 0:
+        ret = tables.migrations.source[i] - tables.migrations.source[j]
+    if ret == 0:
+        ret = tables.migrations.dest[i] - tables.migrations.dest[j]
+    if ret == 0:
+        ret = tables.migrations.left[i] - tables.migrations.left[j]
+    if ret == 0:
+        ret = tables.migrations.node[i] - tables.migrations.node[j]
+    return ret
+
+
 def compute_mutation_num_descendants(tables):
     mutations = tables.mutations
     num_descendants = np.zeros(mutations.num_rows)
@@ -1040,6 +1053,7 @@ def py_sort(tables, use_num_descendants=False):
     tables.edges.clear()
     tables.sites.clear()
     tables.mutations.clear()
+    tables.migrations.clear()
     edge_key = functools.cmp_to_key(lambda a, b: cmp_edge(a, b, tables=copy))
     sorted_edges = sorted(range(copy.edges.num_rows), key=edge_key)
     site_key = functools.cmp_to_key(lambda a, b: cmp_site(a, b, tables=copy))
@@ -1069,6 +1083,8 @@ def py_sort(tables, use_num_descendants=False):
     sorted_muts = sorted(range(copy.mutations.num_rows), key=mut_key)
     mut_id_map = {k: j for j, k in enumerate(sorted_muts)}
     mut_id_map[tskit.NULL] = tskit.NULL
+    mig_key = functools.cmp_to_key(lambda a, b: cmp_migration(a, b, tables=copy))
+    sorted_migs = sorted(range(copy.migrations.num_rows), key=mig_key)
     for edge_id in sorted_edges:
         tables.edges.add_row(
             copy.edges[edge_id].left,
@@ -1091,6 +1107,18 @@ def py_sort(tables, use_num_descendants=False):
             copy.mutations[mut_id].metadata,
             copy.mutations[mut_id].time,
         )
+    for mig_id in sorted_migs:
+        tables.migrations.add_row(
+            copy.migrations[mig_id].left,
+            copy.migrations[mig_id].right,
+            copy.migrations[mig_id].node,
+            copy.migrations[mig_id].source,
+            copy.migrations[mig_id].dest,
+            copy.migrations[mig_id].time,
+            copy.migrations[mig_id].metadata,
+        )
+
+    sort_individual_table(tables)
 
 
 def algorithm_T(ts):
@@ -1665,3 +1693,55 @@ def assert_tables_equal(t1, t2, label=""):
             f"{label}: t1.num_rows {t1.num_rows} != {t2.num_rows} t2.num_rows"
         )
     assert t1 == t2
+
+
+def sort_individual_table(tables):
+    """
+    Sorts the individual table by parents-before-children.
+    """
+
+    individuals = tables.individuals
+    num_individuals = individuals.num_rows
+
+    # First find the set of individuals that have no children
+    # by creating an array of incoming edge counts
+    incoming_edge_count = np.zeros((num_individuals,), np.int64)
+    for parent in individuals.parents:
+        if parent != tskit.NULL:
+            incoming_edge_count[parent] += 1
+
+    todo = collections.deque()
+    sorted_order = []
+    for individual, num_edges in reversed(list(enumerate(incoming_edge_count))):
+        if num_edges == 0:
+            todo.append(individual)
+            sorted_order.append(individual)
+    # Now emit individuals from the set that have no children, removing their edges
+    # as we go adding new individuals to the no children set.
+    while len(todo) > 0:
+        individual = todo.popleft()
+        for parent in individuals[individual].parents:
+            if parent != tskit.NULL:
+                incoming_edge_count[parent] -= 1
+                if incoming_edge_count[parent] == 0:
+                    todo.append(parent)
+                    sorted_order.append(parent)
+
+    if np.sum(incoming_edge_count) > 0:
+        raise ValueError("Individual pedigree has cycles")
+
+    ind_id_map = {tskit.NULL: tskit.NULL}
+
+    individuals_copy = tables.copy().individuals
+    tables.individuals.clear()
+    for row in reversed(sorted_order):
+        ind_id_map[row] = tables.individuals.add_row(
+            flags=individuals_copy[row].flags,
+            location=individuals_copy[row].location,
+            parents=individuals_copy[row].parents,
+            metadata=individuals_copy[row].metadata,
+        )
+    tables.individuals.parents = [ind_id_map[i] for i in tables.individuals.parents]
+    tables.nodes.individual = [ind_id_map[i] for i in tables.nodes.individual]
+
+    return tables
