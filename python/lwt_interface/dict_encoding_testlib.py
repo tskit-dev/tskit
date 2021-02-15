@@ -70,7 +70,7 @@ def full_ts():
     # TODO replace this with properly linked up individuals using sim_ancestry
     # once 1.0 is released.
     for j in range(n):
-        tables.individuals.add_row(flags=j, location=(j, j), parents=(j, j))
+        tables.individuals.add_row(flags=j, location=(j, j), parents=(j - 1, j - 1))
 
     for name, table in tables.name_map.items():
         if name != "provenances":

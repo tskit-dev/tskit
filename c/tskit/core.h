@@ -323,6 +323,10 @@ not found in the file.
 /* Simplify errors */
 #define TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE                      -1600
 
+/* Individual errors */
+#define TSK_ERR_UNSORTED_INDIVIDUALS                               -1700
+#define TSK_ERR_INDIVIDUAL_SELF_PARENT                             -1701
+
 // clang-format on
 
 /* This bit is 0 for any errors originating from kastore */

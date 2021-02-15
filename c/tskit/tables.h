@@ -720,6 +720,7 @@ typedef struct {
 #define TSK_CHECK_MUTATION_ORDERING (1 << 3)
 #define TSK_CHECK_INDEXES (1 << 4)
 #define TSK_CHECK_TREES (1 << 5)
+#define TSK_CHECK_INDIVIDUAL_ORDERING (1 << 6)
 
 /* Leave room for more positive check flags */
 #define TSK_NO_CHECK_POPULATION_REFS (1 << 10)
@@ -2999,6 +3000,8 @@ TSK_CHECK_MUTATION_ORDERING
     Check contraints on the ordering of mutations. Any non-null
     mutation parents and known times are checked for ordering
     constraints.
+TSK_CHECK_INDIVIDUAL_ORDERING
+    Check individual parents are before children, where specified.
 TSK_CHECK_INDEXES
     Check that the table indexes exist, and contain valid edge
     references.

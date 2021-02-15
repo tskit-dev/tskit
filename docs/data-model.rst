@@ -540,10 +540,10 @@ Individual requirements
 -----------------------
 
 Individuals are a basic type in a tree sequence and are not defined with
-respect to any other tables. Therefore, there are no requirements on
-individuals.
+respect to any other tables. Individuals can have a reference to their parent
+individuals, if present these references must be valid or null (-1).
 
-There are no requirements regarding the ordering of individuals.
+Individuals must be sorted such that parents are before children.
 Sorting a set of tables using :meth:`TableCollection.sort` has
 no effect on the individuals.
 

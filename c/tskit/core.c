@@ -474,6 +474,16 @@ tsk_strerror_internal(int err)
         case TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE:
             ret = "You cannot specify both KEEP_UNARY and KEEP_UNARY_IN_INDIVDUALS.";
             break;
+
+        /* Individual errors */
+        case TSK_ERR_UNSORTED_INDIVIDUALS:
+            ret = "Individuals must be provided in an order where children are after "
+                  "their parent individuals";
+            break;
+
+        case TSK_ERR_INDIVIDUAL_SELF_PARENT:
+            ret = "Individuals cannot be their own parents.";
+            break;
     }
     return ret;
 }

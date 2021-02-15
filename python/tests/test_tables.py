@@ -2361,6 +2361,29 @@ class TestSimplifyTables:
             with pytest.raises(OverflowError):
                 tables.simplify(samples=np.array([0, bad_node]))
 
+    def test_bad_individuals(self, simple_ts_fixture):
+        tables = simple_ts_fixture.dump_tables()
+        tables.individuals.clear()
+        tables.individuals.add_row(parents=[-2])
+        with pytest.raises(tskit.LibraryError, match="Individual out of bounds"):
+            tables.simplify()
+        tables.individuals.clear()
+        tables.individuals.add_row(parents=[0])
+        with pytest.raises(
+            tskit.LibraryError, match="Individuals cannot be their own parents"
+        ):
+            tables.simplify()
+
+    def test_unsorted_individuals_ok(self, simple_ts_fixture):
+        tables = simple_ts_fixture.dump_tables()
+        tables.individuals.clear()
+        tables.individuals.clear()
+        tables.individuals.add_row(parents=[1])
+        tables.individuals.add_row(parents=[-1])
+        # we really just want to check that no error is thrown here
+        tables.simplify()
+        assert tables.individuals.num_rows == 0
+
 
 class TestTableCollection:
     """

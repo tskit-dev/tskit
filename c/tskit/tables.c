@@ -7943,6 +7943,43 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+tsk_table_collection_check_individual_integrity(
+    const tsk_table_collection_t *self, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t j, k;
+    const tsk_individual_table_t individuals = self->individuals;
+    const tsk_id_t num_individuals = (tsk_id_t) individuals.num_rows;
+    const bool check_individual_ordering = options & TSK_CHECK_INDIVIDUAL_ORDERING;
+
+    for (j = 0; j < (tsk_size_t) num_individuals; j++) {
+        for (k = individuals.parents_offset[j]; k < individuals.parents_offset[j + 1];
+             k++) {
+            /* Check parent references are valid */
+            if (individuals.parents[k] != TSK_NULL
+                && (individuals.parents[k] < 0
+                       || individuals.parents[k] >= num_individuals)) {
+                ret = TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS;
+                goto out;
+            }
+            /* Check no-one is their own parent */
+            if (individuals.parents[k] == (tsk_id_t) j) {
+                ret = TSK_ERR_INDIVIDUAL_SELF_PARENT;
+                goto out;
+            }
+            /* Check parents are ordered */
+            if (check_individual_ordering && individuals.parents[k] != TSK_NULL
+                && individuals.parents[k] >= (tsk_id_t) j) {
+                ret = TSK_ERR_UNSORTED_INDIVIDUALS;
+                goto out;
+            }
+        }
+    }
+out:
+    return ret;
+}
+
 static tsk_id_t TSK_WARN_UNUSED
 tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
 {
@@ -8074,7 +8111,7 @@ tsk_table_collection_check_integrity(
         /* Checking the trees implies all the other checks */
         options |= TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING
                    | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING
-                   | TSK_CHECK_INDEXES;
+                   | TSK_CHECK_INDEXES | TSK_CHECK_INDIVIDUAL_ORDERING;
     }
 
     if (self->sequence_length <= 0) {
@@ -8105,6 +8142,11 @@ tsk_table_collection_check_integrity(
     if (ret != 0) {
         goto out;
     }
+    ret = tsk_table_collection_check_individual_integrity(self, options);
+    if (ret != 0) {
+        goto out;
+    }
+
     if (options & TSK_CHECK_INDEXES) {
         ret = tsk_table_collection_check_index_integrity(self);
         if (ret != 0) {
