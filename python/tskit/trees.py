@@ -4248,20 +4248,11 @@ class TreeSequence:
         if nodes is None:
             nodes = self.samples()
 
-        ts = self
-        if isolated_as_missing and len(np.setdiff1d(nodes, ts.samples())) > 0:
-            # Can't use the variants method if isolated_as_missing is True and
-            # there are non-sample nodes, so simply mark the non-sample nodes as samples
-            tables = ts.dump_tables()
-            flags = tables.nodes.flags
-            flags &= np.invert(np.array([NODE_IS_SAMPLE], dtype=flags.dtype))
-            flags[nodes] |= NODE_IS_SAMPLE
-            tables.nodes.flags = flags
-            ts = tables.tree_sequence()
-
-        H = np.empty((ts.num_samples, ts.num_sites), dtype=np.int8)
+        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
         missing_int8 = ord(missing_data_character.encode("ascii"))
-        for var in ts.variants(samples=nodes, isolated_as_missing=isolated_as_missing):
+        for var in self.variants(
+            samples=nodes, isolated_as_missing=isolated_as_missing
+        ):
             alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
             for i, allele in enumerate(var.alleles):
                 if allele is not None:
@@ -4401,13 +4392,19 @@ class TreeSequence:
             yield Variant(site, alleles, genotypes)
 
     def genotype_matrix(
-        self, *, isolated_as_missing=None, alleles=None, impute_missing_data=None
+        self,
+        nodes=None,
+        *,
+        isolated_as_missing=None,
+        alleles=None,
+        impute_missing_data=None,
     ):
         """
         Returns an :math:`m \\times n` numpy array of the genotypes in this
-        tree sequence, where :math:`m` is the number of sites and :math:`n`
-        the number of samples. The genotypes are the indexes into the array
-        of ``alleles``, as described for the :class:`Variant` class.
+        tree sequence, where :math:`m` is the number of sites and :math:`n` is
+        the number of nodes (i.e. by default, the number of samples). The genotypes
+        are the indexes into the array of ``alleles``, as described for the
+        :class:`Variant` class.
 
         If isolated samples are present at a given site without mutations above them,
         they will be interpreted as :ref:`missing data<sec_data_model_missing_data>`
@@ -4425,6 +4422,11 @@ class TreeSequence:
             all genotypes are not needed at once, it is usually better to
             access them sequentially using the :meth:`.variants` iterator.
 
+        :param list nodes: A list of node IDs for which to output genotypes. If
+            ``None``, output genotypes for all the sample nodes. The provided
+            list can include non-sample (e.g. ancestral) nodes:
+            in genomic regions where these nodes are absent from the trees, the
+            returned genotype will contain :data:`MISSING_DATA`
         :param bool isolated_as_missing: If True, the allele assigned to
             missing samples (i.e., isolated samples without mutations) is
             the ``missing_data_character``. If False, missing samples will be
@@ -4454,7 +4456,16 @@ class TreeSequence:
         if isolated_as_missing is None:
             isolated_as_missing = not impute_missing_data
 
-        return self._ll_tree_sequence.get_genotype_matrix(
+        ts = self
+        if nodes is not None:
+            tables = ts.dump_tables()
+            flags = tables.nodes.flags
+            flags &= np.invert(np.array([NODE_IS_SAMPLE], dtype=flags.dtype))
+            flags[nodes] |= NODE_IS_SAMPLE
+            tables.nodes.flags = flags
+            ts = tables.tree_sequence()
+
+        return ts._ll_tree_sequence.get_genotype_matrix(
             isolated_as_missing=isolated_as_missing, alleles=alleles
         )
 
