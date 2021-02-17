@@ -4331,8 +4331,8 @@ class TreeSequence:
 
         :param bool as_bytes: If True, the genotype values will be returned
             as a Python bytes object. Legacy use only.
-        :param array_like samples: An array of sample IDs for which to generate
-            genotypes, or None for all samples. Default: None.
+        :param array_like samples: An array of node IDs for which to generate
+            genotypes, or None for all sample nodes. Default: None.
         :param bool isolated_as_missing: If True, the allele assigned to
             missing samples (i.e., isolated samples without mutations) is
             the ``missing_data_character``. If False, missing samples will be
