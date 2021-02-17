@@ -4166,6 +4166,7 @@ class TreeSequence:
 
     def haplotypes(
         self,
+        nodes=None,
         *,
         isolated_as_missing=None,
         missing_data_character="-",
@@ -4202,15 +4203,17 @@ class TreeSequence:
         to sample genotypes.
 
         .. warning::
-            For large datasets, this method can consume a **very large** amount of
-            memory! To output all the sample data, it is more efficient to iterate
-            over sites rather than over samples. If you have a large dataset but only
-            want to output the haplotypes for a subset of samples, it may be worth
-            calling :meth:`.simplify` to reduce tree sequence down to the required
-            samples before outputting haplotypes.
+            For large datasets with many ``nodes`` specified, this method can consume
+            a **very large** amount of memory! To output all the sample data, it is
+            more efficient to iterate over sites rather than over samples.
 
-        :return: An iterator over the haplotype strings for the samples in
-            this tree sequence.
+        :param list nodes: A list of node IDs for which to output haplotypes. If
+            ``None``, output haplotypes for all the sample nodes. The provided
+            list can include non-sample (e.g. ancestral) nodes:
+            in genomic regions where these nodes are absent from the trees, the
+            returned haplotype will contain either the ``missing_data_character``
+            or the ancestral state, depending on the value of ``isolated_as_missing``
+            below.  Default: None.
         :param bool isolated_as_missing: If True, the allele assigned to
             missing samples (i.e., isolated samples without mutations) is
             the ``missing_data_character``. If False,
@@ -4223,6 +4226,9 @@ class TreeSequence:
         :param bool impute_missing_data:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
+        :return: An iterator over the haplotype strings for the samples in
+            this tree sequence, in the same order as provided in the ``nodes``
+            parameter, or sample node id order if ``nodes`` is ``None``.
         :rtype: collections.abc.Iterable
         :raises: TypeError if the ``missing_data_character`` or any of the alleles
             at a site or the are not a single ascii character.
@@ -4239,10 +4245,23 @@ class TreeSequence:
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
             isolated_as_missing = not impute_missing_data
+        if nodes is None:
+            nodes = self.samples()
 
-        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
+        ts = self
+        if isolated_as_missing and len(np.setdiff1d(nodes, ts.samples())) > 0:
+            # Can't use the variants method if isolated_as_missing is True and
+            # there are non-sample nodes, so simply mark the non-sample nodes as samples
+            tables = ts.dump_tables()
+            flags = tables.nodes.flags
+            flags &= np.invert(np.array([NODE_IS_SAMPLE], dtype=flags.dtype))
+            flags[nodes] |= NODE_IS_SAMPLE
+            tables.nodes.flags = flags
+            ts = tables.tree_sequence()
+
+        H = np.empty((ts.num_samples, ts.num_sites), dtype=np.int8)
         missing_int8 = ord(missing_data_character.encode("ascii"))
-        for var in self.variants(isolated_as_missing=isolated_as_missing):
+        for var in ts.variants(samples=nodes, isolated_as_missing=isolated_as_missing):
             alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
             for i, allele in enumerate(var.alleles):
                 if allele is not None:
