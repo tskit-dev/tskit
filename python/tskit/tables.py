@@ -2502,7 +2502,7 @@ class TableCollection:
         to reconstruct the tree sequence describing the given ``samples``.
         This will change the ID of the nodes, so that the node
         ``samples[k]`` will have ID ``k`` in the result. The resulting
-        NodeTable will have only the first ``len(samples)`` individuals marked
+        NodeTable will have only the first ``len(samples)`` nodes marked
         as samples. The mapping from node IDs in the current set of tables to
         their equivalent values in the simplified tables is also returned as a
         numpy array. If an array ``a`` is returned by this function and ``u``
@@ -2512,7 +2512,7 @@ class TableCollection:
 
         Tables operated on by this function must: be sorted (see
         :meth:`TableCollection.sort`), have children be born strictly after their
-        parents, and the intervals on which any individual is a child must be
+        parents, and the intervals on which any node is a child must be
         disjoint. Other than this the tables need not satisfy remaining
         requirements to specify a valid tree sequence (but the resulting tables
         will).
