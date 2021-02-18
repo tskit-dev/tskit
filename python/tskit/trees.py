@@ -4930,9 +4930,10 @@ class TreeSequence:
         present in the simplified tree sequence.
 
         In the returned tree sequence, the node with ID ``0`` corresponds to
-        ``samples[0]``, node ``1`` corresponds to ``samples[1]``, and so on.
-        Besides the samples, node IDs in the returned tree sequence are then
-        allocated sequentially in time order.
+        ``samples[0]``, node ``1`` corresponds to ``samples[1]`` etc., and all
+        the passed-in nodes are flagged as samples. The remaining node IDs in
+        the returned tree sequence are allocated sequentially in time order
+        and are not flagged as samples.
 
         If you wish to simplify a set of tables that do not satisfy all
         requirements for building a TreeSequence, then use
@@ -4955,8 +4956,11 @@ class TreeSequence:
         these parameters to False, however, the corresponding tables can be preserved
         without changes.
 
-        :param list samples: The list of nodes for which to retain information. This
-            may be a numpy array (or array-like) object (dtype=np.int32).
+        :param list samples: The list of nodes for which to retain information. They
+            need not be nodes marked as samples in the original tree sequence, but
+            will constitute the entire set of samples in the returned tree sequence.
+            The list may be provided as a numpy array (or array-like) object
+            (dtype=np.int32).
         :param bool map_nodes: If True, return a tuple containing the resulting
             tree sequence and a numpy array mapping node IDs in the current tree
             sequence to their corresponding node IDs in the returned tree sequence.
