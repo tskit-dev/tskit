@@ -62,6 +62,7 @@ class WrightFisherSimulator:
         num_pops=1,
         mig_rate=0.0,
         record_migrations=False,
+        record_individuals=False,
     ):
         self.N = N
         self.num_pops = num_pops
@@ -69,6 +70,7 @@ class WrightFisherSimulator:
         self.survival = survival
         self.mig_rate = mig_rate
         self.record_migrations = record_migrations
+        self.record_individuals = record_individuals
         self.deep_history = deep_history
         self.debug = debug
         self.initial_generation_samples = initial_generation_samples
@@ -116,7 +118,12 @@ class WrightFisherSimulator:
                 flags = tskit.NODE_IS_SAMPLE
             for p in range(self.num_pops):
                 for _ in range(self.N):
-                    tables.nodes.add_row(flags=flags, time=ngens, population=p)
+                    individual = -1
+                    if self.record_individuals:
+                        individual = tables.individuals.add_row(parents=[-1, -1])
+                    tables.nodes.add_row(
+                        flags=flags, time=ngens, population=p, individual=individual
+                    )
 
         pops = [
             list(range(p * self.N, (p * self.N) + self.N)) for p in range(self.num_pops)
@@ -150,8 +157,18 @@ class WrightFisherSimulator:
                 k = 0
                 for j in range(self.N):
                     if dead[p][j]:
-                        # this is: offspring ID, lparent, rparent, breakpoint
-                        offspring = tables.nodes.add_row(time=t, population=p)
+                        lparent, rparent = new_parents[p][k]
+                        individual = -1
+                        if self.record_individuals:
+                            individual = tables.individuals.add_row(
+                                parents=[
+                                    tables.nodes[lparent].individual,
+                                    tables.nodes[rparent].individual,
+                                ]
+                            )
+                        offspring = tables.nodes.add_row(
+                            time=t, population=p, individual=individual
+                        )
                         if parent_pop[p][k] != p and self.record_migrations:
                             tables.migrations.add_row(
                                 left=0.0,
@@ -161,7 +178,6 @@ class WrightFisherSimulator:
                                 dest=p,
                                 time=t,
                             )
-                        lparent, rparent = new_parents[p][k]
                         k += 1
                         bp = self.random_breakpoint()
                         if self.debug:
@@ -182,9 +198,7 @@ class WrightFisherSimulator:
         flags = tables.nodes.flags
         flattened = [n for pop in pops for n in pop]
         flags[flattened] = tskit.NODE_IS_SAMPLE
-        tables.nodes.set_columns(
-            flags=flags, time=tables.nodes.time, population=tables.nodes.population
-        )
+        tables.nodes.flags = flags
         return tables
 
 
@@ -200,6 +214,7 @@ def wf_sim(
     num_pops=1,
     mig_rate=0.0,
     record_migrations=False,
+    record_individuals=False,
 ):
     sim = WrightFisherSimulator(
         N,
@@ -212,6 +227,7 @@ def wf_sim(
         num_pops=num_pops,
         mig_rate=mig_rate,
         record_migrations=record_migrations,
+        record_individuals=record_individuals,
     )
     return sim.run(ngens)
 
@@ -232,10 +248,12 @@ class TestSimulation:
             deep_history=False,
             seed=self.random_seed,
             record_migrations=True,
+            record_individuals=True,
         )
         assert tables.nodes.num_rows == 5 * 4 * (1 + 1)
         assert tables.edges.num_rows > 0
         assert tables.migrations.num_rows == 5 * 4
+        assert tables.individuals.num_rows == tables.nodes.num_rows
 
     def test_multipop_mig_deep(self):
         N = 10
@@ -248,6 +266,7 @@ class TestSimulation:
             mig_rate=1.0,
             seed=self.random_seed,
             record_migrations=True,
+            record_individuals=True,
         )
         assert tables.nodes.num_rows > (num_pops * N * ngens) + N
         assert tables.edges.num_rows > 0
@@ -255,6 +274,8 @@ class TestSimulation:
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows >= N * num_pops * ngens
         assert tables.populations.num_rows == num_pops
+        assert tables.individuals.num_rows >= num_pops * N * ngens
+
         # sort does not support mig
         tables.migrations.clear()
         # making sure trees are valid
@@ -276,6 +297,7 @@ class TestSimulation:
             deep_history=False,
             seed=self.random_seed,
             record_migrations=True,
+            record_individuals=True,
         )
         assert tables.nodes.num_rows == num_pops * N * (ngens + 1)
         assert tables.edges.num_rows > 0
@@ -283,6 +305,8 @@ class TestSimulation:
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == N * num_pops * ngens
         assert tables.populations.num_rows == num_pops
+        assert tables.individuals.num_rows == tables.nodes.num_rows
+        # FIXME this is no longer needed.
         # sort does not support mig
         tables.migrations.clear()
         # making sure trees are valid
@@ -299,6 +323,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
+        assert tables.individuals.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -319,6 +344,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
+        assert tables.individuals.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -333,6 +359,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
+        assert tables.individuals.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -356,6 +383,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
+        assert tables.individuals.num_rows == 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -418,72 +446,60 @@ class TestSimulation:
         for hap in ts.haplotypes():
             assert len(hap) == ts.num_sites
 
+    def test_record_individuals_initial_state(self):
+        N = 10
+        tables = wf_sim(
+            N=N, ngens=0, seed=12345, record_individuals=True, deep_history=False
+        )
+        tables.sort()
+        assert len(tables.individuals) == N
+        assert len(tables.nodes) == N
+        for individual in list(tables.individuals)[:N]:
+            assert list(individual.parents) == [-1, -1]
+        for j, node in enumerate(tables.nodes):
+            assert node.individual == j
 
-class TestIncrementalBuild:
-    """
-    Tests for incrementally building a tree sequence from forward time
-    simulations.
-    """
+    def test_record_individuals(self):
+        N = 10
+        tables = wf_sim(
+            N=N, ngens=10, seed=12345, record_individuals=True, deep_history=False
+        )
+        tables.sort()
+        assert len(tables.individuals) == len(tables.nodes)
+        ts = tables.tree_sequence()
+        for node in ts.nodes():
+            assert node.individual == node.id
+
+        for tree in ts.trees():
+            for u in tree.nodes():
+                parent_node = tree.parent(u)
+                # We already know the individual has the same ID as the node
+                individual = ts.individual(u)
+                assert parent_node in individual.parents
+
+
+def get_wf_sims(seed):
+    wf_sims = []
+    for N in [5, 10, 20]:
+        for surv in [0.0, 0.5, 0.9]:
+            for mut in [0.01, 1.0]:
+                for nloci in [1, 2, 3]:
+                    tables = wf_sim(N=N, ngens=N, survival=surv, seed=seed)
+                    tables.sort()
+                    ts = tables.tree_sequence()
+                    ts = tsutil.jukes_cantor(ts, num_sites=nloci, mu=mut, seed=seed)
+                    wf_sims.append(ts)
+    return wf_sims
+
+
+# List of simulations used to parametrize tests.
+wf_sims = get_wf_sims(1234)
 
 
 class TestSimplify:
     """
     Tests for simplify on cases generated by the Wright-Fisher simulator.
     """
-
-    def assertArrayEqual(self, x, y):
-        nt.assert_equal(x, y)
-
-    def assertTreeSequencesEqual(self, ts1, ts2):
-        assert list(ts1.samples()) == list(ts2.samples())
-        assert ts1.sequence_length == ts2.sequence_length
-        ts1_tables = ts1.dump_tables()
-        ts2_tables = ts2.dump_tables()
-        # print("compare")
-        # print(ts1_tables.nodes)
-        # print(ts2_tables.nodes)
-        assert ts1_tables.nodes == ts2_tables.nodes
-        assert ts1_tables.edges == ts2_tables.edges
-        assert ts1_tables.sites == ts2_tables.sites
-        assert ts1_tables.mutations == ts2_tables.mutations
-
-    def get_wf_sims(self, seed):
-        """
-        Returns an iterator of example tree sequences produced by the WF simulator.
-        """
-        for N in [5, 10, 20]:
-            for surv in [0.0, 0.5, 0.9]:
-                for mut in [0.01, 1.0]:
-                    for nloci in [1, 2, 3]:
-                        tables = wf_sim(N=N, ngens=N, survival=surv, seed=seed)
-                        tables.sort()
-                        ts = tables.tree_sequence()
-                        ts = tsutil.jukes_cantor(ts, num_sites=nloci, mu=mut, seed=seed)
-                        self.verify_simulation(ts, ngens=N)
-                        yield ts
-
-    def verify_simulation(self, ts, ngens):
-        """
-        Verify that in the full set of returned tables there is parentage
-        information for every individual, except those initially present.
-        """
-        tables = ts.dump_tables()
-        for u in range(tables.nodes.num_rows):
-            if tables.nodes.time[u] <= ngens:
-                lefts = []
-                rights = []
-                k = 0
-                for edge in ts.edges():
-                    if u == edge.child:
-                        lefts.append(edge.left)
-                        rights.append(edge.right)
-                    k += 1
-                lefts.sort()
-                rights.sort()
-                assert lefts[0] == 0.0
-                assert rights[-1] == 1.0
-                for k in range(len(lefts) - 1):
-                    assert lefts[k + 1] == rights[k]
 
     def verify_simplify(self, ts, new_ts, samples, node_map):
         """
@@ -522,7 +538,7 @@ class TestSimplify:
                 assert mrca2 != tskit.NULL
                 assert node_map[mrca1] == mrca2
         mut_parent = tsutil.compute_mutation_parent(ts=ts)
-        self.assertArrayEqual(mut_parent, ts.tables.mutations.parent)
+        nt.assert_equal(mut_parent, ts.tables.mutations.parent)
 
     def verify_haplotypes(self, ts, samples):
         """
@@ -541,42 +557,38 @@ class TestSimplify:
                 mapped_ids.append(mapped_node_id)
         assert sorted(mapped_ids) == sorted(sub_ts.samples())
 
-    @pytest.mark.slow
-    def test_simplify(self):
-        #  check that simplify(big set) -> simplify(subset) equals simplify(subset)
-        seed = 23
-        random.seed(seed)
-        for ts in self.get_wf_sims(seed=seed):
-            s = tests.Simplifier(ts, ts.samples())
-            py_full_ts, py_full_map = s.simplify()
-            full_ts, full_map = ts.simplify(ts.samples(), map_nodes=True)
-            assert all(py_full_map == full_map)
-            self.assertTreeSequencesEqual(full_ts, py_full_ts)
+    @pytest.mark.parametrize("ts", wf_sims)
+    def test_python_simplify_all_samples(self, ts):
+        s = tests.Simplifier(ts, ts.samples())
+        py_full_ts, py_full_map = s.simplify()
+        full_ts, full_map = ts.simplify(ts.samples(), map_nodes=True)
+        assert all(py_full_map == full_map)
+        tsutil.assert_table_collections_equal(
+            full_ts.tables, py_full_ts.tables, ignore_provenance=True
+        )
 
-            for nsamples in [2, 5, 10]:
-                sub_samples = random.sample(
-                    list(ts.samples()), min(nsamples, ts.sample_size)
-                )
-                s = tests.Simplifier(ts, sub_samples)
-                py_small_ts, py_small_map = s.simplify()
-                small_ts, small_map = ts.simplify(samples=sub_samples, map_nodes=True)
-                self.assertTreeSequencesEqual(small_ts, py_small_ts)
-                self.verify_simplify(ts, small_ts, sub_samples, small_map)
-                self.verify_haplotypes(ts, samples=sub_samples)
+    @pytest.mark.parametrize("ts", wf_sims)
+    @pytest.mark.parametrize("nsamples", [2, 5, 10])
+    def test_python_simplify_sample_subset(self, ts, nsamples):
+        sub_samples = random.sample(list(ts.samples()), min(nsamples, ts.sample_size))
+        s = tests.Simplifier(ts, sub_samples)
+        py_small_ts, py_small_map = s.simplify()
+        small_ts, small_map = ts.simplify(samples=sub_samples, map_nodes=True)
+        tsutil.assert_table_collections_equal(
+            small_ts.tables, py_small_ts.tables, ignore_provenance=True
+        )
+        self.verify_simplify(ts, small_ts, sub_samples, small_map)
+        self.verify_haplotypes(ts, samples=sub_samples)
 
-    @pytest.mark.slow
-    def test_simplify_tables(self):
-        seed = 71
-        for ts in self.get_wf_sims(seed=seed):
-            for nsamples in [2, 5, 10]:
-                tables = ts.dump_tables()
-                sub_samples = random.sample(
-                    list(ts.samples()), min(nsamples, ts.num_samples)
-                )
-                node_map = tables.simplify(samples=sub_samples)
-                small_ts = tables.tree_sequence()
-                other_tables = small_ts.dump_tables()
-                tables.provenances.clear()
-                other_tables.provenances.clear()
-                assert tables == other_tables
-                self.verify_simplify(ts, small_ts, sub_samples, node_map)
+    @pytest.mark.parametrize("ts", wf_sims)
+    @pytest.mark.parametrize("nsamples", [2, 5, 10])
+    def test_simplify_tables(self, ts, nsamples):
+        tables = ts.dump_tables()
+        sub_samples = random.sample(list(ts.samples()), min(nsamples, ts.num_samples))
+        node_map = tables.simplify(samples=sub_samples)
+        small_ts = tables.tree_sequence()
+        other_tables = small_ts.dump_tables()
+        tables.provenances.clear()
+        other_tables.provenances.clear()
+        assert tables == other_tables
+        self.verify_simplify(ts, small_ts, sub_samples, node_map)

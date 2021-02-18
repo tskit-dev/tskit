@@ -1076,9 +1076,9 @@ test_simplest_unary_with_individuals(void)
                         "1  2   6   4\n";
     const char *individuals = "0    0.5     -1,-1\n"
                               "0    1.5,3.1 -1,-1\n"
-                              "0    2.1     -1,-1\n"
-                              "0    3.2     -1,-1\n"
-                              "0    4.2     -1,-1\n";
+                              "0    2.1     0,1\n"
+                              "0    3.2     1,2\n"
+                              "0    4.2     2,3\n";
     const char *nodes_expect = "1  0   0   -1\n"
                                "1  0   0   0\n"
                                "0  1   0   1\n"
@@ -1091,8 +1091,8 @@ test_simplest_unary_with_individuals(void)
                                "1  2   5   4\n";
     const char *individuals_expect = "0    0.5     -1,-1\n"
                                      "0    1.5,3.1 -1,-1\n"
-                                     "0    2.1     -1,-1\n"
-                                     "0    3.2     -1,-1\n";
+                                     "0    2.1     0,1\n"
+                                     "0    3.2     1,2\n";
     tsk_treeseq_t ts, simplified, expected;
     tsk_id_t sample_ids[] = { 0, 1 };
 

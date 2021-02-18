@@ -453,7 +453,10 @@ class Simplifier:
             if count > 0:
                 row = input_individuals[input_id]
                 output_id = self.tables.individuals.add_row(
-                    flags=row.flags, location=row.location, metadata=row.metadata
+                    flags=row.flags,
+                    location=row.location,
+                    parents=row.parents,
+                    metadata=row.metadata,
                 )
                 individual_id_map[input_id] = output_id
 
@@ -467,6 +470,23 @@ class Simplifier:
             individual=individual_id_map[nodes.individual],
             population=population_id_map[nodes.population],
         )
+
+        # Remap the parent ids of individuals
+        individuals_copy = self.tables.individuals.copy()
+        self.tables.individuals.clear()
+        for row in individuals_copy:
+            mapped_parents = []
+            for p in row.parents:
+                if p == -1:
+                    mapped_parents.append(-1)
+                else:
+                    mapped_parents.append(individual_id_map[p])
+            self.tables.individuals.add_row(
+                flags=row.flags,
+                location=row.location,
+                parents=mapped_parents,
+                metadata=row.metadata,
+            )
 
         # We don't support migrations for now. We'll need to remap these as well.
         assert self.ts.num_migrations == 0

@@ -7352,6 +7352,14 @@ simplifier_finalise_references(simplifier_t *self)
         }
     }
 
+    /* Remap parent IDs */
+    for (j = 0; j < self->tables->individuals.parents_length; j++) {
+        self->tables->individuals.parents[j]
+            = self->tables->individuals.parents[j] == TSK_NULL
+                  ? TSK_NULL
+                  : individual_id_map[self->tables->individuals.parents[j]];
+    }
+
     /* Remap node IDs referencing the above */
     for (j = 0; j < num_nodes; j++) {
         pop_id = node_population[j];

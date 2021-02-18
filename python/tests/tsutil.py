@@ -873,6 +873,10 @@ def shuffle_tables(
         ind_id_map[j] = tables.individuals.add_row(
             flags=i.flags, location=i.location, parents=i.parents, metadata=i.metadata
         )
+    tables.individuals.parents = [
+        tskit.NULL if i == tskit.NULL else ind_id_map[i]
+        for i in tables.individuals.parents
+    ]
     # nodes (same order, but remapped populations and individuals)
     for n in orig.nodes:
         tables.nodes.add_row(
