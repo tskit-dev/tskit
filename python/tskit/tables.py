@@ -2492,7 +2492,8 @@ class TableCollection:
         filter_populations=True,
         filter_individuals=True,
         filter_sites=True,
-        keep_unary=None,
+        keep_unary=False,
+        keep_unary_in_individuals=False,
         keep_input_roots=False,
         record_provenance=True,
         filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
@@ -2538,13 +2539,13 @@ class TableCollection:
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: True)
-        :param str keep_unary: When to preserve unary nodes (i.e. nodes with
-            exactly one child) that exist on the path from samples to root. If
-            ``None`` all unary nodes are removed. If "all" all such nodes will
-            be preserved in the output. If "in_individuals", they are only preserved
-            if they are associated with an individual. (Note that the boolean values
-            ``True`` and ``False`` can be used as shortcuts for "all" and ``None``.)
-            (Default: None)
+        :param bool keep_unary: If True, preserve unary nodes (i.e. nodes with
+            exactly one child) that exist on the path from samples to root.
+            (Default: False)
+        :param bool keep_unary_in_individuals: If True, preserve unary nodes
+            that exist on the path from samples to root, but only if they are
+            associated with an individual in the individuals table. Cannot be
+            specified at the same time as ``keep_unary``. (Default: False)
         :param bool keep_input_roots: Whether to retain history ancestral to the
             MRCA of the samples. If ``False``, no topology older than the MRCAs of the
             samples will be included. If ``True`` the roots of all trees in the returned
@@ -2572,14 +2573,6 @@ class TableCollection:
             ].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
-        keep_unary_flag = False
-        keep_unary_in_individuals = False
-        if keep_unary == "all":
-            keep_unary_flag = True
-        elif keep_unary == "in_individuals":
-            keep_unary_in_individuals = True
-        elif keep_unary is not None:
-            keep_unary_flag = keep_unary
 
         node_map = self._ll_tables.simplify(
             samples,
@@ -2587,7 +2580,7 @@ class TableCollection:
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
             reduce_to_site_topology=reduce_to_site_topology,
-            keep_unary=keep_unary_flag,
+            keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,
         )
