@@ -1106,10 +1106,19 @@ class TestTreeSequence(HighLevelTestCase):
                 a2 = [variant.alleles[g] for g in variant.genotypes]
                 assert a1 == a2
 
+    def verify_tables_api_equality(self, ts):
+        for samples in [None, list(ts.samples()), ts.samples()]:
+            tables = ts.dump_tables()
+            tables.simplify(samples=samples)
+            assert tables.equals(
+                ts.simplify(samples=samples).tables, ignore_timestamps=True
+            )
+
     @pytest.mark.slow
     def test_simplify(self):
         num_mutations = 0
         for ts in get_example_tree_sequences():
+            self.verify_tables_api_equality(ts)
             self.verify_simplify_provenance(ts)
             n = ts.get_sample_size()
             num_mutations += ts.get_num_mutations()
