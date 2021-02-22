@@ -2368,12 +2368,13 @@ class TestSimplifyTables:
             9,
             10,
             seed=1,
-            deep_history=True,
+            deep_history=False,
             initial_generation_samples=False,
             num_loci=5,
             record_individuals=True,
         )
         assert tables.individuals.num_rows > 50
+        assert np.all(tables.nodes.individual >= 0)
         individuals_copy = tables.copy().individuals
         tables.individuals.clear()
         tables.individuals.metadata_schema = tskit.MetadataSchema({"codec": "json"})
@@ -2403,6 +2404,26 @@ class TestSimplifyTables:
                         ts.individual(parent).metadata["original_id"] == original_parent
                     )
         assert set(tables.individuals.parents) != {tskit.NULL}
+
+    def verify_complete_genetic_pedigree(self, tables):
+        ts = tables.tree_sequence()
+        for edge in ts.edges():
+            child = ts.individual(ts.node(edge.child).individual)
+            parent = ts.individual(ts.node(edge.parent).individual)
+            assert parent.id in child.parents
+            assert parent.metadata["original_id"] in child.metadata["original_parents"]
+
+    def test_no_complete_genetic_pedigree(self, wf_sim_with_individual_metadata):
+        tables = wf_sim_with_individual_metadata.copy()
+        tables.simplify()  # Will remove intermediate individuals
+        with pytest.raises(AssertionError):
+            self.verify_complete_genetic_pedigree(tables)
+
+    def test_complete_genetic_pedigree(self, wf_sim_with_individual_metadata):
+        for params in [{"keep_unary": True}, {"keep_unary_in_individuals": True}]:
+            tables = wf_sim_with_individual_metadata.copy()
+            tables.simplify(**params)  # Keep intermediate individuals
+            self.verify_complete_genetic_pedigree(tables)
 
     def test_shuffled_individual_parent_mapping(self, wf_sim_with_individual_metadata):
         tables = wf_sim_with_individual_metadata.copy()

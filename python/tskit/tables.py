@@ -2493,6 +2493,7 @@ class TableCollection:
         filter_individuals=True,
         filter_sites=True,
         keep_unary=False,
+        keep_unary_in_individuals=None,
         keep_input_roots=False,
         record_provenance=True,
         filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
@@ -2538,9 +2539,14 @@ class TableCollection:
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: True)
-        :param bool keep_unary: If True, any unary nodes (i.e. nodes with exactly
-            one child) that exist on the path from samples to root will be preserved
-            in the output. (Default: False)
+        :param bool keep_unary: If True, preserve unary nodes (i.e. nodes with
+            exactly one child) that exist on the path from samples to root.
+            (Default: False)
+        :param bool keep_unary_in_individuals: If True, preserve unary nodes
+            that exist on the path from samples to root, but only if they are
+            associated with an individual in the individuals table. Cannot be
+            specified at the same time as ``keep_unary``. (Default: ``None``,
+            equivalent to False)
         :param bool keep_input_roots: Whether to retain history ancestral to the
             MRCA of the samples. If ``False``, no topology older than the MRCAs of the
             samples will be included. If ``True`` the roots of all trees in the returned
@@ -2568,6 +2574,9 @@ class TableCollection:
             ].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
+        if keep_unary_in_individuals is None:
+            keep_unary_in_individuals = False
+
         node_map = self._ll_tables.simplify(
             samples,
             filter_sites=filter_sites,
@@ -2575,6 +2584,7 @@ class TableCollection:
             filter_populations=filter_populations,
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary,
+            keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,
         )
         if record_provenance:

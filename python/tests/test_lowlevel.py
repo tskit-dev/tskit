@@ -264,6 +264,8 @@ class TestTableCollection(LowLevelTestCase):
         with pytest.raises(TypeError):
             tc.simplify([0, 1], keep_unary="sdf")
         with pytest.raises(TypeError):
+            tc.simplify([0, 1], keep_unary_in_individuals="abc")
+        with pytest.raises(TypeError):
             tc.simplify([0, 1], keep_input_roots="sdf")
         with pytest.raises(TypeError):
             tc.simplify([0, 1], filter_populations="x")
