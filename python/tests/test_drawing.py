@@ -1918,6 +1918,36 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
 
+    def test_known_svg_ts_plain(self):
+        """
+        Plain style, with no background shading and a variable X axis
+        """
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(x_scale="treewise")
+        # Prettify the SVG code for easy inspection
+        svg = xml.dom.minidom.parseString(svg).toprettyxml()
+        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "ts_plain.svg"
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)
+
+    def test_known_svg_ts_with_xlabel(self):
+        """
+        Style with X axis label
+        """
+        ts = self.get_simple_ts()
+        x_label = "genomic position (bp)"
+        svg = ts.draw_svg(x_label=x_label)
+        # Prettify the SVG code for easy inspection
+        svg = xml.dom.minidom.parseString(svg).toprettyxml()
+        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "ts_xlabel.svg"
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        assert x_label in svg
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)
+
 
 class TestRounding:
     def test_rnd(self):
