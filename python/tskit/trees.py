@@ -5276,6 +5276,7 @@ class TreeSequence:
         style=None,
         order=None,
         force_root_branch=None,
+        x_label=None,
         **kwargs,
     ):
         """
@@ -5338,8 +5339,10 @@ class TreeSequence:
         :param bool force_root_branch: If ``True`` plot a branch (edge) above every tree
             root in the tree sequence. If ``None`` (default) then only plot such
             root branches if any root in the tree sequence has a mutation above it.
+        :param str x_label: A string to display on the X axis, e.g. "Genomic position".
+            If ``None`` (default) do not label the X axis in this tree sequence.
 
-        :return: An SVG representation of a tree.
+        :return: An SVG representation of a tree sequence.
         :rtype: str
         """
         draw = drawing.SvgTreeSequence(
@@ -5353,6 +5356,7 @@ class TreeSequence:
             style=style,
             order=order,
             force_root_branch=force_root_branch,
+            x_label=x_label,
             **kwargs,
         )
         output = draw.drawing.tostring()

@@ -247,6 +247,7 @@ class SvgTreeSequence:
         order=None,
         force_root_branch=None,
         symbol_size=None,
+        x_label=None,
     ):
         self.ts = ts
         if size is None:
@@ -278,11 +279,11 @@ class SvgTreeSequence:
             )
         # TODO add general padding arguments following matplotlib's terminology.
         self.axes_x_offset = 15
-        self.axes_y_offset = 10
+        self.axes_y_offset = 20 if x_label is None else 34
         self.treebox_x_offset = self.axes_x_offset + 5
         self.treebox_y_offset = self.axes_y_offset + axis_top_pad
         treebox_width = size[0] - 2 * self.treebox_x_offset
-        treebox_height = size[1] - 2 * self.treebox_y_offset
+        treebox_height = size[1] - self.treebox_y_offset
         tree_width = treebox_width / ts.num_trees
         svg_trees = [
             SvgTree(
@@ -305,7 +306,7 @@ class SvgTreeSequence:
         ]
 
         ticks = []  # svg_x_pos of drawn trees, svg_x_pos of breakpoints, & labels
-        y = self.treebox_y_offset
+        y = 0
         trees = root_group.add(dwg.g(class_="trees"))
         drawing_scale = float(tree_width * ts.num_trees) / ts.sequence_length
         tree_x = self.treebox_x_offset
@@ -336,7 +337,7 @@ class SvgTreeSequence:
 
         axes_left = self.treebox_x_offset
         axes_right = self.image_size[0] - self.treebox_x_offset
-        y = self.image_size[1] - 2 * self.axes_y_offset
+        y = self.image_size[1] - self.axes_y_offset
         axis = root_group.add(dwg.g(class_="axis"))
         axis.add(dwg.line((axes_left, y), (axes_right, y)))
         integer_ticks = all(round(label) == label for _, _, label in ticks)
@@ -377,11 +378,20 @@ class SvgTreeSequence:
                 dwg,
                 axis,
                 x,
-                y + 20,
+                y + 18,
                 f"{genome_coord:.{label_precision}f}",
-                font_size=14,
+                class_="x-tick-label",
                 text_anchor="middle",
-                font_weight="bold",
+            )
+        if x_label is not None:
+            add_text_in_group(
+                dwg,
+                axis,
+                (axes_left + axes_right) / 2,
+                y + 30,
+                x_label,
+                class_="x-label",
+                text_anchor="middle",
             )
 
 
@@ -394,7 +404,8 @@ class SvgTree:
 
     standard_style = (
         ".tree-sequence .background path {fill: #808080; fill-opacity:.1}"
-        ".tree-sequence .axis {font-weight: bold}"
+        ".tree-sequence .axis {font-size: 14px}"
+        ".tree-sequence .x-tick-label {font-weight: bold}"
         ".tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}"
         ".tree-sequence .axis line, .edge {stroke:black; fill:none}"
         ".node > .sym {fill: black; stroke: none}"
@@ -569,7 +580,7 @@ class SvgTree:
 
         # TODO should make this a parameter somewhere. This is padding to keep the
         # node labels within the treebox
-        label_padding = 10
+        label_padding = 6
         y_padding = self.treebox_y_offset + 2 * label_padding
         height = self.image_size[1]
         self.root_branch_length = 0
