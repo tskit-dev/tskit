@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="200" id="XYZ" version="1.1" width="200">
 	<defs>
-		<style type="text/css"><![CDATA[.tree-sequence .background path {fill: #808080; fill-opacity:.1}.tree-sequence .axis {font-size: 14px}.tree-sequence .x-tick-label {font-weight: bold}.tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}.tree-sequence .axis line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.node .mut text {fill: red; font-style: italic}.node .mut .sym {stroke: red; stroke-width: 1.5px}.tree text {dominant-baseline: middle}.tree .lab.lft {text-anchor: end}.tree .lab.rgt {text-anchor: start}.edge {stroke: blue}]]></style>
+		<style type="text/css"><![CDATA[.tree-sequence .background path {fill: #808080; fill-opacity:.1}.tree-sequence .axis {font-size: 14px}.tree-sequence .x-tick-label {font-weight: bold}.tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}.tree-sequence .axis line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.site > .sym {stroke: black}.mut text {fill: red; font-style: italic}.mut .sym {fill: none; stroke: red}.node .mut .sym {stroke-width: 1.5px}.tree text {dominant-baseline: middle}.tree .lab.lft {text-anchor: end}.tree .lab.rgt {text-anchor: start}.edge {stroke: blue}]]></style>
 	</defs>
 	<g class="tree t1">
 		<g class="node n7 p0 root" transform="translate(100.0 22.0)">

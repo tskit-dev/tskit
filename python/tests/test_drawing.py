@@ -45,6 +45,7 @@ from tskit import drawing
 class TestTreeDraw:
     """
     Tests for the tree drawing functionality.
+    TODO - the get_XXX_tree() functions should probably be placed in fixtures
     """
 
     def get_binary_tree(self):
@@ -1851,7 +1852,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         self.verify_basic_svg(svg)
         assert svg.count("rect") == 10
         assert svg.count('path class="edge"') == 10
-        assert svg.count('path class="sym"') == ts_no_edges.num_mutations
+        assert svg.count('path class="sym"') == (
+            ts_no_edges.num_mutations + ts_no_edges.num_sites
+        )
 
     def test_tree_root_branch(self):
         # in the simple_ts, there are root mutations in the first tree but not the second
@@ -1881,56 +1884,59 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert not ("H 0" in snippet2a)  # No root branch
         assert "H 0" in snippet2b
 
+    def verify_known_svg(self, svg, filename, **kwargs):
+        # expected SVG files can be inspected in tests/data/svg/*.svg
+        svg = xml.dom.minidom.parseString(
+            svg
+        ).toprettyxml()  # Prettify for easy viewing
+        self.verify_basic_svg(svg, **kwargs)
+        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / filename
+        # TODO: replace below with a pytest flag
+        # with open(svg_fn, "wt") as file:  # Uncomment to save new expected files
+        #     file.write(svg)
+        with open(svg_fn, "rb") as file:
+            expected_svg = file.read()
+        self.assertXmlEquivalentOutputs(svg, expected_svg)
+
     def test_known_svg_tree_no_mut(self):
         tree = self.get_simple_ts().at_index(1)
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        # Prettify the SVG code for easy inspection
-        svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "tree.svg"
-        with open(svg_fn, "rb") as file:
-            expected_svg = file.read()
-        self.assertXmlEquivalentOutputs(svg, expected_svg)
+        self.verify_known_svg(svg, "tree.svg")
 
     def test_known_svg_tree_root_mut(self):
         tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        # Prettify the SVG code for easy inspection
-        svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "mut_tree.svg"
-        with open(svg_fn, "rb") as file:
-            expected_svg = file.read()
-        self.assertXmlEquivalentOutputs(svg, expected_svg)
+        self.verify_known_svg(svg, "mut_tree.svg")
 
     def test_known_svg_ts(self):
         ts = self.get_simple_ts()
         svg = ts.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        # Prettify the SVG code for easy inspection
-        svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "ts.svg"
-        self.verify_basic_svg(svg, width=200 * ts.num_trees)
-        with open(svg_fn, "rb") as file:
-            expected_svg = file.read()
-        self.assertXmlEquivalentOutputs(svg, expected_svg)
+        assert svg.count('class="site ') == ts.num_sites
+        assert svg.count('class="mut ') == ts.num_mutations * 2
+        self.verify_known_svg(svg, "ts.svg", width=200 * ts.num_trees)
+
+    def test_known_svg_nonbinary_ts(self):
+        ts = self.get_nonbinary_ts()
+        svg = ts.draw_svg(tree_height_scale="log_time")
+        assert svg.count('class="site ') == ts.num_sites
+        assert svg.count('class="mut ') == ts.num_mutations * 2
+        self.verify_known_svg(svg, "ts_nonbinary.svg", width=200 * ts.num_trees)
 
     def test_known_svg_ts_plain(self):
         """
-        Plain style, with no background shading and a variable X axis
+        Plain style: no background shading and a variable scale X axis with no sites
         """
         ts = self.get_simple_ts()
         svg = ts.draw_svg(x_scale="treewise")
-        # Prettify the SVG code for easy inspection
-        svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "ts_plain.svg"
-        self.verify_basic_svg(svg, width=200 * ts.num_trees)
-        with open(svg_fn, "rb") as file:
-            expected_svg = file.read()
-        self.assertXmlEquivalentOutputs(svg, expected_svg)
+        assert svg.count('class="site ') == 0
+        assert svg.count('class="mut ') == ts.num_mutations
+        self.verify_known_svg(svg, "ts_plain.svg", width=200 * ts.num_trees)
 
     def test_known_svg_ts_with_xlabel(self):
         """
@@ -1939,14 +1945,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         ts = self.get_simple_ts()
         x_label = "genomic position (bp)"
         svg = ts.draw_svg(x_label=x_label)
-        # Prettify the SVG code for easy inspection
-        svg = xml.dom.minidom.parseString(svg).toprettyxml()
-        svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / "ts_xlabel.svg"
-        self.verify_basic_svg(svg, width=200 * ts.num_trees)
         assert x_label in svg
-        with open(svg_fn, "rb") as file:
-            expected_svg = file.read()
-        self.assertXmlEquivalentOutputs(svg, expected_svg)
+        self.verify_known_svg(svg, "ts_xlabel.svg", width=200 * ts.num_trees)
 
 
 class TestRounding:

@@ -342,7 +342,6 @@ class SvgTreeSequence:
         axis.add(dwg.line((axes_left, y), (axes_right, y)))
         integer_ticks = all(round(label) == label for _, _, label in ticks)
         label_precision = 0 if integer_ticks else 2
-
         for i, tick in enumerate(ticks):
             tree_x, break_x, genome_coord = tick
             if x_scale == "treewise":
@@ -372,6 +371,7 @@ class SvgTreeSequence:
                 dwg.line(
                     (rnd(x), rnd(y - tick_len[0])),
                     (rnd(x), rnd(y + tick_len[1])),
+                    class_="tick",
                 )
             )
             add_text_in_group(
@@ -383,6 +383,32 @@ class SvgTreeSequence:
                 class_="x-tick-label",
                 text_anchor="middle",
             )
+        if x_scale == "physical":
+            # Add sites as upper chevrons
+            for s in ts.sites():
+                x = axes_left + s.position * drawing_scale
+                site = axis.add(dwg.g(class_=f"site s{s.id}"))
+                site.add(
+                    dwg.path(
+                        [("M", (rnd(x), rnd(y))), ("v", rnd(-2 * tick_len[1]))],
+                        class_="sym",
+                    )
+                )
+                for i, m in enumerate(s.mutations):
+                    mut = dwg.g(class_=f"mut m{m.id}")
+                    ypos = y - i * 4 - 1.5
+                    mut.add(
+                        dwg.polyline(
+                            [
+                                (rnd(x - tick_len[1] / 2), rnd(ypos - tick_len[1])),
+                                (rnd(x), rnd(ypos)),
+                                (rnd(x + tick_len[1] / 2), rnd(ypos - tick_len[1])),
+                            ],
+                            class_="sym",
+                        )
+                    )
+                    site.add(mut)
+
         if x_label is not None:
             add_text_in_group(
                 dwg,
@@ -409,8 +435,10 @@ class SvgTree:
         ".tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}"
         ".tree-sequence .axis line, .edge {stroke:black; fill:none}"
         ".node > .sym {fill: black; stroke: none}"
-        ".node .mut text {fill: red; font-style: italic}"
-        ".node .mut .sym {stroke: red; stroke-width: 1.5px}"
+        ".site > .sym {stroke: black}"
+        ".mut text {fill: red; font-style: italic}"
+        ".mut .sym {fill: none; stroke: red}"
+        ".node .mut .sym {stroke-width: 1.5px}"
         ".tree text {dominant-baseline: middle}"  # NB: not inherited in css 1.1
         ".tree .lab.lft {text-anchor: end}"
         ".tree .lab.rgt {text-anchor: start}"
