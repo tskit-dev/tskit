@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="200" version="1.1" width="1000">
 	<defs>
-		<style type="text/css"><![CDATA[.tree-sequence .background path {fill: #808080; fill-opacity:.1}.tree-sequence .axis {font-size: 14px}.tree-sequence .x-tick-label {font-weight: bold}.tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}.tree-sequence .axis line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.node .mut text {fill: red; font-style: italic}.node .mut .sym {stroke: red; stroke-width: 1.5px}.tree text {dominant-baseline: middle}.tree .lab.lft {text-anchor: end}.tree .lab.rgt {text-anchor: start}]]></style>
+		<style type="text/css"><![CDATA[.tree-sequence .background path {fill: #808080; fill-opacity:.1}.tree-sequence .axis {font-size: 14px}.tree-sequence .x-tick-label {font-weight: bold}.tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}.tree-sequence .axis line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.site > .sym {stroke: black}.mut text {fill: red; font-style: italic}.mut .sym {fill: none; stroke: red}.node .mut .sym {stroke-width: 1.5px}.tree text {dominant-baseline: middle}.tree .lab.lft {text-anchor: end}.tree .lab.rgt {text-anchor: start}]]></style>
 	</defs>
 	<g class="tree-sequence">
 		<g class="background">
@@ -220,29 +220,44 @@
 		</g>
 		<g class="axis">
 			<line x1="20" x2="980" y1="166" y2="166"/>
-			<line x1="20" x2="20" y1="166" y2="171"/>
+			<line class="tick" x1="20" x2="20" y1="166" y2="171"/>
 			<g transform="translate(20, 184)">
 				<text class="x-tick-label" text-anchor="middle">0.00</text>
 			</g>
-			<line x1="77.3623" x2="77.3623" y1="166" y2="171"/>
+			<line class="tick" x1="77.3623" x2="77.3623" y1="166" y2="171"/>
 			<g transform="translate(77.3623, 184)">
 				<text class="x-tick-label" text-anchor="middle">0.06</text>
 			</g>
-			<line x1="780.883" x2="780.883" y1="166" y2="171"/>
+			<line class="tick" x1="780.883" x2="780.883" y1="166" y2="171"/>
 			<g transform="translate(780.883, 184)">
 				<text class="x-tick-label" text-anchor="middle">0.79</text>
 			</g>
-			<line x1="890.091" x2="890.091" y1="166" y2="171"/>
+			<line class="tick" x1="890.091" x2="890.091" y1="166" y2="171"/>
 			<g transform="translate(890.091, 184)">
 				<text class="x-tick-label" text-anchor="middle">0.91</text>
 			</g>
-			<line x1="893.883" x2="893.883" y1="166" y2="171"/>
+			<line class="tick" x1="893.883" x2="893.883" y1="166" y2="171"/>
 			<g transform="translate(893.883, 184)">
 				<text class="x-tick-label" text-anchor="middle">0.91</text>
 			</g>
-			<line x1="980.0" x2="980.0" y1="166" y2="171"/>
+			<line class="tick" x1="980.0" x2="980.0" y1="166" y2="171"/>
 			<g transform="translate(980.0, 184)">
 				<text class="x-tick-label" text-anchor="middle">1.00</text>
+			</g>
+			<g class="site s0">
+				<path class="sym" d="M 68.0 166 v -10"/>
+				<g class="mut m0">
+					<polyline class="sym" points="65.5,159.5 68.0,164.5 70.5,159.5"/>
+				</g>
+				<g class="mut m1">
+					<polyline class="sym" points="65.5,155.5 68.0,160.5 70.5,155.5"/>
+				</g>
+				<g class="mut m2">
+					<polyline class="sym" points="65.5,151.5 68.0,156.5 70.5,151.5"/>
+				</g>
+			</g>
+			<g class="site s1">
+				<path class="sym" d="M 77.6 166 v -10"/>
 			</g>
 			<g transform="translate(500.0, 196)">
 				<text class="x-label" text-anchor="middle">genomic position (bp)</text>

@@ -5311,11 +5311,13 @@ class TreeSequence:
             display).
         :type size: tuple(int, int)
         :param str x_scale: Control how the X axis is drawn. If "physical" (the default)
-            the axis scales linearly with physical distance along the sequence, and
+            the axis scales linearly with physical distance along the sequence,
             background shading is used to indicate the position of the trees along the
-            sequence. If "treewise", each axis tick corresponds to a tree boundary, which
-            are positioned evenly along the axis, so that the X axis is of variable scale
-            and no background scaling is required.
+            X axis, and sites (with associated mutations) are marked at the
+            appropriate physical position on axis line. If "treewise", each axis tick
+            corresponds to a tree boundary, which are positioned evenly along the axis,
+            so that the X axis is of variable scale, no background scaling is required,
+            and site positions are not marked on the axis.
         :param str tree_height_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
             values (this is the default). If this is equal to ``"log_time"``, node
