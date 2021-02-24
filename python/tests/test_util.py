@@ -159,7 +159,7 @@ class TestNumpyArrayCasting:
                 ["str"],
                 {},
                 [{}],
-                np.array([0, 1], dtype=np.float),
+                np.array([0, 1], dtype=float),
             ]:
                 with pytest.raises(TypeError):
                     util.safe_np_int_cast(bad_type, dtype)

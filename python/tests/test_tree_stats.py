@@ -1853,7 +1853,7 @@ def branch_genetic_relatedness(
                 area = tr.branch_length(v) * span
                 haps = np.zeros(len(all_samples))
                 for x, u in enumerate(all_samples):
-                    haps[x] = np.int(tr.is_descendant(u, v))
+                    haps[x] = int(tr.is_descendant(u, v))
                 haps_mean = haps.mean()
                 haps_centered = haps - haps_mean
                 for i, (ix, iy) in enumerate(indexes):
@@ -1899,7 +1899,7 @@ def node_genetic_relatedness(
             for v in tr.nodes():
                 haps = np.zeros(len(all_samples))
                 for x, u in enumerate(all_samples):
-                    haps[x] = np.int(tr.is_descendant(u, v))
+                    haps[x] = int(tr.is_descendant(u, v))
                 haps_mean = haps.mean()
                 haps_centered = haps - haps_mean
                 for i, (ix, iy) in enumerate(indexes):
