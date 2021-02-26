@@ -66,7 +66,9 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
             if not (edge.right <= interval_left or edge.left >= interval_right):
                 left = max(interval_left, edge.left)
                 right = min(interval_right, edge.right)
-                tables.edges.add_row(left, right, edge.parent, edge.child)
+                tables.edges.add_row(
+                    left, right, edge.parent, edge.child, edge.metadata
+                )
     for site in ts.sites():
         for interval_left, interval_right in intervals:
             if interval_left <= site.position < interval_right:
@@ -7360,6 +7362,14 @@ class TestKeepSingleInterval(unittest.TestCase):
     Tests for cutting up tree sequences along the genome.
     """
 
+    def test_slice_unchanged(self):
+        ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
+        tables = ts.dump_tables()
+        tables.edges.packset_metadata([b"edge {i}" for i in range(ts.num_edges)])
+        ts1 = tables.tree_sequence()
+        ts2 = ts1.keep_intervals([[0, 1]], simplify=False, record_provenance=False)
+        tsutil.assert_table_collections_equal(ts1.tables, ts2.tables)
+
     def test_slice_by_tree_positions(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
         breakpoints = list(ts.breakpoints())
@@ -7434,6 +7444,12 @@ class TestKeepSingleInterval(unittest.TestCase):
             recombination_rate=2,
             random_seed=1,
         )
+        tables = ts.dump_tables()
+        tables.migrations.packset_metadata(
+            [b"migration {i}" for i in range(ts.num_migrations)]
+        )
+        ts = tables.tree_sequence()
+
         ts_sliced = ts.keep_intervals([[0, 1]], simplify=False)
         assert ts.tables.migrations == ts_sliced.tables.migrations
         ts_sliced = ts.keep_intervals([[0, 0.5]], simplify=False)

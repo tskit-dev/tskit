@@ -2916,22 +2916,32 @@ class TableCollection:
             keep_edges = np.logical_not(
                 np.logical_or(edges.right <= s, edges.left >= e)
             )
+            metadata, metadata_offset = keep_with_offset(
+                keep_edges, edges.metadata, edges.metadata_offset
+            )
             self.edges.append_columns(
                 left=np.fmax(s, edges.left[keep_edges]),
                 right=np.fmin(e, edges.right[keep_edges]),
                 parent=edges.parent[keep_edges],
                 child=edges.child[keep_edges],
+                metadata=metadata,
+                metadata_offset=metadata_offset,
             )
             keep_migrations = np.logical_not(
                 np.logical_or(migrations.right <= s, migrations.left >= e)
             )
+            metadata, metadata_offset = keep_with_offset(
+                keep_migrations, migrations.metadata, migrations.metadata_offset
+            )
             self.migrations.append_columns(
                 left=np.fmax(s, migrations.left[keep_migrations]),
                 right=np.fmin(e, migrations.right[keep_migrations]),
-                time=migrations.time[keep_migrations],
                 node=migrations.node[keep_migrations],
                 source=migrations.source[keep_migrations],
                 dest=migrations.dest[keep_migrations],
+                time=migrations.time[keep_migrations],
+                metadata=metadata,
+                metadata_offset=metadata_offset,
             )
         self.delete_sites(
             np.where(np.logical_not(keep_sites))[0], record_provenance=False
