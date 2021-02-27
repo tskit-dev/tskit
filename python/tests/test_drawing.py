@@ -25,6 +25,7 @@ Test cases for visualisation in tskit.
 """
 import collections
 import io
+import logging
 import math
 import os
 import pathlib
@@ -1884,51 +1885,54 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert not ("H 0" in snippet2a)  # No root branch
         assert "H 0" in snippet2b
 
-    def verify_known_svg(self, svg, filename, **kwargs):
+    def verify_known_svg(self, svg, filename, save=False, **kwargs):
         # expected SVG files can be inspected in tests/data/svg/*.svg
         svg = xml.dom.minidom.parseString(
             svg
         ).toprettyxml()  # Prettify for easy viewing
         self.verify_basic_svg(svg, **kwargs)
         svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / filename
-        # TODO: replace below with a pytest flag
-        # with open(svg_fn, "wt") as file:  # Uncomment to save new expected files
-        #     file.write(svg)
+        if save:
+            logging.warning(f"Overwriting SVG file `{svg_fn}` with new version")
+            with open(svg_fn, "wt") as file:
+                file.write(svg)
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
 
-    def test_known_svg_tree_no_mut(self):
+    def test_known_svg_tree_no_mut(self, overwrite_viz):
         tree = self.get_simple_ts().at_index(1)
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        self.verify_known_svg(svg, "tree.svg")
+        self.verify_known_svg(svg, "tree.svg", overwrite_viz)
 
-    def test_known_svg_tree_root_mut(self):
+    def test_known_svg_tree_root_mut(self, overwrite_viz):
         tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        self.verify_known_svg(svg, "mut_tree.svg")
+        self.verify_known_svg(svg, "mut_tree.svg", overwrite_viz)
 
-    def test_known_svg_ts(self):
+    def test_known_svg_ts(self, overwrite_viz):
         ts = self.get_simple_ts()
         svg = ts.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
-        self.verify_known_svg(svg, "ts.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(svg, "ts.svg", overwrite_viz, width=200 * ts.num_trees)
 
-    def test_known_svg_nonbinary_ts(self):
+    def test_known_svg_nonbinary_ts(self, overwrite_viz):
         ts = self.get_nonbinary_ts()
         svg = ts.draw_svg(tree_height_scale="log_time")
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
-        self.verify_known_svg(svg, "ts_nonbinary.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(
+            svg, "ts_nonbinary.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
-    def test_known_svg_ts_plain(self):
+    def test_known_svg_ts_plain(self, overwrite_viz):
         """
         Plain style: no background shading and a variable scale X axis with no sites
         """
@@ -1936,9 +1940,11 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts.draw_svg(x_scale="treewise")
         assert svg.count('class="site ') == 0
         assert svg.count('class="mut ') == ts.num_mutations
-        self.verify_known_svg(svg, "ts_plain.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(
+            svg, "ts_plain.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
-    def test_known_svg_ts_with_xlabel(self):
+    def test_known_svg_ts_with_xlabel(self, overwrite_viz):
         """
         Style with X axis label
         """
@@ -1946,7 +1952,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         x_label = "genomic position (bp)"
         svg = ts.draw_svg(x_label=x_label)
         assert x_label in svg
-        self.verify_known_svg(svg, "ts_xlabel.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(
+            svg, "ts_xlabel.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
 
 class TestRounding:

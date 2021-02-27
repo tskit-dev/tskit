@@ -47,10 +47,16 @@ import tskit
 
 def pytest_addoption(parser):
     """
-    Add an option to skip tests marked with `@pytest.mark.slow`
+    Add options, e.g. to skip tests marked with `@pytest.mark.slow`
     """
     parser.addoption(
         "--skip-slow", action="store_true", default=False, help="Skip slow tests"
+    )
+    parser.addoption(
+        "--overwrite-expected-visualizations",
+        action="store_true",
+        default=False,
+        help="Overwrite the expected viz files in tests/data/svg/",
     )
 
 
@@ -67,6 +73,11 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
+
+
+@fixture
+def overwrite_viz(request):
+    return request.config.getoption("--overwrite-expected-visualizations")
 
 
 @fixture(scope="session")
