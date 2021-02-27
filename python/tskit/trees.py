@@ -2472,7 +2472,7 @@ class Tree:
         num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
     ):
         """
-        Generate a :class:<Tree> whose leaf nodes all have the same parent (i.e.
+        Generate a :class:`Tree` whose leaf nodes all have the same parent (i.e.
         a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
 
         The tree produced by this method is identical to
@@ -2482,7 +2482,7 @@ class Tree:
             2 or greater).
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
-            property of the returned :class:<Tree>.
+            property of the returned :class:`Tree`.
         :param float branch_length: The length of every branch in the tree (equivalent
             to the time of the root node).
         :param bool record_provenance: If True, add details of this operation to the
@@ -2514,7 +2514,7 @@ class Tree:
         **kwargs,
     ):
         """
-        Generate a :class:<Tree> with the specified number of leaves that is maximally
+        Generate a :class:`Tree` with the specified number of leaves that is maximally
         balanced. By default, the tree returned is binary, such that for each
         node that subtends :math:`n` leaves, the left child will subtend
         :math:`\\floor{n / 2}` leaves and the right child the remainder. Balanced
@@ -2533,7 +2533,7 @@ class Tree:
             tree.
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
-            property of the returned :class:<Tree>.
+            property of the returned :class:`Tree`.
         :param float branch_length: The minimum length of a branch in the tree (see
             above for details on how internal node times are assigned).
         :param bool record_provenance: If True, add details of this operation to the
@@ -2560,7 +2560,7 @@ class Tree:
         num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
     ):
         """
-        Generate a :class:<Tree> in which all internal nodes have two children
+        Generate a :class:`Tree` in which all internal nodes have two children
         and the left child is a leaf. This is a "comb", "ladder" or "pectinate"
         phylogeny, and also known as a `caterpiller tree
         <https://en.wikipedia.org/wiki/Caterpillar_tree>`_.
@@ -2574,7 +2574,7 @@ class Tree:
             2 or greater).
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
-            property of the returned :class:<Tree>.
+            property of the returned :class:`Tree`.
         :param float branch_length: The branch length between each internal node; the
             root node is therefore placed at time ``branch_length * (num_leaves - 1)``.
         :param bool record_provenance: If True, add details of this operation to the
@@ -2606,7 +2606,7 @@ class Tree:
         **kwargs,
     ):
         """
-        Generate a random binary :class:<Tree> with :math:`n` = ``num_leaves``
+        Generate a random binary :class:`Tree` with :math:`n` = ``num_leaves``
         leaves with an equal probability of returning any topology and
         leaf label permutation among the :math:`(2n - 3)! / (2^(n - 2) (n - 2)!)`
         leaf-labelled binary trees.
@@ -2625,7 +2625,7 @@ class Tree:
             be 2 or greater).
         :param float span: The span of the tree, and therefore the
             :attr:`~TreeSequence.sequence_length` of the :attr:`.tree_sequence`
-            property of the returned :class:<Tree>.
+            property of the returned :class:`Tree`.
         :param float branch_length: The minimum time between parent and child nodes.
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds must be between 1 and
