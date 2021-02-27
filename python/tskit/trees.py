@@ -2517,10 +2517,10 @@ class Tree:
         Generate a :class:`Tree` with the specified number of leaves that is maximally
         balanced. By default, the tree returned is binary, such that for each
         node that subtends :math:`n` leaves, the left child will subtend
-        :math:`\\floor{n / 2}` leaves and the right child the remainder. Balanced
-        trees with higher arity can also generated using the ``arity`` parameter,
-        where the leaves subtending a node are distributed among its children
-        analogously.
+        :math:`\\lfloor{n / 2}\\rfloor` leaves and the right child the
+        remainder. Balanced trees with higher arity can also generated using the
+        ``arity`` parameter, where the leaves subtending a node are distributed
+        among its children analogously.
 
         In the returned tree, the leaf nodes are all at time 0, marked as samples,
         and labelled 0 to n from left-to-right. Internal node IDs are assigned
