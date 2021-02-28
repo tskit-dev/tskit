@@ -1420,15 +1420,15 @@ class TestSortTables:
         tables.migrations.clear()
 
         for ru in [True, False]:
-            tables1 = tables.copy()
+            tsk_tables = tables.copy()
             tsutil.shuffle_tables(
-                tables1,
+                tsk_tables,
                 seed,
             )
-            tables2 = tables1.copy()
-            tables1.canonicalise(remove_unreferenced=ru)
-            tsutil.py_canonicalise(tables2, remove_unreferenced=ru)
-            tsutil.assert_table_collections_equal(tables1, tables2)
+            py_tables = tsk_tables.copy()
+            tsk_tables.canonicalise(remove_unreferenced=ru)
+            tsutil.py_canonicalise(py_tables, remove_unreferenced=ru)
+            tsutil.assert_table_collections_equal(tsk_tables, py_tables)
 
     def verify_sort_mutation_consistency(self, orig_tables, seed):
         tables = orig_tables.copy()
@@ -1668,6 +1668,15 @@ class TestSortTables:
                     assert a == mut.derived_state
                 self.verify_sort_equality(t, 985)
                 self.verify_sort_mutation_consistency(t, 985)
+
+    def test_stable_individual_order(self):
+        # canonical should retain individual order lacking any other information
+        tables = tskit.TableCollection(sequence_length=100)
+        for a in "arbol":
+            tables.individuals.add_row(metadata=a.encode())
+        tables2 = tables.copy()
+        tables2.canonicalise(remove_unreferenced=False)
+        tsutil.assert_table_collections_equal(tables, tables2)
 
     def test_discrete_times(self):
         ts = self.get_wf_example(seed=623)
@@ -3446,7 +3455,6 @@ class TestSubsetTables:
         tables = wf.wf_sim(N, N, num_pops=2, seed=seed)
         tables.sort()
         ts = tables.tree_sequence()
-        # adding muts
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
@@ -3459,22 +3467,22 @@ class TestSubsetTables:
     def verify_subset_equality(self, tables, nodes):
         for rp in [True, False]:
             for ru in [True, False]:
-                sub1 = tables.copy()
-                sub2 = tables.copy()
+                py_sub = tables.copy()
+                tsk_sub = tables.copy()
                 tsutil.py_subset(
-                    sub1,
+                    py_sub,
                     nodes,
                     record_provenance=False,
                     reorder_populations=rp,
                     remove_unreferenced=ru,
                 )
-                sub2.subset(
+                tsk_sub.subset(
                     nodes,
                     record_provenance=False,
                     reorder_populations=rp,
                     remove_unreferenced=ru,
                 )
-                tsutil.assert_table_collections_equal(sub1, sub2)
+                tsutil.assert_table_collections_equal(py_sub, tsk_sub)
 
     def verify_subset(self, tables, nodes):
         self.verify_subset_equality(tables, nodes)
@@ -3492,6 +3500,7 @@ class TestSubsetTables:
                 indivs.append(ind)
             if pop not in pops and pop != tskit.NULL:
                 pops.append(pop)
+        indivs.sort()  # keep individuals in the same order
         ind_map = np.repeat(tskit.NULL, tables.individuals.num_rows + 1)
         ind_map[indivs] = np.arange(len(indivs), dtype="int32")
         pop_map = np.repeat(tskit.NULL, tables.populations.num_rows + 1)
@@ -3507,7 +3516,13 @@ class TestSubsetTables:
         assert subset.individuals.num_rows == len(indivs)
         for k, i in zip(indivs, subset.individuals):
             ii = tables.individuals[k]
-            assert ii == i
+            assert np.all(np.equal(ii.location, i.location))
+            assert ii.metadata == i.metadata
+            sub_parents = []
+            for p in ii.parents:
+                if p == tskit.NULL or ind_map[p] != tskit.NULL:
+                    sub_parents.append(ind_map[p])
+            assert np.all(np.equal(sub_parents, i.parents))
         assert subset.populations.num_rows == len(pops)
         for k, p in zip(pops, subset.populations):
             pp = tables.populations[k]
@@ -3602,6 +3617,13 @@ class TestSubsetTables:
             assert tables2.edges.num_rows == 0
             assert tables2.sites.num_rows == 0
             assert tables2.mutations.num_rows == 0
+
+    def test_doesnt_reorder_individuals(self):
+        tables = wf.wf_sim(N=5, ngens=5, num_pops=2, seed=123)
+        tsutil.shuffle_tables(tables, 7000)
+        tables2 = tables.copy()
+        tables2.subset(np.arange(tables.nodes.num_rows))
+        assert tables.individuals == tables2.individuals
 
     def test_random_subsets(self):
         rng = np.random.default_rng(1542)
@@ -3732,12 +3754,12 @@ class TestUnionTables(unittest.TestCase):
         tsutil.assert_table_collections_equal(uni1, tables, ignore_provenance=True)
 
     def test_union_empty(self):
-        ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
-        ts2 = tskit.TableCollection(sequence_length=ts1.sequence_length).tree_sequence()
-        uni = ts1.union(ts2, [])
-        tsutil.assert_table_collections_equal(
-            ts1.tables, uni.tables, ignore_provenance=True
-        )
+        tables = self.get_msprime_example(sample_size=3, T=2, seed=9328).dump_tables()
+        tables.sort()
+        empty_tables = tskit.TableCollection(sequence_length=tables.sequence_length)
+        uni = tables.copy()
+        uni.union(empty_tables, [])
+        tsutil.assert_table_collections_equal(tables, uni, ignore_provenance=True)
 
     def test_noshared_example(self):
         ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
@@ -3750,10 +3772,11 @@ class TestUnionTables(unittest.TestCase):
 
     def test_all_shared_example(self):
         tables = self.get_wf_example(N=5, T=5, seed=11349).dump_tables()
+        tables.sort()
         uni = tables.copy()
         node_mapping = np.arange(tables.nodes.num_rows)
         uni.union(tables, node_mapping, record_provenance=False)
-        assert uni == tables
+        tsutil.assert_table_collections_equal(uni, tables)
 
     def test_no_add_pop(self):
         self.verify_union_equality(

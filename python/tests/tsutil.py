@@ -219,10 +219,13 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
     return tables.tree_sequence()
 
 
-def insert_random_ploidy_individuals(ts, max_ploidy=5, max_dimension=3, seed=1):
+def insert_random_ploidy_individuals(
+    ts, min_ploidy=0, max_ploidy=5, max_dimension=3, seed=1
+):
     """
     Takes random contiguous subsets of the samples an assigns them to individuals.
-    Also creates random locations in variable dimensions in the unit interval.
+    Also creates random locations in variable dimensions in the unit interval,
+    and assigns random parents (including NULL parents).
     """
     rng = random.Random(seed)
     samples = np.array(ts.samples(), dtype=int)
@@ -231,12 +234,14 @@ def insert_random_ploidy_individuals(ts, max_ploidy=5, max_dimension=3, seed=1):
     tables.individuals.clear()
     individual = tables.nodes.individual[:]
     individual[:] = tskit.NULL
+    ind_id = -1
     while j < len(samples):
-        ploidy = rng.randint(0, max_ploidy)
+        ploidy = rng.randint(min_ploidy, max_ploidy)
         nodes = samples[j : min(j + ploidy, len(samples))]
         dimension = rng.randint(0, max_dimension)
         location = [rng.random() for _ in range(dimension)]
-        ind_id = tables.individuals.add_row(location=location)
+        parents = rng.sample(range(-1, 1 + ind_id), min(1 + ind_id, rng.randint(0, 3)))
+        ind_id = tables.individuals.add_row(location=location, parents=parents)
         individual[nodes] = ind_id
         j += ploidy
     tables.nodes.individual = individual
@@ -649,14 +654,34 @@ def py_subset(
         for j, pop in enumerate(full.populations):
             pop_map[j] = j
             tables.populations.add_row(metadata=pop.metadata)
+    # first build individual map
+    if not remove_unreferenced:
+        keep_ind = [True for _ in full.individuals]
+    else:
+        keep_ind = [False for _ in full.individuals]
+        for old_id in nodes:
+            i = full.nodes[old_id].individual
+            if i != tskit.NULL:
+                keep_ind[i] = True
+    new_ind_id = 0
+    for j, k in enumerate(keep_ind):
+        if k:
+            ind_map[j] = new_ind_id
+            new_ind_id += 1
+    # now the individual table
+    for j, k in enumerate(keep_ind):
+        if k:
+            ind = full.individuals[j]
+            new_ind_id = tables.individuals.add_row(
+                ind.flags,
+                ind.location,
+                [ind_map[i] for i in ind.parents if i in ind_map],
+                ind.metadata,
+            )
+            assert new_ind_id == ind_map[j]
+
     for old_id in nodes:
         node = full.nodes[old_id]
-        if node.individual not in ind_map and node.individual != tskit.NULL:
-            ind = full.individuals[node.individual]
-            new_ind_id = tables.individuals.add_row(
-                ind.flags, ind.location, ind.parents, ind.metadata
-            )
-            ind_map[node.individual] = new_ind_id
         if node.population not in pop_map and node.population != tskit.NULL:
             pop = full.populations[node.population]
             new_pop_id = tables.populations.add_row(pop.metadata)
@@ -670,14 +695,6 @@ def py_subset(
         )
         node_map[old_id] = new_id
     if not remove_unreferenced:
-        for j, ind in enumerate(full.individuals):
-            if j not in ind_map:
-                ind_map[j] = tables.individuals.add_row(
-                    ind.flags,
-                    location=ind.location,
-                    parents=ind.parents,
-                    metadata=ind.metadata,
-                )
         for j, ind in enumerate(full.populations):
             if j not in pop_map:
                 pop_map[j] = tables.populations.add_row(ind.metadata)
@@ -1041,6 +1058,22 @@ def cmp_migration(i, j, tables):
     return ret
 
 
+def cmp_individual_canonical(i, j, tables, num_descendants):
+    ret = num_descendants[j] - num_descendants[i]
+    if ret == 0:
+        node_i = node_j = tables.nodes.num_rows
+        ni = np.where(tables.nodes.individual == i)[0]
+        if len(ni) > 0:
+            node_i = np.min(ni)
+        nj = np.where(tables.nodes.individual == j)[0]
+        if len(nj) > 0:
+            node_j = np.min(nj)
+        ret = node_i - node_j
+    if ret == 0:
+        ret = i - j
+    return ret
+
+
 def compute_mutation_num_descendants(tables):
     mutations = tables.mutations
     num_descendants = np.zeros(mutations.num_rows)
@@ -1051,16 +1084,61 @@ def compute_mutation_num_descendants(tables):
     return num_descendants
 
 
+def compute_individual_num_descendants(tables):
+    # adapted from sort_individual_table
+    individuals = tables.individuals
+    num_individuals = individuals.num_rows
+    num_descendants = np.zeros((num_individuals,), np.int64)
+
+    # First find the set of individuals that have no children
+    # by creating an array of incoming edge counts
+    incoming_edge_count = np.zeros((num_individuals,), np.int64)
+    for parent in individuals.parents:
+        if parent != tskit.NULL:
+            incoming_edge_count[parent] += 1
+    todo = np.full((num_individuals + 1,), -1, np.int64)
+    current_todo = 0
+    todo_insertion_point = 0
+    for individual, num_edges in enumerate(incoming_edge_count):
+        if num_edges == 0:
+            todo[todo_insertion_point] = individual
+            todo_insertion_point += 1
+
+    # Now process individuals from the set that have no children, updating their
+    # parents' information as we go, and adding their parents to the list if
+    # this was their last child
+    while todo[current_todo] != -1:
+        individual = todo[current_todo]
+        current_todo += 1
+        for parent in individuals.parents[
+            individuals.parents_offset[individual] : individuals.parents_offset[
+                individual + 1
+            ]
+        ]:
+            if parent != tskit.NULL:
+                incoming_edge_count[parent] -= 1
+                num_descendants[parent] += 1 + num_descendants[individual]
+                if incoming_edge_count[parent] == 0:
+                    todo[todo_insertion_point] = parent
+                    todo_insertion_point += 1
+
+    if num_individuals > 0:
+        assert np.min(incoming_edge_count) >= 0
+        if np.max(incoming_edge_count) > 0:
+            raise ValueError("Individual pedigree has cycles")
+    return num_descendants
+
+
 def py_canonicalise(tables, remove_unreferenced=True):
     tables.subset(
         np.arange(tables.nodes.num_rows),
         record_provenance=False,
         remove_unreferenced=remove_unreferenced,
     )
-    py_sort(tables, use_num_descendants=True)
+    py_sort(tables, canonical=True)
 
 
-def py_sort(tables, use_num_descendants=False):
+def py_sort(tables, canonical=False):
     copy = tables.copy()
     tables.edges.clear()
     tables.sites.clear()
@@ -1072,15 +1150,15 @@ def py_sort(tables, use_num_descendants=False):
     sorted_sites = sorted(range(copy.sites.num_rows), key=site_key)
     site_id_map = {k: j for j, k in enumerate(sorted_sites)}
     site_order = np.argsort(sorted_sites)
-    if use_num_descendants:
-        num_descendants = compute_mutation_num_descendants(copy)
+    if canonical:
+        mut_num_descendants = compute_mutation_num_descendants(copy)
         mut_key = functools.cmp_to_key(
             lambda a, b: cmp_mutation_canonical(
                 a,
                 b,
                 tables=copy,
                 site_order=site_order,
-                num_descendants=num_descendants,
+                num_descendants=mut_num_descendants,
             )
         )
     else:
@@ -1130,7 +1208,31 @@ def py_sort(tables, use_num_descendants=False):
             copy.migrations[mig_id].metadata,
         )
 
-    sort_individual_table(tables)
+    # individuals
+    if canonical:
+        tables.individuals.clear()
+        ind_num_descendants = compute_individual_num_descendants(copy)
+        ind_key = functools.cmp_to_key(
+            lambda a, b: cmp_individual_canonical(
+                a,
+                b,
+                tables=copy,
+                num_descendants=ind_num_descendants,
+            )
+        )
+        sorted_inds = sorted(range(copy.individuals.num_rows), key=ind_key)
+        ind_id_map = {k: j for j, k in enumerate(sorted_inds)}
+        ind_id_map[tskit.NULL] = tskit.NULL
+        for ind_id in sorted_inds:
+            tables.individuals.add_row(
+                flags=copy.individuals[ind_id].flags,
+                location=copy.individuals[ind_id].location,
+                parents=[ind_id_map[p] for p in copy.individuals[ind_id].parents],
+                metadata=copy.individuals[ind_id].metadata,
+            )
+        tables.nodes.individual = [ind_id_map[i] for i in tables.nodes.individual]
+    else:
+        sort_individual_table(tables)
 
 
 def algorithm_T(ts):
@@ -1689,15 +1791,15 @@ def assert_tables_equal(t1, t2, label=""):
     if hasattr(t1, "metadata_schema"):
         if t1.metadata_schema != t2.metadata_schema:
             msg = (
-                f"{label} :::::::::: t1 ::::::::::::\n{t1.metadata_schema}"
-                f"{label} :::::::::: t2 ::::::::::::\n{t1.metadata_schema}"
+                f"\n{label} :::::::::: t1 ::::::::::::\n{t1.metadata_schema}"
+                f"\n{label} :::::::::: t2 ::::::::::::\n{t2.metadata_schema}"
             )
             raise AssertionError(msg)
     for k, (e1, e2) in enumerate(zip(t1, t2)):
         if e1 != e2:
             msg = (
-                f"{label} :::::::::: t1 (row {k}) ::::::::::::\n{e1}"
-                f"{label} :::::::::: t2 (row {k}) ::::::::::::\n{e2}"
+                f"\n{label} :::::::::: t1 (row {k}) ::::::::::::\n{e1}"
+                f"\n{label} :::::::::: t2 (row {k}) ::::::::::::\n{e2}"
             )
             raise AssertionError(msg)
     if t1.num_rows != t2.num_rows:

@@ -528,7 +528,7 @@ register_metadata_codec(StructCodec, "struct")
 def validate_bytes(data: Optional[bytes]) -> None:
     if data is not None and not isinstance(data, bytes):
         raise TypeError(
-            f"If no encoding is set metadata should be bytes, found {type(bytes)}"
+            f"If no encoding is set metadata should be bytes, found {type(data)}"
         )
 
 
