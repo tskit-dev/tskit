@@ -5,7 +5,7 @@ jsonschema==3.2.0
 h5py==3.1.0
 h5py==3.1.0
 svgwrite==1.4.1
-portion==2.1.4
+portion==2.1.5
 xmlunittest==0.5.0
 biopython==1.78
 kastore==0.3.1
