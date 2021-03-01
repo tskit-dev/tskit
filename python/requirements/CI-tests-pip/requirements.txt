@@ -1,6 +1,6 @@
 numpy==1.19.5
 pytest==6.2.2
-pytest-xdist==2.2.0
+pytest-xdist==2.2.1
 jsonschema==3.2.0
 h5py==3.1.0
 h5py==3.1.0
