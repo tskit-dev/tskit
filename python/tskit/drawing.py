@@ -394,7 +394,7 @@ class SvgTreeSequence:
                         class_="sym",
                     )
                 )
-                for i, m in enumerate(s.mutations):
+                for i, m in enumerate(reversed(s.mutations)):
                     mut = dwg.g(class_=f"mut m{m.id}")
                     ypos = y - i * 4 - 1.5
                     mut.add(
@@ -437,6 +437,7 @@ class SvgTree:
         ".node > .sym {fill: black; stroke: none}"
         ".site > .sym {stroke: black}"
         ".mut text {fill: red; font-style: italic}"
+        ".mut line {fill: none; stroke: none}"  # Default hide mutn line to expose edges
         ".mut .sym {fill: none; stroke: red}"
         ".node .mut .sym {stroke-width: 1.5px}"
         ".tree text {dominant-baseline: middle}"  # NB: not inherited in css 1.1
@@ -730,6 +731,33 @@ class SvgTree:
                     curr_svg_group.add(path)
                 pv = (pu[0], pu[1] - self.root_branch_length)
 
+            # Add mutation symbols + labels
+            num_muts = len(self.node_mutations[u])
+            delta = (pv[1] - pu[1]) / (num_muts + 1)
+            for i, mutation in enumerate(self.node_mutations[u]):
+                # TODO get rid of these manual positioning tweaks and add them
+                # as offsets the user can access via a transform or something.
+                dy = (num_muts - i) * delta
+                mutation_class = f"mut m{mutation.id} s{mutation.site}"
+                mut_group = curr_svg_group.add(
+                    dwg.g(class_=mutation_class, transform=f"translate(0 {rnd(dy)})")
+                )
+                # A line from the mutation to the node below, normally hidden, but
+                # revealable if we want to flag the path below a mutation
+                mut_group.add(dwg.line(end=(0, -rnd(dy))))
+                # Symbols
+                mut_group.add(dwg.path(**self.mutation_attrs[mutation.id]))
+                # Labels
+                if mutation.node == left_child[tree.parent(mutation.node)]:
+                    mut_label_class = "lft"
+                    transform = "translate(-5 0)"
+                else:
+                    mut_label_class = "rgt"
+                    transform = "translate(5 0)"
+                self.add_class(self.mutation_label_attrs[mutation.id], mut_label_class)
+                self.mutation_label_attrs[mutation.id]["transform"] = transform
+                mut_group.add(dwg.text(**self.mutation_label_attrs[mutation.id]))
+
             # Add node symbol + label next (visually above the edge subtending this node)
             # Symbols
             if self.tree.is_sample(u):
@@ -749,29 +777,6 @@ class SvgTree:
                     self.add_class(self.node_label_attrs[u], "rgt")
                     self.node_label_attrs[u]["transform"] = "translate(3 -6)"
             curr_svg_group.add(dwg.text(**self.node_label_attrs[u]))
-
-            # Add mutation symbols + labels
-            delta = (pv[1] - pu[1]) / (len(self.node_mutations[u]) + 1)
-            for i, mutation in enumerate(reversed(self.node_mutations[u])):
-                # TODO get rid of these manual positioning tweaks and add them
-                # as offsets the user can access via a transform or something.
-                dy = (i + 1) * delta
-                mutation_class = f"mut m{mutation.id} s{mutation.site}"
-                mut_group = curr_svg_group.add(
-                    dwg.g(class_=mutation_class, transform=f"translate(0 {rnd(dy)})")
-                )
-                # Symbols
-                mut_group.add(dwg.path(**self.mutation_attrs[mutation.id]))
-                # Labels
-                if mutation.node == left_child[tree.parent(mutation.node)]:
-                    mut_label_class = "lft"
-                    transform = "translate(-5 0)"
-                else:
-                    mut_label_class = "rgt"
-                    transform = "translate(5 0)"
-                self.add_class(self.mutation_label_attrs[mutation.id], mut_label_class)
-                self.mutation_label_attrs[mutation.id]["transform"] = transform
-                mut_group.add(dwg.text(**self.mutation_label_attrs[mutation.id]))
 
 
 class TextTreeSequence:
