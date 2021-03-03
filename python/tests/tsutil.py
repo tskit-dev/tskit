@@ -526,7 +526,7 @@ def generate_site_mutations(
 def jukes_cantor(ts, num_sites, mu, multiple_per_node=True, seed=None):
     """
     Returns a copy of the specified tree sequence with Jukes-Cantor mutations
-    applied at the specfied rate at the specifed number of sites. Site positions
+    applied at the specified rate at the specified number of sites. Site positions
     are chosen uniformly.
     """
     random.seed(seed)
