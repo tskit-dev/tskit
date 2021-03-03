@@ -25,6 +25,7 @@ Test cases for visualisation in tskit.
 """
 import collections
 import io
+import logging
 import math
 import os
 import pathlib
@@ -157,15 +158,15 @@ class TestTreeDraw:
         nodes = io.StringIO(
             """\
         id      is_sample   population      individual      time    metadata
-        0       1       0       -1      0.00000000000000
-        1       1       0       -1      0.00000000000000
-        2       1       0       -1      0.00000000000000
-        3       1       0       -1      0.00000000000000
+        0       1       0       -1      0
+        1       1       0       -1      0
+        2       1       0       -1      0
+        3       1       0       -1      0
         4       0       0       -1      0.02445014598813
-        5       0       0       -1      0.11067965364865
+        5       0       0       -1      1.11067965364865
         6       0       0       -1      1.75005250750382
-        7       0       0       -1      2.31067154311640
-        8       0       0       -1      3.57331354884652
+        7       0       0       -1      5.31067154311640
+        8       0       0       -1      6.57331354884652
         9       0       0       -1      9.08308317451295
         """
         )
@@ -193,6 +194,8 @@ class TestTreeDraw:
         position      ancestral_state
         0.05          A
         0.06          0
+        0.3           Empty
+        0.5           XXX
         """
         )
         mutations = io.StringIO(
@@ -200,7 +203,10 @@ class TestTreeDraw:
         site   node    derived_state    parent
         0      9       T                -1
         0      9       G                0
-        0      4       1                -1
+        0      5       1                1
+        1      4       C                -1
+        1      4       G                3
+        2      7       G                -1
         """
         )
         return tskit.load_text(
@@ -1224,16 +1230,17 @@ class TestDrawTextExamples(TestTreeDraw):
 
     def test_simple_tree_sequence(self):
         ts = self.get_simple_ts()
+        print(ts.draw_text())
         ts_drawing = (
             "9.08┊    9    ┊         ┊         ┊         ┊         ┊\n"
             "    ┊  ┏━┻━┓  ┊         ┊         ┊         ┊         ┊\n"
-            "3.57┊  ┃   ┃  ┊         ┊         ┊         ┊    8    ┊\n"
+            "6.57┊  ┃   ┃  ┊         ┊         ┊         ┊    8    ┊\n"
             "    ┊  ┃   ┃  ┊         ┊         ┊         ┊  ┏━┻━┓  ┊\n"
-            "2.31┊  ┃   ┃  ┊    7    ┊         ┊    7    ┊  ┃   ┃  ┊\n"
+            "5.31┊  ┃   ┃  ┊    7    ┊         ┊    7    ┊  ┃   ┃  ┊\n"
             "    ┊  ┃   ┃  ┊  ┏━┻━┓  ┊         ┊  ┏━┻━┓  ┊  ┃   ┃  ┊\n"
             "1.75┊  ┃   ┃  ┊  ┃   ┃  ┊    6    ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
             "    ┊  ┃   ┃  ┊  ┃   ┃  ┊  ┏━┻━┓  ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
-            "0.11┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊\n"
+            "1.11┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊\n"
             "    ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊\n"
             "0.02┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
             "    ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
@@ -1245,13 +1252,13 @@ class TestDrawTextExamples(TestTreeDraw):
         ts_drawing = (
             "9.08|    9    |         |         |         |         |\n"
             "    |  +-+-+  |         |         |         |         |\n"
-            "3.57|  |   |  |         |         |         |    8    |\n"
+            "6.57|  |   |  |         |         |         |    8    |\n"
             "    |  |   |  |         |         |         |  +-+-+  |\n"
-            "2.31|  |   |  |    7    |         |    7    |  |   |  |\n"
+            "5.31|  |   |  |    7    |         |    7    |  |   |  |\n"
             "    |  |   |  |  +-+-+  |         |  +-+-+  |  |   |  |\n"
             "1.75|  |   |  |  |   |  |    6    |  |   |  |  |   |  |\n"
             "    |  |   |  |  |   |  |  +-+-+  |  |   |  |  |   |  |\n"
-            "0.11|  |   5  |  |   5  |  |   5  |  |   5  |  |   5  |\n"
+            "1.11|  |   5  |  |   5  |  |   5  |  |   5  |  |   5  |\n"
             "    |  |  +++ |  |  +++ |  |  +++ |  |  +++ |  |  +++ |\n"
             "0.02|  4  | | |  4  | | |  4  | | |  4  | | |  4  | | |\n"
             "    | +++ | | | +++ | | | +++ | | | +++ | | | +++ | | |\n"
@@ -1857,11 +1864,11 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         )
 
     def test_tree_root_branch(self):
-        # in the simple_ts, there are root mutations in the first tree but not the second
+        # in the simple_ts, there are root mutations in the first tree but not the last
         ts = self.get_simple_ts()
         tree_with_root_mutations = ts.at_index(0)
         root1 = tree_with_root_mutations.root
-        tree_without_root_mutations = ts.at_index(1)
+        tree_without_root_mutations = ts.at_index(-1)
         root2 = tree_without_root_mutations.root
         svg1 = tree_with_root_mutations.draw_svg()
         svg2a = tree_without_root_mutations.draw_svg()
@@ -1884,51 +1891,66 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert not ("H 0" in snippet2a)  # No root branch
         assert "H 0" in snippet2b
 
-    def verify_known_svg(self, svg, filename, **kwargs):
+    def verify_known_svg(self, svg, filename, save=False, **kwargs):
         # expected SVG files can be inspected in tests/data/svg/*.svg
         svg = xml.dom.minidom.parseString(
             svg
         ).toprettyxml()  # Prettify for easy viewing
         self.verify_basic_svg(svg, **kwargs)
         svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / filename
-        # TODO: replace below with a pytest flag
-        # with open(svg_fn, "wt") as file:  # Uncomment to save new expected files
-        #     file.write(svg)
+        if save:
+            logging.warning(f"Overwriting SVG file `{svg_fn}` with new version")
+            with open(svg_fn, "wt") as file:
+                file.write(svg)
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
 
-    def test_known_svg_tree_no_mut(self):
-        tree = self.get_simple_ts().at_index(1)
+    def test_known_svg_tree_no_mut(self, overwrite_viz):
+        tree = self.get_simple_ts().at_index(-1)
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        self.verify_known_svg(svg, "tree.svg")
+        self.verify_known_svg(svg, "tree.svg", overwrite_viz)
 
-    def test_known_svg_tree_root_mut(self):
+    def test_known_svg_tree_root_mut(self, overwrite_viz):
         tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        self.verify_known_svg(svg, "mut_tree.svg")
+        self.verify_known_svg(svg, "mut_tree.svg", overwrite_viz)
 
-    def test_known_svg_ts(self):
+    def test_known_svg_ts(self, overwrite_viz):
         ts = self.get_simple_ts()
-        svg = ts.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
-        )
+        svg = ts.draw_svg()
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
-        self.verify_known_svg(svg, "ts.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(svg, "ts.svg", overwrite_viz, width=200 * ts.num_trees)
 
-    def test_known_svg_nonbinary_ts(self):
+    def test_known_svg_ts_highlighted_mut(self, overwrite_viz):
+        ts = self.get_simple_ts()
+        style = (
+            ".edge {stroke: grey}"
+            ".mut .sym{stroke:pink} .mut text{fill:pink}"
+            ".mut.m2 .sym,.m2>line, .m2>.node .edge{stroke:red} .mut.m2 text{fill:red}"
+            ".mut.m3 .sym,.m3>line, .m3>.node .edge{stroke:cyan} .mut.m3 text{fill:cyan}"
+            ".mut.m4 .sym,.m4>line, .m4>.node .edge{stroke:blue} .mut.m4 text{fill:blue}"
+        )
+        svg = ts.draw_svg(style=style)
+        self.verify_known_svg(
+            svg, "ts_mut_highlight.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_nonbinary_ts(self, overwrite_viz):
         ts = self.get_nonbinary_ts()
         svg = ts.draw_svg(tree_height_scale="log_time")
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
-        self.verify_known_svg(svg, "ts_nonbinary.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(
+            svg, "ts_nonbinary.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
-    def test_known_svg_ts_plain(self):
+    def test_known_svg_ts_plain(self, overwrite_viz):
         """
         Plain style: no background shading and a variable scale X axis with no sites
         """
@@ -1936,9 +1958,11 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts.draw_svg(x_scale="treewise")
         assert svg.count('class="site ') == 0
         assert svg.count('class="mut ') == ts.num_mutations
-        self.verify_known_svg(svg, "ts_plain.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(
+            svg, "ts_plain.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
-    def test_known_svg_ts_with_xlabel(self):
+    def test_known_svg_ts_with_xlabel(self, overwrite_viz):
         """
         Style with X axis label
         """
@@ -1946,7 +1970,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         x_label = "genomic position (bp)"
         svg = ts.draw_svg(x_label=x_label)
         assert x_label in svg
-        self.verify_known_svg(svg, "ts_xlabel.svg", width=200 * ts.num_trees)
+        self.verify_known_svg(
+            svg, "ts_xlabel.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
 
 class TestRounding:
