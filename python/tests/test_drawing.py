@@ -151,7 +151,7 @@ class TestTreeDraw:
         ts = tables.tree_sequence()
         return next(ts.trees())
 
-    def get_simple_ts(self):
+    def get_simple_ts(self, use_mutation_times=False):
         """
         return a simple tree seq that does not depend on msprime
         """
@@ -162,7 +162,7 @@ class TestTreeDraw:
         1       1       0       -1      0
         2       1       0       -1      0
         3       1       0       -1      0
-        4       0       0       -1      0.02445014598813
+        4       0       0       -1      0.1145014598813
         5       0       0       -1      1.11067965364865
         6       0       0       -1      1.75005250750382
         7       0       0       -1      5.31067154311640
@@ -198,20 +198,23 @@ class TestTreeDraw:
         0.5           XXX
         """
         )
-        mutations = io.StringIO(
+        muts = io.StringIO(
             """\
-        site   node    derived_state    parent
-        0      9       T                -1
-        0      9       G                0
-        0      5       1                1
-        1      4       C                -1
-        1      4       G                3
-        2      7       G                -1
+        site   node    derived_state    parent    time
+        0      9       T                -1        15
+        0      9       G                0         9.1
+        0      5       1                1         9
+        1      4       C                -1        1.6
+        1      4       G                3         1.5
+        2      7       G                -1        10
         """
         )
-        return tskit.load_text(
-            nodes, edges, sites=sites, mutations=mutations, strict=False
-        )
+        ts = tskit.load_text(nodes, edges, sites=sites, mutations=muts, strict=False)
+        if use_mutation_times:
+            return ts
+        tables = ts.dump_tables()
+        tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
+        return tables.tree_sequence()
 
     def fail(self, *args, **kwargs):
         """
@@ -1242,7 +1245,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "    ┊  ┃   ┃  ┊  ┃   ┃  ┊  ┏━┻━┓  ┊  ┃   ┃  ┊  ┃   ┃  ┊\n"
             "1.11┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊  ┃   5  ┊\n"
             "    ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊  ┃  ┏┻┓ ┊\n"
-            "0.02┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
+            "0.11┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊  4  ┃ ┃ ┊\n"
             "    ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┊\n"
             "0.00┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊\n"
             "  0.00      0.06      0.79      0.91      0.91      1.00\n"
@@ -1260,7 +1263,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "    |  |   |  |  |   |  |  +-+-+  |  |   |  |  |   |  |\n"
             "1.11|  |   5  |  |   5  |  |   5  |  |   5  |  |   5  |\n"
             "    |  |  +++ |  |  +++ |  |  +++ |  |  +++ |  |  +++ |\n"
-            "0.02|  4  | | |  4  | | |  4  | | |  4  | | |  4  | | |\n"
+            "0.11|  4  | | |  4  | | |  4  | | |  4  | | |  4  | | |\n"
             "    | +++ | | | +++ | | | +++ | | | +++ | | | +++ | | |\n"
             "0.00| 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 |\n"
             "  0.00      0.06      0.79      0.91      0.91      1.00\n"
@@ -1849,7 +1852,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg.count("rect") == 10
         assert svg.count('path class="edge"') == 10
 
-        # If there is a mutation, the root branches should be there too
+        # If there is a mutation above a sample, the root branches should be there too
         ts = msprime.mutate(ts, rate=1, random_seed=1)
         tables = ts.dump_tables()
         tables.edges.clear()
@@ -1918,7 +1921,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = tree.draw_svg(
             root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
         )
-        self.verify_known_svg(svg, "mut_tree.svg", overwrite_viz)
+        self.verify_known_svg(svg, "tree_muts.svg", overwrite_viz)
+
+    def test_known_svg_tree_mut_no_edges(self, overwrite_viz):
+        ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
+        tables = ts.dump_tables()
+        tables.edges.clear()
+        tree_no_edges = tables.tree_sequence().simplify().first()
+        svg = tree_no_edges.draw_svg()  # A row of 10 sample nodes with root branches
+        self.verify_basic_svg(svg)
+        self.verify_known_svg(
+            svg, "tree_mutations_no_edges.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
     def test_known_svg_ts(self, overwrite_viz):
         ts = self.get_simple_ts()
@@ -1926,6 +1940,16 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(svg, "ts.svg", overwrite_viz, width=200 * ts.num_trees)
+
+    def test_known_svg_ts_internal_sample(self, overwrite_viz):
+        ts = tsutil.jiggle_samples(self.get_simple_ts())
+        svg = ts.draw_svg(
+            root_svg_attributes={"id": "XYZ"},
+            style="#XYZ .leaf .sym {fill: magenta} #XYZ .sample > .sym {fill: cyan}",
+        )
+        self.verify_known_svg(
+            svg, "internal_sample_ts.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
     def test_known_svg_ts_highlighted_mut(self, overwrite_viz):
         ts = self.get_simple_ts()
@@ -1939,6 +1963,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts.draw_svg(style=style)
         self.verify_known_svg(
             svg, "ts_mut_highlight.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_rank(self, overwrite_viz):
+        ts = self.get_simple_ts()
+        svg1 = ts.draw_svg(tree_height_scale="rank")
+        ts = self.get_simple_ts(use_mutation_times=True)
+        svg2 = ts.draw_svg(tree_height_scale="rank")
+        assert svg1 == svg2  # Must ignore mutation times if height is "rank"
+        assert svg1.count('class="site ') == ts.num_sites
+        assert svg1.count('class="mut ') == ts.num_mutations * 2
+        self.verify_known_svg(
+            svg1, "ts_rank.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
     def test_known_svg_nonbinary_ts(self, overwrite_viz):
@@ -1972,6 +2008,36 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert x_label in svg
         self.verify_known_svg(
             svg, "ts_xlabel.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_mutation_times(self, overwrite_viz):
+        ts = self.get_simple_ts(use_mutation_times=True)
+        svg = ts.draw_svg()
+        assert svg.count('class="site ') == ts.num_sites
+        assert svg.count('class="mut ') == ts.num_mutations * 2
+        self.verify_known_svg(
+            svg, "ts_mut_times.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_mutation_times_logscale(self, overwrite_viz):
+        ts = self.get_simple_ts(use_mutation_times=True)
+        svg = ts.draw_svg(tree_height_scale="log_time")
+        assert svg.count('class="site ') == ts.num_sites
+        assert svg.count('class="mut ') == ts.num_mutations * 2
+        self.verify_known_svg(
+            svg, "ts_mut_times_logscale.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_mut_no_edges(self, overwrite_viz, caplog):
+        ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
+        tables = ts.dump_tables()
+        tables.edges.clear()
+        ts_no_edges = tables.tree_sequence()
+        svg = ts_no_edges.draw_svg()  # Some muts on axis but not on a visible node
+        assert "not present in the displayed tree" in caplog.text
+        self.verify_basic_svg(svg)
+        self.verify_known_svg(
+            svg, "ts_mutations_no_edges.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
 

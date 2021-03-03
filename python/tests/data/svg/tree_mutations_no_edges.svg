@@ -1,0 +1,68 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="200" version="1.1" width="200">
+	<defs>
+		<style type="text/css"><![CDATA[.tree-sequence .background path {fill: #808080; fill-opacity:.1}.tree-sequence .axis {font-size: 14px}.tree-sequence .x-tick-label {font-weight: bold}.tree-sequence .axis, .tree {font-size: 14px; text-anchor:middle}.tree-sequence .axis line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.site > .sym {stroke: black}.mut text {fill: red; font-style: italic}.mut line {fill: none; stroke: none}.mut .sym {fill: none; stroke: red}.node .mut .sym {stroke-width: 1.5px}.tree text {dominant-baseline: middle}.tree .lab.lft {text-anchor: end}.tree .lab.rgt {text-anchor: start}]]></style>
+	</defs>
+	<g class="tree t0">
+		<g class="leaf node n0 p0 root sample" transform="translate(26.3636 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">0</text>
+		</g>
+		<g class="leaf node n1 p0 root sample" transform="translate(42.7273 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">1</text>
+		</g>
+		<g class="leaf node n2 p0 root sample" transform="translate(59.0909 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">2</text>
+		</g>
+		<g class="leaf node n3 p0 root sample" transform="translate(75.4545 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">3</text>
+		</g>
+		<g class="leaf node n4 p0 root sample" transform="translate(91.8182 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">4</text>
+		</g>
+		<g class="leaf m0 node n5 p0 root s0 sample" transform="translate(108.182 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<g class="mut m0 s0" transform="translate(0 -10.125)">
+				<line x1="0" x2="0" y1="0" y2="10.125"/>
+				<path class="sym" d="M -3,-3 l 6,6 M -3,3 l 6,-6"/>
+				<text class="lab rgt" transform="translate(5 0)">0</text>
+			</g>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">5</text>
+		</g>
+		<g class="leaf node n6 p0 root sample" transform="translate(124.545 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">6</text>
+		</g>
+		<g class="leaf m1 node n7 p0 root s1 sample" transform="translate(140.909 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<g class="mut m1 s1" transform="translate(0 -10.125)">
+				<line x1="0" x2="0" y1="0" y2="10.125"/>
+				<path class="sym" d="M -3,-3 l 6,6 M -3,3 l 6,-6"/>
+				<text class="lab rgt" transform="translate(5 0)">1</text>
+			</g>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">7</text>
+		</g>
+		<g class="leaf node n8 p0 root sample" transform="translate(157.273 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">8</text>
+		</g>
+		<g class="leaf node n9 p0 root sample" transform="translate(173.636 172.0)">
+			<path class="edge" d="M 0 0 V -20.25 H 0"/>
+			<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+			<text class="lab" transform="translate(0 12)">9</text>
+		</g>
+	</g>
+</svg>

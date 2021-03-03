@@ -24,12 +24,15 @@
 Module responsible for visualisations.
 """
 import collections
+import logging
 import math
 import numbers
+import operator
 
 import numpy as np
 import svgwrite
 
+import tskit.util as util
 from _tskit import NULL
 
 LEFT = "left"
@@ -126,6 +129,16 @@ def rnd(x):
         return x
     digits -= math.ceil(math.log10(abs(x)))
     return round(x, digits)
+
+
+def identity(x):
+    return x
+
+
+def log_transform(x):
+    # add 1 so that don't reach log(0) = -inf error.
+    # just shifts entire timeset by 1 unit so shouldn't affect anything
+    return np.log(x + 1)
 
 
 def add_text_in_group(dwg, elem, x, y, text, **kwargs):
@@ -265,7 +278,7 @@ class SvgTreeSequence:
         root_group = dwg.add(dwg.g(class_="tree-sequence"))
         if x_scale == "physical":
             background = root_group.add(dwg.g(class_="background"))
-            axis_top_pad = 20
+            axis_top_pad = 15
             tick_len = (0, 5)
         else:
             axis_top_pad = 5
@@ -347,6 +360,8 @@ class SvgTreeSequence:
             if x_scale == "treewise":
                 x = tree_x
             elif x_scale == "physical":
+                # Shift diagonal lines between tree & axis into the treebox a little
+                backgd_pad_y = axis_top_pad + svg_trees[0].treebox_y_offset
                 x = break_x
                 if i > 0 and i % 2 == 1:
                     # draw an alternating grey background
@@ -355,15 +370,15 @@ class SvgTreeSequence:
                         dwg.path(
                             f"M{rnd(prev_tree_x):g},0 "
                             f"l{rnd(tree_x-prev_tree_x):g},0 "
-                            f"l0,{rnd(y - axis_top_pad):g} "
-                            f"l{rnd(break_x-tree_x):g},{rnd(axis_top_pad):g} "
+                            f"l0,{rnd(y - backgd_pad_y):g} "
+                            f"l{rnd(break_x-tree_x):g},{rnd(backgd_pad_y):g} "
                             # NB for curves try "c0,{1} {0},0 {0},{1}" instead of above
                             f"l0,{rnd(tick_len[1]):g} "
                             f"l{rnd(prev_break_x-break_x):g},0 "
                             f"l0,{rnd(-tick_len[1]):g} "
-                            f"l{rnd(prev_tree_x-prev_break_x):g},{rnd(-axis_top_pad):g} "
+                            f"l{rnd(prev_tree_x-prev_break_x):g},{rnd(-backgd_pad_y):g} "
                             # NB for curves try "c0,{1} {0},0 {0},{1}" instead of above
-                            f"l0,{rnd(axis_top_pad - y):g}z",
+                            f"l0,{rnd(backgd_pad_y - y):g}z",
                         )
                     )
 
@@ -473,6 +488,7 @@ class SvgTree:
         symbol_size=None,
     ):
         self.tree = tree
+        self.ts = tree.tree_sequence
         self.traversal_order = check_order(order)
         if size is None:
             size = (200, 200)
@@ -485,19 +501,27 @@ class SvgTree:
         self.symbol_size = symbol_size
         self.drawing = self.setup_drawing(style)
         self.node_mutations = collections.defaultdict(list)
-        self.mutations_over_root = False
+        self.mutations_over_roots = False
+        nodes = set(tree.nodes())
+        unplotted = []
         for site in tree.sites():
             for mutation in site.mutations:
-                self.node_mutations[mutation.node].append(mutation)
-                if tree.parent(mutation.node) == NULL:
-                    self.mutations_over_root = True
+                if mutation.node in nodes:
+                    self.node_mutations[mutation.node].append(mutation)
+                    if tree.parent(mutation.node) == NULL:
+                        self.mutations_over_roots = True
+                else:
+                    unplotted.append(mutation.id)
+        if len(unplotted) > 0:
+            logging.warning(
+                f"Mutations {unplotted} are above nodes which are not present in the "
+                "displayed tree, so are not plotted on the topology."
+            )
         self.treebox_x_offset = 10
-        self.treebox_y_offset = 10
+        self.treebox_y_offset = 10  # Amount at top and bottom to leave blank
         self.treebox_width = size[0] - 2 * self.treebox_x_offset
         self.assign_y_coordinates(tree_height_scale, max_tree_height, force_root_branch)
-        self.node_x_coord_map = self.assign_x_coordinates(
-            tree, self.treebox_x_offset, self.treebox_width
-        )
+        self.assign_x_coordinates(tree, self.treebox_x_offset, self.treebox_width)
         self.edge_attrs = {}
         self.node_attrs = {}
         self.node_label_attrs = {}
@@ -566,65 +590,122 @@ class SvgTree:
         self.root_group = dwg.add(dwg.g(class_=tree_class))
         return dwg
 
+    def process_mutations(self, mut_node, lower_bound, upper_bound, ignore_times=False):
+        """
+        Sort the self.node_mutations array for a given mut_node in reverse time order,
+        returning the oldest time.
+        The main complication is with UNKNOWN_TIME values: we replace those with
+        times spaced between the lower and upper bounds
+        """
+        mutations = self.node_mutations[mut_node]
+        time_unknown = [util.is_unknown_time(m.time) for m in mutations]
+        if all(time_unknown) or ignore_times is True:
+            # sort by site then within site by parent: will end up with oldest first
+            mutations.sort(key=operator.attrgetter("site", "parent"))
+            diff = upper_bound - lower_bound
+            for i in range(len(mutations)):
+                mutations[i].time = upper_bound - diff * (i + 1) / (len(mutations) + 1)
+        else:
+            assert not any(time_unknown)
+            mutations.sort(key=operator.attrgetter("time"), reverse=True)
+        return mutations[0].time
+
     def assign_y_coordinates(
         self, tree_height_scale, max_tree_height, force_root_branch
     ):
         tree_height_scale = check_tree_height_scale(tree_height_scale)
+        height = self.image_size[1]
         max_tree_height = check_max_tree_height(
             max_tree_height, tree_height_scale != "rank"
         )
-        ts = self.tree.tree_sequence
-        node_time = ts.tables.nodes.time
-
+        node_time = self.ts.tables.nodes.time
+        mut_time = self.ts.tables.mutations.time
+        transform = identity
+        self.min_root_branch_length = 0
         if tree_height_scale == "rank":
-            assert tree_height_scale == "rank"
             if max_tree_height == "tree":
                 # We only rank the times within the tree in this case.
-                t = np.zeros_like(node_time) + node_time[self.tree.left_root]
+                t = np.zeros_like(node_time)
                 for u in self.tree.nodes():
                     t[u] = node_time[u]
                 node_time = t
             depth = {t: 2 * j for j, t in enumerate(np.unique(node_time))}
-            node_height = [depth[node_time[u]] for u in range(ts.num_nodes)]
-            max_tree_height = max(depth.values())
+            if self.mutations_over_roots or force_root_branch:
+                self.min_root_branch_length = 2  # Will get scaled later
+            max_tree_height = max(depth.values()) + self.min_root_branch_length
+            # In pathological cases, all the roots are at 0
+            if max_tree_height == 0:
+                max_tree_height = 1
+            node_height = {u: depth[node_time[u]] for u in self.tree.nodes()}
+            for u in self.node_mutations.keys():
+                parent = self.tree.parent(u)
+                if parent == NULL:
+                    top = node_height[u] + self.min_root_branch_length
+                else:
+                    top = node_height[parent]
+                self.process_mutations(u, node_height[u], top, ignore_times=True)
         else:
             assert tree_height_scale in ["time", "log_time"]
+            node_height = {u: node_time[u] for u in self.tree.nodes()}
             if max_tree_height == "tree":
-                max_tree_height = max(self.tree.time(root) for root in self.tree.roots)
-            elif max_tree_height == "ts":
-                max_tree_height = ts.max_root_time
+                max_node_height = max(node_height.values())
+                max_mut_height = np.nanmax(
+                    [0] + [mut.time for m in self.node_mutations.values() for mut in m]
+                )
+            else:
+                max_node_height = np.max(node_time)
+                max_mut_height = np.nanmax(np.append(mut_time, 0))
+            max_tree_height = max(max_node_height, max_mut_height)  # Reuse variable
+            # In pathological cases, all the roots are at 0
+            if max_tree_height == 0:
+                max_tree_height = 1
+
+            if self.mutations_over_roots or force_root_branch:
+                # TODO - what should the minimum root branch length be in this case? We
+                # take an eighth of the oldest time. This may be made longer by old muts
+                self.min_root_branch_length = max_tree_height / 8
+                # May need to allow for this in max_tree_height
+                if max_node_height + self.min_root_branch_length > max_tree_height:
+                    max_tree_height = max_node_height + self.min_root_branch_length
+            for u in self.node_mutations.keys():
+                parent = self.tree.parent(u)
+                if parent == NULL:
+                    # This is a root: if muts have no times we must specify an upper time
+                    top = node_height[u] + self.min_root_branch_length
+                else:
+                    top = node_height[parent]
+                self.process_mutations(u, node_height[u], top)
 
             if tree_height_scale == "log_time":
-                # add 1 so that don't reach log(0) = -inf error.
-                # just shifts entire timeset by 1 year so shouldn't affect anything
-                node_height = np.log(ts.tables.nodes.time + 1)
-            elif tree_height_scale == "time":
-                node_height = node_time
+                transform = log_transform
 
         assert float(max_tree_height) == max_tree_height
 
-        # In pathological cases, all the roots are at 0
-        if max_tree_height == 0:
-            max_tree_height = 1
-
-        # TODO should make this a parameter somewhere. This is padding to keep the
-        # node labels within the treebox
-        label_padding = 6
-        y_padding = self.treebox_y_offset + 2 * label_padding
+        # TODO should make this a parameter somewhere. This is padding above the top and
+        # below the bottom of the tree to keep the node labels within the treebox. Top is
+        # not needed if we have a root branch which pushes the whole tree + labels down
+        top_label_pad = 0 if self.min_root_branch_length > 0 else 18
+        bottom_label_pad = 18
+        y_top = top_label_pad + self.treebox_y_offset
         height = self.image_size[1]
-        self.root_branch_length = 0
-        if self.mutations_over_root or force_root_branch:
-            self.root_branch_length = height / 10  # FIXME what scaling to use?
-        # y scaling
-        padding_numerator = height - self.root_branch_length - 2 * y_padding
-        if tree_height_scale == "log_time":
-            # again shift time by 1 in log(max_tree_height), so consistent
-            y_scale = padding_numerator / (np.log(max_tree_height + 1))
-        else:
-            y_scale = padding_numerator / max_tree_height
-        self.node_y_coord_map = [
-            height - y_scale * node_height[u] - y_padding for u in range(ts.num_nodes)
-        ]
+        padding_numerator = height - y_top - bottom_label_pad - self.treebox_y_offset
+        y_scale = padding_numerator / transform(max_tree_height)
+        max_node = max(node_height.keys(), key=node_height.get)
+        # Transform the y values into plot space (inverted y with 0 at the top of screen)
+        node_height["root_branch"] = node_height[max_node] + self.min_root_branch_length
+        self.node_y_coord_map = {
+            u: y_top + (padding_numerator - y_scale * transform(h))
+            for u, h in node_height.items()
+        }
+        self.mut_y_coord_map = {
+            m.id: y_top + (padding_numerator - y_scale * transform(m.time))
+            for _, mutations in self.node_mutations.items()
+            for m in mutations
+        }
+        self.min_root_branch_length = (
+            self.node_y_coord_map[max_node] - self.node_y_coord_map["root_branch"]
+        )
+        # Here we could also define and transform the tickmarks on the Y axis if required
 
     def assign_x_coordinates(self, tree, x_start, width):
         num_leaves = len(list(tree.leaves()))
@@ -644,7 +725,7 @@ class SvgTree:
                         a = min(child_coords)
                         b = max(child_coords)
                         node_x_coord_map[u] = a + (b - a) / 2
-        return node_x_coord_map
+        self.node_x_coord_map = node_x_coord_map
 
     def info_classes(self, focal_node_id):
         """
@@ -655,7 +736,7 @@ class SvgTree:
             "s<B>":           where <B> == site id of all mutations
         """
         # Add a new group for each node, and give it classes for css targetting
-        focal_node = self.tree.tree_sequence.node(focal_node_id)
+        focal_node = self.ts.node(focal_node_id)
         classes = set()
         classes.add(f"node n{focal_node_id}")
         if focal_node.individual != NULL:
@@ -722,22 +803,30 @@ class SvgTree:
                 )
                 curr_svg_group.add(path)
             else:
-                if self.root_branch_length > 0:
+                branch_length = self.min_root_branch_length
+                if branch_length > 0:
                     self.add_class(self.edge_attrs[u], "edge")
+                    if len(self.node_mutations[u]) > 0:
+                        mutation = self.node_mutations[u][
+                            0
+                        ]  # Oldest mut on this branch
+                        branch_length = max(
+                            branch_length,
+                            self.node_y_coord_map[u]
+                            - self.mut_y_coord_map[mutation.id],
+                        )
                     path = dwg.path(
-                        [("M", o), ("V", rnd(-self.root_branch_length)), ("H", 0)],
+                        [("M", o), ("V", rnd(-branch_length)), ("H", 0)],
                         **self.edge_attrs[u],
                     )
                     curr_svg_group.add(path)
-                pv = (pu[0], pu[1] - self.root_branch_length)
+                pv = (pu[0], pu[1] - branch_length)
 
             # Add mutation symbols + labels
-            num_muts = len(self.node_mutations[u])
-            delta = (pv[1] - pu[1]) / (num_muts + 1)
-            for i, mutation in enumerate(self.node_mutations[u]):
+            for mutation in self.node_mutations[u]:
                 # TODO get rid of these manual positioning tweaks and add them
                 # as offsets the user can access via a transform or something.
-                dy = (num_muts - i) * delta
+                dy = self.mut_y_coord_map[mutation.id] - pu[1]
                 mutation_class = f"mut m{mutation.id} s{mutation.site}"
                 mut_group = curr_svg_group.add(
                     dwg.g(class_=mutation_class, transform=f"translate(0 {rnd(dy)})")
@@ -748,7 +837,7 @@ class SvgTree:
                 # Symbols
                 mut_group.add(dwg.path(**self.mutation_attrs[mutation.id]))
                 # Labels
-                if mutation.node == left_child[tree.parent(mutation.node)]:
+                if u == left_child[tree.parent(u)]:
                     mut_label_class = "lft"
                     transform = "translate(-5 0)"
                 else:
@@ -767,7 +856,7 @@ class SvgTree:
             # Labels
             if tree.is_leaf(u):
                 self.node_label_attrs[u]["transform"] = "translate(0 12)"
-            elif tree.parent(u) == NULL and self.root_branch_length == 0:
+            elif tree.parent(u) == NULL and self.min_root_branch_length == 0:
                 self.node_label_attrs[u]["transform"] = "translate(0 -10)"
             else:
                 if u == left_child[tree.parent(u)]:
