@@ -38,6 +38,7 @@ import numpy as np
 import pytest
 import xmlunittest
 
+import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 from tskit import drawing
@@ -2035,9 +2036,25 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         ts_no_edges = tables.tree_sequence()
         svg = ts_no_edges.draw_svg()  # Some muts on axis but not on a visible node
         assert "not present in the displayed tree" in caplog.text
-        self.verify_basic_svg(svg)
         self.verify_known_svg(
             svg, "ts_mutations_no_edges.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_multiroot(self, overwrite_viz, caplog):
+        tables = wf.wf_sim(
+            6,
+            5,
+            seed=1,
+            deep_history=False,
+            initial_generation_samples=False,
+            num_loci=8,
+        )
+        tables.sort()
+        ts = tables.tree_sequence().simplify()
+        ts = msprime.mutate(ts, rate=0.1, random_seed=123)
+        svg = ts.draw_svg()
+        self.verify_known_svg(
+            svg, "ts_multiroot.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
 
