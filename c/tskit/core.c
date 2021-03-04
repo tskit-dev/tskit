@@ -484,6 +484,10 @@ tsk_strerror_internal(int err)
         case TSK_ERR_INDIVIDUAL_SELF_PARENT:
             ret = "Individuals cannot be their own parents.";
             break;
+
+        case TSK_ERR_INDIVIDUAL_PARENT_CYCLE:
+            ret = "Individuals cannot be their own ancestor.";
+            break;
     }
     return ret;
 }

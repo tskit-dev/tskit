@@ -26,6 +26,7 @@ import msprime
 import pytest
 
 import tests.tsutil as tsutil
+import tskit
 
 
 class TestJukesCantor:
@@ -142,3 +143,29 @@ class TestInsertIndividuals:
         assert ts.num_individuals == 5
         for j, ind in enumerate(ts.individuals()):
             assert list(ind.nodes) == [samples[2 * j + 1], samples[2 * j]]
+
+
+class TestSortIndividuals:
+    def test_sort_individuals(self):
+        tables = tskit.TableCollection()
+        tables.individuals.add_row(parents=[1], metadata=b"0")
+        tables.individuals.add_row(parents=[-1], metadata=b"1")
+        tsutil.sort_individual_table(tables)
+        assert tables.individuals.metadata.tobytes() == b"10"
+
+        tables = tskit.TableCollection()
+        tables.individuals.add_row(parents=[2, 3], metadata=b"0")
+        tables.individuals.add_row(parents=[5], metadata=b"1")
+        tables.individuals.add_row(parents=[-1], metadata=b"2")
+        tables.individuals.add_row(parents=[-1], metadata=b"3")
+        tables.individuals.add_row(parents=[3], metadata=b"4")
+        tables.individuals.add_row(parents=[4], metadata=b"5")
+
+        tsutil.sort_individual_table(tables)
+        assert tables.individuals.metadata.tobytes() == b"342501"
+
+        tables = tskit.TableCollection()
+        tables.individuals.add_row(parents=[1], metadata=b"0")
+        tables.individuals.add_row(parents=[0], metadata=b"1")
+        with pytest.raises(ValueError, match="Individual pedigree has cycles"):
+            tsutil.sort_individual_table(tables)

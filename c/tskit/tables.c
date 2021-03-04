@@ -4959,6 +4959,121 @@ out:
     return ret;
 }
 
+static int
+tsk_table_sorter_sort_individuals(tsk_table_sorter_t *self)
+{
+    int ret = 0;
+    tsk_id_t i;
+    tsk_individual_table_t copy;
+    tsk_individual_t individual;
+    tsk_individual_table_t *individuals = &self->tables->individuals;
+    tsk_node_table_t *nodes = &self->tables->nodes;
+    tsk_size_t num_individuals = individuals->num_rows;
+    tsk_size_t current_todo = 0;
+    tsk_size_t todo_insertion_point = 0;
+    tsk_size_t *incoming_edge_count
+        = malloc(num_individuals * sizeof(*incoming_edge_count));
+    tsk_id_t *individuals_todo
+        = malloc((num_individuals + 1) * sizeof(*individuals_todo));
+    tsk_id_t *new_id_map = malloc(num_individuals * sizeof(*new_id_map));
+
+    ret = tsk_individual_table_copy(individuals, &copy, 0);
+    if (ret != 0) {
+        goto out;
+    }
+
+    if (incoming_edge_count == NULL || individuals_todo == NULL || new_id_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < (tsk_id_t) num_individuals; i++) {
+        incoming_edge_count[i] = 0;
+        individuals_todo[i] = TSK_NULL;
+        new_id_map[i] = TSK_NULL;
+    }
+    individuals_todo[num_individuals] = TSK_NULL; /* Sentinel value */
+
+    /* First find the set of individuals that have no children by creating
+     * an array of incoming edge counts */
+    for (i = 0; i < (tsk_id_t) individuals->parents_length; i++) {
+        if (individuals->parents[i] != TSK_NULL) {
+            incoming_edge_count[individuals->parents[i]]++;
+        }
+    }
+    /* Use these as the starting points for checking all individuals,
+     * doing this in reverse makes the sort stable */
+    for (i = (tsk_id_t) num_individuals - 1; i >= 0; i--) {
+        if (incoming_edge_count[i] == 0) {
+            individuals_todo[todo_insertion_point] = i;
+            todo_insertion_point++;
+        }
+    }
+
+    /* Now emit individuals from the set that have no children, removing their edges
+     * as we go adding new individuals to the no children set. */
+    while (individuals_todo[current_todo] != TSK_NULL) {
+        tsk_individual_table_get_row_unsafe(
+            individuals, individuals_todo[current_todo], &individual);
+        for (i = 0; i < (tsk_id_t) individual.parents_length; i++) {
+            if (individual.parents[i] != TSK_NULL) {
+                incoming_edge_count[individual.parents[i]]--;
+                if (incoming_edge_count[individual.parents[i]] == 0) {
+                    individuals_todo[todo_insertion_point] = individual.parents[i];
+                    todo_insertion_point++;
+                }
+            }
+        }
+        current_todo++;
+    }
+
+    /* Any edges left are parts of cycles */
+    for (i = 0; i < (tsk_id_t) num_individuals; i++) {
+        if (incoming_edge_count[i] > 0) {
+            ret = TSK_ERR_INDIVIDUAL_PARENT_CYCLE;
+            goto out;
+        }
+    }
+
+    ret = tsk_individual_table_clear(individuals);
+    if (ret != 0) {
+        goto out;
+    }
+
+    /* The sorted individuals are in reverse order */
+    for (i = (tsk_id_t) num_individuals - 1; i >= 0; i--) {
+        tsk_individual_table_get_row_unsafe(&copy, individuals_todo[i], &individual);
+        ret = tsk_individual_table_add_row(individuals, individual.flags,
+            individual.location, individual.location_length, individual.parents,
+            individual.parents_length, individual.metadata, individual.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+        new_id_map[individuals_todo[i]] = ret;
+    }
+
+    /* Rewrite the parent ids */
+    for (i = 0; i < (tsk_id_t) individuals->parents_length; i++) {
+        if (individuals->parents[i] != TSK_NULL) {
+            individuals->parents[i] = new_id_map[individuals->parents[i]];
+        }
+    }
+    /* Rewrite the node individual ids */
+    for (i = 0; i < (tsk_id_t) nodes->num_rows; i++) {
+        if (nodes->individual[i] != TSK_NULL) {
+            nodes->individual[i] = new_id_map[nodes->individual[i]];
+        }
+    }
+
+    ret = 0;
+out:
+    tsk_safe_free(incoming_edge_count);
+    tsk_safe_free(individuals_todo);
+    tsk_safe_free(new_id_map);
+    tsk_individual_table_free(&copy);
+    return ret;
+}
+
 int
 tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
 {
@@ -4966,6 +5081,7 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
     tsk_size_t edge_start = 0;
     tsk_size_t migration_start = 0;
     bool skip_sites = false;
+    bool skip_individuals = false;
 
     if (start != NULL) {
         if (start->edges > self->tables->edges.num_rows) {
@@ -4986,6 +5102,14 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
             && start->mutations == self->tables->mutations.num_rows) {
             skip_sites = true;
         } else if (start->sites != 0 || start->mutations != 0) {
+            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
+            goto out;
+        }
+
+        /* Individuals also must be all sorted or skipped entirely */
+        if (start->individuals == self->tables->individuals.num_rows) {
+            skip_individuals = true;
+        } else if (start->individuals != 0) {
             ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
             goto out;
         }
@@ -5015,6 +5139,12 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
             goto out;
         }
         ret = self->sort_mutations(self);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (!skip_individuals) {
+        ret = tsk_table_sorter_sort_individuals(self);
         if (ret != 0) {
             goto out;
         }
@@ -9748,6 +9878,13 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
         }
         if (ret < 0) {
             goto out;
+        }
+    }
+
+    /* Rewrite the individual parent ids */
+    for (k = 0; k < (tsk_id_t) self->individuals.parents_length; k++) {
+        if (self->individuals.parents[k] != TSK_NULL) {
+            self->individuals.parents[k] = individual_map[self->individuals.parents[k]];
         }
     }
 
