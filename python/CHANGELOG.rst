@@ -32,6 +32,11 @@
   population indexing and lossless node reordering with subset.
   (:user:`petrelharp`, :pr:`1097`)
 
+**Changes**
+
+- Allow mutations that have the same derived state as their parent mutation.
+  (:user:`benjeffery`, :issue:`1180`, :pr:`1233`)
+
 **Breaking changes**
 
 - tskit now requires Python 3.6 (:user:`benjeffery`, :pr:`xxxx`)

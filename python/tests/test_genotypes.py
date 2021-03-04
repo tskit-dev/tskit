@@ -329,7 +329,7 @@ class TestVariantGenerator:
             assert variant.alleles == ("0", "1")
             assert np.all(variant.genotypes == np.ones(ts.sample_size))
 
-    def test_recurrent_mutations_errors(self):
+    def test_silent_mutations(self):
         ts = self.get_tree_sequence()
         tree = next(ts.trees())
         tables = ts.dump_tables()
@@ -342,8 +342,7 @@ class TestVariantGenerator:
                     tables.mutations.add_row(site=site, node=u, derived_state="1")
                     tables.mutations.add_row(site=site, node=sample, derived_state="1")
                     ts_new = tables.tree_sequence()
-                    with pytest.raises(exceptions.LibraryError):
-                        list(ts_new.variants())
+                    assert all([v.genotypes[sample] == 1 for v in ts_new.variants()])
 
     def test_zero_samples(self):
         ts = self.get_tree_sequence()
@@ -780,7 +779,7 @@ class TestHaplotypeGenerator:
         for h in ts_new.haplotypes():
             assert ones == h
 
-    def test_recurrent_mutations_errors(self):
+    def test_silent_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.dump_tables()
         tree = next(ts.trees())
@@ -791,9 +790,7 @@ class TestHaplotypeGenerator:
             tables.mutations.add_row(site=site, node=u, derived_state="1")
             tables.mutations.add_row(site=site, node=tree.root, derived_state="1")
             ts_new = tables.tree_sequence()
-            with pytest.raises(exceptions.LibraryError):
-                list(ts_new.haplotypes())
-            ts_new.haplotypes()
+            all(h == 1 for h in ts_new.haplotypes())
 
     def test_back_mutations(self):
         base_ts = msprime.simulate(10, random_seed=2)

@@ -509,14 +509,14 @@ def generate_site_mutations(
                 x = random.expovariate(mu)
                 new_state = state
                 while x < branch_length:
-                    new_state = random.choice([s for s in states if s != state])
-                    if multiple_per_node and (state != new_state):
+                    new_state = random.choice(states)
+                    if multiple_per_node:
                         mutation_table.add_row(site, u, new_state, parent)
                         parent = mutation_table.num_rows - 1
                         state = new_state
                     x += random.expovariate(mu)
                 else:
-                    if (not multiple_per_node) and (state != new_state):
+                    if not multiple_per_node:
                         mutation_table.add_row(site, u, new_state, parent)
                         parent = mutation_table.num_rows - 1
                         state = new_state

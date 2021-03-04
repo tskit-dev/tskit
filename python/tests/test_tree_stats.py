@@ -773,6 +773,11 @@ class MutatedTopologyExamplesMixin:
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         self.verify(ts)
 
+    def test_single_tree_single_site_many_silent(self):
+        ts = msprime.simulate(6, random_seed=1)
+        ts = tsutil.jukes_cantor(ts, 1, 20, seed=10)
+        self.verify(ts)
+
     def test_single_tree_multichar_mutations(self):
         ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
         ts = tsutil.insert_multichar_mutations(ts)

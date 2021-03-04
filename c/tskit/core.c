@@ -284,9 +284,6 @@ tsk_strerror_internal(int err)
         case TSK_ERR_MUTATION_PARENT_INCONSISTENT:
             ret = "Mutation parent references form a loop.";
             break;
-        case TSK_ERR_INCONSISTENT_MUTATIONS:
-            ret = "Inconsistent mutations: state already equal to derived state";
-            break;
         case TSK_ERR_UNSORTED_MUTATIONS:
             ret = "Mutations must be provided in non-decreasing site order and "
                   "non-increasing time order within each site";

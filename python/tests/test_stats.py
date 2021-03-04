@@ -195,7 +195,7 @@ class TestLdCalculator(unittest.TestCase):
 
 def set_partitions(collection):
     """
-    Returns an ierator over all partitions of the specified set.
+    Returns an iterator over all partitions of the specified set.
 
     From https://stackoverflow.com/questions/19368375/set-partitions-in-python
     """

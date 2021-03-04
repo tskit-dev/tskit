@@ -188,7 +188,7 @@ class VcfWriter:
                 )
             pos = self.transformed_positions[variant.index]
             ref = variant.alleles[0]
-            alt = ",".join(variant.alleles[1:])
+            alt = ",".join(variant.alleles[1:]) if len(variant.alleles) > 1 else "."
             print(
                 self.contig_id,
                 pos,

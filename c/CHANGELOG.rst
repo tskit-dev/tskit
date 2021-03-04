@@ -20,10 +20,13 @@
 
 - Method ``tsk_individual_table_add_row`` has an extra arguments ``parents`` and ``parents_length``.
 
-**Breaking changes**
-
 - Add an ``options`` argument to ``tsk_table_collection_subset`` (:user:`petrelharp`, :pr:`1108`),
   to allow for retaining the order of populations.
+
+**Changes**
+
+- Allow mutations that have the same derived state as their parent mutation.
+  (:user:`benjeffery`, :issue:`1180`, :pr:`1233`)
 
 **Bugfixes**
 

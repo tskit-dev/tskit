@@ -376,7 +376,10 @@ class TestRecordsEqual(ExamplesMixin):
             assert pyvcf_record.CHROM == pysam_record.chrom
             assert pyvcf_record.POS == pysam_record.pos
             assert pyvcf_record.ID == pysam_record.id
-            assert pyvcf_record.ALT == list(pysam_record.alts)
+            if pysam_record.alts:
+                assert pyvcf_record.ALT == list(pysam_record.alts)
+            else:
+                assert pyvcf_record.ALT == [] or pyvcf_record.ALT == [None]
             assert pyvcf_record.REF == pysam_record.ref
             assert pysam_record.filter[0].name == "PASS"
             assert pyvcf_record.FORMAT == "GT"
@@ -489,7 +492,9 @@ class TestRoundTripIndividuals(ExamplesMixin):
                 ):
                     assert vcf_row.POS == np.round(variant.site.position)
                     assert variant.alleles[0] == vcf_row.REF
-                    assert list(variant.alleles[1:]) == vcf_row.ALT
+                    assert list(variant.alleles[1:]) == [
+                        allele for allele in vcf_row.ALT if allele is not None
+                    ]
                     j = 0
                     for individual, sample in itertools.zip_longest(
                         map(ts.individual, indivs), vcf_row.samples

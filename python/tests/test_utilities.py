@@ -53,6 +53,18 @@ class TestJukesCantor:
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(ts)
 
+    def test_silent_mutations(self):
+        ts = msprime.simulate(50, random_seed=1)
+        ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
+        num_silent = 0
+        for m in ts.mutations():
+            if (
+                m.parent != -1
+                and ts.mutation(m.parent).derived_state == m.derived_state
+            ):
+                num_silent += 1
+        assert num_silent > 20
+
 
 class TestCaterpillarTree:
     """
