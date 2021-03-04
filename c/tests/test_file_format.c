@@ -275,10 +275,9 @@ test_missing_optional_column_pairs(void)
     size_t j;
     tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
     tsk_table_collection_t t1, t2;
-    const char *required_cols[][2] = {
-        { "edges/metadata", "edges/metadata_offset" },
+    const char *required_cols[][2] = { { "edges/metadata", "edges/metadata_offset" },
         { "migrations/metadata", "migrations/metadata_offset" },
-    };
+        { "individuals/parents", "individuals/parents_offset" } };
     const char *drop_cols[2];
 
     ret = tsk_treeseq_copy_tables(ts, &t1, 0);
@@ -319,7 +318,6 @@ test_missing_required_column_pairs(void)
     tsk_table_collection_t t;
     const char *required_cols[][2] = {
         { "individuals/location", "individuals/location_offset" },
-        { "individuals/parents", "individuals/parents_offset" },
         { "individuals/metadata", "individuals/metadata_offset" },
         { "mutations/derived_state", "mutations/derived_state_offset" },
         { "mutations/metadata", "mutations/metadata_offset" },

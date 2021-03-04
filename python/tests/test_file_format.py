@@ -99,7 +99,10 @@ def migration_example():
         mutation_rate=1,
         record_migrations=True,
     )
-    return ts
+    tables = ts.dump_tables()
+    for j in range(n):
+        tables.individuals.add_row(flags=j, location=(j, j), parents=(j - 1, j - 1))
+    return tables.tree_sequence()
 
 
 def bottleneck_example():
@@ -240,6 +243,22 @@ class TestLoadLegacyExamples(TestFileFormat):
                 for mut in site.mutations:
                     assert mut.site == site.id
 
+    def verify_0_3_3(self, ts):
+        for table in [
+            "populations",
+            "individuals",
+            "nodes",
+            "edges",
+            "sites",
+            "migrations",
+            "mutations",
+        ]:
+            t = getattr(ts.tables, table)
+            assert t.num_rows > 0
+            assert t.metadata_schema == tskit.MetadataSchema({"codec": "json"})
+            assert t[2].metadata == f"n_{table}_2"
+        assert ts.tables.has_index()
+
     def test_format_too_old_raised_for_hdf5(self):
         files = [
             "msprime-0.3.0_v2.0.hdf5",
@@ -264,6 +283,11 @@ class TestLoadLegacyExamples(TestFileFormat):
     def test_msprime_v_0_3_0(self):
         path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.3.0_v2.0.hdf5")
         ts = tskit.load_legacy(path)
+        self.verify_tree_sequence(ts)
+
+    def test_tskit_v_0_3_3(self):
+        path = os.path.join(test_data_dir, "old-formats", "tskit-0.3.3.trees")
+        ts = tskit.load(path)
         self.verify_tree_sequence(ts)
 
 
@@ -828,6 +852,27 @@ class TestOptionalColumns(TestFileFormat):
         t1 = ts1.dump_tables()
         t1.mutations.time = np.full_like(t1.mutations.time, tskit.UNKNOWN_TIME)
         assert t1 == ts3.tables
+
+    def test_empty_individual_parents(self):
+        ts1 = migration_example()
+        ts1.dump(self.temp_file)
+        ts2 = tskit.load(self.temp_file)
+        assert ts1.tables == ts2.tables
+        assert len(ts1.tables.individuals.parents) > 0
+        with kastore.load(self.temp_file) as store:
+            all_data = dict(store)
+        del all_data["individuals/parents"]
+        del all_data["individuals/parents_offset"]
+        kastore.dump(all_data, self.temp_file)
+        ts3 = tskit.load(self.temp_file)
+        tables = ts1.dump_tables()
+        tables.individuals.packset_parents(
+            [
+                [],
+            ]
+            * tables.individuals.num_rows
+        )
+        assert tables == ts3.tables
 
 
 class TestFileFormatErrors(TestFileFormat):

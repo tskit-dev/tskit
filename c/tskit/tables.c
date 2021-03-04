@@ -884,9 +884,10 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
             0 },
         { "individuals/location_offset", (void **) &location_offset, &num_rows, 1,
             KAS_UINT32, 0 },
-        { "individuals/parents", (void **) &parents, &parents_length, 0, KAS_INT32, 0 },
+        { "individuals/parents", (void **) &parents, &parents_length, 0, KAS_INT32,
+            TSK_COL_OPTIONAL },
         { "individuals/parents_offset", (void **) &parents_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
+            KAS_UINT32, TSK_COL_OPTIONAL },
         { "individuals/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8,
             0 },
         { "individuals/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
@@ -899,11 +900,15 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
+    if ((parents == NULL) != (parents_offset == NULL)) {
+        ret = TSK_ERR_BOTH_COLUMNS_REQUIRED;
+        goto out;
+    }
     if (location_offset[num_rows] != location_length) {
         ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
-    if (parents_offset[num_rows] != parents_length) {
+    if (parents != NULL && parents_offset[num_rows] != parents_length) {
         ret = TSK_ERR_BAD_OFFSET;
         goto out;
     }
