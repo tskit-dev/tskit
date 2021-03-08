@@ -146,10 +146,12 @@ we add 1 to each entry of the output corresponding to each allele count
 In our example, we'd add 1 to both ``AFS[3]`` and ``AFS[1]``.
 This means that the sum of all entries of a polarised, site AFS
 should equal the total number of non-ancestral alleles in the tree sequence
-that are ancestral to at least one of the samples in the tree sequence.
+that are ancestral to at least one of the samples in the tree sequence
+but not ancestral to all of them.
 The reason for this last caveat is that like with most statistics,
 mutations that are not ancestral to *any* samples (not just those in the sample sets)
-are not counted (and so don't even enter into ``AFS[0]``.
+are not counted (and so don't even enter into ``AFS[0]``),
+and similarly for those alleles inherited by *all* samples.
 
 Now, if we are computing the *unpolarised* AFS,
 we add *one half* to each entry of the *folded* output
