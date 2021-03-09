@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6-buster
+      - image: circleci/python:3.7-buster
     working_directory: /home/circleci/tskit
     steps:
       - checkout
@@ -11,7 +11,7 @@ jobs:
           # It's sometimes necessary to nuke the cache, and the simplest
           # way to do it is to change the key. We can increment this
           # version number when we want to do this.
-          key: tskit-{{ .Branch }}-v1
+          key: tskit-{{ .Branch }}-v4
       - run:
           name: Checkout submodules
           command: |
@@ -23,6 +23,7 @@ jobs:
             libgsl-dev
             # Install meson to the system packages so we can run it as root
             sudo pip install meson==0.55
+            pip install numpy==1.19.5
             pip install --user -r python/requirements/CI-complete/requirements.txt
             pip install twine --user
             # Remove tskit installed by msprime

@@ -32,6 +32,10 @@
   population indexing and lossless node reordering with subset.
   (:user:`petrelharp`, :pr:`1097`)
 
+**Breaking changes**
+
+- tskit now requires Python 3.6 (:user:`benjeffery`, :pr:`xxxx`)
+
 --------------------
 [0.3.4] - 2020-12-02
 --------------------

@@ -18,7 +18,7 @@ so it may already be installed if you use such software.
 Requirements
 ************
 
-Tskit requires Python 3.6+. There are no external C library dependencies. Python
+Tskit requires Python 3.7+. There are no external C library dependencies. Python
 dependencies are installed automatically by ``pip`` or ``conda``.
 
 .. _sec_installation_conda:
