@@ -1234,7 +1234,6 @@ class TestDrawTextExamples(TestTreeDraw):
 
     def test_simple_tree_sequence(self):
         ts = self.get_simple_ts()
-        print(ts.draw_text())
         ts_drawing = (
             "9.08┊    9    ┊         ┊         ┊         ┊         ┊\n"
             "    ┊  ┏━┻━┓  ┊         ┊         ┊         ┊         ┊\n"
@@ -1430,6 +1429,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         root_group = root.find(prefix + "g")
         assert "class" in root_group.attrib
         assert re.search(r"\b(tree|tree-sequence)\b", root_group.attrib["class"])
+        first_plotbox = None
         if "tree-sequence" in root_group.attrib["class"]:
             trees = None
             for g in root_group.findall(prefix + "g"):
@@ -1437,16 +1437,19 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
                     trees = g
                     break
             assert trees is not None  # Must have found a trees group
-            first_treebox = trees.find(prefix + "g")
-            assert "class" in first_treebox.attrib
-            assert re.search(r"\btreebox\b", first_treebox.attrib["class"])
-            first_tree = first_treebox.find(prefix + "g")
+            first_tree = trees.find(prefix + "g")
             assert "class" in first_tree.attrib
             assert re.search(r"\btree\b", first_tree.attrib["class"])
+            for g in first_tree.findall(prefix + "g"):
+                if "class" in g.attrib and re.search(r"\bplotbox\b", g.attrib["class"]):
+                    first_plotbox = g
         else:
-            first_tree = root_group
+            for g in root_group.findall(prefix + "g"):
+                if "class" in g.attrib and re.search(r"\bplotbox\b", g.attrib["class"]):
+                    first_plotbox = g
+        assert first_plotbox is not None
         # Check that we have edges, symbols, and labels groups
-        groups = first_tree.findall(prefix + "g")
+        groups = first_plotbox.findall(prefix + "g")
         assert len(groups) > 0
         for group in groups:
             assert "class" in group.attrib
@@ -1480,6 +1483,28 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             other_svg = tmp.read()
         self.verify_basic_svg(svg, num_trees=ts.num_trees)
         self.verify_basic_svg(other_svg, num_trees=ts.num_trees)
+
+    def test_nonimplemented_base_class(self):
+        ts = self.get_simple_ts()
+        plot = drawing.SvgPlot(ts, (100, 100), {}, "", "dummy-class", None, True, True)
+        plot.set_spacing()
+        with pytest.raises(NotImplementedError):
+            plot.draw_x_axis(tick_positions=ts.breakpoints(as_array=True))
+        with pytest.raises(NotImplementedError):
+            plot.draw_y_axis(tick_positions=[0])
+
+    def test_nonimplemented_tick_spacing(self):
+        t = self.get_binary_tree()
+        with pytest.raises(NotImplementedError):
+            t.draw_svg(y_axis=True, y_ticks=6)
+        ts = self.get_simple_ts()
+        with pytest.raises(NotImplementedError):
+            ts.draw_svg(y_axis=True, y_ticks=6)
+
+    def test_no_mixed_yscales(self):
+        ts = self.get_simple_ts()
+        with pytest.raises(ValueError, match="varying yscales"):
+            ts.draw_svg(y_axis=True, max_tree_height="tree")
 
     def test_draw_defaults(self):
         t = self.get_binary_tree()
@@ -1603,7 +1628,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         colour = None
         colours = {0: colour}
         svg = t.draw(format="svg", node_colours=colours)
-        assert svg.count("opacity:0") == 1
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("opacity:0") == 1
 
     def test_one_edge_colour(self):
         t = self.get_binary_tree()
@@ -1681,7 +1707,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         colours = {0: colour}
         svg = t.draw(format="svg", edge_colours=colours)
         self.verify_basic_svg(svg)
-        assert svg.count("opacity:0") == 1
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("opacity:0") == 1
+
+    def test_mutations_unknown_time(self):
+        ts = self.get_simple_ts(use_mutation_times=True)
+        svg = ts.draw_svg()
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        assert "unknown_time" not in svg
+        ts = self.get_simple_ts(use_mutation_times=False)
+        svg = ts.draw_svg()
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        assert svg.count("unknown_time") == ts.num_mutations
 
     def test_mutation_labels(self):
         t = self.get_binary_tree()
@@ -1728,7 +1765,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         colours = {0: colour}
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
-        assert svg.count("fill-opacity:0") == 1
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("fill-opacity:0") == 1
 
     def test_max_tree_height(self):
         nodes = io.StringIO(
@@ -1783,6 +1821,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = tree.draw_svg(size=(600, 400))
         self.verify_basic_svg(svg, width=600, height=400)
 
+    def test_draw_bad_sized_treebox(self):
+        tree = self.get_binary_tree()
+        with pytest.raises(ValueError, match="too small to fit"):
+            # Too small for plotbox
+            tree.draw_svg(size=(20, 20))
+
+    def test_draw_bad_sized_tree(self):
+        tree = self.get_binary_tree()
+        with pytest.raises(ValueError, match="too small to allow space"):
+            # Too small for standard-sized labels on tree
+            tree.draw_svg(size=(50, 50))
+
     def test_draw_simple_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
         svg = ts.draw_svg()
@@ -1798,7 +1848,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert ts.num_trees > 2
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
-        axis_pos = svg.find('class="axis"')
+        axis_pos = svg.find('class="x-axis"')
         for b in ts.breakpoints():
             assert b == round(b)
             assert svg.find(f">{b:.0f}<", axis_pos) != -1
@@ -1838,15 +1888,65 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             with pytest.raises(ValueError):
                 ts.draw_svg(x_scale=bad_x_scale)
 
+    def test_x_axis(self):
+        tree = msprime.simulate(4, random_seed=2).first()
+        svg = tree.draw_svg(x_axis=True)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert "Genome position" in svg_no_css
+        assert svg_no_css.count("axes") == 1
+        assert svg_no_css.count("x-axis") == 1
+        assert svg_no_css.count("y-axis") == 0
+
+    def test_y_axis(self):
+        tree = msprime.simulate(4, random_seed=2).first()
+        for hscale, label in [
+            (None, "Time"),
+            ("time", "Time"),
+            ("log_time", "Time"),
+            ("rank", "Ranked node time"),
+        ]:
+            svg = tree.draw_svg(y_axis=True, tree_height_scale=hscale)
+            svg_no_css = svg[svg.find("</style>") :]
+            assert label in svg_no_css
+            assert svg_no_css.count("axes") == 1
+            assert svg_no_css.count("x-axis") == 0
+            assert svg_no_css.count("y-axis") == 1
+            assert svg_no_css.count("tick") == len({tree.time(u) for u in tree.nodes()})
+
+    def test_y_axis_noticks(self):
+        tree = msprime.simulate(4, random_seed=2).first()
+        svg = tree.draw_svg(y_label="Time", y_ticks=[])
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("axes") == 1
+        assert svg_no_css.count("x-axis") == 0
+        assert svg_no_css.count("y-axis") == 1
+        assert svg_no_css.count("tick") == 0
+
+    def test_symbol_size(self):
+        tree = msprime.simulate(4, random_seed=2, mutation_rate=8).first()
+        sz = 24
+        svg = tree.draw_svg(symbol_size=sz)
+        svg_no_css = svg[svg.find("</style>") :]
+        num_mutations = len([_ for _ in tree.mutations()])
+        num_nodes = len([_ for _ in tree.nodes()])
+        # Squares have 'height="sz" width="sz"'
+        assert svg_no_css.count(f'"{sz}"') == tree.num_samples() * 2
+        # Circles define a radius like 'r="sz/2"'
+        assert svg_no_css.count(f'r="{sz/2:g}"') == num_nodes - tree.num_samples()
+        # Mutations draw a line on the cross using 'l sz,sz'
+        assert svg_no_css.count(f"l {sz},{sz} ") == num_mutations
+
     def test_no_edges(self):
         ts = msprime.simulate(10, random_seed=2)
         tables = ts.dump_tables()
         tables.edges.clear()
         ts_no_edges = tables.tree_sequence()
-        svg = ts_no_edges.draw_svg()  # This should just be a row of 10 sample nodes
-        self.verify_basic_svg(svg)
-        assert svg.count("rect") == 10  # Sample nodes are rectangles
-        assert svg.count('path class="edge"') == 0
+        for tree_height_scale in ("time", "log_time", "rank"):
+            # SVG should just be a row of 10 sample nodes
+            svg = ts_no_edges.draw_svg(tree_height_scale=tree_height_scale)
+            self.verify_basic_svg(svg)
+            assert svg.count("rect") == 10  # Sample nodes are rectangles
+            assert svg.count('path class="edge"') == 0
 
         svg = ts_no_edges.draw_svg(force_root_branch=True)
         self.verify_basic_svg(svg)
@@ -1862,10 +1962,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts_no_edges.draw_svg()
         self.verify_basic_svg(svg)
         assert svg.count("rect") == 10
-        assert svg.count('path class="edge"') == 10
-        assert svg.count('path class="sym"') == (
-            ts_no_edges.num_mutations + ts_no_edges.num_sites
-        )
+        assert svg.count('<path class="edge"') == 10
+        assert svg.count('<path class="sym"') == ts_no_edges.num_mutations
+        assert svg.count('<line class="sym"') == ts_no_edges.num_sites
 
     def test_tree_root_branch(self):
         # in the simple_ts, there are root mutations in the first tree but not the last
@@ -1895,6 +1994,17 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert not ("H 0" in snippet2a)  # No root branch
         assert "H 0" in snippet2b
 
+    def test_debug_box(self):
+        ts = self.get_simple_ts()
+        svg = ts.first().draw_svg(debug_box=True)
+        self.verify_basic_svg(svg)
+        assert svg.count("outer_plotbox") == 1
+        assert svg.count("inner_plotbox") == 1
+        svg = ts.draw_svg(debug_box=True)
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        assert svg.count("outer_plotbox") == ts.num_trees + 1
+        assert svg.count("inner_plotbox") == ts.num_trees + 1
+
     def verify_known_svg(self, svg, filename, save=False, **kwargs):
         # expected SVG files can be inspected in tests/data/svg/*.svg
         svg = xml.dom.minidom.parseString(
@@ -1910,49 +2020,108 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             expected_svg = file.read()
         self.assertXmlEquivalentOutputs(svg, expected_svg)
 
-    def test_known_svg_tree_no_mut(self, overwrite_viz):
+    def test_known_svg_tree_no_mut(self, overwrite_viz, draw_plotbox):
         tree = self.get_simple_ts().at_index(-1)
         svg = tree.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
+            root_svg_attributes={"id": "XYZ"},
+            style=".edge {stroke: blue}",
+            debug_box=draw_plotbox,
         )
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("axes") == 0
+        assert svg_no_css.count("x-axis") == 0
+        assert svg_no_css.count("y-axis") == 0
         self.verify_known_svg(svg, "tree.svg", overwrite_viz)
 
-    def test_known_svg_tree_root_mut(self, overwrite_viz):
-        tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
+    def test_known_svg_tree_x_axis(self, overwrite_viz, draw_plotbox):
+        tree = self.get_simple_ts().at_index(1)
         svg = tree.draw_svg(
-            root_svg_attributes={"id": "XYZ"}, style=".edge {stroke: blue}"
+            x_axis=True,
+            x_label="pos on genome",
+            size=(400, 200),
+            debug_box=draw_plotbox,
         )
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("axes") == 1
+        assert svg_no_css.count("x-axis") == 1
+        assert svg_no_css.count("y-axis") == 0
+        self.verify_known_svg(svg, "tree_x_axis.svg", overwrite_viz, width=400)
+
+    def test_known_svg_tree_y_axis(self, overwrite_viz, draw_plotbox):
+        tree = self.get_simple_ts().at_index(1)
+        label = "Time (relative steps)"
+        svg = tree.draw_svg(
+            y_axis=True,
+            y_label=label,
+            y_gridlines=True,
+            tree_height_scale="rank",
+            style=".y-axis line.grid {stroke: #CCCCCC}",
+            debug_box=draw_plotbox,
+        )
+        svg_no_css = svg[svg.find("</style>") :]
+        node_times = [tree.time(u) for u in tree.nodes()]
+        assert label in svg_no_css
+        assert svg_no_css.count('class="grid"') == len(set(node_times))
+        assert svg_no_css.count("axes") == 1
+        assert svg_no_css.count("x-axis") == 0
+        assert svg_no_css.count("y-axis") == 1
+        self.verify_known_svg(svg, "tree_y_axis.svg", overwrite_viz)
+
+    def test_known_svg_tree_both_axes(self, overwrite_viz, draw_plotbox):
+        tree = self.get_simple_ts().at_index(-1)
+        svg = tree.draw_svg(x_axis=True, y_axis=True, debug_box=draw_plotbox)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("axes") == 1
+        assert svg_no_css.count("x-axis") == 1
+        assert svg_no_css.count("y-axis") == 1
+        self.verify_known_svg(svg, "tree_both_axes.svg", overwrite_viz)
+
+    def test_known_svg_tree_root_mut(self, overwrite_viz, draw_plotbox):
+        tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
+        svg = tree.draw_svg(debug_box=draw_plotbox)
         self.verify_known_svg(svg, "tree_muts.svg", overwrite_viz)
 
-    def test_known_svg_tree_mut_no_edges(self, overwrite_viz):
-        ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
-        tables = ts.dump_tables()
-        tables.edges.clear()
-        tree_no_edges = tables.tree_sequence().simplify().first()
-        svg = tree_no_edges.draw_svg()  # A row of 10 sample nodes with root branches
-        self.verify_basic_svg(svg)
-        self.verify_known_svg(
-            svg, "tree_mutations_no_edges.svg", overwrite_viz, width=200 * ts.num_trees
-        )
+    def test_known_svg_tree_timed_root_mut(self, overwrite_viz, draw_plotbox):
+        tree = self.get_simple_ts(use_mutation_times=True).at_index(0)
+        svg = tree.draw_svg(debug_box=draw_plotbox)
+        self.verify_known_svg(svg, "tree_timed_muts.svg", overwrite_viz)
 
-    def test_known_svg_ts(self, overwrite_viz):
+    def test_known_svg_ts(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()
-        svg = ts.draw_svg()
-        assert svg.count('class="site ') == ts.num_sites
-        assert svg.count('class="mut ') == ts.num_mutations * 2
+        svg = ts.draw_svg(debug_box=draw_plotbox)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("axes") == 1
+        assert svg_no_css.count("x-axis") == 1
+        assert svg_no_css.count("y-axis") == 0
+        assert svg_no_css.count('class="site ') == ts.num_sites
+        assert svg_no_css.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(svg, "ts.svg", overwrite_viz, width=200 * ts.num_trees)
 
-    def test_known_svg_ts_internal_sample(self, overwrite_viz):
+    def test_known_svg_ts_no_axes(self, overwrite_viz, draw_plotbox):
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(x_axis=False, debug_box=draw_plotbox)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("axes") == 0
+        assert svg_no_css.count("x-axis") == 0
+        assert svg_no_css.count("y-axis") == 0
+        assert 'class="site ' not in svg_no_css
+        assert svg_no_css.count('class="mut ') == ts.num_mutations
+        self.verify_known_svg(
+            svg, "ts_no_axes.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_internal_sample(self, overwrite_viz, draw_plotbox):
         ts = tsutil.jiggle_samples(self.get_simple_ts())
         svg = ts.draw_svg(
             root_svg_attributes={"id": "XYZ"},
             style="#XYZ .leaf .sym {fill: magenta} #XYZ .sample > .sym {fill: cyan}",
+            debug_box=draw_plotbox,
         )
         self.verify_known_svg(
             svg, "internal_sample_ts.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_highlighted_mut(self, overwrite_viz):
+    def test_known_svg_ts_highlighted_mut(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()
         style = (
             ".edge {stroke: grey}"
@@ -1961,86 +2130,172 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             ".mut.m3 .sym,.m3>line, .m3>.node .edge{stroke:cyan} .mut.m3 text{fill:cyan}"
             ".mut.m4 .sym,.m4>line, .m4>.node .edge{stroke:blue} .mut.m4 text{fill:blue}"
         )
-        svg = ts.draw_svg(style=style)
+        svg = ts.draw_svg(style=style, debug_box=draw_plotbox)
         self.verify_known_svg(
             svg, "ts_mut_highlight.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_rank(self, overwrite_viz):
+    def test_known_svg_ts_rank(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()
-        svg1 = ts.draw_svg(tree_height_scale="rank")
+        svg1 = ts.draw_svg(
+            tree_height_scale="rank", y_axis=True, debug_box=draw_plotbox
+        )
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg2 = ts.draw_svg(tree_height_scale="rank")
-        assert svg1 == svg2  # Must ignore mutation times if height is "rank"
+        svg2 = ts.draw_svg(
+            tree_height_scale="rank", y_axis=True, debug_box=draw_plotbox
+        )
         assert svg1.count('class="site ') == ts.num_sites
         assert svg1.count('class="mut ') == ts.num_mutations * 2
+        assert svg1.replace(" unknown_time", "") == svg2  # Trim the unknown_time class
         self.verify_known_svg(
             svg1, "ts_rank.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_nonbinary_ts(self, overwrite_viz):
+    def test_known_svg_nonbinary_ts(self, overwrite_viz, draw_plotbox):
         ts = self.get_nonbinary_ts()
-        svg = ts.draw_svg(tree_height_scale="log_time")
+        svg = ts.draw_svg(tree_height_scale="log_time", debug_box=draw_plotbox)
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(
             svg, "ts_nonbinary.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_plain(self, overwrite_viz):
+    def test_known_svg_ts_plain(self, overwrite_viz, draw_plotbox):
         """
         Plain style: no background shading and a variable scale X axis with no sites
         """
         ts = self.get_simple_ts()
-        svg = ts.draw_svg(x_scale="treewise")
+        svg = ts.draw_svg(x_scale="treewise", debug_box=draw_plotbox)
         assert svg.count('class="site ') == 0
         assert svg.count('class="mut ') == ts.num_mutations
         self.verify_known_svg(
             svg, "ts_plain.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_with_xlabel(self, overwrite_viz):
+    def test_known_svg_ts_plain_no_xlab(self, overwrite_viz, draw_plotbox):
+        """
+        Plain style: no background shading and a variable scale X axis with no sites
+        """
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(x_scale="treewise", x_label="", debug_box=draw_plotbox)
+        assert "Genome position" not in svg
+        self.verify_known_svg(
+            svg, "ts_plain_no_xlab.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_plain_y(self, overwrite_viz, draw_plotbox):
+        """
+        Plain style: no background shading and a variable scale X axis with no sites
+        """
+        ts = self.get_simple_ts()
+        ticks = [0, 5, 10]
+        svg = ts.draw_svg(
+            x_scale="treewise",
+            y_axis=True,
+            y_ticks=ticks,
+            y_gridlines=True,
+            style=".y-axis line.grid {stroke: #CCCCCC}",
+            debug_box=draw_plotbox,
+        )
+        self.verify_known_svg(
+            svg, "ts_plain_y.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_with_xlabel(self, overwrite_viz, draw_plotbox):
         """
         Style with X axis label
         """
         ts = self.get_simple_ts()
         x_label = "genomic position (bp)"
-        svg = ts.draw_svg(x_label=x_label)
+        svg = ts.draw_svg(x_label=x_label, debug_box=draw_plotbox)
         assert x_label in svg
         self.verify_known_svg(
             svg, "ts_xlabel.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_mutation_times(self, overwrite_viz):
+    def test_known_svg_ts_y_axis(self, overwrite_viz, draw_plotbox):
+        ts = self.get_simple_ts()
+        y_label = "Time (gens)"
+        svg = ts.draw_svg(y_axis=True, y_label=y_label, debug_box=draw_plotbox)
+        assert y_label in svg
+        self.verify_known_svg(
+            svg, "ts_y_axis.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_y_axis_regular(self, overwrite_viz, draw_plotbox):
+        # This should have gridlines
+        ts = self.get_simple_ts()
+        ticks = np.arange(0, max(ts.tables.nodes.time), 1)
+        svg = ts.draw_svg(
+            y_axis=True, y_ticks=ticks, y_gridlines=True, debug_box=draw_plotbox
+        )
+        assert svg.count('class="grid"') == len(ticks)
+        self.verify_known_svg(
+            svg, "ts_y_axis_regular.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_y_axis_log(self, overwrite_viz, draw_plotbox):
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(
+            y_axis=True,
+            y_label="Time (log scale)",
+            tree_height_scale="log_time",
+            debug_box=draw_plotbox,
+        )
+        self.verify_known_svg(
+            svg, "ts_y_axis_log.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_mutation_times(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg = ts.draw_svg()
+        svg = ts.draw_svg(debug_box=draw_plotbox)
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(
             svg, "ts_mut_times.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_mutation_times_logscale(self, overwrite_viz):
+    def test_known_svg_ts_mutation_times_logscale(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg = ts.draw_svg(tree_height_scale="log_time")
+        svg = ts.draw_svg(tree_height_scale="log_time", debug_box=draw_plotbox)
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(
             svg, "ts_mut_times_logscale.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_mut_no_edges(self, overwrite_viz, caplog):
+    def test_known_svg_ts_mut_no_edges(self, overwrite_viz, draw_plotbox, caplog):
+        # An example with some muts on axis but not on a visible node
         ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
         tables = ts.dump_tables()
         tables.edges.clear()
+        tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
         ts_no_edges = tables.tree_sequence()
-        svg = ts_no_edges.draw_svg()  # Some muts on axis but not on a visible node
+        svg = ts_no_edges.draw_svg(debug_box=draw_plotbox)
         assert "not present in the displayed tree" in caplog.text
         self.verify_known_svg(
             svg, "ts_mutations_no_edges.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_multiroot(self, overwrite_viz, caplog):
+    def test_known_svg_ts_timed_mut_no_edges(self, overwrite_viz, draw_plotbox, caplog):
+        # An example with some muts on axis but not on a visible node
+        ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
+        tables = ts.dump_tables()
+        tables.edges.clear()
+        tables.mutations.time = np.arange(
+            ts.num_mutations, dtype=tables.mutations.time.dtype
+        )
+        ts_no_edges = tables.tree_sequence()
+        svg = ts_no_edges.draw_svg(debug_box=draw_plotbox)
+        assert "not present in the displayed tree" in caplog.text
+        self.verify_known_svg(
+            svg,
+            "ts_mutations_timed_no_edges.svg",
+            overwrite_viz,
+            width=200 * ts.num_trees,
+        )
+
+    def test_known_svg_ts_multiroot(self, overwrite_viz, draw_plotbox, caplog):
         tables = wf.wf_sim(
             6,
             5,
@@ -2052,7 +2307,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         tables.sort()
         ts = tables.tree_sequence().simplify()
         ts = msprime.mutate(ts, rate=0.1, random_seed=123)
-        svg = ts.draw_svg()
+        svg = ts.draw_svg(
+            y_label="Time (WF gens)", y_gridlines=True, debug_box=draw_plotbox
+        )
         self.verify_known_svg(
             svg, "ts_multiroot.svg", overwrite_viz, width=200 * ts.num_trees
         )

@@ -58,6 +58,12 @@ def pytest_addoption(parser):
         default=False,
         help="Overwrite the expected viz files in tests/data/svg/",
     )
+    parser.addoption(
+        "--draw-svg-debug-box",
+        action="store_true",
+        default=False,
+        help="To help debugging, draw lines around the plotboxes in SVG output files",
+    )
 
 
 def pytest_configure(config):
@@ -78,6 +84,11 @@ def pytest_collection_modifyitems(config, items):
 @fixture
 def overwrite_viz(request):
     return request.config.getoption("--overwrite-expected-visualizations")
+
+
+@fixture
+def draw_plotbox(request):
+    return request.config.getoption("--draw-svg-debug-box")
 
 
 @fixture(scope="session")

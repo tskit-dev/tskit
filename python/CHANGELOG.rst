@@ -4,6 +4,10 @@
 
 **Features**
 
+- SVG visualization plots mutations at the correct time, if it exists, and a y-axis,
+  with label can be drawn. Both x- and y-axes can be plotted on trees as well as
+  tree sequences (:user:`hyanwong`,:issue:`840`, :issue:`580`, :pr:`1236`)
+
 - SVG visualization now uses squares for sample nodes and red crosses for mutations,
   with the site/mutation positions marked on the x-axis. Additionally, an x-axis
   label can be set (:user:`hyanwong`,:issue:`1155`, :issue:`1194`, :pr:`1182`, :pr:`1213`)
