@@ -60,7 +60,7 @@ Requirements
 ------------
 
 To develop the Python code you will need a working C compiler and a
-development installation of Python (>= 3.6). On Debian/Ubuntu we can install these
+development installation of Python (>= 3.7). On Debian/Ubuntu we can install these
 with::
 
     $ sudo apt install python3-dev build-essential doxygen
@@ -416,7 +416,7 @@ This is most easily done using ``make``:
 
 If this has completed successfully you should see a file ``_tskit.cpython-XXXXXX.so``
 in the current directory (the suffix depends on your platform and Python version;
-with Python 3.6 on Linux it's ``_tskit.cpython-36m-x86_64-linux-gnu.so``).
+with Python 3.7 on Linux it's ``_tskit.cpython-37m-x86_64-linux-gnu.so``).
 
 To make sure that your development environment is working, run some
 :ref:`tests <sec_development_python_tests>`.
