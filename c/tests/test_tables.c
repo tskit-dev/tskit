@@ -5629,6 +5629,7 @@ test_table_collection_union(void)
     tsk_table_collection_t tables_empty;
     tsk_table_collection_t tables_copy;
     tsk_id_t node_mapping[3];
+    tsk_id_t parents[2] = { -1, -1 };
     char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
 
@@ -5662,13 +5663,15 @@ test_table_collection_union(void)
     ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 2, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        &tables.individuals, 0, NULL, 0, parents, 2, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
+    parents[0] = 0;
     ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        &tables.individuals, 0, NULL, 0, parents, 2, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
+    parents[1] = 1;
     ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        &tables.individuals, 0, NULL, 0, parents, 2, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);

@@ -727,6 +727,12 @@ def py_union(tables, other, nodes, record_provenance=True, add_populations=True)
     node_map = [tskit.NULL for _ in range(other.nodes.num_rows + 1)]
     site_map = [tskit.NULL for _ in range(other.sites.num_rows + 1)]
     mut_map = [tskit.NULL for _ in range(other.mutations.num_rows + 1)]
+    original_num_individuals = tables.individuals.num_rows
+
+    for other_id, node in enumerate(other.nodes):
+        if nodes[other_id] != tskit.NULL and node.individual != tskit.NULL:
+            ind_map[node.individual] = tables.nodes[nodes[other_id]].individual
+
     for other_id, node in enumerate(other.nodes):
         if nodes[other_id] != tskit.NULL:
             node_map[other_id] = nodes[other_id]
@@ -755,6 +761,11 @@ def py_union(tables, other, nodes, record_provenance=True, add_populations=True)
                 flags=node.flags,
             )
             node_map[other_id] = node_id
+    individuals = tables.individuals
+    for i in range(
+        individuals.parents_offset[original_num_individuals], len(individuals.parents)
+    ):
+        individuals.parents[i] = ind_map[individuals.parents[i]]
     for edge in other.edges:
         if (nodes[edge.parent] == tskit.NULL) or (nodes[edge.child] == tskit.NULL):
             tables.edges.add_row(

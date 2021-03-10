@@ -9975,6 +9975,7 @@ tsk_table_collection_union(tsk_table_collection_t *self,
     int ret = 0;
     tsk_id_t k, i, new_parent, new_child;
     tsk_size_t num_shared_nodes = 0;
+    tsk_size_t num_individuals_self = self->individuals.num_rows;
     tsk_edge_t edge;
     tsk_mutation_t mut;
     tsk_site_t site;
@@ -10027,6 +10028,18 @@ tsk_table_collection_union(tsk_table_collection_t *self,
     memset(population_map, 0xff, other->populations.num_rows * sizeof(*population_map));
     memset(site_map, 0xff, other->sites.num_rows * sizeof(*site_map));
 
+    /* We have to map the individuals who are linked to nodes in the intersection first
+       as otherwise an individual linked to one node in the intersection and one in
+       `other` would be duplicated. We assume that the individual in `self` takes
+       priority.
+     */
+    for (k = 0; k < (tsk_id_t) other->nodes.num_rows; k++) {
+        if (other_node_mapping[k] != TSK_NULL
+            && other->nodes.individual[k] != TSK_NULL) {
+            individual_map[other->nodes.individual[k]]
+                = self->nodes.individual[other_node_mapping[k]];
+        }
+    }
     // nodes, individuals, populations
     for (k = 0; k < (tsk_id_t) other->nodes.num_rows; k++) {
         if (other_node_mapping[k] != TSK_NULL) {
@@ -10037,6 +10050,15 @@ tsk_table_collection_union(tsk_table_collection_t *self,
             if (ret < 0) {
                 goto out;
             }
+        }
+    }
+
+    /* Now we know the full individual map we can remap the parents of the new
+     * individuals*/
+    for (k = (tsk_id_t) self->individuals.parents_offset[num_individuals_self];
+         k < (tsk_id_t) self->individuals.parents_length; k++) {
+        if (self->individuals.parents[k] != TSK_NULL) {
+            self->individuals.parents[k] = individual_map[self->individuals.parents[k]];
         }
     }
 
