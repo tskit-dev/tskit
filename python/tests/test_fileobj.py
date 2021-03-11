@@ -242,6 +242,7 @@ def stream(fifo, ts_list):
 
 
 @pytest.mark.skipif(IS_WINDOWS, reason="No FIFOs on Windows")
+@pytest.mark.skipif(IS_OSX, reason="FIFO flakey on OS X, issue #1170")
 class TestFIFO:
     @fixture
     def fifo(self):
