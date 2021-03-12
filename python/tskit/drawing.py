@@ -124,16 +124,13 @@ def check_x_scale(x_scale):
 
 def check_ticks(ticks, default_iterable):
     """
-    If y_ticks is iterable, it is a list of tick positions. Otherwise return a default
-    or None if falsey
+    This is trivial, but implemented as a function so that later we can implement a tick
+    locator function, such that e.g. ticks=5 selects ~5 nicely spaced tick locations
+    (ideally with sensible behaviour for log scales)
     """
     if ticks is None:
         return default_iterable
-    try:
-        iter(ticks)
-        return ticks
-    except TypeError:
-        raise NotImplementedError("Autocalculated tick mark locations not implemented.")
+    return ticks
 
 
 def rnd(x):
@@ -341,9 +338,7 @@ class SvgPlot:
     # TODO: we may want to make some of the constants below into parameters
     text_height = 14  # May want to calculate this based on a font size
     line_height = text_height * 1.2  # allowing padding above and below a line
-    root_branch_fraction = (
-        1 / 8
-    )  # Rel. root branch len (unless it has a timed mutation)
+    root_branch_fraction = 1 / 8  # Rel root branch len, unless it has a timed mutation
     default_tick_length = 5
     default_tick_length_site = 10
     # Placement of the axes lines within the padding - not used unless axis is plotted

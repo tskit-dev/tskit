@@ -1493,12 +1493,13 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         with pytest.raises(NotImplementedError):
             plot.draw_y_axis(tick_positions=[0])
 
-    def test_nonimplemented_tick_spacing(self):
+    def test_bad_tick_spacing(self):
+        # Integer y_ticks to give auto-generated tick locs is not currently implemented
         t = self.get_binary_tree()
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(TypeError):
             t.draw_svg(y_axis=True, y_ticks=6)
         ts = self.get_simple_ts()
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(TypeError):
             ts.draw_svg(y_axis=True, y_ticks=6)
 
     def test_no_mixed_yscales(self):
@@ -1513,12 +1514,26 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = t.draw_svg()
         self.verify_basic_svg(svg)
 
-    def test_draw_nonbinary(self):
-        t = self.get_nonbinary_tree()
-        svg = t.draw()
-        self.verify_basic_svg(svg)
+    @pytest.mark.parametrize("y_axis", (True, False))
+    @pytest.mark.parametrize("y_label", (True, False))
+    @pytest.mark.parametrize(
+        "tree_height_scale",
+        (
+            "rank",
+            "time",
+        ),
+    )
+    @pytest.mark.parametrize("y_ticks", ([], [0, 1], None))
+    @pytest.mark.parametrize("y_gridlines", (True, False))
+    def test_draw_svg_y_axis_parameter_combos(
+        self, y_axis, y_label, tree_height_scale, y_ticks, y_gridlines
+    ):
+        t = self.get_binary_tree()
         svg = t.draw_svg()
         self.verify_basic_svg(svg)
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg()
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_multiroot(self):
         t = self.get_multiroot_tree()

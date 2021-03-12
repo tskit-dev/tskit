@@ -1631,8 +1631,7 @@ class Tree:
             gives no tickmarks). If ``None``, plot one tickmark for each unique
             node value.
         :param bool y_gridlines: Whether to plot horizontal lines behind the tree
-            at each y tickmark. If ``None`` (default), only plot gridlines if a list
-            of ``y_ticks`` has also been given.
+            at each y tickmark.
 
         :return: An SVG representation of a tree.
         :rtype: str
@@ -5395,8 +5394,7 @@ class TreeSequence:
             gives no tickmarks). If ``None``, plot one tickmark for each unique
             node value.
         :param bool y_gridlines: Whether to plot horizontal lines behind the tree
-            at each y tickmark. If ``None`` (default), only plot gridlines if a list
-            of ``y_ticks`` has also been given.
+            at each y tickmark.
 
         :return: An SVG representation of a tree sequence.
         :rtype: str
