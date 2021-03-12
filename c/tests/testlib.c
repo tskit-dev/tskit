@@ -42,6 +42,7 @@ const char *single_tree_ex_edges = "0  1   4   0,1\n"
 const char *single_tree_ex_sites = "0.125  0\n"
                                    "0.25   0\n"
                                    "0.5    0\n";
+/* site, node, derived_state, [parent, time] */
 const char *single_tree_ex_mutations
     = "0    2     1   -1\n"
       "1    4     1   -1\n"

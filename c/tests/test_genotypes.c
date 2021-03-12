@@ -864,7 +864,7 @@ test_single_tree_many_alleles(void)
 }
 
 static void
-test_single_tree_inconsistent_mutations(void)
+test_single_tree_silent_mutations_i16(void)
 {
     const char *sites = "0.0     0\n"
                         "0.1     0\n"
@@ -896,11 +896,100 @@ test_single_tree_inconsistent_mutations(void)
             ret = tsk_vargen_next(&vargen, &var);
             CU_ASSERT_EQUAL_FATAL(ret, 1);
             ret = tsk_vargen_next(&vargen, &var);
-            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INCONSISTENT_MUTATIONS);
+            CU_ASSERT_EQUAL_FATAL(ret, 1);
             tsk_vargen_free(&vargen);
         }
     }
 
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_silent_mutations_i8(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+
+    /* Add some silent mutations */
+    const char *silent_ex_sites = "0.125  0\n"
+                                  "0.25   0\n"
+                                  "0.5    0\n"
+                                  "0.75    0\n";
+    /* site, node, derived_state, [parent, time] */
+    const char *silent_ex_mutations
+        = "0    5     0   -1\n" /* Silent mutation over mutation 1 */
+          "0    2     1   0\n"
+          "1    4     1   -1\n"
+          "1    0     0   2\n"  /* Back mutation over 0 */
+          "1    0     0   3\n"  /* Silent mutation under back mutation */
+          "2    0     1   -1\n" /* recurrent mutations over samples */
+          "2    1     1   -1\n"
+          "2    2     1   -1\n"
+          "2    3     1   -1\n"
+          "3    0     0   -1\n" /* Single silent mutation at a site */
+        ;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        silent_ex_sites, silent_ex_mutations, NULL, NULL, 0);
+
+    ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site->id, 0);
+    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site->id, 1);
+    CU_ASSERT_EQUAL(var->site->mutations_length, 3);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 1);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site->id, 2);
+    CU_ASSERT_EQUAL(var->site->mutations_length, 4);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes.i8[3], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site->id, 3);
+    CU_ASSERT_EQUAL(var->site->mutations_length, 1);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_vargen_free(&vargen);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
 }
 
@@ -922,8 +1011,10 @@ main(int argc, char **argv)
         { "test_single_tree_user_alleles_errors", test_single_tree_user_alleles_errors },
         { "test_single_tree_subsample", test_single_tree_subsample },
         { "test_single_tree_many_alleles", test_single_tree_many_alleles },
-        { "test_single_tree_inconsistent_mutations",
-            test_single_tree_inconsistent_mutations },
+        { "test_single_tree_silent_mutations_i16",
+            test_single_tree_silent_mutations_i16 },
+        { "test_single_tree_silent_mutations_i8", test_single_tree_silent_mutations_i8 },
+
         { NULL, NULL },
     };
 

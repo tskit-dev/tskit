@@ -247,13 +247,12 @@ not found in the file.
 #define TSK_ERR_MUTATION_PARENT_EQUAL                               -501
 #define TSK_ERR_MUTATION_PARENT_AFTER_CHILD                         -502
 #define TSK_ERR_MUTATION_PARENT_INCONSISTENT                        -503
-#define TSK_ERR_INCONSISTENT_MUTATIONS                              -504
-#define TSK_ERR_UNSORTED_MUTATIONS                                  -505
-#define TSK_ERR_NON_SINGLE_CHAR_MUTATION                            -506
-#define TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE                     -507
-#define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION            -508
-#define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE                -509
-#define TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN            -510
+#define TSK_ERR_UNSORTED_MUTATIONS                                  -504
+#define TSK_ERR_NON_SINGLE_CHAR_MUTATION                            -505
+#define TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE                     -506
+#define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION            -507
+#define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE                -508
+#define TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN            -509
 
 /* Sample errors */
 #define TSK_ERR_DUPLICATE_SAMPLE                                    -600

@@ -3871,6 +3871,7 @@ class TestSubsetUnion:
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
         return ts
 
+    @pytest.mark.skip("Fails due to #1225")
     def test_no_mutation_times(self):
         ts = self.get_wf_example(10, 4, seed=925)
         self.verify_subset_union(ts)
