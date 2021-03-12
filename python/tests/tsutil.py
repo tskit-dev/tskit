@@ -28,6 +28,7 @@ import functools
 import json
 import random
 import string
+import struct
 
 import numpy as np
 
@@ -1756,3 +1757,11 @@ def sort_individual_table(tables):
     tables.nodes.individual = [ind_id_map[i] for i in tables.nodes.individual]
 
     return tables
+
+
+def insert_unique_metadata(ts, table):
+    tables = ts.dump_tables()
+    getattr(tables, table).packset_metadata(
+        [struct.pack("I", i) for i in range(getattr(tables, table).num_rows)]
+    )
+    return tables.tree_sequence()
