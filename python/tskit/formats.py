@@ -28,7 +28,6 @@ import datetime
 import json
 import logging
 
-import h5py
 import numpy as np
 
 import tskit
@@ -225,6 +224,17 @@ def _load_legacy_hdf5_v3(root, remove_duplicate_positions):
     return tables.tree_sequence()
 
 
+def get_h5py():
+    try:
+        import h5py
+    except ImportError:
+        raise tskit.FileFormatError(
+            "Legacy formats require h5py. Install via `pip install h5py`"
+            " or `conda install h5py`"
+        )
+    return h5py
+
+
 def load_legacy(filename, remove_duplicate_positions=False):
     """
     Reads the specified msprime HDF5 file and returns a tree sequence. This
@@ -239,6 +249,7 @@ def load_legacy(filename, remove_duplicate_positions=False):
         3: _load_legacy_hdf5_v3,
         10: _load_legacy_hdf5_v10,
     }
+    h5py = get_h5py()
     root = h5py.File(filename, "r")
     if "format_version" not in root.attrs:
         raise ValueError("HDF5 file not in msprime format")
@@ -257,6 +268,7 @@ def raise_hdf5_format_error(filename, original_exception):
     Tries to open the specified file as a legacy HDF5 file. If it looks like
     an msprime format HDF5 file, raise an error advising to run tskit upgrade.
     """
+    h5py = get_h5py()
     try:
         with h5py.File(filename, "r") as root:
             version = tuple(root.attrs["format_version"])
@@ -577,6 +589,7 @@ def dump_legacy(tree_sequence, filename, version=3):
     }
     if version not in dumpers:
         raise ValueError(f"Version {version} file format is supported")
+    h5py = get_h5py()
     root = h5py.File(filename, "w")
     try:
         dumpers[version](tree_sequence, root)
