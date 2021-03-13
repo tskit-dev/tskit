@@ -228,7 +228,7 @@ def get_h5py():
     try:
         import h5py
     except ImportError:
-        raise tskit.FileFormatError(
+        raise ImportError(
             "Legacy formats require h5py. Install via `pip install h5py`"
             " or `conda install h5py`"
         )
