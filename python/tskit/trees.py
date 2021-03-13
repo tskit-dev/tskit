@@ -1462,6 +1462,13 @@ class Tree:
         style=None,
         order=None,
         force_root_branch=None,
+        symbol_size=None,
+        x_axis=None,
+        y_axis=None,
+        x_label=None,
+        y_label=None,
+        y_ticks=None,
+        y_gridlines=None,
         **kwargs,
     ):
         """
@@ -1608,6 +1615,23 @@ class Tree:
         :param bool force_root_branch: If ``True`` always plot a branch (edge) above the
             root(s) in the tree. If ``None`` (default) then only plot such root branches
             if there is a mutation above a root of the tree.
+        :param float symbol_size: Change the default size of the node and mutation
+            plotting symbols. If ``None`` (default) use a standard size.
+        :param bool x_axis: Should the plot have an X axis line, showing the start and
+            end position of this tree along the genome. If ``None`` (default) do not
+            plot an X axis.
+        :param bool y_axis: Should the plot have an Y axis line, showing time (or
+            ranked node time if ``tree_height_scale="rank"``). If ``None`` (default)
+            do not plot a Y axis.
+        :param str x_label: Place a label under the plot. If ``None`` (default) and
+            there is an X axis, create and place an appropriate label.
+        :param str y_label: Place a label to the left of the plot. If ``None`` (default)
+            and there is a Y axis,  create and place an appropriate label.
+        :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
+            gives no tickmarks). If ``None``, plot one tickmark for each unique
+            node value.
+        :param bool y_gridlines: Whether to plot horizontal lines behind the tree
+            at each y tickmark.
 
         :return: An SVG representation of a tree.
         :rtype: str
@@ -1623,6 +1647,13 @@ class Tree:
             style=style,
             order=order,
             force_root_branch=force_root_branch,
+            symbol_size=symbol_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            x_label=x_label,
+            y_label=y_label,
+            y_ticks=y_ticks,
+            y_gridlines=y_gridlines,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -5276,7 +5307,13 @@ class TreeSequence:
         style=None,
         order=None,
         force_root_branch=None,
+        symbol_size=None,
+        x_axis=None,
+        y_axis=None,
         x_label=None,
+        y_label=None,
+        y_ticks=None,
+        y_gridlines=None,
         **kwargs,
     ):
         """
@@ -5341,8 +5378,23 @@ class TreeSequence:
         :param bool force_root_branch: If ``True`` plot a branch (edge) above every tree
             root in the tree sequence. If ``None`` (default) then only plot such
             root branches if any root in the tree sequence has a mutation above it.
-        :param str x_label: A string to display on the X axis, e.g. "Genomic position".
-            If ``None`` (default) do not label the X axis in this tree sequence.
+        :param float symbol_size: Change the default size of the node and mutation
+            plotting symbols. If ``None`` (default) use a standard size.
+        :param bool x_axis: Should the plot have an X axis line, showing the positions
+            of trees along the genome. The scale used is determined by the ``x_scale``
+            parameter. If ``None`` (default) plot an X axis.
+        :param bool y_axis: Should the plot have an Y axis line, showing time (or
+            ranked node time if ``tree_height_scale="rank"``. If ``None`` (default)
+            do not plot a Y axis.
+        :param str x_label: Place a label under the plot. If ``None`` (default) and
+            there is an X axis, create and place an appropriate label.
+        :param str y_label: Place a label to the left of the plot. If ``None`` (default)
+            and there is a Y axis, create and place an appropriate label.
+        :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
+            gives no tickmarks). If ``None``, plot one tickmark for each unique
+            node value.
+        :param bool y_gridlines: Whether to plot horizontal lines behind the tree
+            at each y tickmark.
 
         :return: An SVG representation of a tree sequence.
         :rtype: str
@@ -5358,7 +5410,13 @@ class TreeSequence:
             style=style,
             order=order,
             force_root_branch=force_root_branch,
+            symbol_size=symbol_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
             x_label=x_label,
+            y_label=y_label,
+            y_ticks=y_ticks,
+            y_gridlines=y_gridlines,
             **kwargs,
         )
         output = draw.drawing.tostring()
