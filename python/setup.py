@@ -95,7 +95,6 @@ setup(
     ext_modules=[_tskit_module],
     install_requires=[
         "attrs>=19.2.0",
-        "h5py>=2.6.0",
         "jsonschema>=3.0.0",
         numpy_ver,
         "svgwrite>=1.1.10",

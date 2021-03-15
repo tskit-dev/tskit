@@ -25,9 +25,11 @@ Test cases for tskit's file format.
 """
 import json
 import os
+import sys
 import tempfile
 import unittest
 import uuid as _uuid
+from unittest import mock
 
 import h5py
 import kastore
@@ -499,6 +501,22 @@ class TestErrors(TestFileFormat):
         root.close()
         with pytest.raises(ValueError):
             tskit.load_legacy(self.temp_file)
+
+    def test_no_h5py(self):
+        ts = msprime.simulate(10)
+        msg = (
+            "Legacy formats require h5py. Install via `pip install h5py` or"
+            " `conda install h5py`"
+        )
+        with h5py.File(self.temp_file, "w") as root:
+            root["x"] = np.zeros(10)
+        with mock.patch.dict(sys.modules, {"h5py": None}):
+            with pytest.raises(ImportError, match=msg):
+                tskit.load(self.temp_file)
+            with pytest.raises(ImportError, match=msg):
+                tskit.load_legacy(self.temp_file)
+            with pytest.raises(ImportError, match=msg):
+                tskit.dump_legacy(ts, self.temp_file)
 
 
 class TestDumpFormat(TestFileFormat):
