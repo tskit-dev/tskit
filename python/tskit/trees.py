@@ -7558,6 +7558,47 @@ class TreeSequence:
                 stat = stat[()]
         return stat
 
+    def __k_way_weighted_stat(
+        self,
+        ll_method,
+        k,
+        W,
+        indexes=None,
+        windows=None,
+        mode=None,
+        span_normalise=True,
+        polarised=False,
+    ):
+        if indexes is None:
+            if W.shape[1] != k:
+                raise ValueError(
+                    "Must specify indexes if there are not exactly {} columsn "
+                    "in W.".format(k)
+                )
+            indexes = np.arange(k, dtype=np.int32)
+        drop_dimension = False
+        indexes = util.safe_np_int_cast(indexes, np.int32)
+        if len(indexes.shape) == 1:
+            indexes = indexes.reshape((1, indexes.shape[0]))
+            drop_dimension = True
+        if len(indexes.shape) != 2 or indexes.shape[1] != k:
+            raise ValueError(
+                "Indexes must be convertable to a 2D numpy array with {} "
+                "columns".format(k)
+            )
+        stat = self.__run_windowed_stat(
+            windows,
+            ll_method,
+            W,
+            indexes,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
+        )
+        if drop_dimension:
+            stat = stat.reshape(stat.shape[:-1])
+        return stat
+
     ############################################
     # Statistics definitions
     ############################################
@@ -7944,6 +7985,48 @@ class TreeSequence:
             out = numerator / denominator
 
         return out
+
+    def genetic_relatedness_weighted(
+        self,
+        W,
+        indexes=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
+        polarised=False,
+    ):
+        r"""
+        Computes weighted genetic relatedness: if the k-th pair of indices is (i, j)
+        then the k-th column of output will be
+        :math:`\sum_{a,b} W_{ai} W_{bj} C_{ab}`,
+        where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
+        {meth}`.genetic_relatedness` between sample i and sample j.
+
+        :param numpy.ndarray W: An array of values with one row for each sample and one
+            column for each set of weights.
+        :param list indexes: A list of 2-tuples, or None.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        if W.shape[0] != self.num_samples:
+            raise ValueError(
+                "First trait dimension must be equal to number of samples."
+            )
+        return self.__k_way_weighted_stat(
+            self._ll_tree_sequence.genetic_relatedness_weighted,
+            2,
+            W,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
+        )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
