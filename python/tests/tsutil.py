@@ -780,10 +780,12 @@ def py_union(tables, other, nodes, record_provenance=True, add_populations=True)
             )
             node_map[other_id] = node_id
     individuals = tables.individuals
+    new_parents = individuals.parents
     for i in range(
         individuals.parents_offset[original_num_individuals], len(individuals.parents)
     ):
-        individuals.parents[i] = ind_map[individuals.parents[i]]
+        new_parents[i] = ind_map[individuals.parents[i]]
+    individuals.parents = new_parents
     for edge in other.edges:
         if (nodes[edge.parent] == tskit.NULL) or (nodes[edge.child] == tskit.NULL):
             tables.edges.add_row(
@@ -1861,9 +1863,44 @@ def sort_individual_table(tables):
     return tables
 
 
-def insert_unique_metadata(ts, table):
-    tables = ts.dump_tables()
-    getattr(tables, table).packset_metadata(
-        [struct.pack("I", i) for i in range(getattr(tables, table).num_rows)]
-    )
+def insert_unique_metadata(tables, table=None, offset=0):
+    if isinstance(tables, tskit.TreeSequence):
+        tables = tables.dump_tables()
+    else:
+        tables = tables.copy()
+    if table is None:
+        table = [
+            "populations",
+            "individuals",
+            "nodes",
+            "edges",
+            "sites",
+            "mutations",
+            "migrations",
+        ]
+    for t in table:
+        getattr(tables, t).packset_metadata(
+            [struct.pack("I", offset + i) for i in range(getattr(tables, t).num_rows)]
+        )
     return tables.tree_sequence()
+
+
+def metadata_map(tables):
+    # builds a mapping from metadata (as produced by insert_unique_metadata)
+    # to ID for all the tables (except provenance)
+    if isinstance(tables, tskit.TreeSequence):
+        tables = tables.dump_tables()
+    out = {}
+    for t in [
+        "populations",
+        "individuals",
+        "nodes",
+        "edges",
+        "sites",
+        "mutations",
+        "migrations",
+    ]:
+        out[t] = {}
+        for j, x in enumerate(getattr(tables, t)):
+            out[t][x.metadata] = j
+    return out
