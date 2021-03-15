@@ -4988,9 +4988,10 @@ class TreeSequence:
         these parameters to False, however, the corresponding tables can be preserved
         without changes.
 
-        :param list samples: The list of nodes for which to retain information. They
+        :param list[int] samples: A list of node IDs to retain as samples. They
             need not be nodes marked as samples in the original tree sequence, but
             will constitute the entire set of samples in the returned tree sequence.
+            If not specified or None, use all nodes marked with the IS_SAMPLE flag.
             The list may be provided as a numpy array (or array-like) object
             (dtype=np.int32).
         :param bool map_nodes: If True, return a tuple containing the resulting
