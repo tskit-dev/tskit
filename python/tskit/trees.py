@@ -5036,8 +5036,6 @@ class TreeSequence:
         :rtype: .TreeSequence or (.TreeSequence, numpy.ndarray)
         """
         tables = self.dump_tables()
-        if samples is None:
-            samples = self.get_samples()
         assert tables.sequence_length == self.sequence_length
         node_map = tables.simplify(
             samples=samples,
