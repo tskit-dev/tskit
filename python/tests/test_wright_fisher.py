@@ -62,7 +62,7 @@ class WrightFisherSimulator:
         num_pops=1,
         mig_rate=0.0,
         record_migrations=False,
-        record_individuals=False,
+        record_individuals=True,
     ):
         self.N = N
         self.num_pops = num_pops
@@ -214,7 +214,7 @@ def wf_sim(
     num_pops=1,
     mig_rate=0.0,
     record_migrations=False,
-    record_individuals=False,
+    record_individuals=True,
 ):
     sim = WrightFisherSimulator(
         N,
@@ -248,7 +248,6 @@ class TestSimulation:
             deep_history=False,
             seed=self.random_seed,
             record_migrations=True,
-            record_individuals=True,
         )
         assert tables.nodes.num_rows == 5 * 4 * (1 + 1)
         assert tables.edges.num_rows > 0
@@ -266,7 +265,6 @@ class TestSimulation:
             mig_rate=1.0,
             seed=self.random_seed,
             record_migrations=True,
-            record_individuals=True,
         )
         assert tables.nodes.num_rows > (num_pops * N * ngens) + N
         assert tables.edges.num_rows > 0
@@ -297,7 +295,6 @@ class TestSimulation:
             deep_history=False,
             seed=self.random_seed,
             record_migrations=True,
-            record_individuals=True,
         )
         assert tables.nodes.num_rows == num_pops * N * (ngens + 1)
         assert tables.edges.num_rows > 0
@@ -323,7 +320,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
-        assert tables.individuals.num_rows == 0
+        assert tables.individuals.num_rows > 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -344,7 +341,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
-        assert tables.individuals.num_rows == 0
+        assert tables.individuals.num_rows > 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -359,7 +356,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
-        assert tables.individuals.num_rows == 0
+        assert tables.individuals.num_rows > 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -383,7 +380,7 @@ class TestSimulation:
         assert tables.sites.num_rows == 0
         assert tables.mutations.num_rows == 0
         assert tables.migrations.num_rows == 0
-        assert tables.individuals.num_rows == 0
+        assert tables.individuals.num_rows > 0
         tables.sort()
         tables.simplify()
         ts = tables.tree_sequence()
@@ -448,9 +445,7 @@ class TestSimulation:
 
     def test_record_individuals_initial_state(self):
         N = 10
-        tables = wf_sim(
-            N=N, ngens=0, seed=12345, record_individuals=True, deep_history=False
-        )
+        tables = wf_sim(N=N, ngens=0, seed=12345, deep_history=False)
         tables.sort()
         assert len(tables.individuals) == N
         assert len(tables.nodes) == N
@@ -461,9 +456,7 @@ class TestSimulation:
 
     def test_record_individuals(self):
         N = 10
-        tables = wf_sim(
-            N=N, ngens=10, seed=12345, record_individuals=True, deep_history=False
-        )
+        tables = wf_sim(N=N, ngens=10, seed=12345, deep_history=False)
         assert len(tables.individuals) == len(tables.nodes)
         for node_id, individual in enumerate(tables.nodes.individual):
             assert node_id == individual

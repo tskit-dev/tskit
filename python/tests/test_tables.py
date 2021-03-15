@@ -1532,7 +1532,6 @@ class TestSortTables:
             seed=seed,
             num_loci=3,
             record_migrations=True,
-            record_individuals=True,
         )
         tables.sort()
         ts = tables.tree_sequence()
@@ -1547,7 +1546,6 @@ class TestSortTables:
             deep_history=False,
             seed=42,
             record_migrations=True,
-            record_individuals=True,
         )
         self.verify_sort(tables, 42)
 
@@ -2405,7 +2403,6 @@ class TestSimplifyTables:
             deep_history=False,
             initial_generation_samples=False,
             num_loci=5,
-            record_individuals=True,
         )
         assert tables.individuals.num_rows > 50
         assert np.all(tables.nodes.individual >= 0)
@@ -2502,7 +2499,6 @@ class TestSimplifyTables:
             deep_history=True,
             initial_generation_samples=False,
             num_loci=5,
-            record_individuals=True,
         )
         assert tables.individuals.num_rows > 50
         node_md = []

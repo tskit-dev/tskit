@@ -5790,6 +5790,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
         self.verify_keep_input_roots(ts, samples)
 
     def verify_keep_input_roots(self, ts, samples):
+        ts = tsutil.insert_unique_metadata(ts, "individuals")
         ts_with_roots, node_map = self.do_simplify(
             ts, samples, keep_input_roots=True, filter_sites=False, compare_lib=True
         )
@@ -5807,7 +5808,13 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                 new_node = ts_with_roots.node(root)
                 assert new_node.time == input_node.time
                 assert new_node.population == input_node.population
-                assert new_node.individual == input_node.individual
+                if new_node.individual == tskit.NULL:
+                    assert new_node.individual == input_node.individual
+                else:
+                    assert (
+                        ts_with_roots.individual(new_node.individual).metadata
+                        == ts.individual(input_node.individual).metadata
+                    )
                 assert new_node.metadata == input_node.metadata
                 # This should only be marked as a sample if it's an
                 # element of the samples list.
