@@ -9596,6 +9596,93 @@ out:
 }
 
 static PyObject *
+TreeSequence_k_way_weighted_stat_method(TreeSequence *self, PyObject *args,
+    PyObject *kwds, npy_intp tuple_size, two_way_weighted_method *method)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = { "weights", "indexes", "windows", "mode", "span_normalise",
+        "polarised", NULL };
+    PyObject *weights = NULL;
+    PyObject *indexes = NULL;
+    PyObject *windows = NULL;
+    PyArrayObject *weights_array = NULL;
+    PyArrayObject *indexes_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *result_array = NULL;
+    tsk_size_t num_windows, num_index_tuples;
+    npy_intp *w_shape, *shape;
+    tsk_flags_t options = 0;
+    char *mode = NULL;
+    int span_normalise = true;
+    int polarised = false;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist, &weights, &indexes,
+            &windows, &mode, &span_normalise, &polarised)) {
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (span_normalise) {
+        options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
+    }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+    weights_array = (PyArrayObject *) PyArray_FROMANY(
+        weights, NPY_FLOAT64, 2, 2, NPY_ARRAY_IN_ARRAY);
+    if (weights_array == NULL) {
+        goto out;
+    }
+    w_shape = PyArray_DIMS(weights_array);
+    if (w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+        PyErr_SetString(PyExc_ValueError, "First dimension must be num_samples");
+        goto out;
+    }
+
+    indexes_array = (PyArrayObject *) PyArray_FROMANY(
+        indexes, NPY_INT32, 2, 2, NPY_ARRAY_IN_ARRAY);
+    if (indexes_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(indexes_array);
+    if (shape[0] < 1 || shape[1] != tuple_size) {
+        PyErr_Format(
+            PyExc_ValueError, "indexes must be a k x %d array.", (int) tuple_size);
+        goto out;
+    }
+    num_index_tuples = shape[0];
+
+    result_array = TreeSequence_allocate_results_array(
+        self, options, num_windows, num_index_tuples);
+    if (result_array == NULL) {
+        goto out;
+    }
+    err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
+        num_index_tuples, PyArray_DATA(indexes_array), num_windows,
+        PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(weights_array);
+    Py_XDECREF(indexes_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(result_array);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_divergence(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     return TreeSequence_k_way_stat_method(self, args, kwds, 2, tsk_treeseq_divergence);
@@ -9606,6 +9693,14 @@ TreeSequence_genetic_relatedness(TreeSequence *self, PyObject *args, PyObject *k
 {
     return TreeSequence_k_way_stat_method(
         self, args, kwds, 2, tsk_treeseq_genetic_relatedness);
+}
+
+static PyObject *
+TreeSequence_genetic_relatedness_weighted(
+    TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_k_way_weighted_stat_method(
+        self, args, kwds, 2, tsk_treeseq_genetic_relatedness_weighted);
 }
 
 static PyObject *
@@ -10394,6 +10489,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_genetic_relatedness,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes genetic relatedness between sample sets." },
+    { .ml_name = "genetic_relatedness_weighted",
+        .ml_meth = (PyCFunction) TreeSequence_genetic_relatedness_weighted,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes genetic relatedness between weighted sums of samples." },
     { .ml_name = "Y1",
         .ml_meth = (PyCFunction) TreeSequence_Y1,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

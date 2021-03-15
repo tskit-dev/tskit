@@ -1505,6 +1505,24 @@ test_paper_ex_genetic_relatedness(void)
 }
 
 static void
+test_paper_ex_genetic_relatedness_weighted(void)
+{
+    tsk_treeseq_t ts;
+    double weights[] = { 1.2, 0.1, 0.0, 0.0, 3.4, 5.0, 1.0, -1.0 };
+    tsk_id_t indexes[] = { 0, 0, 0, 1 };
+    double result[2];
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    ret = tsk_treeseq_genetic_relatedness_weighted(
+        &ts, 2, weights, 2, indexes, 0, NULL, result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_paper_ex_genetic_relatedness_errors(void)
 {
     tsk_treeseq_t ts;
@@ -2108,6 +2126,8 @@ main(int argc, char **argv)
         { "test_paper_ex_genetic_relatedness_errors",
             test_paper_ex_genetic_relatedness_errors },
         { "test_paper_ex_genetic_relatedness", test_paper_ex_genetic_relatedness },
+        { "test_paper_ex_genetic_relatedness_weighted",
+            test_paper_ex_genetic_relatedness_weighted },
         { "test_paper_ex_Y2_errors", test_paper_ex_Y2_errors },
         { "test_paper_ex_Y2", test_paper_ex_Y2 },
         { "test_paper_ex_f2_errors", test_paper_ex_f2_errors },
