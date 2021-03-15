@@ -2523,10 +2523,14 @@ class TableCollection:
         :meth:`TreeSequence.simplify` method for a description of the remaining
         parameters.
 
-        :param list[int] samples: A list of node IDs to retain as samples. If
-            not specified or None, use all nodes marked with the IS_SAMPLE flag.
+        :param list[int] samples: A list of node IDs to retain as samples. They
+            need not be nodes marked as samples in the original tree sequence, but
+            will constitute the entire set of samples in the returned tree sequence.
+            If not specified or None, use all nodes marked with the IS_SAMPLE flag.
+            The list may be provided as a numpy array (or array-like) object
+            (dtype=np.int32).
         :param bool reduce_to_site_topology: Whether to reduce the topology down
-            to the trees that are present at sites. (default: False).
+            to the trees that are present at sites. (Default: False).
         :param bool filter_populations: If True, remove any populations that are
             not referenced by nodes after simplification; new population IDs are
             allocated sequentially from zero. If False, the population table will
