@@ -637,6 +637,8 @@ typedef struct _tsk_table_sorter_t {
     int (*sort_edges)(struct _tsk_table_sorter_t *self, tsk_size_t start);
     /** @brief The mutation sorting function. */
     int (*sort_mutations)(struct _tsk_table_sorter_t *self);
+    /** @brief The individual sorting function. */
+    int (*sort_individuals)(struct _tsk_table_sorter_t *self);
     /** @brief An opaque pointer for use by client code */
     void *user_data;
     /** @brief Mapping from input site IDs to output site IDs */
@@ -2765,14 +2767,18 @@ they appear in the ``nodes`` argument. Specifically, this subsets and reorders
 each of the tables as follows (but see options, below):
 
 1. Nodes: if in the list of nodes, and in the order provided.
-2. Individuals and Populations: if referred to by a retained node, and in the
-   order first seen when traversing the list of retained nodes.
-3. Edges: if both parent and child are retained nodes.
-4. Mutations: if the mutation's node is a retained node.
-5. Sites: if any mutations remain at the site after removing mutations.
+2. Individuals: if referred to by a retained node.
+3. Populations: if referred to by a retained node, and in the order first seen
+   when traversing the list of retained nodes.
+4. Edges: if both parent and child are retained nodes.
+5. Mutations: if the mutation's node is a retained node.
+6. Sites: if any mutations remain at the site after removing mutations.
 
-Retained edges, mutations, and sites appear in the same
-order as in the original tables.
+Retained individuals, edges, mutations, and sites appear in the same
+order as in the original tables. Note that only the information *directly*
+associated with the provided nodes is retained - for instance,
+subsetting to nodes=[A, B] does not retain nodes ancestral to A and B,
+and only retains the individuals A and B are in, and not their parents.
 
 This function does *not* require the tables to be sorted.
 
@@ -2787,10 +2793,9 @@ TSK_NO_CHANGE_POPULATIONS
 
 TSK_KEEP_UNREFERENCED
     If this flag is provided, then unreferenced sites, individuals, and populations
-    will not be removed. If so, the site table will not be changed,
-    unreferenced individuals will be placed last, in their original order, and
-    (unless TSK_NO_CHANGE_POPULATIONS is also provided), unreferenced
-    populations will also be placed last, in their original order.
+    will not be removed. If so, the site and individual tables will not be changed,
+    and (unless TSK_NO_CHANGE_POPULATIONS is also provided) unreferenced
+    populations will be placed last, in their original order.
 
 .. note:: Migrations are currently not supported by susbset, and an error will
     be raised if we attempt call subset on a table collection with greater

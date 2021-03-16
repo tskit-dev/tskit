@@ -4122,6 +4122,9 @@ test_sort_tables_canonical_errors(void)
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
+    tsk_id_t null_p[] = { -1 };
+    tsk_id_t zero_p[] = { 0 };
+    tsk_id_t one_p[] = { 1 };
 
     ret = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -4140,7 +4143,7 @@ test_sort_tables_canonical_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_INCONSISTENT);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
-    CU_ASSERT_FATAL(ret >= 0);
+    CU_ASSERT_FATAL(ret == 0);
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 0.0, "a", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 3, 0.0, "b", 1, NULL, 0);
@@ -4148,6 +4151,44 @@ test_sort_tables_canonical_errors(void)
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 1, 0.0, "c", 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, -1, 0.0, "d", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    ret = tsk_table_collection_canonicalise(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, one_p, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, zero_p, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    ret = tsk_table_collection_canonicalise(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_PARENT_CYCLE);
+
+    ret = tsk_individual_table_clear(&tables.individuals);
+    CU_ASSERT_FATAL(ret == 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, zero_p, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, zero_p, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+
+    ret = tsk_table_collection_canonicalise(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_SELF_PARENT);
+
+    ret = tsk_individual_table_clear(&tables.individuals);
+    CU_ASSERT_FATAL(ret == 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, null_p, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, zero_p, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
 
     ret = tsk_table_collection_canonicalise(&tables, 0);
@@ -4169,10 +4210,10 @@ test_sort_tables_canonical(void)
                         "0  1    2   -1\n"
                         "0  2   -1    2\n"
                         "0  3   -1   -1\n";
-    const char *individuals = "0 0.0\n"
-                              "0 1.0\n"
-                              "0 2.0\n"
-                              "0 3.0\n";
+    const char *individuals = "0 0.0 1\n"
+                              "0 1.0 -1\n"
+                              "0 2.0 1,3\n"
+                              "0 3.0 -1,1\n";
     const char *sites = "0       0\n"
                         "0.2     0\n"
                         "0.1     0\n";
@@ -4192,9 +4233,9 @@ test_sort_tables_canonical(void)
                                "0  1    0   -1\n"
                                "0  2   -1    2\n"
                                "0  3   -1   -1\n";
-    const char *individuals_sorted = "0 1.0\n"
-                                     "0 3.0\n"
-                                     "0 2.0\n";
+    const char *individuals_sorted = "0 1.0 -1\n"
+                                     "0 3.0 -1,0\n"
+                                     "0 2.0 0,1\n";
     const char *sites_sorted = "0       0\n"
                                "0.1     0\n"
                                "0.2     0\n";
@@ -4207,10 +4248,10 @@ test_sort_tables_canonical(void)
                                    "2   1  4   4 0.5\n"
                                    "2   1  5   6 0.5\n"
                                    "2   1  6   6 0.5\n";
-    const char *individuals_sorted_kept = "0 1.0\n"
-                                          "0 3.0\n"
-                                          "0 2.0\n"
-                                          "0 0.0\n";
+    const char *individuals_sorted_kept = "0 1.0 -1\n"
+                                          "0 3.0 -1,0\n"
+                                          "0 2.0 0,1\n"
+                                          "0 0.0 0\n";
 
     ret = tsk_table_collection_init(&t1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5338,6 +5379,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     tsk_table_collection_t tables_copy;
     int k;
     tsk_id_t nodes[4];
+    tsk_id_t zero_p[] = { 0 };
+    tsk_id_t one_p[] = { 1 };
 
     ret = tsk_table_collection_init(&tables, options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5360,15 +5403,18 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     ret = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
+    // unused individual who is the parent of others
     ret = tsk_individual_table_add_row(
         &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, zero_p, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        &tables.individuals, 0, NULL, 0, one_p, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     // unused individual
     ret = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        &tables.individuals, 0, NULL, 0, one_p, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
@@ -5425,7 +5471,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     ret = tsk_table_collection_subset(&tables_copy, NULL, 0, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
-    CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 3);
+    CU_ASSERT_FATAL(
+        tsk_individual_table_equals(&tables.individuals, &tables_copy.individuals, 0));
     CU_ASSERT_EQUAL_FATAL(tables_copy.populations.num_rows, 2);
     CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, 0);
     CU_ASSERT_FATAL(tsk_site_table_equals(&tables.sites, &tables_copy.sites, 0));
@@ -5437,13 +5484,14 @@ test_table_collection_subset_with_options(tsk_flags_t options)
         &tables_copy, NULL, 0, TSK_KEEP_UNREFERENCED | TSK_NO_CHANGE_POPULATIONS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
-    CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 3);
+    CU_ASSERT_FATAL(
+        tsk_individual_table_equals(&tables.individuals, &tables_copy.individuals, 0));
     CU_ASSERT_EQUAL_FATAL(tables_copy.mutations.num_rows, 0);
     CU_ASSERT_FATAL(
         tsk_population_table_equals(&tables.populations, &tables_copy.populations, 0));
     CU_ASSERT_FATAL(tsk_site_table_equals(&tables.sites, &tables_copy.sites, 0));
 
-    // the identity transformation, since unused inds/pops are at the end
+    // the identity transformation, since unused pops are at the end
     for (k = 0; k < 4; k++) {
         nodes[k] = k;
     }
@@ -5458,6 +5506,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_subset(&tables_copy, nodes, 4, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables_copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_node_table_equals(&tables.nodes, &tables_copy.nodes, 0));
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 2);
     CU_ASSERT_EQUAL_FATAL(tables_copy.populations.num_rows, 1);
@@ -5465,7 +5515,7 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     CU_ASSERT_FATAL(
         tsk_mutation_table_equals(&tables.mutations, &tables_copy.mutations, 0));
 
-    // reverse twice should get back to the start, since unused inds/pops are at the end
+    // reverse twice should get back to the start, since unused pops are at the end
     for (k = 0; k < 4; k++) {
         nodes[k] = 3 - k;
     }
@@ -5474,6 +5524,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_check_integrity(&tables_copy, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
@@ -5496,6 +5548,7 @@ test_table_collection_subset_unsorted(void)
     tsk_table_collection_t tables_copy;
     int k;
     tsk_id_t nodes[3];
+    tsk_id_t one_p[] = { 1 };
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5508,10 +5561,14 @@ test_table_collection_subset_unsorted(void)
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_node_table_add_row(
-        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, TSK_NULL, TSK_NULL, NULL, 0);
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, TSK_NULL, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
-    ret = tsk_node_table_add_row(&tables.nodes, 0, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
+    ret = tsk_node_table_add_row(&tables.nodes, 0, 1.0, TSK_NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, one_p, 1, NULL, 0);
+    ret = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
     ret = tsk_edge_table_add_row(&tables.edges, 0.0, 0.5, 2, 1, NULL, 0);
     CU_ASSERT_FATAL(ret >= 0);
     ret = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, 0, NULL, 0);

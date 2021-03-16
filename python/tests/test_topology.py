@@ -5790,7 +5790,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
         self.verify_keep_input_roots(ts, samples)
 
     def verify_keep_input_roots(self, ts, samples):
-        ts = tsutil.insert_unique_metadata(ts, "individuals")
+        ts = tsutil.insert_unique_metadata(ts, ["individuals"])
         ts_with_roots, node_map = self.do_simplify(
             ts, samples, keep_input_roots=True, filter_sites=False, compare_lib=True
         )

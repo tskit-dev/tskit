@@ -1420,15 +1420,15 @@ class TestSortTables:
         tables.migrations.clear()
 
         for ru in [True, False]:
-            tables1 = tables.copy()
+            tsk_tables = tables.copy()
             tsutil.shuffle_tables(
-                tables1,
+                tsk_tables,
                 seed,
             )
-            tables2 = tables1.copy()
-            tables1.canonicalise(remove_unreferenced=ru)
-            tsutil.py_canonicalise(tables2, remove_unreferenced=ru)
-            tsutil.assert_table_collections_equal(tables1, tables2)
+            py_tables = tsk_tables.copy()
+            tsk_tables.canonicalise(remove_unreferenced=ru)
+            tsutil.py_canonicalise(py_tables, remove_unreferenced=ru)
+            tsutil.assert_table_collections_equal(tsk_tables, py_tables)
 
     def verify_sort_mutation_consistency(self, orig_tables, seed):
         tables = orig_tables.copy()
@@ -1668,6 +1668,15 @@ class TestSortTables:
                     assert a == mut.derived_state
                 self.verify_sort_equality(t, 985)
                 self.verify_sort_mutation_consistency(t, 985)
+
+    def test_stable_individual_order(self):
+        # canonical should retain individual order lacking any other information
+        tables = tskit.TableCollection(sequence_length=100)
+        for a in "arbol":
+            tables.individuals.add_row(metadata=a.encode())
+        tables2 = tables.copy()
+        tables2.canonicalise(remove_unreferenced=False)
+        tsutil.assert_table_collections_equal(tables, tables2)
 
     def test_discrete_times(self):
         ts = self.get_wf_example(seed=623)
@@ -3446,7 +3455,6 @@ class TestSubsetTables:
         tables = wf.wf_sim(N, N, num_pops=2, seed=seed)
         tables.sort()
         ts = tables.tree_sequence()
-        # adding muts
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
@@ -3459,22 +3467,22 @@ class TestSubsetTables:
     def verify_subset_equality(self, tables, nodes):
         for rp in [True, False]:
             for ru in [True, False]:
-                sub1 = tables.copy()
-                sub2 = tables.copy()
+                py_sub = tables.copy()
+                tsk_sub = tables.copy()
                 tsutil.py_subset(
-                    sub1,
+                    py_sub,
                     nodes,
                     record_provenance=False,
                     reorder_populations=rp,
                     remove_unreferenced=ru,
                 )
-                sub2.subset(
+                tsk_sub.subset(
                     nodes,
                     record_provenance=False,
                     reorder_populations=rp,
                     remove_unreferenced=ru,
                 )
-                tsutil.assert_table_collections_equal(sub1, sub2)
+                tsutil.assert_table_collections_equal(py_sub, tsk_sub)
 
     def verify_subset(self, tables, nodes):
         self.verify_subset_equality(tables, nodes)
@@ -3492,6 +3500,7 @@ class TestSubsetTables:
                 indivs.append(ind)
             if pop not in pops and pop != tskit.NULL:
                 pops.append(pop)
+        indivs.sort()  # keep individuals in the same order
         ind_map = np.repeat(tskit.NULL, tables.individuals.num_rows + 1)
         ind_map[indivs] = np.arange(len(indivs), dtype="int32")
         pop_map = np.repeat(tskit.NULL, tables.populations.num_rows + 1)
@@ -3507,7 +3516,13 @@ class TestSubsetTables:
         assert subset.individuals.num_rows == len(indivs)
         for k, i in zip(indivs, subset.individuals):
             ii = tables.individuals[k]
-            assert ii == i
+            assert np.all(np.equal(ii.location, i.location))
+            assert ii.metadata == i.metadata
+            sub_parents = []
+            for p in ii.parents:
+                if p == tskit.NULL or ind_map[p] != tskit.NULL:
+                    sub_parents.append(ind_map[p])
+            assert np.all(np.equal(sub_parents, i.parents))
         assert subset.populations.num_rows == len(pops)
         for k, p in zip(pops, subset.populations):
             pp = tables.populations[k]
@@ -3602,6 +3617,13 @@ class TestSubsetTables:
             assert tables2.edges.num_rows == 0
             assert tables2.sites.num_rows == 0
             assert tables2.mutations.num_rows == 0
+
+    def test_doesnt_reorder_individuals(self):
+        tables = wf.wf_sim(N=5, ngens=5, num_pops=2, seed=123)
+        tsutil.shuffle_tables(tables, 7000)
+        tables2 = tables.copy()
+        tables2.subset(np.arange(tables.nodes.num_rows))
+        assert tables.individuals == tables2.individuals
 
     def test_random_subsets(self):
         rng = np.random.default_rng(1542)
@@ -3706,14 +3728,19 @@ class TestUnionTables(unittest.TestCase):
         tables1.metadata = {"hello": "world"}
         return tables1, tables2, node_mapping
 
+    def verify_union(self, tables, other, node_mapping, add_populations=True):
+        self.verify_union_consistency(tables, other, node_mapping)
+        self.verify_union_equality(
+            tables, other, node_mapping, add_populations=add_populations
+        )
+
     def verify_union_equality(self, tables, other, node_mapping, add_populations=True):
-        # verifying against py impl
         uni1 = tables.copy()
         uni2 = tables.copy()
         uni1.union(
             other,
             node_mapping,
-            record_provenance=True,
+            record_provenance=False,
             add_populations=add_populations,
         )
         tsutil.py_union(
@@ -3731,13 +3758,147 @@ class TestUnionTables(unittest.TestCase):
         tables.subset(orig_nodes)
         tsutil.assert_table_collections_equal(uni1, tables, ignore_provenance=True)
 
+    def verify_union_consistency(self, tables, other, node_mapping):
+        ts1 = tsutil.insert_unique_metadata(tables)
+        ts2 = tsutil.insert_unique_metadata(other, offset=1000000)
+        tsu = ts1.union(ts2, node_mapping, check_shared_equality=False)
+        mapu = tsutil.metadata_map(tsu)
+        for j, n1 in enumerate(ts1.nodes()):
+            # nodes in ts1 should be preserved, in the same order
+            nu = tsu.node(j)
+            assert n1.metadata == nu.metadata
+            if n1.individual == tskit.NULL:
+                assert nu.individual == tskit.NULL
+            else:
+                assert (
+                    ts1.individual(n1.individual).metadata
+                    == tsu.individual(nu.individual).metadata
+                )
+        for j, k in enumerate(node_mapping):
+            # nodes in ts2 should match if they are not in node mapping
+            if k == tskit.NULL:
+                n2 = ts2.node(j)
+                md2 = n2.metadata
+                assert md2 in mapu["nodes"]
+                nu = tsu.node(mapu["nodes"][md2])
+                if n2.individual == tskit.NULL:
+                    assert nu.individual == tskit.NULL
+                else:
+                    assert (
+                        ts2.individual(n2.individual).metadata
+                        == tsu.individual(nu.individual).metadata
+                    )
+        for e1 in ts1.edges():
+            # relationships between nodes in ts1 should be preserved
+            p1, c1 = e1.parent, e1.child
+            assert e1.metadata in mapu["edges"]
+            eu = tsu.edge(mapu["edges"][e1.metadata])
+            pu, cu = eu.parent, eu.child
+            assert ts1.node(p1).metadata == tsu.node(pu).metadata
+            assert ts1.node(c1).metadata == tsu.node(cu).metadata
+        for e2 in ts2.edges():
+            # relationships between nodes in ts2 should be preserved
+            # if both are new nodes
+            p2, c2 = e2.parent, e2.child
+            if node_mapping[p2] == tskit.NULL and node_mapping[c2] == tskit.NULL:
+                assert e2.metadata in mapu["edges"]
+                eu = tsu.edge(mapu["edges"][e2.metadata])
+                pu, cu = eu.parent, eu.child
+                assert ts2.node(p2).metadata == tsu.node(pu).metadata
+                assert ts2.node(c2).metadata == tsu.node(cu).metadata
+
+        for i1 in ts1.individuals():
+            # individuals in ts1 should be preserved
+            assert i1.metadata in mapu["individuals"]
+            iu = tsu.individual(mapu["individuals"][i1.metadata])
+            assert len(i1.parents) == len(iu.parents)
+            for p1, pu in zip(i1.parents, iu.parents):
+                if p1 == tskit.NULL:
+                    assert pu == tskit.NULL
+                else:
+                    assert ts1.individual(p1).metadata == tsu.individual(pu).metadata
+        # how should individual metadata from ts2 map to ts1
+        # and only individuals without shared nodes should be added
+        indivs21 = {}
+        new_indivs2 = [True for _ in ts2.individuals()]
+        for j, k in enumerate(node_mapping):
+            n = ts2.node(j)
+            if n.individual != tskit.NULL:
+                i2 = ts2.individual(n.individual)
+                if k == tskit.NULL:
+                    indivs21[i2.metadata] = i2.metadata
+                else:
+                    new_indivs2[n.individual] = False
+                    i1 = ts1.individual(ts1.node(k).individual)
+                    if i2.metadata in indivs21:
+                        assert indivs21[i2.metadata] == i1.metadata
+                    else:
+                        indivs21[i2.metadata] = i1.metadata
+        for i2 in ts2.individuals():
+            if new_indivs2[i2.id]:
+                assert i2.metadata in mapu["individuals"]
+                iu = tsu.individual(mapu["individuals"][i2.metadata])
+                assert np.sum(i2.parents == tskit.NULL) == np.sum(
+                    iu.parents == tskit.NULL
+                )
+                md2 = [
+                    ts2.individual(p).metadata for p in i2.parents if p != tskit.NULL
+                ]
+                md2u = [indivs21[md] for md in md2]
+                mdu = [
+                    tsu.individual(p).metadata for p in iu.parents if p != tskit.NULL
+                ]
+                assert set(md2u) == set(mdu)
+            else:
+                # the individual *should* be there, but by a different name
+                assert i2.metadata not in mapu["individuals"]
+                assert indivs21[i2.metadata] in mapu["individuals"]
+        for m1 in ts1.mutations():
+            # all mutations in ts1 should be present
+            assert m1.metadata in mapu["mutations"]
+            mu = tsu.mutation(mapu["mutations"][m1.metadata])
+            assert m1.derived_state == mu.derived_state
+            assert m1.node == mu.node
+            if tskit.is_unknown_time(m1.time):
+                assert tskit.is_unknown_time(mu.time)
+            else:
+                assert m1.time == mu.time
+            assert ts1.site(m1.site).position == tsu.site(mu.site).position
+        for m2 in ts2.mutations():
+            # and those in ts2 if their node has been added
+            if node_mapping[m2.node] == tskit.NULL:
+                assert m2.metadata in mapu["mutations"]
+                mu = tsu.mutation(mapu["mutations"][m2.metadata])
+                assert m2.derived_state == mu.derived_state
+                assert ts2.node(m2.node).metadata == tsu.node(mu.node).metadata
+                if tskit.is_unknown_time(m2.time):
+                    assert tskit.is_unknown_time(mu.time)
+                else:
+                    assert m2.time == mu.time
+                assert ts2.site(m2.site).position == tsu.site(mu.site).position
+        for s1 in ts1.sites():
+            assert s1.metadata in mapu["sites"]
+            su = tsu.site(mapu["sites"][s1.metadata])
+            assert s1.position == su.position
+            assert s1.ancestral_state == su.ancestral_state
+        for s2 in ts2.sites():
+            if s2.position not in ts1.tables.sites.position:
+                assert s2.metadata in mapu["sites"]
+                su = tsu.site(mapu["sites"][s2.metadata])
+                assert s2.position == su.position
+                assert s2.ancestral_state == su.ancestral_state
+        # check mutation parents
+        tables_union = tsu.tables
+        tables_union.compute_mutation_parents()
+        assert tables_union.mutations == tsu.tables.mutations
+
     def test_union_empty(self):
-        ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
-        ts2 = tskit.TableCollection(sequence_length=ts1.sequence_length).tree_sequence()
-        uni = ts1.union(ts2, [])
-        tsutil.assert_table_collections_equal(
-            ts1.tables, uni.tables, ignore_provenance=True
-        )
+        tables = self.get_msprime_example(sample_size=3, T=2, seed=9328).dump_tables()
+        tables.sort()
+        empty_tables = tskit.TableCollection(sequence_length=tables.sequence_length)
+        uni = tables.copy()
+        uni.union(empty_tables, [])
+        tsutil.assert_table_collections_equal(tables, uni, ignore_provenance=True)
 
     def test_noshared_example(self):
         ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
@@ -3750,17 +3911,18 @@ class TestUnionTables(unittest.TestCase):
 
     def test_all_shared_example(self):
         tables = self.get_wf_example(N=5, T=5, seed=11349).dump_tables()
+        tables.sort()
         uni = tables.copy()
         node_mapping = np.arange(tables.nodes.num_rows)
         uni.union(tables, node_mapping, record_provenance=False)
-        assert uni == tables
+        tsutil.assert_table_collections_equal(uni, tables)
 
     def test_no_add_pop(self):
-        self.verify_union_equality(
+        self.verify_union(
             *self.split_example(self.get_msprime_example(10, 10, seed=135), 10),
             add_populations=False,
         )
-        self.verify_union_equality(
+        self.verify_union(
             *self.split_example(self.get_wf_example(10, 10, seed=157), 10),
             add_populations=False,
         )
@@ -3794,13 +3956,13 @@ class TestUnionTables(unittest.TestCase):
                             tables = ts.tables
                             tables.compute_mutation_times()
                             ts = tables.tree_sequence()
-                        self.verify_union_equality(*self.split_example(ts, T))
+                        self.verify_union(*self.split_example(ts, T))
                         ts = self.get_wf_example(N=N, T=T, seed=827)
                         if mut_times:
                             tables = ts.tables
                             tables.compute_mutation_times()
                             ts = tables.tree_sequence()
-                        self.verify_union_equality(*self.split_example(ts, T))
+                        self.verify_union(*self.split_example(ts, T))
 
 
 class TestSubsetUnion:

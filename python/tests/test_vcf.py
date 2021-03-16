@@ -199,7 +199,7 @@ class ExamplesMixin:
 
     def test_simple_infinite_sites_random_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
-        ts = tsutil.insert_random_ploidy_individuals(ts)
+        ts = tsutil.insert_random_ploidy_individuals(ts, min_ploidy=1)
         assert ts.num_sites > 2
         self.verify(ts)
 
@@ -226,7 +226,7 @@ class ExamplesMixin:
     def test_simple_jukes_cantor_random_ploidy(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, seed=2)
-        ts = tsutil.insert_random_ploidy_individuals(ts)
+        ts = tsutil.insert_random_ploidy_individuals(ts, min_ploidy=1)
         self.verify(ts)
 
     def test_single_tree_multichar_mutations(self):
