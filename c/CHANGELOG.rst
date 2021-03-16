@@ -1,5 +1,5 @@
 ----------------------
-[0.99.11] - 2021-0X-XX
+[0.99.11] - 2021-03-16
 ----------------------
 
 **Features**
@@ -23,12 +23,14 @@
 - Add an ``options`` argument to ``tsk_table_collection_subset`` (:user:`petrelharp`, :pr:`1108`),
   to allow for retaining the order of populations.
 
+- Mutation error codes have changed
+
 **Changes**
 
 - Allow mutations that have the same derived state as their parent mutation.
   (:user:`benjeffery`, :issue:`1180`, :pr:`1233`)
 
-**Bugfixes**
+- File minor version change to support individual parents
 
 ----------------------
 [0.99.10] - 2021-01-25

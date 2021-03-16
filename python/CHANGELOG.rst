@@ -1,5 +1,5 @@
 --------------------
-[0.3.5] - 2021-XX-XX
+[0.3.5] - 2021-03-16
 --------------------
 
 **Features**
@@ -41,9 +41,11 @@
 - Allow mutations that have the same derived state as their parent mutation.
   (:user:`benjeffery`, :issue:`1180`, :pr:`1233`)
 
+- File minor version change to support individual parents
+
 **Breaking changes**
 
-- tskit now requires Python 3.6 (:user:`benjeffery`, :pr:`xxxx`)
+- tskit now requires Python 3.6 (:user:`benjeffery`, :pr:`1235`)
 
 --------------------
 [0.3.4] - 2020-12-02
