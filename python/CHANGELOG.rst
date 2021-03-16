@@ -45,7 +45,7 @@
 
 **Breaking changes**
 
-- tskit now requires Python 3.6 (:user:`benjeffery`, :pr:`1235`)
+- tskit now requires Python 3.7 (:user:`benjeffery`, :pr:`1235`)
 
 --------------------
 [0.3.4] - 2020-12-02
