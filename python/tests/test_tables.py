@@ -72,7 +72,8 @@ class UInt32Column(Column):
 
 class CharColumn(Column):
     def get_input(self, n):
-        return np.zeros(n, dtype=np.int8)
+        rng = np.random.RandomState(42)
+        return rng.randint(low=0, high=127, size=n, dtype=np.int8)
 
 
 class DoubleColumn(Column):
@@ -87,12 +88,31 @@ class CommonTestsMixin:
     """
 
     def make_input_data(self, num_rows):
+        rng = np.random.RandomState(42)
         input_data = {col.name: col.get_input(num_rows) for col in self.columns}
         for list_col, offset_col in self.ragged_list_columns:
-            value = list_col.get_input(num_rows)
-            input_data[list_col.name] = value
-            input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+            lengths = rng.randint(low=0, high=10, size=num_rows)
+            input_data[list_col.name] = list_col.get_input(sum(lengths))
+            input_data[offset_col.name] = np.zeros(num_rows + 1, dtype=np.uint32)
+            input_data[offset_col.name][1:] = np.cumsum(lengths, dtype=np.uint32)
         return input_data
+
+    def make_transposed_input_data(self, num_rows):
+        cols = self.make_input_data(num_rows)
+        return [
+            {
+                col: data[j]
+                if len(data) == num_rows
+                else (
+                    bytes(data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]])
+                    if "metadata" in col
+                    else data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]]
+                )
+                for col, data in cols.items()
+                if "offset" not in col
+            }
+            for j in range(num_rows)
+        ]
 
     def test_max_rows_increment(self):
         for bad_value in [-1, -(2 ** 10)]:
@@ -279,15 +299,17 @@ class CommonTestsMixin:
                 setattr(table, list_col.name, list_data)
                 assert np.array_equal(getattr(table, list_col.name), list_data)
                 list_value = getattr(table[0], list_col.name)
-                assert len(list_value) == 1
+                assert len(list_value) == input_data[offset_col.name][1]
 
                 # Reset the offsets so that all the full array is associated with the
                 # first element.
-                offset_data = np.zeros(num_rows + 1, dtype=np.uint32) + num_rows
+                offset_data = np.zeros(num_rows + 1, dtype=np.uint32) + len(
+                    input_data[list_col.name]
+                )
                 offset_data[0] = 0
                 setattr(table, offset_col.name, offset_data)
                 list_value = getattr(table[0], list_col.name)
-                assert len(list_value) == num_rows
+                assert len(list_value) == len(input_data[list_col.name])
 
                 del input_data[list_col.name]
                 del input_data[offset_col.name]
@@ -338,17 +360,11 @@ class CommonTestsMixin:
 
     def test_add_row_data(self):
         for num_rows in [0, 10, 100]:
-            input_data = {col.name: col.get_input(num_rows) for col in self.columns}
             table = self.table_class()
-            for j in range(num_rows):
-                kwargs = {col: data[j] for col, data in input_data.items()}
-                for col in self.string_colnames:
-                    kwargs[col] = "x"
-                for col in self.binary_colnames:
-                    kwargs[col] = b"x"
-                k = table.add_row(**kwargs)
+            for j, row in enumerate(self.make_transposed_input_data(num_rows)):
+                k = table.add_row(**row)
                 assert k == j
-            for colname, input_array in input_data.items():
+            for colname, input_array in self.make_input_data(num_rows).items():
                 output_array = getattr(table, colname)
                 assert input_array.shape == output_array.shape
                 assert np.all(input_array == output_array)
@@ -573,6 +589,9 @@ class CommonTestsMixin:
                 value = list_col.get_input(num_rows)
                 input_data_copy = dict(input_data)
                 input_data_copy[list_col.name] = value + 1
+                input_data_copy[offset_col.name] = np.arange(
+                    num_rows + 1, dtype=np.uint32
+                )
                 t2.set_columns(**input_data_copy)
                 assert t1 != t2
                 assert t1[0] != t2[0]
@@ -607,35 +626,36 @@ class CommonTestsMixin:
             t.set_columns(**input_data)
 
             for _list_col, offset_col in self.ragged_list_columns:
+                original_offset = np.copy(input_data[offset_col.name])
                 input_data[offset_col.name][0] = -1
                 with pytest.raises(ValueError):
                     t.set_columns(**input_data)
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+                input_data[offset_col.name] = np.copy(original_offset)
                 t.set_columns(**input_data)
                 input_data[offset_col.name][-1] = 0
                 with pytest.raises(ValueError):
                     t.set_columns(**input_data)
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+                input_data[offset_col.name] = np.copy(original_offset)
                 t.set_columns(**input_data)
                 input_data[offset_col.name][num_rows // 2] = 2 ** 31
                 with pytest.raises(ValueError):
                     t.set_columns(**input_data)
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+                input_data[offset_col.name] = np.copy(original_offset)
 
                 input_data[offset_col.name][0] = -1
                 with pytest.raises(ValueError):
                     t.append_columns(**input_data)
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+                input_data[offset_col.name] = np.copy(original_offset)
                 t.append_columns(**input_data)
                 input_data[offset_col.name][-1] = 0
                 with pytest.raises(ValueError):
                     t.append_columns(**input_data)
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+                input_data[offset_col.name] = np.copy(original_offset)
                 t.append_columns(**input_data)
                 input_data[offset_col.name][num_rows // 2] = 2 ** 31
                 with pytest.raises(ValueError):
                     t.append_columns(**input_data)
-                input_data[offset_col.name] = np.arange(num_rows + 1, dtype=np.uint32)
+                input_data[offset_col.name] = np.copy(original_offset)
 
 
 class MetadataTestsMixin:

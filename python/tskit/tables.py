@@ -291,6 +291,9 @@ class BaseTable:
             raise IndexError("Index out of bounds")
         return self.row_class(*self.ll_table.get_row(index))
 
+    def append(self, row):
+        return self.ll_table.add_row(**row)
+
     def clear(self):
         """
         Deletes all rows in this table.
