@@ -24,6 +24,7 @@
 Test cases for the high level interface to tskit.
 """
 import collections
+import dataclasses
 import inspect
 import io
 import itertools
@@ -40,7 +41,6 @@ import unittest
 import uuid as _uuid
 import warnings
 
-import attr
 import kastore
 import msprime
 import networkx as nx
@@ -1704,7 +1704,7 @@ class TestTreeSequenceMetadata:
             with pytest.raises(AttributeError):
                 new_ts.table_metadata_schemas = {}
                 # or modify the schema tuple return object
-                with pytest.raises(attr.exceptions.FrozenInstanceError):
+                with pytest.raises(dataclasses.exceptions.FrozenInstanceError):
                     setattr(
                         new_ts.table_metadata_schemas,
                         table,
@@ -1735,7 +1735,7 @@ class TestTreeSequenceMetadata:
             table_obj.clear()
             # Write back the rows, but adding unique metadata
             for j, row in enumerate(getattr(tables_copy, f"{table}s")):
-                row_data = attr.asdict(row)
+                row_data = dataclasses.asdict(row)
                 row_data["metadata"] = {
                     "table": table,
                     "string_prop": f"Row number{j}",
