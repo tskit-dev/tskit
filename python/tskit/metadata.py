@@ -446,13 +446,23 @@ class StructCodec(AbstractMetadataCodec):
             key: StructCodec.make_encode(prop)
             for key, prop in sub_schema["properties"].items()
         }
-        return (
-            lambda obj: b""
-            if obj is None
-            else b"".join(
-                sub_encoder(obj[key]) for key, sub_encoder in sub_encoders.items()
-            )
-        )
+        defaults = {
+            key: prop["default"]
+            for key, prop in sub_schema["properties"].items()
+            if "default" in prop
+        }
+
+        def object_encode(obj):
+            values = []
+            if obj is not None:
+                for key, sub_encoder in sub_encoders.items():
+                    try:
+                        values.append(sub_encoder(obj[key]))
+                    except KeyError:
+                        values.append(sub_encoder(defaults[key]))
+            return b"".join(values)
+
+        return object_encode
 
     @classmethod
     def make_string_encode(cls, sub_schema):
@@ -568,7 +578,12 @@ class MetadataSchema:
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
-            self.empty_value = {}
+            # If None is allowed by the schema it gets used even in the presence of
+            # default and required values.
+            if "type" in schema and "null" in schema["type"]:
+                self.empty_value = None
+            else:
+                self.empty_value = {}
 
     def __repr__(self) -> str:
         return self._string

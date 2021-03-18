@@ -439,11 +439,19 @@ class TestMetadataModule:
             with pytest.raises(exceptions.MetadataSchemaValidationError):
                 metadata.MetadataSchema(schema)
 
-    def test_null_union_top_level(self):
+    @pytest.mark.parametrize("codec", ["struct", "json"])
+    def test_null_union_top_level(self, codec):
         schema = {
-            "codec": "json",
+            "codec": f"{codec}",
             "type": ["object", "null"],
-            "properties": {"one": {"type": "string"}, "two": {"type": "number"}},
+            "properties": {
+                "one": {
+                    "type": "string",
+                    "binaryFormat": "1024s",
+                    "nullTerminated": True,
+                },
+                "two": {"type": "number", "binaryFormat": "i"},
+            },
         }
         ms = metadata.MetadataSchema(schema)
         row_data = {"one": "tree", "two": 5}
@@ -1025,6 +1033,25 @@ class TestStructCodec:
             "float": 5.5,
             "int": 42,
         }
+
+    def test_defaults_object_or_null(self):
+        schema = {
+            "codec": "struct",
+            "type": ["object", "null"],
+            "properties": {
+                "int": {"type": "number", "binaryFormat": "b", "default": 42},
+                "float": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        ms = metadata.MetadataSchema(schema)
+        row_data = {"float": 5.5}
+        assert ms.validate_and_encode_row(row_data) == b"\x00\x00\x00\x00\x00\x00\x16@*"
+        assert ms.decode_row(ms.validate_and_encode_row(row_data)) == {
+            "float": 5.5,
+            "int": 42,
+        }
+        assert ms.validate_and_encode_row(None) == b""
+        assert ms.decode_row(b"") is None
 
 
 class TestStructCodecRoundTrip:
