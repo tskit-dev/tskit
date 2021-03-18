@@ -24,15 +24,16 @@
 Tree sequence IO via the tables API.
 """
 import base64
+import dataclasses
 import datetime
 import itertools
 import json
 import sys
 import warnings
+from dataclasses import dataclass
 from typing import Any
 from typing import Tuple
 
-import attr
 import numpy as np
 
 import _tskit
@@ -42,11 +43,12 @@ import tskit.provenance as provenance
 import tskit.util as util
 from tskit import UNKNOWN_TIME
 
-attr_options = {"slots": True, "frozen": True, "auto_attribs": True}
+dataclass_options = {"frozen": True}
 
 
-@attr.s(eq=False, **attr_options)
+@dataclass(eq=False, **dataclass_options)
 class IndividualTableRow:
+    __slots__ = ["flags", "location", "parents", "metadata"]
     flags: int
     location: np.ndarray
     parents: np.ndarray
@@ -69,8 +71,9 @@ class IndividualTableRow:
         return not self.__eq__(other)
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class NodeTableRow:
+    __slots__ = ["flags", "time", "population", "individual", "metadata"]
     flags: int
     time: float
     population: int
@@ -78,8 +81,9 @@ class NodeTableRow:
     metadata: bytes
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class EdgeTableRow:
+    __slots__ = ["left", "right", "parent", "child", "metadata"]
     left: float
     right: float
     parent: int
@@ -87,8 +91,9 @@ class EdgeTableRow:
     metadata: bytes
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class MigrationTableRow:
+    __slots__ = ["left", "right", "node", "source", "dest", "time", "metadata"]
     left: float
     right: float
     node: int
@@ -98,15 +103,17 @@ class MigrationTableRow:
     metadata: bytes
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class SiteTableRow:
+    __slots__ = ["position", "ancestral_state", "metadata"]
     position: float
     ancestral_state: str
     metadata: bytes
 
 
-@attr.s(eq=False, **attr_options)
+@dataclass(eq=False, **dataclass_options)
 class MutationTableRow:
+    __slots__ = ["site", "node", "derived_state", "parent", "metadata", "time"]
     site: int
     node: int
     derived_state: str
@@ -131,24 +138,26 @@ class MutationTableRow:
         )
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class PopulationTableRow:
+    __slots__ = ["metadata"]
     metadata: bytes
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class ProvenanceTableRow:
+    __slots__ = ["timestamp", "record"]
     timestamp: str
     record: str
 
 
-@attr.s(**attr_options)
+@dataclass(**dataclass_options)
 class TableCollectionIndexes:
-    edge_insertion_order: np.ndarray = attr.ib(default=None)
-    edge_removal_order: np.ndarray = attr.ib(default=None)
+    edge_insertion_order: np.ndarray = None
+    edge_removal_order: np.ndarray = None
 
     def asdict(self):
-        return attr.asdict(self, filter=lambda k, v: v is not None)
+        return {k: v for k, v in dataclasses.asdict(self).items() if v is not None}
 
     @property
     def nbytes(self):
@@ -386,9 +395,9 @@ class MetadataMixin:
     """
 
     def __init__(self):
-        self.metadata_column_index = list(
-            attr.fields_dict(self.row_class).keys()
-        ).index("metadata")
+        self.metadata_column_index = [
+            field.name for field in dataclasses.fields(self.row_class)
+        ].index("metadata")
         self._update_metadata_schema_cache_from_ll()
 
     def packset_metadata(self, metadatas):

@@ -24,6 +24,7 @@
 Test cases for the low-level tables used to transfer information
 between simulations and the tree sequence.
 """
+import dataclasses
 import io
 import json
 import math
@@ -36,7 +37,6 @@ import time
 import unittest
 import warnings
 
-import attr
 import kastore
 import msprime
 import numpy as np
@@ -367,7 +367,7 @@ class CommonTestsMixin:
                 assert np.all(input_array == output_array)
             t2 = self.table_class()
             for row in list(t1):
-                t2.add_row(**attr.asdict(row))
+                t2.add_row(**dataclasses.asdict(row))
             assert t1 == t2
 
     def test_set_columns_data(self):
@@ -1003,8 +1003,8 @@ class TestNodeTable(CommonTestsMixin, MetadataTestsMixin):
         s = str(t)
         assert len(s) > 0
         assert len(t) == 2
-        assert attr.astuple(t[0]) == (0, 1, 2, 0, b"123")
-        assert attr.astuple(t[1]) == (1, 2, 3, 1, b"\xf0")
+        assert dataclasses.astuple(t[0]) == (0, 1, 2, 0, b"123")
+        assert dataclasses.astuple(t[1]) == (1, 2, 3, 1, b"\xf0")
         assert t[0].flags == 0
         assert t[0].time == 1
         assert t[0].population == 2
@@ -1082,8 +1082,8 @@ class TestEdgeTable(CommonTestsMixin, MetadataTestsMixin):
         t.add_row(left=0, right=1, parent=2, child=3, metadata=b"123")
         t.add_row(1, 2, 3, 4, b"\xf0")
         assert len(t) == 2
-        assert attr.astuple(t[0]) == (0, 1, 2, 3, b"123")
-        assert attr.astuple(t[1]) == (1, 2, 3, 4, b"\xf0")
+        assert dataclasses.astuple(t[0]) == (0, 1, 2, 3, b"123")
+        assert dataclasses.astuple(t[1]) == (1, 2, 3, 4, b"\xf0")
         assert t[0].left == 0
         assert t[0].right == 1
         assert t[0].parent == 2
@@ -1129,8 +1129,8 @@ class TestSiteTable(CommonTestsMixin, MetadataTestsMixin):
         s = str(t)
         assert len(s) > 0
         assert len(t) == 2
-        assert attr.astuple(t[0]) == (0, "1", b"2")
-        assert attr.astuple(t[1]) == (1, "2", b"\xf0")
+        assert dataclasses.astuple(t[0]) == (0, "1", b"2")
+        assert dataclasses.astuple(t[1]) == (1, "2", b"\xf0")
         assert t[0].position == 0
         assert t[0].ancestral_state == "1"
         assert t[0].metadata == b"2"
@@ -1197,8 +1197,8 @@ class TestMutationTable(CommonTestsMixin, MetadataTestsMixin):
         s = str(t)
         assert len(s) > 0
         assert len(t) == 3
-        assert attr.astuple(t[0]) == (0, 1, "2", 3, b"4", 5)
-        assert attr.astuple(t[1]) == (1, 2, "3", 4, b"\xf0", 6)
+        assert dataclasses.astuple(t[0]) == (0, 1, "2", 3, b"4", 5)
+        assert dataclasses.astuple(t[1]) == (1, 2, "3", 4, b"\xf0", 6)
         assert t[0].site == 0
         assert t[0].node == 1
         assert t[0].derived_state == "2"
@@ -1258,8 +1258,8 @@ class TestMigrationTable(CommonTestsMixin, MetadataTestsMixin):
         t.add_row(left=0, right=1, node=2, source=3, dest=4, time=5, metadata=b"123")
         t.add_row(1, 2, 3, 4, 5, 6, b"\xf0")
         assert len(t) == 2
-        assert attr.astuple(t[0]) == (0, 1, 2, 3, 4, 5, b"123")
-        assert attr.astuple(t[1]) == (1, 2, 3, 4, 5, 6, b"\xf0")
+        assert dataclasses.astuple(t[0]) == (0, 1, 2, 3, 4, 5, b"123")
+        assert dataclasses.astuple(t[1]) == (1, 2, 3, 4, 5, 6, b"\xf0")
         assert t[0].left == 0
         assert t[0].right == 1
         assert t[0].node == 2
@@ -1305,8 +1305,8 @@ class TestProvenanceTable(CommonTestsMixin):
         t.add_row(timestamp="0", record="1")
         t.add_row("2", "1")  # The orders are reversed for default timestamp.
         assert len(t) == 2
-        assert attr.astuple(t[0]) == ("0", "1")
-        assert attr.astuple(t[1]) == ("1", "2")
+        assert dataclasses.astuple(t[0]) == ("0", "1")
+        assert dataclasses.astuple(t[1]) == ("1", "2")
         assert t[0].timestamp == "0"
         assert t[0].record == "1"
         assert t[0] == t[-2]
@@ -1356,9 +1356,9 @@ class TestPopulationTable(CommonTestsMixin, MetadataTestsMixin):
         s = str(t)
         assert len(s) > 0
         assert len(t) == 2
-        assert attr.astuple(t[0]) == (b"\xf0",)
+        assert dataclasses.astuple(t[0]) == (b"\xf0",)
         assert t[0].metadata == b"\xf0"
-        assert attr.astuple(t[1]) == (b"1",)
+        assert dataclasses.astuple(t[1]) == (b"1",)
         with pytest.raises(IndexError):
             t.__getitem__(-3)
 
