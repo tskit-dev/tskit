@@ -66,24 +66,13 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
             if not (edge.right <= interval_left or edge.left >= interval_right):
                 left = max(interval_left, edge.left)
                 right = min(interval_right, edge.right)
-                tables.edges.add_row(
-                    left, right, edge.parent, edge.child, edge.metadata
-                )
+                tables.edges.append(edge.replace(left=left, right=right))
     for site in ts.sites():
         for interval_left, interval_right in intervals:
             if interval_left <= site.position < interval_right:
-                site_id = tables.sites.add_row(
-                    site.position, site.ancestral_state, site.metadata
-                )
+                site_id = tables.sites.append(site)
                 for m in site.mutations:
-                    tables.mutations.add_row(
-                        site=site_id,
-                        node=m.node,
-                        derived_state=m.derived_state,
-                        parent=tskit.NULL,
-                        time=m.time,
-                        metadata=m.metadata,
-                    )
+                    tables.mutations.append(m.replace(site=site_id, parent=tskit.NULL))
     tables.build_index()
     tables.compute_mutation_parents()
     if simplify:
@@ -2392,9 +2381,7 @@ class TestUnaryNodes(TopologyTestCase):
         edges.sort(key=lambda e: node_times[e.parent])
         tables.edges.reset()
         for e in edges:
-            tables.edges.add_row(
-                left=e.left, right=e.right, child=e.child, parent=e.parent
-            )
+            tables.edges.append(e)
         ts_new = tables.tree_sequence()
         assert ts_new.num_edges > ts.num_edges
         self.assert_haplotypes_equal(ts, ts_new)
@@ -3471,8 +3458,8 @@ class TestNonSampleExternalNodes(TopologyTestCase):
         next_node = ts.num_nodes
         tables.edges.reset()
         for e in ts.edges():
-            tables.edges.add_row(e.left, e.right, e.parent, e.child)
-            tables.edges.add_row(e.left, e.right, e.parent, next_node)
+            tables.edges.append(e)
+            tables.edges.append(e.replace(child=next_node))
             tables.nodes.add_row(time=0)
             next_node += 1
         tables.sort()
@@ -6684,7 +6671,7 @@ class TestSquashEdges:
             squashed_list = squash_edges(ts)
             squashed_py = tskit.EdgeTable()
             for e in squashed_list:
-                squashed_py.add_row(e.left, e.right, e.parent, e.child)
+                squashed_py.append(e)
             # Check the Python and C implementations produce the same output.
             assert squashed_py == squashed
         return squashed
@@ -6888,7 +6875,7 @@ class TestSquashEdges:
         random.shuffle(sliced_edges)
         sliced_table = tskit.EdgeTable()
         for e in sliced_edges:
-            sliced_table.add_row(e.left, e.right, e.parent, e.child)
+            sliced_table.append(e)
 
         # Squash the edges and check against input table.
         sliced_table.squash()
@@ -6949,7 +6936,7 @@ def reduce_topology(ts):
                 # Squash
                 edge.right = right
             else:
-                tables.edges.add_row(edge.left, edge.right, edge.parent, edge.child)
+                tables.edges.append(edge)
                 edge_map[child] = new_edge
 
     tables.edges.clear()
@@ -6981,7 +6968,7 @@ def reduce_topology(ts):
         add_edge(left, tables.sequence_length, parent, child)
     # Flush the remaining edges to the table
     for edge in edge_map.values():
-        tables.edges.add_row(edge.left, edge.right, edge.parent, edge.child)
+        tables.edges.append(edge)
     tables.sort()
     ts = tables.tree_sequence()
     # Now simplify to remove redundant nodes.
@@ -8057,7 +8044,7 @@ class TestMissingData:
                     missing_to = e.left
                 else:
                     continue  # omit this edge => node is isolated
-            tables.edges.add_row(e.left, e.right, e.parent, e.child)
+            tables.edges.append(e)
         # Check we have non-missing to L & R
         assert 0.0 < missing_from < 1.0
         assert 0.0 < missing_to < 1.0

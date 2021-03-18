@@ -2854,15 +2854,10 @@ class TestNodeOrdering(HighLevelTestCase):
         inv_node_map = {v: k for k, v in node_map.items()}
         for j in range(ts.num_nodes):
             node = ts.node(inv_node_map[j])
-            other_tables.nodes.add_row(
-                flags=node.flags, time=node.time, population=node.population
-            )
+            other_tables.nodes.append(node)
         for e in ts.edges():
-            other_tables.edges.add_row(
-                left=e.left,
-                right=e.right,
-                parent=node_map[e.parent],
-                child=node_map[e.child],
+            other_tables.edges.append(
+                e.replace(parent=node_map[e.parent], child=node_map[e.child])
             )
         for _ in range(ts.num_populations):
             other_tables.populations.add_row()
@@ -3166,6 +3161,29 @@ class TestVariantContainer(SimpleContainersMixin):
             )
             for j in range(n)
         ]
+
+
+class TestContainersAppend:
+    def test_containers_append(self, ts_fixture):
+        """
+        Test that the containers work with `Table.append`
+        """
+        tables = ts_fixture.dump_tables()
+        tables.clear(clear_provenance=True)
+        for table_name in [
+            "individuals",
+            "nodes",
+            "edges",
+            "migrations",
+            "sites",
+            "mutations",
+            "populations",
+            "provenances",
+        ]:
+            table = getattr(tables, table_name)
+            for i in range(len(getattr(ts_fixture.tables, table_name))):
+                table.append(getattr(ts_fixture, table_name[:-1])(i))
+        assert ts_fixture.tables == tables
 
 
 class TestTskitConversionOutput(unittest.TestCase):

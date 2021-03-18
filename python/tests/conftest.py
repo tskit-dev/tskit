@@ -128,7 +128,7 @@ def ts_fixture():
     for name, table in tables.name_map.items():
         if name != "provenances":
             table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
-            metadatas = [f"n_{name}_{u}" for u in range(len(table))]
+            metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
             metadata, metadata_offset = tskit.pack_strings(metadatas)
             table.set_columns(
                 **{

@@ -311,6 +311,7 @@ nitpick_ignore = [
     # TODO these have been triaged here to make the docs compile, but we should
     # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
     ("py:class", "array_like"),
+    ("py:class", "row-like"),
     ("py:class", "array-like"),
     ("py:class", "dtype=np.uint32"),
     ("py:class", "dtype=np.uint32."),

@@ -22,12 +22,25 @@
 """
 Module responsible for various utility functions used in other modules.
 """
+import dataclasses
 import json
 import os
 
 import numpy as np
 
 from tskit import UNKNOWN_TIME
+
+
+# Extra methods for dataclasses
+class Dataclass:
+    def replace(self, **kwargs):
+        """
+        Return a new instance of this dataclass, with the specified attributes
+        overwritten by new values.
+
+        :return: A new instance of the same type
+        """
+        return dataclasses.replace(self, **kwargs)
 
 
 def canonical_json(obj):

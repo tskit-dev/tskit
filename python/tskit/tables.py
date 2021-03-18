@@ -49,7 +49,7 @@ dataclass_options = {"frozen": True}
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class IndividualTableRow:
+class IndividualTableRow(util.Dataclass):
     __slots__ = ["flags", "location", "parents", "metadata"]
     flags: int
     location: np.ndarray
@@ -69,7 +69,7 @@ class IndividualTableRow:
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class NodeTableRow:
+class NodeTableRow(util.Dataclass):
     __slots__ = ["flags", "time", "population", "individual", "metadata"]
     flags: int
     time: float
@@ -80,7 +80,7 @@ class NodeTableRow:
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class EdgeTableRow:
+class EdgeTableRow(util.Dataclass):
     __slots__ = ["left", "right", "parent", "child", "metadata"]
     left: float
     right: float
@@ -91,7 +91,7 @@ class EdgeTableRow:
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class MigrationTableRow:
+class MigrationTableRow(util.Dataclass):
     __slots__ = ["left", "right", "node", "source", "dest", "time", "metadata"]
     left: float
     right: float
@@ -104,7 +104,7 @@ class MigrationTableRow:
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class SiteTableRow:
+class SiteTableRow(util.Dataclass):
     __slots__ = ["position", "ancestral_state", "metadata"]
     position: float
     ancestral_state: str
@@ -113,7 +113,7 @@ class SiteTableRow:
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class MutationTableRow:
+class MutationTableRow(util.Dataclass):
     __slots__ = ["site", "node", "derived_state", "parent", "metadata", "time"]
     site: int
     node: int
@@ -142,20 +142,20 @@ class MutationTableRow:
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
-class PopulationTableRow:
+class PopulationTableRow(util.Dataclass):
     __slots__ = ["metadata"]
     metadata: Optional[Union[bytes, dict]]
 
 
 @dataclass(**dataclass_options)
-class ProvenanceTableRow:
+class ProvenanceTableRow(util.Dataclass):
     __slots__ = ["timestamp", "record"]
     timestamp: str
     record: str
 
 
 @dataclass(**dataclass_options)
-class TableCollectionIndexes:
+class TableCollectionIndexes(util.Dataclass):
     edge_insertion_order: np.ndarray = None
     edge_removal_order: np.ndarray = None
 
@@ -292,7 +292,25 @@ class BaseTable:
         return self.row_class(*self.ll_table.get_row(index))
 
     def append(self, row):
-        return self.ll_table.add_row(**row)
+        """
+        Adds a new row to this table and returns the ID of the new row. Metadata, if
+        specified, will be validated and encoded according to the table's
+        :attr:`metadata_schema<tskit.IndividualTable.metadata_schema>`.
+
+        :param row-like row: An object that has attributes corresponding to the
+            properties of the new row. Both the objects returned from ``table[i]`` and
+            e.g. ``ts.individual(i)`` work for this purpose, along with any other
+            object with the correct attributes.
+        :return: The ID of the newly added node.
+        :rtype: int
+        """
+        return self.add_row(
+            **{
+                column: getattr(row, column)
+                for column in self.column_names
+                if "_offset" not in column
+            }
+        )
 
     def clear(self):
         """

@@ -386,6 +386,42 @@ class CommonTestsMixin:
                 t2.add_row(**dataclasses.asdict(row))
             assert t1 == t2
 
+    def test_append_row(self):
+        for num_rows in [0, 10, 100]:
+            table = self.table_class()
+            for j, row in enumerate(self.make_transposed_input_data(num_rows)):
+                k = table.append(table.row_class(**row))
+                assert k == j
+            for colname, input_array in self.make_input_data(num_rows).items():
+                output_array = getattr(table, colname)
+                assert input_array.shape == output_array.shape
+                assert np.all(input_array == output_array)
+            table.clear()
+            assert table.num_rows == 0
+            assert len(table) == 0
+
+    def test_append_duck_type(self):
+        class Duck:
+            pass
+
+        table = self.table_class()
+        for j, row in enumerate(self.make_transposed_input_data(20)):
+            duck = Duck()
+            for k, v in row.items():
+                setattr(duck, k, v)
+            k = table.append(duck)
+            assert k == j
+        for colname, input_array in self.make_input_data(20).items():
+            output_array = getattr(table, colname)
+            assert np.array_equal(input_array, output_array)
+
+    def test_append_error(self):
+        class NotADuck:
+            pass
+
+        with pytest.raises(AttributeError, match="'NotADuck' object has no attribute"):
+            self.table_class().append(NotADuck())
+
     def test_set_columns_data(self):
         for num_rows in [0, 10, 100, 1000]:
             input_data = {col.name: col.get_input(num_rows) for col in self.columns}
@@ -1627,7 +1663,7 @@ class TestSortTables:
             all_edges = keep + reversed_edges
             tables.edges.clear()
             for e in all_edges:
-                tables.edges.add_row(e.left, e.right, e.parent, e.child)
+                tables.edges.append(e)
             # Verify that import fails for randomised edges
             with pytest.raises(_tskit.LibraryError):
                 tables.tree_sequence()
@@ -1638,7 +1674,7 @@ class TestSortTables:
             # Sorting from the correct index should give us back the original table.
             tables.edges.clear()
             for e in all_edges:
-                tables.edges.add_row(e.left, e.right, e.parent, e.child)
+                tables.edges.append(e)
             tables.sort(edge_start=start)
             # Verify the new and old edges are equal.
             assert edges == tables.edges

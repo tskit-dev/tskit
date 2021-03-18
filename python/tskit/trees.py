@@ -81,7 +81,7 @@ class Interval(BaseInterval):
 
 @metadata_module.lazy_decode
 @dataclass
-class Individual:
+class Individual(util.Dataclass):
     """
     An :ref:`individual <sec_individual_table_definition>` in a tree sequence.
     Since nodes correspond to genomes, individuals are associated with a collection
@@ -137,7 +137,7 @@ class Individual:
 
 @metadata_module.lazy_decode
 @dataclass
-class Node:
+class Node(util.Dataclass):
     """
     A :ref:`node <sec_node_table_definition>` in a tree sequence, corresponding
     to a single genome. The ``time`` and ``population`` are attributes of the
@@ -187,7 +187,7 @@ class Node:
 
 @metadata_module.lazy_decode
 @dataclass
-class Edge:
+class Edge(util.Dataclass):
     """
     An :ref:`edge <sec_edge_table_definition>` in a tree sequence.
 
@@ -249,7 +249,7 @@ class Edge:
 
 @metadata_module.lazy_decode
 @dataclass
-class Site:
+class Site(util.Dataclass):
     """
     A :ref:`site <sec_site_table_definition>` in a tree sequence.
 
@@ -297,7 +297,7 @@ class Site:
 
 @metadata_module.lazy_decode
 @dataclass
-class Mutation:
+class Mutation(util.Dataclass):
     """
     A :ref:`mutation <sec_mutation_table_definition>` in a tree sequence.
 
@@ -390,7 +390,7 @@ class Mutation:
 
 @metadata_module.lazy_decode
 @dataclass
-class Migration:
+class Migration(util.Dataclass):
     """
     A :ref:`migration <sec_migration_table_definition>` in a tree sequence.
 
@@ -441,7 +441,7 @@ class Migration:
 
 @metadata_module.lazy_decode
 @dataclass
-class Population:
+class Population(util.Dataclass):
     """
     A :ref:`population <sec_population_table_definition>` in a tree sequence.
 
@@ -463,7 +463,7 @@ class Population:
 
 
 @dataclass
-class Variant:
+class Variant(util.Dataclass):
     """
     A variant represents the observed variation among samples
     for a given site. A variant consists (a) of a reference to the
@@ -569,7 +569,7 @@ class Variant:
 
 
 @dataclass
-class Edgeset:
+class Edgeset(util.Dataclass):
     __slots__ = ["left", "right", "parent", "children"]
     left: int
     right: int
@@ -588,7 +588,7 @@ class Edgeset:
 
 
 @dataclass
-class Provenance:
+class Provenance(util.Dataclass):
     __slots__ = ["id", "timestamp", "record"]
     id: int  # noqa A003
     timestamp: str
