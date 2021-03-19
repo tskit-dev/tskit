@@ -851,6 +851,105 @@ class MetadataTestsMixin:
                 assert table[j].metadata == metadata_column[j]
                 assert table[j + num_rows].metadata == metadata_column[j]
 
+    @pytest.mark.parametrize(
+        "codec",
+        ["struct", "json"],
+    )
+    def test_set_null_metadata(self, codec):
+        table = self.table_class()
+        table.metadata_schema = metadata.MetadataSchema(
+            {
+                "codec": f"{codec}",
+                "title": "Example Metadata",
+                "type": ["object", "null"],
+                "properties": {
+                    "a": {"type": "number", "binaryFormat": "i"},
+                },
+                "required": ["a"],
+                "additionalProperties": False,
+            },
+        )
+        examples = [{"a": 4}, None]
+        for md in examples:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        assert table.num_rows == len(examples)
+        for md, row in zip(examples, table):
+            assert md == row.metadata
+
+    # only json allows leaving out of optional entries
+    def test_set_empty_metadata_json(self):
+        table = self.table_class()
+        table.metadata_schema = metadata.MetadataSchema(
+            {
+                "codec": "json",
+                "title": "Example Metadata",
+                "type": ["object", "null"],
+                "properties": {
+                    "a": {"type": "number", "binaryFormat": "i"},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+        )
+        examples = [{"a": 4}, {}]
+        for md in examples:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        assert table.num_rows == len(examples)
+        for md, row in zip(examples, table):
+            assert md == row.metadata
+
+    @pytest.mark.parametrize(
+        "codec",
+        [
+            "struct",
+            pytest.param(
+                "json",
+                marks=pytest.mark.xfail(reason="JSON defaults not yet implemented"),
+            ),
+        ],
+    )
+    def test_set_with_optional_properties(self, codec):
+        table = self.table_class()
+        table.metadata_schema = metadata.MetadataSchema(
+            {
+                "codec": f"{codec}",
+                "title": "Example Metadata",
+                "type": ["object", "null"],
+                "properties": {
+                    "a": {"type": "number", "binaryFormat": "i", "default": 0},
+                },
+                "additionalProperties": False,
+            },
+        )
+        metadata_list = [{"a": 4}, None, {"a": 5}, {}]
+        for md in metadata_list:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        assert table.num_rows == len(metadata_list)
+        for md, row in zip(metadata_list, table):
+            # If None is allowed by the schema it gets used even in the presence of
+            # default values.
+            if isinstance(md, dict):
+                defaults = {"a": 0}
+                defaults.update(md)
+                assert defaults == row.metadata
+            else:
+                assert md == row.metadata
+
 
 class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
     columns = [UInt32Column("flags")]
