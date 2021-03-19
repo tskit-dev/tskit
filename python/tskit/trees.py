@@ -2209,6 +2209,18 @@ class Tree:
             for u in roots:
                 yield from iterator(u)
 
+    def _node_edges(self):
+        """
+        Return a numpy array mapping the node IDs in this tree to the ID of the edge
+        above them. This is in lieu of a tree.edge(u) function, currently implemented
+        using the non-optimised Python TreeSequence._tree_node_edges() generator
+        """
+        for index, node_edge_map in enumerate(  # pragma: no branch
+            self.tree_sequence._tree_node_edges()
+        ):
+            if index == self.index:
+                return node_edge_map
+
     # TODO make this a bit less embarrassing by using an iterative method.
     def __build_newick(self, *, node, precision, node_labels, include_branch_lengths):
         """
@@ -4535,6 +4547,20 @@ class TreeSequence:
             encoded_metadata=metadata,
             metadata_decoder=self.table_metadata_schemas.edge.decode_row,
         )
+
+    def _tree_node_edges(self):
+        """
+        Return a generator over the trees in the tree sequence, yielding a numpy array
+        that maps the node IDs in the tree to the ID of the edge above them.
+        Currently this is a private, non-optimised Python implementation.
+        """
+        node_edges = np.full(self.num_nodes, NULL, dtype=np.int32)
+        for _, edges_out, edges_in in self.edge_diffs():
+            for e in edges_out:
+                node_edges[e.child] = NULL
+            for e in edges_in:
+                node_edges[e.child] = e.id
+            yield node_edges
 
     def migration(self, id_):
         """
