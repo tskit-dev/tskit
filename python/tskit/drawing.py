@@ -314,8 +314,8 @@ class SvgPlot:
     """ The base class for plotting either a tree or a tree sequence as an SVG file"""
 
     standard_style = (
-        ".tree-sequence .background path {fill: #808080; fill-opacity:0}"
-        ".tree-sequence .background path:nth-child(odd) {fill-opacity:.1}"
+        ".background path {fill: #808080; fill-opacity:0}"
+        ".background path:nth-child(odd) {fill-opacity:.1}"
         ".axes {font-size: 14px}"
         ".x-axis .tick .lab {font-weight: bold}"
         ".axes, .tree {font-size: 14px; text-anchor:middle}"
@@ -327,8 +327,10 @@ class SvgPlot:
         ".node > .sym {fill: black; stroke: none}"
         ".site > .sym {stroke: black}"
         ".mut text {fill: red; font-style: italic}"
+        ".mut.extra text {fill: hotpink}"
         ".mut line {fill: none; stroke: none}"  # Default hide mut line to expose edges
         ".mut .sym {fill: none; stroke: red}"
+        ".mut.extra .sym {stroke: hotpink}"
         ".node .mut .sym {stroke-width: 1.5px}"
         ".tree text, .tree-sequence text {dominant-baseline: central}"
         ".plotbox .lab.lft {text-anchor: end}"
@@ -390,6 +392,7 @@ class SvgPlot:
                 y_label = "Time"
         self.x_label = x_label
         self.y_label = y_label
+        self.mutations_outside_tree = set()  # mutations in here get an additional class
 
     def get_plotbox(self):
         """
@@ -446,7 +449,7 @@ class SvgPlot:
         tick_labels=None,  # Tick labels below axis. If None, use the position value
         tick_length_lower=default_tick_length,
         tick_length_upper=None,  # If None, use the same as tick_length_lower
-        sites=None,  # An iterator over site objects to plot as ticks above the x axis
+        site_muts=None,  # A dict of site id => mutation to plot as ticks on the x axis
     ):
         if not self.x_axis and not self.x_label:
             return
@@ -474,7 +477,7 @@ class SvgPlot:
                     label_precision = 0 if integer_ticks else 2
                     tick_labels = [f"{lab:.{label_precision}f}" for lab in tick_labels]
 
-                upper_length = -tick_length_upper if sites is None else 0
+                upper_length = -tick_length_upper if site_muts is None else 0
                 for pos, lab in itertools.zip_longest(tick_positions, tick_labels):
                     tick = x_axis.add(
                         dwg.g(
@@ -488,9 +491,10 @@ class SvgPlot:
                     self.add_text_in_group(
                         lab, tick, pos=(0, tick_length_lower), group_class="lab"
                     )
-            if sites is not None:
-                # Add sites as upper chevrons
-                for s in sites:
+            if site_muts is not None:
+                # Add sites as vertical lines with overlaid mutations as upper chevrons
+                for s_id, mutations in site_muts.items():
+                    s = self.ts.site(s_id)
                     x = self.x_transform(s.position)
                     site = x_axis.add(
                         dwg.g(
@@ -500,8 +504,11 @@ class SvgPlot:
                     site.add(
                         dwg.line((0, 0), (0, rnd(-tick_length_upper)), class_="sym")
                     )
-                    for i, m in enumerate(reversed(s.mutations)):
-                        mut = dwg.g(class_=f"mut m{m.id}")
+                    for i, m in enumerate(reversed(mutations)):
+                        mutation_class = f"mut m{m.id}"
+                        if m.id in self.mutations_outside_tree:
+                            mutation_class += " extra"
+                        mut = dwg.g(class_=mutation_class)
                         h = -i * 4 - 1.5
                         w = tick_length_upper / 4
                         mut.add(
@@ -566,6 +573,55 @@ class SvgPlot:
                         group_class="lab",
                         text_anchor="end",
                     )
+
+    def shade_background(
+        self,
+        breaks,
+        tick_length_lower,
+        tree_width=None,
+        bottom_padding=None,
+    ):
+        if not self.x_axis:
+            return
+        if tree_width is None:
+            tree_width = self.plotbox.width
+        if bottom_padding is None:
+            bottom_padding = self.plotbox.pad_bottom
+        plot_breaks = self.x_transform(np.array(breaks))
+        dwg = self.drawing
+
+        # For tree sequences, we need to add on the background shaded regions
+        self.root_groups["background"] = self.dwg_base.add(dwg.g(class_="background"))
+        y = self.image_size[1] - self.x_axis_offset
+        for i in range(1, len(breaks)):
+            break_x = plot_breaks[i]
+            prev_break_x = plot_breaks[i - 1]
+            tree_x = i * tree_width + self.plotbox.left
+            prev_tree_x = (i - 1) * tree_width + self.plotbox.left
+            # Shift diagonal lines between tree & axis into the treebox a little
+            diag_height = y - (self.image_size[1] - bottom_padding)
+            self.root_groups["background"].add(
+                # NB: the path below draws straight diagonal lines between the tree boxes
+                # and the X axis. An alternative implementation using bezier curves could
+                # substitute the following for lines 2 and 4 of the path spec string
+                # "l0,{box_h:g} c0,{diag_h} {rdiag_x},0 {rdiag_x},{diag_h} "
+                # "c0,-{diag_h} {ldiag_x},0 {ldiag_x},-{diag_h} l0,-{box_h:g}z"
+                dwg.path(
+                    "M{start_x:g},0 l{box_w:g},0 "  # Top left to top right of tree box
+                    "l0,{box_h:g} l{rdiag_x:g},{diag_h:g} "  # Down to axis
+                    "l0,{tick_h:g} l{ax_x:g},0 l0,-{tick_h:g} "  # Between axis ticks
+                    "l{ldiag_x:g},-{diag_h:g} l0,-{box_h:g}z".format(  # Up from axis
+                        start_x=rnd(prev_tree_x),
+                        box_w=rnd(tree_x - prev_tree_x),
+                        box_h=rnd(y - diag_height),
+                        rdiag_x=rnd(break_x - tree_x),
+                        diag_h=rnd(diag_height),
+                        tick_h=rnd(tick_length_lower),
+                        ax_x=rnd(prev_break_x - break_x),
+                        ldiag_x=rnd(prev_tree_x - prev_break_x),
+                    )
+                )
+            )
 
     def x_transform(self, x):
         raise NotImplementedError(
@@ -641,7 +697,7 @@ class SvgTreeSequence(SvgPlot):
                 for tree in ts.trees()
             )
         # TODO add general padding arguments following matplotlib's terminology.
-        self.set_spacing(top=0, left=20, bottom=15, right=20)
+        self.set_spacing(top=0, left=20, bottom=10, right=20)
         svg_trees = [
             SvgTree(
                 tree,
@@ -728,44 +784,18 @@ class SvgTreeSequence(SvgPlot):
                     lambda x: self.plotbox.left
                     + x / self.ts.sequence_length * self.plotbox.width
                 )
-                plot_breaks = self.x_transform(breaks)
-                dwg = self.drawing
-
-                # For tree sequences, we need to add on the background shaded regions
-                self.root_groups["background"] = self.dwg_base.add(
-                    dwg.g(class_="background")
-                )
-                # plotbox_bottom_padding += 10  # extra space for the diagonal lines
-                y = self.image_size[1] - self.x_axis_offset
-                for i in range(1, len(breaks)):
-                    break_x = plot_breaks[i]
-                    prev_break_x = plot_breaks[i - 1]
-                    tree_x = i * self.tree_plotbox.max_x + self.plotbox.left
-                    prev_tree_x = (i - 1) * self.tree_plotbox.max_x + self.plotbox.left
-                    # Shift diagonal lines between tree & axis into the treebox a little
-                    diag_height = y - (
-                        self.plotbox.bottom - self.tree_plotbox.pad_bottom
-                    )
-                    self.root_groups["background"].add(
-                        dwg.path(
-                            f"M{rnd(prev_tree_x):g},0 "
-                            f"l{rnd(tree_x-prev_tree_x):g},0 "
-                            f"l0,{rnd(y - diag_height):g} "
-                            f"l{rnd(break_x-tree_x):g},{rnd(diag_height):g} "
-                            # NB for curves try "c0,{1} {0},0 {0},{1}" instead of above
-                            f"l0,{rnd(tick_length_lower):g} "
-                            f"l{rnd(prev_break_x-break_x):g},0 "
-                            f"l0,{rnd(-tick_length_lower):g} "
-                            f"l{rnd(prev_tree_x-prev_break_x):g},{rnd(-diag_height):g} "
-                            # NB for curves try "c0,{1} {0},0 {0},{1}" instead of above
-                            f"l0,{rnd(diag_height - y):g}z",
-                        )
-                    )
+            self.shade_background(
+                breaks,
+                tick_length_lower,
+                self.tree_plotbox.max_x,
+                self.plotbox.pad_bottom + self.tree_plotbox.pad_bottom,
+            )
+            site_muts = {s.id: s.mutations for s in self.ts.sites()}
             super().draw_x_axis(
                 tick_positions=breaks,
                 tick_length_lower=tick_length_lower,
                 tick_length_upper=tick_length_upper,
-                sites=self.ts.sites(),
+                site_muts=site_muts,
             )
 
         else:
@@ -804,6 +834,7 @@ class SvgTree(SvgPlot):
         y_label=None,
         y_ticks=None,
         y_gridlines=None,
+        all_edge_mutations=None,
         tree_height_scale=None,
         node_attrs=None,
         mutation_attrs=None,
@@ -817,8 +848,9 @@ class SvgTree(SvgPlot):
         if symbol_size is None:
             symbol_size = 6
         self.symbol_size = symbol_size
+        ts = tree.tree_sequence
         super().__init__(
-            tree.tree_sequence,
+            ts,
             size,
             root_svg_attributes,
             style,
@@ -857,6 +889,42 @@ class SvgTree(SvgPlot):
                 f"Mutations {unplotted} are above nodes which are not present in the "
                 "displayed tree, so are not plotted on the topology."
             )
+        self.left_extent = tree.interval.left
+        self.right_extent = tree.interval.right
+        if all_edge_mutations:
+            tree_left = tree.interval.left
+            tree_right = tree.interval.right
+            edge_left = ts.tables.edges.left
+            edge_right = ts.tables.edges.right
+            node_edges = tree._node_edges()
+            # whittle mutations down so we only need look at those above the tree nodes
+            mut_t = ts.tables.mutations
+            focal_mutations = np.isin(mut_t.node, np.fromiter(nodes, mut_t.node.dtype))
+            mutation_nodes = mut_t.node[focal_mutations]
+            mutation_positions = ts.tables.sites.position[mut_t.site][focal_mutations]
+            mutation_ids = np.arange(ts.num_mutations, dtype=int)[focal_mutations]
+            for m_id, node, pos in zip(
+                mutation_ids, mutation_nodes, mutation_positions
+            ):
+                curr_edge = node_edges[node]
+                if curr_edge >= 0:
+                    if (
+                        edge_left[curr_edge] <= pos < tree_left
+                    ):  # Mutation on this edge but to left of plotted tree
+                        self.node_mutations[node].append(ts.mutation(m_id))
+                        self.mutations_outside_tree.add(m_id)
+                        self.left_extent = min(self.left_extent, pos)
+                    elif (
+                        tree_right <= pos < edge_right[curr_edge]
+                    ):  # Mutation on this edge but to right of plotted tree
+                        self.node_mutations[node].append(ts.mutation(m_id))
+                        self.mutations_outside_tree.add(m_id)
+                        self.right_extent = max(self.right_extent, pos)
+            if self.right_extent != tree.interval.right:
+                # Use nextafter so extent of plotting incorporates the mutation
+                self.right_extent = np.nextafter(
+                    self.right_extent, self.right_extent + 1
+                )
         # attributes for symbols
         half_symbol_size = "{:g}".format(rnd(symbol_size / 2))
         symbol_size = "{:g}".format(rnd(symbol_size))
@@ -885,8 +953,8 @@ class SvgTree(SvgPlot):
             add_class(self.node_label_attrs[u], "lab")  # class 'lab' for label
             if node_label_attrs is not None and u in node_label_attrs:
                 self.node_label_attrs[u].update(node_label_attrs[u])
-        for site in tree.sites():
-            for mutation in site.mutations:
+        for _, mutations in self.node_mutations.items():
+            for mutation in mutations:
                 m = mutation.id
                 # We need to offset the rectangle so that it's centred
                 self.mutation_attrs[m] = {
@@ -907,14 +975,28 @@ class SvgTree(SvgPlot):
                     self.mutation_label_attrs[m].update(mutation_label_attrs[m])
                 add_class(self.mutation_label_attrs[m], "lab")
 
-        self.set_spacing(top=10, left=20, bottom=10, right=20)
+        self.set_spacing(top=10, left=20, bottom=15, right=20)
         self.assign_y_coordinates(max_tree_height, force_root_branch)
         self.assign_x_coordinates()
+        tick_length_lower = self.default_tick_length  # TODO - parameterize
+        tick_length_upper = self.default_tick_length_site  # TODO - parameterize
+        if all_edge_mutations:
+            self.shade_background(tree.interval, tick_length_lower)
+
+        first_site, last_site = np.searchsorted(
+            self.ts.tables.sites.position, [self.left_extent, self.right_extent]
+        )
+        site_muts = {site_id: [] for site_id in range(first_site, last_site)}
+        # Only use mutations plotted on the tree (not necessarily all at the site)
+        for muts in self.node_mutations.values():
+            for mut in muts:
+                site_muts[mut.site].append(mut)
+
         self.draw_x_axis(
             tick_positions=np.array(tree.interval),
-            tick_length_lower=self.default_tick_length,  # TODO - parameterize
-            tick_length_upper=self.default_tick_length_site,  # TODO - parameterize
-            sites=tree.sites(),
+            tick_length_lower=tick_length_lower,
+            tick_length_upper=tick_length_upper,
+            site_muts=site_muts,
         )
         self.draw_y_axis(
             lower=self.y_transform(0),
@@ -1076,7 +1158,9 @@ class SvgTree(SvgPlot):
         self.node_x_coord_map = node_x_coord_map
         # Transform is not for nodes but for genome positions
         self.x_transform = lambda x: (
-            (x - self.tree.interval.left) / self.tree.interval.span * self.plotbox.width
+            (x - self.left_extent)
+            / (self.right_extent - self.left_extent)
+            * self.plotbox.width
             + self.plotbox.left
         )
 
@@ -1180,6 +1264,8 @@ class SvgTree(SvgPlot):
                 mutation_class = f"mut m{mutation.id} s{mutation.site}"
                 if util.is_unknown_time(self.ts.mutation(mutation.id).time):
                     mutation_class += " unknown_time"
+                if mutation.id in self.mutations_outside_tree:
+                    mutation_class += " extra"
                 mut_group = curr_svg_group.add(
                     dwg.g(class_=mutation_class, transform=f"translate(0 {rnd(dy)})")
                 )

@@ -197,6 +197,7 @@ class TestTreeDraw:
         0.06          0
         0.3           Empty
         0.5           XXX
+        0.91          T
         """
         )
         muts = io.StringIO(
@@ -208,6 +209,8 @@ class TestTreeDraw:
         1      4       C                -1        1.6
         1      4       G                3         1.5
         2      7       G                -1        10
+        2      3       C                5         1
+        4      3       G                -1        1
         """
         )
         ts = tskit.load_text(nodes, edges, sites=sites, mutations=muts, strict=False)
@@ -1783,6 +1786,33 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg_no_css = svg[svg.find("</style>") :]
         assert svg_no_css.count("fill-opacity:0") == 1
 
+    @pytest.mark.parametrize("all_muts", [False, True])
+    @pytest.mark.parametrize("x_axis", [False, True])
+    def test_extra_mutations(self, all_muts, x_axis):
+        # The simple_ts has 2 mutations on an edge which spans the whole ts
+        # One mut is within tree 1, the other within tree 3
+        ts = self.get_simple_ts()
+        extra_mut_copies = 0
+        if all_muts:
+            extra_mut_copies = 2 if x_axis else 1
+        extra_right = ts.at_index(1)
+        svg = extra_right.draw_svg(all_edge_mutations=all_muts, x_axis=x_axis)
+        self.verify_basic_svg(svg)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("extra") == 1 * extra_mut_copies
+
+        extra_right_and_left = ts.at_index(2)
+        svg = extra_right_and_left.draw_svg(all_edge_mutations=all_muts, x_axis=x_axis)
+        self.verify_basic_svg(svg)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("extra") == 2 * extra_mut_copies
+
+        extra_left = ts.at_index(3)
+        svg = extra_left.draw_svg(all_edge_mutations=all_muts, x_axis=x_axis)
+        self.verify_basic_svg(svg)
+        svg_no_css = svg[svg.find("</style>") :]
+        assert svg_no_css.count("extra") == 1 * extra_mut_copies
+
     def test_max_tree_height(self):
         nodes = io.StringIO(
             """\
@@ -2095,6 +2125,16 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         tree = self.get_simple_ts().at_index(0)  # Tree 0 has a few mutations above root
         svg = tree.draw_svg(debug_box=draw_plotbox)
         self.verify_known_svg(svg, "tree_muts.svg", overwrite_viz)
+
+    def test_known_svg_tree_mut_all_edge(self, overwrite_viz, draw_plotbox):
+        tree = self.get_simple_ts().at_index(1)
+        size = (300, 400)
+        svg = tree.draw_svg(
+            size=size, debug_box=draw_plotbox, all_edge_mutations=True, x_axis=True
+        )
+        self.verify_known_svg(
+            svg, "tree_muts_all_edge.svg", overwrite_viz, width=size[0], height=size[1]
+        )
 
     def test_known_svg_tree_timed_root_mut(self, overwrite_viz, draw_plotbox):
         tree = self.get_simple_ts(use_mutation_times=True).at_index(0)
