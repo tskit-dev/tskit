@@ -192,9 +192,9 @@ class TestTables:
         def reader_proxy(thread_index, results):
             barrier.wait()
             # Attempts to operate on a table while locked should raise a RuntimeError
+            results[thread_index] = 0
             try:
                 reader(thread_index, results)
-                results[thread_index] = 0
             except RuntimeError:
                 results[thread_index] = 1
 
