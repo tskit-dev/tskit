@@ -34,6 +34,8 @@ import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import Any
+from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -115,7 +117,7 @@ class Individual:
     a numpy array (dtype=np.int32). If no nodes are associated with the
     individual this array will be empty.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>`
     for this individual, decoded if a schema applies.
@@ -167,7 +169,7 @@ class Node:
     """
     The integer ID of the individual that this node was a part of.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this node, decoded if a schema
     applies.
@@ -214,7 +216,7 @@ class Edge:
     To obtain further information about a node with a given ID, use
     :meth:`TreeSequence.node`.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this edge, decoded if a schema
     applies.
@@ -275,7 +277,7 @@ class Site:
     The list of mutations at this site. Mutations within a site are returned in the
     order they are specified in the underlying :class:`MutationTable`.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this site, decoded if a schema
     applies.
@@ -338,7 +340,7 @@ class Mutation:
     To obtain further information about a mutation with a given ID, use
     :meth:`TreeSequence.mutation`.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this mutation, decoded if a schema
     applies.
@@ -425,7 +427,7 @@ class Migration:
     """
     The time at which this migration occurred at.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this migration, decoded if a schema
     applies.
@@ -453,7 +455,7 @@ class Population:
     The integer ID of this population. Varies from 0 to
     :attr:`TreeSequence.num_populations` - 1.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this population, decoded if a
     schema applies.

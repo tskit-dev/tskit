@@ -2971,8 +2971,6 @@ class SimpleContainersWithMetadataMixin:
         (inst,) = self.get_instances(1)
         (inst2,) = self.get_instances(1)
         assert inst == inst2
-        inst.metadata
-        assert inst == inst2
         inst._metadata = "different"
         assert inst != inst2
 

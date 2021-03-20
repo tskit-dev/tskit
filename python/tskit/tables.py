@@ -32,6 +32,8 @@ import sys
 import warnings
 from dataclasses import dataclass
 from typing import Any
+from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -52,7 +54,7 @@ class IndividualTableRow:
     flags: int
     location: np.ndarray
     parents: np.ndarray
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
 
     # We need a custom eq for the numpy arrays
     def __eq__(self, other):
@@ -73,7 +75,7 @@ class NodeTableRow:
     time: float
     population: int
     individual: int
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
 
 
 @metadata.lazy_decode
@@ -84,7 +86,7 @@ class EdgeTableRow:
     right: float
     parent: int
     child: int
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
 
 
 @metadata.lazy_decode
@@ -97,7 +99,7 @@ class MigrationTableRow:
     source: int
     dest: int
     time: float
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
 
 
 @metadata.lazy_decode
@@ -106,7 +108,7 @@ class SiteTableRow:
     __slots__ = ["position", "ancestral_state", "metadata"]
     position: float
     ancestral_state: str
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
 
 
 @metadata.lazy_decode
@@ -117,7 +119,7 @@ class MutationTableRow:
     node: int
     derived_state: str
     parent: int
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     time: float
 
     # We need a custom eq here as we have unknown times (nans) to check
@@ -142,7 +144,7 @@ class MutationTableRow:
 @dataclass(**dataclass_options)
 class PopulationTableRow:
     __slots__ = ["metadata"]
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
 
 
 @dataclass(**dataclass_options)
@@ -2238,7 +2240,7 @@ class TableCollection:
         return self.metadata_schema.decode_row(self._ll_tables.metadata)
 
     @metadata.setter
-    def metadata(self, metadata: Any) -> None:
+    def metadata(self, metadata: Optional[Union[bytes, dict]]) -> None:
         self._ll_tables.metadata = self.metadata_schema.validate_and_encode_row(
             metadata
         )
