@@ -1586,6 +1586,23 @@ class TestTreeSequence(HighLevelTestCase):
         assert t1.equals(t2)
         assert t2.equals(t1)
 
+    def test_tree_node_edges(self):
+        for ts in get_example_tree_sequences():
+            edge_visited = np.zeros(ts.num_edges, dtype=bool)
+            for mapping, tree in zip(ts._tree_node_edges(), ts.trees()):
+                node_mapped = mapping >= 0
+                edge_visited[mapping[node_mapped]] = True
+                assert np.sum(node_mapped) == len(list(tree.nodes())) - tree.num_roots
+                for u in tree.nodes():
+                    if tree.parent(u) == tskit.NULL:
+                        assert mapping[u] == tskit.NULL
+                    else:
+                        edge = ts.edge(mapping[u])
+                        assert edge.child == u
+                        assert edge.left <= tree.interval.left
+                        assert edge.right >= tree.interval.right
+            assert np.all(edge_visited)
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)
@@ -2780,6 +2797,30 @@ class TestTree(HighLevelTestCase):
             tskit.Tree(ts, sample_counts=False)
             assert len(w) == 1
             assert issubclass(w[0].category, RuntimeWarning)
+
+    def test_node_edges(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=42)
+        assert ts.num_trees > 2
+        edge_table = ts.tables.edges
+        for tree in ts.trees():
+            nodes = set(tree.nodes())
+            midpoint = sum(tree.interval) / 2
+            mapping = tree._node_edges()
+            for node, edge in enumerate(mapping):
+                if node in nodes and tree.parent(node) != tskit.NULL:
+                    edge_above_node = np.where(
+                        np.logical_and.reduce(
+                            (
+                                edge_table.child == node,
+                                edge_table.left < midpoint,
+                                edge_table.right > midpoint,
+                            )
+                        )
+                    )[0]
+                    assert len(edge_above_node) == 1
+                    assert edge_above_node[0] == edge
+                else:
+                    assert edge == tskit.NULL
 
 
 class TestNodeOrdering(HighLevelTestCase):
