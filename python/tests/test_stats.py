@@ -108,11 +108,17 @@ class TestLdCalculator(unittest.TestCase):
         A = ldc.get_r2_matrix()
         j = len(mutations) // 2
         for k in range(j):
-            x = mutations[j + k].position - mutations[j].position
+            x = (
+                ts.site(mutations[j + k].site).position
+                - ts.site(mutations[j].site).position
+            )
             a = ldc.get_r2_array(j, max_distance=x)
             assert a.shape[0] == k
             assert np.allclose(A[j, j + 1 : j + 1 + k], a)
-            x = mutations[j].position - mutations[j - k].position
+            x = (
+                ts.site(mutations[j].site).position
+                - ts.site(mutations[j - k].site).position
+            )
             a = ldc.get_r2_array(j, max_distance=x, direction=tskit.REVERSE)
             assert a.shape[0] == k
             assert np.allclose(A[j, j - k : j], a[::-1])

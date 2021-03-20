@@ -203,8 +203,7 @@ class VcfWriter:
                 end="\t",
                 file=output,
             )
-            variant.genotypes += ord("0")
-            gt_array[indexes] = variant.genotypes
+            gt_array[indexes] = variant.genotypes + ord("0")
             g_bytes = memoryview(gt_array).tobytes()
             g_str = g_bytes.decode()
             print(g_str, end="", file=output)

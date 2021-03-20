@@ -4,10 +4,19 @@
 
 **Breaking changes**
 
+- `Mutation.position` and `Mutation.index` which were deprecated in 0.2.2 (Sep '19) have
+  been removed.
+
 **Features**
 
 - SVG visualization of a single tree allows all mutations on an edge to be plotted
   via the ``all_edge_mutations`` param (:user:`hyanwong`,:issue:`1253`, :pr:`1258`).
+
+- Entity classes such as `Mutation`, `Node` are now python dataclasses
+  (:user:`benjeffery`, :pr:`1261`).
+
+- Metadata decoding for table row access is now lazy (:user:`benjeffery`, :pr:`1261`).
+
 
 **Fixes**
 
