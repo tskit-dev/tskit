@@ -111,7 +111,7 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
     tables.sites.clear()
     tables.mutations.clear()
     for tree in ts.trees():
-        site = tables.sites.add_row(position=tree.interval[0], ancestral_state="0")
+        site = tables.sites.add_row(position=tree.interval.left, ancestral_state="0")
         for root in tree.roots:
             state = {tskit.NULL: 0}
             mutation = {tskit.NULL: -1}
@@ -206,7 +206,7 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
     for tree in ts.trees():
         ancestral_state = rng.choice(letters) * rng.randint(0, max_len)
         site = tables.sites.add_row(
-            position=tree.interval[0], ancestral_state=ancestral_state
+            position=tree.interval.left, ancestral_state=ancestral_state
         )
         nodes = list(tree.nodes())
         nodes.remove(tree.root)
@@ -501,7 +501,7 @@ def generate_site_mutations(
     information are recorded in the specified tables.  Note that this records
     more than one mutation per edge.
     """
-    assert tree.interval[0] <= position < tree.interval[1]
+    assert tree.interval.left <= position < tree.interval.right
     states = ["A", "C", "G", "T"]
     ancestral_state = random.choice(states)
     site_table.add_row(position, ancestral_state)
@@ -544,7 +544,7 @@ def jukes_cantor(ts, num_sites, mu, multiple_per_node=True, seed=None):
     trees = ts.trees()
     t = next(trees)
     for position in positions:
-        while position >= t.interval[1]:
+        while position >= t.interval.right:
             t = next(trees)
         generate_site_mutations(
             t,

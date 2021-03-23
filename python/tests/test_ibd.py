@@ -106,7 +106,7 @@ def get_ibd(
             prev_dict = t.get_parent_dict()
 
         for interval in interval_list:
-            if min_length == 0 or interval[1] - interval[0] > min_length:
+            if min_length == 0 or interval.right - interval.left > min_length:
                 orig_id = node_map.index(node_id)
                 ibd_list.append(ibd.Segment(interval[0], interval[1], orig_id))
 

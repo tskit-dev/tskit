@@ -283,8 +283,8 @@ class TestNexus(TreeExamples):
             assert len(split_name) == 2
             start = float(split_name[0][4:])
             end = float(split_name[1])
-            self.assertAlmostEqual(tree.interval[0], start)
-            self.assertAlmostEqual(tree.interval[1], end)
+            self.assertAlmostEqual(tree.interval.left, start)
+            self.assertAlmostEqual(tree.interval.right, end)
 
             self.verify_tree(nexus_tree, tree)
 

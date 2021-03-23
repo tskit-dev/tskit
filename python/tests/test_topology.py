@@ -1036,14 +1036,14 @@ def ts_kc_distance(ts1, ts2, lambda_=0):
     tree1_iter = ts1.trees(sample_lists=True)
     tree1 = next(tree1_iter)
     for tree2 in ts2.trees(sample_lists=True):
-        while tree1.interval[1] < tree2.interval[1]:
-            span = tree1.interval[1] - left
+        while tree1.interval.right < tree2.interval.right:
+            span = tree1.interval.right - left
             total += tree1.kc_distance(tree2, lambda_) * span
 
-            left = tree1.interval[1]
+            left = tree1.interval.right
             tree1 = next(tree1_iter)
-        span = tree2.interval[1] - left
-        left = tree2.interval[1]
+        span = tree2.interval.right - left
+        left = tree2.interval.right
         total += tree1.kc_distance(tree2, lambda_) * span
 
     return total / ts1.sequence_length
@@ -1167,7 +1167,7 @@ def check_kc_tree_sequence_inputs(ts1, ts2):
     tree1_iter = ts1.trees(sample_lists=True)
     tree1 = next(tree1_iter)
     for tree2 in ts2.trees(sample_lists=True):
-        while tree1.interval[1] < tree2.interval[1]:
+        while tree1.interval.right < tree2.interval.right:
             check_kc_tree_inputs(tree1, tree2)
             tree1 = next(tree1_iter)
         check_kc_tree_inputs(tree1, tree2)
@@ -2260,7 +2260,10 @@ class TestRedundantBreakpoints(TopologyTestCase):
         redundant_t = next(redundant_trees)
         comparisons = 0
         for t in ts.trees():
-            while redundant_t is not None and redundant_t.interval[1] <= t.interval[1]:
+            while (
+                redundant_t is not None
+                and redundant_t.interval.right <= t.interval.right
+            ):
                 assert t.parent_dict == redundant_t.parent_dict
                 comparisons += 1
                 redundant_t = next(redundant_trees, None)
@@ -5018,8 +5021,8 @@ class TestSimplify(SimplifyTestBase):
         trees2 = ts2.trees()
         t2 = next(trees2)
         for t1 in ts1.trees():
-            assert t2.interval[0] <= t1.interval[0]
-            assert t2.interval[1] >= t1.interval[1]
+            assert t2.interval.left <= t1.interval.left
+            assert t2.interval.right >= t1.interval.right
             pairs = itertools.combinations(ts1.samples(), 2)
             for pair in pairs:
                 mapped_pair = [node_map[u] for u in pair]
@@ -5029,7 +5032,7 @@ class TestSimplify(SimplifyTestBase):
                     assert mrca2 == tskit.NULL
                 else:
                     assert node_map[mrca1] == mrca2
-            if t2.interval[1] == t1.interval[1]:
+            if t2.interval.right == t1.interval.right:
                 t2 = next(trees2, None)
 
     def test_single_tree(self):
@@ -6184,9 +6187,9 @@ class TestMapToAncestors:
             ):
                 # Loop through trees.
                 for tree in ts.trees():
-                    if tree.interval[0] >= current_right:
+                    if tree.interval.left >= current_right:
                         break
-                    while tree.interval[1] <= current_left:
+                    while tree.interval.right <= current_left:
                         tree.next()
                     # Check that the most recent ancestor of the descendants is the
                     # current_ancestor.
@@ -7796,7 +7799,7 @@ class TestTrim(unittest.TestCase):
             assert source_tree.parent_dict == trimmed_tree.parent_dict
             self.assertAlmostEqual(source_tree.span, trimmed_tree.span)
             self.assertAlmostEqual(
-                source_tree.interval[0], trimmed_tree.interval[0] + deleted_span
+                source_tree.interval.left, trimmed_tree.interval.left + deleted_span
             )
             self.verify_sites(source_tree, trimmed_tree, deleted_span)
 
@@ -8063,7 +8066,7 @@ class TestMissingData:
     def test_is_isolated(self):
         ts, missing_from, missing_to = self.ts_missing_middle()
         for tree in ts.trees():
-            if tree.interval[1] > missing_from and tree.interval[0] < missing_to:
+            if tree.interval.right > missing_from and tree.interval.left < missing_to:
                 assert tree.is_isolated(0)
                 assert not tree.is_isolated(1)
             else:

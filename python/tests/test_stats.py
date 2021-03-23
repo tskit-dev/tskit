@@ -356,7 +356,7 @@ def naive_genealogical_nearest_neighbours(ts, focal, reference_sets):
     ]
     for _ in range(ts.num_trees):
         trees = list(map(next, tree_iters))
-        length = trees[0].interval[1] - trees[0].interval[0]
+        length = trees[0].interval.right - trees[0].interval.left
         for j, u in enumerate(focal):
             focal_node_set = reference_set_map[u]
             # delta(u) = 1 if u exists in any of the reference sets; 0 otherwise
@@ -687,7 +687,7 @@ def exact_genealogical_nearest_neighbours(ts, focal, reference_sets):
             v = trees[0].parent(v)
         if v != tskit.NULL:
             # The length is only reported where the statistic is defined.
-            L[trees[0].index] = trees[0].interval[1] - trees[0].interval[0]
+            L[trees[0].index] = trees[0].interval.right - trees[0].interval.left
             for k, tree in enumerate(trees):
                 # If the focal node is in the current set, we subtract its
                 # contribution from the numerator
@@ -763,8 +763,8 @@ class TestExactGenealogicalNearestNeighbours(TestGenealogicalNearestNeighbours):
 
         G, lefts, rights = local_gnn(ts, focal, reference_sets)
         for tree in ts.trees():
-            assert lefts[tree.index] == tree.interval[0]
-            assert rights[tree.index] == tree.interval[1]
+            assert lefts[tree.index] == tree.interval.left
+            assert rights[tree.index] == tree.interval.right
 
         for j, u in enumerate(focal):
             T, L = exact_genealogical_nearest_neighbours(ts, u, reference_sets)
