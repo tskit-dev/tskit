@@ -1163,9 +1163,9 @@ def branch_diversity(ts, sample_sets, windows=None, span_normalise=True):
             denom = np.float64(len(X) * (len(X) - 1))
             has_trees = False
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
@@ -1173,7 +1173,7 @@ def branch_diversity(ts, sample_sets, windows=None, span_normalise=True):
                 for x in X:
                     for y in set(X) - {x}:
                         SS += path_length(tr, x, y)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             if has_trees:
                 with suppress_division_by_zero_warning():
                     out[j][i] = S / denom
@@ -1195,16 +1195,16 @@ def node_diversity(ts, sample_sets, windows=None, span_normalise=True):
             denom = np.float64(len(X) * (len(X) - 1))
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees(tracked_samples=X):
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in tr.nodes():
                     # count number of pairwise paths going through u
                     n = tr.num_tracked_samples(u)
                     SS[u] += 2 * n * (tX - n)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, k] = S / denom
             if span_normalise:
@@ -1287,9 +1287,9 @@ def branch_segregating_sites(ts, sample_sets, windows=None, span_normalise=True)
         for i, X in enumerate(sample_sets):
             tX = len(X)
             for tr in ts.trees(tracked_samples=X):
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = 0
                 for u in tr.nodes():
@@ -1297,7 +1297,7 @@ def branch_segregating_sites(ts, sample_sets, windows=None, span_normalise=True)
                     if nX > 0 and nX < tX:
                         SS += tr.branch_length(u)
                 out[j][i] += SS * (
-                    min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                    min(end, tr.interval.right) - max(begin, tr.interval.left)
                 )
             if span_normalise:
                 out[j][i] /= end - begin
@@ -1316,15 +1316,15 @@ def node_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
             tX = len(X)
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees(tracked_samples=X):
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in tr.nodes():
                     nX = tr.num_tracked_samples(u)
                     SS[u] = (nX > 0) and (nX < tX)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, k] = S
             if span_normalise:
                 out[j, :, k] /= end - begin
@@ -1489,13 +1489,13 @@ def branch_Y1(ts, sample_sets, windows=None, span_normalise=True):
             denom = np.float64(len(X) * (len(X) - 1) * (len(X) - 2))
             has_trees = False
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
-                this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                this_length = min(end, tr.interval.right) - max(begin, tr.interval.left)
                 for x in X:
                     for y in set(X) - {x}:
                         for z in set(X) - {x, y}:
@@ -1575,16 +1575,16 @@ def node_Y1(ts, sample_sets, windows=None, span_normalise=True):
             denom = np.float64(tX * (tX - 1) * (tX - 2))
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees(tracked_samples=X):
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in tr.nodes():
                     # count number of paths above a but not b,c
                     n = tr.num_tracked_samples(u)
                     SS[u] += n * (tX - n) * (tX - n - 1) + (tX - n) * n * (n - 1)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, k] = S / denom
             if span_normalise:
@@ -1676,9 +1676,9 @@ def branch_divergence(ts, sample_sets, indexes, windows=None, span_normalise=Tru
             has_trees = False
             S = 0
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
@@ -1686,7 +1686,7 @@ def branch_divergence(ts, sample_sets, indexes, windows=None, span_normalise=Tru
                 for x in X:
                     for y in Y:
                         SS += path_length(tr, x, y)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             if has_trees:
                 with suppress_division_by_zero_warning():
                     out[j][i] = S / denom
@@ -1708,9 +1708,9 @@ def node_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
             end = windows[j + 1]
             S = np.zeros(ts.num_nodes)
             for t1, t2 in zip(ts.trees(tracked_samples=X), ts.trees(tracked_samples=Y)):
-                if t1.interval[1] <= begin:
+                if t1.interval.right <= begin:
                     continue
-                if t1.interval[0] >= end:
+                if t1.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in t1.nodes():
@@ -1718,7 +1718,7 @@ def node_divergence(ts, sample_sets, indexes, windows=None, span_normalise=True)
                     nX = t1.num_tracked_samples(u)
                     nY = t2.num_tracked_samples(u)
                     SS[u] += nX * (tY - nY) + (tX - nX) * nY
-                S += SS * (min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+                S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, i] = S / denom
             if span_normalise:
@@ -1847,12 +1847,12 @@ def branch_genetic_relatedness(
         begin = windows[j]
         end = windows[j + 1]
         for tr in ts.trees():
-            if tr.interval[1] <= begin:
+            if tr.interval.right <= begin:
                 continue
-            if tr.interval[0] >= end:
+            if tr.interval.left >= end:
                 break
             branches = [(c, tr.parent(c)) for c in tr.nodes()]
-            span = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+            span = min(end, tr.interval.right) - max(begin, tr.interval.left)
             for B in branches:
                 v = B[0]
                 area = tr.branch_length(v) * span
@@ -1896,10 +1896,10 @@ def node_genetic_relatedness(
         begin = windows[j]
         end = windows[j + 1]
         for tr in ts.trees():
-            span = min(end, tr.interval[1]) - max(begin, tr.interval[0])
-            if tr.interval[1] <= begin:
+            span = min(end, tr.interval.right) - max(begin, tr.interval.left)
+            if tr.interval.right <= begin:
                 continue
-            if tr.interval[0] >= end:
+            if tr.interval.left >= end:
                 break
             for v in tr.nodes():
                 haps = np.zeros(len(all_samples))
@@ -2200,13 +2200,13 @@ def branch_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             has_trees = False
             S = 0
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
-                this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                this_length = min(end, tr.interval.right) - max(begin, tr.interval.left)
                 for x in X:
                     for y in Y:
                         for z in set(Y) - {y}:
@@ -2288,9 +2288,9 @@ def node_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             end = windows[j + 1]
             S = np.zeros(ts.num_nodes)
             for t1, t2 in zip(ts.trees(tracked_samples=X), ts.trees(tracked_samples=Y)):
-                if t1.interval[1] <= begin:
+                if t1.interval.right <= begin:
                     continue
-                if t1.interval[0] >= end:
+                if t1.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in t1.nodes():
@@ -2298,7 +2298,7 @@ def node_Y2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                     nX = t1.num_tracked_samples(u)
                     nY = t2.num_tracked_samples(u)
                     SS[u] += nX * (tY - nY) * (tY - nY - 1) + (tX - nX) * nY * (nY - 1)
-                S += SS * (min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+                S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, i] = S / denom
             if span_normalise:
@@ -2366,13 +2366,13 @@ def branch_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             denom = np.float64(len(X) * len(Y) * len(Z))
             has_trees = False
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
-                this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                this_length = min(end, tr.interval.right) - max(begin, tr.interval.left)
                 for x in X:
                     for y in Y:
                         for z in Z:
@@ -2460,9 +2460,9 @@ def node_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                 ts.trees(tracked_samples=Y),
                 ts.trees(tracked_samples=Z),
             ):
-                if t1.interval[1] <= begin:
+                if t1.interval.right <= begin:
                     continue
-                if t1.interval[0] >= end:
+                if t1.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in t1.nodes():
@@ -2471,7 +2471,7 @@ def node_Y3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                     nY = t2.num_tracked_samples(u)
                     nZ = t3.num_tracked_samples(u)
                     SS[u] += nX * (tY - nY) * (tZ - nZ) + (tX - nX) * nY * nZ
-                S += SS * (min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+                S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, i] = S / denom
             if span_normalise:
@@ -2538,13 +2538,13 @@ def branch_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             has_trees = False
             S = 0
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
-                this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                this_length = min(end, tr.interval.right) - max(begin, tr.interval.left)
                 SS = 0
                 for a in A:
                     for b in B:
@@ -2623,9 +2623,9 @@ def node_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
             end = windows[j + 1]
             S = np.zeros(ts.num_nodes)
             for t1, t2 in zip(ts.trees(tracked_samples=A), ts.trees(tracked_samples=B)):
-                if t1.interval[1] <= begin:
+                if t1.interval.right <= begin:
                     continue
-                if t1.interval[0] >= end:
+                if t1.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in t1.nodes():
@@ -2637,7 +2637,7 @@ def node_f2(ts, sample_sets, indexes, windows=None, span_normalise=True):
                         tA - nA - 1
                     ) * nB * (nB - 1)
                     SS[u] -= 2 * nA * nB * (tA - nA) * (tB - nB)
-                S += SS * (min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+                S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, i] = S / denom
             if span_normalise:
@@ -2713,13 +2713,13 @@ def branch_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
             has_trees = False
             S = 0
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
-                this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                this_length = min(end, tr.interval.right) - max(begin, tr.interval.left)
                 SS = 0
                 for a in A:
                     for b in B:
@@ -2804,9 +2804,9 @@ def node_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                 ts.trees(tracked_samples=B),
                 ts.trees(tracked_samples=C),
             ):
-                if t1.interval[1] <= begin:
+                if t1.interval.right <= begin:
                     continue
-                if t1.interval[0] >= end:
+                if t1.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in t1.nodes():
@@ -2823,7 +2823,7 @@ def node_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                         nA * nC * (tA - nA) * (tB - nB)
                         + (tA - nA) * (tC - nC) * nA * nB
                     )
-                S += SS * (min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+                S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, i] = S / denom
             if span_normalise:
@@ -2898,13 +2898,13 @@ def branch_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
             has_trees = False
             S = 0
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
-                this_length = min(end, tr.interval[1]) - max(begin, tr.interval[0])
+                this_length = min(end, tr.interval.right) - max(begin, tr.interval.left)
                 SS = 0
                 for a in A:
                     for b in B:
@@ -2995,9 +2995,9 @@ def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
                 ts.trees(tracked_samples=C),
                 ts.trees(tracked_samples=D),
             ):
-                if t1.interval[1] <= begin:
+                if t1.interval.right <= begin:
                     continue
-                if t1.interval[0] >= end:
+                if t1.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in t1.nodes():
@@ -3015,7 +3015,7 @@ def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
                         nA * nD * (tB - nB) * (tC - nC)
                         + (tA - nA) * (tD - nD) * nB * nC
                     )
-                S += SS * (min(end, t1.interval[1]) - max(begin, t1.interval[0]))
+                S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
                 out[j, :, i] = S / denom
             if span_normalise:
@@ -3219,7 +3219,7 @@ def naive_branch_allele_frequency_spectrum(
         ]
         t = trees[0]
         while True:
-            tr_len = min(end, t.interval[1]) - max(begin, t.interval[0])
+            tr_len = min(end, t.interval.right) - max(begin, t.interval.left)
             if tr_len > 0:
                 for node in t.nodes():
                     if 0 < t.num_samples(node) < ts.num_samples:
@@ -4250,9 +4250,9 @@ def branch_trait_covariance(ts, W, windows=None, span_normalise=True):
             S = 0
             has_trees = False
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
@@ -4261,7 +4261,7 @@ def branch_trait_covariance(ts, W, windows=None, span_normalise=True):
                     below = np.in1d(samples, list(tr.samples(u)))
                     branch_length = tr.branch_length(u)
                     SS += covsq(w, below) * branch_length
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             if has_trees:
                 out[j, i] = S
                 if span_normalise:
@@ -4287,15 +4287,15 @@ def node_trait_covariance(ts, W, windows=None, span_normalise=True):
             w -= np.mean(w)
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
                     below = np.in1d(samples, list(tr.samples(u)))
                     SS[u] += covsq(w, below)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S
             if span_normalise:
                 out[j, :, i] /= end - begin
@@ -4461,9 +4461,9 @@ def branch_trait_correlation(ts, W, windows=None, span_normalise=True):
             S = 0
             has_trees = False
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
@@ -4477,7 +4477,7 @@ def branch_trait_correlation(ts, W, windows=None, span_normalise=True):
                         #         sum(w[np.logical_not(below)])**2) * branch_length
                         #        / (2 * (p * (1 - p))))
                         SS += corsq(w, below) * branch_length
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             if has_trees:
                 out[j, i] = S
                 if span_normalise:
@@ -4504,9 +4504,9 @@ def node_trait_correlation(ts, W, windows=None, span_normalise=True):
             w /= np.std(w) * np.sqrt(len(w) / (len(w) - 1))
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
@@ -4517,7 +4517,7 @@ def node_trait_correlation(ts, W, windows=None, span_normalise=True):
                         # SS[u] += sum(w[np.logical_not(below)])**2 / 2
                         # SS[u] /= (p * (1 - p))
                         SS[u] += corsq(w, below)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S
             if span_normalise:
                 out[j, :, i] /= end - begin
@@ -4708,9 +4708,9 @@ def branch_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
             S = 0
             has_trees = False
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 if tr.total_branch_length > 0:
                     has_trees = True
@@ -4719,7 +4719,7 @@ def branch_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
                     below = np.in1d(samples, list(tr.samples(u)))
                     branch_length = tr.branch_length(u)
                     SS += linear_model(w, below, Z) * branch_length
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             if has_trees:
                 out[j, i] = S
                 if span_normalise:
@@ -4745,15 +4745,15 @@ def node_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
             w = W[:, i]
             S = np.zeros(ts.num_nodes)
             for tr in ts.trees():
-                if tr.interval[1] <= begin:
+                if tr.interval.right <= begin:
                     continue
-                if tr.interval[0] >= end:
+                if tr.interval.left >= end:
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
                     below = np.in1d(samples, list(tr.samples(u)))
                     SS[u] += linear_model(w, below, Z)
-                S += SS * (min(end, tr.interval[1]) - max(begin, tr.interval[0]))
+                S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S
             if span_normalise:
                 out[j, :, i] /= end - begin

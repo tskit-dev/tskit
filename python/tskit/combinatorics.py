@@ -409,7 +409,7 @@ def split_polytomies(
                 )
             e.args += (msg,)
         raise e
-    return ts.at(tree.interval[0], **kwargs)
+    return ts.at(tree.interval.left, **kwargs)
 
 
 def treeseq_count_topologies(ts, sample_sets):

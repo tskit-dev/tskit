@@ -608,7 +608,7 @@ class TestSimplify:
             # keep_unary_in_individuals then also nodes in individuals; if
             # keep_unary then all such nodes.
             for t in ts.trees(tracked_samples=sub_samples):
-                st = sts.at(t.interval[0])
+                st = sts.at(t.interval.left)
                 visited = [False for _ in sts.nodes()]
                 for n, sn in zip(sub_samples, sts.samples()):
                     last_n = t.num_tracked_samples(n)

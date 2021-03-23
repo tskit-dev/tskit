@@ -135,8 +135,8 @@ def get_gap_examples():
         ts = insert_gap(ts, x, gap)
         found = False
         for t in ts.trees():
-            if t.interval[0] == x:
-                assert t.interval[1] == x + gap
+            if t.interval.left == x:
+                assert t.interval.right == x + gap
                 assert len(t.parent_dict) == 0
                 found = True
         assert found
@@ -638,7 +638,7 @@ class TestTreeSequence(HighLevelTestCase):
                 edge_ids.append(edge.id)
                 assert edge == ts.edge(edge.id)
                 children[edge.parent].add(edge.child)
-            while tree.interval[1] <= left:
+            while tree.interval.right <= left:
                 tree = next(trees)
             assert left >= tree.interval.left
             assert right <= tree.interval.right
@@ -729,7 +729,9 @@ class TestTreeSequence(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             breakpoints = ts.breakpoints(as_array=True)
             assert breakpoints.shape == (ts.num_trees + 1,)
-            other = np.fromiter(iter([0] + [t.interval[1] for t in ts.trees()]), float)
+            other = np.fromiter(
+                iter([0] + [t.interval.right for t in ts.trees()]), float
+            )
             assert np.array_equal(other, breakpoints)
             # in case downstream code has
             for j, x in enumerate(ts.breakpoints()):
@@ -2498,7 +2500,7 @@ class TestTree(HighLevelTestCase):
         assert t1.get_num_mutations() == t1.num_mutations
         assert t1.get_parent_dict() == t1.parent_dict
         assert t1.get_total_branch_length() == t1.total_branch_length
-        assert t1.span == t1.interval[1] - t1.interval[0]
+        assert t1.span == t1.interval.right - t1.interval.left
         # node properties
         root = t1.get_root()
         for node in t1.nodes():
@@ -2608,15 +2610,15 @@ class TestTree(HighLevelTestCase):
             for j in range(L):
                 tree.seek(j)
                 index = tree.index
-                assert tree.interval[0] <= j < tree.interval[1]
-                tree.seek(tree.interval[0])
+                assert tree.interval.left <= j < tree.interval.right
+                tree.seek(tree.interval.left)
                 assert tree.index == index
-                if tree.interval[1] < L:
-                    tree.seek(tree.interval[1])
+                if tree.interval.right < L:
+                    tree.seek(tree.interval.right)
                     assert tree.index == index + 1
             for j in reversed(range(L)):
                 tree.seek(j)
-                assert tree.interval[0] <= j < tree.interval[1]
+                assert tree.interval.left <= j < tree.interval.right
         for bad_position in [-1, L, L + 1, -L]:
             with pytest.raises(ValueError):
                 tree.seek(bad_position)
@@ -2628,9 +2630,9 @@ class TestTree(HighLevelTestCase):
         assert breakpoints[0] == 0
         assert breakpoints[-1] == ts.sequence_length
         for i, tree in enumerate(ts.trees()):
-            assert tree.interval[0] == pytest.approx(breakpoints[i])
             assert tree.interval.left == pytest.approx(breakpoints[i])
-            assert tree.interval[1] == pytest.approx(breakpoints[i + 1])
+            assert tree.interval.left == pytest.approx(breakpoints[i])
+            assert tree.interval.right == pytest.approx(breakpoints[i + 1])
             assert tree.interval.right == pytest.approx(breakpoints[i + 1])
             assert tree.interval.span == pytest.approx(
                 breakpoints[i + 1] - breakpoints[i]

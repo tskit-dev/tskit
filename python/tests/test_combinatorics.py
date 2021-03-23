@@ -1169,11 +1169,11 @@ class TestPolytomySplitting:
             resolved_ts = binary_tree.tree_sequence
             assert resolved_ts.sequence_length == ts.sequence_length
             assert resolved_ts.num_trees <= 3
-            if tree.interval[0] == 0:
+            if tree.interval.left == 0:
                 assert resolved_ts.num_trees == 2
                 null_tree = resolved_ts.last()
                 assert null_tree.num_roots == ts.num_samples
-            elif tree.interval[1] == ts.sequence_length:
+            elif tree.interval.right == ts.sequence_length:
                 assert resolved_ts.num_trees == 2
                 null_tree = resolved_ts.first()
                 assert null_tree.num_roots == ts.num_samples

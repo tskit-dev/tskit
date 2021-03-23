@@ -765,9 +765,9 @@ class ViterbiMatrix(CompressedMatrix):
 
         rr_index = len(self.recombination_required) - 1
         for site in reversed(self.ts.sites()):
-            while tree.interval[0] > site.position:
+            while tree.interval.left > site.position:
                 tree.prev()
-            assert tree.interval[0] <= site.position < tree.interval[1]
+            assert tree.interval.left <= site.position < tree.interval.right
 
             # Fill in the recombination tree
             j = rr_index

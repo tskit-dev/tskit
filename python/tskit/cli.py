@@ -70,8 +70,11 @@ def run_trees(args):
     for tree in ts.trees():
         print(f"tree {tree.index}:")
         print(f"  num_sites: {tree.num_sites}")
-        left, right = tree.interval
-        print("  interval:  ({0:.{2}f}, {1:.{2}f})".format(left, right, args.precision))
+        print(
+            "  interval:  ({0:.{2}f}, {1:.{2}f})".format(
+                tree.interval.left, tree.interval.right, args.precision
+            )
+        )
         if args.draw:
             print(tree.draw(format="unicode"))
 

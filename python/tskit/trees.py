@@ -4199,12 +4199,12 @@ class TreeSequence:
         right = 0
         while right != L:
             left = right
-            right = min(tree1.interval[1], tree2.interval[1])
+            right = min(tree1.interval.right, tree2.interval.right)
             yield Interval(left, right), tree1, tree2
             # Advance
-            if tree1.interval[1] == right:
+            if tree1.interval.right == right:
                 tree1 = next(trees1, None)
-            if tree2.interval[1] == right:
+            if tree2.interval.right == right:
                 tree2 = next(trees2, None)
 
     def haplotypes(
