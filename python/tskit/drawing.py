@@ -30,6 +30,9 @@ import math
 import numbers
 import operator
 from dataclasses import dataclass
+from typing import List
+from typing import Mapping
+from typing import Union
 
 import numpy as np
 import svgwrite
@@ -122,15 +125,16 @@ def check_x_scale(x_scale):
     return x_scale
 
 
-def check_ticks(ticks, default_iterable):
+def check_y_ticks(ticks: Union[List, Mapping, None]) -> Mapping:
     """
-    This is trivial, but implemented as a function so that later we can implement a tick
-    locator function, such that e.g. ticks=5 selects ~5 nicely spaced tick locations
-    (ideally with sensible behaviour for log scales)
+    Later we might want to implement a tick locator function, such that e.g. ticks=5
+    selects ~5 nicely spaced tick locations (with sensible behaviour for log scales)
     """
     if ticks is None:
-        return default_iterable
-    return ticks
+        return {}
+    if isinstance(ticks, Mapping):
+        return ticks
+    return {pos: f"{pos:.2f}" for pos in ticks}
 
 
 def rnd(x):
@@ -387,7 +391,7 @@ class SvgPlot:
             x_label = "Genome position"
         if y_label is None and y_axis:
             if tree_height_scale == "rank":
-                y_label = "Ranked node time"
+                y_label = "Node time"
             else:
                 y_label = "Time"
         self.x_label = x_label
@@ -525,9 +529,9 @@ class SvgPlot:
 
     def draw_y_axis(
         self,
+        ticks,  # A dict of pos->label
         upper=None,  # In plot coords
         lower=None,  # In plot coords
-        tick_positions=None,
         tick_length_left=default_tick_length,
         gridlines=None,
     ):
@@ -551,28 +555,24 @@ class SvgPlot:
             )
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper))))
-            if tick_positions is not None:
-                for pos in tick_positions:
-                    tick = y_axis.add(
-                        dwg.g(
-                            class_="tick",
-                            transform=f"translate({x} {rnd(self.y_transform(pos))})",
+            for pos, label in ticks.items():
+                tick = y_axis.add(
+                    dwg.g(
+                        class_="tick",
+                        transform=f"translate({x} {rnd(self.y_transform(pos))})",
+                    )
+                )
+                if gridlines:
+                    tick.add(
+                        dwg.line(
+                            (0, 0), (rnd(self.plotbox.right - x), 0), class_="grid"
                         )
                     )
-                    if gridlines:
-                        tick.add(
-                            dwg.line(
-                                (0, 0), (rnd(self.plotbox.right - x), 0), class_="grid"
-                            )
-                        )
-                    tick.add(dwg.line((0, 0), (rnd(-tick_length_left), 0)))
-                    self.add_text_in_group(
-                        f"{pos:.2f}",
-                        tick,
-                        pos=(rnd(-tick_length_left), 0),
-                        group_class="lab",
-                        text_anchor="end",
-                    )
+                xypos = (rnd(-tick_length_left), 0)
+                tick.add(dwg.line((0, 0), xypos))
+                self.add_text_in_group(
+                    label, tick, pos=xypos, group_class="lab", text_anchor="end"
+                )
 
     def shade_background(
         self,
@@ -735,17 +735,17 @@ class SvgTreeSequence(SvgPlot):
                     raise ValueError(
                         "Can't draw a tree sequence Y axis for trees of varying yscales"
                     )
-            y_low = self.y_transform(
-                0
-            )  # if poss use the zero point for lowest axis pos
-            ytimes = np.unique(ts.tables.nodes.time)
-            if self.tree_height_scale == "rank":
-                ytimes = np.arange(len(ytimes))
-            y_ticks = check_ticks(y_ticks, ytimes)
+            y_low = self.y_transform(0)  # if poss use zero point for lowest axis value
+            if y_ticks is None:
+                y_ticks = np.unique(ts.tables.nodes.time)
+                if self.tree_height_scale == "rank":
+                    # Ticks labelled by time not rank
+                    y_ticks = {pos: f"{val:.2f}" for pos, val in enumerate(y_ticks)}
+
         self.draw_y_axis(
+            ticks=check_y_ticks(y_ticks),
             upper=self.tree_plotbox.top,
             lower=y_low,
-            tick_positions=y_ticks,
             tick_length_left=self.default_tick_length,
             gridlines=y_gridlines,
         )
@@ -998,9 +998,12 @@ class SvgTree(SvgPlot):
             tick_length_upper=tick_length_upper,
             site_muts=site_muts,
         )
+        if y_ticks is None:
+            y_ticks = {h: f"{ts.node(u).time:.2f}" for u, h in self.node_height.items()}
+
         self.draw_y_axis(
+            ticks=check_y_ticks(y_ticks),
             lower=self.y_transform(0),
-            tick_positions=check_ticks(y_ticks, set(self.node_height.values())),
             tick_length_left=self.default_tick_length,
             gridlines=y_gridlines,
         )

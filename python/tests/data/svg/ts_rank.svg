@@ -95,7 +95,7 @@
 			</g>
 			<g class="y-axis">
 				<g class="lab" transform="translate(0,65.7)">
-					<text text-anchor="middle">Ranked node time</text>
+					<text text-anchor="middle">Node time</text>
 				</g>
 				<line x1="56.8" x2="56.8" y1="121.4" y2="10"/>
 				<g class="tick" transform="translate(56.8 121.4)">
@@ -107,37 +107,37 @@
 				<g class="tick" transform="translate(56.8 105.486)">
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">1.00</text>
+						<text text-anchor="end">0.11</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 89.5714)">
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">2.00</text>
+						<text text-anchor="end">1.11</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 73.6571)">
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">3.00</text>
+						<text text-anchor="end">1.75</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 57.7429)">
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">4.00</text>
+						<text text-anchor="end">5.31</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 41.8286)">
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">5.00</text>
+						<text text-anchor="end">6.57</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 25.9143)">
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">6.00</text>
+						<text text-anchor="end">9.08</text>
 					</g>
 				</g>
 			</g>
