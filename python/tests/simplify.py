@@ -158,13 +158,7 @@ class Simplifier:
         flags &= ~tskit.NODE_IS_SAMPLE
         if is_sample:
             flags |= tskit.NODE_IS_SAMPLE
-        output_id = self.tables.nodes.add_row(
-            flags=flags,
-            time=node.time,
-            population=node.population,
-            metadata=node.metadata,
-            individual=node.individual,
-        )
+        output_id = self.tables.nodes.append(node.replace(flags=flags))
         self.node_id_map[input_id] = output_id
         return output_id
 
@@ -186,9 +180,7 @@ class Simplifier:
         num_edges = 0
         for child in sorted(self.edge_buffer.keys()):
             for edge in self.edge_buffer[child]:
-                self.tables.edges.add_row(
-                    edge.left, edge.right, edge.parent, edge.child
-                )
+                self.tables.edges.append(edge)
                 num_edges += 1
         self.edge_buffer.clear()
         return num_edges
@@ -413,19 +405,14 @@ class Simplifier:
                         mapped_parent = -1
                         if mut.parent != -1:
                             mapped_parent = mutation_id_map[mut.parent]
-                        self.tables.mutations.add_row(
-                            site=len(self.tables.sites),
-                            node=self.mutation_node_map[mut.id],
-                            time=mut.time,
-                            parent=mapped_parent,
-                            derived_state=mut.derived_state,
-                            metadata=mut.metadata,
+                        self.tables.mutations.append(
+                            mut.replace(
+                                site=len(self.tables.sites),
+                                node=self.mutation_node_map[mut.id],
+                                parent=mapped_parent,
+                            )
                         )
-                self.tables.sites.add_row(
-                    position=site.position,
-                    ancestral_state=site.ancestral_state,
-                    metadata=site.metadata,
-                )
+                self.tables.sites.append(site)
 
     def finalise_references(self):
         input_populations = self.ts.tables.populations
@@ -455,17 +442,12 @@ class Simplifier:
         for input_id, count in enumerate(population_ref_count):
             if count > 0:
                 row = input_populations[input_id]
-                output_id = self.tables.populations.add_row(metadata=row.metadata)
+                output_id = self.tables.populations.append(row)
                 population_id_map[input_id] = output_id
         for input_id, count in enumerate(individual_ref_count):
             if count > 0:
                 row = input_individuals[input_id]
-                output_id = self.tables.individuals.add_row(
-                    flags=row.flags,
-                    location=row.location,
-                    parents=row.parents,
-                    metadata=row.metadata,
-                )
+                output_id = self.tables.individuals.append(row)
                 individual_id_map[input_id] = output_id
 
         # Remap the population ID references for nodes.
@@ -489,12 +471,7 @@ class Simplifier:
                     mapped_parents.append(-1)
                 else:
                     mapped_parents.append(individual_id_map[p])
-            self.tables.individuals.add_row(
-                flags=row.flags,
-                location=row.location,
-                parents=mapped_parents,
-                metadata=row.metadata,
-            )
+            self.tables.individuals.append(row.replace(parents=mapped_parents))
 
         # We don't support migrations for now. We'll need to remap these as well.
         assert self.ts.num_migrations == 0
@@ -710,7 +687,7 @@ class AncestorMap:
         num_edges = 0
         for child in sorted(self.edge_buffer.keys()):
             for edge in self.edge_buffer[child]:
-                self.table.add_row(edge.left, edge.right, edge.parent, edge.child)
+                self.table.append(edge)
                 num_edges += 1
         self.edge_buffer.clear()
         return num_edges

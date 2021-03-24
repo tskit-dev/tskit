@@ -34,6 +34,8 @@ import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import Any
+from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -79,7 +81,7 @@ class Interval(BaseInterval):
 
 @metadata_module.lazy_decode
 @dataclass
-class Individual:
+class Individual(util.Dataclass):
     """
     An :ref:`individual <sec_individual_table_definition>` in a tree sequence.
     Since nodes correspond to genomes, individuals are associated with a collection
@@ -115,7 +117,7 @@ class Individual:
     a numpy array (dtype=np.int32). If no nodes are associated with the
     individual this array will be empty.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>`
     for this individual, decoded if a schema applies.
@@ -135,7 +137,7 @@ class Individual:
 
 @metadata_module.lazy_decode
 @dataclass
-class Node:
+class Node(util.Dataclass):
     """
     A :ref:`node <sec_node_table_definition>` in a tree sequence, corresponding
     to a single genome. The ``time`` and ``population`` are attributes of the
@@ -167,7 +169,7 @@ class Node:
     """
     The integer ID of the individual that this node was a part of.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this node, decoded if a schema
     applies.
@@ -185,7 +187,7 @@ class Node:
 
 @metadata_module.lazy_decode
 @dataclass
-class Edge:
+class Edge(util.Dataclass):
     """
     An :ref:`edge <sec_edge_table_definition>` in a tree sequence.
 
@@ -214,7 +216,7 @@ class Edge:
     To obtain further information about a node with a given ID, use
     :meth:`TreeSequence.node`.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this edge, decoded if a schema
     applies.
@@ -247,7 +249,7 @@ class Edge:
 
 @metadata_module.lazy_decode
 @dataclass
-class Site:
+class Site(util.Dataclass):
     """
     A :ref:`site <sec_site_table_definition>` in a tree sequence.
 
@@ -275,7 +277,7 @@ class Site:
     The list of mutations at this site. Mutations within a site are returned in the
     order they are specified in the underlying :class:`MutationTable`.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this site, decoded if a schema
     applies.
@@ -295,7 +297,7 @@ class Site:
 
 @metadata_module.lazy_decode
 @dataclass
-class Mutation:
+class Mutation(util.Dataclass):
     """
     A :ref:`mutation <sec_mutation_table_definition>` in a tree sequence.
 
@@ -338,7 +340,7 @@ class Mutation:
     To obtain further information about a mutation with a given ID, use
     :meth:`TreeSequence.mutation`.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this mutation, decoded if a schema
     applies.
@@ -388,7 +390,7 @@ class Mutation:
 
 @metadata_module.lazy_decode
 @dataclass
-class Migration:
+class Migration(util.Dataclass):
     """
     A :ref:`migration <sec_migration_table_definition>` in a tree sequence.
 
@@ -425,7 +427,7 @@ class Migration:
     """
     The time at which this migration occurred at.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this migration, decoded if a schema
     applies.
@@ -439,7 +441,7 @@ class Migration:
 
 @metadata_module.lazy_decode
 @dataclass
-class Population:
+class Population(util.Dataclass):
     """
     A :ref:`population <sec_population_table_definition>` in a tree sequence.
 
@@ -453,7 +455,7 @@ class Population:
     The integer ID of this population. Varies from 0 to
     :attr:`TreeSequence.num_populations` - 1.
     """
-    metadata: Any
+    metadata: Optional[Union[bytes, dict]]
     """
     The :ref:`metadata <sec_metadata_definition>` for this population, decoded if a
     schema applies.
@@ -461,7 +463,7 @@ class Population:
 
 
 @dataclass
-class Variant:
+class Variant(util.Dataclass):
     """
     A variant represents the observed variation among samples
     for a given site. A variant consists (a) of a reference to the
@@ -567,7 +569,7 @@ class Variant:
 
 
 @dataclass
-class Edgeset:
+class Edgeset(util.Dataclass):
     __slots__ = ["left", "right", "parent", "children"]
     left: int
     right: int
@@ -586,7 +588,7 @@ class Edgeset:
 
 
 @dataclass
-class Provenance:
+class Provenance(util.Dataclass):
     __slots__ = ["id", "timestamp", "record"]
     id: int  # noqa A003
     timestamp: str

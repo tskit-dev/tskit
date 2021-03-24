@@ -549,18 +549,16 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
                 ancestral_state, mutations = self.do_map_mutations(
                     tree, G[site.id], alleles[site.id]
                 )
-                site_id = tables.sites.add_row(site.position, ancestral_state)
+                site_id = tables.sites.append(
+                    site.replace(ancestral_state=ancestral_state)
+                )
                 parent_offset = len(tables.mutations)
                 for mutation in mutations:
                     parent = mutation.parent
                     if parent != tskit.NULL:
                         parent += parent_offset
-                    tables.mutations.add_row(
-                        site_id,
-                        node=mutation.node,
-                        time=mutation.time,
-                        parent=parent,
-                        derived_state=mutation.derived_state,
+                    tables.mutations.append(
+                        mutation.replace(site=site_id, parent=parent)
                     )
         other_ts = tables.tree_sequence()
         for h1, h2 in zip(
@@ -715,19 +713,15 @@ class TestParsimonyRoundTripMissingData(TestParsimonyRoundTrip):
                 ancestral_state, mutations = self.do_map_mutations(
                     tree, G[site.id], alleles[site.id]
                 )
-                site_id = tables.sites.add_row(site.position, ancestral_state)
+                site_id = tables.sites.append(
+                    site.replace(ancestral_state=ancestral_state)
+                )
                 parent_offset = len(tables.mutations)
                 for m in mutations:
                     parent = m.parent
                     if m.parent != tskit.NULL:
                         parent = m.parent + parent_offset
-                    tables.mutations.add_row(
-                        site_id,
-                        node=m.node,
-                        time=m.time,
-                        parent=parent,
-                        derived_state=m.derived_state,
-                    )
+                    tables.mutations.append(m.replace(site=site_id, parent=parent))
         other_ts = tables.tree_sequence()
         assert ts.num_samples == other_ts.num_samples
         H1 = list(ts.haplotypes(isolated_as_missing=False))
@@ -1206,13 +1200,7 @@ class TestReconstructAllTuples:
                 parent = mutation.parent
                 if parent != tskit.NULL:
                     parent += parent_offset
-                tables.mutations.add_row(
-                    j,
-                    node=mutation.node,
-                    time=mutation.time,
-                    parent=parent,
-                    derived_state=mutation.derived_state,
-                )
+                tables.mutations.append(mutation.replace(site=j, parent=parent))
 
         ts2 = tables.tree_sequence()
         G2 = np.zeros((m, n), dtype=np.int8)
