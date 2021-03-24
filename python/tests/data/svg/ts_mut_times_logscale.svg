@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="200" version="1.1" width="1000">
 	<defs>
-		<style type="text/css"><![CDATA[.tree-sequence .background path {fill: #808080; fill-opacity:0}.tree-sequence .background path:nth-child(odd) {fill-opacity:.1}.axes {font-size: 14px}.x-axis .tick .lab {font-weight: bold}.axes, .tree {font-size: 14px; text-anchor:middle}.y-axis line.grid {stroke: #FAFAFA}.y-axis > .lab text {transform: translateX(0.8em) rotate(-90deg)}.x-axis .tick g {transform: translateY(0.9em)}.x-axis > .lab text {transform: translateY(-0.8em)}.axes line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.site > .sym {stroke: black}.mut text {fill: red; font-style: italic}.mut line {fill: none; stroke: none}.mut .sym {fill: none; stroke: red}.node .mut .sym {stroke-width: 1.5px}.tree text, .tree-sequence text {dominant-baseline: central}.plotbox .lab.lft {text-anchor: end}.plotbox .lab.rgt {text-anchor: start}]]></style>
+		<style type="text/css"><![CDATA[.background path {fill: #808080; fill-opacity:0}.background path:nth-child(odd) {fill-opacity:.1}.axes {font-size: 14px}.x-axis .tick .lab {font-weight: bold}.axes, .tree {font-size: 14px; text-anchor:middle}.y-axis line.grid {stroke: #FAFAFA}.y-axis > .lab text {transform: translateX(0.8em) rotate(-90deg)}.x-axis .tick g {transform: translateY(0.9em)}.x-axis > .lab text {transform: translateY(-0.8em)}.axes line, .edge {stroke:black; fill:none}.node > .sym {fill: black; stroke: none}.site > .sym {stroke: black}.mut text {fill: red; font-style: italic}.mut.extra text {fill: hotpink}.mut line {fill: none; stroke: none}.mut .sym {fill: none; stroke: red}.mut.extra .sym {stroke: hotpink}.node .mut .sym {stroke-width: 1.5px}.tree text, .tree-sequence text {dominant-baseline: central}.plotbox .lab.lft {text-anchor: end}.plotbox .lab.rgt {text-anchor: start}]]></style>
 	</defs>
 	<g class="tree-sequence">
 		<g class="background">
@@ -76,12 +76,21 @@
 				</g>
 				<g class="site s2" transform="translate(308 163.2)">
 					<line class="sym" x1="0" x2="0" y1="0" y2="-10"/>
-					<g class="mut m5">
+					<g class="mut m6">
 						<polyline class="sym" points="2.5,-6.5 0,-1.5 -2.5,-6.5"/>
+					</g>
+					<g class="mut m5">
+						<polyline class="sym" points="2.5,-10.5 0,-5.5 -2.5,-10.5"/>
 					</g>
 				</g>
 				<g class="site s3" transform="translate(500 163.2)">
 					<line class="sym" x1="0" x2="0" y1="0" y2="-10"/>
+				</g>
+				<g class="site s4" transform="translate(893.6 163.2)">
+					<line class="sym" x1="0" x2="0" y1="0" y2="-10"/>
+					<g class="mut m7">
+						<polyline class="sym" points="2.5,-6.5 0,-1.5 -2.5,-6.5"/>
+					</g>
 				</g>
 			</g>
 		</g>
@@ -174,8 +183,13 @@
 								<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 								<text class="lab" transform="translate(0 11)">2</text>
 							</g>
-							<g class="a5 leaf node n3 p0 sample" transform="translate(19 29.5511)">
+							<g class="a5 leaf m6 node n3 p0 s2 sample" transform="translate(19 29.5511)">
 								<path class="edge" d="M 0 0 V -29.5511 H -19"/>
+								<g class="mut m6 s2" transform="translate(0 -27.4203)">
+									<line x1="0" x2="0" y1="0" y2="27.4203"/>
+									<path class="sym" d="M -3,-3 l 6,6 M -3,3 l 6,-6"/>
+									<text class="lab rgt" transform="translate(5 0)">6</text>
+								</g>
 								<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 								<text class="lab" transform="translate(0 11)">3</text>
 							</g>
@@ -257,8 +271,13 @@
 								<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 								<text class="lab" transform="translate(0 11)">2</text>
 							</g>
-							<g class="a5 leaf node n3 p0 sample" transform="translate(19 29.5511)">
+							<g class="a5 leaf m7 node n3 p0 s4 sample" transform="translate(19 29.5511)">
 								<path class="edge" d="M 0 0 V -29.5511 H -19"/>
+								<g class="mut m7 s4" transform="translate(0 -27.4203)">
+									<line x1="0" x2="0" y1="0" y2="27.4203"/>
+									<path class="sym" d="M -3,-3 l 6,6 M -3,3 l 6,-6"/>
+									<text class="lab rgt" transform="translate(5 0)">7</text>
+								</g>
 								<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 								<text class="lab" transform="translate(0 11)">3</text>
 							</g>

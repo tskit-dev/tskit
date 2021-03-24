@@ -6,6 +6,9 @@
 
 **Features**
 
+- SVG visualization of a single tree allows all mutations on an edge to be plotted
+  via the ``all_edge_mutations`` param (:user:`hyanwong`,:issue:`1253`, :pr:`1258`).
+
 **Fixes**
 
 --------------------

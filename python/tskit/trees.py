@@ -1469,6 +1469,7 @@ class Tree:
         y_label=None,
         y_ticks=None,
         y_gridlines=None,
+        all_edge_mutations=None,
         **kwargs,
     ):
         """
@@ -1632,6 +1633,14 @@ class Tree:
             node value.
         :param bool y_gridlines: Whether to plot horizontal lines behind the tree
             at each y tickmark.
+        :param bool all_edge_mutations: The edge on which a mutation occurs may span
+            multiple trees. If ``False`` or ``None`` (default) mutations are only drawn
+            on an edge if their site position exists within the genomic interval covered
+            by this tree. If ``True``, all mutations on each edge of the tree are drawn,
+            even if the their genomic position is to the left or right of the tree
+            itself (by default these "extra" mutations are drawn in a different colour).
+            Note that this means that independent drawings of different trees
+            from the same tree sequence may share some plotted mutations.
 
         :return: An SVG representation of a tree.
         :rtype: str
@@ -1654,6 +1663,7 @@ class Tree:
             y_label=y_label,
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
+            all_edge_mutations=all_edge_mutations,
             **kwargs,
         )
         output = draw.drawing.tostring()
