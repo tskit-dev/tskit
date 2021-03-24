@@ -32,7 +32,6 @@ import sys
 import warnings
 from dataclasses import dataclass
 from typing import Any
-from typing import Tuple
 
 import numpy as np
 
@@ -46,31 +45,27 @@ from tskit import UNKNOWN_TIME
 dataclass_options = {"frozen": True}
 
 
-@dataclass(eq=False, **dataclass_options)
+@metadata.lazy_decode
+@dataclass(**dataclass_options)
 class IndividualTableRow:
     __slots__ = ["flags", "location", "parents", "metadata"]
     flags: int
     location: np.ndarray
     parents: np.ndarray
-    metadata: bytes
+    metadata: Any
 
+    # We need a custom eq for the numpy arrays
     def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
-        else:
-            return all(
-                (
-                    self.flags == other.flags,
-                    np.array_equal(self.location, other.location),
-                    np.array_equal(self.parents, other.parents),
-                    self.metadata == other.metadata,
-                )
-            )
-
-    def __neq__(self, other):
-        return not self.__eq__(other)
+        return (
+            isinstance(other, IndividualTableRow)
+            and self.flags == other.flags
+            and np.array_equal(self.location, other.location)
+            and np.array_equal(self.parents, other.parents)
+            and self.metadata == other.metadata
+        )
 
 
+@metadata.lazy_decode
 @dataclass(**dataclass_options)
 class NodeTableRow:
     __slots__ = ["flags", "time", "population", "individual", "metadata"]
@@ -78,9 +73,10 @@ class NodeTableRow:
     time: float
     population: int
     individual: int
-    metadata: bytes
+    metadata: Any
 
 
+@metadata.lazy_decode
 @dataclass(**dataclass_options)
 class EdgeTableRow:
     __slots__ = ["left", "right", "parent", "child", "metadata"]
@@ -88,9 +84,10 @@ class EdgeTableRow:
     right: float
     parent: int
     child: int
-    metadata: bytes
+    metadata: Any
 
 
+@metadata.lazy_decode
 @dataclass(**dataclass_options)
 class MigrationTableRow:
     __slots__ = ["left", "right", "node", "source", "dest", "time", "metadata"]
@@ -100,27 +97,30 @@ class MigrationTableRow:
     source: int
     dest: int
     time: float
-    metadata: bytes
+    metadata: Any
 
 
+@metadata.lazy_decode
 @dataclass(**dataclass_options)
 class SiteTableRow:
     __slots__ = ["position", "ancestral_state", "metadata"]
     position: float
     ancestral_state: str
-    metadata: bytes
+    metadata: Any
 
 
-@dataclass(eq=False, **dataclass_options)
+@metadata.lazy_decode
+@dataclass(**dataclass_options)
 class MutationTableRow:
     __slots__ = ["site", "node", "derived_state", "parent", "metadata", "time"]
     site: int
     node: int
     derived_state: str
     parent: int
-    metadata: bytes
+    metadata: Any
     time: float
 
+    # We need a custom eq here as we have unknown times (nans) to check
     def __eq__(self, other):
         return (
             isinstance(other, MutationTableRow)
@@ -138,10 +138,11 @@ class MutationTableRow:
         )
 
 
+@metadata.lazy_decode
 @dataclass(**dataclass_options)
 class PopulationTableRow:
     __slots__ = ["metadata"]
-    metadata: bytes
+    metadata: Any
 
 
 @dataclass(**dataclass_options)
@@ -277,7 +278,7 @@ class BaseTable:
 
     def __getitem__(self, index):
         """
-        Return the specifed row of this table, decoding metadata if it is present.
+        Return the specified row of this table, decoding metadata if it is present.
         Supports negative indexing, e.g. ``table[-5]``.
 
         :param int index: the zero-index of the desired row
@@ -286,13 +287,7 @@ class BaseTable:
             index += len(self)
         if index < 0 or index >= len(self):
             raise IndexError("Index out of bounds")
-        row = self.ll_table.get_row(index)
-        try:
-            row = self.decode_row(row)
-        except AttributeError:
-            # This means the class returns the low-level row unchanged.
-            pass
-        return self.row_class(*row)
+        return self.row_class(*self.ll_table.get_row(index))
 
     def clear(self):
         """
@@ -395,9 +390,14 @@ class MetadataMixin:
     """
 
     def __init__(self):
-        self.metadata_column_index = [
-            field.name for field in dataclasses.fields(self.row_class)
-        ].index("metadata")
+        base_row_class = self.row_class
+
+        def row_class(*args, **kwargs):
+            return base_row_class(
+                *args, **kwargs, metadata_decoder=self.metadata_schema.decode_row
+            )
+
+        self.row_class = row_class
         self._update_metadata_schema_cache_from_ll()
 
     def packset_metadata(self, metadatas):
@@ -430,13 +430,6 @@ class MetadataMixin:
             )
         self.ll_table.metadata_schema = repr(schema)
         self._update_metadata_schema_cache_from_ll()
-
-    def decode_row(self, row: Tuple[Any]) -> Tuple:
-        return (
-            row[: self.metadata_column_index]
-            + (self._metadata_schema_cache.decode_row(row[self.metadata_column_index]),)
-            + row[self.metadata_column_index + 1 :]
-        )
 
     def _update_metadata_schema_cache_from_ll(self) -> None:
         self._metadata_schema_cache = metadata.parse_metadata_schema(

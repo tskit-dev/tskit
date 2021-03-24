@@ -1241,17 +1241,7 @@ class TestTreeSequence(HighLevelTestCase):
         assert ts.num_mutations == len(other_mutations)
         assert ts.num_mutations == len(mutations)
         for mut, other_mut in zip(mutations, other_mutations):
-            # We cannot compare these directly as the mutations obtained
-            # from the mutations iterator will have extra deprecated
-            # attributes.
-            assert mut.id == other_mut.id
-            assert mut.site == other_mut.site
-            assert mut.parent == other_mut.parent
-            assert mut.node == other_mut.node
-            assert mut.metadata == other_mut.metadata
-            # Check the deprecated attrs.
-            assert mut.position == ts.site(mut.site).position
-            assert mut.index == mut.site
+            assert mut == other_mut
 
     def test_sites_mutations(self):
         # Check that the mutations iterator returns the correct values.
@@ -2103,17 +2093,7 @@ class TestTree(HighLevelTestCase):
         assert tree.num_mutations == len(other_mutations)
         assert tree.num_mutations == len(mutations)
         for mut, other_mut in zip(mutations, other_mutations):
-            # We cannot compare these directly as the mutations obtained
-            # from the mutations iterator will have extra deprecated
-            # attributes.
-            assert mut.id == other_mut.id
-            assert mut.site == other_mut.site
-            assert mut.parent == other_mut.parent
-            assert mut.node == other_mut.node
-            assert mut.metadata == other_mut.metadata
-            # Check the deprecated attrs.
-            assert mut.position == tree.tree_sequence.site(mut.site).position
-            assert mut.index == mut.site
+            assert mut == other_mut
 
     def test_simple_mutations(self):
         tree = self.get_tree()
@@ -2991,10 +2971,10 @@ class SimpleContainersWithMetadataMixin:
         (inst,) = self.get_instances(1)
         (inst2,) = self.get_instances(1)
         assert inst == inst2
-        inst._metadata_decoder = lambda m: "different decoder"
+        inst.metadata
         assert inst == inst2
-        inst._encoded_metadata = b"different"
-        assert not (inst == inst2)
+        inst._metadata = "different"
+        assert inst != inst2
 
     def test_decoder_run_once(self):
         # For a given instance, the decoded metadata should be cached, with the decoder
@@ -3002,6 +2982,7 @@ class SimpleContainersWithMetadataMixin:
         (inst,) = self.get_instances(1)
         times_run = 0
 
+        # Hack in a tracing decoder
         def decoder(m):
             nonlocal times_run
             times_run += 1
@@ -3019,12 +3000,12 @@ class TestIndividualContainer(SimpleContainersMixin, SimpleContainersWithMetadat
     def get_instances(self, n):
         return [
             tskit.Individual(
-                id_=j,
+                id=j,
                 flags=j,
                 location=[j],
                 parents=[j],
                 nodes=[j],
-                encoded_metadata=b"x" * j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
@@ -3035,12 +3016,12 @@ class TestNodeContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin
     def get_instances(self, n):
         return [
             tskit.Node(
-                id_=j,
+                id=j,
                 flags=j,
                 time=j,
                 population=j,
                 individual=j,
-                encoded_metadata=b"x" * j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
@@ -3055,9 +3036,9 @@ class TestEdgeContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin
                 right=j,
                 parent=j,
                 child=j,
-                encoded_metadata=b"x" * j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
-                id_=j,
+                id=j,
             )
             for j in range(n)
         ]
@@ -3067,11 +3048,11 @@ class TestSiteContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin
     def get_instances(self, n):
         return [
             tskit.Site(
-                id_=j,
+                id=j,
                 position=j,
                 ancestral_state="A" * j,
                 mutations=TestMutationContainer().get_instances(j),
-                encoded_metadata=b"x" * j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
@@ -3082,13 +3063,13 @@ class TestMutationContainer(SimpleContainersMixin, SimpleContainersWithMetadataM
     def get_instances(self, n):
         return [
             tskit.Mutation(
-                id_=j,
+                id=j,
                 site=j,
                 node=j,
                 time=j,
                 derived_state="A" * j,
                 parent=j,
-                encoded_metadata=b"x" * j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
@@ -3096,32 +3077,32 @@ class TestMutationContainer(SimpleContainersMixin, SimpleContainersWithMetadataM
 
     def test_nan_equality(self):
         a = tskit.Mutation(
-            id_=42,
+            id=42,
             site=42,
             node=42,
             time=UNKNOWN_TIME,
             derived_state="A" * 42,
             parent=42,
-            encoded_metadata=b"x" * 42,
+            metadata=b"x" * 42,
             metadata_decoder=lambda m: m.decode() + "decoded",
         )
         b = tskit.Mutation(
-            id_=42,
+            id=42,
             site=42,
             node=42,
             derived_state="A" * 42,
             parent=42,
-            encoded_metadata=b"x" * 42,
+            metadata=b"x" * 42,
             metadata_decoder=lambda m: m.decode() + "decoded",
         )
         c = tskit.Mutation(
-            id_=42,
+            id=42,
             site=42,
             node=42,
             time=math.nan,
             derived_state="A" * 42,
             parent=42,
-            encoded_metadata=b"x" * 42,
+            metadata=b"x" * 42,
             metadata_decoder=lambda m: m.decode() + "decoded",
         )
         assert a == a
@@ -3139,13 +3120,14 @@ class TestMigrationContainer(SimpleContainersMixin, SimpleContainersWithMetadata
     def get_instances(self, n):
         return [
             tskit.Migration(
+                id=j,
                 left=j,
                 right=j,
                 node=j,
                 source=j,
                 dest=j,
                 time=j,
-                encoded_metadata=b"x" * j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
@@ -3156,8 +3138,8 @@ class TestPopulationContainer(SimpleContainersMixin, SimpleContainersWithMetadat
     def get_instances(self, n):
         return [
             tskit.Population(
-                id_=j,
-                encoded_metadata=b"x" * j,
+                id=j,
+                metadata=b"x" * j,
                 metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
@@ -3167,7 +3149,7 @@ class TestPopulationContainer(SimpleContainersMixin, SimpleContainersWithMetadat
 class TestProvenanceContainer(SimpleContainersMixin):
     def get_instances(self, n):
         return [
-            tskit.Provenance(id_=j, timestamp="x" * j, record="y" * j) for j in range(n)
+            tskit.Provenance(id=j, timestamp="x" * j, record="y" * j) for j in range(n)
         ]
 
 

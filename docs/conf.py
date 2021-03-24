@@ -307,6 +307,7 @@ nitpick_ignore = [
     ("c:type", "uint32_t"),
     ("c:type", "bool"),
     ("py:class", "tskit.metadata.AbstractMetadataCodec"),
+    ("py:class", "tskit.trees.Site"),
     # TODO these have been triaged here to make the docs compile, but we should
     # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
     ("py:class", "array_like"),
