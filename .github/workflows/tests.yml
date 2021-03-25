@@ -54,7 +54,7 @@ jobs:
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v10-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v11-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
@@ -85,7 +85,11 @@ jobs:
       - name: Install conda deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0} #We need a login shell to get conda
-        run: conda install --yes --file=python/requirements/CI-tests-conda/requirements.txt
+        run: |
+          conda install --yes --file=python/requirements/CI-tests-conda/requirements.txt
+          # Install pre-release from non standard label until msprime
+          # 1.0 is tagged.
+          conda install -c conda-forge/label/msprime_rc msprime
 
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
