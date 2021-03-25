@@ -65,6 +65,14 @@ class TestTreeDraw:
             demographic_events=demographic_events,
             random_seed=1,
         )
+        # Round node times & edge positions so we are msprime 0.7.4 and 1.0.0 compatible
+        # (they have very minor differences in population size due to rounding)
+        tables = ts.dump_tables()
+        tables.nodes.time = np.around(tables.nodes.time, decimals=5)
+        tables.edges.right = np.around(tables.edges.right, decimals=5)
+        tables.edges.left = np.around(tables.edges.left, decimals=5)
+        tables.mutations.time = np.full(tables.mutations.num_rows, tskit.UNKNOWN_TIME)
+        ts = tables.tree_sequence()
         return ts
 
     def get_nonbinary_tree(self):
@@ -2362,8 +2370,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.1, random_seed=123)
-        svg = ts.draw_svg(
+        tables = msprime.mutate(ts, rate=0.1, random_seed=123).dump_tables()
+        # Set unknown times, so we are msprime 0.7.4 and 1.0.0 compatible
+        tables.mutations.time = np.full(tables.mutations.num_rows, tskit.UNKNOWN_TIME)
+        svg = tables.tree_sequence().draw_svg(
             y_label="Time (WF gens)", y_gridlines=True, debug_box=draw_plotbox
         )
         self.verify_known_svg(
