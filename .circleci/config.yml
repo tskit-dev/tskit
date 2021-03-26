@@ -11,7 +11,7 @@ jobs:
           # It's sometimes necessary to nuke the cache, and the simplest
           # way to do it is to change the key. We can increment this
           # version number when we want to do this.
-          key: tskit-{{ .Branch }}-v4
+          key: tskit-{{ .Branch }}-v5
       - run:
           name: Checkout submodules
           command: |
