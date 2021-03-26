@@ -58,13 +58,22 @@ class TestTreeDraw:
         demographic_events = [
             msprime.SimpleBottleneck(time=0.1, population=0, proportion=0.5)
         ]
-        return msprime.simulate(
+        ts = msprime.simulate(
             10,
             recombination_rate=5,
             mutation_rate=10,
             demographic_events=demographic_events,
             random_seed=1,
         )
+        # Round node times & edge positions so we are msprime 0.7.4 and 1.0.0 compatible
+        # (they have very minor differences in population size due to rounding)
+        tables = ts.dump_tables()
+        tables.nodes.time = np.around(tables.nodes.time, decimals=5)
+        tables.edges.right = np.around(tables.edges.right, decimals=5)
+        tables.edges.left = np.around(tables.edges.left, decimals=5)
+        tables.mutations.time = np.full(tables.mutations.num_rows, tskit.UNKNOWN_TIME)
+        ts = tables.tree_sequence()
+        return ts
 
     def get_nonbinary_tree(self):
         for t in self.get_nonbinary_ts().trees():
@@ -1494,7 +1503,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         with pytest.raises(NotImplementedError):
             plot.draw_x_axis(tick_positions=ts.breakpoints(as_array=True))
         with pytest.raises(NotImplementedError):
-            plot.draw_y_axis(tick_positions=[0])
+            plot.draw_y_axis(ticks={0: "0"})
 
     def test_bad_tick_spacing(self):
         # Integer y_ticks to give auto-generated tick locs is not currently implemented
@@ -1948,7 +1957,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             (None, "Time"),
             ("time", "Time"),
             ("log_time", "Time"),
-            ("rank", "Ranked node time"),
+            ("rank", "Node time"),
         ]:
             svg = tree.draw_svg(y_axis=True, tree_height_scale=hscale)
             svg_no_css = svg[svg.find("</style>") :]
@@ -2092,7 +2101,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg_no_css.count("y-axis") == 0
         self.verify_known_svg(svg, "tree_x_axis.svg", overwrite_viz, width=400)
 
-    def test_known_svg_tree_y_axis(self, overwrite_viz, draw_plotbox):
+    def test_known_svg_tree_y_axis_rank(self, overwrite_viz, draw_plotbox):
         tree = self.get_simple_ts().at_index(1)
         label = "Time (relative steps)"
         svg = tree.draw_svg(
@@ -2110,7 +2119,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg_no_css.count("axes") == 1
         assert svg_no_css.count("x-axis") == 0
         assert svg_no_css.count("y-axis") == 1
-        self.verify_known_svg(svg, "tree_y_axis.svg", overwrite_viz)
+        self.verify_known_svg(svg, "tree_y_axis_rank.svg", overwrite_viz)
 
     def test_known_svg_tree_both_axes(self, overwrite_viz, draw_plotbox):
         tree = self.get_simple_ts().at_index(-1)
@@ -2361,8 +2370,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.1, random_seed=123)
-        svg = ts.draw_svg(
+        tables = msprime.mutate(ts, rate=0.1, random_seed=123).dump_tables()
+        # Set unknown times, so we are msprime 0.7.4 and 1.0.0 compatible
+        tables.mutations.time = np.full(tables.mutations.num_rows, tskit.UNKNOWN_TIME)
+        svg = tables.tree_sequence().draw_svg(
             y_label="Time (WF gens)", y_gridlines=True, debug_box=draw_plotbox
         )
         self.verify_known_svg(
