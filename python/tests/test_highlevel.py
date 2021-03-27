@@ -653,6 +653,13 @@ class TestTreeSequence(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             self.verify_edge_diffs(ts)
 
+    def test_edge_diffs_names(self, simple_degree2_ts_fixture):
+        for val in simple_degree2_ts_fixture.edge_diffs():
+            assert len(val) == 3
+            assert val[0] == val.interval
+            assert val[1] == val.edges_out
+            assert val[2] == val.edges_in
+
     def test_edge_diffs_include_terminal(self):
         for ts in get_example_tree_sequences():
             edges = set()
