@@ -1876,16 +1876,17 @@ class Tree:
 
     def samples(self, u=None):
         """
-        Returns an iterator over all the samples in this tree that are
-        underneath the specified node. If u is a sample, it is included in the
-        returned iterator. If u is not specified, return all samples in the tree.
+        Returns an iterator over the numerical ids of all the sample nodes in
+        this tree that are underneath node ``u``. If ``u`` is a sample, it is
+        included in the returned iterator. If u is not specified, return all
+        sample node ids in the tree.
 
         If the :meth:`TreeSequence.trees` method is called with
         ``sample_lists=True``, this method uses an efficient algorithm to find
-        the samples. If not, a simple traversal based method is used.
+        the sample nodes. If not, a simple traversal based method is used.
 
         :param int u: The node of interest.
-        :return: An iterator over all samples in the subtree rooted at u.
+        :return: An iterator over all sample node ids in the subtree rooted at u.
         :rtype: collections.abc.Iterable
         """
         roots = [u]
