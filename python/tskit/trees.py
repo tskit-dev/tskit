@@ -1876,17 +1876,22 @@ class Tree:
 
     def samples(self, u=None):
         """
-        Returns an iterator over the numerical ids of all the sample nodes in
+        Returns an iterator over the numerical IDs of all the sample nodes in
         this tree that are underneath node ``u``. If ``u`` is a sample, it is
         included in the returned iterator. If u is not specified, return all
-        sample node ids in the tree.
+        sample node IDs in the tree.
 
         If the :meth:`TreeSequence.trees` method is called with
         ``sample_lists=True``, this method uses an efficient algorithm to find
         the sample nodes. If not, a simple traversal based method is used.
 
+        .. note::
+
+            The iterator is *not* guaranteed to return the sample node IDs in
+            numerical or any other particular order.
+
         :param int u: The node of interest.
-        :return: An iterator over all sample node ids in the subtree rooted at u.
+        :return: An iterator over all sample node IDs in the subtree rooted at u.
         :rtype: collections.abc.Iterable
         """
         roots = [u]
@@ -4646,13 +4651,14 @@ class TreeSequence:
     def samples(self, population=None, population_id=None):
         """
         Returns an array of the sample node IDs in this tree sequence. If the
-        ``population`` parameter is specified, only return sample IDs from this
+        ``population`` parameter is specified, only return sample IDs from that
         population.
 
         :param int population: The population of interest. If None,
             return all samples.
         :param int population_id: Deprecated alias for ``population``.
-        :return: A numpy array of the node IDs for the samples of interest.
+        :return: A numpy array of the node IDs for the samples of interest,
+            listed in numerical order.
         :rtype: numpy.ndarray (dtype=np.int32)
         """
         if population is not None and population_id is not None:
