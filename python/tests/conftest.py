@@ -92,8 +92,15 @@ def draw_plotbox(request):
 
 
 @fixture(scope="session")
-def simple_ts_fixture():
+def simple_degree1_ts_fixture():
     return msprime.simulate(10, random_seed=42)
+
+
+@fixture(scope="session")
+def simple_degree2_ts_fixture():
+    ts = msprime.simulate(10, recombination_rate=0.2, random_seed=42)
+    assert ts.num_trees == 2
+    return ts
 
 
 @fixture(scope="session")

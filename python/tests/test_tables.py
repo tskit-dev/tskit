@@ -2680,8 +2680,8 @@ class TestSimplifyTables:
                 assert ts.individual(node.individual).metadata == node.metadata
         assert set(tables.individuals.parents) != {tskit.NULL}
 
-    def test_bad_individuals(self, simple_ts_fixture):
-        tables = simple_ts_fixture.dump_tables()
+    def test_bad_individuals(self, simple_degree1_ts_fixture):
+        tables = simple_degree1_ts_fixture.dump_tables()
         tables.individuals.clear()
         tables.individuals.add_row(parents=[-2])
         with pytest.raises(tskit.LibraryError, match="Individual out of bounds"):
@@ -2693,8 +2693,8 @@ class TestSimplifyTables:
         ):
             tables.simplify()
 
-    def test_unsorted_individuals_ok(self, simple_ts_fixture):
-        tables = simple_ts_fixture.dump_tables()
+    def test_unsorted_individuals_ok(self, simple_degree1_ts_fixture):
+        tables = simple_degree1_ts_fixture.dump_tables()
         tables.individuals.clear()
         tables.individuals.clear()
         tables.individuals.add_row(parents=[1])
@@ -3110,10 +3110,10 @@ class TestTableCollection:
         tree = next(trees)
         assert len(tree.parent_dict) == 0
 
-    def test_indexes(self, simple_ts_fixture):
+    def test_indexes(self, simple_degree1_ts_fixture):
         tc = tskit.TableCollection(sequence_length=1)
         assert tc.indexes == tskit.TableCollectionIndexes()
-        tc = simple_ts_fixture.tables
+        tc = simple_degree1_ts_fixture.tables
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
         )
@@ -3142,13 +3142,13 @@ class TestTableCollection:
             tc.indexes.edge_removal_order, np.arange(4242, 4242 + 18, dtype=np.int32)
         )
 
-    def test_indexes_roundtrip(self, simple_ts_fixture):
+    def test_indexes_roundtrip(self, simple_degree1_ts_fixture):
         # Indexes shouldn't be made by roundtripping
         tables = tskit.TableCollection(sequence_length=1)
         assert not tables.has_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 
-        tables = simple_ts_fixture.dump_tables()
+        tables = simple_degree1_ts_fixture.dump_tables()
         tables.drop_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 

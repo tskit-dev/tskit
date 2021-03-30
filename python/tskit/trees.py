@@ -59,6 +59,8 @@ CoalescenceRecord = collections.namedtuple(
 
 BaseInterval = collections.namedtuple("BaseInterval", ["left", "right"])
 
+EdgeDiff = collections.namedtuple("EdgeDiff", ["interval", "edges_out", "edges_in"])
+
 
 class Interval(BaseInterval):
     """
@@ -3925,12 +3927,13 @@ class TreeSequence:
         """
         Returns an iterator over all the edges that are inserted and removed to
         build the trees as we move from left-to-right along the tree sequence.
-        The iterator yields a sequence of 3-tuples, ``(interval, edges_out,
-        edges_in)``. The ``interval`` is a pair ``(left, right)`` representing
-        the genomic interval (see :attr:`Tree.interval`). The ``edges_out``
-        value is a list of the edges that were just-removed to create the tree
-        covering the interval (hence ``edges_out`` will always be empty for the
-        first tree). The ``edges_in`` value is a list of edges that were just
+        Each iteration yields a named tuple consisting of 3 values,
+        ``(interval, edges_out, edges_in)``. The first value, ``interval``, is the
+        genomic interval ``(left, right)`` covered by the incoming tree
+        (see :attr:`Tree.interval`). The second, ``edges_out`` is a list of the edges
+        that were just-removed to create the tree covering the interval
+        (hence ``edges_out`` will always be empty for the first tree). The last value,
+        ``edges_in``, is a list of edges that were just
         inserted to construct the tree covering the current interval.
 
         The edges returned within each ``edges_in`` list are ordered by ascending
@@ -3946,7 +3949,9 @@ class TreeSequence:
             sequence. If True, an additional iteration takes place, with the last
             ``edges_out`` value reporting all the edges contained in the final
             tree (with both ``left`` and ``right`` equal to the sequence length).
-        :return: An iterator over the (interval, edges_out, edges_in) tuples.
+        :return: An iterator over the (interval, edges_out, edges_in) tuples. This
+            is a named tuple, so the 3 values can be accessed by position
+            (e.g. ``returned_tuple[0]``) or name (e.g. ``returned_tuple.interval``).
         :rtype: :class:`collections.abc.Iterable`
         """
         iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence, include_terminal)
@@ -3958,7 +3963,7 @@ class TreeSequence:
             edges_in = [
                 Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_in
             ]
-            yield Interval(*interval), edges_out, edges_in
+            yield EdgeDiff(Interval(*interval), edges_out, edges_in)
 
     def sites(self):
         """
