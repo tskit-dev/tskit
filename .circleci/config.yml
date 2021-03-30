@@ -23,7 +23,7 @@ jobs:
             libgsl-dev
             # Install meson to the system packages so we can run it as root
             sudo pip install meson==0.55
-            pip install numpy==1.19.5
+            pip install numpy==1.18.5
             pip install --user -r python/requirements/CI-complete/requirements.txt
             pip install twine --user
             # Remove tskit installed by msprime
@@ -125,7 +125,7 @@ jobs:
           name: Run Python tests
           command: |
             cd python
-            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n16 tests
+            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n4 tests
 
       - run:
           name: Upload Python coverage

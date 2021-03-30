@@ -1,2 +1,2 @@
-numpy<=1.19.5 #Pinned as we get build errors - check again after 3.6 dropped
+numpy<=1.19.5 #Pinned as we get compatibility warnings.
 #msprime==0.7.4 # Pre-release is installed manually, re-instate after msprime 1.0
