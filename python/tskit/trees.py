@@ -1541,8 +1541,8 @@ class Tree:
         force_root_branch=None,
         symbol_size=None,
         x_axis=None,
-        y_axis=None,
         x_label=None,
+        y_axis=None,
         y_label=None,
         y_ticks=None,
         y_gridlines=None,
@@ -1698,11 +1698,11 @@ class Tree:
         :param bool x_axis: Should the plot have an X axis line, showing the start and
             end position of this tree along the genome. If ``None`` (default) do not
             plot an X axis.
+        :param str x_label: Place a label under the plot. If ``None`` (default) and
+            there is an X axis, create and place an appropriate label.
         :param bool y_axis: Should the plot have an Y axis line, showing time (or
             ranked node time if ``tree_height_scale="rank"``). If ``None`` (default)
             do not plot a Y axis.
-        :param str x_label: Place a label under the plot. If ``None`` (default) and
-            there is an X axis, create and place an appropriate label.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis,  create and place an appropriate label.
         :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
@@ -1735,8 +1735,8 @@ class Tree:
             force_root_branch=force_root_branch,
             symbol_size=symbol_size,
             x_axis=x_axis,
-            y_axis=y_axis,
             x_label=x_label,
+            y_axis=y_axis,
             y_label=y_label,
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
@@ -5465,8 +5465,9 @@ class TreeSequence:
         force_root_branch=None,
         symbol_size=None,
         x_axis=None,
-        y_axis=None,
         x_label=None,
+        x_lim=None,
+        y_axis=None,
         y_label=None,
         y_ticks=None,
         y_gridlines=None,
@@ -5539,11 +5540,20 @@ class TreeSequence:
         :param bool x_axis: Should the plot have an X axis line, showing the positions
             of trees along the genome. The scale used is determined by the ``x_scale``
             parameter. If ``None`` (default) plot an X axis.
+        :param str x_label: Place a label under the plot. If ``None`` (default) and
+            there is an X axis, create and place an appropriate label.
+        :param list x_lim: A list of size two giving the genomic positions between which
+            trees should be plotted. If the first is ``None``, then plot from the first
+            non-empty region of the tree sequence. If the second is ``None``, then plot
+            up to the end of the last non-empty region of the tree sequence. The default
+            value ``x_lim=None`` is shorthand for the list [``None``, ``None``]. If
+            numerical values are given, then regions outside the interval have all
+            information discarded: this means that mutations outside the interval will
+            not be shown. To force display of the entire tree sequence, including empty
+            flanking regions, specify ``x_lim=[0, ts.sequence_length]``.
         :param bool y_axis: Should the plot have an Y axis line, showing time (or
             ranked node time if ``tree_height_scale="rank"``. If ``None`` (default)
             do not plot a Y axis.
-        :param str x_label: Place a label under the plot. If ``None`` (default) and
-            there is an X axis, create and place an appropriate label.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis, create and place an appropriate label.
         :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
@@ -5554,6 +5564,17 @@ class TreeSequence:
 
         :return: An SVG representation of a tree sequence.
         :rtype: str
+
+        .. note::
+            Technically, x_lim[0] specifies a *minimum* value for the start of the X
+            axis, and x_lim[1] specifies a *maximum* value for the end. This is only
+            relevant if the tree sequence contains "empty" regions with no edges or
+            mutations. In this case if x_lim[0] lies strictly within an empty region
+            (i.e. ``empty_tree.interval.left < x_lim[0] < empty_tree.interval.right``)
+            then that tree will not be plotted on the left hand side, and the X axis
+            will start at ``empty_tree.interval.right``. Similarly, if x_lim[1] lies
+            strictly within an empty region then that tree will not be plotted on the
+            right hand side, and the X axis will end at ``empty_tree.interval.left``
         """
         draw = drawing.SvgTreeSequence(
             self,
@@ -5568,8 +5589,9 @@ class TreeSequence:
             force_root_branch=force_root_branch,
             symbol_size=symbol_size,
             x_axis=x_axis,
-            y_axis=y_axis,
             x_label=x_label,
+            x_lim=x_lim,
+            y_axis=y_axis,
             y_label=y_label,
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,

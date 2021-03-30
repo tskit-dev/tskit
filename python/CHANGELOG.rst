@@ -12,6 +12,11 @@
 - Add ``Table.append`` method for adding rows from classes such as ``SiteTableRow`` and
   ``Site`` (:user:`benjeffery`, :issue:`1111`, :pr:`1254`).
 
+- SVG visualization of a tree sequence can be restricted to displaying between left
+  and right genomic coordinates using the ``x_lim`` parameter. The default settings
+  now mean that if the left or right flanks of a tree sequence are entirely empty, 
+  these regions will not be plotted in the SVG (:user:`hyanwong`, :pr:`1288`).
+
 - SVG visualization of a single tree allows all mutations on an edge to be plotted
   via the ``all_edge_mutations`` param (:user:`hyanwong`,:issue:`1253`, :pr:`1258`).
 
