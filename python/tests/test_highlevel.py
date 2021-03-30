@@ -221,7 +221,7 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
             random_seed=seed,
             model=msprime.InfiniteSites(msprime.NUCLEOTIDES),
         )
-    ts = msprime.simulate(15, length=4, recombination_rate=1)
+    ts = msprime.simulate(15, length=4, recombination_rate=1, random_seed=seed)
     assert ts.num_trees > 1
     if back_mutations:
         yield tsutil.insert_branch_mutations(ts, mutations_per_branch=2)
