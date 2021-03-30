@@ -1534,8 +1534,9 @@ class RootThresholdTree:
                 edge = edges[in_order[j]]
                 self.insert_edge(edge)
                 j += 1
-            while self.left_sib[self.left_root] != tskit.NULL:
-                self.left_root = self.left_sib[self.left_root]
+            if self.left_root != tskit.NULL:
+                while self.left_sib[self.left_root] != tskit.NULL:
+                    self.left_root = self.left_sib[self.left_root]
             right = sequence_length
             if j < M:
                 right = min(right, edges[in_order[j]].left)
