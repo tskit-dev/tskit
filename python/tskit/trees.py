@@ -1269,11 +1269,37 @@ class Tree:
         The number of roots in this tree, as defined in the :attr:`~Tree.roots`
         attribute.
 
-        Requires O(number of roots) time.
+        Only requires O(number of roots) time.
 
         :rtype: int
         """
         return self._ll_tree.get_num_roots()
+
+    @property
+    def has_single_root(self):
+        """
+        ``True`` if this tree has a single root, ``False`` otherwise.
+        Equivalent to tree.num_roots == 1. This is a O(1) operation.
+
+        :rtype: bool
+        """
+        root = self.left_root
+        if root != NULL and self.right_sib(root) == NULL:
+            return True
+        return False
+
+    @property
+    def has_multiple_roots(self):
+        """
+        ``True`` if this tree has more than one root, ``False`` otherwise.
+        Equivalent to tree.num_roots > 1. This is a O(1) operation.
+
+        :rtype: bool
+        """
+        root = self.left_root
+        if root != NULL and self.right_sib(root) != NULL:
+            return True
+        return False
 
     @property
     def roots(self):
@@ -1293,7 +1319,7 @@ class Tree:
 
         The roots of the tree are returned in a list, in no particular order.
 
-        Requires O(number of roots) time.
+        Only requires O(number of roots) time.
 
         :return: The list of roots in this tree.
         :rtype: list
@@ -1319,10 +1345,9 @@ class Tree:
         :rtype: int
         :raises: :class:`ValueError` if this tree contains more than one root.
         """
-        root = self.left_root
-        if root != NULL and self.right_sib(root) != NULL:
+        if self.has_multiple_roots:
             raise ValueError("More than one root exists. Use tree.roots instead")
-        return root
+        return self.left_root
 
     def get_index(self):
         # Deprecated alias for self.index

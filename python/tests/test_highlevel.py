@@ -2148,6 +2148,26 @@ class TestTree(HighLevelTestCase):
         for u in tree.nodes():
             assert tree.num_children(u) == len(tree.children(u))
 
+    def test_root_properties(self):
+        for ts in get_example_tree_sequences():
+            for tree in ts.trees():
+                if tree.has_single_root:
+                    assert tree.num_roots == 1
+                    assert tree.root != tskit.NULL
+                elif tree.has_multiple_roots:
+                    assert tree.num_roots > 1
+                    with pytest.raises(ValueError, match="More than one root exists"):
+                        _ = tree.root
+                else:
+                    assert tree.num_roots == 0
+                    assert tree.root == tskit.NULL
+
+    def test_root_properties_empty_ts(self):
+        # NB - this can be removed once the example_tree_sequences contain an empty ts
+        tree = tskit.TableCollection(sequence_length=1).tree_sequence().first()
+        assert tree.num_roots == 0
+        assert tree.root == tskit.NULL
+
     def verify_newick(self, tree):
         """
         Verifies that we output the newick tree as expected.
@@ -2399,7 +2419,7 @@ class TestTree(HighLevelTestCase):
             "breadthfirst",
             "minlex_postorder",
         ]
-        if tree.num_roots == 1:
+        if tree.has_single_root:
             with pytest.raises(ValueError):
                 list(t1.nodes(order="bad order"))
             assert list(t1.nodes()) == list(t1.nodes(t1.get_root()))
