@@ -36,6 +36,7 @@ import xml.etree
 import msprime
 import numpy as np
 import pytest
+import svgwrite
 import xmlunittest
 
 import tests.test_wright_fisher as wf
@@ -2160,6 +2161,23 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg_no_css.count('class="site ') == ts.num_sites
         assert svg_no_css.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(svg, "ts.svg", overwrite_viz, width=200 * ts.num_trees)
+
+    def test_known_svg_ts_alt_symbols(self, overwrite_viz, draw_plotbox):
+        dwg = svgwrite.Drawing()
+
+        def pie(*, r, **kwargs):
+            ret = dwg.g(**kwargs)
+            ret.add(dwg.circle(r=r, center=(0, 0), fill="yellow"))
+            ret.add(dwg.text("Hello"))
+            return ret
+
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(
+            debug_box=draw_plotbox, node_attrs={0: {"element": pie, "r": 10}}
+        )
+        self.verify_known_svg(
+            svg, "ts_alt_symbols.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
     def test_known_svg_ts_no_axes(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()

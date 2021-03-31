@@ -151,6 +151,14 @@ def rnd(x):
     return x
 
 
+class PlotSymbol(dict):
+    """
+    A trivial class: just a dict which allows attributes to be added.
+    """
+
+    pass
+
+
 def draw_tree(
     tree,
     width=None,
@@ -932,17 +940,33 @@ class SvgTree(SvgPlot):
             self.edge_attrs[u] = {}
             if edge_attrs is not None and u in edge_attrs:
                 self.edge_attrs[u].update(edge_attrs[u])
+            self.node_attrs[u] = PlotSymbol()
             if tree.is_sample(u):
-                # a square: set bespoke svgwrite params
-                self.node_attrs[u] = {
-                    "size": (symbol_size,) * 2,
-                    "insert": ("-" + half_symbol_size,) * 2,
-                }
+                self.node_attrs[u].element = self.drawing.rect
             else:
-                # a circle: set bespoke svgwrite param `centre` and default radius
-                self.node_attrs[u] = {"center": (0, 0), "r": half_symbol_size}
+                self.node_attrs[u].element = self.drawing.circle
+            if (
+                node_attrs is not None
+                and u in node_attrs
+                and "element" in node_attrs[u]
+            ):
+                self.node_attrs[u].element = node_attrs[u]["element"]
+            try:
+                elem_cls = self.node_attrs[u].element.cls
+                if elem_cls == self.drawing.rect.cls:
+                    self.node_attrs[u]["size"] = (symbol_size,) * 2
+                    self.node_attrs[u]["insert"] = ("-" + half_symbol_size,) * 2
+                elif elem_cls == self.drawing.circle.cls:
+                    self.node_attrs[u]["center"] = (0, 0)
+                    self.node_attrs[u]["r"] = half_symbol_size
+            except AttributeError:
+                # We expect functions like dwg.circle to have a .cls attribute, but
+                # bespoke functions may not
+                pass
             if node_attrs is not None and u in node_attrs:
-                self.node_attrs[u].update(node_attrs[u])
+                for k, v in node_attrs[u].items():
+                    if k != "element":
+                        self.node_attrs[u][k] = v
             add_class(self.node_attrs[u], "sym")  # class 'sym' for symbol
             label = ""
             if node_labels is None:
@@ -1290,10 +1314,7 @@ class SvgTree(SvgPlot):
 
             # Add node symbol + label next (visually above the edge subtending this node)
             # Symbols
-            if self.tree.is_sample(u):
-                curr_svg_group.add(dwg.rect(**self.node_attrs[u]))
-            else:
-                curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
+            curr_svg_group.add(self.node_attrs[u].element(**self.node_attrs[u]))
             # Labels
             node_lab_attr = self.node_label_attrs[u]
             if tree.is_leaf(u):
