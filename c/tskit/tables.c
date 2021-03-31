@@ -644,6 +644,38 @@ out:
 }
 
 int
+tsk_individual_table_extend(tsk_individual_table_t *self,
+    const tsk_individual_table_t *other, tsk_size_t num_rows,
+    const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_individual_t individual;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_individual_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_individual_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &individual);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_individual_table_add_row(self, individual.flags, individual.location,
+            individual.location_length, individual.parents, individual.parents_length,
+            individual.metadata, individual.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+int
 tsk_individual_table_free(tsk_individual_table_t *self)
 {
     tsk_safe_free(self->flags);
@@ -1211,6 +1243,36 @@ out:
 }
 
 int
+tsk_node_table_extend(tsk_node_table_t *self, const tsk_node_table_t *other,
+    tsk_size_t num_rows, const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_node_t node;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_node_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_node_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &node);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_node_table_add_row(self, node.flags, node.time, node.population,
+            node.individual, node.metadata, node.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+int
 tsk_node_table_free(tsk_node_table_t *self)
 {
     tsk_safe_free(self->flags);
@@ -1719,6 +1781,36 @@ tsk_edge_table_truncate(tsk_edge_table_t *self, tsk_size_t num_rows)
     if (tsk_edge_table_has_metadata(self)) {
         self->metadata_length = self->metadata_offset[num_rows];
     }
+out:
+    return ret;
+}
+
+int
+tsk_edge_table_extend(tsk_edge_table_t *self, const tsk_edge_table_t *other,
+    tsk_size_t num_rows, const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_edge_t edge;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_edge_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_edge_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &edge);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_edge_table_add_row(self, edge.left, edge.right, edge.parent,
+            edge.child, edge.metadata, edge.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
 out:
     return ret;
 }
@@ -2360,6 +2452,36 @@ out:
 }
 
 int
+tsk_site_table_extend(tsk_site_table_t *self, const tsk_site_table_t *other,
+    tsk_size_t num_rows, const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_site_t site;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_site_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_site_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &site);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_site_table_add_row(self, site.position, site.ancestral_state,
+            site.ancestral_state_length, site.metadata, site.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+int
 tsk_site_table_free(tsk_site_table_t *self)
 {
     tsk_safe_free(self->position);
@@ -2944,6 +3066,37 @@ out:
 }
 
 int
+tsk_mutation_table_extend(tsk_mutation_table_t *self, const tsk_mutation_table_t *other,
+    tsk_size_t num_rows, const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_mutation_t mutation;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_mutation_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_mutation_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &mutation);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_mutation_table_add_row(self, mutation.site, mutation.node,
+            mutation.parent, mutation.time, mutation.derived_state,
+            mutation.derived_state_length, mutation.metadata, mutation.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+int
 tsk_mutation_table_free(tsk_mutation_table_t *self)
 {
     tsk_safe_free(self->node);
@@ -3422,6 +3575,38 @@ out:
 }
 
 int
+tsk_migration_table_extend(tsk_migration_table_t *self,
+    const tsk_migration_table_t *other, tsk_size_t num_rows, const tsk_id_t *row_indexes,
+    tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_migration_t migration;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_migration_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_migration_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &migration);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_migration_table_add_row(self, migration.left, migration.right,
+            migration.node, migration.source, migration.dest, migration.time,
+            migration.metadata, migration.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+int
 tsk_migration_table_free(tsk_migration_table_t *self)
 {
     tsk_safe_free(self->left);
@@ -3859,6 +4044,37 @@ tsk_population_table_truncate(tsk_population_table_t *self, tsk_size_t num_rows)
     }
     self->num_rows = num_rows;
     self->metadata_length = self->metadata_offset[num_rows];
+out:
+    return ret;
+}
+
+int
+tsk_population_table_extend(tsk_population_table_t *self,
+    const tsk_population_table_t *other, tsk_size_t num_rows,
+    const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_population_t population;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_population_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_population_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &population);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_population_table_add_row(
+            self, population.metadata, population.metadata_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
 out:
     return ret;
 }
@@ -4344,6 +4560,37 @@ tsk_provenance_table_truncate(tsk_provenance_table_t *self, tsk_size_t num_rows)
     self->num_rows = num_rows;
     self->timestamp_length = self->timestamp_offset[num_rows];
     self->record_length = self->record_offset[num_rows];
+out:
+    return ret;
+}
+
+int
+tsk_provenance_table_extend(tsk_provenance_table_t *self,
+    const tsk_provenance_table_t *other, tsk_size_t num_rows,
+    const tsk_id_t *row_indexes, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_provenance_t provenance;
+
+    /* We know how much to expand the non-ragged columns, so do it ahead of time */
+    ret = tsk_provenance_table_expand_main_columns(self, num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_rows; j++) {
+        ret = tsk_provenance_table_get_row(
+            other, row_indexes == NULL ? (tsk_id_t) j : row_indexes[j], &provenance);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_provenance_table_add_row(self, provenance.timestamp,
+            provenance.timestamp_length, provenance.record, provenance.record_length);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
 out:
     return ret;
 }

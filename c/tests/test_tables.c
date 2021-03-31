@@ -405,7 +405,7 @@ test_node_table(void)
 {
     int ret;
     tsk_node_table_t table, table2;
-    tsk_node_t node;
+    tsk_node_t node, node2;
     uint32_t num_rows = 100;
     tsk_id_t j;
     uint32_t *flags;
@@ -417,6 +417,8 @@ test_node_table(void)
     const char *test_metadata = "test";
     tsk_size_t test_metadata_length = 4;
     char metadata_copy[test_metadata_length + 1];
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     metadata_copy[test_metadata_length] = '\0';
     ret = tsk_node_table_init(&table, 0);
@@ -637,6 +639,72 @@ test_node_table(void)
     ret = tsk_node_table_dump_text(&table, _devnull);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Test extend method */
+    ret = tsk_node_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
+    ret = tsk_node_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_node_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_node_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_node_table_set_columns(&table2, num_rows, flags, time, population,
+        individual, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_node_table_equals(&table, &table2, 0));
+    ret = tsk_node_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_node_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_node_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
+    ret = tsk_node_table_set_columns(&table2, num_rows, flags, time, population,
+        individual, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Copy a subset */
+    ret = tsk_node_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_node_table_equals(&table, &table2, 0));
+    ret = tsk_node_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_row_subset; j++) {
+        ret = tsk_node_table_get_row(&table, j, &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_node_table_get_row(&table2, row_subset[j], &node2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.flags, node2.flags);
+        CU_ASSERT_EQUAL(node.time, node2.time);
+        CU_ASSERT_EQUAL(node.population, node2.population);
+        CU_ASSERT_EQUAL(node.individual, node2.individual);
+        CU_ASSERT_EQUAL(node.metadata_length, node2.metadata_length);
+        CU_ASSERT_EQUAL(memcmp(node.metadata, node2.metadata,
+                            node.metadata_length * sizeof(*node.metadata)),
+            0);
+    }
+
     ret = tsk_node_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
@@ -649,7 +717,7 @@ test_node_table(void)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    tsk_node_table_copy(&table, &table2, 0);
+    tsk_node_table_copy(&table, &table2, TSK_NO_INIT);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
     CU_ASSERT_EQUAL(
         memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
@@ -683,7 +751,7 @@ test_edge_table_with_options(tsk_flags_t options)
     tsk_edge_table_t table, table2;
     tsk_size_t num_rows = 100;
     tsk_id_t j;
-    tsk_edge_t edge;
+    tsk_edge_t edge, edge2;
     tsk_id_t *parent, *child;
     double *left, *right;
     char *metadata;
@@ -691,6 +759,8 @@ test_edge_table_with_options(tsk_flags_t options)
     const char *test_metadata = "test";
     tsk_size_t test_metadata_length = 4;
     char metadata_copy[test_metadata_length + 1];
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     metadata_copy[test_metadata_length] = '\0';
     ret = tsk_edge_table_init(&table, options);
@@ -951,6 +1021,82 @@ test_edge_table_with_options(tsk_flags_t options)
     ret = tsk_edge_table_dump_text(&table, _devnull);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Test extend method */
+    ret = tsk_edge_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&table2, options);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
+    ret = tsk_edge_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_edge_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_edge_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    if (options & TSK_NO_METADATA) {
+        ret = tsk_edge_table_set_columns(
+            &table2, num_rows, left, right, parent, child, NULL, NULL);
+    } else {
+        ret = tsk_edge_table_set_columns(
+            &table2, num_rows, left, right, parent, child, metadata, metadata_offset);
+    }
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_edge_table_equals(&table, &table2, 0));
+    ret = tsk_edge_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_edge_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_edge_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
+    if (options & TSK_NO_METADATA) {
+        ret = tsk_edge_table_set_columns(
+            &table2, num_rows, left, right, parent, child, NULL, NULL);
+    } else {
+        ret = tsk_edge_table_set_columns(
+            &table2, num_rows, left, right, parent, child, metadata, metadata_offset);
+    }
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Copy a subset */
+    ret = tsk_edge_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_edge_table_equals(&table, &table2, 0));
+    ret = tsk_edge_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_row_subset; j++) {
+        ret = tsk_edge_table_get_row(&table, j, &edge);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_get_row(&table2, row_subset[j], &edge2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(edge.parent, edge2.parent);
+        CU_ASSERT_EQUAL(edge.child, edge2.child);
+        CU_ASSERT_EQUAL(edge.left, edge2.left);
+        CU_ASSERT_EQUAL(edge.right, edge2.right);
+        CU_ASSERT_EQUAL(edge.metadata_length, edge2.metadata_length)
+        CU_ASSERT_EQUAL(memcmp(edge.metadata, edge2.metadata,
+                            edge.metadata_length * sizeof(*edge.metadata)),
+            0);
+    }
+
     ret = tsk_edge_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
@@ -964,8 +1110,6 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    ret = tsk_edge_table_init(&table2, options);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_copy(&table, &table2, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
@@ -1253,9 +1397,11 @@ test_site_table(void)
     char *ancestral_state;
     char *metadata;
     double *position;
-    tsk_site_t site;
+    tsk_site_t site, site2;
     tsk_size_t *ancestral_state_offset;
     tsk_size_t *metadata_offset;
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     ret = tsk_site_table_init(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1441,6 +1587,74 @@ test_site_table(void)
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
 
+    /* Test extend method */
+    ret = tsk_site_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
+    ret = tsk_site_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_site_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_site_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_site_table_set_columns(&table2, num_rows, position, ancestral_state,
+        ancestral_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_site_table_equals(&table, &table2, 0));
+    ret = tsk_site_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_site_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_site_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
+    ret = tsk_site_table_set_columns(&table2, num_rows, position, ancestral_state,
+        ancestral_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Copy a subset */
+    ret = tsk_site_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_site_table_equals(&table, &table2, 0));
+    ret = tsk_site_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < num_row_subset; j++) {
+        ret = tsk_site_table_get_row(&table, (tsk_id_t) j, &site);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_site_table_get_row(&table2, row_subset[j], &site2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(site.position, site2.position);
+        CU_ASSERT_EQUAL(site.ancestral_state_length, site2.ancestral_state_length);
+        CU_ASSERT_EQUAL(site.metadata_length, site2.metadata_length);
+        CU_ASSERT_EQUAL(memcmp(site.ancestral_state, site2.ancestral_state,
+                            site.ancestral_state_length * sizeof(*site.ancestral_state)),
+            0);
+        CU_ASSERT_EQUAL(memcmp(site.metadata, site2.metadata,
+                            site.metadata_length * sizeof(*site.metadata)),
+            0);
+    }
+
     /* Test for bad offsets */
     ancestral_state_offset[0] = 1;
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
@@ -1462,7 +1676,6 @@ test_site_table(void)
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
         ancestral_state_offset, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
-
     ret = tsk_site_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
@@ -1475,7 +1688,7 @@ test_site_table(void)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    tsk_site_table_copy(&table, &table2, 0);
+    tsk_site_table_copy(&table, &table2, TSK_NO_INIT);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
     CU_ASSERT_EQUAL(
         memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
@@ -1519,7 +1732,9 @@ test_mutation_table(void)
     char *derived_state, *metadata;
     char c[max_len + 1];
     tsk_size_t *derived_state_offset, *metadata_offset;
-    tsk_mutation_t mutation;
+    tsk_mutation_t mutation, mutation2;
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     for (j = 0; j < (tsk_id_t) max_len; j++) {
         c[j] = (char) ('A' + j);
@@ -1763,6 +1978,85 @@ test_mutation_table(void)
         derived_state, derived_state_offset, metadata, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
+    /* Test extend method */
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        parent[j] = j + 2;
+        time[j] = j + 3;
+        metadata[j] = (char) ('A' + j);
+        metadata_offset[j] = (tsk_size_t) j;
+    }
+    metadata_offset[num_rows] = num_rows;
+    ret = tsk_mutation_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
+    ret = tsk_mutation_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_mutation_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_mutation_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_mutation_table_set_columns(&table2, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_mutation_table_equals(&table, &table2, 0));
+    ret = tsk_mutation_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_mutation_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_mutation_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
+    ret = tsk_mutation_table_set_columns(&table2, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Copy a subset */
+    ret = tsk_mutation_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_mutation_table_equals(&table, &table2, 0));
+    ret = tsk_mutation_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (k = 0; k < num_row_subset; k++) {
+        ret = tsk_mutation_table_get_row(&table, (tsk_id_t) k, &mutation);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_mutation_table_get_row(&table2, row_subset[k], &mutation2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(mutation.site, mutation2.site);
+        CU_ASSERT_EQUAL(mutation.node, mutation2.node);
+        CU_ASSERT_EQUAL(mutation.parent, mutation2.parent);
+        CU_ASSERT_EQUAL(mutation.time, mutation2.time);
+        CU_ASSERT_EQUAL(mutation.derived_state_length, mutation2.derived_state_length);
+        CU_ASSERT_EQUAL(mutation.metadata_length, mutation2.metadata_length);
+        CU_ASSERT_EQUAL(
+            memcmp(mutation.derived_state, mutation2.derived_state,
+                mutation.derived_state_length * sizeof(*mutation.derived_state)),
+            0);
+        CU_ASSERT_EQUAL(memcmp(mutation.metadata, mutation2.metadata,
+                            mutation.metadata_length * sizeof(*mutation.metadata)),
+            0);
+    }
+
     /* Test for bad offsets */
     derived_state_offset[0] = 1;
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
@@ -1786,7 +2080,7 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    tsk_mutation_table_copy(&table, &table2, 0);
+    tsk_mutation_table_copy(&table, &table2, TSK_NO_INIT);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
     CU_ASSERT_EQUAL(
         memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
@@ -1826,12 +2120,14 @@ test_migration_table(void)
     tsk_id_t *node;
     tsk_id_t *source, *dest;
     double *left, *right, *time;
-    tsk_migration_t migration;
+    tsk_migration_t migration, migration2;
     char *metadata;
     uint32_t *metadata_offset;
     const char *test_metadata = "test";
     tsk_size_t test_metadata_length = 4;
     char metadata_copy[test_metadata_length + 1];
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     metadata_copy[test_metadata_length] = '\0';
     ret = tsk_migration_table_init(&table, 0);
@@ -2057,6 +2353,75 @@ test_migration_table(void)
     ret = tsk_migration_table_dump_text(&table, _devnull);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Test extend method */
+    ret = tsk_migration_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
+    ret = tsk_migration_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_migration_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_migration_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_migration_table_set_columns(&table2, num_rows, left, right, node, source,
+        dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_migration_table_equals(&table, &table2, 0));
+    ret = tsk_migration_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_migration_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_migration_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
+    ret = tsk_migration_table_set_columns(&table2, num_rows, left, right, node, source,
+        dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Copy a subset */
+    ret = tsk_migration_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_migration_table_equals(&table, &table2, 0));
+    ret = tsk_migration_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_row_subset; j++) {
+        ret = tsk_migration_table_get_row(&table, j, &migration);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_migration_table_get_row(&table2, row_subset[j], &migration2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(migration.source, migration2.source);
+        CU_ASSERT_EQUAL(migration.dest, migration2.dest);
+        CU_ASSERT_EQUAL(migration.node, migration2.node);
+        CU_ASSERT_EQUAL(migration.left, migration2.left);
+        CU_ASSERT_EQUAL(migration.right, migration2.right);
+        CU_ASSERT_EQUAL(migration.time, migration2.time);
+        CU_ASSERT_EQUAL(migration.metadata_length, migration2.metadata_length);
+        CU_ASSERT_EQUAL(memcmp(migration.metadata, migration2.metadata,
+                            migration.metadata_length * sizeof(*migration.metadata)),
+            0);
+    }
+
     ret = tsk_migration_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
@@ -2069,7 +2434,7 @@ test_migration_table(void)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    tsk_migration_table_copy(&table, &table2, 0);
+    tsk_migration_table_copy(&table, &table2, TSK_NO_INIT);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
     CU_ASSERT_EQUAL(
         memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
@@ -2115,6 +2480,7 @@ test_individual_table(void)
     tsk_size_t *parents_offset;
     tsk_size_t *location_offset;
     tsk_individual_t individual;
+    tsk_individual_t individual2;
     const char *test_metadata = "test";
     tsk_size_t test_metadata_length = 4;
     char metadata_copy[test_metadata_length + 1];
@@ -2123,6 +2489,8 @@ test_individual_table(void)
     double test_location[spatial_dimension];
     tsk_id_t test_parents[num_parents];
     tsk_size_t zeros[num_rows + 1];
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
     for (k = 0; k < spatial_dimension; k++) {
@@ -2429,6 +2797,78 @@ test_individual_table(void)
     tsk_individual_table_print_state(&table, _devnull);
     tsk_individual_table_dump_text(&table, _devnull);
 
+    /* Test extend method */
+    ret = tsk_individual_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_individual_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
+    ret = tsk_individual_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_individual_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_individual_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_individual_table_set_columns(&table2, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_individual_table_equals(&table, &table2, 0));
+    ret = tsk_individual_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_individual_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_individual_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_individual_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_individual_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
+    ret = tsk_individual_table_set_columns(&table2, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Copy a subset */
+    ret = tsk_individual_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_individual_table_equals(&table, &table2, 0));
+    ret = tsk_individual_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (k = 0; k < num_row_subset; k++) {
+        ret = tsk_individual_table_get_row(&table, (tsk_id_t) k, &individual);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_individual_table_get_row(&table2, row_subset[k], &individual2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(individual.flags, individual2.flags);
+        CU_ASSERT_EQUAL(individual.location_length, individual2.location_length);
+        CU_ASSERT_EQUAL(individual.parents_length, individual2.parents_length);
+        CU_ASSERT_EQUAL(individual.metadata_length, individual2.metadata_length);
+        CU_ASSERT_EQUAL(memcmp(individual.location, individual2.location,
+                            individual.location_length * sizeof(*individual.location)),
+            0);
+        CU_ASSERT_EQUAL(memcmp(individual.parents, individual2.parents,
+                            individual.parents_length * sizeof(*individual.parents)),
+            0);
+        CU_ASSERT_EQUAL(memcmp(individual.metadata, individual2.metadata,
+                            individual.metadata_length * sizeof(*individual.metadata)),
+            0);
+    }
+
     ret = tsk_individual_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, 0);
@@ -2441,7 +2881,7 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    tsk_individual_table_copy(&table, &table2, 0);
+    tsk_individual_table_copy(&table, &table2, TSK_NO_INIT);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
     CU_ASSERT_EQUAL(
         memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
@@ -2482,7 +2922,9 @@ test_population_table(void)
     char *metadata;
     char c[max_len + 1];
     tsk_size_t *metadata_offset;
-    tsk_population_t population;
+    tsk_population_t population, population2;
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     for (j = 0; j < (tsk_id_t) max_len; j++) {
         c[j] = (char) ('A' + j);
@@ -2601,6 +3043,67 @@ test_population_table(void)
     ret = tsk_population_table_set_columns(&table, num_rows, NULL, metadata_offset);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
+    /* Test extend method */
+    ret = tsk_population_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_population_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
+    ret = tsk_population_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_population_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_population_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_population_table_set_columns(&table2, num_rows, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_population_table_equals(&table, &table2, 0));
+    ret = tsk_population_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_population_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_population_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_population_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_population_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
+    ret = tsk_population_table_set_columns(&table2, num_rows, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Copy a subset */
+    ret = tsk_population_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_population_table_equals(&table, &table2, 0));
+    ret = tsk_population_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (k = 0; k < num_row_subset; k++) {
+        ret = tsk_population_table_get_row(&table, (tsk_id_t) k, &population);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_population_table_get_row(&table2, row_subset[k], &population2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(population.metadata_length, population2.metadata_length);
+        CU_ASSERT_EQUAL(memcmp(population.metadata, population2.metadata,
+                            population.metadata_length * sizeof(*population.metadata)),
+            0);
+    }
+
     /* Test for bad offsets */
     metadata_offset[0] = 1;
     ret = tsk_population_table_set_columns(&table, num_rows, metadata, metadata_offset);
@@ -2622,7 +3125,7 @@ test_population_table(void)
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(memcmp(table.metadata_schema, example, example_length), 0);
 
-    tsk_population_table_copy(&table, &table2, 0);
+    tsk_population_table_copy(&table, &table2, TSK_NO_INIT);
     CU_ASSERT_EQUAL(table.metadata_schema_length, table2.metadata_schema_length);
     CU_ASSERT_EQUAL(
         memcmp(table.metadata_schema, table2.metadata_schema, example_length), 0);
@@ -2664,7 +3167,9 @@ test_provenance_table(void)
     const char *test_record = "{\"json\"=1234}";
     tsk_size_t test_record_length = (tsk_size_t) strlen(test_record);
     char record_copy[test_record_length + 1];
-    tsk_provenance_t provenance;
+    tsk_provenance_t provenance, provenance2;
+    tsk_id_t row_subset[6] = { 1, 9, 1, 0, 2, 2 };
+    tsk_size_t num_row_subset = 6;
 
     timestamp_copy[test_timestamp_length] = '\0';
     record_copy[test_record_length] = '\0';
@@ -2820,7 +3325,75 @@ test_provenance_table(void)
         &table, num_rows, timestamp, timestamp_offset, record, NULL);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
+    /* Test extend method */
+    ret = tsk_provenance_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_provenance_table_init(&table2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Two empty tables */
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
+    ret = tsk_provenance_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
+
+    /* Row out of bounds */
+    ret = tsk_provenance_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+
+    /* Num rows out of bounds */
+    ret = tsk_provenance_table_extend(&table, &table2, num_rows * 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+
+    /* Copy rows in order if index NULL */
+    ret = tsk_provenance_table_set_columns(
+        &table2, num_rows, timestamp, timestamp_offset, record, record_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_provenance_table_equals(&table, &table2, 0));
+    ret = tsk_provenance_table_extend(&table, &table2, table2.num_rows, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
+
+    /* Copy nothing if index not NULL but length zero */
+    ret = tsk_provenance_table_extend(&table, &table2, 0, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
+
+    /* Copy first N rows in order if index NULL */
+    ret = tsk_provenance_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_provenance_table_extend(&table, &table2, num_rows / 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_provenance_table_truncate(&table2, num_rows / 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
+    ret = tsk_provenance_table_set_columns(
+        &table2, num_rows, timestamp, timestamp_offset, record, record_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Copy a subset */
+    ret = tsk_provenance_table_truncate(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_provenance_table_equals(&table, &table2, 0));
+    ret = tsk_provenance_table_extend(&table, &table2, num_row_subset, row_subset, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < num_row_subset; j++) {
+        ret = tsk_provenance_table_get_row(&table, (tsk_id_t) j, &provenance);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_provenance_table_get_row(&table2, row_subset[j], &provenance2);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(provenance.timestamp_length, provenance2.timestamp_length);
+        CU_ASSERT_EQUAL(provenance.record_length, provenance2.record_length);
+        CU_ASSERT_EQUAL(memcmp(provenance.timestamp, provenance2.timestamp,
+                            provenance.timestamp_length * sizeof(*provenance.timestamp)),
+            0);
+        CU_ASSERT_EQUAL(memcmp(provenance.record, provenance2.record,
+                            provenance.record_length * sizeof(*provenance.record)),
+            0);
+    }
+
     tsk_provenance_table_free(&table);
+    tsk_provenance_table_free(&table2);
     free(timestamp);
     free(timestamp_offset);
     free(record);
