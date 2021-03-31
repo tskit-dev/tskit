@@ -2119,11 +2119,17 @@ test_individual_table(void)
     tsk_size_t test_metadata_length = 4;
     char metadata_copy[test_metadata_length + 1];
     tsk_size_t spatial_dimension = 2;
-    tsk_size_t num_parents = 2;
+    tsk_size_t num_parents = 3;
     double test_location[spatial_dimension];
+    tsk_id_t test_parents[num_parents];
+    tsk_size_t zeros[num_rows + 1];
 
+    memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
     for (k = 0; k < spatial_dimension; k++) {
         test_location[k] = (double) k;
+    }
+    for (k = 0; k < num_parents; k++) {
+        test_parents[k] = (tsk_id_t) k + 42;
     }
     metadata_copy[test_metadata_length] = '\0';
     ret = tsk_individual_table_init(&table, 0);
@@ -2137,7 +2143,8 @@ test_individual_table(void)
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         ret = tsk_individual_table_add_row(&table, (tsk_flags_t) j, test_location,
-            spatial_dimension, NULL, 0, test_metadata, test_metadata_length);
+            spatial_dimension, test_parents, num_parents, test_metadata,
+            test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret, j);
         CU_ASSERT_EQUAL(table.flags[j], (tsk_flags_t) j);
         for (k = 0; k < spatial_dimension; k++) {
@@ -2199,10 +2206,14 @@ test_individual_table(void)
     num_rows *= 2;
     flags = malloc(num_rows * sizeof(uint32_t));
     CU_ASSERT_FATAL(flags != NULL);
-    memset(flags, 1, num_rows * sizeof(uint32_t));
+    for (k = 0; k < num_rows; k++) {
+        flags[k] = k + num_rows;
+    }
     location = malloc(spatial_dimension * num_rows * sizeof(double));
     CU_ASSERT_FATAL(location != NULL);
-    memset(location, 0, spatial_dimension * num_rows * sizeof(double));
+    for (k = 0; k < spatial_dimension * num_rows; k++) {
+        location[k] = k + (num_rows * 2);
+    }
     location_offset = malloc((num_rows + 1) * sizeof(tsk_size_t));
     CU_ASSERT_FATAL(location_offset != NULL);
     for (j = 0; j < (tsk_id_t) num_rows + 1; j++) {
@@ -2210,14 +2221,18 @@ test_individual_table(void)
     }
     parents = malloc(num_parents * num_rows * sizeof(tsk_id_t));
     CU_ASSERT_FATAL(parents != NULL);
-    memset(parents, 0, num_parents * num_rows * sizeof(tsk_id_t));
+    for (k = 0; k < num_parents * num_rows; k++) {
+        parents[k] = (tsk_id_t)(k + (num_rows * 4));
+    }
     parents_offset = malloc((num_rows + 1) * sizeof(tsk_size_t));
     CU_ASSERT_FATAL(parents_offset != NULL);
     for (j = 0; j < (tsk_id_t) num_rows + 1; j++) {
         parents_offset[j] = (tsk_size_t) j * num_parents;
     }
     metadata = malloc(num_rows * sizeof(char));
-    memset(metadata, 'a', num_rows * sizeof(char));
+    for (k = 0; k < num_rows; k++) {
+        metadata[k] = (char) ((k % 58) + 65);
+    }
     CU_ASSERT_FATAL(metadata != NULL);
     metadata_offset = malloc((num_rows + 1) * sizeof(tsk_size_t));
     CU_ASSERT_FATAL(metadata_offset != NULL);
@@ -2334,24 +2349,20 @@ test_individual_table(void)
 
     /* if location and location_offset are both null, all locations are zero length */
     num_rows = 10;
-    memset(location_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_individual_table_set_columns(
         &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_EQUAL(memcmp(table.location_offset, location_offset,
-                        (num_rows + 1) * sizeof(tsk_size_t)),
-        0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.location_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.location_length, 0);
     ret = tsk_individual_table_append_columns(
         &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_EQUAL(memcmp(table.location_offset, location_offset,
-                        (num_rows + 1) * sizeof(tsk_size_t)),
-        0);
-    CU_ASSERT_EQUAL(memcmp(table.location_offset + num_rows, location_offset,
-                        num_rows * sizeof(uint32_t)),
-        0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.location_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.location_offset + num_rows, zeros, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.location_length, 0);
     tsk_individual_table_print_state(&table, _devnull);
@@ -2360,24 +2371,20 @@ test_individual_table(void)
 
     /* if parents and parents_offset are both null, all parents are zero length */
     num_rows = 10;
-    memset(parents_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_individual_table_set_columns(
         &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_EQUAL(memcmp(table.parents_offset, parents_offset,
-                        (num_rows + 1) * sizeof(tsk_size_t)),
-        0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.parents_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.parents_length, 0);
     ret = tsk_individual_table_append_columns(
         &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_EQUAL(memcmp(table.parents_offset, parents_offset,
-                        (num_rows + 1) * sizeof(tsk_size_t)),
-        0);
-    CU_ASSERT_EQUAL(memcmp(table.parents_offset + num_rows, parents_offset,
-                        num_rows * sizeof(uint32_t)),
-        0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.parents_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.parents_offset + num_rows, zeros, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.parents_length, 0);
     tsk_individual_table_print_state(&table, _devnull);
@@ -2386,17 +2393,17 @@ test_individual_table(void)
 
     /* if metadata and metadata_offset are both null, all metadatas are zero length */
     num_rows = 10;
-    memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
-    ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, location, location_offset, NULL, NULL, NULL, NULL);
+    ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
+        location_offset, parents, parents_offset, NULL, NULL);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(memcmp(table.flags, flags, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(
         memcmp(table.location, location, spatial_dimension * num_rows * sizeof(double)),
         0);
-    CU_ASSERT_EQUAL(memcmp(table.metadata_offset, metadata_offset,
-                        (num_rows + 1) * sizeof(tsk_size_t)),
-        0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.parents, parents, num_parents * num_rows * sizeof(double)), 0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     ret = tsk_individual_table_append_columns(&table, num_rows, flags, location,
@@ -2413,12 +2420,10 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(memcmp(table.parents + num_parents * num_rows, parents,
                         num_parents * num_rows * sizeof(tsk_id_t)),
         0);
-    CU_ASSERT_EQUAL(memcmp(table.metadata_offset, metadata_offset,
-                        (num_rows + 1) * sizeof(tsk_size_t)),
-        0);
-    CU_ASSERT_EQUAL(memcmp(table.metadata_offset + num_rows, metadata_offset,
-                        num_rows * sizeof(uint32_t)),
-        0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
+    CU_ASSERT_EQUAL(
+        memcmp(table.metadata_offset + num_rows, zeros, num_rows * sizeof(uint32_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, 2 * num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     tsk_individual_table_print_state(&table, _devnull);
