@@ -6,6 +6,9 @@
 
 **Features**
 
+- Add ``tsk_*_table_extend`` methods to append to a table from another
+  (:user:`benjeffery`, :issue:`1271`, :pr:`1287`).
+
 **Fixes**
 
 ----------------------
