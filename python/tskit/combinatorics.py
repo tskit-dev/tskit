@@ -1024,6 +1024,13 @@ class RankTree:
                         yield [labeled_first] + labeled_rest
 
     def newick(self):
+        """
+        Return a newick string for this RankTree. For a given tree shape, the order of
+        each child grouping in the string (the "orientation" of the topology) will
+        always be identical. In other words, the grouping braces will stay in an
+        identical order and only the labels will change with each unique labelling
+        (the labels will be listed in the same order as returned by ``.leaves()``)
+        """
         if self.is_leaf():
             return str(self.label) if self.labelled() else ""
         return "(" + ",".join(c.newick() for c in self.children) + ")"
@@ -1043,6 +1050,20 @@ class RankTree:
 
     def leaf_partition(self):
         return [c.num_leaves for c in self.children]
+
+    def leaves(self):
+        """
+        Return a iterator over all the labels in the RankTree, in standard left-right
+        traversal order of the canonical orientation of the topology.
+
+        .. note::
+            The default (0th) labelling, produces ``n`` labels in numerical order, from
+            ``0`` to ``n-1`` so that ``unrank(n, (shape_rank, 0)).leaves()`` is
+            equivalent to ``range(n)`` for any ``n`` and valid associated ``shape_rank``.
+        """
+        if self.is_leaf():
+            return (self.label,)
+        return (label for c in self.children for label in c.leaves())
 
     def group_children_by_num_leaves(self):
         def same_num_leaves(c1, c2):

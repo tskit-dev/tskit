@@ -481,6 +481,31 @@ class TestRankTree:
         six_leaf_sym = RankTree(children=[three_leaf_asym, three_leaf_asym])
         assert six_leaf_sym.is_symmetrical()
 
+    @pytest.mark.parametrize("n", range(7))
+    def test_leaves(self, n):
+        for tree in RankTree.all_unlabelled_trees(n):
+            first_labelled_tree = RankTree.unrank(n, (tree.shape_rank(), 0))
+            assert list(first_labelled_tree.leaves()) == list(range(n))
+
+    @pytest.mark.parametrize("n", range(5))
+    def test_no_leaves(self, n):
+        for tree in RankTree.all_unlabelled_trees(n):
+            assert list(tree.leaves()) == [None] * n
+
+    @pytest.mark.parametrize("n", range(6))
+    def test_newick_order(self, n):
+        del_digits = {ord(c): "" for c in "1234567890"}
+        del_other = {ord(c): "" for c in "(,);"}
+        for unlabelled_tree in RankTree.all_unlabelled_trees(n):
+            first_labelled_tree = RankTree.unrank(n, (unlabelled_tree.shape_rank(), 0))
+            newick_braces = first_labelled_tree.newick().translate(del_digits)
+            for tree in RankTree.all_labellings(unlabelled_tree):
+                nwk = tree.newick()
+                assert nwk.translate(del_digits) == newick_braces
+                assert nwk.translate(del_other) == "".join(
+                    str(x) for x in tree.leaves()
+                )
+
 
 class TestPartialTopologyCounter:
     def test_add_sibling_topologies_simple(self):
