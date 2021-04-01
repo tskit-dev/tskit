@@ -2291,9 +2291,9 @@ class Tree:
         :rtype: str
         """
         if root is None:
-            if self.num_roots > 1:
+            if not self.has_single_root:
                 raise ValueError(
-                    "Cannot get newick for multiroot trees. Try "
+                    "Cannot get newick unless a tree has a single root. Try "
                     "[t.newick(root) for root in t.roots] to get a list of "
                     "newick trees, one for each root."
                 )
@@ -3848,19 +3848,25 @@ class TreeSequence:
     @property
     def max_root_time(self):
         """
-        Returns time of the oldest root in any of the trees in this tree sequence.
+        Returns the time of the oldest root in any of the trees in this tree sequence.
         This is usually equal to ``np.max(ts.tables.nodes.time)`` but may not be
-        since there can be nodes that are not present in any tree. Consistent
-        with the definition of tree roots, if there are no edges in the tree
-        sequence we return the time of the oldest sample.
+        since there can be non-sample nodes that are not present in any tree. Note that
+        isolated samples are also defined as roots (so there can be a max_root_time
+        even in a tree sequence with no edges).
 
         :return: The maximum time of a root in this tree sequence.
         :rtype: float
+        :raises ValueError: If there are no samples in the tree, and hence no roots (as
+            roots are defined by the ends of the upward paths from the set of samples).
         """
+        if self.num_samples == 0:
+            raise ValueError(
+                "max_root_time is not defined in a tree sequence with 0 samples"
+            )
         ret = max(self.node(u).time for u in self.samples())
         if self.num_edges > 0:
             # Edges are guaranteed to be listed in parent-time order, so we can get the
-            # last one to get the oldest root.
+            # last one to get the oldest root
             edge = self.edge(self.num_edges - 1)
             # However, we can have situations where there is a sample older than a
             # 'proper' root

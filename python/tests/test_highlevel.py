@@ -229,8 +229,12 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
     yield ts
     yield tsutil.add_random_metadata(ts)
     tables = ts.dump_tables()
+    tables.nodes.flags = np.zeros_like(tables.nodes.flags)
+    yield tables.tree_sequence()  # no samples
+    tables = ts.dump_tables()
     tables.edges.clear()
-    yield tables.tree_sequence()  # empty tree sequence
+    yield tables.tree_sequence()  # empty tree
+    yield tskit.TableCollection(sequence_length=1).tree_sequence()  # empty tree seq
 
 
 def get_bottleneck_examples():
@@ -470,11 +474,13 @@ class HighLevelTestCase:
             assert st1.left_root == st2.left_root
             assert sorted(list(roots)) == sorted(st1.roots)
             assert st1.roots == st2.roots
-            if len(roots) > 1:
+            if len(roots) == 0:
+                assert st1.root == tskit.NULL
+            elif len(roots) == 1:
+                assert st1.root == list(roots)[0]
+            else:
                 with pytest.raises(ValueError):
                     st1.root
-            else:
-                assert st1.root == list(roots)[0]
             assert st2 == st1
             assert not (st2 != st1)
             left, right = st1.get_interval()
@@ -597,6 +603,10 @@ class TestTreeSequence(HighLevelTestCase):
 
     def verify_pairwise_diversity(self, ts):
         haplotypes = ts.genotype_matrix(isolated_as_missing=False).T
+        if ts.num_samples == 0:
+            with pytest.raises(ValueError, match="at least one element"):
+                ts.get_pairwise_diversity()
+            return
         pi1 = ts.get_pairwise_diversity()
         pi2 = simple_get_pairwise_diversity(haplotypes)
         assert pi1 == pytest.approx(pi2)
@@ -882,7 +892,7 @@ class TestTreeSequence(HighLevelTestCase):
                 assert t1.parent_dict == t2.parent_dict
                 assert t1.index == 0
                 if "tracked_samples" in kwargs:
-                    assert t1.num_tracked_samples() != 0
+                    assert t1.num_tracked_samples() == ts.num_samples
                 else:
                     assert t1.num_tracked_samples() == 0
 
@@ -892,7 +902,7 @@ class TestTreeSequence(HighLevelTestCase):
                 assert t1.parent_dict == t2.parent_dict
                 assert t1.index == ts.num_trees - 1
                 if "tracked_samples" in kwargs:
-                    assert t1.num_tracked_samples() != 0
+                    assert t1.num_tracked_samples() == ts.num_samples
                 else:
                     assert t1.num_tracked_samples() == 0
 
@@ -916,13 +926,19 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_get_pairwise_diversity(self):
         for ts in get_example_tree_sequences():
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="at least one element"):
                 ts.get_pairwise_diversity([])
             samples = list(ts.samples())
-            assert ts.get_pairwise_diversity() == ts.get_pairwise_diversity(samples)
-            assert ts.get_pairwise_diversity(samples[:2]) == ts.get_pairwise_diversity(
-                list(reversed(samples[:2]))
-            )
+            if len(samples) == 0:
+                with pytest.raises(
+                    ValueError, match="Sample sets must contain at least one element"
+                ):
+                    ts.get_pairwise_diversity()
+            else:
+                assert ts.get_pairwise_diversity() == ts.get_pairwise_diversity(samples)
+                assert ts.get_pairwise_diversity(
+                    samples[:2]
+                ) == ts.get_pairwise_diversity(list(reversed(samples[:2])))
 
     def test_populations(self):
         more_than_zero = False
@@ -975,7 +991,7 @@ class TestTreeSequence(HighLevelTestCase):
                 ts.get_population(N)
             with pytest.raises(ValueError):
                 ts.get_population(N + 1)
-            for node in [0, N - 1]:
+            for node in range(0, N - 1):
                 assert ts.get_population(node) == ts.node(node).population
 
     def test_get_time(self):
@@ -993,10 +1009,18 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_max_root_time(self):
         for ts in get_example_tree_sequences():
-            oldest = max(
-                max(tree.time(root) for root in tree.roots) for tree in ts.trees()
-            )
-            assert oldest == ts.max_root_time
+            oldest = None
+            for tree in ts.trees():
+                for root in tree.roots:
+                    oldest = (
+                        tree.time(root)
+                        if oldest is None
+                        else max(oldest, tree.time(root))
+                    )
+            if oldest is None:
+                assert pytest.raises(ValueError, match="max()")
+            else:
+                assert oldest == ts.max_root_time
 
     def test_max_root_time_corner_cases(self):
         tables = tskit.TableCollection(1)
@@ -1129,9 +1153,11 @@ class TestTreeSequence(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             self.verify_tables_api_equality(ts)
             self.verify_simplify_provenance(ts)
-            n = ts.get_sample_size()
-            num_mutations += ts.get_num_mutations()
-            sample_sizes = {0, 1}
+            n = ts.num_samples
+            num_mutations += ts.num_mutations
+            sample_sizes = {0}
+            if n > 1:
+                sample_sizes |= {1}
             if n > 2:
                 sample_sizes |= {2, max(2, n // 2), n - 1}
             for k in sample_sizes:
@@ -1354,8 +1380,8 @@ class TestTreeSequence(HighLevelTestCase):
                     assert t1 == t2
                     assert t1.parent_dict == t2.parent_dict
                     if "tracked_samples" in kwargs:
-                        assert t1.num_tracked_samples() != 0
-                        assert t2.num_tracked_samples() != 0
+                        assert t1.num_tracked_samples() == ts.num_samples
+                        assert t2.num_tracked_samples() == ts.num_samples
                     else:
                         assert t1.num_tracked_samples() == 0
                         assert t2.num_tracked_samples() == 0
@@ -1382,7 +1408,7 @@ class TestTreeSequence(HighLevelTestCase):
                     assert t1.interval == t2.interval
                     assert t1.parent_dict == t2.parent_dict
                     if "tracked_samples" in kwargs:
-                        assert t2.num_tracked_samples() != 0
+                        assert t2.num_tracked_samples() == ts.num_samples
                     else:
                         assert t2.num_tracked_samples() == 0
 
@@ -1405,7 +1431,7 @@ class TestTreeSequence(HighLevelTestCase):
                         assert t3.interval == t2.interval
                         assert t3.parent_dict == t2.parent_dict
                     if "tracked_samples" in kwargs:
-                        assert t2.num_tracked_samples() != 0
+                        assert t2.num_tracked_samples() == ts.num_samples
                     else:
                         assert t2.num_tracked_samples() == 0
 
@@ -1591,7 +1617,12 @@ class TestTreeSequence(HighLevelTestCase):
             for mapping, tree in zip(ts._tree_node_edges(), ts.trees()):
                 node_mapped = mapping >= 0
                 edge_visited[mapping[node_mapped]] = True
-                assert np.sum(node_mapped) == len(list(tree.nodes())) - tree.num_roots
+                # Note that tree.nodes() does not necessarily list all the nodes
+                # in the tree topology, only the ones that descend from a root.
+                # Therefore if not all the topological trees in a single `Tree` have
+                # a root, we can have edges above nodes that are not listed. This
+                # happens, for example, in a tree with no sample nodes.
+                assert np.sum(node_mapped) >= len(list(tree.nodes())) - tree.num_roots
                 for u in tree.nodes():
                     if tree.parent(u) == tskit.NULL:
                         assert mapping[u] == tskit.NULL
@@ -2149,24 +2180,24 @@ class TestTree(HighLevelTestCase):
             assert tree.num_children(u) == len(tree.children(u))
 
     def test_root_properties(self):
+        tested = set()
         for ts in get_example_tree_sequences():
             for tree in ts.trees():
                 if tree.has_single_root:
+                    tested.add("single")
+                    assert tree.num_roots == 1
                     assert tree.num_roots == 1
                     assert tree.root != tskit.NULL
                 elif tree.has_multiple_roots:
+                    tested.add("multiple")
                     assert tree.num_roots > 1
                     with pytest.raises(ValueError, match="More than one root exists"):
                         _ = tree.root
                 else:
+                    tested.add("zero")
                     assert tree.num_roots == 0
                     assert tree.root == tskit.NULL
-
-    def test_root_properties_empty_ts(self):
-        # NB - this can be removed once the example_tree_sequences contain an empty ts
-        tree = tskit.TableCollection(sequence_length=1).tree_sequence().first()
-        assert tree.num_roots == 0
-        assert tree.root == tskit.NULL
+        assert len(tested) == 3
 
     def verify_newick(self, tree):
         """
@@ -2175,7 +2206,7 @@ class TestTree(HighLevelTestCase):
         # TODO to make this work we may need to clamp the precision of node
         # times because Python and C float printing algorithms work slightly
         # differently. Seems to work OK now, so leaving alone.
-        if tree.num_roots == 1:
+        if tree.has_single_root:
             py_tree = tests.PythonTree.from_tree(tree)
             newick1 = tree.newick(precision=16)
             newick2 = py_tree.newick()
@@ -2233,12 +2264,23 @@ class TestTree(HighLevelTestCase):
         replace_numeric = {ord(x): None for x in "1234567890:."}
         for ts in get_example_tree_sequences():
             for tree in ts.trees():
-                if tree.num_roots > 1:
-                    continue
-                plain_newick = tree.newick(node_labels={}, include_branch_lengths=False)
-                newick1 = tree.newick().translate(replace_numeric)
-                newick2 = tree.newick(node_labels={}).translate(replace_numeric)
-                assert newick1 == newick2 == plain_newick
+                if not tree.has_single_root:
+                    with pytest.raises(ValueError) as plain_newick_err:
+                        tree.newick(node_labels={}, include_branch_lengths=False)
+                    with pytest.raises(ValueError) as newick1_err:
+                        tree.newick()
+                    with pytest.raises(ValueError) as newick2_err:
+                        tree.newick(node_labels={})
+                    assert str(newick1_err) == str(newick2_err)
+                    assert str(newick1_err) == str(plain_newick_err)
+                else:
+                    plain_newick = tree.newick(
+                        node_labels={}, include_branch_lengths=False
+                    )
+                    newick1 = tree.newick().translate(replace_numeric)
+                    newick2 = tree.newick(node_labels={}).translate(replace_numeric)
+                    assert newick1 == newick2
+                    assert newick2 == plain_newick
 
     def test_newick_buffer_too_small_bug(self):
         nodes = io.StringIO(
@@ -2291,7 +2333,8 @@ class TestTree(HighLevelTestCase):
         assert set(tree.leaves()) == {n for n in g.nodes if g.out_degree(n) == 0}
 
         # test if tree has no in-degrees > 1
-        assert nx.is_branching(g)
+        if len(g) > 0:
+            assert nx.is_branching(g)
 
     def verify_nx_algorithm_equivalence(self, tree, g):
         for root in tree.roots:
@@ -2419,7 +2462,7 @@ class TestTree(HighLevelTestCase):
             "breadthfirst",
             "minlex_postorder",
         ]
-        if tree.has_single_root:
+        if tree.num_roots == 1:
             with pytest.raises(ValueError):
                 list(t1.nodes(order="bad order"))
             assert list(t1.nodes()) == list(t1.nodes(t1.get_root()))
