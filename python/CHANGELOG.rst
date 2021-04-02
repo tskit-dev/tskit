@@ -9,6 +9,9 @@
 
 **Features**
 
+- New `TreeSequence.as_dict_of_dicts` method for reading an entire tree sequence into
+  a NetworkX graph (:user:`hyanwong`, :issue:`1294`, :pr:`1296`).
+
 - Add `Table.append` method for adding rows from classes such as `SiteTableRow` and
   `Site` (:user:`benjeffery`, :issue:`1111`, :pr:`1254`).
 

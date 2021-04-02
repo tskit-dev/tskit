@@ -1633,6 +1633,53 @@ class TestTreeSequence(HighLevelTestCase):
                         assert edge.right >= tree.interval.right
             assert np.all(edge_visited)
 
+    def test_as_dict_of_dicts(self):
+        for ts in get_example_tree_sequences():
+            ts = ts.simplify(keep_unary=True)  # remove unreferenced nodes
+            adj_dod = ts.as_dict_of_dicts()
+            g = nx.from_dict_of_dicts(
+                adj_dod, create_using=nx.MultiDiGraph, multigraph_input=True
+            )
+            self.verify_nx_graph_topology(ts, g)
+
+    def verify_nx_graph_topology(self, ts, g):
+        assert nx.is_directed_acyclic_graph(g)
+        assert g.number_of_edges() == ts.num_edges
+        # isolated nodes may not be in the graph, so add sample nodes to the graph set
+        assert set(g.nodes) | set(ts.samples()) == set(range(ts.num_nodes))
+        # all non root nodes
+        assert set(ts.tables.edges.child) == {n for n in g.nodes if g.in_degree(n) != 0}
+        # all non leaf nodes
+        assert set(ts.tables.edges.parent) == {
+            n for n in g.nodes if g.out_degree(n) != 0
+        }
+
+    def test_nx_tree_ts_equiv(self):
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=123)
+        adj_dod = ts.as_dict_of_dicts()
+        g_first = nx.from_dict_of_dicts(
+            adj_dod, create_using=nx.MultiDiGraph, multigraph_input=True
+        )
+        g_last = g_first.copy()
+        g_first.remove_edges_from(
+            [
+                (u, v, k)
+                for u, v, k, d in g_first.edges(keys=True, data=True)
+                if d["left"] != 0
+            ]
+        )
+        g_last.remove_edges_from(
+            [
+                (u, v, k)
+                for u, v, k, d in g_last.edges(keys=True, data=True)
+                if d["right"] != ts.sequence_length
+            ]
+        )
+        t_first = nx.DiGraph(ts.first().as_dict_of_dicts())
+        t_last = nx.DiGraph(ts.last().as_dict_of_dicts())
+        assert set(nx.DiGraph(g_first).edges) == set(t_first.edges)
+        assert set(nx.DiGraph(g_last).edges) == set(t_last.edges)
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)

@@ -4992,6 +4992,54 @@ class TreeSequence:
             )
         return "\n".join(output) + "\n"
 
+    def as_dict_of_dicts(self):
+        """
+        Return the edges in this tree sequence as a dict of dicts for conversion to a
+        `networkx graph <https://networkx.github.io/documentation/stable/
+        reference/classes/digraph.html>`_. Note that because multiple edges can exist
+        between the same parent and child (if they span disjoint genomic regions),
+        then you have to read in the dict_of_dicts as a MultiDiGraph (or MultiGraph),
+        by specifying ``create_using=nx.MultiDiGraph, multigraph_input=True``
+
+        For example::
+
+            >>> import tskit
+            >>> import networkx as nx
+            >>> ts = tskit.Tree.generate_star(10).tree_sequence
+            >>> graph = nx.from_dict_of_dicts(
+                    ts.as_dict_of_dicts(),
+                    create_using=nx.MultiDiGraph,
+                    multigraph_input=True)
+            >>> graph.edges(keys=True, data=True)  # List the edges
+            >>> root_node_id = 10
+            >>> leaf_node_id = 0
+            >>> edge_id = 0
+            >>> graph.edges[root_node_id, leaf_node_id, edge_id]  # get a graph edge
+
+        :return: Dictionary of dictionaries of dictionaries, where the first
+            key is the edge parent, the second key is the edge child, and the
+            third key is the edge ID (treated as a NetworkX "key" to distinguish
+            this edge among the possibly multiple edges per parent-child pair).
+            The contents of the dict-of-dicts-of-dicts are themselves edge
+            annotation dictionaries, currently containing the keys "left", "right",
+            and "branch_length" (the time between the parent and child nodes),
+            which will be imported as annotations on each edge.
+        """
+        dod = {}
+        for edge in self.edges():
+            parent = edge.parent
+            child = edge.child
+            if parent not in dod:
+                dod[parent] = {}
+            if child not in dod[parent]:
+                dod[parent][child] = {}
+            dod[parent][child][edge.id] = {
+                "left": edge.left,
+                "right": edge.right,
+                "branch_length": self.node(parent).time - self.node(child).time,
+            }
+        return dod
+
     def simplify(
         self,
         samples=None,
