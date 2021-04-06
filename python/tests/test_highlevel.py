@@ -1807,7 +1807,11 @@ class TestTreeSequenceMetadata:
 
 
 def test_pickle_round_trip(ts_fixture):
-    assert ts_fixture.tables == pickle.loads(pickle.dumps(ts_fixture)).tables
+    for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+        ts = pickle.loads(pickle.dumps(ts_fixture, protocol=protocol))
+        assert ts.tables == ts_fixture.tables
+        # Do some thing to check the ts is init'd properly
+        ts.draw_text()
 
 
 class TestFileUuid(HighLevelTestCase):
