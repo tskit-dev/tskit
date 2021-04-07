@@ -23,6 +23,9 @@
 
 **Fixes**
 
+- Tree sequences were not properly init'd after unpickling
+  (:user:`benjeffery`, :issue:`1297`, :pr:`1298`)
+
 --------------------
 [0.3.5] - 2021-03-16
 --------------------
