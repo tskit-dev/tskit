@@ -23,7 +23,6 @@
 """
 Tree sequence IO via the tables API.
 """
-import base64
 import dataclasses
 import datetime
 import itertools
@@ -369,17 +368,21 @@ class BaseTable:
         raise NotImplementedError()
 
     def __str__(self):
-        headers, rows = self._text_header_and_rows()
-        return "\n".join("\t".join(row) for row in [headers] + rows)
+        headers, rows = self._text_header_and_rows(
+            limit=tskit._print_options["max_lines"]
+        )
+        return util.unicode_table(rows, header=headers, row_separator=False)
 
     def _repr_html_(self):
         """
         Called by jupyter notebooks to render tables
         """
-        headers, rows = self._text_header_and_rows(limit=40)
+        headers, rows = self._text_header_and_rows(
+            limit=tskit._print_options["max_lines"]
+        )
         headers = "".join(f"<th>{header}</th>" for header in headers)
         rows = (
-            f"<td><em>... skipped {row[11:]} rows ...</em></td>"
+            f"<td><em>{row[11:]} rows skipped (tskit.set_print_options)</em></td>"
             if "__skipped__" in row
             else "".join(f"<td>{cell}</td>" for cell in row)
             for row in rows
@@ -514,10 +517,6 @@ class IndividualTable(BaseTable, MetadataMixin):
         super().__init__(ll_table, IndividualTableRow)
 
     def _text_header_and_rows(self, limit=None):
-        flags = self.flags
-        location = util.unpack_arrays(self.location, self.location_offset)
-        parents = util.unpack_arrays(self.parents, self.parents_offset)
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "flags", "location", "parents", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -532,12 +531,16 @@ class IndividualTable(BaseTable, MetadataMixin):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
-                location_str = ",".join(map(str, location[j]))
-                parents_str = ",".join(map(str, parents[j]))
+                row = self[j]
+                location_str = ", ".join(map(str, row.location))
+                parents_str = ", ".join(map(str, row.parents))
                 rows.append(
                     "{}\t{}\t{}\t{}\t{}".format(
-                        j, flags[j], location_str, parents_str, md
+                        j,
+                        row.flags,
+                        location_str,
+                        parents_str,
+                        util.truncate_string_end(str(row.metadata)),
                     ).split("\t")
                 )
         return headers, rows
@@ -767,11 +770,6 @@ class NodeTable(BaseTable, MetadataMixin):
         super().__init__(ll_table, NodeTableRow)
 
     def _text_header_and_rows(self, limit=None):
-        time = self.time
-        flags = self.flags
-        population = self.population
-        individual = self.individual
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "flags", "population", "individual", "time", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -783,13 +781,18 @@ class NodeTable(BaseTable, MetadataMixin):
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
         for j in indexes:
+            row = self[j]
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{:.14f}\t{}".format(
-                        j, flags[j], population[j], individual[j], time[j], md
+                    "{}\t{}\t{}\t{}\t{:.8f}\t{}".format(
+                        j,
+                        row.flags,
+                        row.population,
+                        row.individual,
+                        row.time,
+                        util.truncate_string_end(str(row.metadata)),
                     ).split("\t")
                 )
         return headers, rows
@@ -968,12 +971,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         super().__init__(ll_table, EdgeTableRow)
 
     def _text_header_and_rows(self, limit=None):
-        left = self.left
-        right = self.right
-        parent = self.parent
-        child = self.child
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
-        headers = ("id", "left\t", "right\t", "parent", "child", "metadata")
+        headers = ("id", "left", "right", "parent", "child", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
             indexes = range(self.num_rows)
@@ -987,10 +985,15 @@ class EdgeTable(BaseTable, MetadataMixin):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
+                row = self[j]
                 rows.append(
                     "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}".format(
-                        j, left[j], right[j], parent[j], child[j], md
+                        j,
+                        row.left,
+                        row.right,
+                        row.parent,
+                        row.child,
+                        util.truncate_string_end(str(row.metadata)),
                     ).split("\t")
                 )
         return headers, rows
@@ -1182,13 +1185,6 @@ class MigrationTable(BaseTable, MetadataMixin):
         super().__init__(ll_table, MigrationTableRow)
 
     def _text_header_and_rows(self, limit=None):
-        left = self.left
-        right = self.right
-        node = self.node
-        source = self.source
-        dest = self.dest
-        time = self.time
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "left", "right", "node", "source", "dest", "time", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -1203,10 +1199,17 @@ class MigrationTable(BaseTable, MetadataMixin):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
+                row = self[j]
                 rows.append(
                     "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}".format(
-                        j, left[j], right[j], node[j], source[j], dest[j], time[j], md
+                        j,
+                        row.left,
+                        row.right,
+                        row.node,
+                        row.source,
+                        row.dest,
+                        row.time,
+                        util.truncate_string_end(str(row.metadata)),
                     ).split("\t")
                 )
         return headers, rows
@@ -1399,11 +1402,6 @@ class SiteTable(BaseTable, MetadataMixin):
         super().__init__(ll_table, SiteTableRow)
 
     def _text_header_and_rows(self, limit=None):
-        position = self.position
-        ancestral_state = util.unpack_strings(
-            self.ancestral_state, self.ancestral_state_offset
-        )
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "position", "ancestral_state", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -1415,13 +1413,17 @@ class SiteTable(BaseTable, MetadataMixin):
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
         for j in indexes:
+
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
+                row = self[j]
                 rows.append(
                     "{}\t{:.8f}\t{}\t{}".format(
-                        j, position[j], ancestral_state[j], md
+                        j,
+                        row.position,
+                        row.ancestral_state,
+                        util.truncate_string_end(str(row.metadata)),
                     ).split("\t")
                 )
         return headers, rows
@@ -1623,14 +1625,6 @@ class MutationTable(BaseTable, MetadataMixin):
         super().__init__(ll_table, MutationTableRow)
 
     def _text_header_and_rows(self, limit=None):
-        site = self.site
-        node = self.node
-        parent = self.parent
-        time = self.time
-        derived_state = util.unpack_strings(
-            self.derived_state, self.derived_state_offset
-        )
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "site", "node", "time", "derived_state", "parent", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -1645,10 +1639,16 @@ class MutationTable(BaseTable, MetadataMixin):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
+                row = self[j]
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-                        j, site[j], node[j], time[j], derived_state[j], parent[j], md
+                    "{}\t{}\t{}\t{:.8f}\t{}\t{}\t{}".format(
+                        j,
+                        row.site,
+                        row.node,
+                        row.time,
+                        row.derived_state,
+                        row.parent,
+                        util.truncate_string_end(str(row.metadata)),
                     ).split("\t")
                 )
         return headers, rows
@@ -1884,7 +1884,6 @@ class PopulationTable(BaseTable, MetadataMixin):
         return self.ll_table.add_row(metadata=metadata)
 
     def _text_header_and_rows(self, limit=None):
-        metadata = util.unpack_bytes(self.metadata, self.metadata_offset)
         headers = ("id", "metadata")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -1899,8 +1898,12 @@ class PopulationTable(BaseTable, MetadataMixin):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                md = base64.b64encode(metadata[j]).decode("utf8")
-                rows.append((str(j), str(md)))
+                rows.append(
+                    (
+                        str(j),
+                        util.truncate_string_end(str(self[j].metadata), length=70),
+                    )
+                )
         return headers, rows
 
     def set_columns(self, metadata=None, metadata_offset=None, metadata_schema=None):
@@ -2096,8 +2099,6 @@ class ProvenanceTable(BaseTable):
         )
 
     def _text_header_and_rows(self, limit=None):
-        timestamp = util.unpack_strings(self.timestamp, self.timestamp_offset)
-        record = util.unpack_strings(self.record, self.record_offset)
         headers = ("id", "timestamp", "record")
         rows = []
         if limit is None or self.num_rows <= limit:
@@ -2112,7 +2113,14 @@ class ProvenanceTable(BaseTable):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                rows.append((str(j), str(timestamp[j]), str(record[j])))
+                row = self[j]
+                rows.append(
+                    (
+                        str(j),
+                        str(row.timestamp),
+                        util.truncate_string_end(str(row.record), length=60),
+                    )
+                )
         return headers, rows
 
     def packset_record(self, records):
@@ -2332,32 +2340,32 @@ class TableCollection:
             )
         )
 
-    def __banner(self, title):
-        width = 60
-        line = "#" * width
-        title_line = f"#   {title}"
-        title_line += " " * (width - len(title_line) - 1)
-        title_line += "#"
-        return line + "\n" + title_line + "\n" + line + "\n"
-
     def __str__(self):
-        s = self.__banner("Individuals")
-        s += str(self.individuals) + "\n"
-        s += self.__banner("Nodes")
-        s += str(self.nodes) + "\n"
-        s += self.__banner("Edges")
-        s += str(self.edges) + "\n"
-        s += self.__banner("Sites")
-        s += str(self.sites) + "\n"
-        s += self.__banner("Mutations")
-        s += str(self.mutations) + "\n"
-        s += self.__banner("Migrations")
-        s += str(self.migrations) + "\n"
-        s += self.__banner("Populations")
-        s += str(self.populations) + "\n"
-        s += self.__banner("Provenances")
-        s += str(self.provenances)
-        return s
+        return "\n".join(
+            [
+                "TableCollection",
+                "",
+                f"Sequence Length: {self.sequence_length}",
+                f"Metadata: {self.metadata}",
+                "",
+                "Individuals",
+                str(self.individuals),
+                "Nodes",
+                str(self.nodes),
+                "Edges",
+                str(self.edges),
+                "Sites",
+                str(self.sites),
+                "Mutations",
+                str(self.mutations),
+                "Migrations",
+                str(self.migrations),
+                "Populations",
+                str(self.populations),
+                "Provenances",
+                str(self.provenances),
+            ]
+        )
 
     def equals(
         self,

@@ -28,6 +28,7 @@ import os
 
 import numpy as np
 
+import tskit
 from tskit import UNKNOWN_TIME
 
 
@@ -340,9 +341,20 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
         return f"{name} {d}"
 
 
-def unicode_table(rows, title=None, header=None):
+def truncate_string_end(string, length=40):
     """
-    Convert a table (list of lists) of strings to a unicode table.
+    If a string is longer than "length" then snip out the middle and replace with an
+    ellipsis.
+    """
+    if len(string) <= length:
+        return string
+    return f"{string[:length-3]}..."
+
+
+def unicode_table(rows, title=None, header=None, row_separator=True):
+    """
+    Convert a table (list of lists) of strings to a unicode table. If a row contains
+    the string "__skipped__NNN" then "skipped N rows" is displayed.
 
     :param list[list[str]] rows: List of rows, each of which is a list of strings for
     each cell. The first column will be left justified, the others right. Each row must
@@ -351,6 +363,7 @@ def unicode_table(rows, title=None, header=None):
     containing this string, left-justified. [optional]
     :param list[str] header: Specifies a row above the main rows which will be in double
     lined borders and left justified. Must be same length as each row. [optional]
+    :param boolean row_separator: If True add lines between each row. [Default: True]
     :return: The table as a string
     :rtype: str
     """
@@ -362,26 +375,43 @@ def unicode_table(rows, title=None, header=None):
         max(len(row[i_col]) for row in all_rows) for i_col in range(len(all_rows[0]))
     ]
     out = []
+    inner_width = sum(widths) + len(header or rows[0]) - 1
     if title is not None:
-        w = sum(widths) + len(rows[1]) - 1
         out += [
-            f"╔{'═' * w}╗\n" f"║{title.ljust(w)}║\n",
+            f"╔{'═' * inner_width}╗\n" f"║{title.ljust(inner_width)}║\n",
             f"╠{'╤'.join('═' * w for w in widths)}╣\n",
         ]
     if header is not None:
         out += [
-            f"╔{'╤'.join('═' * w for w in widths)}╗\n"
+            f"╔{'╤'.join('═' * w for w in widths)}╗\n",
             f"║{'│'.join(cell.ljust(w) for cell,w in zip(header,widths))}║\n",
             f"╠{'╪'.join('═' * w for w in widths)}╣\n",
         ]
-    out += [
-        f"╟{'┼'.join('─' * w for w in widths)}╢\n".join(
-            f"║{row[0].ljust(widths[0])}│"
-            + f"{'│'.join(cell.rjust(w) for cell, w in zip(row[1:], widths[1:]))}║\n"
-            for row in rows
-        ),
-        f"╚{'╧'.join('═' * w for w in widths)}╝\n",
-    ]
+    last_skipped = False
+    for i, row in enumerate(rows):
+        if "__skipped__" in row:
+            msg = f"{row[11:]} rows skipped (tskit.set_print_options)"[
+                :inner_width
+            ].center(inner_width)
+            row_str = f"║{msg}║\n"
+            if row_separator:
+                out += [
+                    f"╟{'┴'.join('─' * w for w in widths)}╢\n" + row_str,
+                    f"╟{'┬'.join('─' * w for w in widths)}╢\n",
+                ]
+            else:
+                out.append(row_str)
+            last_skipped = True
+        else:
+            if i != 0 and not last_skipped and row_separator:
+                out.append(f"╟{'┼'.join('─' * w for w in widths)}╢\n")
+            out.append(
+                f"║{row[0].ljust(widths[0])}│"
+                f"{'│'.join(cell.rjust(w) for cell, w in zip(row[1:], widths[1:]))}║\n"
+            )
+            last_skipped = False
+
+    out.append(f"╚{'╧'.join('═' * w for w in widths)}╝\n")
     return "".join(out)
 
 
@@ -521,3 +551,13 @@ def convert_file_like_to_open_file(file_like, mode):
         _file = file_like
         local_file = False
     return _file, local_file
+
+
+def set_print_options(*, max_lines=40):
+    """
+    Set the options for printing to strings and HTML
+
+    :param integer max_lines: The maximum number of lines to print from a table, beyond
+    this number the middle of the table will be skipped.
+    """
+    tskit._print_options = {"max_lines": max_lines}

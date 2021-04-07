@@ -4,24 +4,27 @@
 
 **Breaking changes**
 
-- `Mutation.position` and `Mutation.index` which were deprecated in 0.2.2 (Sep '19) have
+- ``Mutation.position`` and ``Mutation.index`` which were deprecated in 0.2.2 (Sep '19) have
   been removed.
 
 **Features**
 
-- Add `Table.append` method for adding rows from classes such as `SiteTableRow` and
-  `Site` (:user:`benjeffery`, :issue:`1111`, :pr:`1254`).
+- Add ``Table.append`` method for adding rows from classes such as ``SiteTableRow`` and
+  ``Site`` (:user:`benjeffery`, :issue:`1111`, :pr:`1254`).
 
 - SVG visualization of a single tree allows all mutations on an edge to be plotted
   via the ``all_edge_mutations`` param (:user:`hyanwong`,:issue:`1253`, :pr:`1258`).
 
-- Entity classes such as `Mutation`, `Node` are now python dataclasses
+- Entity classes such as ``Mutation``, ``Node`` are now python dataclasses
   (:user:`benjeffery`, :pr:`1261`).
 
 - Metadata decoding for table row access is now lazy (:user:`benjeffery`, :pr:`1261`).
 
 - Add html notebook representation for ``Tree`` and change ``Tree.__str__`` from dict
   representation to info table. (:user:`benjeffery`, :issue:`1269`, :pr:`1304`).
+
+- Improve display of tables when ``print``ed, limiting lines set via
+  ``tskit.set_print_options`` (:user:`benjeffery`,:issue:`1270`, :pr:`1300`).
 
 **Fixes**
 

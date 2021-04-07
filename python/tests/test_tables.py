@@ -540,7 +540,15 @@ class CommonTestsMixin:
             table = self.table_class()
             table.set_columns(**input_data)
             s = str(table)
-            assert len(s.splitlines()) == num_rows + 1
+            assert len(s.splitlines()) == num_rows + 4
+        input_data = self.make_input_data(41)
+        table = self.table_class()
+        table.set_columns(**input_data)
+        assert "1 rows skipped" in str(table)
+        tskit.set_print_options(max_lines=None)
+        assert "1 rows skipped" not in str(table)
+        tskit.set_print_options(max_lines=40)
+        tskit.MAX_LINES = 40
 
     def test_repr_html(self):
         for num_rows in [0, 10, 40, 50]:
@@ -555,8 +563,8 @@ class CommonTestsMixin:
             if num_rows == 50:
                 assert len(html.splitlines()) == num_rows + 11
                 assert (
-                    html.split("</tr>")[21]
-                    == "\n<tr><td><em>... skipped 10 rows ...</em></td>"
+                    html.split("</tr>")[21] == "\n<tr><td><em>10 rows skipped "
+                    "(tskit.set_print_options)</em></td>"
                 )
             else:
                 assert len(html.splitlines()) == num_rows + 20

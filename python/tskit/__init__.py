@@ -47,10 +47,10 @@ ALLELES_01 = ("0", "1")
 ALLELES_ACGT = ("A", "C", "G", "T")
 
 #: Special NAN value used to indicate unknown mutation times
-"""
-Say what
-"""
 UNKNOWN_TIME = _tskit.UNKNOWN_TIME
+
+#: Options for printing to strings and HTML, modify with tskit.set_print_options.
+_print_options = {"max_lines": 40}
 
 from tskit.provenance import __version__  # NOQA
 from tskit.provenance import validate_provenance  # NOQA
