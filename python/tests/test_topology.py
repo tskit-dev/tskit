@@ -75,6 +75,7 @@ def simple_keep_intervals(tables, intervals, simplify=True, record_provenance=Tr
                     tables.mutations.append(m.replace(site=site_id, parent=tskit.NULL))
     tables.build_index()
     tables.compute_mutation_parents()
+    tables.sort()
     if simplify:
         tables.simplify(record_provenance=False)
     if record_provenance:
