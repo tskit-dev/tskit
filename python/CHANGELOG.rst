@@ -20,6 +20,8 @@
 
 - Metadata decoding for table row access is now lazy (:user:`benjeffery`, :pr:`1261`).
 
+- Add html notebook representation for ``Tree`` and change ``Tree.__str__`` from dict
+  representation to info table. (:user:`benjeffery`, :issue:`1269`, :pr:`1304`).
 
 **Fixes**
 

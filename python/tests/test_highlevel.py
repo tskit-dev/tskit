@@ -37,9 +37,11 @@ import platform
 import random
 import re
 import tempfile
+import textwrap
 import unittest
 import uuid as _uuid
 import warnings
+from xml.etree import ElementTree
 
 import kastore
 import msprime
@@ -1496,6 +1498,8 @@ class TestTreeSequence(HighLevelTestCase):
     def test_html_repr(self):
         for ts in get_example_tree_sequences():
             html = ts._repr_html_()
+            # Parse to check valid
+            ElementTree.fromstring(html)
             assert len(html) > 4300
             assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
             for table in ts.tables.name_map:
@@ -2145,10 +2149,40 @@ class TestTree(HighLevelTestCase):
         ts = tsutil.insert_branch_mutations(msprime.simulate(10, random_seed=1))
         self.verify_mutations(ts.first())
 
-    def test_str(self):
-        t = self.get_tree()
+    def test_str(self, ts_fixture):
+        t = ts_fixture.first()
         assert isinstance(str(t), str)
-        assert str(t) == str(t.get_parent_dict())
+        assert (
+            str(t)
+            == textwrap.dedent(
+                """
+            ╔═════════════════════════════╗
+            ║Tree                         ║
+            ╠═══════════════════╤═════════╣
+            ║Index              │        0║
+            ╟───────────────────┼─────────╢
+            ║Interval           │  0-1 (1)║
+            ╟───────────────────┼─────────╢
+            ║Roots              │        1║
+            ╟───────────────────┼─────────╢
+            ║Nodes              │       19║
+            ╟───────────────────┼─────────╢
+            ║Sites              │       11║
+            ╟───────────────────┼─────────╢
+            ║Mutations          │       11║
+            ╟───────────────────┼─────────╢
+            ║Total Branch Length│10.427971║
+            ╚═══════════════════╧═════════╝
+        """
+            )[1:]
+        )
+
+    def test_html_repr(self, ts_fixture):
+        html = ts_fixture.first()._repr_html_()
+        # Parse to check valid
+        ElementTree.fromstring(html)
+        assert len(html) > 1900
+        assert "<tr><td>Total Branch Length</td><td>10.427971</td></tr>" in html
 
     def test_samples(self):
         for sample_lists in [True, False]:
