@@ -2136,10 +2136,13 @@ class Tree:
 
     def nodes(self, root=None, order="preorder"):
         """
-        Returns an iterator over the node IDs in this tree. If the root parameter
-        is provided, iterate over the node IDs in the subtree rooted at this
-        node. If this is None, iterate over all node IDs. If the order parameter
-        is provided, iterate over the nodes in required tree traversal order.
+        Returns an iterator over the node IDs reachable from the root(s) in this tree.
+        See :meth:`Tree.roots` for which nodes are considered roots. If the root
+        parameter is provided, only the subtree rooted at this single root node
+        will be iterated over. If this parameter is None, iterate over the node IDs in
+        the subtrees rooted at each root node in turn. If the order parameter is
+        provided, iterate over the nodes in each subtree in the specified tree traversal
+        order.
 
         .. note::
             Unlike the :meth:`TreeSequence.nodes` method, this iterator produces
