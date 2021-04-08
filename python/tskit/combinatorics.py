@@ -1023,10 +1023,13 @@ class RankTree:
                     for labeled_rest in RankTree.label_tree_group(rest, rest_labels):
                         yield [labeled_first] + labeled_rest
 
-    def newick(self):
+    def _newick(self):
         if self.is_leaf():
             return str(self.label) if self.labelled() else ""
-        return "(" + ",".join(c.newick() for c in self.children) + ")"
+        return "(" + ",".join(c._newick() for c in self.children) + ")"
+
+    def newick(self):
+        return self._newick() + ";"
 
     @property
     def label(self):
