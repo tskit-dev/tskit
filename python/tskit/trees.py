@@ -918,7 +918,7 @@ class Tree:
 
     def branch_length(self, u):
         """
-        Returns the length of the branch (in generations) joining the
+        Returns the length of the branch (in units of time) joining the
         specified node to its parent. This is equivalent to
 
         >>> tree.time(tree.parent(u)) - tree.time(u)
@@ -947,7 +947,7 @@ class Tree:
     def total_branch_length(self):
         """
         Returns the sum of all the branch lengths in this tree (in
-        units of generations). This is equivalent to
+        units of time). This is equivalent to
 
         >>> sum(tree.branch_length(u) for u in tree.nodes())
 
@@ -1154,7 +1154,7 @@ class Tree:
 
     def time(self, u):
         """
-        Returns the time of the specified node in generations.
+        Returns the time of the specified node.
         Equivalent to ``tree.tree_sequence.node(u).time``.
 
         :param int u: The node of interest.
@@ -2340,7 +2340,7 @@ class Tree:
         :return: Dictionary of dictionaries of dictionaries where the first key
             is the source, the second key is the target of an edge, and the
             third key is an edge annotation. At this point the only annotation
-            is "branch_length", the length of the branch (in generations).
+            is "branch_length", the length of the branch (in units of time).
         """
         dod = {}
         for parent in self.nodes():
