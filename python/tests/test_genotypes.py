@@ -125,7 +125,7 @@ class TestGetAncestralHaplotypes:
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
+        ts = msprime.mutate(ts, rate=0.2, random_seed=1234)
         assert ts.num_sites > 0
         self.verify(ts)
 

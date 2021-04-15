@@ -7642,7 +7642,7 @@ class TestKeepIntervals(TopologyTestCase):
         )
         tables.sort()
         tables.simplify()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+        ts = msprime.mutate(tables.tree_sequence(), rate=0.2, random_seed=2)
         assert ts.num_sites > 0
         self.verify(ts.tables)
 
@@ -7671,7 +7671,7 @@ class TestKeepIntervals(TopologyTestCase):
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
+        ts = msprime.mutate(ts, rate=0.2, random_seed=1234)
         assert ts.num_sites > 0
         self.verify(ts.tables)
 

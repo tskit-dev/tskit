@@ -845,7 +845,7 @@ class MutatedTopologyExamplesMixin:
             num_loci=20,
         )
         tables.sort()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.006, random_seed=2)
+        ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
         assert ts.num_sites > 0
         self.verify(ts)
 
@@ -860,7 +860,7 @@ class MutatedTopologyExamplesMixin:
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
+        ts = msprime.mutate(ts, rate=0.01, random_seed=42)
         assert ts.num_sites > 0
         self.verify(ts)
 
