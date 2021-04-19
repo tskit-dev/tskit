@@ -669,6 +669,7 @@ class Tree:
         self._tree_sequence = tree_sequence
         self._ll_tree = _tskit.Tree(tree_sequence.ll_tree_sequence, **kwargs)
         self._ll_tree.set_root_threshold(root_threshold)
+        self._make_arrays()
 
     def copy(self):
         """
@@ -681,7 +682,18 @@ class Tree:
         copy = type(self).__new__(type(self))
         copy._tree_sequence = self._tree_sequence
         copy._ll_tree = self._ll_tree.copy()
+        copy._make_arrays()
         return copy
+
+    def _make_arrays(self):
+        # Store the low-level arrays for efficiency. There's no real overhead
+        # in this, because the refer to the same underlying memory as the
+        # tree object.
+        self._parent_array = self._ll_tree.parent_array
+        self._left_child_array = self._ll_tree.left_child_array
+        self._right_child_array = self._ll_tree.right_child_array
+        self._left_sib_array = self._ll_tree.left_sib_array
+        self._right_sib_array = self._ll_tree.right_sib_array
 
     @property
     def tree_sequence(self):
@@ -1014,6 +1026,20 @@ class Tree:
         """
         return self._ll_tree.get_parent(u)
 
+    @property
+    def parent_array(self):
+        """
+        A numpy array (dtype=np.int32) encoding the parent of each node
+        in this tree, such that ``tree.parent_array[u] == tree.parent(u)``
+        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.parent`
+        method for details on the semantics of tree parents and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. warning:: |tree_array_warning|
+        """
+        return self._parent_array
+
     # Quintuply linked tree structure.
 
     def left_child(self, u):
@@ -1035,6 +1061,20 @@ class Tree:
         """
         return self._ll_tree.get_left_child(u)
 
+    @property
+    def left_child_array(self):
+        """
+        A numpy array (dtype=np.int32) encoding the left child of each node
+        in this tree, such that ``tree.left_child_array[u] == tree.left_child(u)``
+        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.left_child`
+        method for details on the semantics of tree left_child and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. warning:: |tree_array_warning|
+        """
+        return self._left_child_array
+
     def right_child(self, u):
         """
         Returns the rightmost child of the specified node. Returns
@@ -1054,6 +1094,20 @@ class Tree:
         """
         return self._ll_tree.get_right_child(u)
 
+    @property
+    def right_child_array(self):
+        """
+        A numpy array (dtype=np.int32) encoding the right child of each node
+        in this tree, such that ``tree.right_child_array[u] == tree.right_child(u)``
+        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.right_child`
+        method for details on the semantics of tree right_child and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. warning:: |tree_array_warning|
+        """
+        return self._right_child_array
+
     def left_sib(self, u):
         """
         Returns the sibling node to the left of u, or :data:`tskit.NULL`
@@ -1069,6 +1123,20 @@ class Tree:
         """
         return self._ll_tree.get_left_sib(u)
 
+    @property
+    def left_sib_array(self):
+        """
+        A numpy array (dtype=np.int32) encoding the left sib of each node
+        in this tree, such that ``tree.left_sib_array[u] == tree.left_sib(u)``
+        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.left_sib`
+        method for details on the semantics of tree left_sib and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. warning:: |tree_array_warning|
+        """
+        return self._left_sib_array
+
     def right_sib(self, u):
         """
         Returns the sibling node to the right of u, or :data:`tskit.NULL`
@@ -1083,6 +1151,20 @@ class Tree:
         :rtype: int
         """
         return self._ll_tree.get_right_sib(u)
+
+    @property
+    def right_sib_array(self):
+        """
+        A numpy array (dtype=np.int32) encoding the right sib of each node
+        in this tree, such that ``tree.right_sib_array[u] == tree.right_sib(u)``
+        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.right_sib`
+        method for details on the semantics of tree right_sib and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. warning:: |tree_array_warning|
+        """
+        return self._right_sib_array
 
     # Sample list.
 

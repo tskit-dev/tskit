@@ -1929,6 +1929,8 @@ class TestTree(LowLevelTestCase):
     Tests on the low-level tree interface.
     """
 
+    ARRAY_NAMES = ["parent", "left_child", "right_child", "left_sib", "right_sib"]
+
     def test_options(self):
         ts = self.get_example_tree_sequence()
         st = _tskit.Tree(ts)
@@ -2549,6 +2551,74 @@ class TestTree(LowLevelTestCase):
             genotypes[0] = bad_value
             with pytest.raises(_tskit.LibraryError):
                 tree.map_mutations(genotypes)
+
+    @pytest.mark.parametrize("array", ARRAY_NAMES)
+    def test_array_read_only(self, array):
+        name = array + "_array"
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        t1.first()
+        with pytest.raises(AttributeError, match="not writable"):
+            setattr(t1, name, None)
+        with pytest.raises(AttributeError, match="not writable"):
+            delattr(t1, name)
+
+        a = getattr(t1, name)
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[:] = 0
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[0] = 0
+        with pytest.raises(ValueError, match="cannot set WRITEABLE"):
+            a.setflags(write=True)
+
+    @pytest.mark.parametrize("array", ARRAY_NAMES)
+    def test_array_properties(self, array):
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        a = getattr(t1, array + "_array")
+        t1.first()
+        a = getattr(t1, array + "_array")
+        assert a.dtype == np.int32
+        assert a.shape == (ts1.get_num_nodes(),)
+        assert a.base == t1
+        assert not a.flags.writeable
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        assert not a.flags.owndata
+        b = getattr(t1, array + "_array")
+        assert a is not b
+        assert np.all(a == b)
+        a_copy = a.copy()
+        # This checks that the underlying pointer to memory is the same in
+        # both arrays.
+        assert a.__array_interface__ == b.__array_interface__
+        t1.next()
+        # NB! Because we are pointing to the underlying memory, the arrays
+        # will change as we iterate along the trees! This is a gotcha, but
+        # it's just something we have to document as it's a consequence of the
+        # zero copy semantics.
+        b = getattr(t1, array + "_array")
+        assert np.all(a == b)
+        assert np.any(a_copy != b)
+
+    @pytest.mark.parametrize("array", ARRAY_NAMES)
+    def test_array_lifetime(self, array):
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        t1.first()
+        a1 = getattr(t1, array + "_array")
+        a2 = a1.copy()
+        assert a1 is not a2
+        del t1
+        # Do some memory operations
+        a3 = np.ones(10 ** 6)
+        assert np.all(a1 == a2)
+        del ts1
+        assert np.all(a1 == a2)
+        del a1
+        # Just do something to touch memory
+        a2[:] = 0
+        assert a3 is not a2
 
 
 class TestTableMetadataSchema(MetadataTestMixin):

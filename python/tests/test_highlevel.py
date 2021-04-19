@@ -2726,6 +2726,41 @@ class TestTree(HighLevelTestCase):
                 breakpoints[i + 1] - breakpoints[i]
             )
 
+    def verify_tree_arrays(self, tree):
+        ts = tree.tree_sequence
+        assert tree.parent_array.shape == (ts.num_nodes,)
+        assert tree.left_child_array.shape == (ts.num_nodes,)
+        assert tree.right_child_array.shape == (ts.num_nodes,)
+        assert tree.left_sib_array.shape == (ts.num_nodes,)
+        assert tree.right_sib_array.shape == (ts.num_nodes,)
+        for u in range(ts.num_nodes):
+            assert tree.parent(u) == tree.parent_array[u]
+            assert tree.left_child(u) == tree.left_child_array[u]
+            assert tree.right_child(u) == tree.right_child_array[u]
+            assert tree.left_sib(u) == tree.left_sib_array[u]
+            assert tree.right_sib(u) == tree.right_sib_array[u]
+
+    def test_tree_arrays(self):
+        ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
+        assert ts.num_trees > 1
+        for tree in ts.trees():
+            self.verify_tree_arrays(tree)
+
+    @pytest.mark.parametrize(
+        "array", ["parent", "left_child", "right_child", "left_sib", "right_sib"]
+    )
+    def test_tree_array_properties(self, array):
+        name = array + "_array"
+        ts = msprime.simulate(10, random_seed=1)
+        tree = ts.first()
+        a = getattr(tree, name)
+        assert getattr(tree, name) is a
+        assert a.base is tree._ll_tree
+        with pytest.raises(AttributeError):
+            setattr(tree, name, None)
+        with pytest.raises(AttributeError):
+            delattr(tree, name)
+
     def verify_empty_tree(self, tree):
         ts = tree.tree_sequence
         assert tree.index == -1
@@ -2745,6 +2780,7 @@ class TestTree(HighLevelTestCase):
                 assert tree.left_sib(samples[j]) == samples[j - 1]
             if j < ts.num_samples - 1:
                 assert tree.right_sib(samples[j]) == samples[j + 1]
+        self.verify_tree_arrays(tree)
 
     def test_empty_tree(self):
         ts = msprime.simulate(10, recombination_rate=3, length=3, random_seed=42)
@@ -2775,21 +2811,11 @@ class TestTree(HighLevelTestCase):
     def verify_trees_identical(self, t1, t2):
         assert t1.tree_sequence is t2.tree_sequence
         assert t1.num_nodes is t2.num_nodes
-        assert [t1.parent(u) for u in range(t1.num_nodes)] == [
-            t2.parent(u) for u in range(t2.num_nodes)
-        ]
-        assert [t1.left_child(u) for u in range(t1.num_nodes)] == [
-            t2.left_child(u) for u in range(t2.num_nodes)
-        ]
-        assert [t1.right_child(u) for u in range(t1.num_nodes)] == [
-            t2.right_child(u) for u in range(t2.num_nodes)
-        ]
-        assert [t1.left_sib(u) for u in range(t1.num_nodes)] == [
-            t2.left_sib(u) for u in range(t2.num_nodes)
-        ]
-        assert [t1.right_sib(u) for u in range(t1.num_nodes)] == [
-            t2.right_sib(u) for u in range(t2.num_nodes)
-        ]
+        assert np.all(t1.parent_array == t2.parent_array)
+        assert np.all(t1.left_child_array == t2.left_child_array)
+        assert np.all(t1.right_child_array == t2.right_child_array)
+        assert np.all(t1.left_sib_array == t2.left_sib_array)
+        assert np.all(t1.right_sib_array == t2.right_sib_array)
         assert list(t1.sites()) == list(t2.sites())
 
     def test_copy_seek(self):
@@ -2807,6 +2833,8 @@ class TestTree(HighLevelTestCase):
         tree.clear()
         copy = tree.copy()
         tree.first()
+        # Make sure the underlying arrays are different
+        assert np.any(tree.parent_array != copy.parent_array)
         copy.first()
         while tree.index != -1:
             self.verify_trees_identical(tree, copy)

@@ -44,7 +44,7 @@ if read_the_docs_build:
 # -- Project information -----------------------------------------------------
 
 project = "tskit"
-copyright = "2018-2020, Tskit developers"  # noqa: A001
+copyright = "2018-2021, Tskit developers"  # noqa: A001
 author = "Tskit developers"
 
 
@@ -278,8 +278,8 @@ epub_exclude_files = ["search.html"]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    "https://docs.python.org/": None,
-    "http://docs.scipy.org/doc/numpy/": None,
+    "https://docs.python.org/3": None,
+    "https://numpy.org/doc/stable/": None,
     "https://svgwrite.readthedocs.io/en/stable/": None,
 }
 
