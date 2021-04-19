@@ -4814,6 +4814,35 @@ test_internal_sample_diff_iter(void)
 }
 
 static void
+test_multiroot_mrca(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_id_t mrca;
+
+    tsk_treeseq_from_text(&ts, 10, multiroot_ex_nodes, multiroot_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_mrca(&tree, 0, 0, &mrca), 0);
+    CU_ASSERT_EQUAL(mrca, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_mrca(&tree, 0, 1, &mrca), 0);
+    CU_ASSERT_EQUAL(mrca, 10);
+    /* MRCA of two nodes in different subtrees is TSK_NULL */
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_mrca(&tree, 0, 2, &mrca), 0);
+    CU_ASSERT_EQUAL(mrca, TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_mrca(&tree, 2, 0, &mrca), 0);
+    CU_ASSERT_EQUAL(mrca, TSK_NULL);
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_multiroot_diff_iter(void)
 {
     int ret;
@@ -6235,12 +6264,15 @@ main(int argc, char **argv)
         { "test_gappy_multi_tree", test_gappy_multi_tree },
         { "test_tsk_treeseq_bad_records", test_tsk_treeseq_bad_records },
 
+        /* multiroot tests */
+        { "test_multiroot_mrca", test_multiroot_mrca },
+        { "test_multiroot_diff_iter", test_multiroot_diff_iter },
+
         /* Diff iter tests */
         { "test_simple_diff_iter", test_simple_diff_iter },
         { "test_nonbinary_diff_iter", test_nonbinary_diff_iter },
         { "test_unary_diff_iter", test_unary_diff_iter },
         { "test_internal_sample_diff_iter", test_internal_sample_diff_iter },
-        { "test_multiroot_diff_iter", test_multiroot_diff_iter },
         { "test_empty_diff_iter", test_empty_diff_iter },
 
         /* Sample sets */
