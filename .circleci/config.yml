@@ -19,6 +19,7 @@ jobs:
       - run:
           name: Install dependencies and set path
           command: |
+            env
             sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen \
             libgsl-dev
             # Install meson to the system packages so we can run it as root
