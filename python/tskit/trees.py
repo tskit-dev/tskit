@@ -2363,7 +2363,25 @@ class Tree:
         return pi
 
     def __str__(self):
-        return str(self.get_parent_dict())
+        tree_rows = [
+            ["Index", str(self.index)],
+            [
+                "Interval",
+                f"{self.interval.left:.8g}-{self.interval.right:.8g} ({self.span:.8g})",
+            ],
+            ["Roots", str(self.num_roots)],
+            ["Nodes", str(self.num_nodes)],
+            ["Sites", str(self.num_sites)],
+            ["Mutations", str(self.num_mutations)],
+            ["Total Branch Length", f"{self.total_branch_length:.8g}"],
+        ]
+        return util.unicode_table(tree_rows, title="Tree")
+
+    def _repr_html_(self):
+        """
+        Called by jupyter notebooks to render tables
+        """
+        return util.tree_html(self)
 
     def map_mutations(self, genotypes, alleles):
         """

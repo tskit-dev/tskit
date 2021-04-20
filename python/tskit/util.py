@@ -418,8 +418,8 @@ def tree_sequence_html(ts):
                     <thead>
                       <tr>
                         <th style="padding:0;line-height:21px;">
-                          <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;"src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
-                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-treesequence-class"> Tree Sequence
+                          <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
+                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-treesequence-class"> Tree Sequence </a>
                         </th>
                       </tr>
                     </thead>
@@ -445,6 +445,46 @@ def tree_sequence_html(ts):
                     </thead>
                     <tbody>
                     {table_rows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            """  # noqa: B950
+
+
+def tree_html(tree):
+    return f"""
+            <div>
+              <style>
+                .tskit-table thead tr th {{text-align: left;padding: 0.5em 0.5em;}}
+                .tskit-table tbody tr td {{padding: 0.5em 0.5em;}}
+                .tskit-table tbody tr td:first-of-type {{text-align: left;}}
+                .tskit-details-label {{vertical-align: top; padding-right:5px;}}
+                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
+                .tskit-table-set-table {{margin: 12px 0 0 12px;}}
+                details {{display: inline-block;}}
+                summary {{cursor: pointer; outline: 0; display: list-item;}}
+              </style>
+              <div class="tskit-table-set">
+                <div class="tskit-table-set-table">
+                  <table class="tskit-table">
+                    <thead>
+                      <tr>
+                        <th style="padding:0;line-height:21px;">
+                          <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
+                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-tree-class"> Tree </a>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Index</td><td>{tree.index}</td></tr>
+                      <tr><td>Interval</td><td>{tree.interval.left:.8g}-{tree.interval.right:.8g} ({tree.span:.8g})</td></tr>
+                      <tr><td>Roots</td><td>{tree.num_roots}</td></tr>
+                      <tr><td>Nodes</td><td>{tree.num_nodes}</td></tr>
+                      <tr><td>Sites</td><td>{tree.num_sites}</td></tr>
+                      <tr><td>Mutations</td><td>{tree.num_mutations}</td></tr>
+                      <tr><td>Total Branch Length</td><td>{tree.total_branch_length:.8g}</td></tr>
                     </tbody>
                   </table>
                 </div>
