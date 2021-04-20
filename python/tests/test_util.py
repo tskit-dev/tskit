@@ -26,12 +26,14 @@ import collections
 import itertools
 import math
 import pickle
+import textwrap
 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
 import tests.tsutil as tsutil
+import tskit
 import tskit.util as util
 from tskit import UNKNOWN_TIME
 
@@ -407,35 +409,83 @@ def test_obj_to_collapsed_html(obj, expected):
     )
 
 
+def test_truncate_string_end():
+    assert util.truncate_string_end("testing") == "testing"
+    assert util.truncate_string_end("testing", 7) == "testing"
+    assert util.truncate_string_end("testing", 5) == "te..."
+
+
 def test_unicode_table():
     assert (
         util.unicode_table(
             [["5", "6", "7", "8"], ["90", "10", "11", "12"]],
             header=["1", "2", "3", "4"],
         )
-        == """╔══╤══╤══╤══╗
-║1 │2 │3 │4 ║
-╠══╪══╪══╪══╣
-║5 │ 6│ 7│ 8║
-╟──┼──┼──┼──╢
-║90│10│11│12║
-╚══╧══╧══╧══╝
-"""
+        == textwrap.dedent(
+            """
+           ╔══╤══╤══╤══╗
+           ║1 │2 │3 │4 ║
+           ╠══╪══╪══╪══╣
+           ║5 │ 6│ 7│ 8║
+           ╟──┼──┼──┼──╢
+           ║90│10│11│12║
+           ╚══╧══╧══╧══╝
+        """
+        )[1:]
+    )
+
+    assert (
+        util.unicode_table(
+            [
+                ["1", "2", "3", "4"],
+                ["5", "6", "7", "8"],
+                "__skipped__",
+                ["90", "10", "11", "12"],
+            ],
+            title="TITLE",
+        )
+        == textwrap.dedent(
+            """
+           ╔═══════════╗
+           ║TITLE      ║
+           ╠══╤══╤══╤══╣
+           ║1 │ 2│ 3│ 4║
+           ╟──┼──┼──┼──╢
+           ║5 │ 6│ 7│ 8║
+           ╟──┴──┴──┴──╢
+           ║ rows skipp║
+           ╟──┬──┬──┬──╢
+           ║90│10│11│12║
+           ╚══╧══╧══╧══╝
+        """
+        )[1:]
     )
 
     assert (
         util.unicode_table(
             [["1", "2", "3", "4"], ["5", "6", "7", "8"], ["90", "10", "11", "12"]],
             title="TITLE",
+            row_separator=False,
         )
-        == """╔═══════════╗
-║TITLE      ║
-╠══╤══╤══╤══╣
-║1 │ 2│ 3│ 4║
-╟──┼──┼──┼──╢
-║5 │ 6│ 7│ 8║
-╟──┼──┼──┼──╢
-║90│10│11│12║
-╚══╧══╧══╧══╝
-"""
+        == textwrap.dedent(
+            """
+           ╔═══════════╗
+           ║TITLE      ║
+           ╠══╤══╤══╤══╣
+           ║1 │ 2│ 3│ 4║
+           ║5 │ 6│ 7│ 8║
+           ║90│10│11│12║
+           ╚══╧══╧══╧══╝
+        """
+        )[1:]
     )
+
+
+def test_set_printoptions():
+    assert tskit._print_options == {"max_lines": 40}
+    util.set_print_options(max_lines=None)
+    assert tskit._print_options == {"max_lines": None}
+    util.set_print_options(max_lines=40)
+    assert tskit._print_options == {"max_lines": 40}
+    with pytest.raises(TypeError):
+        util.set_print_options(40)
