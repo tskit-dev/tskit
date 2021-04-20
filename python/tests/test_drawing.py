@@ -55,25 +55,17 @@ class TestTreeDraw:
         return next(ts.trees())
 
     def get_nonbinary_ts(self):
-        demographic_events = [
-            msprime.SimpleBottleneck(time=0.1, population=0, proportion=0.5)
-        ]
-        ts = msprime.simulate(
-            10,
-            recombination_rate=5,
-            mutation_rate=10,
-            demographic_events=demographic_events,
-            random_seed=1,
+        tables = wf.wf_sim(
+            8,
+            4,
+            seed=1,
+            deep_history=True,
+            initial_generation_samples=False,
+            num_loci=2,
         )
-        # Round node times & edge positions so we are msprime 0.7.4 and 1.0.0 compatible
-        # (they have very minor differences in population size due to rounding)
-        tables = ts.dump_tables()
-        tables.nodes.time = np.around(tables.nodes.time, decimals=5)
-        tables.edges.right = np.around(tables.edges.right, decimals=5)
-        tables.edges.left = np.around(tables.edges.left, decimals=5)
-        tables.mutations.time = np.full(tables.mutations.num_rows, tskit.UNKNOWN_TIME)
-        ts = tables.tree_sequence()
-        return ts
+        tables.sort()
+        ts = tables.tree_sequence().simplify()
+        return tsutil.jukes_cantor(ts, 10, 0.025, seed=1)
 
     def get_nonbinary_tree(self):
         for t in self.get_nonbinary_ts().trees():
