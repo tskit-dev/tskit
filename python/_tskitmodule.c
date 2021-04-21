@@ -8786,6 +8786,121 @@ out:
     return ret;
 }
 
+/* The x_array properties are the high-performance zero-copy interface to the
+ * corresponding arrays in the tsk_tree object. We use properties and
+ * return a new array each time rather than trying to create a single array
+ * at Tree initialisation time to avoid a circular reference counting loop,
+ * which (it seems) the even cyclic garbage collection support can't resolve.
+ */
+static PyObject *
+Tree_make_array(Tree *self, int dtype, void *data)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
+    npy_intp dims = self->tree->num_nodes;
+
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, dtype, data);
+    if (array == NULL) {
+        goto out;
+    }
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+    if (PyArray_SetBaseObject(array, (PyObject *) self) != 0) {
+        goto out;
+    }
+    /* PyArray_SetBaseObject steals a reference, so we have to incref the tree
+     * object. This makes sure that the Tree instance will stay alive if there
+     * are any arrays that refer to its memory. */
+    Py_INCREF(self);
+    ret = (PyObject *) array;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    return ret;
+}
+
+static PyObject *
+Tree_get_parent_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->parent);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_left_child_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->left_child);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_right_child_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->right_child);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_left_sib_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->left_sib);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_right_sib_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->right_sib);
+out:
+    return ret;
+}
+
+static PyGetSetDef Tree_getsetters[]
+    = { { .name = "parent_array",
+            .get = (getter) Tree_get_parent_array,
+            .doc = "The parent array in the quintuply linked tree." },
+          { .name = "left_child_array",
+              .get = (getter) Tree_get_left_child_array,
+              .doc = "The left_child array in the quintuply linked tree." },
+          { .name = "right_child_array",
+              .get = (getter) Tree_get_right_child_array,
+              .doc = "The right_child array in the quintuply linked tree." },
+          { .name = "left_sib_array",
+              .get = (getter) Tree_get_left_sib_array,
+              .doc = "The left_sib array in the quintuply linked tree." },
+          { .name = "right_sib_array",
+              .get = (getter) Tree_get_right_sib_array,
+              .doc = "The right_sib array in the quintuply linked tree." },
+          { NULL } };
+
 static PyMethodDef Tree_methods[] = {
     { .ml_name = "first",
         .ml_meth = (PyCFunction) Tree_first,
@@ -8961,6 +9076,7 @@ static PyTypeObject TreeType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "Tree objects",
     .tp_methods = Tree_methods,
+    .tp_getset = Tree_getsetters,
     .tp_init = (initproc) Tree_init,
     .tp_new = PyType_GenericNew,
     // clang-format on
