@@ -974,13 +974,7 @@ class MetadataTestsMixin:
 
     @pytest.mark.parametrize(
         "codec",
-        [
-            "struct",
-            pytest.param(
-                "json",
-                marks=pytest.mark.xfail(reason="JSON defaults not yet implemented"),
-            ),
-        ],
+        ["struct", "json"],
     )
     def test_set_with_optional_properties(self, codec):
         table = self.table_class()
