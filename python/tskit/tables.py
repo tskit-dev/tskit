@@ -382,7 +382,8 @@ class BaseTable:
         )
         headers = "".join(f"<th>{header}</th>" for header in headers)
         rows = (
-            f"<td><em>{row[11:]} rows skipped (tskit.set_print_options)</em></td>"
+            f'<td style="text-align: center;" colspan="{len(headers)}"><em>{row[11:]}'
+            f" rows skipped (tskit.set_print_options)</em></td>"
             if "__skipped__" in row
             else "".join(f"<td>{cell}</td>" for cell in row)
             for row in rows
