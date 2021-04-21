@@ -563,8 +563,8 @@ class CommonTestsMixin:
             if num_rows == 50:
                 assert len(html.splitlines()) == num_rows + 11
                 assert (
-                    html.split("</tr>")[21] == "\n<tr><td><em>10 rows skipped "
-                    "(tskit.set_print_options)</em></td>"
+                    "<em>10 rows skipped (tskit.set_print_options)</em>"
+                    in html.split("</tr>")[21]
                 )
             else:
                 assert len(html.splitlines()) == num_rows + 20
