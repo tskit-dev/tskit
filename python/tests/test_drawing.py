@@ -1982,35 +1982,122 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         # Mutations draw a line on the cross using 'l sz,sz'
         assert svg_no_css.count(f"l {sz},{sz} ") == num_mutations
 
-    def test_no_edges(self):
-        ts = msprime.simulate(10, random_seed=2)
-        tables = ts.dump_tables()
+    def test_no_edges_invalid(self):
+        full_ts = msprime.simulate(10, random_seed=2)
+        tables = full_ts.dump_tables()
         tables.edges.clear()
-        ts_no_edges = tables.tree_sequence()
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError, match="To plot an empty tree sequence"):
+            ts.draw_svg()
+        with pytest.raises(ValueError, match="To plot an empty tree sequence"):
+            ts.draw_svg(x_lim=[None, 1])
+        with pytest.raises(ValueError, match="To plot an empty tree sequence"):
+            ts.draw_svg(x_lim=[0, None])
+
+    def test_no_edges_show_empty(self):
+        # Should be possible to print empty trees if xlim=[0, seq_len]
+        full_ts = msprime.simulate(10, random_seed=2)
+        tables = full_ts.dump_tables()
+        tables.edges.clear()
+        ts = tables.tree_sequence()
         for tree_height_scale in ("time", "log_time", "rank"):
             # SVG should just be a row of 10 sample nodes
-            svg = ts_no_edges.draw_svg(tree_height_scale=tree_height_scale)
+            svg = ts.draw_svg(
+                tree_height_scale=tree_height_scale, x_lim=[0, ts.sequence_length]
+            )
             self.verify_basic_svg(svg)
             assert svg.count("rect") == 10  # Sample nodes are rectangles
             assert svg.count('path class="edge"') == 0
-
-        svg = ts_no_edges.draw_svg(force_root_branch=True)
+        svg = ts.draw_svg(force_root_branch=True, x_lim=[0, ts.sequence_length])
         self.verify_basic_svg(svg)
         assert svg.count("rect") == 10
         assert svg.count('path class="edge"') == 10
 
+    def test_no_edges_with_muts(self):
         # If there is a mutation above a sample, the root branches should be there too
-        ts = msprime.mutate(ts, rate=1, random_seed=1)
-        tables = ts.dump_tables()
+        # And we should be able to plot the "empty" tree because the region still has
+        # mutations
+        full_ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
+        tables = full_ts.dump_tables()
         tables.edges.clear()
-        ts_no_edges = tables.tree_sequence().simplify()
-        assert ts_no_edges.num_mutations > 0  # Should have some singletons
-        svg = ts_no_edges.draw_svg()
+        ts = tables.tree_sequence().simplify()
+        assert ts.num_mutations > 0  # Should have some singletons
+        svg = ts.draw_svg()
         self.verify_basic_svg(svg)
         assert svg.count("rect") == 10
         assert svg.count('<path class="edge"') == 10
-        assert svg.count('<path class="sym"') == ts_no_edges.num_mutations
-        assert svg.count('<line class="sym"') == ts_no_edges.num_sites
+        assert svg.count('<path class="sym"') == ts.num_mutations
+        assert svg.count('<line class="sym"') == ts.num_sites
+
+    def test_empty_flanks(self):
+        ts = msprime.simulate(10, random_seed=2, recombination_rate=0.1)
+        assert ts.num_trees == 2
+        assert 0.2 < ts.first().interval.right < 0.8
+        degree_2_ts = ts.keep_intervals([[0.2, 0.8]])
+        svg = degree_2_ts.draw_svg(y_axis=False)
+        assert svg.count('class="tick"') == 3
+        assert svg.count("<text>0.2") == 1
+        assert svg.count("<text>0.8") == 1
+        degree_1_ts = ts.keep_intervals([[0.05, 0.15]])
+        svg = degree_1_ts.draw_svg(y_axis=False)
+        assert svg.count('class="tick"') == 2
+        assert svg.count("<text>0.05") == 1
+        assert svg.count("<text>0.15") == 1
+
+    def test_bad_xlim(self):
+        ts = msprime.simulate(10, random_seed=2)
+        svg = ts.draw_svg(x_lim=[None, None])
+        self.verify_basic_svg(svg)
+        with pytest.raises(ValueError, match="must be a list of length 2"):
+            ts.draw_svg(x_lim=[0])
+        with pytest.raises(TypeError, match="must be numeric"):
+            ts.draw_svg(x_lim=[0, "a"])
+        with pytest.raises(ValueError, match="must be less than"):
+            ts.draw_svg(x_lim=[0.5, 0.5])
+        with pytest.raises(ValueError, match="cannot be negative"):
+            ts.draw_svg(x_lim=[-1, 0])
+        with pytest.raises(ValueError, match="cannot be greater than"):
+            ts.draw_svg(x_lim=[0, ts.sequence_length * 2])
+
+    def test_xlim_on_empty(self):
+        full_ts = msprime.simulate(10, random_seed=2)
+        tables = full_ts.dump_tables()
+        tables.edges.clear()
+        ts = tables.tree_sequence()
+        ts.draw_svg(x_lim=[0, ts.sequence_length])
+        with pytest.raises(ValueError, match="whole region is empty"):
+            ts.draw_svg(x_lim=[0, 0.9])
+
+    def test_xlim_edge_cases(self):
+        tables = msprime.simulate(10, random_seed=2, mutation_rate=10).dump_tables()
+        # Delete edges but keep mutations
+        old_sites = tables.sites.copy()
+        tables.keep_intervals([[0.4, 0.6]], simplify=False)
+        tables.sites.set_columns(**old_sites.asdict())
+        ts = tables.tree_sequence().simplify(filter_sites=False)
+        assert np.any(ts.tables.sites.position < 0.4)
+        assert np.any(ts.tables.sites.position > 0.6)
+        for x_lim in [None, (0, 1), (None, 1), (0, None)]:
+            # All have sites in the deleted region, so should have all trees
+            svg = ts.draw_svg(x_lim=x_lim)
+            self.verify_basic_svg(svg, width=200 * 3)
+            assert svg.count('class="tree ') == 3
+        tables.sites.clear()
+        tables.mutations.clear()
+        ts = tables.tree_sequence().simplify()
+        for x_lim, n_trees in {None: 1, (0, 1): 3, (None, 1): 2, (0, None): 2}.items():
+            # No sites in the deleted region, so x_lim determines # plotted trees
+            svg = ts.draw_svg(x_lim=x_lim)
+            self.verify_basic_svg(svg, width=200 * n_trees)
+            assert svg.count('class="tree ') == n_trees
+
+    def test_half_truncated(self):
+        ts = msprime.simulate(10, random_seed=2)
+        ts = ts.delete_intervals([[0.4, 0.6]])
+        svg = ts.draw_svg(x_lim=(0.5, 0.7), y_axis=False)
+        # Only one tree and one tick shown (leftmost is an empty region)
+        assert svg.count('class="tree ') == 1
+        assert svg.count('class="tick"') == 1
 
     def test_tree_root_branch(self):
         # in the simple_ts, there are root mutations in the first tree but not the last
@@ -2371,6 +2458,12 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         self.verify_known_svg(
             svg, "ts_multiroot.svg", overwrite_viz, width=200 * ts.num_trees
         )
+
+    def test_known_svg_ts_xlim(self, overwrite_viz, draw_plotbox, caplog):
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(x_lim=[0.051, 0.9])
+        num_trees = sum(1 for b in ts.breakpoints() if 0.051 <= b < 0.9) + 1
+        self.verify_known_svg(svg, "ts_x_lim.svg", overwrite_viz, width=200 * num_trees)
 
 
 class TestRounding:

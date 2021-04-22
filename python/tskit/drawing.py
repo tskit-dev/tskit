@@ -45,6 +45,11 @@ RIGHT = "right"
 TOP = "top"
 BOTTOM = "bottom"
 
+# constants for whether to plot a tree in a tree sequence
+OMIT = 1
+LEFT_CLIPPED_BIT = 2
+RIGHT_CLIPPED_BIT = 4
+
 
 def check_orientation(orientation):
     if orientation is None:
@@ -123,6 +128,103 @@ def check_x_scale(x_scale):
             f"Unknown display x_scale '{x_scale}'. " f"Supported orders are {x_scales}"
         )
     return x_scale
+
+
+def check_x_lim(x_lim, max_x):
+    """
+    Checks the specified x_limits are valid and sets default if None.
+    """
+    if x_lim is None:
+        x_lim = (None, None)
+    if len(x_lim) != 2:
+        raise ValueError("The x_lim parameter must be a list of length 2, or None")
+    try:
+        if x_lim[0] is not None and x_lim[0] < 0:
+            raise ValueError("x_lim[0] cannot be negative")
+        if x_lim[1] is not None and x_lim[1] > max_x:
+            raise ValueError("x_lim[1] cannot be greater than the sequence length")
+        if x_lim[0] is not None and x_lim[1] is not None and x_lim[0] >= x_lim[1]:
+            raise ValueError("x_lim[0] must be less than x_lim[1]")
+    except TypeError:
+        raise TypeError("x_lim parameters must be numeric")
+    return x_lim
+
+
+def clip_ts(ts, x_min, x_max):
+    """
+    Culls the edges of the tree sequence outside the limits of x_min and x_max if
+    necessary.
+
+    Returns the new tree sequence using the same genomic scale, and an
+    array specifying which trees to actually plot from it. This array contains
+    information about whether a plotted tree was clipped, because clipping can
+    cause the rightmost and leftmost tree in this new TS to have reduced spans, and
+    should be displayed by omitting the appropriate breakpoint.
+
+    If x_min is None, we take it to be 0 if the first tree has edges or sites, or
+    ``min(edges.left)`` if the first tree represents an empty region.
+    Similarly, if x_max is None we take it to be ``ts.sequence_length`` if the last tree
+    has edges or mutations, or ``ts.last().interval.left`` if the last tree represents
+    an empty region.
+
+    To plot the full ts, including empty flanking regions, specify x_limits of
+    [0, seq_len].
+
+    """
+    edges = ts.tables.edges
+    sites = ts.tables.sites
+    if x_min is None:
+        if ts.num_edges == 0:
+            if ts.num_sites == 0:
+                raise ValueError(
+                    "To plot an empty tree sequence, specify x_lim=[0, sequence_length]"
+                )
+            x_min = 0
+        else:
+            x_min = np.min(edges.left)
+            if ts.num_sites > 0 and np.min(sites.position) < x_min:
+                x_min = 0  # First region has no edges, but does have sites => keep
+    if x_max is None:
+        if ts.num_edges == 0:
+            if ts.num_sites == 0:
+                raise ValueError(
+                    "To plot an empty tree sequence, specify x_lim=[0, sequence_length]"
+                )
+            x_max = ts.sequence_length
+        else:
+            x_max = np.max(edges.right)
+            if ts.num_sites > 0 and np.max(sites.position) > x_max:
+                x_max = ts.sequence_length  # Last region has sites but no edges => keep
+
+    if (x_min > 0) or (x_max < ts.sequence_length):
+        old_breaks = ts.breakpoints(as_array=True)
+        ts = ts.keep_intervals([[x_min, x_max]], simplify=False)
+        if ts.num_edges == 0:
+            raise ValueError(
+                f"Can't limit plotting from {x_min} to {x_max} as whole region is empty"
+            )
+        edges = ts.tables.edges
+        sites = ts.tables.sites
+        trees_start = np.min(edges.left)
+        trees_end = np.max(edges.right)
+        tree_status = np.zeros(ts.num_trees, dtype=np.uint8)
+        # Are the leftmost/rightmost regions completely empty - if so, don't plot them
+        if 0 < x_min <= trees_start and (
+            ts.num_sites == 0 or trees_start <= np.min(sites.position)
+        ):
+            tree_status[0] = OMIT
+        if trees_end <= x_max < ts.sequence_length and (
+            ts.num_sites == 0 or trees_end >= np.max(sites.position)
+        ):
+            tree_status[-1] = OMIT
+
+        # Which breakpoints are new ones, as a result of clipping
+        new_breaks = np.logical_not(np.isin(ts.breakpoints(as_array=True), old_breaks))
+        tree_status[new_breaks[:-1]] |= LEFT_CLIPPED_BIT
+        tree_status[new_breaks[1:]] |= RIGHT_CLIPPED_BIT
+    else:
+        tree_status = np.zeros(ts.num_trees, dtype=np.uint8)
+    return ts, tree_status
 
 
 def check_y_ticks(ticks: Union[List, Mapping, None]) -> Mapping:
@@ -660,6 +762,7 @@ class SvgTreeSequence(SvgPlot):
         y_label,
         y_ticks,
         y_gridlines,
+        x_lim=None,
         max_tree_height=None,
         node_attrs=None,
         mutation_attrs=None,
@@ -668,8 +771,11 @@ class SvgTreeSequence(SvgPlot):
         mutation_label_attrs=None,
         **kwargs,
     ):
+        x_lim = check_x_lim(x_lim, max_x=ts.sequence_length)
+        ts, self.tree_status = clip_ts(ts, x_lim[0], x_lim[1])
+        num_trees = int(np.sum((self.tree_status & OMIT) != OMIT))
         if size is None:
-            size = (200 * ts.num_trees, 200)
+            size = (200 * num_trees, 200)
         if max_tree_height is None:
             max_tree_height = "ts"
         # X axis shown by default
@@ -696,12 +802,13 @@ class SvgTreeSequence(SvgPlot):
                 any(tree.parent(mut.node) == NULL for mut in tree.mutations())
                 for tree in ts.trees()
             )
+
         # TODO add general padding arguments following matplotlib's terminology.
         self.set_spacing(top=0, left=20, bottom=10, right=20)
         svg_trees = [
             SvgTree(
                 tree,
-                (self.plotbox.width / ts.num_trees, self.plotbox.height),
+                (self.plotbox.width / num_trees, self.plotbox.height),
                 tree_height_scale=tree_height_scale,
                 node_labels=node_labels,
                 mutation_labels=mutation_labels,
@@ -717,7 +824,8 @@ class SvgTreeSequence(SvgPlot):
                 # Do not plot axes on these subplots
                 **kwargs,  # pass though e.g. debug boxes
             )
-            for tree in ts.trees()
+            for status, tree in zip(self.tree_status, ts.trees())
+            if (status & OMIT) != OMIT
         ]
         y = self.plotbox.top
         self.tree_plotbox = svg_trees[0].plotbox
@@ -776,14 +884,18 @@ class SvgTreeSequence(SvgPlot):
         """
         if not self.x_axis and not self.x_label:
             return
+        left_break_status = np.append(self.tree_status, OMIT)
+        right_break_status = np.insert(self.tree_status, 0, OMIT)
+        use_left = (left_break_status & OMIT) != OMIT
+        use_right = (right_break_status & OMIT) != OMIT
+        all_breaks = self.ts.breakpoints(True)
+        breaks = all_breaks[np.logical_or(use_left, use_right)]
         if x_scale == "physical":
-            breaks = self.ts.breakpoints(as_array=True)
-            if self.x_axis:
-                # Assume the trees are simply concatenated end-to-end
-                self.x_transform = (
-                    lambda x: self.plotbox.left
-                    + x / self.ts.sequence_length * self.plotbox.width
-                )
+            # Assume the trees are simply concatenated end-to-end
+            self.x_transform = (
+                lambda x: self.plotbox.left
+                + (x - breaks[0]) / (breaks[-1] - breaks[0]) * self.plotbox.width
+            )
             self.shade_background(
                 breaks,
                 tick_length_lower,
@@ -791,8 +903,15 @@ class SvgTreeSequence(SvgPlot):
                 self.plotbox.pad_bottom + self.tree_plotbox.pad_bottom,
             )
             site_muts = {s.id: s.mutations for s in self.ts.sites()}
+            # omit tick on LHS for trees that have been clipped on left, and same on RHS
+            use_left = np.logical_and(
+                use_left, (left_break_status & LEFT_CLIPPED_BIT) != LEFT_CLIPPED_BIT
+            )
+            use_right = np.logical_and(
+                use_right, (right_break_status & RIGHT_CLIPPED_BIT) != RIGHT_CLIPPED_BIT
+            )
             super().draw_x_axis(
-                tick_positions=breaks,
+                tick_positions=all_breaks[np.logical_or(use_left, use_right)],
                 tick_length_lower=tick_length_lower,
                 tick_length_upper=tick_length_upper,
                 site_muts=site_muts,
@@ -800,11 +919,12 @@ class SvgTreeSequence(SvgPlot):
 
         else:
             # No background shading needed if x_scale is "treewise"
-            n = self.ts.num_trees
-            self.x_transform = lambda x: self.plotbox.left + x * self.plotbox.width / n
+            self.x_transform = (
+                lambda x: self.plotbox.left + x / (len(breaks) - 1) * self.plotbox.width
+            )
             super().draw_x_axis(
-                tick_positions=np.arange(n + 1),
-                tick_labels=self.ts.breakpoints(as_array=True),
+                tick_positions=np.arange(len(breaks)),
+                tick_labels=breaks,
                 tick_length_lower=tick_length_lower,
             )
 
