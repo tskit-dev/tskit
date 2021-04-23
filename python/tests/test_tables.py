@@ -32,6 +32,7 @@ import pathlib
 import pickle
 import platform
 import random
+import re
 import struct
 import time
 import unittest
@@ -73,7 +74,7 @@ class UInt32Column(Column):
 class CharColumn(Column):
     def get_input(self, n):
         rng = np.random.RandomState(42)
-        return rng.randint(low=0, high=127, size=n, dtype=np.int8)
+        return rng.randint(low=65, high=122, size=n, dtype=np.int8)
 
 
 class DoubleColumn(Column):
@@ -1009,7 +1010,162 @@ class MetadataTestsMixin:
                 assert md == row.metadata
 
 
-class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
+class AssertEqualsMixin:
+    @pytest.fixture
+    def test_rows(self, scope="session"):
+        test_rows = self.make_transposed_input_data(10)
+        # Annoyingly we have to tweak some types as once added to a row and then put in
+        # an error message things come out differently
+        for n in range(10):
+            for col in test_rows[n].keys():
+                if col in ["timestamp", "record", "ancestral_state", "derived_state"]:
+                    test_rows[n][col] = bytes(test_rows[n][col]).decode("ascii")
+        return test_rows
+
+    @pytest.fixture
+    def table1(self, test_rows):
+        table1 = self.table_class()
+        for row in test_rows[:5]:
+            table1.add_row(**row)
+        return table1
+
+    def test_equal(self, table1, test_rows):
+        table2 = self.table_class()
+        for row in test_rows[:5]:
+            table2.add_row(**row)
+        table1.assert_equals(table2)
+
+    def test_type(self, table1):
+        with pytest.raises(
+            AssertionError,
+            match=f"Types differ: self={type(table1)} other=<class 'int'>",
+        ):
+            table1.assert_equals(42)
+
+    def test_metadata_schema(self, table1):
+        if hasattr(table1, "metadata_schema"):
+            table2 = table1.copy()
+            table2.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+            with pytest.raises(
+                AssertionError,
+                match=f"{type(table1).__name__} metadata schemas differ: self=None "
+                f"other=OrderedDict([('codec', "
+                "'json')])",
+            ):
+                table1.assert_equals(table2)
+            table1.assert_equals(table2, ignore_metadata=True)
+
+    def test_row_changes(self, table1, test_rows):
+        for column_name in test_rows[0].keys():
+            table2 = self.table_class()
+            for row in test_rows[:4]:
+                table2.add_row(**row)
+            modified_row = {
+                **test_rows[4],
+                **{column_name: test_rows[5][column_name]},
+            }
+            table2.add_row(**modified_row)
+            with pytest.raises(
+                AssertionError,
+                match=re.escape(
+                    f"{type(table1).__name__} row 4 differs:\n"
+                    f"self.{column_name}={test_rows[4][column_name]} "
+                    f"other.{column_name}={test_rows[5][column_name]}"
+                ),
+            ):
+                table1.assert_equals(table2)
+            if column_name == "metadata":
+                table1.assert_equals(table2, ignore_metadata=True)
+            if column_name == "timestamp":
+                table1.assert_equals(table2, ignore_timestamps=True)
+
+        # Two columns differ, as we don't know the order in the error message
+        # test for both independently
+        for column_name, column_name2 in zip(
+            list(test_rows[0].keys())[:-1], list(test_rows[0].keys())[1:]
+        ):
+            table2 = self.table_class()
+            for row in test_rows[:4]:
+                table2.add_row(**row)
+            modified_row = {
+                **test_rows[4],
+                **{
+                    column_name: test_rows[5][column_name],
+                    column_name2: test_rows[5][column_name2],
+                },
+            }
+            table2.add_row(**modified_row)
+            with pytest.raises(
+                AssertionError,
+                match=re.escape(
+                    f"self.{column_name}={test_rows[4][column_name]} "
+                    f"other.{column_name}={test_rows[5][column_name]}"
+                ),
+            ):
+                table1.assert_equals(table2)
+            with pytest.raises(
+                AssertionError,
+                match=re.escape(
+                    f"self.{column_name2}={test_rows[4][column_name2]} "
+                    f"other.{column_name2}={test_rows[5][column_name2]}"
+                ),
+            ):
+                table1.assert_equals(table2)
+
+    def test_num_rows(self, table1, test_rows):
+        table2 = self.table_class()
+        for row in test_rows[:4]:
+            table2.add_row(**row)
+        with pytest.raises(
+            AssertionError,
+            match=f"{type(table1).__name__} number of rows differ: self=5 other=4",
+        ):
+            table1.assert_equals(table2)
+
+    def test_metadata(self, table1, test_rows):
+        if "metadata" in test_rows[0].keys():
+            table2 = self.table_class()
+            for row in test_rows[:4]:
+                table2.add_row(**row)
+            modified_row = {
+                **test_rows[4],
+                **{"metadata": test_rows[5]["metadata"]},
+            }
+            table2.add_row(**modified_row)
+            with pytest.raises(
+                AssertionError,
+                match=re.escape(
+                    f"{type(table1).__name__} row 4 differs:\n"
+                    f"self.metadata={test_rows[4]['metadata']} "
+                    f"other.metadata={test_rows[5]['metadata']}"
+                ),
+            ):
+                table1.assert_equals(table2)
+            table1.assert_equals(table2, ignore_metadata=True)
+
+    def test_timestamp(self, table1, test_rows):
+        if "timestamp" in test_rows[0].keys():
+            table2 = self.table_class()
+            for row in test_rows[:4]:
+                table2.add_row(**row)
+            modified_row = {
+                **test_rows[4],
+                **{"timestamp": test_rows[5]["timestamp"]},
+            }
+            table2.add_row(**modified_row)
+            with pytest.raises(
+                AssertionError,
+                match=re.escape(
+                    f"{type(table1).__name__} row 4 differs:\n"
+                    f"self.timestamp={test_rows[4]['timestamp']} "
+                    f"other.timestamp={test_rows[5]['timestamp']}"
+                ),
+            ):
+                table1.assert_equals(table2)
+            table1.assert_equals(table2, ignore_timestamps=True)
+
+
+class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
     columns = [UInt32Column("flags")]
     ragged_list_columns = [
         (DoubleColumn("location"), UInt32Column("location_offset")),
@@ -1138,7 +1294,7 @@ class TestIndividualTable(CommonTestsMixin, MetadataTestsMixin):
         assert a == b
 
 
-class TestNodeTable(CommonTestsMixin, MetadataTestsMixin):
+class TestNodeTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
 
     columns = [
         UInt32Column("flags"),
@@ -1219,7 +1375,7 @@ class TestNodeTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(metadata=123)
 
 
-class TestEdgeTable(CommonTestsMixin, MetadataTestsMixin):
+class TestEdgeTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
 
     columns = [
         DoubleColumn("left"),
@@ -1267,7 +1423,7 @@ class TestEdgeTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(0, 0, 0, 0, metadata=123)
 
 
-class TestSiteTable(CommonTestsMixin, MetadataTestsMixin):
+class TestSiteTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
     columns = [DoubleColumn("position")]
     ragged_list_columns = [
         (CharColumn("ancestral_state"), UInt32Column("ancestral_state_offset")),
@@ -1322,7 +1478,7 @@ class TestSiteTable(CommonTestsMixin, MetadataTestsMixin):
             assert np.array_equal(table.ancestral_state_offset, ancestral_state_offset)
 
 
-class TestMutationTable(CommonTestsMixin, MetadataTestsMixin):
+class TestMutationTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
     columns = [
         Int32Column("site"),
         Int32Column("node"),
@@ -1394,7 +1550,7 @@ class TestMutationTable(CommonTestsMixin, MetadataTestsMixin):
             assert np.array_equal(table.derived_state_offset, derived_state_offset)
 
 
-class TestMigrationTable(CommonTestsMixin, MetadataTestsMixin):
+class TestMigrationTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
     columns = [
         DoubleColumn("left"),
         DoubleColumn("right"),
@@ -1445,7 +1601,7 @@ class TestMigrationTable(CommonTestsMixin, MetadataTestsMixin):
             t.add_row(0, 0, 0, 0, 0, 0, metadata=123)
 
 
-class TestProvenanceTable(CommonTestsMixin):
+class TestProvenanceTable(CommonTestsMixin, AssertEqualsMixin):
     columns = []
     ragged_list_columns = [
         (CharColumn("timestamp"), UInt32Column("timestamp_offset")),
@@ -1496,7 +1652,7 @@ class TestProvenanceTable(CommonTestsMixin):
         assert t[1].record == "BBBB"
 
 
-class TestPopulationTable(CommonTestsMixin, MetadataTestsMixin):
+class TestPopulationTable(CommonTestsMixin, MetadataTestsMixin, AssertEqualsMixin):
     metadata_mandatory = True
     columns = []
     ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
@@ -3305,6 +3461,122 @@ class TestEqualityOptions:
         assert not t1.populations.equals(t2.populations)
         assert not t1.equals(t2)
         assert t1.equals(t2, ignore_metadata=True)
+
+
+class TestTableCollectionAssertEquals:
+    @pytest.fixture
+    def t1(self, ts_fixture):
+        return ts_fixture.dump_tables()
+
+    @pytest.fixture
+    def t2(self, ts_fixture):
+        return ts_fixture.dump_tables()
+
+    def test_equal(self, t1, t2):
+        assert t1 is not t2
+        t1.assert_equals(t2)
+
+    def test_type(self, t1):
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Types differ: self=<class 'tskit.tables.TableCollection'> "
+                "other=<class 'int'>"
+            ),
+        ):
+            t1.assert_equals(42)
+
+    def test_sequence_length(self, t1, t2):
+        t2.sequence_length = 42
+        with pytest.raises(
+            AssertionError, match="Sequence Length differs: self=1.0 other=42.0"
+        ):
+            t1.assert_equals(t2)
+
+    def test_metadata_schema(self, t1, t2):
+        t2.metadata_schema = tskit.MetadataSchema(None)
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Metadata schemas differ: self=OrderedDict([('codec', 'json')]) "
+                "other=None"
+            ),
+        ):
+            t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_ts_metadata=True)
+
+    def test_metadata(self, t1, t2):
+        t2.metadata = {"foo": "bar"}
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Metadata differs: self=Test metadata other={'foo': 'bar'}"
+            ),
+        ):
+            t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_ts_metadata=True)
+
+    @pytest.mark.parametrize("table_name", tskit.TableCollection(1).name_map)
+    def test_tables(self, t1, t2, table_name):
+        table = getattr(t2, table_name)
+        table.truncate(0)
+        with pytest.raises(
+            AssertionError,
+            match=f"{type(table).__name__} number of rows differ: "
+            f"self={len(getattr(t1, table_name))} other=0",
+        ):
+            t1.assert_equals(t2)
+
+    @pytest.mark.parametrize("table_name", tskit.TableCollection(1).name_map)
+    def test_ignore_metadata(self, t1, t2, table_name):
+        table = getattr(t2, table_name)
+        if hasattr(table, "metadata_schema"):
+            table.metadata_schema = tskit.MetadataSchema(None)
+            with pytest.raises(
+                AssertionError,
+                match=re.escape(
+                    f"{type(table).__name__} metadata schemas differ: "
+                    f"self=OrderedDict([('codec', 'json')]) other=None"
+                ),
+            ):
+                t1.assert_equals(t2)
+            t1.assert_equals(t2, ignore_metadata=True)
+
+    def test_ignore_provenance(self, t1, t2):
+        t2.provenances.truncate(0)
+        with pytest.raises(
+            AssertionError,
+            match="ProvenanceTable number of rows differ: self=1 other=0",
+        ):
+            t1.assert_equals(t2)
+        with pytest.raises(
+            AssertionError,
+            match="ProvenanceTable number of rows differ: self=1 other=0",
+        ):
+            t1.assert_equals(t2, ignore_timestamps=True)
+
+        t1.assert_equals(t2, ignore_provenance=True)
+
+    def test_ignore_timestamps(self, t1, t2):
+        table = t2.provenances
+        timestamp = table.timestamp
+        timestamp[0] = ord("F")
+        table.set_columns(
+            timestamp=timestamp,
+            timestamp_offset=table.timestamp_offset,
+            record=table.record,
+            record_offset=table.record_offset,
+        )
+        with pytest.raises(
+            AssertionError,
+            match="ProvenanceTable row 0 differs:\n"
+            "self.timestamp=.* other.timestamp=F.*",
+        ):
+            t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_provenance=True)
+        t1.assert_equals(t2, ignore_timestamps=True)
 
 
 class TestTableCollectionMethodSignatures:
