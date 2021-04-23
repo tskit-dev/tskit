@@ -9,7 +9,7 @@ h5py>=2.6.0
 jsonschema>=3.0.0
 kastore
 msgpack>=1.0.0
-msprime
+msprime>=1.0.0
 networkx
 newick
 numpy

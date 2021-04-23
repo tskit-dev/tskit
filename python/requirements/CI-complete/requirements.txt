@@ -6,7 +6,7 @@ h5py==3.2.1
 jsonschema==3.2.0
 kastore==0.3.1
 msgpack==1.0.2
-msprime==1.0.0b1
+msprime==1.0.0
 networkx==2.5
 newick==1.0.0
 numpy==1.18.5

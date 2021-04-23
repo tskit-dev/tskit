@@ -303,7 +303,7 @@ class ExamplesMixin:
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.01, random_seed=1234)
+        ts = msprime.mutate(ts, rate=0.2, random_seed=1234)
         assert ts.num_sites > 0
         ts = tsutil.insert_individuals(ts, ploidy=3)
         self.verify(ts)
@@ -421,7 +421,7 @@ class TestContigLengths:
     def test_long_sequence(self):
         # Nominal case where we expect the positions to map within the original
         # sequence length
-        ts = msprime.simulate(10, length=100, mutation_rate=0.01, random_seed=3)
+        ts = msprime.simulate(10, length=100, mutation_rate=0.2, random_seed=3)
         assert ts.num_mutations > 0
         contig_length = self.get_contig_length(ts)
         assert contig_length == 100

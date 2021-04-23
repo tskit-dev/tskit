@@ -2294,6 +2294,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             svg1, "ts_rank.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
+    @pytest.mark.skip(reason="Fails on CI as OSX gives different random numbers")
     def test_known_svg_nonbinary_ts(self, overwrite_viz, draw_plotbox):
         ts = self.get_nonbinary_ts()
         svg = ts.draw_svg(tree_height_scale="log_time", debug_box=draw_plotbox)
