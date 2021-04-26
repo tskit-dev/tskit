@@ -860,7 +860,7 @@ class MutatedTopologyExamplesMixin:
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        ts = msprime.mutate(ts, rate=0.01, random_seed=42)
+        ts = tsutil.jukes_cantor(ts, 10, 0.01, seed=1)
         assert ts.num_sites > 0
         self.verify(ts)
 
