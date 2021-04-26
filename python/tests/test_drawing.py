@@ -1417,6 +1417,16 @@ class TestDrawTextExamples(TestTreeDraw):
                 t.draw_text(max_tree_height=bad_max_tree_height)
 
 
+class TestReprSvg(TestTreeDraw):
+    """
+    Tests the IPython _repr_svg_ shortcut
+    """
+
+    def test_repr_svg(self):
+        ts = self.get_simple_ts()
+        assert ts._repr_svg_() == ts.draw_svg()
+
+
 class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     """
     Tests the SVG tree drawing.

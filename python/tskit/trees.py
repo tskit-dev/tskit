@@ -3765,6 +3765,21 @@ class TreeSequence:
         """
         return util.tree_sequence_html(self)
 
+    def _repr_svg_(self):
+        """
+        Called by jupyter notebooks to render a TreeSequence in standard SVG form, for
+        example when calling ``IPython.display.display_svg(ts)``. As parameters cannot
+        be passed to this function, the underlying :meth:`.draw_svg` method should be
+        used for more complex graphical needs.
+
+        .. note::
+            The SVG representation of large tree sequences can be enormous, and may
+            hang or crash the web browser in which the jupyter notebook is running.
+            For this reason, the default display of a tree sequence in a jupyter
+            notebook is the tabular form provided by the :meth:`._repr_html_` method .
+        """
+        return self.draw_svg()
+
     # num_samples was originally called sample_size, and so we must keep sample_size
     # around as a deprecated alias.
     @property
