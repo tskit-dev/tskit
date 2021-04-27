@@ -312,7 +312,7 @@ def tree_structure():
 
     write_table(tree)
     print(tree.draw_text())
-    tree.draw_svg("_static/tree_structure1.svg", tree_height_scale="rank")
+    tree.draw_svg("_static/tree_structure1.svg", time_scale="rank")
 
     edges = """\
     left    right   parent  child
@@ -327,7 +327,7 @@ def tree_structure():
 
     write_table(tree)
     print(tree.draw_text())
-    tree.draw_svg("_static/tree_structure2.svg", tree_height_scale="rank")
+    tree.draw_svg("_static/tree_structure2.svg", time_scale="rank")
 
 
 def tree_traversal():
@@ -396,7 +396,7 @@ def finding_nearest_neighbors():
     )
 
     tree = ts.first()
-    tree.draw_svg("_static/different_time_samples.svg", tree_height_scale="rank")
+    tree.draw_svg("_static/different_time_samples.svg", time_scale="rank")
 
 
 # moving_along_tree_sequence()

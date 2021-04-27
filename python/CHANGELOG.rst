@@ -34,6 +34,12 @@
 - Add ``Table.assert_equals`` and ``TableCollection.assert_equals`` which give an exact
   report of any differences. (:user:`benjeffery`,:issue:`1076`, :pr:`1328`)
 
+**Changes**
+
+- In drawing methods ``max_tree_height`` and ``tree_height_scale`` have been deprecated
+  in favour of ``max_time`` and ``time_scale``
+  (:user:`benjeffery`,:issue:`1262`, :pr:`1331`).
+
 **Fixes**
 
 - Tree sequences were not properly init'd after unpickling
