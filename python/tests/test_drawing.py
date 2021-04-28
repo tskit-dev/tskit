@@ -1533,10 +1533,22 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         self, y_axis, y_label, tree_height_scale, y_ticks, y_gridlines
     ):
         t = self.get_binary_tree()
-        svg = t.draw_svg()
+        svg = t.draw_svg(
+            y_axis=y_axis,
+            y_label=y_label,
+            y_ticks=y_ticks,
+            y_gridlines=y_gridlines,
+            tree_height_scale=tree_height_scale,
+        )
         self.verify_basic_svg(svg)
         ts = self.get_simple_ts()
-        svg = ts.draw_svg()
+        svg = ts.draw_svg(
+            y_axis=y_axis,
+            y_label=y_label,
+            y_ticks=y_ticks,
+            y_gridlines=y_gridlines,
+            tree_height_scale=tree_height_scale,
+        )
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_multiroot(self):
