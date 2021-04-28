@@ -556,9 +556,7 @@ class TestSimplify:
         py_full_ts, py_full_map = s.simplify()
         full_ts, full_map = ts.simplify(ts.samples(), map_nodes=True)
         assert all(py_full_map == full_map)
-        tsutil.assert_table_collections_equal(
-            full_ts.tables, py_full_ts.tables, ignore_provenance=True
-        )
+        full_ts.tables.assert_equals(py_full_ts.tables, ignore_provenance=True)
 
     @pytest.mark.parametrize("ts", wf_sims)
     @pytest.mark.parametrize("nsamples", [2, 5, 10])
@@ -567,9 +565,7 @@ class TestSimplify:
         s = tests.Simplifier(ts, sub_samples)
         py_small_ts, py_small_map = s.simplify()
         small_ts, small_map = ts.simplify(samples=sub_samples, map_nodes=True)
-        tsutil.assert_table_collections_equal(
-            small_ts.tables, py_small_ts.tables, ignore_provenance=True
-        )
+        small_ts.tables.assert_equals(py_small_ts.tables, ignore_provenance=True)
         self.verify_simplify(ts, small_ts, sub_samples, small_map)
         self.verify_haplotypes(ts, samples=sub_samples)
 
@@ -583,7 +579,7 @@ class TestSimplify:
         other_tables = small_ts.dump_tables()
         tables.provenances.clear()
         other_tables.provenances.clear()
-        assert tables == other_tables
+        tables.assert_equals(other_tables)
         self.verify_simplify(ts, small_ts, sub_samples, node_map)
 
     @pytest.mark.parametrize("ts", wf_sims)

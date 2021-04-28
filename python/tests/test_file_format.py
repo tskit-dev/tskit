@@ -869,7 +869,7 @@ class TestOptionalColumns(TestFileFormat):
         # Null out the time column
         t1 = ts1.dump_tables()
         t1.mutations.time = np.full_like(t1.mutations.time, tskit.UNKNOWN_TIME)
-        assert t1 == ts3.tables
+        t1.assert_equals(ts3.tables)
 
     def test_empty_individual_parents(self):
         ts1 = migration_example()
@@ -890,7 +890,7 @@ class TestOptionalColumns(TestFileFormat):
             ]
             * tables.individuals.num_rows
         )
-        assert tables == ts3.tables
+        tables.assert_equals(ts3.tables)
 
 
 class TestFileFormatErrors(TestFileFormat):

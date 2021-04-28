@@ -1668,49 +1668,6 @@ def genealogical_nearest_neighbours(ts, focal, reference_sets):
     return A
 
 
-def assert_table_collections_equal(t1, t2, ignore_provenance=False):
-    """
-    Checks for table collection equality, but step-by-step,
-    so it's easy to see what's different.
-    """
-    assert_tables_equal(t1.populations, t2.populations, "populations")
-    assert_tables_equal(t1.individuals, t2.individuals, "individuals")
-    assert_tables_equal(t1.nodes, t2.nodes, "nodes")
-    assert_tables_equal(t1.edges, t2.edges, "edges")
-    assert_tables_equal(t1.sites, t2.sites, "sites")
-    assert_tables_equal(t1.mutations, t2.mutations, "mutations")
-    assert_tables_equal(t1.migrations, t2.migrations, "migrations")
-    if not ignore_provenance:
-        assert_tables_equal(t1.provenances, t2.provenances, "provenances")
-    assert t1.metadata_schema == t2.metadata_schema
-    assert t1.metadata == t2.metadata
-    assert t1.metadata_bytes == t2.metadata_bytes
-    assert t1.sequence_length == t2.sequence_length
-    assert t1.equals(t2, ignore_provenance=ignore_provenance)
-
-
-def assert_tables_equal(t1, t2, label=""):
-    if hasattr(t1, "metadata_schema"):
-        if t1.metadata_schema != t2.metadata_schema:
-            msg = (
-                f"\n{label} :::::::::: t1 ::::::::::::\n{t1.metadata_schema}"
-                f"\n{label} :::::::::: t2 ::::::::::::\n{t2.metadata_schema}"
-            )
-            raise AssertionError(msg)
-    for k, (e1, e2) in enumerate(zip(t1, t2)):
-        if e1 != e2:
-            msg = (
-                f"\n{label} :::::::::: t1 (row {k}) ::::::::::::\n{e1}"
-                f"\n{label} :::::::::: t2 (row {k}) ::::::::::::\n{e2}"
-            )
-            raise AssertionError(msg)
-    if t1.num_rows != t2.num_rows:
-        raise AssertionError(
-            f"{label}: t1.num_rows {t1.num_rows} != {t2.num_rows} t2.num_rows"
-        )
-    assert t1 == t2
-
-
 def sort_individual_table(tables):
     """
     Sorts the individual table by parents-before-children.

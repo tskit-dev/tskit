@@ -219,7 +219,7 @@ class CommonTestsMixin:
         t1.set_columns(**kwargs)
         t2 = self.table_class()
         t2.set_columns(**t1.asdict())
-        assert t1 == t2
+        t1.assert_equals(t2)
 
     def test_set_columns_dimension(self):
         kwargs = self.make_input_data(1)
@@ -385,7 +385,7 @@ class CommonTestsMixin:
             t2 = self.table_class()
             for row in list(t1):
                 t2.add_row(**dataclasses.asdict(row))
-            assert t1 == t2
+            t1.assert_equals(t2)
 
     def test_append_row(self):
         for num_rows in [0, 10, 100]:
@@ -589,11 +589,11 @@ class CommonTestsMixin:
             table.set_columns(**input_data)
             pkl = pickle.dumps(table)
             new_table = pickle.loads(pkl)
-            assert table == new_table
+            table.assert_equals(new_table)
             for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
                 pkl = pickle.dumps(table, protocol=protocol)
                 new_table = pickle.loads(pkl)
-                assert table == new_table
+                table.assert_equals(new_table)
 
     def test_equality(self):
         for num_rows in [1, 10, 100]:
@@ -1726,7 +1726,7 @@ class TestSortTables:
         # tables1.tree_sequence()
         # tables2.tree_sequence()
 
-        tsutil.assert_table_collections_equal(tables1, tables2)
+        tables1.assert_equals(tables2)
 
     def verify_canonical_equality(self, tables, seed):
         # Migrations not supported
@@ -1741,7 +1741,7 @@ class TestSortTables:
             py_tables = tsk_tables.copy()
             tsk_tables.canonicalise(remove_unreferenced=ru)
             tsutil.py_canonicalise(py_tables, remove_unreferenced=ru)
-            tsutil.assert_table_collections_equal(tsk_tables, py_tables)
+            tsk_tables.assert_equals(py_tables)
 
     def verify_sort_mutation_consistency(self, orig_tables, seed):
         tables = orig_tables.copy()
@@ -1776,7 +1776,7 @@ class TestSortTables:
             shuffle_mutations=False,
         )
         tables.sort()
-        tsutil.assert_table_collections_equal(tables, sorted_tables)
+        tables.assert_equals(sorted_tables)
 
         # Now also randomize sites, mutations and individuals
         tables.canonicalise(remove_unreferenced=False)
@@ -1787,12 +1787,12 @@ class TestSortTables:
             shuffle_populations=False,
         )
         tables.canonicalise(remove_unreferenced=False)
-        tsutil.assert_table_collections_equal(tables, sorted_tables)
+        tables.assert_equals(sorted_tables)
 
         # Finally, randomize everything else
         tsutil.shuffle_tables(tables, seed=1234)
         tables.canonicalise(remove_unreferenced=False)
-        tsutil.assert_table_collections_equal(tables, sorted_tables)
+        tables.assert_equals(sorted_tables)
 
         # Check the canonicalised form meets the tree sequence requirements
         tables.tree_sequence()
@@ -1989,7 +1989,7 @@ class TestSortTables:
             tables.individuals.add_row(metadata=a.encode())
         tables2 = tables.copy()
         tables2.canonicalise(remove_unreferenced=False)
-        tsutil.assert_table_collections_equal(tables, tables2)
+        tables.assert_equals(tables2)
 
     def test_discrete_times(self):
         ts = self.get_wf_example(seed=623)
@@ -2063,7 +2063,7 @@ class TestSortMigrations:
         assert ts.num_migrations > 100
         tables = ts.tables.copy()
         tables.sort()
-        assert tables.equals(ts.tables, ignore_provenance=True)
+        tables.assert_equals(ts.tables, ignore_provenance=True)
 
     def test_full_sort_order(self):
         tables = tskit.TableCollection(1)
@@ -2542,7 +2542,7 @@ class TestSimplifyTables:
             t2.simplify([0, 1], filter_sites=filter_sites)
             t1.provenances.clear()
             t2.provenances.clear()
-            assert t1 == t2
+            t1.assert_equals(t2)
             if filter_sites:
                 assert ts.num_sites > len(t1.sites)
 
@@ -2966,7 +2966,7 @@ class TestTableCollection:
         assert set(d1.keys()) == set(d2.keys())
         t1 = tskit.TableCollection.fromdict(d1)
         t2 = tskit.TableCollection.fromdict(d2)
-        assert t1 == t2
+        t1.assert_equals(t2)
         assert t1.has_index()
         assert t2.has_index()
 
@@ -2994,12 +2994,12 @@ class TestTableCollection:
             "indexes": t1.indexes.asdict(),
         }
         t2 = tskit.TableCollection.fromdict(d)
-        assert t1 == t2
+        t1.assert_equals(t2)
 
     def test_roundtrip_dict(self, ts_fixture):
         t1 = ts_fixture.tables
         t2 = tskit.TableCollection.fromdict(t1.asdict())
-        assert t1 == t2
+        t1.assert_equals(t2)
 
     def test_name_map(self, ts_fixture):
         tables = ts_fixture.tables
@@ -3032,7 +3032,7 @@ class TestTableCollection:
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
         assert t1 is not t2
-        assert t1 == t2
+        t1.assert_equals(t2)
         t1.edges.clear()
         assert t1 != t2
 
@@ -3138,37 +3138,37 @@ class TestTableCollection:
 
         t1.provenances.add_row("random stuff")
         assert not (t1 == t2)
-        assert t1.equals(t2, ignore_provenance=True)
-        assert t2.equals(t1, ignore_provenance=True)
+        t1.assert_equals(t2, ignore_provenance=True)
+        t2.assert_equals(t1, ignore_provenance=True)
         assert not (t1.equals(t2))
         assert not (t2.equals(t1))
         t1.provenances.clear()
         t2.provenances.clear()
-        assert t1.equals(t2)
-        assert t2.equals(t1)
+        t1.assert_equals(t2)
+        t2.assert_equals(t1)
 
         t1.metadata_schema = tskit.MetadataSchema({"codec": "json", "type": "object"})
         t1.metadata = {"hello": "world"}
         assert not t1.equals(t2)
-        assert t1.equals(t2, ignore_ts_metadata=True)
+        t1.assert_equals(t2, ignore_ts_metadata=True)
         assert not t2.equals(t1)
-        assert t2.equals(t1, ignore_ts_metadata=True)
+        t2.assert_equals(t1, ignore_ts_metadata=True)
         t2.metadata_schema = t1.metadata_schema
         assert not t1.equals(t2)
-        assert t1.equals(t2, ignore_ts_metadata=True)
+        t1.assert_equals(t2, ignore_ts_metadata=True)
         assert not t2.equals(t1)
-        assert t2.equals(t1, ignore_ts_metadata=True)
+        t2.assert_equals(t1, ignore_ts_metadata=True)
 
         t1.provenances.add_row("random stuff")
         assert not t1.equals(t2)
         assert not t1.equals(t2, ignore_ts_metadata=True)
         assert not t1.equals(t2, ignore_provenance=True)
-        assert t1.equals(t2, ignore_ts_metadata=True, ignore_provenance=True)
+        t1.assert_equals(t2, ignore_ts_metadata=True, ignore_provenance=True)
 
         t1.provenances.clear()
         t2.metadata = t1.metadata
-        assert t1.equals(t2)
-        assert t2.equals(t1)
+        t1.assert_equals(t2)
+        t2.assert_equals(t1)
 
         with pytest.raises(TypeError):
             t1.equals(t2, True)
@@ -3352,7 +3352,7 @@ class TestTableCollection:
         tc = ts_fixture.dump_tables()
         tc.dump(path)
         other_tc = tskit.TableCollection.load(path)
-        assert tc == other_tc
+        tc.assert_equals(other_tc)
 
     @pytest.mark.skipif(platform.system() == "Windows", reason="Windows doesn't raise")
     def test_dump_load_errors(self, ts_fixture):
@@ -3388,14 +3388,14 @@ class TestEqualityOptions:
         # Timestamps should differ
         assert t1.provenances[-1].timestamp != t2.provenances[-1].timestamp
         assert not t1.equals(t2)
-        assert t1.equals(t2, ignore_timestamps=True)
-        assert t1.equals(t2, ignore_provenance=True)
-        assert t1.equals(t2, ignore_provenance=True, ignore_timestamps=True)
+        t1.assert_equals(t2, ignore_timestamps=True)
+        t1.assert_equals(t2, ignore_provenance=True)
+        t1.assert_equals(t2, ignore_provenance=True, ignore_timestamps=True)
 
     def test_equals_node_metadata(self, ts_fixture):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        assert t1.equals(t2)
+        t1.assert_equals(t2)
         t1.nodes.add_row(time=0, metadata={"a": "a"})
         t2.nodes.add_row(time=0, metadata={"a": "b"})
         assert not t1.nodes.equals(t2.nodes)
@@ -3407,18 +3407,18 @@ class TestEqualityOptions:
         child = t1.nodes.add_row(time=0)
         parent = t1.nodes.add_row(time=1)
         t2 = t1.copy()
-        assert t1.equals(t2)
+        t1.assert_equals(t2)
         t1.edges.add_row(0, 1, parent, child, metadata={"a": "a"})
         t2.edges.add_row(0, 1, parent, child, metadata={"a": "b"})
         assert not t1.edges.equals(t2.edges)
         assert not t1.equals(t2)
         assert t1.edges.equals(t2.edges, ignore_metadata=True)
-        assert t1.equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_metadata=True)
 
     def test_equals_migration_metadata(self, ts_fixture):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        assert t1.equals(t2)
+        t1.assert_equals(t2)
         t1.migrations.add_row(
             0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "a"}
         )
@@ -3428,39 +3428,39 @@ class TestEqualityOptions:
         assert not t1.migrations.equals(t2.migrations)
         assert not t1.equals(t2)
         assert t1.migrations.equals(t2.migrations, ignore_metadata=True)
-        assert t1.equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_metadata=True)
 
     def test_equals_site_metadata(self, ts_fixture):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        assert t1.equals(t2)
+        t1.assert_equals(t2)
         t1.sites.add_row(0, "A", metadata={"a": "a"})
         t2.sites.add_row(0, "A", metadata={"a": "b"})
         assert not t1.sites.equals(t2.sites)
         assert not t1.equals(t2)
         assert t1.sites.equals(t2.sites, ignore_metadata=True)
-        assert t1.equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_metadata=True)
 
     def test_equals_mutation_metadata(self, ts_fixture):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        assert t1.equals(t2)
+        t1.assert_equals(t2)
         t1.mutations.add_row(0, 0, "A", metadata={"a": "a"})
         t2.mutations.add_row(0, 0, "A", metadata={"a": "b"})
         assert not t1.mutations.equals(t2.mutations)
         assert not t1.equals(t2)
         assert t1.mutations.equals(t2.mutations, ignore_metadata=True)
-        assert t1.equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_metadata=True)
 
     def test_equals_population_metadata(self, ts_fixture):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        assert t1.equals(t2)
+        t1.assert_equals(t2)
         t1.populations.add_row({"a": "a"})
         t2.populations.add_row({"a": "b"})
         assert not t1.populations.equals(t2.populations)
         assert not t1.equals(t2)
-        assert t1.equals(t2, ignore_metadata=True)
+        t1.assert_equals(t2, ignore_metadata=True)
 
 
 class TestTableCollectionAssertEquals:
@@ -3701,7 +3701,7 @@ class TestTableCollectionPickle(TestTableCollection):
     def verify(self, tables):
         self.add_metadata(tables)
         other_tables = pickle.loads(pickle.dumps(tables))
-        assert tables == other_tables
+        tables.assert_equals(other_tables)
 
     def test_simple_simulation(self):
         ts = msprime.simulate(2, random_seed=1)
@@ -3742,7 +3742,7 @@ class TestDeduplicateSites:
     def test_empty(self):
         tables = tskit.TableCollection(1)
         tables.deduplicate_sites()
-        assert tables == tskit.TableCollection(1)
+        tables.assert_equals(tskit.TableCollection(1))
 
     def test_unsorted(self):
         tables = msprime.simulate(10, mutation_rate=1, random_seed=1).dump_tables()
@@ -3772,7 +3772,7 @@ class TestDeduplicateSites:
         t1.deduplicate_sites()
         t1.provenances.clear()
         t2.provenances.clear()
-        assert t1 == t2
+        t1.assert_equals(t2)
 
     def test_same_sites(self):
         t1 = msprime.simulate(10, mutation_rate=1, random_seed=1).dump_tables()
@@ -3788,7 +3788,7 @@ class TestDeduplicateSites:
         t1.deduplicate_sites()
         t1.provenances.clear()
         t2.provenances.clear()
-        assert t1 == t2
+        t1.assert_equals(t2)
 
     def test_order_maintained(self):
         t1 = tskit.TableCollection(1)
@@ -3911,7 +3911,7 @@ class TestSubsetTables:
                     reorder_populations=rp,
                     remove_unreferenced=ru,
                 )
-                tsutil.assert_table_collections_equal(py_sub, tsk_sub)
+                py_sub.assert_equals(tsk_sub)
 
     def verify_subset(self, tables, nodes):
         self.verify_subset_equality(tables, nodes)
@@ -4001,7 +4001,7 @@ class TestSubsetTables:
             ts = tables.tree_sequence()
             tables2 = ts.subset(nodes, record_provenance=False).dump_tables()
             tables.subset(nodes, record_provenance=False)
-            assert tables == tables2
+            tables.assert_equals(tables2)
 
     def test_subset_all(self):
         # subsetting to everything shouldn't change things except the
@@ -4017,9 +4017,7 @@ class TestSubsetTables:
             assert np.all(tables.nodes.metadata == tables2.nodes.metadata)
             tables.nodes.clear()
             tables2.nodes.clear()
-            tsutil.assert_table_collections_equal(
-                tables, tables2, ignore_provenance=True
-            )
+            tables.assert_equals(tables2, ignore_provenance=True)
 
     def test_shuffled_tables(self):
         # subset should work on even unsorted tables
@@ -4179,13 +4177,13 @@ class TestUnionTables(unittest.TestCase):
             record_provenance=False,
             add_populations=add_populations,
         )
-        tsutil.assert_table_collections_equal(uni1, uni2, ignore_provenance=True)
+        uni1.assert_equals(uni2, ignore_provenance=True)
         # verifying that subsetting to original nodes return the same table
         orig_nodes = [j for i, j in enumerate(node_mapping) if j != tskit.NULL]
         uni1.subset(orig_nodes)
         # subsetting tables just to make sure order is the same
         tables.subset(orig_nodes)
-        tsutil.assert_table_collections_equal(uni1, tables, ignore_provenance=True)
+        uni1.assert_equals(tables, ignore_provenance=True)
 
     def verify_union_consistency(self, tables, other, node_mapping):
         ts1 = tsutil.insert_unique_metadata(tables)
@@ -4327,7 +4325,7 @@ class TestUnionTables(unittest.TestCase):
         empty_tables = tskit.TableCollection(sequence_length=tables.sequence_length)
         uni = tables.copy()
         uni.union(empty_tables, [])
-        tsutil.assert_table_collections_equal(tables, uni, ignore_provenance=True)
+        tables.assert_equals(uni, ignore_provenance=True)
 
     def test_noshared_example(self):
         ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
@@ -4344,7 +4342,7 @@ class TestUnionTables(unittest.TestCase):
         uni = tables.copy()
         node_mapping = np.arange(tables.nodes.num_rows)
         uni.union(tables, node_mapping, record_provenance=False)
-        tsutil.assert_table_collections_equal(uni, tables)
+        uni.assert_equals(tables)
 
     def test_no_add_pop(self):
         self.verify_union(
@@ -4444,9 +4442,7 @@ class TestSubsetUnion:
         new_tables.subset(reorder)
         new_tables.canonicalise()
         tables.canonicalise()
-        tsutil.assert_table_collections_equal(
-            new_tables, tables, ignore_provenance=True
-        )
+        new_tables.assert_equals(tables, ignore_provenance=True)
 
     def get_wf_example(self, N, T, seed):
         twopop_tables = wf.wf_sim(N, T, num_pops=2, seed=seed, deep_history=True)

@@ -1889,11 +1889,11 @@ class TestTableCollectionEquality:
         tables.metadata_schema = metadata.MetadataSchema(schema)
         assert tables != tables2
         tables2.metadata_schema = metadata.MetadataSchema(schema2)
-        assert tables == tables2
+        tables.assert_equals(tables2)
         tables.metadata = collections.OrderedDict(one="tree", two=5)
         assert tables != tables2
         tables2.metadata = collections.OrderedDict(two=5, one="tree")
-        assert tables == tables2
+        tables.assert_equals(tables2)
 
     def test_fixing_uncanonical(self):
         ts = msprime.simulate(10, random_seed=42)

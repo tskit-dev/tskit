@@ -4969,7 +4969,7 @@ class TestSimplify(SimplifyTestBase):
         t1 = ts1.dump_tables()
         ts2, node_map2 = self.do_simplify(ts, keep_unary=keep_unary)
         t2 = ts2.dump_tables()
-        assert t1 == t2
+        t1.assert_equals(t2)
 
     def verify_single_childified(self, ts, keep_unary=False):
         """
@@ -7366,7 +7366,7 @@ class TestKeepSingleInterval(unittest.TestCase):
         tables.edges.packset_metadata([b"edge {i}" for i in range(ts.num_edges)])
         ts1 = tables.tree_sequence()
         ts2 = ts1.keep_intervals([[0, 1]], simplify=False, record_provenance=False)
-        tsutil.assert_table_collections_equal(ts1.tables, ts2.tables)
+        ts1.tables.assert_equals(ts2.tables)
 
     def test_slice_by_tree_positions(self):
         ts = msprime.simulate(5, random_seed=1, recombination_rate=2, mutation_rate=2)
@@ -7487,7 +7487,7 @@ class TestKeepIntervals(TopologyTestCase):
         simple_keep_intervals(t1, intervals, simplify, record_provenance)
         t2 = tables.copy()
         t2.keep_intervals(intervals, simplify, record_provenance)
-        assert t1.equals(t2, ignore_timestamps=True)
+        t1.assert_equals(t2, ignore_timestamps=True)
         return t2
 
     def test_migration_error(self):
