@@ -1145,7 +1145,7 @@ class TestTreeSequence(HighLevelTestCase):
         for samples in [None, list(ts.samples()), ts.samples()]:
             tables = ts.dump_tables()
             tables.simplify(samples=samples)
-            assert tables.equals(
+            tables.assert_equals(
                 ts.simplify(samples=samples).tables, ignore_timestamps=True
             )
 

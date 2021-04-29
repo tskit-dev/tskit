@@ -37,7 +37,7 @@ class TestJukesCantor:
     def verify(self, ts):
         tables = ts.dump_tables()
         tables.compute_mutation_parents()
-        assert tables == ts.tables
+        tables.assert_equals(ts.tables)
         # This will catch inconsistent mutations.
         assert ts.genotype_matrix() is not None
 

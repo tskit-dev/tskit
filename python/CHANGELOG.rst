@@ -31,6 +31,9 @@
 - Improve display of tables when ``print``ed, limiting lines set via
   ``tskit.set_print_options`` (:user:`benjeffery`,:issue:`1270`, :pr:`1300`).
 
+- Add ``Table.assert_equals`` and ``TableCollection.assert_equals`` which give an exact
+  report of any differences. (:user:`benjeffery`,:issue:`1076`, :pr:`1328`)
+
 **Fixes**
 
 - Tree sequences were not properly init'd after unpickling

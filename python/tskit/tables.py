@@ -255,6 +255,62 @@ class BaseTable:
             )
         return ret
 
+    def assert_equals(self, other, *, ignore_metadata=False):
+        """
+        Raise an AssertionError for the first found difference between
+        this and another table of the same type.
+
+        :param other: Another table instance
+        :param bool ignore_metadata: If True exclude metadata and metadata schemas
+            from the comparison.
+        """
+        if type(other) is not type(self):
+            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
+
+        # Check using the low-level method to avoid slowly going through everything
+        if self.equals(other, ignore_metadata=ignore_metadata):
+            return
+
+        if not ignore_metadata and self.metadata_schema != other.metadata_schema:
+            raise AssertionError(
+                f"{type(self).__name__} metadata schemas differ: "
+                f"self={self.metadata_schema} "
+                f"other={other.metadata_schema}"
+            )
+
+        for n, (row_self, row_other) in enumerate(zip(self, other)):
+            if ignore_metadata:
+                row_self = dataclasses.replace(row_self, metadata=None)
+                row_other = dataclasses.replace(row_other, metadata=None)
+            if row_self != row_other:
+                self_dict = dataclasses.asdict(self[n])
+                other_dict = dataclasses.asdict(other[n])
+                diff_string = []
+                for col in self_dict.keys():
+                    if isinstance(self_dict[col], np.ndarray):
+                        equal = np.array_equal(self_dict[col], other_dict[col])
+                    else:
+                        equal = self_dict[col] == other_dict[col]
+                    if not equal:
+                        diff_string.append(
+                            f"self.{col}={self_dict[col]} other.{col}={other_dict[col]}"
+                        )
+                diff_string = "\n".join(diff_string)
+                raise AssertionError(
+                    f"{type(self).__name__} row {n} differs:\n{diff_string}"
+                )
+
+        if self.num_rows != other.num_rows:
+            raise AssertionError(
+                f"{type(self).__name__} number of rows differ: self={self.num_rows} "
+                f"other={other.num_rows}"
+            )
+
+        raise AssertionError(
+            "Tables differ in an undetected way - "
+            "this is a bug, please report an issue on gitub"
+        )  # pragma: no cover
+
     def __eq__(self, other):
         return self.equals(other)
 
@@ -2010,6 +2066,51 @@ class ProvenanceTable(BaseTable):
             )
         return ret
 
+    def assert_equals(self, other, *, ignore_timestamps=False):
+        """
+        Raise an AssertionError for the first found difference between
+        this and another provenance table.
+
+        :param other: Another provenance table instance
+        :param bool ignore_timestamps: If True exclude the timestamp column
+            from the comparison.
+        """
+        if type(other) is not type(self):
+            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
+
+        # Check using the low-level method to avoid slowly going through everything
+        if self.equals(other, ignore_timestamps=ignore_timestamps):
+            return
+
+        for n, (row_self, row_other) in enumerate(zip(self, other)):
+            if ignore_timestamps:
+                row_self = dataclasses.replace(row_self, timestamp=None)
+                row_other = dataclasses.replace(row_other, timestamp=None)
+            if row_self != row_other:
+                self_dict = dataclasses.asdict(self[n])
+                other_dict = dataclasses.asdict(other[n])
+                diff_string = []
+                for col in self_dict.keys():
+                    if self_dict[col] != other_dict[col]:
+                        diff_string.append(
+                            f"self.{col}={self_dict[col]} other.{col}={other_dict[col]}"
+                        )
+                diff_string = "\n".join(diff_string)
+                raise AssertionError(
+                    f"{type(self).__name__} row {n} differs:\n{diff_string}"
+                )
+
+        if self.num_rows != other.num_rows:
+            raise AssertionError(
+                f"{type(self).__name__} number of rows differ: self={self.num_rows} "
+                f"other={other.num_rows}"
+            )
+
+        raise AssertionError(
+            "Tables differ in an undetected way - "
+            "this is a bug, please report an issue on gitub"
+        )  # pragma: no cover
+
     def add_row(self, record, timestamp=None):
         """
         Adds a new row to this ProvenanceTable consisting of the specified record and
@@ -2419,6 +2520,78 @@ class TableCollection:
                 )
             )
         return ret
+
+    def assert_equals(
+        self,
+        other,
+        *,
+        ignore_metadata=False,
+        ignore_ts_metadata=False,
+        ignore_provenance=False,
+        ignore_timestamps=False,
+    ):
+        """
+        Raise an AssertionError for the first found difference between
+        this and another table collection. Note that table indexes are not checked.
+
+        :param TableCollection other: Another table collection.
+        :param bool ignore_metadata: If True *all* metadata and metadata schemas
+            will be excluded from the comparison. This includes the top-level
+            tree sequence and constituent table metadata (default=False).
+        :param bool ignore_ts_metadata: If True the top-level tree sequence
+            metadata and metadata schemas will be excluded from the comparison.
+            If ``ignore_metadata`` is True, this parameter has no effect.
+        :param bool ignore_provenance: If True the provenance tables are
+            not included in the comparison.
+        :param bool ignore_timestamps: If True the provenance timestamp column
+            is ignored in the comparison. If ``ignore_provenance`` is True, this
+            parameter has no effect.
+        """
+        if type(other) is not type(self):
+            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
+
+        # Check using the low-level method to avoid slowly going through everything
+        if self.equals(
+            other,
+            ignore_metadata=ignore_metadata,
+            ignore_ts_metadata=ignore_ts_metadata,
+            ignore_provenance=ignore_provenance,
+            ignore_timestamps=ignore_timestamps,
+        ):
+            return
+
+        if not ignore_metadata or ignore_ts_metadata:
+            if self.metadata_schema != other.metadata_schema:
+                raise AssertionError(
+                    f"Metadata schemas differ: self={self.metadata_schema} "
+                    f"other={other.metadata_schema}"
+                )
+            if self.metadata != other.metadata:
+                raise AssertionError(
+                    f"Metadata differs: self={self.metadata} " f"other={other.metadata}"
+                )
+
+        if self.sequence_length != other.sequence_length:
+            raise AssertionError(
+                f"Sequence Length"
+                f" differs: self={self.sequence_length} other={other.sequence_length}"
+            )
+
+        for table_name, table in self.name_map.items():
+            if table_name != "provenances":
+                table.assert_equals(
+                    getattr(other, table_name), ignore_metadata=ignore_metadata
+                )
+
+        if not ignore_provenance:
+            self.provenances.assert_equals(
+                other.provenances, ignore_timestamps=ignore_timestamps
+            )
+
+        raise AssertionError(
+            "TableCollections differ in an undetected way - "
+            "this is a bug, please report an issue on gitub"
+        )  # pragma: no cover
 
     def __eq__(self, other):
         return self.equals(other)

@@ -1233,7 +1233,7 @@ class TestPolytomySplitting:
         t1 = msprime.simulate(10, random_seed=1234).first()
         t2 = t1.split_polytomies(random_seed=1234)
         tables = t1.tree_sequence.dump_tables()
-        assert tables.equals(t2.tree_sequence.tables, ignore_provenance=True)
+        tables.assert_equals(t2.tree_sequence.tables, ignore_provenance=True)
 
     def test_bad_method(self):
         tree = tskit.Tree.generate_star(3)
@@ -1405,7 +1405,7 @@ class TreeGeneratorTestBase:
         tree2 = tskit.Tree.unrank(n, rank)
         tables1 = tree1.tree_sequence.tables
         tables2 = tree2.tree_sequence.tables
-        assert tables1.equals(tables2, ignore_provenance=True)
+        tables1.assert_equals(tables2, ignore_provenance=True)
 
     def test_kwargs(self):
         tree = self.method(3, tracked_samples=[0, 1])
@@ -1457,7 +1457,7 @@ class TestGenerateBalanced(TreeGeneratorTestBase):
         tree2 = tskit.Tree.unrank(n, rank)
         tables1 = tree1.tree_sequence.tables
         tables2 = tree2.tree_sequence.tables
-        assert tables1.equals(tables2, ignore_provenance=True)
+        tables1.assert_equals(tables2, ignore_provenance=True)
 
     def test_bad_arity(self):
         for arity in [-1, 0, 1]:
@@ -1505,7 +1505,7 @@ class TestGenerateRandomBinary(TreeGeneratorTestBase):
         tree2 = tskit.Tree.unrank(n, rank)
         tables1 = tree1.tree_sequence.tables
         tables2 = tree2.tree_sequence.tables
-        assert tables1.equals(tables2, ignore_provenance=True)
+        tables1.assert_equals(tables2, ignore_provenance=True)
 
 
 class TestGenerateComb(TreeGeneratorTestBase):
