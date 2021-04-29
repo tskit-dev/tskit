@@ -690,6 +690,8 @@ class IndividualTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -929,6 +931,8 @@ class NodeTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -976,7 +980,6 @@ class NodeTable(BaseTable, MetadataMixin):
                 individual=individual,
                 metadata=metadata,
                 metadata_offset=metadata_offset,
-                metadata_schema=None,
             )
         )
 
@@ -1128,6 +1131,8 @@ class EdgeTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self, left, right, parent, child, metadata=None, metadata_offset=None
@@ -1355,6 +1360,8 @@ class MigrationTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -1560,6 +1567,8 @@ class SiteTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -1811,6 +1820,8 @@ class MutationTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -1990,6 +2001,8 @@ class PopulationTable(BaseTable, MetadataMixin):
                 metadata_schema=metadata_schema,
             )
         )
+        if metadata_schema is not None:
+            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(self, metadata=None, metadata_offset=None):
         """

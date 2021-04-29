@@ -579,7 +579,7 @@ class CommonTestsMixin:
                 copy = table.copy()
                 assert id(copy) != id(table)
                 assert isinstance(copy, self.table_class)
-                assert copy == table
+                copy.assert_equals(table)
                 table = copy
 
     def test_pickle(self):
@@ -1009,6 +1009,26 @@ class MetadataTestsMixin:
             else:
                 assert md == row.metadata
 
+    def test_copy_metadata_schema(self):
+        table = self.table_class()
+        assert table.metadata_schema == tskit.MetadataSchema(None)
+        table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+        copy = table.copy()
+        table.assert_equals(copy)
+        # Check this independently to check the schema cache was invalidated
+        assert table.metadata_schema == copy.metadata_schema
+
+        copy.metadata_schema = tskit.MetadataSchema(None)
+        assert table.metadata_schema != copy.metadata_schema
+
+    def test_set_columns_metadata_schema(self):
+        table = self.table_class()
+        table2 = self.table_class()
+        ms = tskit.MetadataSchema({"codec": "json"})
+        table2.metadata_schema = ms
+        table.set_columns(**table2.asdict())
+        assert table.metadata_schema == ms
+
 
 class AssertEqualsMixin:
     @pytest.fixture
@@ -1044,6 +1064,7 @@ class AssertEqualsMixin:
 
     def test_metadata_schema(self, table1):
         if hasattr(table1, "metadata_schema"):
+            assert table1.metadata_schema == tskit.MetadataSchema(None)
             table2 = table1.copy()
             table2.metadata_schema = tskit.MetadataSchema({"codec": "json"})
             with pytest.raises(
