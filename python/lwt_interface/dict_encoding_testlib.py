@@ -173,24 +173,19 @@ class TestRoundTrip:
             }
         )
         tables.metadata = {"top-level": "top-level-metadata"}
-        for table in [
-            "individuals",
-            "nodes",
-            "edges",
-            "migrations",
-            "sites",
-            "mutations",
-            "populations",
-        ]:
+        for table in tskit.TABLE_NAMES:
             t = getattr(tables, table)
-            t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
-            t.metadata_schema = tskit.MetadataSchema(
-                {
-                    "codec": "struct",
-                    "type": "object",
-                    "properties": {table: {"type": "string", "binaryFormat": "50p"}},
-                }
-            )
+            if hasattr(t, "metadata_schema"):
+                t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
+                t.metadata_schema = tskit.MetadataSchema(
+                    {
+                        "codec": "struct",
+                        "type": "object",
+                        "properties": {
+                            table: {"type": "string", "binaryFormat": "50p"}
+                        },
+                    }
+                )
 
         self.verify(tables)
 

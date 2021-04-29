@@ -2897,24 +2897,19 @@ class TestTableCollection:
             }
         )
         tc.metadata = {"top-level": "top-level-metadata"}
-        for table in [
-            "individuals",
-            "nodes",
-            "edges",
-            "migrations",
-            "sites",
-            "mutations",
-            "populations",
-        ]:
+        for table in tskit.TABLE_NAMES:
             t = getattr(tc, table)
-            t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
-            t.metadata_schema = tskit.MetadataSchema(
-                {
-                    "codec": "struct",
-                    "type": "object",
-                    "properties": {table: {"type": "string", "binaryFormat": "50p"}},
-                }
-            )
+            if hasattr(t, "metadata_schema"):
+                t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
+                t.metadata_schema = tskit.MetadataSchema(
+                    {
+                        "codec": "struct",
+                        "type": "object",
+                        "properties": {
+                            table: {"type": "string", "binaryFormat": "50p"}
+                        },
+                    }
+                )
 
     def test_table_references(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=1)
@@ -3060,15 +3055,7 @@ class TestTableCollection:
     def test_clear_table(self, ts_fixture):
         tables = ts_fixture.dump_tables()
         tables.clear()
-        data_tables = [
-            "individuals",
-            "nodes",
-            "edges",
-            "migrations",
-            "sites",
-            "mutations",
-            "populations",
-        ]
+        data_tables = [t for t in tskit.TABLE_NAMES if t != "provenances"]
         for table in data_tables:
             assert getattr(tables, f"{table}").num_rows == 0
             assert repr(getattr(tables, f"{table}").metadata_schema) != ""
@@ -3262,7 +3249,7 @@ class TestTableCollection:
 
     def test_bad_sequence_length(self, ts_fixture):
         tables = ts_fixture.dump_tables()
-        assert tables.sequence_length == 1
+        assert tables.sequence_length == 5
         for value in [-1, 0, -0.99, 0.9999]:
             tables.sequence_length = value
             with pytest.raises(tskit.LibraryError):
@@ -3279,9 +3266,9 @@ class TestTableCollection:
 
     def test_sequence_length_longer_than_edges(self, ts_fixture):
         tables = ts_fixture.dump_tables()
-        tables.sequence_length = 2
+        tables.sequence_length = 20
         ts = tables.tree_sequence()
-        assert ts.sequence_length == 2
+        assert ts.sequence_length == 20
         assert ts.num_trees == 2
         trees = ts.trees()
         tree = next(trees)
@@ -3510,7 +3497,7 @@ class TestTableCollectionAssertEquals:
     def test_sequence_length(self, t1, t2):
         t2.sequence_length = 42
         with pytest.raises(
-            AssertionError, match="Sequence Length differs: self=1.0 other=42.0"
+            AssertionError, match="Sequence Length differs: self=5.0 other=42.0"
         ):
             t1.assert_equals(t2)
 
@@ -3569,12 +3556,12 @@ class TestTableCollectionAssertEquals:
         t2.provenances.truncate(0)
         with pytest.raises(
             AssertionError,
-            match="ProvenanceTable number of rows differ: self=1 other=0",
+            match="ProvenanceTable number of rows differ: self=5 other=0",
         ):
             t1.assert_equals(t2)
         with pytest.raises(
             AssertionError,
-            match="ProvenanceTable number of rows differ: self=1 other=0",
+            match="ProvenanceTable number of rows differ: self=5 other=0",
         ):
             t1.assert_equals(t2, ignore_timestamps=True)
 

@@ -52,6 +52,18 @@ UNKNOWN_TIME = _tskit.UNKNOWN_TIME
 #: Options for printing to strings and HTML, modify with tskit.set_print_options.
 _print_options = {"max_lines": 40}
 
+TABLE_NAMES = [
+    "individuals",
+    "nodes",
+    "edges",
+    "migrations",
+    "sites",
+    "mutations",
+    "populations",
+    "provenances",
+]
+
+
 from tskit.provenance import __version__  # NOQA
 from tskit.provenance import validate_provenance  # NOQA
 from tskit.formats import *  # NOQA

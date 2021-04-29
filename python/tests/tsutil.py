@@ -1721,15 +1721,7 @@ def insert_unique_metadata(tables, table=None, offset=0):
     else:
         tables = tables.copy()
     if table is None:
-        table = [
-            "populations",
-            "individuals",
-            "nodes",
-            "edges",
-            "sites",
-            "mutations",
-            "migrations",
-        ]
+        table = [t for t in tskit.TABLE_NAMES if t != "provenances"]
     for t in table:
         getattr(tables, t).packset_metadata(
             [struct.pack("I", offset + i) for i in range(getattr(tables, t).num_rows)]
@@ -1743,15 +1735,7 @@ def metadata_map(tables):
     if isinstance(tables, tskit.TreeSequence):
         tables = tables.dump_tables()
     out = {}
-    for t in [
-        "populations",
-        "individuals",
-        "nodes",
-        "edges",
-        "sites",
-        "mutations",
-        "migrations",
-    ]:
+    for t in [t for t in tskit.TABLE_NAMES if t != "provenances"]:
         out[t] = {}
         for j, x in enumerate(getattr(tables, t)):
             out[t][x.metadata] = j
