@@ -4,7 +4,7 @@ black==21.4b2
 breathe==4.29.1
 codecov==2.1.11
 coverage==5.5
-flake8
+flake8==3.9.1
 h5py>=2.6.0
 jsonschema>=3.0.0
 kastore
