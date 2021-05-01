@@ -15,7 +15,7 @@ newick==1.2.0
 numpy==1.20.2
 packaging==20.9
 portion==2.1.6
-pre-commit
+pre-commit==2.12.1
 pyparsing 
 pysam
 pytest
