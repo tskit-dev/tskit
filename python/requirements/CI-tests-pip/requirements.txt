@@ -11,5 +11,5 @@ kastore==0.3.1
 networkx==2.5.1
 msgpack==1.0.2
 python-jsonschema-objects==0.3.14
-newick==1.0.0
+newick==1.2.0
 PyVCF==0.6.8
