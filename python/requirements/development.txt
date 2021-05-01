@@ -1,5 +1,5 @@
 autodocsumm==0.2.3 #Pinned as errors on 0.2.0
-biopython
+biopython==1.78
 black
 breathe
 codecov
