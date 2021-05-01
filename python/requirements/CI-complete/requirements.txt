@@ -8,7 +8,7 @@ kastore==0.3.1
 msgpack==1.0.2
 msprime==1.0.0
 networkx==2.5.1
-newick==1.0.0
+newick==1.2.0
 numpy==1.18.5
 portion==2.1.5
 pyparsing==2.4.7
