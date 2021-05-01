@@ -14,7 +14,7 @@ networkx==2.5.1
 newick==1.2.0
 numpy==1.20.2
 packaging==20.9
-portion
+portion==2.1.6
 pre-commit
 pyparsing 
 pysam
