@@ -7,7 +7,7 @@ coverage==5.5
 flake8==3.9.1
 h5py>=2.6.0
 jsonschema>=3.0.0
-kastore
+kastore==0.3.1
 msgpack>=1.0.0
 msprime>=1.0.0
 networkx
