@@ -2,7 +2,7 @@ autodocsumm==0.2.3 #Pinned as errors on 0.2.0
 numpy==1.20.2
 svgwrite==1.4.1
 jsonschema==3.2.0
-h5py
+h5py==3.2.1
 breathe>=4.20.0
 sphinx>=3.2.1
 sphinx-issues
