@@ -22,7 +22,7 @@ pytest==6.2.3
 pytest-cov==2.11.1
 pytest-xdist==2.2.1
 python_jsonschema_objects==0.3.14
-PyVCF
+PyVCF==0.6.8
 sphinx
 sphinx-argparse==0.2.5
 sphinx-issues==1.2.0
