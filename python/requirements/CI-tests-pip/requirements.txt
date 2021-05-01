@@ -8,7 +8,7 @@ portion==2.1.5
 xmlunittest==0.5.0
 biopython==1.78
 kastore==0.3.1
-networkx==2.5
+networkx==2.5.1
 msgpack==1.0.2
 python-jsonschema-objects==0.3.14
 newick==1.0.0
