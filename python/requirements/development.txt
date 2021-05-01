@@ -19,7 +19,7 @@ pre-commit==2.12.1
 pyparsing==2.4.7 
 pysam==0.16.0.1
 pytest==6.2.3
-pytest-cov
+pytest-cov==2.11.1
 pytest-xdist
 python_jsonschema_objects
 PyVCF
