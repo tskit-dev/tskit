@@ -727,9 +727,6 @@ typedef struct {
 /* Leave room for more positive check flags */
 #define TSK_NO_CHECK_POPULATION_REFS (1 << 10)
 
-/* Flags for dump tables */
-#define TSK_NO_BUILD_INDEXES (1 << 0)
-
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES (1 << 0)
 
@@ -2712,7 +2709,7 @@ TSK_NO_BUILD_INDEXES
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_dump(
-    tsk_table_collection_t *self, const char *filename, tsk_flags_t options);
+    const tsk_table_collection_t *self, const char *filename, tsk_flags_t options);
 
 /**
 @brief Write a table collection to a stream.
@@ -2744,7 +2741,7 @@ TSK_NO_BUILD_INDEXES
 */
 
 int tsk_table_collection_dumpf(
-    tsk_table_collection_t *self, FILE *file, tsk_flags_t options);
+    const tsk_table_collection_t *self, FILE *file, tsk_flags_t options);
 
 /**
 @brief Record the number of rows in each table in the specified tsk_bookmark_t object.

@@ -4,6 +4,10 @@
 
 **Breaking changes**
 
+- Removed ``TSK_NO_BUILD_INDEXES``.
+  Not building indexes is now the default behaviour of `tsk_table_collection_dump` and related functions.
+  (:user:`molpopgen`, :issue:`1327`, :pr:`1337`).
+
 **Features**
 
 - Add ``tsk_*_table_extend`` methods to append to a table from another

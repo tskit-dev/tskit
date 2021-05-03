@@ -50,7 +50,7 @@ typedef struct {
 
 typedef struct {
     const char *name;
-    void *array;
+    const void *array;
     tsk_size_t len;
     int type;
 } write_table_col_t;
@@ -9325,7 +9325,8 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_write_format_data(tsk_table_collection_t *self, kastore_t *store)
+tsk_table_collection_write_format_data(
+    const tsk_table_collection_t *self, kastore_t *store)
 {
     int ret = 0;
     char format_name[TSK_FILE_FORMAT_NAME_LENGTH];
@@ -9335,7 +9336,7 @@ tsk_table_collection_write_format_data(tsk_table_collection_t *self, kastore_t *
     write_table_col_t write_cols[] = {
         { "format/name", (void *) format_name, sizeof(format_name), KAS_INT8 },
         { "format/version", (void *) version, 2, KAS_UINT32 },
-        { "sequence_length", (void *) &self->sequence_length, 1, KAS_FLOAT64 },
+        { "sequence_length", (const void *) &self->sequence_length, 1, KAS_FLOAT64 },
         { "uuid", (void *) uuid, TSK_UUID_SIZE, KAS_INT8 },
         { "metadata", (void *) self->metadata, self->metadata_length, KAS_INT8 },
         { "metadata_schema", (void *) self->metadata_schema,
@@ -9356,7 +9357,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_table_collection_dump(
-    tsk_table_collection_t *self, const char *filename, tsk_flags_t options)
+    const tsk_table_collection_t *self, const char *filename, tsk_flags_t options)
 {
     int ret = 0;
     FILE *file = fopen(filename, "wb");
@@ -9386,22 +9387,13 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_dumpf(tsk_table_collection_t *self, FILE *file, tsk_flags_t options)
+tsk_table_collection_dumpf(
+    const tsk_table_collection_t *self, FILE *file, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     kastore_t store;
 
     memset(&store, 0, sizeof(store));
-
-    /* By default we build indexes, if they are needed. Note that this will fail if
-     * the tables aren't sorted. */
-    if ((!(options & TSK_NO_BUILD_INDEXES))
-        && (!tsk_table_collection_has_index(self, 0))) {
-        ret = tsk_table_collection_build_index(self, 0);
-        if (ret != 0) {
-            goto out;
-        }
-    }
 
     ret = kastore_openf(&store, file, "w", 0);
     if (ret != 0) {

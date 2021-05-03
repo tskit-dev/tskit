@@ -5080,11 +5080,11 @@ test_dump_unindexed_with_options(tsk_flags_t tc_options)
     CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
     ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_has_index(&tables, 0));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
 
     ret = tsk_table_collection_load(&loaded, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_has_index(&loaded, 0));
+    CU_ASSERT_FALSE(tsk_table_collection_has_index(&loaded, 0));
     CU_ASSERT_TRUE(tsk_node_table_equals(&tables.nodes, &loaded.nodes, 0));
     CU_ASSERT_TRUE(tsk_edge_table_equals(&tables.edges, &loaded.edges, 0));
 
@@ -5165,16 +5165,7 @@ test_dump_load_unsorted_with_options(tsk_flags_t tc_options)
     ret = tsk_table_collection_check_integrity(&t1, TSK_CHECK_EDGE_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 
-    /* Indexing should fail */
-    ret = tsk_table_collection_build_index(&t1, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
-    CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
-
-    /* Trying to dump without first sorting should also fail */
     ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
-
-    ret = tsk_table_collection_dump(&t1, _tmp_file_name, TSK_NO_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_has_index(&t1, 0));
     ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
@@ -5272,9 +5263,6 @@ test_dump_fail_no_file(void)
     unlink(_tmp_file_name);
     errno = 0;
 
-    /* Trying to dump without first sorting fails */
-    ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
     CU_ASSERT_EQUAL(access(_tmp_file_name, F_OK), -1);
 
     tsk_table_collection_free(&t1);
@@ -5303,7 +5291,7 @@ test_load_reindex(void)
     ret = tsk_table_collection_drop_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Dump the unindexed version */
-    ret = tsk_table_collection_dump(&tables, _tmp_file_name, TSK_NO_BUILD_INDEXES);
+    ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_free(&tables);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
