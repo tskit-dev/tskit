@@ -9,6 +9,10 @@
 
 **Features**
 
+- Add fancy indexing to tables. E.g. ``table[6:86]`` returns a new table with the
+  specified rows. Supports slices, index arrays and boolean masks
+  (:user:`benjeffery`, :issue:`1221`, :pr:`1348`, :pr:`1342`).
+
 - Add ``Table.append`` method for adding rows from classes such as ``SiteTableRow`` and
   ``Site`` (:user:`benjeffery`, :issue:`1111`, :pr:`1254`).
 
