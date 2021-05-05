@@ -471,13 +471,13 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_dump(tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
+tsk_treeseq_dump(const tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
 {
     return tsk_table_collection_dump(self->tables, filename, options);
 }
 
 int TSK_WARN_UNUSED
-tsk_treeseq_dumpf(tsk_treeseq_t *self, FILE *file, tsk_flags_t options)
+tsk_treeseq_dumpf(const tsk_treeseq_t *self, FILE *file, tsk_flags_t options)
 {
     return tsk_table_collection_dumpf(self->tables, file, options);
 }
