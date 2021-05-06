@@ -138,7 +138,7 @@ def insert_discrete_time_mutations(ts, num_times=4, num_sites=10):
     """
     Inserts mutations in the tree sequence at regularly-spaced num_sites
     positions, at only a discrete set of times (the same for all trees): at
-    num_times times evenly spaced between 0 and the maximum tree height.
+    num_times times evenly spaced between 0 and the maximum time.
     """
     tables = ts.tables
     tables.sites.clear()

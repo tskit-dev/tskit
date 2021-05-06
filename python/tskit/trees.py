@@ -1531,7 +1531,9 @@ class Tree:
         path=None,
         *,
         size=None,
+        time_scale=None,
         tree_height_scale=None,
+        max_time=None,
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
@@ -1659,19 +1661,23 @@ class Tree:
             produced SVG drawing in abstract user units (usually interpreted as pixels on
             initial display).
         :type size: tuple(int, int)
-        :param str tree_height_scale: Control how height values for nodes are computed.
+        :param str time_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"`` (the default), node heights are proportional
             to their time values. If this is equal to ``"log_time"``, node heights are
             proportional to their log(time) values. If it is equal to ``"rank"``, node
             heights are spaced equally according to their ranked times.
-        :param str,float max_tree_height: The maximum tree height value in the current
-            scaling system (see ``tree_height_scale``). Can be either a string or a
-            numeric value. If equal to ``"tree"`` (the default), the maximum tree height
+        :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
+                0.3.6)
+        :param str,float max_time: The maximum time value in the current
+            scaling system (see ``time_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"`` (the default), the maximum time
             is set to be that of the oldest root in the tree. If equal to ``"ts"`` the
-            maximum height is set to be the height of the oldest root in the tree
+            maximum time is set to be the time of the oldest root in the tree
             sequence; this is useful when drawing trees from the same tree sequence as it
             ensures that node heights are consistent. If a numeric value, this is used as
-            the maximum tree height by which to scale other nodes.
+            the maximum time by which to scale other nodes.
+        :param str,float max_time: Deprecated alias for max_tree_height. (Deprecated in
+            0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
             not have a label.
@@ -1701,7 +1707,7 @@ class Tree:
         :param str x_label: Place a label under the plot. If ``None`` (default) and
             there is an X axis, create and place an appropriate label.
         :param bool y_axis: Should the plot have an Y axis line, showing time (or
-            ranked node time if ``tree_height_scale="rank"``). If ``None`` (default)
+            ranked node time if ``time_scale="rank"``). If ``None`` (default)
             do not plot a Y axis.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis,  create and place an appropriate label.
@@ -1725,7 +1731,9 @@ class Tree:
         draw = drawing.SvgTree(
             self,
             size,
+            time_scale=time_scale,
             tree_height_scale=tree_height_scale,
+            max_time=max_time,
             max_tree_height=max_tree_height,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
@@ -1760,7 +1768,9 @@ class Tree:
         mutation_colours=None,
         format=None,  # noqa A002
         edge_colours=None,
+        time_scale=None,
         tree_height_scale=None,
+        max_time=None,
         max_tree_height=None,
         order=None,
     ):
@@ -1834,22 +1844,26 @@ class Tree:
             joining each node in the map to its parent. As for ``node_colours``,
             unspecified edges take the default colour, and ``None`` values result in the
             edge being omitted. (Only supported in the SVG format.)
-        :param str tree_height_scale: Control how height values for nodes are computed.
+        :param str time_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
             values. If this is equal to ``"log_time"``, node heights are proportional to
             their log(time) values. If it is equal to ``"rank"``, node heights are spaced
             equally according to their ranked times. For SVG output the default is
             'time'-scale whereas for text output the default is 'rank'-scale.
             Time scaling is not currently supported for text output.
-        :param str,float max_tree_height: The maximum tree height value in the current
-            scaling system (see ``tree_height_scale``). Can be either a string or a
-            numeric value. If equal to ``"tree"``, the maximum tree height is set to be
+        :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
+                0.3.6)
+        :param str,float max_time: The maximum time value in the current
+            scaling system (see ``time_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"``, the maximum time is set to be
             that of the oldest root in the tree. If equal to ``"ts"`` the maximum
-            height is set to be the height of the oldest root in the tree sequence;
+            time is set to be the time of the oldest root in the tree sequence;
             this is useful when drawing trees from the same tree sequence as it ensures
             that node heights are consistent. If a numeric value, this is used as the
-            maximum tree height by which to scale other nodes. This parameter
+            maximum time by which to scale other nodes. This parameter
             is not currently supported for text output.
+        :param str max_tree_height: Deprecated alias for max_time. (Deprecated in
+                0.3.6)
         :param str order: The left-to-right ordering of child nodes in the drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
@@ -1870,7 +1884,9 @@ class Tree:
             mutation_labels=mutation_labels,
             mutation_colours=mutation_colours,
             edge_colours=edge_colours,
+            time_scale=time_scale,
             tree_height_scale=tree_height_scale,
+            max_time=max_time,
             max_tree_height=max_tree_height,
             order=order,
         )
@@ -5456,6 +5472,7 @@ class TreeSequence:
         *,
         size=None,
         x_scale=None,
+        time_scale=None,
         tree_height_scale=None,
         node_labels=None,
         mutation_labels=None,
@@ -5512,11 +5529,13 @@ class TreeSequence:
             corresponds to a tree boundary, which are positioned evenly along the axis,
             so that the X axis is of variable scale, no background scaling is required,
             and site positions are not marked on the axis.
-        :param str tree_height_scale: Control how height values for nodes are computed.
+        :param str time_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
             values (this is the default). If this is equal to ``"log_time"``, node
             heights are proportional to their log(time) values. If it is equal to
             ``"rank"``, node heights are spaced equally according to their ranked times.
+        :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
+            0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
             not have a label.
@@ -5552,7 +5571,7 @@ class TreeSequence:
             not be shown. To force display of the entire tree sequence, including empty
             flanking regions, specify ``x_lim=[0, ts.sequence_length]``.
         :param bool y_axis: Should the plot have an Y axis line, showing time (or
-            ranked node time if ``tree_height_scale="rank"``. If ``None`` (default)
+            ranked node time if ``time_scale="rank"``. If ``None`` (default)
             do not plot a Y axis.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis, create and place an appropriate label.
@@ -5580,6 +5599,7 @@ class TreeSequence:
             self,
             size,
             x_scale=x_scale,
+            time_scale=time_scale,
             tree_height_scale=tree_height_scale,
             node_labels=node_labels,
             mutation_labels=mutation_labels,

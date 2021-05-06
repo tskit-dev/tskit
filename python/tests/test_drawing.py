@@ -590,9 +590,15 @@ class TestDrawText(TestTreeDraw):
         with pytest.raises(ValueError):
             t.draw(format=self.drawing_format, node_colours={})
         with pytest.raises(ValueError):
-            t.draw(format=self.drawing_format, max_tree_height=1234)
+            t.draw(format=self.drawing_format, max_time=1234)
         with pytest.raises(ValueError):
-            t.draw(format=self.drawing_format, tree_height_scale="time")
+            with pytest.warns(FutureWarning):
+                t.draw(format=self.drawing_format, max_tree_height=1234)
+        with pytest.raises(ValueError):
+            t.draw(format=self.drawing_format, time_scale="time")
+        with pytest.raises(ValueError):
+            with pytest.warns(FutureWarning):
+                t.draw(format=self.drawing_format, tree_height_scale="time")
 
 
 class TestDrawUnicode(TestDrawText):
@@ -1381,7 +1387,7 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         self.verify_text_rendering(ts.draw_text(order="tree"), drawn_tree)
 
-    def test_max_tree_height(self):
+    def test_max_time(self):
         ts = self.get_simple_ts()
         tree = (
             "   9   \n"
@@ -1399,7 +1405,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0 1 2 3\n"
         )
         t = ts.first()
-        self.verify_text_rendering(t.draw_text(max_tree_height="ts"), tree)
+        self.verify_text_rendering(t.draw_text(max_time="ts"), tree)
 
         tree = (
             "   9   \n"
@@ -1411,10 +1417,10 @@ class TestDrawTextExamples(TestTreeDraw):
             "0 1 2 3\n"
         )
         t = ts.first()
-        self.verify_text_rendering(t.draw_text(max_tree_height="tree"), tree)
-        for bad_max_tree_height in [1, "sdfr", ""]:
+        self.verify_text_rendering(t.draw_text(max_time="tree"), tree)
+        for bad_max_time in [1, "sdfr", ""]:
             with pytest.raises(ValueError):
-                t.draw_text(max_tree_height=bad_max_tree_height)
+                t.draw_text(max_time=bad_max_time)
 
 
 class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
@@ -1509,7 +1515,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     def test_no_mixed_yscales(self):
         ts = self.get_simple_ts()
         with pytest.raises(ValueError, match="varying yscales"):
-            ts.draw_svg(y_axis=True, max_tree_height="tree")
+            ts.draw_svg(y_axis=True, max_time="tree")
 
     def test_draw_defaults(self):
         t = self.get_binary_tree()
@@ -1521,7 +1527,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     @pytest.mark.parametrize("y_axis", (True, False))
     @pytest.mark.parametrize("y_label", (True, False))
     @pytest.mark.parametrize(
-        "tree_height_scale",
+        "time_scale",
         (
             "rank",
             "time",
@@ -1530,7 +1536,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     @pytest.mark.parametrize("y_ticks", ([], [0, 1], None))
     @pytest.mark.parametrize("y_gridlines", (True, False))
     def test_draw_svg_y_axis_parameter_combos(
-        self, y_axis, y_label, tree_height_scale, y_ticks, y_gridlines
+        self, y_axis, y_label, time_scale, y_ticks, y_gridlines
     ):
         t = self.get_binary_tree()
         svg = t.draw_svg(
@@ -1538,7 +1544,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             y_label=y_label,
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
-            tree_height_scale=tree_height_scale,
+            time_scale=time_scale,
         )
         self.verify_basic_svg(svg)
         ts = self.get_simple_ts()
@@ -1547,7 +1553,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             y_label=y_label,
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
-            tree_height_scale=tree_height_scale,
+            time_scale=time_scale,
         )
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
@@ -1680,46 +1686,57 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         self.verify_basic_svg(svg)
         assert svg.count(f'stroke="{colour}"') == 1
 
-    def test_bad_tree_height_scale(self):
+    def test_bad_time_scale(self):
         t = self.get_binary_tree()
         for bad_scale in ["te", "asdf", "", [], b"23"]:
             with pytest.raises(ValueError):
-                t.draw_svg(tree_height_scale=bad_scale)
+                t.draw_svg(time_scale=bad_scale)
+            with pytest.raises(ValueError):
+                with pytest.warns(FutureWarning):
+                    t.draw_svg(tree_height_scale=bad_scale)
 
-    def test_bad_max_tree_height(self):
+    def test_bad_max_time(self):
         t = self.get_binary_tree()
         for bad_height in ["te", "asdf", "", [], b"23"]:
             with pytest.raises(ValueError):
-                t.draw_svg(max_tree_height=bad_height)
+                t.draw_svg(max_time=bad_height)
+            with pytest.raises(ValueError):
+                with pytest.warns(FutureWarning):
+                    t.draw_svg(max_tree_height=bad_height)
 
-    def test_height_scale_time_and_max_tree_height(self):
+    def test_time_scale_time_and_max_time(self):
         ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
         t = ts.first()
         # The default should be the same as tree.
-        svg1 = t.draw_svg(max_tree_height="tree")
+        svg1 = t.draw_svg(max_time="tree")
         self.verify_basic_svg(svg1)
         svg2 = t.draw_svg()
         assert svg1 == svg2
-        svg3 = t.draw_svg(max_tree_height="ts")
+        svg3 = t.draw_svg(max_time="ts")
         assert svg1 != svg3
-        svg4 = t.draw_svg(max_tree_height=max(ts.tables.nodes.time))
+        svg4 = t.draw_svg(max_time=max(ts.tables.nodes.time))
         assert svg3 == svg4
+        with pytest.warns(FutureWarning):
+            svg5 = t.draw_svg(max_tree_height="tree")
+        assert svg5 == svg1
+        svg6 = t.draw_svg(max_time="tree", max_tree_height="i should be ignored")
+        assert svg6 == svg1
 
-    def test_height_scale_rank_and_max_tree_height(self):
-        # Make sure the rank height scale and max_tree_height interact properly.
+    def test_time_scale_rank_and_max_time(self):
+        # Make sure the rank height scale and max_time interact properly.
         ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
         t = ts.first()
         # The default should be the same as tree.
-        svg1 = t.draw_svg(max_tree_height="tree", tree_height_scale="rank")
+        svg1 = t.draw_svg(max_time="tree", time_scale="rank")
         self.verify_basic_svg(svg1)
-        svg2 = t.draw_svg(tree_height_scale="rank")
+        svg2 = t.draw_svg(time_scale="rank")
         assert svg1 == svg2
-        svg3 = t.draw_svg(max_tree_height="ts", tree_height_scale="rank")
+        svg3 = t.draw_svg(max_time="ts", time_scale="rank")
         assert svg1 != svg3
         self.verify_basic_svg(svg3)
-        # Numeric max tree height not supported for rank scale.
+        # Numeric max time not supported for rank scale.
         with pytest.raises(ValueError):
-            t.draw_svg(max_tree_height=2, tree_height_scale="rank")
+            t.draw_svg(max_time=2, time_scale="rank")
 
     #
     # TODO: update the tests below here to check the new SVG based interface.
@@ -1826,7 +1843,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg_no_css = svg[svg.find("</style>") :]
         assert svg_no_css.count("extra") == 1 * extra_mut_copies
 
-    def test_max_tree_height(self):
+    def test_max_time(self):
         nodes = io.StringIO(
             """\
         id  is_sample   time
@@ -1862,8 +1879,11 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         snippet2 = svg2[svg2.rfind("edge", 0, str_pos) : str_pos]
         assert snippet1 != snippet2
 
-        svg1 = ts.at_index(0).draw(max_tree_height="ts")
-        svg2 = ts.at_index(1).draw(max_tree_height="ts")
+        svg1 = ts.at_index(0).draw(max_time="ts")
+        svg2 = ts.at_index(1).draw(max_time="ts")
+        with pytest.warns(FutureWarning):
+            svg3 = ts.at_index(1).draw(max_tree_height="ts")
+        assert svg3 == svg2
         # when scaled, node 3 should be at the *same* height in both trees, so the edge
         # definition should be the same
         self.verify_basic_svg(svg1)
@@ -1913,7 +1933,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
 
     def test_draw_even_height_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
-        svg = ts.draw_svg(max_tree_height="tree")
+        svg = ts.draw_svg(max_time="tree")
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        with pytest.warns(FutureWarning):
+            svg = ts.draw_svg(max_tree_height="tree")
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_sized_ts(self):
@@ -1921,17 +1944,25 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts.draw_svg(size=(600, 400))
         self.verify_basic_svg(svg, width=600, height=400)
 
-    def test_tree_height_scale(self):
+    def test_time_scale(self):
         ts = msprime.simulate(4, random_seed=2)
-        svg = ts.draw_svg(tree_height_scale="time")
+        svg = ts.draw_svg(time_scale="time")
         self.verify_basic_svg(svg)
-        svg = ts.draw_svg(tree_height_scale="log_time")
+        svg = ts.draw_svg(time_scale="log_time")
         self.verify_basic_svg(svg)
-        svg = ts.draw_svg(tree_height_scale="rank")
+        with pytest.warns(FutureWarning):
+            svg2 = ts.draw_svg(tree_height_scale="log_time")
+        assert svg2 == svg
+        svg = ts.draw_svg(time_scale="rank")
         self.verify_basic_svg(svg)
+        svg3 = ts.draw_svg(time_scale="rank", tree_height_scale="ignore me please")
+        assert svg3 == svg
         for bad_scale in [0, "", "NOT A SCALE"]:
             with pytest.raises(ValueError):
-                ts.draw_svg(tree_height_scale=bad_scale)
+                ts.draw_svg(time_scale=bad_scale)
+            with pytest.raises(ValueError):
+                with pytest.warns(FutureWarning):
+                    ts.draw_svg(tree_height_scale=bad_scale)
 
     def test_x_scale(self):
         ts = msprime.simulate(4, random_seed=2)
@@ -1963,7 +1994,15 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             ("log_time", "Time"),
             ("rank", "Node time"),
         ]:
-            svg = tree.draw_svg(y_axis=True, tree_height_scale=hscale)
+            svg = tree.draw_svg(y_axis=True, time_scale=hscale)
+            if hscale is not None:
+                with pytest.warns(FutureWarning):
+                    svg2 = tree.draw_svg(y_axis=True, tree_height_scale=hscale)
+                assert svg2 == svg
+                svg3 = tree.draw_svg(
+                    y_axis=True, time_scale=hscale, tree_height_scale="ignore me please"
+                )
+                assert svg3 == svg
             svg_no_css = svg[svg.find("</style>") :]
             assert label in svg_no_css
             assert svg_no_css.count("axes") == 1
@@ -2012,11 +2051,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         tables = full_ts.dump_tables()
         tables.edges.clear()
         ts = tables.tree_sequence()
-        for tree_height_scale in ("time", "log_time", "rank"):
+        for time_scale in ("time", "log_time", "rank"):
             # SVG should just be a row of 10 sample nodes
-            svg = ts.draw_svg(
-                tree_height_scale=tree_height_scale, x_lim=[0, ts.sequence_length]
-            )
+            svg = ts.draw_svg(time_scale=time_scale, x_lim=[0, ts.sequence_length])
             self.verify_basic_svg(svg)
             assert svg.count("rect") == 10  # Sample nodes are rectangles
             assert svg.count('path class="edge"') == 0
@@ -2199,7 +2236,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             y_axis=True,
             y_label=label,
             y_gridlines=True,
-            tree_height_scale="rank",
+            time_scale="rank",
             style=".y-axis line.grid {stroke: #CCCCCC}",
             debug_box=draw_plotbox,
         )
@@ -2292,13 +2329,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
 
     def test_known_svg_ts_rank(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()
-        svg1 = ts.draw_svg(
-            tree_height_scale="rank", y_axis=True, debug_box=draw_plotbox
-        )
+        svg1 = ts.draw_svg(time_scale="rank", y_axis=True, debug_box=draw_plotbox)
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg2 = ts.draw_svg(
-            tree_height_scale="rank", y_axis=True, debug_box=draw_plotbox
-        )
+        svg2 = ts.draw_svg(time_scale="rank", y_axis=True, debug_box=draw_plotbox)
         assert svg1.count('class="site ') == ts.num_sites
         assert svg1.count('class="mut ') == ts.num_mutations * 2
         assert svg1.replace(" unknown_time", "") == svg2  # Trim the unknown_time class
@@ -2309,7 +2342,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     @pytest.mark.skip(reason="Fails on CI as OSX gives different random numbers")
     def test_known_svg_nonbinary_ts(self, overwrite_viz, draw_plotbox):
         ts = self.get_nonbinary_ts()
-        svg = ts.draw_svg(tree_height_scale="log_time", debug_box=draw_plotbox)
+        svg = ts.draw_svg(time_scale="log_time", debug_box=draw_plotbox)
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(
@@ -2395,7 +2428,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts.draw_svg(
             y_axis=True,
             y_label="Time (log scale)",
-            tree_height_scale="log_time",
+            time_scale="log_time",
             debug_box=draw_plotbox,
         )
         self.verify_known_svg(
@@ -2413,7 +2446,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
 
     def test_known_svg_ts_mutation_times_logscale(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg = ts.draw_svg(tree_height_scale="log_time", debug_box=draw_plotbox)
+        svg = ts.draw_svg(time_scale="log_time", debug_box=draw_plotbox)
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(

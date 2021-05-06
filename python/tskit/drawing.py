@@ -29,6 +29,7 @@ import logging
 import math
 import numbers
 import operator
+import warnings
 from dataclasses import dataclass
 from typing import List
 from typing import Mapping
@@ -62,25 +63,23 @@ def check_orientation(orientation):
     return orientation
 
 
-def check_max_tree_height(max_tree_height, allow_numeric=True):
-    if max_tree_height is None:
-        max_tree_height = "tree"
-    is_numeric = isinstance(max_tree_height, numbers.Real)
-    if max_tree_height not in ["tree", "ts"] and not allow_numeric:
-        raise ValueError("max_tree_height must be 'tree' or 'ts'")
-    if max_tree_height not in ["tree", "ts"] and (allow_numeric and not is_numeric):
-        raise ValueError(
-            "max_tree_height must be a numeric value or one of 'tree' or 'ts'"
-        )
-    return max_tree_height
+def check_max_time(max_time, allow_numeric=True):
+    if max_time is None:
+        max_time = "tree"
+    is_numeric = isinstance(max_time, numbers.Real)
+    if max_time not in ["tree", "ts"] and not allow_numeric:
+        raise ValueError("max_time must be 'tree' or 'ts'")
+    if max_time not in ["tree", "ts"] and (allow_numeric and not is_numeric):
+        raise ValueError("max_time must be a numeric value or one of 'tree' or 'ts'")
+    return max_time
 
 
-def check_tree_height_scale(tree_height_scale):
-    if tree_height_scale is None:
-        tree_height_scale = "time"
-    if tree_height_scale not in ["time", "log_time", "rank"]:
-        raise ValueError("tree_height_scale must be 'time', 'log_time' or 'rank'")
-    return tree_height_scale
+def check_time_scale(time_scale):
+    if time_scale is None:
+        time_scale = "time"
+    if time_scale not in ["time", "log_time", "rank"]:
+        raise ValueError("time_scale must be 'time', 'log_time' or 'rank'")
+    return time_scale
 
 
 def check_format(format):  # noqa A002
@@ -263,10 +262,26 @@ def draw_tree(
     mutation_colours=None,
     format=None,  # noqa A002
     edge_colours=None,
+    time_scale=None,
     tree_height_scale=None,
+    max_time=None,
     max_tree_height=None,
     order=None,
 ):
+    if time_scale is None and tree_height_scale is not None:
+        time_scale = tree_height_scale
+        # Deprecated in 0.3.6
+        warnings.warn(
+            "tree_height_scale is deprecated; use time_scale instead",
+            FutureWarning,
+        )
+    if max_time is None and max_tree_height is not None:
+        max_time = max_tree_height
+        # Deprecated in 0.3.6
+        warnings.warn(
+            "max_tree_height is deprecated; use max_time instead",
+            FutureWarning,
+        )
 
     # See tree.draw() for documentation on these arguments.
     fmt = check_format(format)
@@ -300,8 +315,8 @@ def draw_tree(
             (width, height),
             node_labels=node_labels,
             mutation_labels=mutation_labels,
-            tree_height_scale=tree_height_scale,
-            max_tree_height=max_tree_height,
+            time_scale=time_scale,
+            max_time=max_time,
             node_attrs=node_attrs,
             edge_attrs=edge_attrs,
             node_label_attrs=node_label_attrs,
@@ -323,14 +338,14 @@ def draw_tree(
             raise ValueError("Text trees do not support node_colours")
         if edge_colours is not None:
             raise ValueError("Text trees do not support edge_colours")
-        if tree_height_scale is not None:
-            raise ValueError("Text trees do not support tree_height_scale")
+        if time_scale is not None:
+            raise ValueError("Text trees do not support time_scale")
 
         use_ascii = fmt == "ascii"
         text_tree = VerticalTextTree(
             tree,
             node_labels=node_labels,
-            max_tree_height=max_tree_height,
+            max_time=max_time,
             use_ascii=use_ascii,
             orientation=TOP,
             order=order,
@@ -460,7 +475,7 @@ class SvgPlot:
         root_svg_attributes,
         style,
         svg_class,
-        tree_height_scale,
+        time_scale,
         x_axis=None,
         y_axis=None,
         x_label=None,
@@ -486,13 +501,13 @@ class SvgPlot:
         self.root_groups = {}
         self.debug_box = debug_box
         self.drawing = dwg
-        self.tree_height_scale = check_tree_height_scale(tree_height_scale)
+        self.time_scale = check_time_scale(time_scale)
         self.y_axis = y_axis
         self.x_axis = x_axis
         if x_label is None and x_axis:
             x_label = "Genome position"
         if y_label is None and y_axis:
-            if tree_height_scale == "rank":
+            if time_scale == "rank":
                 y_label = "Node time"
             else:
                 y_label = "Time"
@@ -731,9 +746,7 @@ class SvgPlot:
         )
 
     def y_transform(self, y):
-        raise NotImplementedError(
-            "No transform func defined for tree height -> plot pos"
-        )
+        raise NotImplementedError("No transform func defined for time -> plot pos")
 
 
 class SvgTreeSequence(SvgPlot):
@@ -748,7 +761,7 @@ class SvgTreeSequence(SvgPlot):
         ts,
         size,
         x_scale,
-        tree_height_scale,
+        time_scale,
         node_labels,
         mutation_labels,
         root_svg_attributes,
@@ -763,21 +776,37 @@ class SvgTreeSequence(SvgPlot):
         y_ticks,
         y_gridlines,
         x_lim=None,
-        max_tree_height=None,
+        max_time=None,
         node_attrs=None,
         mutation_attrs=None,
         edge_attrs=None,
         node_label_attrs=None,
         mutation_label_attrs=None,
+        tree_height_scale=None,
+        max_tree_height=None,
         **kwargs,
     ):
+        if max_time is None and max_tree_height is not None:
+            max_time = max_tree_height
+            # Deprecated in 0.3.6
+            warnings.warn(
+                "max_tree_height is deprecated; use max_time instead",
+                FutureWarning,
+            )
+        if time_scale is None and tree_height_scale is not None:
+            time_scale = tree_height_scale
+            # Deprecated in 0.3.6
+            warnings.warn(
+                "tree_height_scale is deprecated; use time_scale instead",
+                FutureWarning,
+            )
         x_lim = check_x_lim(x_lim, max_x=ts.sequence_length)
         ts, self.tree_status = clip_ts(ts, x_lim[0], x_lim[1])
         num_trees = int(np.sum((self.tree_status & OMIT) != OMIT))
         if size is None:
             size = (200 * num_trees, 200)
-        if max_tree_height is None:
-            max_tree_height = "ts"
+        if max_time is None:
+            max_time = "ts"
         # X axis shown by default
         if x_axis is None:
             x_axis = True
@@ -787,7 +816,7 @@ class SvgTreeSequence(SvgPlot):
             root_svg_attributes,
             style,
             svg_class="tree-sequence",
-            tree_height_scale=tree_height_scale,
+            time_scale=time_scale,
             x_axis=x_axis,
             y_axis=y_axis,
             x_label=x_label,
@@ -809,13 +838,13 @@ class SvgTreeSequence(SvgPlot):
             SvgTree(
                 tree,
                 (self.plotbox.width / num_trees, self.plotbox.height),
-                tree_height_scale=tree_height_scale,
+                time_scale=time_scale,
                 node_labels=node_labels,
                 mutation_labels=mutation_labels,
                 order=order,
                 force_root_branch=force_root_branch,
                 symbol_size=symbol_size,
-                max_tree_height=max_tree_height,
+                max_time=max_time,
                 node_attrs=node_attrs,
                 mutation_attrs=mutation_attrs,
                 edge_attrs=edge_attrs,
@@ -846,7 +875,7 @@ class SvgTreeSequence(SvgPlot):
             y_low = self.y_transform(0)  # if poss use zero point for lowest axis value
             if y_ticks is None:
                 y_ticks = np.unique(ts.tables.nodes.time)
-                if self.tree_height_scale == "rank":
+                if self.time_scale == "rank":
                     # Ticks labelled by time not rank
                     y_ticks = {pos: f"{val:.2f}" for pos, val in enumerate(y_ticks)}
 
@@ -940,6 +969,7 @@ class SvgTree(SvgPlot):
         self,
         tree,
         size=None,
+        max_time=None,
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
@@ -955,6 +985,7 @@ class SvgTree(SvgPlot):
         y_ticks=None,
         y_gridlines=None,
         all_edge_mutations=None,
+        time_scale=None,
         tree_height_scale=None,
         node_attrs=None,
         mutation_attrs=None,
@@ -963,6 +994,20 @@ class SvgTree(SvgPlot):
         mutation_label_attrs=None,
         **kwargs,
     ):
+        if max_time is None and max_tree_height is not None:
+            max_time = max_tree_height
+            # Deprecated in 0.3.6
+            warnings.warn(
+                "max_tree_height is deprecated; use max_time instead",
+                FutureWarning,
+            )
+        if time_scale is None and tree_height_scale is not None:
+            time_scale = tree_height_scale
+            # Deprecated in 0.3.6
+            warnings.warn(
+                "tree_height_scale is deprecated; use time_scale instead",
+                FutureWarning,
+            )
         if size is None:
             size = (200, 200)
         if symbol_size is None:
@@ -975,7 +1020,7 @@ class SvgTree(SvgPlot):
             root_svg_attributes,
             style,
             svg_class=f"tree t{tree.index}",
-            tree_height_scale=tree_height_scale,
+            time_scale=time_scale,
             x_axis=x_axis,
             y_axis=y_axis,
             x_label=x_label,
@@ -1096,7 +1141,7 @@ class SvgTree(SvgPlot):
                 add_class(self.mutation_label_attrs[m], "lab")
 
         self.set_spacing(top=10, left=20, bottom=15, right=20)
-        self.assign_y_coordinates(max_tree_height, force_root_branch)
+        self.assign_y_coordinates(max_time, force_root_branch)
         self.assign_x_coordinates()
         tick_length_lower = self.default_tick_length  # TODO - parameterize
         tick_length_upper = self.default_tick_length_site  # TODO - parameterize
@@ -1152,7 +1197,7 @@ class SvgTree(SvgPlot):
 
     def assign_y_coordinates(
         self,
-        max_tree_height,
+        max_time,
         force_root_branch,
         bottom_space=SvgPlot.line_height,
         top_space=SvgPlot.line_height,
@@ -1163,14 +1208,12 @@ class SvgTree(SvgPlot):
         the plotbox, at the bottom for leaf labels, and  (potentially, if no root
         branches are plotted) above the topmost root node for root labels.
         """
-        max_tree_height = check_max_tree_height(
-            max_tree_height, self.tree_height_scale != "rank"
-        )
+        max_time = check_max_time(max_time, self.time_scale != "rank")
         node_time = self.ts.tables.nodes.time
         mut_time = self.ts.tables.mutations.time
         root_branch_length = 0
-        if self.tree_height_scale == "rank":
-            if max_tree_height == "tree":
+        if self.time_scale == "rank":
+            if max_time == "tree":
                 # We only rank the times within the tree in this case.
                 t = np.zeros_like(node_time)
                 for u in self.tree.nodes():
@@ -1181,10 +1224,10 @@ class SvgTree(SvgPlot):
             depth = {t: j for j, t in enumerate(times)}
             if self.mutations_over_roots or force_root_branch:
                 root_branch_length = 1  # Will get scaled later
-            max_tree_height = max(depth.values()) + root_branch_length
+            max_time = max(depth.values()) + root_branch_length
             # In pathological cases, all the roots are at 0
-            if max_tree_height == 0:
-                max_tree_height = 1
+            if max_time == 0:
+                max_time = 1
             self.node_height = {u: depth[node_time[u]] for u in self.tree.nodes()}
             for u in self.node_mutations.keys():
                 parent = self.tree.parent(u)
@@ -1196,9 +1239,9 @@ class SvgTree(SvgPlot):
                     u, self.node_height[u], top, ignore_times=True
                 )
         else:
-            assert self.tree_height_scale in ["time", "log_time"]
+            assert self.time_scale in ["time", "log_time"]
             self.node_height = {u: node_time[u] for u in self.tree.nodes()}
-            if max_tree_height == "tree":
+            if max_time == "tree":
                 max_node_height = max(self.node_height.values())
                 max_mut_height = np.nanmax(
                     [0] + [mut.time for m in self.node_mutations.values() for mut in m]
@@ -1206,25 +1249,25 @@ class SvgTree(SvgPlot):
             else:
                 max_node_height = self.ts.max_root_time
                 max_mut_height = np.nanmax(np.append(mut_time, 0))
-            max_tree_height = max(max_node_height, max_mut_height)  # Reuse variable
+            max_time = max(max_node_height, max_mut_height)  # Reuse variable
             # In pathological cases, all the roots are at 0
-            if max_tree_height == 0:
-                max_tree_height = 1
+            if max_time == 0:
+                max_time = 1
 
             if self.mutations_over_roots or force_root_branch:
                 # Define a minimum root branch length, after transformation if necessary
-                if self.tree_height_scale != "log_time":
-                    root_branch_length = max_tree_height * self.root_branch_fraction
+                if self.time_scale != "log_time":
+                    root_branch_length = max_time * self.root_branch_fraction
                 else:
-                    log_height = np.log(max_tree_height + 1)
+                    log_height = np.log(max_time + 1)
                     root_branch_length = (
                         np.exp(log_height * (1 + self.root_branch_fraction))
                         - 1
-                        - max_tree_height
+                        - max_time
                     )
-                # If necessary, allow for this extra branch in max_tree_height
-                if max_node_height + root_branch_length > max_tree_height:
-                    max_tree_height = max_node_height + root_branch_length
+                # If necessary, allow for this extra branch in max_time
+                if max_node_height + root_branch_length > max_time:
+                    max_time = max_node_height + root_branch_length
             for u in self.node_mutations.keys():
                 parent = self.tree.parent(u)
                 if parent == NULL:
@@ -1234,7 +1277,7 @@ class SvgTree(SvgPlot):
                     top = self.node_height[parent]
                 self.process_mutations_over_node(u, self.node_height[u], top)
 
-        assert float(max_tree_height) == max_tree_height
+        assert float(max_time) == max_time
 
         # Add extra space above the top and below the bottom of the tree to keep the
         # node labels within the plotbox (but top label space not needed if the
@@ -1245,20 +1288,20 @@ class SvgTree(SvgPlot):
         if padding_numerator < 0:
             raise ValueError("Image size too small to allow space to plot tree")
         # Transform the y values into plot space (inverted y with 0 at the top of screen)
-        if self.tree_height_scale == "log_time":
+        if self.time_scale == "log_time":
             # add 1 so that don't reach log(0) = -inf error.
             # just shifts entire timeset by 1 unit so shouldn't affect anything
-            y_scale = padding_numerator / np.log(max_tree_height + 1)
+            y_scale = padding_numerator / np.log(max_time + 1)
             self.y_transform = lambda y: zero_pos - np.log(y + 1) * y_scale
         else:
-            y_scale = padding_numerator / max_tree_height
+            y_scale = padding_numerator / max_time
             self.y_transform = lambda y: zero_pos - y * y_scale
 
         # Calculate default root branch length to use (in plot coords). This is a
         # minimum, as branches with deep root mutations could be longer
         self.min_root_branch_plot_length = self.y_transform(
-            max_tree_height
-        ) - self.y_transform(max_tree_height + root_branch_length)
+            max_time
+        ) - self.y_transform(max_time + root_branch_length)
 
     def assign_x_coordinates(self):
         num_leaves = len(list(self.tree.leaves()))
@@ -1326,7 +1369,7 @@ class SvgTree(SvgPlot):
         tree = self.tree
         left_child = get_left_child(tree, self.traversal_order)
 
-        # Iterate over nodes, adding groups to reflect the tree heirarchy
+        # Iterate over nodes, adding groups to reflect the tree hierarchy
         stack = []
         for u in tree.roots:
             grp = dwg.g(
@@ -1461,7 +1504,7 @@ class TextTreeSequence:
         trees = [
             VerticalTextTree(
                 tree,
-                max_tree_height="ts",
+                max_time="ts",
                 node_labels=node_labels,
                 use_ascii=use_ascii,
                 order=order,
@@ -1564,7 +1607,7 @@ def get_left_child(tree, traversal_order):
     return left_child
 
 
-def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
+def node_time_depth(tree, min_branch_length=None, max_time="tree"):
     """
     Returns a dictionary mapping nodes in the specified tree to their depth
     in the specified tree (from the root direction). If min_branch_len is
@@ -1578,7 +1621,7 @@ def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
     depth = {}
     # TODO this is basically the same code for the two cases. Refactor so that
     # we use the same code.
-    if max_tree_height == "tree":
+    if max_time == "tree":
         for u in tree.nodes():
             time_node_map[tree.time(u)].append(u)
         for t in sorted(time_node_map.keys()):
@@ -1591,7 +1634,7 @@ def node_time_depth(tree, min_branch_length=None, max_tree_height="tree"):
         for root in tree.roots:
             current_depth = max(current_depth, depth[root] + min_branch_length[root])
     else:
-        assert max_tree_height == "ts"
+        assert max_time == "ts"
         ts = tree.tree_sequence
         for node in ts.nodes():
             time_node_map[node.time].append(node.id)
@@ -1621,16 +1664,14 @@ class TextTree:
         self,
         tree,
         node_labels=None,
-        max_tree_height=None,
+        max_time=None,
         use_ascii=False,
         orientation=None,
         order=None,
     ):
         self.tree = tree
         self.traversal_order = check_order(order)
-        self.max_tree_height = check_max_tree_height(
-            max_tree_height, allow_numeric=False
-        )
+        self.max_time = check_max_time(max_time, allow_numeric=False)
         self.use_ascii = use_ascii
         self.orientation = check_orientation(orientation)
         self.horizontal_line_char = "━"
@@ -1689,9 +1730,7 @@ class VerticalTextTree(TextTree):
         # TODO when we add mutations to the text tree we'll need to take it into
         # account here. Presumably we need to get the maximum number of mutations
         # per branch.
-        self.time_position, total_depth = node_time_depth(
-            tree, max_tree_height=self.max_tree_height
-        )
+        self.time_position, total_depth = node_time_depth(tree, max_time=self.max_time)
         self.height = total_depth - 1
 
     def _assign_traversal_positions(self):
