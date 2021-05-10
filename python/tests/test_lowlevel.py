@@ -35,6 +35,7 @@ import numpy as np
 import pytest
 
 import _tskit
+import tskit
 
 
 def get_tracked_sample_counts(st, tracked_samples):
@@ -408,6 +409,54 @@ class TestTableCollection(LowLevelTestCase):
             tc.equals(tc, ignore_timestamps=bad_bool)
 
 
+class TestTableMethods:
+    """
+    Tests for the low-level table methods.
+    """
+
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    def test_table_extend(self, table_name, ts_fixture):
+        table = getattr(ts_fixture.tables, table_name)
+        assert len(table) >= 5
+        ll_table = table.ll_table
+        table_copy = table.copy()
+
+        ll_table.extend(table_copy.ll_table, row_indexes=[])
+        assert table == table_copy
+
+        ll_table.clear()
+        ll_table.extend(table_copy.ll_table, row_indexes=range(len(table_copy)))
+        assert table == table_copy
+
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    @pytest.mark.parametrize(
+        ["row_indexes", "expected_rows"],
+        [
+            ([0], [0]),
+            ([4] * 1000, [4] * 1000),
+            ([4, 1, 3, 0, 0], [4, 1, 3, 0, 0]),
+            (np.array([0, 1, 4], dtype=np.uint8), [0, 1, 4]),
+            (np.array([3, 3, 3], dtype=np.uint16), [3, 3, 3]),
+            (np.array([4, 2, 1], dtype=np.int8), [4, 2, 1]),
+            (np.array([4, 2], dtype=np.int16), [4, 2]),
+            (np.array([0, 1], dtype=np.int32), [0, 1]),
+            (range(2, -1, -1), [2, 1, 0]),
+        ],
+    )
+    def test_table_extend_types(
+        self, ts_fixture, table_name, row_indexes, expected_rows
+    ):
+        table = getattr(ts_fixture.tables, table_name)
+        assert len(table) >= 5
+        ll_table = table.ll_table
+        table_copy = table.copy()
+
+        ll_table.extend(table_copy.ll_table, row_indexes=row_indexes)
+        assert len(table) == len(table_copy) + len(expected_rows)
+        for i, expected_row in enumerate(expected_rows):
+            assert table[len(table_copy) + i] == table_copy[expected_row]
+
+
 class TestTableMethodsErrors:
     """
     Tests for the error handling of errors in the low-level tables.
@@ -416,6 +465,42 @@ class TestTableMethodsErrors:
     def yield_tables(self, ts):
         for table in ts.tables.name_map.values():
             yield table.ll_table
+
+    @pytest.mark.parametrize(
+        "table_name",
+        tskit.TABLE_NAMES,
+    )
+    def test_table_extend_bad_args(self, ts_fixture, table_name):
+        table = getattr(ts_fixture.tables, table_name)
+        ll_table = table.ll_table
+        ll_table_copy = table.copy().ll_table
+
+        with pytest.raises(
+            _tskit.LibraryError,
+            match="Tables can only be extended using rows from a different table",
+        ):
+            ll_table.extend(ll_table, row_indexes=[])
+        with pytest.raises(TypeError):
+            ll_table.extend(None, row_indexes=[])
+        with pytest.raises(ValueError):
+            ll_table.extend(ll_table_copy, row_indexes=5)
+        with pytest.raises(TypeError):
+            ll_table.extend(ll_table_copy, row_indexes=[None])
+        with pytest.raises(ValueError, match="object too deep"):
+            ll_table.extend(ll_table_copy, row_indexes=[[0, 1], [2, 3]])
+        with pytest.raises(ValueError, match="object too deep"):
+            ll_table.extend(ll_table_copy, row_indexes=[[0, 1]])
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            ll_table.extend(ll_table_copy, row_indexes=[-1])
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            ll_table.extend(ll_table_copy, row_indexes=[1000])
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            ll_table.extend(ll_table_copy, row_indexes=range(10000000, 10000001))
+
+        # Uncastable types
+        for dtype in [np.uint32, np.int64, np.uint64, np.float32, np.float64]:
+            with pytest.raises(TypeError, match="Cannot cast"):
+                ll_table.extend(ll_table_copy, row_indexes=np.array([0], dtype=dtype))
 
     def test_equals_bad_args(self, ts_fixture):
         for ll_table in self.yield_tables(ts_fixture):
@@ -890,15 +975,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         )
         ts_fixture.ll_tree_sequence.dump_tables(tables)
         tables.clear()
-        data_tables = [
-            "individuals",
-            "nodes",
-            "edges",
-            "migrations",
-            "sites",
-            "mutations",
-            "populations",
-        ]
+        data_tables = [t for t in tskit.TABLE_NAMES if t != "provenances"]
         for table in data_tables:
             assert getattr(tables, f"{table}").num_rows == 0
             assert len(getattr(tables, f"{table}").metadata_schema) != 0

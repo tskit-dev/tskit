@@ -246,19 +246,12 @@ class TestLoadLegacyExamples(TestFileFormat):
                     assert mut.site == site.id
 
     def verify_0_3_3(self, ts):
-        for table in [
-            "populations",
-            "individuals",
-            "nodes",
-            "edges",
-            "sites",
-            "migrations",
-            "mutations",
-        ]:
+        for table in tskit.TABLE_NAMES:
             t = getattr(ts.tables, table)
             assert t.num_rows > 0
-            assert t.metadata_schema == tskit.MetadataSchema({"codec": "json"})
-            assert t[2].metadata == f"n_{table}_2"
+            if hasattr(t, "metadata_schema"):
+                assert t.metadata_schema == tskit.MetadataSchema({"codec": "json"})
+                assert t[2].metadata == f"n_{table}_2"
         assert ts.tables.has_index()
 
     def test_format_too_old_raised_for_hdf5(self):

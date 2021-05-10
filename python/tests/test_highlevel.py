@@ -2152,29 +2152,31 @@ class TestTree(HighLevelTestCase):
     def test_str(self, ts_fixture):
         t = ts_fixture.first()
         assert isinstance(str(t), str)
-        assert (
-            str(t)
-            == textwrap.dedent(
-                """
+        assert re.match(
+            textwrap.dedent(
+                r"""
             ╔═════════════════════════════╗
             ║Tree                         ║
             ╠═══════════════════╤═════════╣
             ║Index              │        0║
             ╟───────────────────┼─────────╢
-            ║Interval           │  0-1 (1)║
+            ║Interval           │  0-5 \(5\)║
             ╟───────────────────┼─────────╢
             ║Roots              │        1║
             ╟───────────────────┼─────────╢
-            ║Nodes              │       19║
+            ║Nodes              │       79║
             ╟───────────────────┼─────────╢
-            ║Sites              │       11║
+            ║Sites              │        5║
             ╟───────────────────┼─────────╢
-            ║Mutations          │       11║
+            ║Mutations          │      [0-9]*║
             ╟───────────────────┼─────────╢
-            ║Total Branch Length│10.427971║
+            ║Total Branch Length│41752.494║
             ╚═══════════════════╧═════════╝
-        """
-            )[1:]
+        """[
+                    1:
+                ]
+            ),
+            str(t),
         )
 
     def test_html_repr(self, ts_fixture):
@@ -2182,7 +2184,7 @@ class TestTree(HighLevelTestCase):
         # Parse to check valid
         ElementTree.fromstring(html)
         assert len(html) > 1900
-        assert "<tr><td>Total Branch Length</td><td>10.427971</td></tr>" in html
+        assert "<tr><td>Total Branch Length</td><td>41752.494</td></tr>" in html
 
     def test_samples(self):
         for sample_lists in [True, False]:
@@ -3306,16 +3308,7 @@ class TestContainersAppend:
         """
         tables = ts_fixture.dump_tables()
         tables.clear(clear_provenance=True)
-        for table_name in [
-            "individuals",
-            "nodes",
-            "edges",
-            "migrations",
-            "sites",
-            "mutations",
-            "populations",
-            "provenances",
-        ]:
+        for table_name in tskit.TABLE_NAMES:
             table = getattr(tables, table_name)
             for i in range(len(getattr(ts_fixture.tables, table_name))):
                 table.append(getattr(ts_fixture, table_name[:-1])(i))

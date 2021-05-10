@@ -652,6 +652,11 @@ tsk_individual_table_extend(tsk_individual_table_t *self,
     tsk_size_t j;
     tsk_individual_t individual;
 
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
+
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_individual_table_expand_main_columns(self, num_rows);
     if (ret != 0) {
@@ -1250,6 +1255,11 @@ tsk_node_table_extend(tsk_node_table_t *self, const tsk_node_table_t *other,
     tsk_size_t j;
     tsk_node_t node;
 
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
+
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_node_table_expand_main_columns(self, num_rows);
     if (ret != 0) {
@@ -1792,6 +1802,11 @@ tsk_edge_table_extend(tsk_edge_table_t *self, const tsk_edge_table_t *other,
     int ret = 0;
     tsk_size_t j;
     tsk_edge_t edge;
+
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
 
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_edge_table_expand_main_columns(self, num_rows);
@@ -2459,6 +2474,11 @@ tsk_site_table_extend(tsk_site_table_t *self, const tsk_site_table_t *other,
     tsk_size_t j;
     tsk_site_t site;
 
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
+
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_site_table_expand_main_columns(self, num_rows);
     if (ret != 0) {
@@ -3073,6 +3093,11 @@ tsk_mutation_table_extend(tsk_mutation_table_t *self, const tsk_mutation_table_t
     tsk_size_t j;
     tsk_mutation_t mutation;
 
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
+
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_mutation_table_expand_main_columns(self, num_rows);
     if (ret != 0) {
@@ -3583,6 +3608,11 @@ tsk_migration_table_extend(tsk_migration_table_t *self,
     tsk_size_t j;
     tsk_migration_t migration;
 
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
+
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_migration_table_expand_main_columns(self, num_rows);
     if (ret != 0) {
@@ -4056,6 +4086,11 @@ tsk_population_table_extend(tsk_population_table_t *self,
     int ret = 0;
     tsk_size_t j;
     tsk_population_t population;
+
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
 
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_population_table_expand_main_columns(self, num_rows);
@@ -4572,6 +4607,11 @@ tsk_provenance_table_extend(tsk_provenance_table_t *self,
     int ret = 0;
     tsk_size_t j;
     tsk_provenance_t provenance;
+
+    if (self == other) {
+        ret = TSK_ERR_CANNOT_EXTEND_FROM_SELF;
+        goto out;
+    }
 
     /* We know how much to expand the non-ragged columns, so do it ahead of time */
     ret = tsk_provenance_table_expand_main_columns(self, num_rows);

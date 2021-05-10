@@ -357,6 +357,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
             ret = "Only binary mutations are supported for this operation";
             break;
+        case TSK_ERR_CANNOT_EXTEND_FROM_SELF:
+            ret = "Tables can only be extended using rows from a different table";
+            break;
 
         /* Stats errors */
         case TSK_ERR_BAD_NUM_WINDOWS:

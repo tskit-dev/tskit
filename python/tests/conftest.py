@@ -108,30 +108,30 @@ def ts_fixture():
     """
     A tree sequence with data in all fields
     """
-    n = 10
-    t = 1
-    population_configurations = [
-        msprime.PopulationConfiguration(n // 2),
-        msprime.PopulationConfiguration(n // 2),
-        msprime.PopulationConfiguration(0),
-    ]
-    demographic_events = [
-        msprime.MassMigration(time=t, source=0, destination=2),
-        msprime.MassMigration(time=t, source=1, destination=2),
-    ]
-    ts = msprime.simulate(
-        population_configurations=population_configurations,
-        demographic_events=demographic_events,
-        random_seed=1,
-        mutation_rate=1,
+    demography = msprime.Demography()
+    demography.add_population(name="A", initial_size=10_000)
+    demography.add_population(name="B", initial_size=5_000)
+    demography.add_population(name="C", initial_size=1_000)
+    demography.add_population(name="D", initial_size=500)
+    demography.add_population(name="E", initial_size=100)
+    demography.add_population_split(time=1000, derived=["A", "B"], ancestral="C")
+    ts = msprime.sim_ancestry(
+        samples={"A": 10, "B": 10},
+        demography=demography,
+        sequence_length=5,
+        random_seed=42,
         record_migrations=True,
+        record_provenance=True,
     )
+    ts = msprime.sim_mutations(ts, rate=0.001, random_seed=42)
     tables = ts.dump_tables()
-    # TODO replace this with properly linked up individuals using sim_ancestry
-    # once 1.0 is released.
-    for j in range(n):
-        tables.individuals.add_row(flags=j, location=(j, j), parents=(j - 1, j - 1))
-
+    # Add locations to individuals
+    individuals_copy = tables.individuals.copy()
+    tables.individuals.clear()
+    for i, individual in enumerate(individuals_copy):
+        tables.individuals.append(
+            individual.replace(location=[i, i + 1], parents=[i - 1, i - 1])
+        )
     for name, table in tables.name_map.items():
         if name != "provenances":
             table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
@@ -146,6 +146,11 @@ def ts_fixture():
             )
     tables.metadata_schema = tskit.MetadataSchema({"codec": "json"})
     tables.metadata = "Test metadata"
+
+    # Add some more rows to provenance to have enough for testing.
+    for _ in range(3):
+        tables.provenances.add_row(record="A")
+
     return tables.tree_sequence()
 
 

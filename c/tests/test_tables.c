@@ -645,6 +645,10 @@ test_node_table(void)
     ret = tsk_node_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Can't extend from self */
+    ret = tsk_node_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
+
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
     ret = tsk_node_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -1026,6 +1030,10 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&table2, options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Can't extend from self */
+    ret = tsk_edge_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
 
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
@@ -1593,6 +1601,10 @@ test_site_table(void)
     ret = tsk_site_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Can't extend from self */
+    ret = tsk_site_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
+
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
     ret = tsk_site_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -1991,6 +2003,10 @@ test_mutation_table(void)
     ret = tsk_mutation_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Can't extend from self */
+    ret = tsk_mutation_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
+
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
     ret = tsk_mutation_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -2358,6 +2374,10 @@ test_migration_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_migration_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Can't extend from self */
+    ret = tsk_migration_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
 
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
@@ -2803,6 +2823,10 @@ test_individual_table(void)
     ret = tsk_individual_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* Can't extend from self */
+    ret = tsk_individual_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
+
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
     ret = tsk_individual_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -3048,6 +3072,10 @@ test_population_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_population_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Can't extend from self */
+    ret = tsk_population_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
 
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
@@ -3330,6 +3358,10 @@ test_provenance_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_provenance_table_init(&table2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Can't extend from self */
+    ret = tsk_provenance_table_extend(&table, &table, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANNOT_EXTEND_FROM_SELF);
 
     /* Two empty tables */
     CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
