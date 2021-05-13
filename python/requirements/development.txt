@@ -2,7 +2,7 @@ autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 biopython
 black
 breathe
-codecov
+codecov==2.1.11
 coverage
 flake8
 h5py>=2.6.0
