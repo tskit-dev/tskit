@@ -22,7 +22,7 @@ pytest
 pytest-cov
 pytest-xdist
 python_jsonschema_objects
-PyVCF
+PyVCF==0.6.8
 sphinx
 sphinx-argparse
 sphinx-issues
