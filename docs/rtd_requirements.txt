@@ -1,6 +1,6 @@
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 numpy
-svgwrite
+svgwrite==1.4.1
 jsonschema
 h5py
 breathe>=4.20.0
