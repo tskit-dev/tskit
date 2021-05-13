@@ -10,7 +10,7 @@ jsonschema>=3.0.0
 kastore
 msgpack>=1.0.0
 msprime>=1.0.0
-networkx
+networkx==2.5.1
 newick
 numpy
 packaging
