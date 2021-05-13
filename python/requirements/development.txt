@@ -1,6 +1,6 @@
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
 biopython
-black
+black==21.5b1
 breathe
 codecov
 coverage
