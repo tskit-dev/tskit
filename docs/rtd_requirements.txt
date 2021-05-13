@@ -1,4 +1,4 @@
-autodocsumm==0.1.13 #Pinned as errors on 0.2.0
+autodocsumm==0.2.4 #Pinned as errors on 0.2.0
 numpy
 svgwrite
 jsonschema
