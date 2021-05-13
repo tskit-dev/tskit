@@ -997,7 +997,7 @@ the C and Python APIs.
     the example of other tests, you might need to only add a single line of code
     here. In this case, the tests are well factored so that we can easily compare
     the results from both the Python and C versions.
-9. Write a docstring for your function in the Python API: for instance, the kc_distance
+9.  Write a docstring for your function in the Python API: for instance, the kc_distance
     docstring is in
     `tskit/python/tskit/trees.py
     <https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py>`_.
