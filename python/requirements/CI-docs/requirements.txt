@@ -7,5 +7,5 @@ PyGithub==1.54.1
 sphinx==3.3.1
 sphinx-argparse==0.2.5
 sphinx-issues==1.2.0
-sphinx_rtd_theme==0.5.1
+sphinx_rtd_theme==0.5.2
 svgwrite==1.4.1
