@@ -13,7 +13,7 @@ msprime>=1.0.0
 networkx
 newick
 numpy
-packaging
+packaging==20.9
 portion
 pre-commit
 pyparsing 
