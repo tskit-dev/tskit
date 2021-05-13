@@ -11,7 +11,7 @@ kastore
 msgpack>=1.0.0
 msprime>=1.0.0
 networkx
-newick
+newick==1.3.0
 numpy
 packaging
 portion
