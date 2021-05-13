@@ -1,5 +1,5 @@
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
-numpy
+numpy==1.20.3
 svgwrite
 jsonschema
 h5py
