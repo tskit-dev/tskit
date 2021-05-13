@@ -14,7 +14,7 @@ networkx
 newick
 numpy
 packaging
-portion
+portion==2.1.6
 pre-commit
 pyparsing 
 pysam
