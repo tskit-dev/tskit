@@ -4,7 +4,7 @@ black
 breathe
 codecov
 coverage
-flake8
+flake8==3.9.2
 h5py>=2.6.0
 jsonschema>=3.0.0
 kastore
