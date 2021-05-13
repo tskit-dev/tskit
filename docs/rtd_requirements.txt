@@ -6,4 +6,4 @@ h5py
 breathe>=4.20.0
 sphinx>=3.2.1
 sphinx-issues
-sphinx-argparse
+sphinx-argparse==0.2.5
