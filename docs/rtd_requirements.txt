@@ -5,5 +5,5 @@ jsonschema
 h5py
 breathe>=4.20.0
 sphinx>=3.2.1
-sphinx-issues
+sphinx-issues==1.2.0
 sphinx-argparse
