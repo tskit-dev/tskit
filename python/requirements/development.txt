@@ -15,7 +15,7 @@ newick
 numpy
 packaging
 portion
-pre-commit
+pre-commit==2.12.1
 pyparsing 
 pysam
 pytest
