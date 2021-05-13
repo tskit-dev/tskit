@@ -3,7 +3,7 @@ biopython
 black
 breathe
 codecov
-coverage
+coverage==5.5
 flake8
 h5py>=2.6.0
 jsonschema>=3.0.0
