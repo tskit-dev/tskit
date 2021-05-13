@@ -24,7 +24,7 @@ pytest-xdist
 python_jsonschema_objects
 PyVCF
 sphinx
-sphinx-argparse
+sphinx-argparse==0.2.5
 sphinx-issues
 sphinx_rtd_theme
 svgwrite>=1.1.10
