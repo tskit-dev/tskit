@@ -20,7 +20,7 @@ pyparsing
 pysam
 pytest
 pytest-cov
-pytest-xdist
+pytest-xdist==2.2.1
 python_jsonschema_objects
 PyVCF
 sphinx
