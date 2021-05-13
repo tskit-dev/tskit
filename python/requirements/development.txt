@@ -17,7 +17,7 @@ packaging
 portion
 pre-commit
 pyparsing 
-pysam
+pysam==0.16.0.1
 pytest
 pytest-cov
 pytest-xdist
