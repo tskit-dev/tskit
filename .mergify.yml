@@ -35,7 +35,7 @@ pull_request_rules:
 
   - name: Automatic dep update
     conditions:
-      - author=dependabot
+      - author~=^dependabot(|-preview)\[bot\]$
       - "-merged"
       - base=main
       - label=dependancy-upgrade
