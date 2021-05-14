@@ -9,6 +9,11 @@
 
 **Features**
 
+- Add direct, copy-free access to the arrays representing the quintuply-linked structure
+  of ``Tree`` (e.g. ``left_child_array``). Allows performant algorithms over the tree
+  structure using, for example, numba
+  (:user:`jeromekelleher`, :issue:`1299`, :pr:`1320`).
+
 - Add fancy indexing to tables. E.g. ``table[6:86]`` returns a new table with the
   specified rows. Supports slices, index arrays and boolean masks
   (:user:`benjeffery`, :issue:`1221`, :pr:`1348`, :pr:`1342`).
