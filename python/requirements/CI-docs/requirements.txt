@@ -1,5 +1,5 @@
 autodocsumm==0.1.13 #Pinned as errors on 0.2.0
-breathe==4.26.1
+breathe==4.30.0
 h5py==3.2.1
 jsonschema==3.2.0
 numpy==1.20.3
