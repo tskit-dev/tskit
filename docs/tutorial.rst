@@ -958,7 +958,7 @@ the excellent `scikit-allel
 <http://scikit-allel.readthedocs.io/en/latest/index.html>`_
 for the basic `plotting code
 <http://scikit-allel.readthedocs.io/en/latest/_modules/allel/stats/ld.html#plot_pairwise_ld>`_
-used here.)
+used here).
 
 .. code-block:: python
 
