@@ -1156,7 +1156,7 @@ One of the main uses of :meth:`Tree.map_mutations` is to position mutations on a
 to encode observed data. In the following example we show how a set
 of tables can be updated using the :ref:`Tables API<sec_tables_api>`; here we
 infer the location of mutations in an simulated tree sequence, and recompute
-the node and edge tables exactly::
+the site and mutation tables exactly::
 
     ts = msprime.simulate(6, random_seed=23)
     ts = msprime.mutate(
