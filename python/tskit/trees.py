@@ -70,7 +70,7 @@ class Interval(BaseInterval):
         in the interval.
     :vartype left: float
     :ivar right: The right hand end of the iterval. By convention this value is *not*
-        included in the interval, i.e. the interval is half-open.
+        included in the interval, i.e., the interval is half-open.
     :vartype right: float
     :ivar span: The span of the genome covered by this interval, simply ``right-left``.
     :vartype span: float
@@ -241,7 +241,7 @@ class Edge(util.Dataclass):
     @property
     def span(self):
         """
-        Returns the span of this edge, i.e. the right position minus the left position
+        Returns the span of this edge, i.e., the right position minus the left position
 
         :return: The span of this edge.
         :rtype: float
@@ -2028,7 +2028,7 @@ class Tree:
     def num_children(self, u):
         """
         Returns the number of children of the specified
-        node (i.e. ``len(tree.children(u))``)
+        node (i.e., ``len(tree.children(u))``)
 
         :param int u: The node of interest.
         :return: The number of immediate children of the node u in this tree.
@@ -2517,7 +2517,7 @@ class Tree:
 
         .. note::
             Sample states observed as missing in the input ``genotypes`` need
-            not correspond to samples whose nodes are actually "missing" (i.e.
+            not correspond to samples whose nodes are actually "missing" (i.e.,
             :ref:`isolated<sec_data_model_missing_data>`) in the tree. In this
             case, mapping the mutations returned by this method onto the tree
             will result in these missing observations being imputed to the
@@ -2649,7 +2649,7 @@ class Tree:
         num_leaves, *, span=1, branch_length=1, record_provenance=True, **kwargs
     ):
         """
-        Generate a :class:`Tree` whose leaf nodes all have the same parent (i.e.
+        Generate a :class:`Tree` whose leaf nodes all have the same parent (i.e.,
         a "star" tree). The leaf nodes are all at time 0 and are marked as sample nodes.
 
         The tree produced by this method is identical to
@@ -2785,7 +2785,7 @@ class Tree:
         """
         Generate a random binary :class:`Tree` with :math:`n` = ``num_leaves``
         leaves with an equal probability of returning any topology and
-        leaf label permutation among the :math:`(2n - 3)! / (2^(n - 2) (n - 2)!)`
+        leaf label permutation among the :math:`(2n - 3)! / (2^{n - 2} (n - 2)!)`
         leaf-labelled binary trees.
 
         The leaf nodes are marked as samples, labelled 0 to n, and placed at
@@ -4093,7 +4093,7 @@ class TreeSequence:
         each list, edges with the same parent appear consecutively.
 
         :param bool include_terminal: If False (default), the iterator terminates
-            after the final interval in the tree sequence (i.e. it does not
+            after the final interval in the tree sequence (i.e., it does not
             report a final removal of all remaining edges), and the number
             of iterations will be equal to the number of trees in the tree
             sequence. If True, an additional iteration takes place, with the last
@@ -4285,7 +4285,7 @@ class TreeSequence:
         :param list tracked_samples: The list of samples to be tracked and
             counted using the :meth:`Tree.num_tracked_samples` method.
         :param bool sample_lists: If True, provide more efficient access
-            to the samples beneath a give node using the
+            to the samples beneath a given node using the
             :meth:`Tree.samples` method.
         :param int root_threshold: The minimum number of samples that a node
             must be ancestral to for it to be in the list of roots. By default
@@ -4372,7 +4372,7 @@ class TreeSequence:
         haplotype for sample ``0``, and so on.
 
         The alleles at each site must be represented by single byte characters,
-        (i.e. variants must be single nucleotide polymorphisms, or SNPs), hence
+        (i.e., variants must be single nucleotide polymorphisms, or SNPs), hence
         the strings returned will all be of length :math:`s`, and for a haplotype
         ``h``, the value of ``h[j]`` will be the observed allelic state
         at site ``j``.
@@ -4835,7 +4835,7 @@ class TreeSequence:
         Writes haplotype data for samples in FASTA format to the
         specified file-like object.
 
-        Default `sequence_ids` (i.e. the text immediately following ">") are
+        Default `sequence_ids` (i.e., the text immediately following ">") are
         "tsk_{sample_number}" e.g. "tsk_0", "tsk_1" etc. They can be set by providing
         a list of strings to the `sequence_ids` argument, which must equal the length
         of the number of samples. Please ensure that these are unique and compatible with
@@ -5185,7 +5185,7 @@ class TreeSequence:
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: True)
-        :param bool keep_unary: If True, preserve unary nodes (i.e. nodes with
+        :param bool keep_unary: If True, preserve unary nodes (i.e., nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
         :param bool keep_unary_in_individuals: If True, preserve unary nodes
@@ -5311,10 +5311,11 @@ class TreeSequence:
     def ltrim(self, record_provenance=True):
         """
         Returns a copy of this tree sequence with a potentially changed coordinate
-        system, such that empty regions (i.e. those not covered by any edge) at the start
-        of the tree sequence are trimmed away, and the leftmost edge starts at position
-        0. This affects the reported position of sites and edges. Additionally, sites and
-        their associated mutations to the left of the new zero point are thrown away.
+        system, such that empty regions (i.e., those not covered by any edge) at the
+        start of the tree sequence are trimmed away, and the leftmost edge starts at
+        position 0. This affects the reported position of sites and
+        edges. Additionally, sites and their associated mutations to the left of
+        the new zero point are thrown away.
 
         :param bool record_provenance: If True, add details of this operation to the
             provenance information of the returned tree sequence. (Default: True).
@@ -5339,7 +5340,7 @@ class TreeSequence:
 
     def trim(self, record_provenance=True):
         """
-        Returns a copy of this tree sequence with any empty regions (i.e. those not
+        Returns a copy of this tree sequence with any empty regions (i.e., those not
         covered by any edge) on the right and left trimmed away. This may reset both the
         coordinate system and the ``sequence_length`` property. It is functionally
         equivalent to :meth:`.rtrim` followed by :meth:`.ltrim`. Sites and their
@@ -5589,7 +5590,7 @@ class TreeSequence:
             axis, and x_lim[1] specifies a *maximum* value for the end. This is only
             relevant if the tree sequence contains "empty" regions with no edges or
             mutations. In this case if x_lim[0] lies strictly within an empty region
-            (i.e. ``empty_tree.interval.left < x_lim[0] < empty_tree.interval.right``)
+            (i.e., ``empty_tree.interval.left < x_lim[0] < empty_tree.interval.right``)
             then that tree will not be plotted on the left hand side, and the X axis
             will start at ``empty_tree.interval.right``. Similarly, if x_lim[1] lies
             strictly within an empty region then that tree will not be plotted on the
