@@ -11,7 +11,7 @@ Succinct tree sequences are a highly efficient way of storing a set of related D
 
 The `tskit` library provides the underlying functionality used to load, examine, and manipulate tree sequences, including efficient methods for calculating genetic statistics. It often forms part of an installation of other software packages such as those listed above. Please see the [documentation](https://tskit.readthedocs.io/en/latest/) for further details, which includes [installation instructions](https://tskit.readthedocs.io/en/latest/installation.html).
 
-`tskit` has both a Python and C API
+The base `tskit` library provides both a Python and C API. A Rust API is provided in the [tskit-rust](https://github.com/tskit-dev/tskit-rust) repository.
 
 
 #### Python API
