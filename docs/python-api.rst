@@ -369,7 +369,7 @@ The difference between the two is only raw :class:`bytes` values are accepted: n
 character encoding or decoding is done on the data. Consider the following example
 where a table has no ``metadata_schema`` such that arbitrary bytes can be stored and
 no automatic encoding or decoding of objects is performed by the Python API and we can
-store and retrive raw ``bytes``. (See :ref:`sec_metadata` for details)::
+store and retrieve raw ``bytes``. (See :ref:`sec_metadata` for details)::
 
     >>> t = tskit.NodeTable()
     >>> t.add_row(metadata=b"raw bytes")

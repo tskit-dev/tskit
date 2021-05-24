@@ -1567,7 +1567,7 @@ class Tree:
         The elements in the tree are grouped according to the structure of the tree,
         using `SVG groups <https://www.w3.org/TR/SVG2/struct.html#Groups>`_. This allows
         easy styling and manipulation of elements and subtrees. Elements in the SVG file
-        are marked with SVG classes so that they can be targetted, allowing
+        are marked with SVG classes so that they can be targeted, allowing
         different components of the drawing to be hidden, styled, or otherwise
         manipulated. For example, when drawing (say) the first tree from a tree
         sequence, all the SVG components will be placed in a group of class ``tree``.
@@ -1630,7 +1630,7 @@ class Tree:
             .tree .node.leaf > .sym {fill: blue}
             .tree .node:not(.sample) > .lab {visibility: hidden}
 
-        Nodes contain classes that allow them to be targetted by node id (``nX``),
+        Nodes contain classes that allow them to be targeted by node id (``nX``),
         ancestor (parent) id (``aX`` or ``root`` if this node has no parent), and
         (if defined) the id of the individual (``iX``) and population (``pX``) to
         which this node belongs. Hence the following style will display
@@ -2369,7 +2369,7 @@ class Tree:
         Returns a `newick encoding <https://en.wikipedia.org/wiki/Newick_format>`_
         of this tree. If the ``root`` argument is specified, return a representation
         of the specified subtree, otherwise the full tree is returned. If the tree
-        has multiple roots then seperate newick strings for each rooted subtree
+        has multiple roots then separate newick strings for each rooted subtree
         must be found (i.e., we do not attempt to concatenate the different trees).
 
         By default, leaf nodes are labelled with their numerical ID + 1,
@@ -2739,7 +2739,7 @@ class Tree:
         """
         Generate a :class:`Tree` in which all internal nodes have two children
         and the left child is a leaf. This is a "comb", "ladder" or "pectinate"
-        phylogeny, and also known as a `caterpiller tree
+        phylogeny, and also known as a `caterpillar tree
         <https://en.wikipedia.org/wiki/Caterpillar_tree>`_.
 
         The leaf nodes are all at time 0, marked as samples,
@@ -3449,8 +3449,8 @@ class TreeSequence:
         ignore_timestamps=False,
     ):
         """
-        Returns True if  `self` and `other` are equal. Uses the underlying table equlity,
-        see :meth:`TableCollection.equals` for details and options.
+        Returns True if  `self` and `other` are equal. Uses the underlying table
+        equality, see :meth:`TableCollection.equals` for details and options.
         """
         return self.tables.equals(
             other.tables,
@@ -3540,7 +3540,7 @@ class TreeSequence:
         A copy of the tables underlying this tree sequence. See also
         :meth:`.dump_tables`.
 
-        .. warning:: This propery currently returns a copy of the tables
+        .. warning:: This property currently returns a copy of the tables
             underlying a tree sequence but it may return a read-only
             **view** in the future. Thus, if the tables will subsequently be
             updated, please use the :meth:`.dump_tables` method instead as
@@ -4030,7 +4030,7 @@ class TreeSequence:
         in this tree sequence. Edges are returned in the order required
         for a :ref:`valid tree sequence <sec_valid_tree_sequence_requirements>`. So,
         edges are guaranteed to be ordered such that (a) all parents with a
-        given ID are contiguous; (b) edges are returned in non-descreasing
+        given ID are contiguous; (b) edges are returned in non-decreasing
         order of parent time ago; (c) within the edges for a given parent, edges
         are sorted first by child ID and then by left coordinate.
 
@@ -4179,7 +4179,7 @@ class TreeSequence:
         if ``as_array`` is True we return them as a numpy array.
 
         Note that the ``as_array`` form will be more efficient and convenient in most
-        cases; the default iterator behaviour is mainly kept to ensure compatability
+        cases; the default iterator behaviour is mainly kept to ensure compatibility
         with existing code.
 
         :param bool as_array: If True, return the breakpoints as a numpy array.
@@ -4530,7 +4530,7 @@ class TreeSequence:
         :param tuple alleles: A tuple of strings defining the encoding of
             alleles as integer genotype values. At least one allele must be provided.
             If duplicate alleles are provided, output genotypes will always be
-            encoded as the first occurance of the allele. If None (the default),
+            encoded as the first occurrence of the allele. If None (the default),
             the alleles are encoded as they are encountered during genotype
             generation.
         :param bool impute_missing_data:
@@ -4603,7 +4603,7 @@ class TreeSequence:
         :param tuple alleles: A tuple of strings describing the encoding of
             alleles to genotype values. At least one allele must be provided.
             If duplicate alleles are provided, output genotypes will always be
-            encoded as the first occurance of the allele. If None (the default),
+            encoded as the first occurrence of the allele. If None (the default),
             the alleles are encoded as they are encountered during genotype
             generation.
         :param bool impute_missing_data:
@@ -5378,7 +5378,7 @@ class TreeSequence:
 
         By default, the method removes all individuals and populations not
         referenced by any nodes, and all sites not referenced by any mutations.
-        To retain these unreferencd individuals, populations, and sites, pass
+        To retain these unreferenced individuals, populations, and sites, pass
         ``remove_unreferenced=False``. If this is done, the site table will
         remain unchanged, unreferenced individuals will appear at the end of
         the individuals table (and in their original order), and unreferenced
@@ -5505,7 +5505,7 @@ class TreeSequence:
         axis is contained within a group of class ``tree-sequence``. Each tree in
         the displayed tree sequence is contained in a group of class ``tree``, as
         described in :meth:`Tree.draw_svg`, so that visual elements pertaining to one
-        or more trees targetted as documented in that method. For instance, the
+        or more trees targeted as documented in that method. For instance, the
         following style will change the colour of all the edges of the *initial*
         tree in the sequence and hide the non-sample node labels in *all* the trees
 
@@ -5982,7 +5982,7 @@ class TreeSequence:
 
         "branch"
             Mean distance in the tree: the average across distinct, randomly chosen pairs
-            of chromsomes and locations in the window, of the mean distance in the tree
+            of chromosomes and locations in the window, of the mean distance in the tree
             between the two samples (in units of time).
 
         "node"
@@ -6036,7 +6036,7 @@ class TreeSequence:
 
         "branch"
             Mean distance in the tree: the average across distinct, randomly
-            chosen pairs of chromsomes (one from each sample set) and locations
+            chosen pairs of chromosomes (one from each sample set) and locations
             in the window, of the mean distance in the tree between the two
             samples (in units of time).
 
@@ -6901,7 +6901,7 @@ class TreeSequence:
         "node"
             For each node, the average proportion of the window on which ``a`` and ``c``
             inherit from that node but ``b`` and ``d`` do not, or vice-versa,
-            minus the average proportion of the window on which ``a`` anc ``d``
+            minus the average proportion of the window on which ``a`` and ``d``
             inherit from that node but ``b`` and ``c`` do not, or vice-versa.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
