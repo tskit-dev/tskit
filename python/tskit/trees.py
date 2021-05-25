@@ -1514,15 +1514,69 @@ class Tree:
         """
         return self._ll_tree.get_sample_size()
 
-    def draw_text(self, orientation=None, **kwargs):
+    def draw_text(
+        self,
+        orientation=None,
+        *,
+        node_labels=None,
+        max_time=None,
+        use_ascii=False,
+        order=None,
+    ):
+        """
+        Create a text representation of a tree.
+
+        :param str orientation: one of ``"top"``, ``"left"``, ``"bottom"``, or
+            ``"right"``, specifying the margin on which the root is placed. Specifying
+            ``"left"`` or ``"right"`` will lead to time being shown on the x axis (i.e.
+            a "horizontal" tree. If ``None`` (default) use the standard coalescent
+            arrangement of a vertical tree with recent nodes at the bottom of the plot
+            and older nodes above.
+        :param dict node_labels: If specified, show custom labels for the nodes
+            that are present in the map. Any nodes not specified in the map will
+            not have a node label.
+        :param str max_time: If equal to ``"tree"`` (the default), the maximum time
+            is set to be that of the oldest root in the tree. If equal to ``"ts"`` the
+            maximum time is set to be the time of the oldest root in the tree
+            sequence; this is useful when drawing trees from the same tree sequence as it
+            ensures that node heights are consistent.
+        :param bool use_ascii: If ``False`` (default) then use unicode
+            `box drawing characters \
+<https://en.wikipedia.org/wiki/Box-drawing_character>`_
+            to render the tree. If ``True``, use plain ascii characters, which look
+            cruder but are less susceptible to misalignment or font substitution.
+            Alternatively, if you are having alignment problems with Unicode, you can try
+            out the solution documented `here \
+<https://github.com/tskit-dev/tskit/issues/189#issuecomment-499114811>`_.
+        :param str order: The left-to-right ordering of child nodes in the drawn tree.
+            This can be either: ``"minlex"``, which minimises the differences
+            between adjacent trees (see also the ``"minlex_postorder"`` traversal
+            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            in the left-to-right order defined by the
+            :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
+            If not specified or None, this defaults to ``"minlex"``.
+
+        :return: A text representation of a tree.
+        :rtype: str
+        """
         orientation = drawing.check_orientation(orientation)
         if orientation in (drawing.LEFT, drawing.RIGHT):
             text_tree = drawing.HorizontalTextTree(
-                self, orientation=orientation, **kwargs
+                self,
+                orientation=orientation,
+                node_labels=node_labels,
+                max_time=max_time,
+                use_ascii=use_ascii,
+                order=order,
             )
         else:
             text_tree = drawing.VerticalTextTree(
-                self, orientation=orientation, **kwargs
+                self,
+                orientation=orientation,
+                node_labels=node_labels,
+                max_time=max_time,
+                use_ascii=use_ascii,
+                order=order,
             )
         return str(text_tree)
 
@@ -5624,9 +5678,57 @@ class TreeSequence:
             draw.drawing.saveas(path, pretty=True)
         return output
 
-    def draw_text(self, **kwargs):
-        # TODO document this method.
-        return str(drawing.TextTreeSequence(self, **kwargs))
+    def draw_text(
+        self,
+        *,
+        node_labels=None,
+        use_ascii=False,
+        time_label_format=None,
+        position_label_format=None,
+        order=None,
+        **kwargs,
+    ):
+        """
+        Create a text representation of a tree sequence.
+
+        :param dict node_labels: If specified, show custom labels for the nodes
+            that are present in the map. Any nodes not specified in the map will
+            not have a node label.
+        :param bool use_ascii: If ``False`` (default) then use unicode
+            `box drawing characters \
+<https://en.wikipedia.org/wiki/Box-drawing_character>`_
+            to render the tree. If ``True``, use plain ascii characters, which look
+            cruder but are less susceptible to misalignment or font substitution.
+            Alternatively, if you are having alignment problems with Unicode, you can try
+            out the solution documented `here \
+<https://github.com/tskit-dev/tskit/issues/189#issuecomment-499114811>`_.
+        :param str time_label_format: A python format string specifying the format (e.g.
+            number of decimal places or significant figures) used to print the numerical
+            time values on the time axis. If ``None``, this defaults to ``"{:.2f}"``.
+        :param str position_label_format: A python format string specifying the format
+            (e.g. number of decimal places or significant figures) used to print genomic
+            positions. If ``None``, this defaults to ``"{:.2f}"``.
+        :param str order: The left-to-right ordering of child nodes in the drawn tree.
+            This can be either: ``"minlex"``, which minimises the differences
+            between adjacent trees (see also the ``"minlex_postorder"`` traversal
+            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            in the left-to-right order defined by the
+            :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
+            If not specified or None, this defaults to ``"minlex"``.
+
+        :return: A text representation of a tree sequence.
+        :rtype: str
+        """
+        return str(
+            drawing.TextTreeSequence(
+                self,
+                node_labels=node_labels,
+                use_ascii=use_ascii,
+                time_label_format=time_label_format,
+                position_label_format=position_label_format,
+                order=order,
+            )
+        )
 
     ############################################
     #
