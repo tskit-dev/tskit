@@ -6423,7 +6423,7 @@ class TestMutationTime:
         )
         mutations = io.StringIO(
             """\
-        site	node	time	derived_state	parent
+        site    node    time    derived_state   parent
         0       1       1.5     1               -1
         0       2       1.5     1               -1
         0       3       0.5     2               1
@@ -8083,3 +8083,375 @@ class TestMissingData:
                 tree.is_isolated("abc")
             with pytest.raises(TypeError):
                 tree.is_isolated(1.1)
+
+
+class TestSplitEdges:
+    """
+    Test ts.split_edges() function
+    """
+
+    def naive_split_edges(self, ts, mode="leaf"):
+        def bifurcate_edge(edge_child, interval, tables, current_edges):
+            """
+            Bifurcate a given edge if it straddles a breakpoint
+            Returns an amended edge table and dictionary of edges in current tree
+            """
+            if edge_child in current_edges:
+                overlap_edge = current_edges[edge_child]
+                if interval.left != overlap_edge.left:
+                    tables.edges.add_row(
+                        left=overlap_edge.left,
+                        right=interval.left,
+                        parent=overlap_edge.parent,
+                        child=overlap_edge.child,
+                    )
+                    current_edges.pop(edge_child)
+                    current_edges[edge_child] = tskit.Edge(
+                        left=interval.left,
+                        right=overlap_edge.right,
+                        parent=overlap_edge.parent,
+                        child=overlap_edge.child,
+                    )
+            return tables, current_edges
+
+        if mode not in ["tree", "node", "leaf"]:
+            raise ValueError("Unrecognised mode")
+
+        tables = ts.dump_tables()
+        tables.edges.clear()  # build up a new edge table
+
+        trees = ts.trees()
+        tree = next(trees)
+        edge_diffs = ts.edge_diffs()
+        _, edges_out, edges_in = next(edge_diffs)
+
+        current_edges = {}  # keep track of edges in current tree
+
+        # At first tree, add all edges in
+        for edge in edges_in:
+            current_edges[edge.child] = edge
+
+        prev_tree = tree.copy()
+
+        # Look at edeges in and out for subsequent trees
+        for tree, (interval, edges_out, edges_in) in zip(trees, edge_diffs):
+            # Add edges coming out to new edge table
+            for edge in edges_out:
+                modified_edge = current_edges[edge.child]
+                tables.edges.add_row(
+                    left=modified_edge.left,
+                    right=modified_edge.right,
+                    parent=modified_edge.parent,
+                    child=modified_edge.child,
+                )
+                current_edges.pop(edge.child)
+            # Bifurcate edges based on edges_in
+            for edge in edges_in:
+                current_edges[edge.child] = edge
+                if mode == "leaf":
+                    right = edge.parent
+                    left = prev_tree.parent(edge.child)
+                    while right != left and right != -1 and left != -1:
+                        tr = tree.get_time(right)
+                        tl = prev_tree.get_time(left)
+                        if tr < tl:
+                            tables, current_edges = bifurcate_edge(
+                                right, interval, tables, current_edges
+                            )
+                            right = tree.parent(right)
+                        elif tr > tl:
+                            tables, current_edges = bifurcate_edge(
+                                left, interval, tables, current_edges
+                            )
+                            left = prev_tree.parent(left)
+                elif mode == "node":
+                    parent = edge.parent
+                    while parent != tree.root:
+                        tables, current_edges = bifurcate_edge(
+                            parent, interval, tables, current_edges
+                        )
+                        parent = tree.parent(parent)
+
+            if mode == "tree":
+                cur_current_edges = current_edges.copy()
+                for edge_child, edge in cur_current_edges.items():
+                    if edge.left != interval[0]:
+                        tables, current_edges = bifurcate_edge(
+                            edge_child, interval, tables, current_edges
+                        )
+            prev_tree = tree.copy()
+
+        # Any edges still in current_edges at the last tree are added
+        for _, edge in current_edges.items():
+            tables.edges.add_row(
+                left=edge.left, right=edge.right, parent=edge.parent, child=edge.child
+            )
+        tables.sort()
+
+        new_ts = tables.tree_sequence()
+        return new_ts
+
+    def verify_leaf_mode(self, ts):
+        split_ts = self.naive_split_edges(ts, mode="leaf")
+        current_edges = {}
+        edge_leaves = {}
+
+        trees = split_ts.trees()
+        edge_diffs = split_ts.edge_diffs()
+
+        tree = next(trees)
+        _, edges_out, edges_in = next(edge_diffs)
+
+        # At first tree, add all edges in
+        for edge in edges_in:
+            current_edges[edge.child] = (edge.left, edge.right, edge.parent, edge.child)
+            edge_leaves[edge.child] = list(tree.get_leaves(edge.child))
+
+        for tree, (_, edges_out, edges_in) in zip(trees, edge_diffs):
+            for edge in edges_out:
+                current_edges.pop(edge.child)
+            for edge in edges_in:
+                current_edges[edge.child] = (
+                    edge.left,
+                    edge.right,
+                    edge.parent,
+                    edge.child,
+                )
+                edge_leaves[edge.child] = list(tree.get_leaves(edge.child))
+            for edge_child, edge in current_edges.items():
+                assert np.array_equal(
+                    np.sort(list(edge_leaves[edge_child])),
+                    np.sort(list(tree.get_leaves(edge[3]))),
+                )
+        return split_ts
+
+    def verify_node_mode(self, ts):
+        # Check that we split edges with differential numbers of nodes
+        def get_descendants(node, tree):
+            descendants = []
+            children = [child for child in tree.children(node)]
+
+            while len(children) > 0:
+                child = children.pop()
+                descendants.append(child)
+                for child in tree.children(child):
+                    descendants.append(child)
+
+            return descendants
+
+        split_ts = self.naive_split_edges(ts, mode="node")
+        current_edges = {}
+        edge_descendants = {}
+        trees = split_ts.trees()
+        edge_diffs = split_ts.edge_diffs()
+
+        tree = next(trees)
+        _, edges_out, edges_in = next(edge_diffs)
+
+        for edge in edges_in:
+            current_edges[edge.child] = (edge.left, edge.right, edge.parent, edge.child)
+            edge_descendants[edge.child] = get_descendants(edge.child, tree)
+
+        for tree, (_, edges_out, edges_in) in zip(trees, edge_diffs):
+            for edge in edges_out:
+                current_edges.pop(edge.child)
+            for edge in edges_in:
+                current_edges[edge.child] = (
+                    edge.left,
+                    edge.right,
+                    edge.parent,
+                    edge.child,
+                )
+                edge_descendants[edge.child] = get_descendants(edge.child, tree)
+            for edge_child, edge in current_edges.items():
+                assert np.array_equal(
+                    edge_descendants[edge_child], get_descendants(edge[3], tree)
+                )
+        return split_ts
+
+    def verify_tree_mode(self, ts):
+        # Check that we correctly create a JBOT
+        split_ts = self.naive_split_edges(ts, mode="tree")
+        # Number of edges is the number of trees times the number of edges per tree
+        edges = 0
+        for tree in ts.trees():
+            edges += len(list(tree.nodes())) - 1
+        assert split_ts.num_edges == edges
+        return split_ts
+
+    def test_single_recombination(self):
+        r"""
+         Example tree with a single recombination
+             7         .          7
+            / \        .         / \
+           /   6       .        /   6
+          /   / \      .       /   / \
+         /   |   \     .      /    |  \
+        /    |    \    .     5     |   |
+       |     4     |   .    / \    |   |
+       |    / \    |   .   |   |   |   |
+      [0] [1] [2] [3]  . [0]  [1] [2] [3]
+        """
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       1           0
+        4       0           1
+        5       0           2
+        6       0           3
+        7       0           4
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       0.5     4       1,2
+        0       1       6       3
+        0       0.5     6       4
+        0       0.5     7       0
+        0       1       7       6
+        0.5     1       5       0,1
+        0.5     1       6       2
+        0.5     1       7       5
+        """
+        )
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        node = self.verify_node_mode(ts)
+        leaf = self.verify_leaf_mode(ts)
+        assert node.num_edges == leaf.num_edges
+        self.verify_tree_mode(ts)
+
+    def test_single_recombination_node_leaf_disagree(self):
+        r"""
+         Example tree with
+             7         .        7
+            / \        .       / \
+           /   6       .      /   6
+          /   / \      .     /   / \
+         /   |   \     .    /   /   |
+        /    |    \    .   /   /    5
+       |     4     |   .  |   |    / \
+       |    / \    |   .  |   |   |   |
+      [0] [1] [2] [3]  . [0] [1] [2] [3]
+        """
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       1           0
+        4       0           1
+        5       0           2
+        6       0           3
+        7       0           4
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       0.5     4       1,2
+        0       0.5     6       3
+        0       0.5     6       4
+        0.5     1       6       5
+        0       1       7       0
+        0       1       7       6
+        0.5     1       5       2,3
+        0.5     1       6       1
+        """
+        )
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        node = self.verify_node_mode(ts)
+        leaf = self.verify_leaf_mode(ts)
+        # node mode should split the edge from 6 to 7
+        assert node.num_edges == (leaf.num_edges + 1)
+        self.verify_tree_mode(ts)
+
+    def test_node_leaf_difference(self):
+        r"""
+        Example tree with
+              7         .        7
+             / \        .       / \
+            /   6       .      /   6
+           /   / \      .     /   / \
+          /   5   \     .    /   5   \
+         /    |    \    .   /   / \   \
+        |     4     |   .  |   |   |   |
+        |    / \    |   .  |   |   |   |
+        [0] [1] [2] [3] . [0] [1] [2] [3]
+        """
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       1           0
+        4       0           1
+        5       0           2
+        6       0           3
+        7       0           4
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       0.5     4       1,2
+        0       0.5     5       4
+        0       1       6       5
+        0       1       6       3
+        0       1       7       0
+        0       1       7       6
+        0.5     1       5       1,2
+        """
+        )
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        node = self.verify_node_mode(ts)
+        leaf = self.verify_leaf_mode(ts)
+        # node mode should split the edges from 5 to 6 and from 6 to 7
+        assert node.num_edges == (leaf.num_edges + 2)
+        self.verify_tree_mode(ts)
+
+    def test_same_tree_twice(self):
+        r"""
+        Example tree with
+               6         .          6
+              / \        .         / \
+             /   5       .        /   5
+            /   / \      .       /   / \
+           /   |   \     .      /   |   \
+          /    |    \    .     /    |    \
+         |     4     |   .    |     4     |
+         |    / \    |   .    |    / \    |
+        [0] [1] [2] [3]  .   [0] [1] [2] [3]
+        """
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       1           0
+        4       0           1
+        5       0           2
+        6       0           3
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       0.5     4       1,2
+        0       0.5     5       3,4
+        0       0.5     6       0,5
+        0.5     1       4       1,2
+        0.5     1       5       4,3
+        0.5     1       6       0,5
+        """
+        )
+        ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        self.verify_node_mode(ts)
+        self.verify_leaf_mode(ts)
+        self.verify_tree_mode(ts)
