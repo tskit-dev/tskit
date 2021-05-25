@@ -1747,9 +1747,13 @@ class Tree:
             included in the ``<style>`` tag of the generated svg. Note that certain
             styles, in particular transformations and changes in geometrical properties
             of objects, will only be recognised by SVG2-compatible viewers.
-        :param str order: A string specifying the traversal type used to order the tips
-            in the tree, as detailed in :meth:`Tree.nodes`. If None (default), use
-            the default order as described in that method.
+        :param str order: The left-to-right ordering of child nodes in the drawn tree.
+            This can be either: ``"minlex"``, which minimises the differences
+            between adjacent trees (see also the ``"minlex_postorder"`` traversal
+            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            in the left-to-right order defined by the
+            :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
+            If not specified or None, this defaults to ``"minlex"``.
         :param bool force_root_branch: If ``True`` always plot a branch (edge) above the
             root(s) in the tree. If ``None`` (default) then only plot such root branches
             if there is a mutation above a root of the tree.
@@ -5603,9 +5607,13 @@ class TreeSequence:
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A `css string <https://www.w3.org/TR/CSS21/syndata.htm>`_
             that will be included in the ``<style>`` tag of the generated svg.
-        :param str order: A string specifying the traversal type used to order the tips
-            in each tree, as detailed in :meth:`Tree.nodes`. If None (default), use
-            the default order as described in that method.
+        :param str order: The left-to-right ordering of child nodes in each drawn tree.
+            This can be either: ``"minlex"``, which minimises the differences
+            between adjacent trees (see also the ``"minlex_postorder"`` traversal
+            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            in the left-to-right order defined by the
+            :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
+            If not specified or None, this defaults to ``"minlex"``.
         :param bool force_root_branch: If ``True`` plot a branch (edge) above every tree
             root in the tree sequence. If ``None`` (default) then only plot such
             root branches if any root in the tree sequence has a mutation above it.
