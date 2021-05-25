@@ -1490,17 +1490,17 @@ class TextTreeSequence:
         self.ts = ts
 
         time_label_format = "{:.2f}" if time_label_format is None else time_label_format
-        position_label_format = (
-            "{:.2f}" if position_label_format is None else position_label_format
-        )
+        tick_labels = ts.breakpoints(as_array=True)
+        if position_label_format is None:
+            integer_ticks = np.all(np.round(tick_labels) == tick_labels)
+            label_precision = 0 if integer_ticks else 2
+            position_label_format = f"{{:.{label_precision}f}}"
 
         time = ts.tables.nodes.time
         time_scale_labels = [
             time_label_format.format(time[u]) for u in range(ts.num_nodes)
         ]
-        position_scale_labels = [
-            position_label_format.format(x) for x in ts.breakpoints()
-        ]
+        position_scale_labels = [position_label_format.format(x) for x in tick_labels]
         trees = [
             VerticalTextTree(
                 tree,
