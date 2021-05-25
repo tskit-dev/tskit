@@ -1676,7 +1676,7 @@ class Tree:
             sequence; this is useful when drawing trees from the same tree sequence as it
             ensures that node heights are consistent. If a numeric value, this is used as
             the maximum time by which to scale other nodes.
-        :param str,float max_time: Deprecated alias for max_tree_height. (Deprecated in
+        :param str,float max_tree_height: Deprecated alias for max_time. (Deprecated in
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
