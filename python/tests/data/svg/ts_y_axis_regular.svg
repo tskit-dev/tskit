@@ -102,70 +102,70 @@
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">0.00</text>
+						<text text-anchor="end">0</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 110.498)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">1.00</text>
+						<text text-anchor="end">1</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 99.5963)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">2.00</text>
+						<text text-anchor="end">2</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 88.6945)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">3.00</text>
+						<text text-anchor="end">3</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 77.7927)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">4.00</text>
+						<text text-anchor="end">4</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 66.8909)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">5.00</text>
+						<text text-anchor="end">5</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 55.989)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">6.00</text>
+						<text text-anchor="end">6</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 45.0872)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">7.00</text>
+						<text text-anchor="end">7</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 34.1854)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">8.00</text>
+						<text text-anchor="end">8</text>
 					</g>
 				</g>
 				<g class="tick" transform="translate(56.8 23.2835)">
 					<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 					<line x1="0" x2="-5" y1="0" y2="0"/>
 					<g class="lab" transform="translate(-5,0)">
-						<text text-anchor="end">9.00</text>
+						<text text-anchor="end">9</text>
 					</g>
 				</g>
 			</g>

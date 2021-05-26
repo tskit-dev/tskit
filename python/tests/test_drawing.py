@@ -833,7 +833,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0.27┊ ┃ ┃  4  ┊\n"
             "    ┊ ┃ ┃ ┏┻┓ ┊\n"
             "0.00┊ 1 2 0 3 ┊\n"
-            "  0.00      1.00\n"
+            "    0         1\n"
         )
         self.verify_text_rendering(ts.draw_text(order="tree"), tree)
 
@@ -883,7 +883,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0.27┊ ┃ ┃  4      ┊\n"
             "    ┊ ┃ ┃ ┏┻┓     ┊\n"
             "0.00┊ 1 2 0 3     ┊\n"
-            "  0.00          1.00\n"
+            "    0             1\n"
         )
         drawn = ts.draw_text(node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
