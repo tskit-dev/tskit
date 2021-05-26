@@ -149,6 +149,19 @@ def check_x_lim(x_lim, max_x):
     return x_lim
 
 
+def create_tick_labels(tick_values, decimal_places=2):
+    """
+    If tick_values are numeric, round the labels to X decimal_places, but do not print
+    decimals if all values are integers
+    """
+    try:
+        integer_ticks = np.all(np.round(tick_values) == tick_values)
+    except TypeError:
+        return tick_values
+    label_precision = 0 if integer_ticks else decimal_places
+    return [f"{lab:.{label_precision}f}" for lab in tick_values]
+
+
 def clip_ts(ts, x_min, x_max):
     """
     Culls the edges of the tree sequence outside the limits of x_min and x_max if
@@ -234,8 +247,8 @@ def check_y_ticks(ticks: Union[List, Mapping, None]) -> Mapping:
     if ticks is None:
         return {}
     if isinstance(ticks, Mapping):
-        return ticks
-    return {pos: f"{pos:.2f}" for pos in ticks}
+        return dict(zip(ticks, create_tick_labels(list(ticks.values()))))
+    return dict(zip(ticks, create_tick_labels(ticks)))
 
 
 def rnd(x):
@@ -594,9 +607,7 @@ class SvgPlot:
                 if tick_labels is None or isinstance(tick_labels, np.ndarray):
                     if tick_labels is None:
                         tick_labels = tick_positions
-                    integer_ticks = np.all(np.round(tick_labels) == tick_labels)
-                    label_precision = 0 if integer_ticks else 2
-                    tick_labels = [f"{lab:.{label_precision}f}" for lab in tick_labels]
+                    tick_labels = create_tick_labels(tick_labels)  # format integers
 
                 upper_length = -tick_length_upper if site_muts is None else 0
                 for pos, lab in itertools.zip_longest(tick_positions, tick_labels):
@@ -877,7 +888,7 @@ class SvgTreeSequence(SvgPlot):
                 y_ticks = np.unique(ts.tables.nodes.time)
                 if self.time_scale == "rank":
                     # Ticks labelled by time not rank
-                    y_ticks = {pos: f"{val:.2f}" for pos, val in enumerate(y_ticks)}
+                    y_ticks = dict(enumerate(y_ticks))
 
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
@@ -1492,15 +1503,17 @@ class TextTreeSequence:
         time_label_format = "{:.2f}" if time_label_format is None else time_label_format
         tick_labels = ts.breakpoints(as_array=True)
         if position_label_format is None:
-            integer_ticks = np.all(np.round(tick_labels) == tick_labels)
-            label_precision = 0 if integer_ticks else 2
-            position_label_format = f"{{:.{label_precision}f}}"
+            position_scale_labels = create_tick_labels(tick_labels)
+        else:
+            position_scale_labels = [
+                position_label_format.format(x) for x in tick_labels
+            ]
 
         time = ts.tables.nodes.time
         time_scale_labels = [
             time_label_format.format(time[u]) for u in range(ts.num_nodes)
         ]
-        position_scale_labels = [position_label_format.format(x) for x in tick_labels]
+
         trees = [
             VerticalTextTree(
                 tree,
