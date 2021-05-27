@@ -34,6 +34,7 @@ import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import Any
+from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
@@ -53,32 +54,41 @@ from tskit import NULL
 from tskit import UNKNOWN_TIME
 
 
-CoalescenceRecord = collections.namedtuple(
-    "CoalescenceRecord", ["left", "right", "node", "children", "time", "population"]
-)
+class CoalescenceRecord(NamedTuple):
+    left: float
+    right: float
+    node: int
+    children: np.ndarray
+    time: float
+    population: int
 
-BaseInterval = collections.namedtuple("BaseInterval", ["left", "right"])
 
-EdgeDiff = collections.namedtuple("EdgeDiff", ["interval", "edges_out", "edges_in"])
-
-
-class Interval(BaseInterval):
+class Interval(NamedTuple):
     """
     A tuple of 2 numbers, ``[left, right)``, defining an interval over the genome.
 
     :ivar left: The left hand end of the interval. By convention this value is included
         in the interval.
     :vartype left: float
-    :ivar right: The right hand end of the iterval. By convention this value is *not*
+    :ivar right: The right hand end of the interval. By convention this value is *not*
         included in the interval, i.e., the interval is half-open.
     :vartype right: float
     :ivar span: The span of the genome covered by this interval, simply ``right-left``.
     :vartype span: float
     """
 
+    left: float
+    right: float
+
     @property
-    def span(self):
+    def span(self) -> float:
         return self.right - self.left
+
+
+class EdgeDiff(NamedTuple):
+    interval: Interval
+    edges_out: list
+    edges_in: list
 
 
 @metadata_module.lazy_decode
@@ -1487,8 +1497,7 @@ class Tree:
         :return: The genomic distance covered by this tree.
         :rtype: float
         """
-        left, right = self.get_interval()
-        return right - left
+        return self.interval.span
 
     # The sample_size (or num_samples) is really a property of the tree sequence,
     # and so we should provide access to this via a tree.tree_sequence.num_samples
