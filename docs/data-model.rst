@@ -28,11 +28,15 @@ Definitions
 
 To begin, here are definitions of some key ideas encountered later.
 
+.. _sec_data_model_definitions_tree:
+
 tree
     A "gene tree", i.e., the genealogical tree describing how a collection of
     genomes (usually at the tips of the tree) are related to each other at some
     chromosomal location. See :ref:`sec_nodes_or_individuals` for discussion
     of what a "genome" is.
+
+.. _sec_data_model_definitions_tree_sequence:
 
 tree sequence
     A "succinct tree sequence" (or tree sequence, for brevity) is an efficient
@@ -41,12 +45,16 @@ tree sequence
     structure shared by adjacent trees, (essentially) storing only what differs
     between them.
 
+.. _sec_data_model_definitions_node:
+
 node
     Each branching point in each tree is associated with a particular genome
     in a particular ancestor, called "nodes".  Since each node represents a
     specific genome it has a unique ``time``, thought of as its birth time,
     which determines the height of any branching points it is associated with.
     See :ref:`sec_nodes_or_individuals` for discussion of what a "node" is.
+
+.. _sec_data_model_definitions_individual:
 
 individual
     In certain situations we are interested in how nodes (representing
@@ -55,6 +63,8 @@ individual
     with polyploid samples it is useful to associate metadata with a specific
     individual rather than duplicate this information on the constituent nodes.
     See :ref:`sec_nodes_or_individuals` for more discussion on this point.
+
+.. _sec_data_model_definitions_sample:
 
 sample
     The focal nodes of a tree sequence, usually thought of as those that we
@@ -66,17 +76,23 @@ sample
     for information on how the sample
     status a node is encoded in the ``flags`` column.)
 
+.. _sec_data_model_definitions_edge:
+
 edge
     The topology of a tree sequence is defined by a set of **edges**. Each
     edge is a tuple ``(left, right, parent, child)``, which records a
     parent-child relationship among a pair of nodes on the
     on the half-open interval of chromosome ``[left, right)``.
 
+.. _sec_data_model_definitions_site:
+
 site
     Tree sequences can define the mutational state of nodes as well as their
     topological relationships. A **site** is thought of as some position along
     the genome at which variation occurs. Each site is associated with
     a unique position and ancestral state.
+
+.. _sec_data_model_definitions_mutation:
 
 mutation
     A mutation records the change of state at a particular site 'above'
@@ -89,14 +105,22 @@ mutation
     back or recurrent mutations, a mutation must also specify its 'parent'
     mutation.
 
+.. _sec_data_model_definitions_migration:
+
 migration
     An event at which a parent and child node were born in different populations.
+
+.. _sec_data_model_definitions_population:
 
 population
     A grouping of nodes, e.g., by sampling location.
 
+.. _sec_data_model_definitions_provenance:
+
 provenance
     An entry recording the origin and history of the data encoded in a tree sequence.
+
+.. _sec_data_model_definitions_ID:
 
 ID
     In the set of interconnected tables that we define here, we refer
@@ -106,7 +130,9 @@ ID
     refer to node with ID zero, this corresponds to the node defined by the
     first row in the node table.
 
-Sequence length
+.. _sec_data_model_definitions_sequence_length:
+
+sequence length
     This value defines the coordinate space in which the edges and site positions
     are defined. This is most often assumed to be equal to the largest
     ``right`` coordinate in the edge table, but there are situations in which
