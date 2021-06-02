@@ -2140,6 +2140,46 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             self.verify_basic_svg(svg, width=200 * n_trees)
             assert svg.count('class="tree ') == n_trees
 
+    def test_xlim_maintains_tree_ids(self):
+        ts = self.get_simple_ts()
+        breaks = ts.breakpoints(as_array=True)
+        svg = ts.draw_svg(x_lim=[breaks[1], breaks[4]])
+        assert "t0" not in svg
+        assert "t4" not in svg
+        svg = ts.draw_svg(
+            x_lim=[np.nextafter(breaks[1], 0), np.nextafter(breaks[4], 1)]
+        )
+        assert "t0" in svg
+        assert "t4" in svg
+
+    def test_xlim_maintains_site_and_mutation_ids(self):
+        ts = self.get_simple_ts()
+        breaks = ts.breakpoints(as_array=True)
+        tree_svg = ts.at_index(1).draw_svg(x_axis=True)
+
+        ts_svg = ts.draw_svg(x_lim=[breaks[1], breaks[2]])
+        assert re.findall(r">\d+<", tree_svg) == re.findall(r">\d+<", ts_svg)  # labels
+        for identifier in ["s", "m"]:
+            tree_ids = re.findall(fr"{identifier}\d+", tree_svg)
+            assert len(tree_ids) > 0
+            ts_ids = re.findall(fr"{identifier}\d+", ts_svg)
+            assert tree_ids == ts_ids
+
+        site_pos0_in_tree1 = next(ts.at_index(1).sites()).position
+        ts_svg = ts.draw_svg(x_lim=[site_pos0_in_tree1, breaks[2]])
+        assert re.findall(r">\d+<", tree_svg) == re.findall(r">\d+<", ts_svg)  # labels
+        for identifier in ["s", "m"]:
+            tree_ids = re.findall(fr"{identifier}\d+", tree_svg)
+            ts_ids = re.findall(fr"{identifier}\d+", ts_svg)
+            assert tree_ids == ts_ids
+
+        ts_svg = ts.draw_svg(x_lim=[np.nextafter(site_pos0_in_tree1, 1), breaks[2]])
+        assert re.findall(r">\d+<", tree_svg) != re.findall(r">\d+<", ts_svg)  # labels
+        for identifier in ["s", "m"]:
+            tree_ids = re.findall(fr"{identifier}\d+", tree_svg)
+            ts_ids = re.findall(fr"{identifier}\d+", ts_svg)
+            assert tree_ids != ts_ids
+
     def test_half_truncated(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = ts.delete_intervals([[0.4, 0.6]])
