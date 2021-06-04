@@ -1754,6 +1754,15 @@ class StatsInterfaceMixin:
             with pytest.raises(_tskit.LibraryError):
                 f(windows=bad_window, **params)
 
+    def test_polarisation(self):
+        ts, f, params = self.get_example()
+        with pytest.raises(TypeError):
+            f(polarised="sdf", **params)
+        x1 = f(polarised=False, **params)
+        x2 = f(polarised=True, **params)
+        # Basic check just to run both code paths
+        assert x1.shape == x2.shape
+
     def test_windows_output(self):
         ts, f, params = self.get_example()
         del params["windows"]
@@ -2168,6 +2177,20 @@ class TwoWayWeightedStatsMixin(StatsInterfaceMixin):
         assert out.shape == (1, N, 1)
         out = method(weights[:, [0, 0, 0]], mode=mode, **params)
         assert out.shape == (1, N, 1)
+
+    def test_set_index_errors(self):
+        ts, method, params = self.get_example()
+        del params["indexes"]
+
+        def f(indexes):
+            method(indexes=indexes, **params)
+
+        for bad_array in ["wer", {}, [[[], []], [[], []]]]:
+            with pytest.raises(ValueError):
+                f(bad_array)
+        for bad_dim in [[[]], [[1], [1]]]:
+            with pytest.raises(ValueError):
+                f(bad_dim)
 
 
 class ThreeWaySampleStatsMixin(SampleSetMixin):

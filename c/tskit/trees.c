@@ -3030,17 +3030,17 @@ out:
     return ret;
 }
 
-genetic_relatedness_weighted_summary_func(size_t state_dim, const double *state,
-    size_t result_dim, double *result, void *params)
+static int
+genetic_relatedness_weighted_summary_func(tsk_size_t state_dim, const double *state,
+    tsk_size_t result_dim, double *result, void *params)
 {
     indexed_weight_stat_params_t args = *(indexed_weight_stat_params_t *) params;
     const double *x = state;
     tsk_id_t i, j;
-    size_t k;
+    tsk_size_t k;
     double meanx, ni, nj;
 
     meanx = state[state_dim - 1] / args.total_weights[state_dim - 1];
-    ;
     for (k = 0; k < result_dim; k++) {
         i = args.index_tuples[2 * k];
         j = args.index_tuples[2 * k + 1];
@@ -3063,39 +3063,32 @@ tsk_treeseq_genetic_relatedness_weighted(const tsk_treeseq_t *self,
     indexed_weight_stat_params_t args;
     const double *row;
     double *new_row;
-    double *total_weights = malloc((num_weights + 1) * sizeof(*total_weights));
-    double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(*new_weights));
+    double *total_weights = tsk_calloc((num_weights + 1), sizeof(*total_weights));
+    double *new_weights
+        = tsk_malloc((num_weights + 1) * num_samples * sizeof(*new_weights));
 
     if (total_weights == NULL || new_weights == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
 
-    // add a column of ones to W
-    for (k = 0; k < num_samples; k++) {
-        row = GET_2D_ROW(weights, num_weights, k);
-        new_row = GET_2D_ROW(new_weights, num_weights + 1, k);
-        for (j = 0; j < num_weights; j++) {
-            new_row[j] = row[j];
+    // Add a column of ones to W
+    for (j = 0; j < num_samples; j++) {
+        row = GET_2D_ROW(weights, num_weights, j);
+        new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] = row[k];
+            total_weights[k] += row[k];
         }
         new_row[num_weights] = 1.0;
     }
-
-    /* TODO: sanity check indexes */
-
-    for (j = 0; j < num_samples; j++) {
-        row = GET_2D_ROW(new_weights, num_weights + 1, j);
-        for (k = 0; k < num_weights + 1; k++) {
-            total_weights[k] += row[k];
-        }
-    }
+    total_weights[num_weights] = (double) num_samples;
 
     args.total_weights = total_weights;
     args.index_tuples = index_tuples;
-
     ret = tsk_treeseq_general_stat(self, num_weights + 1, new_weights, num_index_tuples,
-        genetic_relatedness_weighted_summary_func, &args, num_windows, windows, result,
-        options);
+        genetic_relatedness_weighted_summary_func, &args, num_windows, windows, options,
+        result);
     if (ret != 0) {
         goto out;
     }
@@ -3106,6 +3099,7 @@ out:
     return ret;
 }
 
+static int
 Y2_summary_func(tsk_size_t TSK_UNUSED(state_dim), const double *state,
     tsk_size_t result_dim, double *result, void *params)
 {
