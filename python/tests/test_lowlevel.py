@@ -2116,6 +2116,60 @@ class TwoWaySampleStatsMixin(SampleSetMixin):
                 f(bad_dim)
 
 
+class TwoWayWeightedStatsMixin(StatsInterfaceMixin):
+    """
+    Tests for the weighted two way sample stats.
+    """
+
+    def get_example(self):
+        ts, method = self.get_method()
+        params = {
+            "weights": np.zeros((ts.get_num_samples(), 2)) + 0.5,
+            "indexes": [[0, 1]],
+            "windows": [0, ts.get_sequence_length()],
+        }
+        return ts, method, params
+
+    def test_basic_example(self):
+        ts, method = self.get_method()
+        div = method(
+            np.zeros((ts.get_num_samples(), 1)) + 0.5,
+            [[0, 1]],
+            windows=[0, ts.get_sequence_length()],
+        )
+        assert div.shape == (1, 1)
+
+    def test_bad_weights(self):
+        ts, f, params = self.get_example()
+        del params["weights"]
+        n = ts.get_num_samples()
+
+        for bad_weight_shape in [(n - 1, 1), (n + 1, 1), (0, 3)]:
+            with pytest.raises(ValueError):
+                f(weights=np.ones(bad_weight_shape), **params)
+
+    def test_output_dims(self):
+        ts, method, params = self.get_example()
+        weights = params.pop("weights")
+        params["windows"] = [0, ts.get_sequence_length()]
+
+        for mode in ["site", "branch"]:
+            out = method(weights[:, [0]], mode=mode, **params)
+            assert out.shape == (1, 1)
+            out = method(weights, mode=mode, **params)
+            assert out.shape == (1, 1)
+            out = method(weights[:, [0, 0, 0]], mode=mode, **params)
+            assert out.shape == (1, 1)
+        mode = "node"
+        N = ts.get_num_nodes()
+        out = method(weights[:, [0]], mode=mode, **params)
+        assert out.shape == (1, N, 1)
+        out = method(weights, mode=mode, **params)
+        assert out.shape == (1, N, 1)
+        out = method(weights[:, [0, 0, 0]], mode=mode, **params)
+        assert out.shape == (1, N, 1)
+
+
 class ThreeWaySampleStatsMixin(SampleSetMixin):
     """
     Tests for the two way sample stats.
@@ -2302,6 +2356,12 @@ class Testf2(LowLevelTestCase, TwoWaySampleStatsMixin):
         return ts, ts.f2
 
 
+class TestGeneticRelatedness(LowLevelTestCase, TwoWaySampleStatsMixin):
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.genetic_relatedness
+
+
 class TestY3(LowLevelTestCase, ThreeWaySampleStatsMixin):
     def get_method(self):
         ts = self.get_example_tree_sequence()
@@ -2318,6 +2378,12 @@ class Testf4(LowLevelTestCase, FourWaySampleStatsMixin):
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.f4
+
+
+class TestWeightedGeneticRelatedness(LowLevelTestCase, TwoWayWeightedStatsMixin):
+    def get_method(self):
+        ts = self.get_example_tree_sequence()
+        return ts, ts.genetic_relatedness_weighted
 
 
 class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
