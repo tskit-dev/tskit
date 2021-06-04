@@ -460,16 +460,13 @@ class SvgPlot:
     """ The base class for plotting either a tree or a tree sequence as an SVG file"""
 
     standard_style = (
-        ".background path {fill: #808080; fill-opacity:0}"
-        ".background path:nth-child(odd) {fill-opacity:.1}"
+        ".background path {fill: #808080; fill-opacity: 0}"
+        ".background path:nth-child(odd) {fill-opacity: .1}"
         ".axes {font-size: 14px}"
         ".x-axis .tick .lab {font-weight: bold}"
-        ".axes, .tree {font-size: 14px; text-anchor:middle}"
-        ".y-axis line.grid {stroke: #FAFAFA}"
-        ".y-axis > .lab text {transform: translateX(0.8em) rotate(-90deg)}"
-        ".x-axis .tick g {transform: translateY(0.9em)}"
-        ".x-axis > .lab text {transform: translateY(-0.8em)}"
-        ".axes line, .edge {stroke:black; fill:none}"
+        ".axes, .tree {font-size: 14px; text-anchor: middle}"
+        ".axes line, .edge {stroke: black; fill: none}"
+        ".y-axis .grid {stroke: #FAFAFA}"
         ".node > .sym {fill: black; stroke: none}"
         ".site > .sym {stroke: black}"
         ".mut text {fill: red; font-style: italic}"
@@ -610,6 +607,7 @@ class SvgPlot:
                 x_axis,
                 pos=((self.plotbox.left + self.plotbox.right) / 2, self.plotbox.max_y),
                 group_class="lab",
+                transform="translate(0 -11)",
                 text_anchor="middle",
             )
         if self.x_axis:
@@ -635,7 +633,11 @@ class SvgPlot:
                         dwg.line((0, rnd(upper_length)), (0, rnd(tick_length_lower)))
                     )
                     self.add_text_in_group(
-                        lab, tick, pos=(0, tick_length_lower), group_class="lab"
+                        lab,
+                        tick,
+                        group_class="lab",
+                        pos=(0, tick_length_lower),  # pos + transform allows sensible
+                        transform="translate(0 8)",  # rotation via css transforms
                     )
             if site_muts is not None:
                 # Add sites as vertical lines with overlaid mutations as upper chevrons
@@ -695,6 +697,7 @@ class SvgPlot:
                 pos=(0, (upper + lower) / 2),
                 group_class="lab",
                 text_anchor="middle",
+                transform="translate(11) rotate(-90)",
             )
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper))))
