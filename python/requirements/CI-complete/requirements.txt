@@ -1,4 +1,4 @@
-biopython==1.78
+biopython==1.79
 black==21.5b1
 coverage==5.5
 flake8==3.9.2
