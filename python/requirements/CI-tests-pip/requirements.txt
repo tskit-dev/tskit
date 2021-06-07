@@ -6,7 +6,7 @@ h5py==3.2.1
 svgwrite==1.4.1
 portion==2.1.6
 xmlunittest==0.5.0
-biopython==1.78
+biopython==1.79
 kastore==0.3.1
 networkx==2.5.1
 msgpack==1.0.2
