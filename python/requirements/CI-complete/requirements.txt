@@ -1,5 +1,5 @@
 biopython==1.79
-black==21.5b1
+black==21.5b2
 coverage==5.5
 flake8==3.9.2
 h5py==3.2.1
