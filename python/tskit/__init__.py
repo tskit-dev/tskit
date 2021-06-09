@@ -79,3 +79,4 @@ from tskit.combinatorics import (  # NOQA
 from tskit.exceptions import *  # NOQA
 from tskit.util import *  # NOQA
 from tskit.metadata import *  # NOQA
+from tskit.text_formats import *  # NOQA
