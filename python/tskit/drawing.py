@@ -52,6 +52,14 @@ LEFT_CLIPPED_BIT = 2
 RIGHT_CLIPPED_BIT = 4
 
 
+@dataclass
+class Offsets:
+    "Used when x_lim set, and displayed ts has been cut down by keep_intervals"
+    tree: int = 0
+    site: int = 0
+    mutation: int = 0
+
+
 def check_orientation(orientation):
     if orientation is None:
         orientation = TOP
@@ -185,6 +193,7 @@ def clip_ts(ts, x_min, x_max):
     """
     edges = ts.tables.edges
     sites = ts.tables.sites
+    offsets = Offsets()
     if x_min is None:
         if ts.num_edges == 0:
             if ts.num_sites == 0:
@@ -210,6 +219,9 @@ def clip_ts(ts, x_min, x_max):
 
     if (x_min > 0) or (x_max < ts.sequence_length):
         old_breaks = ts.breakpoints(as_array=True)
+        offsets.tree = np.searchsorted(old_breaks, x_min, "right") - 2
+        offsets.site = np.searchsorted(sites.position, x_min)
+        offsets.mutation = np.searchsorted(ts.tables.mutations.site, offsets.site)
         ts = ts.keep_intervals([[x_min, x_max]], simplify=False)
         if ts.num_edges == 0:
             raise ValueError(
@@ -236,7 +248,7 @@ def clip_ts(ts, x_min, x_max):
         tree_status[new_breaks[1:]] |= RIGHT_CLIPPED_BIT
     else:
         tree_status = np.zeros(ts.num_trees, dtype=np.uint8)
-    return ts, tree_status
+    return ts, tree_status, offsets
 
 
 def check_y_ticks(ticks: Union[List, Mapping, None]) -> Mapping:
@@ -493,12 +505,13 @@ class SvgPlot:
         y_axis=None,
         x_label=None,
         y_label=None,
+        offsets=None,
         debug_box=None,
     ):
         """
         Creates self.drawing, an svgwrite.Drawing object for further use, and populates
         it with a stylesheet and base group. The root_groups will be populated with
-        items that can be accessed from the ourside, such as the plotbox, axes, etc.
+        items that can be accessed from the outside, such as the plotbox, axes, etc.
         """
         self.ts = ts
         self.image_size = size
@@ -526,6 +539,7 @@ class SvgPlot:
                 y_label = "Time"
         self.x_label = x_label
         self.y_label = y_label
+        self.offsets = Offsets() if offsets is None else offsets
         self.mutations_outside_tree = set()  # mutations in here get an additional class
 
     def get_plotbox(self):
@@ -630,14 +644,15 @@ class SvgPlot:
                     x = self.x_transform(s.position)
                     site = x_axis.add(
                         dwg.g(
-                            class_=f"site s{s.id}", transform=f"translate({rnd(x)} {y})"
+                            class_=f"site s{s.id + self.offsets.site}",
+                            transform=f"translate({rnd(x)} {y})",
                         )
                     )
                     site.add(
                         dwg.line((0, 0), (0, rnd(-tick_length_upper)), class_="sym")
                     )
                     for i, m in enumerate(reversed(mutations)):
-                        mutation_class = f"mut m{m.id}"
+                        mutation_class = f"mut m{m.id + self.offsets.mutation}"
                         if m.id in self.mutations_outside_tree:
                             mutation_class += " extra"
                         mut = dwg.g(class_=mutation_class)
@@ -812,7 +827,7 @@ class SvgTreeSequence(SvgPlot):
                 FutureWarning,
             )
         x_lim = check_x_lim(x_lim, max_x=ts.sequence_length)
-        ts, self.tree_status = clip_ts(ts, x_lim[0], x_lim[1])
+        ts, self.tree_status, offsets = clip_ts(ts, x_lim[0], x_lim[1])
         num_trees = int(np.sum((self.tree_status & OMIT) != OMIT))
         if size is None:
             size = (200 * num_trees, 200)
@@ -832,6 +847,7 @@ class SvgTreeSequence(SvgPlot):
             y_axis=y_axis,
             x_label=x_label,
             y_label=y_label,
+            offsets=offsets,
             **kwargs,
         )
         x_scale = check_x_scale(x_scale)
@@ -861,6 +877,7 @@ class SvgTreeSequence(SvgPlot):
                 edge_attrs=edge_attrs,
                 node_label_attrs=node_label_attrs,
                 mutation_label_attrs=mutation_label_attrs,
+                offsets=offsets,
                 # Do not plot axes on these subplots
                 **kwargs,  # pass though e.g. debug boxes
             )
@@ -1003,6 +1020,7 @@ class SvgTree(SvgPlot):
         edge_attrs=None,
         node_label_attrs=None,
         mutation_label_attrs=None,
+        offsets=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1025,17 +1043,21 @@ class SvgTree(SvgPlot):
             symbol_size = 6
         self.symbol_size = symbol_size
         ts = tree.tree_sequence
+        tree_index = tree.index
+        if offsets is not None:
+            tree_index += offsets.tree
         super().__init__(
             ts,
             size,
             root_svg_attributes,
             style,
-            svg_class=f"tree t{tree.index}",
+            svg_class=f"tree t{tree_index}",
             time_scale=time_scale,
             x_axis=x_axis,
             y_axis=y_axis,
             x_label=x_label,
             y_label=y_label,
+            offsets=offsets,
             **kwargs,
         )
         self.tree = tree
@@ -1059,7 +1081,7 @@ class SvgTree(SvgPlot):
                     if tree.parent(mutation.node) == NULL:
                         self.mutations_over_roots = True
                 else:
-                    unplotted.append(mutation.id)
+                    unplotted.append(mutation.id + self.offsets.mutation)
         if len(unplotted) > 0:
             logging.warning(
                 f"Mutations {unplotted} are above nodes which are not present in the "
@@ -1131,7 +1153,7 @@ class SvgTree(SvgPlot):
                 self.node_label_attrs[u].update(node_label_attrs[u])
         for _, mutations in self.node_mutations.items():
             for mutation in mutations:
-                m = mutation.id
+                m = mutation.id + self.offsets.mutation
                 # We need to offset the rectangle so that it's centred
                 self.mutation_attrs[m] = {
                     "d": "M -{0},-{0} l {1},{1} M -{0},{0} l {1},-{1}".format(
@@ -1144,7 +1166,7 @@ class SvgTree(SvgPlot):
                 label = ""
                 if mutation_labels is None:
                     label = str(m)
-                elif mutation.id in mutation_labels:
+                elif m in mutation_labels:
                     label = str(mutation_labels[m])
                 self.mutation_label_attrs[m] = {"text": label}
                 if mutation_label_attrs is not None and m in mutation_label_attrs:
@@ -1369,8 +1391,8 @@ class SvgTree(SvgPlot):
         for mutation in self.node_mutations[focal_node_id]:
             # Adding mutations and sites above this node allows identification
             # of the tree under any specific mutation
-            classes.add(f"m{mutation.id}")
-            classes.add(f"s{mutation.site}")
+            classes.add(f"m{mutation.id + self.offsets.mutation}")
+            classes.add(f"s{mutation.site+ self.offsets.site}")
         return sorted(classes)
 
     def draw_tree(self):
@@ -1438,10 +1460,14 @@ class SvgTree(SvgPlot):
                 # TODO get rid of these manual positioning tweaks and add them
                 # as offsets the user can access via a transform or something.
                 dy = self.y_transform(mutation.time) - pu[1]
-                mutation_class = f"mut m{mutation.id} s{mutation.site}"
+                mutation_id = mutation.id + self.offsets.mutation
+                mutation_class = (
+                    f"mut m{mutation_id} " f"s{mutation.site+ self.offsets.site}"
+                )
+                # Use the real mutation ID here, since we are referencing into the ts
                 if util.is_unknown_time(self.ts.mutation(mutation.id).time):
                     mutation_class += " unknown_time"
-                if mutation.id in self.mutations_outside_tree:
+                if mutation_id in self.mutations_outside_tree:
                     mutation_class += " extra"
                 mut_group = curr_svg_group.add(
                     dwg.g(class_=mutation_class, transform=f"translate(0 {rnd(dy)})")
@@ -1450,7 +1476,7 @@ class SvgTree(SvgPlot):
                 # revealable if we want to flag the path below a mutation
                 mut_group.add(dwg.line(end=(0, -rnd(dy))))
                 # Symbols
-                mut_group.add(dwg.path(**self.mutation_attrs[mutation.id]))
+                mut_group.add(dwg.path(**self.mutation_attrs[mutation_id]))
                 # Labels
                 if u == left_child[tree.parent(u)]:
                     mut_label_class = "lft"
@@ -1458,9 +1484,9 @@ class SvgTree(SvgPlot):
                 else:
                     mut_label_class = "rgt"
                     transform = f"translate({rnd(2+self.symbol_size/2)} 0)"
-                add_class(self.mutation_label_attrs[mutation.id], mut_label_class)
-                self.mutation_label_attrs[mutation.id]["transform"] = transform
-                mut_group.add(dwg.text(**self.mutation_label_attrs[mutation.id]))
+                add_class(self.mutation_label_attrs[mutation_id], mut_label_class)
+                self.mutation_label_attrs[mutation_id]["transform"] = transform
+                mut_group.add(dwg.text(**self.mutation_label_attrs[mutation_id]))
 
             # Add node symbol + label next (visually above the edge subtending this node)
             # Symbols
