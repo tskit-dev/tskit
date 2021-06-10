@@ -1615,108 +1615,10 @@ class Tree:
         **kwargs,
     ):
         """
-        Return an SVG representation of a single tree. Sample nodes are represented as
-        black squares, other nodes are black circles, and mutations are red crosses,
-        although these default styles can be altered (see below). By default, numeric
+        Return an SVG representation of a single tree. By default, numeric
         labels are drawn beside nodes and mutations: these can be altered using the
-        ``node_labels`` and ``mutation_labels`` parameters.
-
-
-        When working in a Jupyter notebook, use the ``IPython.display.SVG`` function
-        to display the SVG output from this function inline in the notebook::
-
-            >>> SVG(tree.draw_svg())
-
-        The elements in the tree are grouped according to the structure of the tree,
-        using `SVG groups <https://www.w3.org/TR/SVG2/struct.html#Groups>`_. This allows
-        easy styling and manipulation of elements and subtrees. Elements in the SVG file
-        are marked with SVG classes so that they can be targeted, allowing
-        different components of the drawing to be hidden, styled, or otherwise
-        manipulated. For example, when drawing (say) the first tree from a tree
-        sequence, all the SVG components will be placed in a group of class ``tree``.
-        The group will have the additional class ``t0``, indicating that this tree
-        has index 0 in the tree sequence. The general SVG structure is as follows:
-
-        The tree is contained in a group of class ``tree``. Additionally, this group
-        has a class ``tN`` where `N` is the tree index.
-
-        Within the ``tree`` group there is a nested hierarchy of groups corresponding
-        to the tree structure. Any particular node in the tree will have a corresponding
-        group containing child groups (if any) followed by the edge above that node, a
-        node symbol, and (potentially) text containing the node label. For example, a
-        simple two tip tree, with tip node ids 0 and 1, and a root node id of 2, and with
-        some bespoke labels, will have a structure similar to the following:
-
-        .. code-block::
-
-            <g class="tree t0">
-              <g class="node n2 root">
-                <g class="node n1 a2 i1 p1 sample leaf">
-                  <path class="edge" ... />
-                  <rect class="sym" ... />
-                  <text class="lab" ...>Node 1</text>
-                </g>
-                <g class="node n0 a2 i2 p1 sample leaf">
-                  <path class="edge" ... />
-                  <rect class="sym" .../>
-                  <text class="lab" ...>Node 0</text>
-                </g>
-                <path class="edge" ... />
-                <circle class="sym" ... />
-                <text class="lab">Root (Node 2)</text>
-              </g>
-            </g>
-
-        The classes can be used to manipulate the element, e.g. by using
-        `stylesheets <https://www.w3.org/TR/SVG2/styling.html>`_. Style strings can
-        be embedded in the svg by using the ``style`` parameter, or added to html
-        pages which contain the raw SVG (e.g. within a Jupyter notebook by using the
-        IPython ``HTML()`` function). As a simple example, passing the following
-        string as the ``style`` parameter will hide all labels:
-
-        .. code-block:: css
-
-            .tree .lab {visibility: hidden}
-
-        You can also change the format of various items: in SVG2-compatible viewers,
-        the following styles will rotate the leaf nodes labels by 90 degrees, colour
-        the leaf node symbols blue, and
-        hide the non-sample node labels. Note that SVG1.1 does not recognize the
-        ``transform`` style, so in some SVG viewers, the labels will not appear rotated:
-        a workaround is to convert the SVG to PDF first, using e.g. the programmable
-        chromium engine: ``chromium --headless --print-to-pdf=out.pdf in.svg``)
-
-        .. code-block:: css
-
-            .tree .node.leaf > .lab {
-                transform: translateY(0.5em) rotate(90deg); text-anchor: start}
-            .tree .node.leaf > .sym {fill: blue}
-            .tree .node:not(.sample) > .lab {visibility: hidden}
-
-        Nodes contain classes that allow them to be targeted by node id (``nX``),
-        ancestor (parent) id (``aX`` or ``root`` if this node has no parent), and
-        (if defined) the id of the individual (``iX``) and population (``pX``) to
-        which this node belongs. Hence the following style will display
-        a large symbol for node 10, coloured red with a black border, and will also use
-        thick red lines for all the edges that have it as a direct or indirect parent
-        (note that, as with the ``transform`` style, changing the geometrical size of
-        symbols is only possible in SVG2 and above and therefore not all SVG viewers
-        will render such symbol size changes correctly).
-
-        .. code-block:: css
-
-            .tree .node.n10 > .sym {fill: red; stroke: black; r: 8px}
-            .tree .node.a10 .edge {stroke: red; stroke-width: 2px}
-
-        .. note::
-
-            A feature of SVG style commands is that they apply not just to the contents
-            within the <svg> container, but to the entire file. Thus if an SVG file is
-            embedded in a larger document, such as an HTML file (e.g. when an SVG
-            is displayed inline in a Jupyter notebook), the style will apply to all SVG
-            drawings in the notebook. To avoid this, you can tag the SVG with a unique
-            SVG using ``root_svg_attributes={'id':'MY_UID'}``, and prepend this to the
-            style string, as in ``#MY_UID .tree .edges {stroke: gray}``.
+        ``node_labels`` and ``mutation_labels`` parameters. See the
+        :ref:`visualization tutorial<tutorials:sec_tskit_viz>` for more details.
 
         :param str path: The path to the file to write the output. If None, do not
             write to file.
@@ -1753,9 +1655,7 @@ class Tree:
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A
             `css style string <https://www.w3.org/TR/CSS22/syndata.html>`_ that will be
-            included in the ``<style>`` tag of the generated svg. Note that certain
-            styles, in particular transformations and changes in geometrical properties
-            of objects, will only be recognised by SVG2-compatible viewers.
+            included in the ``<style>`` tag of the generated svg.
         :param str order: The left-to-right ordering of child nodes in the drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
@@ -1788,8 +1688,7 @@ class Tree:
             on an edge if their site position exists within the genomic interval covered
             by this tree. If ``True``, all mutations on each edge of the tree are drawn,
             even if the their genomic position is to the left or right of the tree
-            itself (by default these "extra" mutations are drawn in a different colour).
-            Note that this means that independent drawings of different trees
+            itself. Note that this means that independent drawings of different trees
             from the same tree sequence may share some plotted mutations.
 
         :return: An SVG representation of a tree.
@@ -5556,29 +5455,8 @@ class TreeSequence:
         **kwargs,
     ):
         """
-        Return an SVG representation of a tree sequence.
-
-        When working in a Jupyter notebook, use the ``IPython.display.SVG`` function
-        to display the SVG output from this function inline in the notebook::
-
-            >>> SVG(tree.draw_svg())
-
-        The visual elements in the svg are
-        `grouped <https://www.w3.org/TR/SVG2/struct.html#Groups>`_
-        for easy styling and manipulation. The entire visualization with trees and X
-        axis is contained within a group of class ``tree-sequence``. Each tree in
-        the displayed tree sequence is contained in a group of class ``tree``, as
-        described in :meth:`Tree.draw_svg`, so that visual elements pertaining to one
-        or more trees targeted as documented in that method. For instance, the
-        following style will change the colour of all the edges of the *initial*
-        tree in the sequence and hide the non-sample node labels in *all* the trees
-
-        .. code-block:: css
-
-            .tree.t0 .edge {stroke: blue}
-            .tree .node:not(.sample) > text {visibility: hidden}
-
-        See :meth:`Tree.draw_svg` for further details.
+        Return an SVG representation of a tree sequence. See the
+        :ref:`visualization tutorial<tutorials:sec_tskit_viz>` for more details.
 
         :param str path: The path to the file to write the output. If None, do not write
             to file.
