@@ -511,7 +511,7 @@ class Variant(util.Dataclass):
     way via a numpy array to enable efficient calculations.
 
     When :ref:`missing data<sec_data_model_missing_data>` is present at a given
-    site boolean flag ``has_missing_data`` will be True, at least one element
+    site, the property ``has_missing_data`` will be True, at least one element
     of the ``genotypes`` array will be equal to ``tskit.MISSING_DATA``, and the
     last element of the ``alleles`` array will be ``None``. Note that in this
     case ``variant.num_alleles`` will **not** be equal to
@@ -520,7 +520,7 @@ class Variant(util.Dataclass):
     correctly fail early rather than introducing subtle and hard-to-find bugs.
     As ``tskit.MISSING_DATA`` is equal to -1, code that decodes genotypes into
     allelic values without taking missing data into account would otherwise
-    output the last allele in the list rather missing data.
+    incorrectly output the last allele in the list.
 
     Modifying the attributes in this class will have **no effect** on the
     underlying tree sequence data.
@@ -4565,19 +4565,16 @@ class TreeSequence:
         possible to detect missing data for non-sample nodes.
 
         If isolated samples are present at a given site without mutations above them,
-        they will be interpreted as :ref:`missing data<sec_data_model_missing_data>`
-        the genotypes array will contain a special value :data:`MISSING_DATA`
-        (-1) to identify these missing samples, and the ``alleles`` tuple will
-        end with the value ``None`` (note that this is true whether we specify
-        a fixed mapping using the ``alleles`` parameter or not).
-        See the :class:`Variant` class for more details on how missing data is
-        reported.
-
-        Such samples are treated as missing data by default, but if
-        ``isolated_as_missing`` is set to to False, they will not be treated as
-        missing, and so assigned the ancestral state.
-        This was the default behaviour in versions prior to 0.2.0. Prior to 0.3.0
-        the `impute_missing_data` argument controlled this behaviour.
+        they are interpreted by default as
+        :ref:`missing data<sec_data_model_missing_data>`, and the genotypes array
+        will contain a special value :data:`MISSING_DATA` (-1) to identify them
+        while the ``alleles`` tuple will end with the value ``None`` (note that this
+        will be the case whether or not we specify a fixed mapping using the
+        ``alleles`` parameter; see the :class:`Variant` class for more details).
+        Alternatively, if ``isolated_as_missing`` is set to to False, such isolated
+        samples will not be treated as missing, and instead assigned the ancestral
+        state (this was the default behaviour in versions prior to 0.2.0). Prior to
+        0.3.0 the `impute_missing_data` argument controlled this behaviour.
 
         .. note::
             The ``as_bytes`` parameter is kept as a compatibility
