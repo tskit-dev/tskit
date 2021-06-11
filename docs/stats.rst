@@ -27,6 +27,7 @@ statistics API in use.
    versions will add this behaviour as an option and will account
    for the presence of missing data by default.
 
+.. _sec_stats_available:
 
 ********************
 Available statistics
