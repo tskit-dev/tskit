@@ -1102,7 +1102,7 @@ uninstalling and reinstalling the pre-commit hooks fixed the problem:
 Releasing a new version
 ***********************
 
-Tskit maintains separate visioning for the C API and Python package, each has its own
+Tskit maintains separate versioning for the C API and Python package, each has its own
 release process.
 
 -----
