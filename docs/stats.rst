@@ -5,20 +5,19 @@
 Statistics
 ##########
 
-There is a unified interface for computing many types of summary statistics from tree sequences.
-These are implemented in a flexible way that
--- like the tree sequence itself --
-exploits the duality between mutations and branches in the trees
-to compute statistics of both genome sequence
-(whose definition does not depend on the trees)
-and of the underlying trees (whose definition does not depend on the genome sequence).
-Furthermore, these statistics have a common interface to easily compute
-(a) averaged statistics in windows along the genome,
-and (b) summary statistics of many combinations of sets of samples simultaneously.
-All methods return numpy arrays whose dimensions are
-determined by the parameters (see :ref:`sec_stats_output_dimensions`).
+The ``tskit`` library provides a large number of functions for calculating population
+genetic statistics from tree sequences. Statistics can reflect either the distribution
+of genetic variation or the underlying trees that generate it; the
+`duality <https://doi.org/10.1534/genetics.120.303253>`_ between
+mutations and branch lengths on trees means that statistics based on genetic variation
+often have an corresponding version based on branch lengths in trees in a tree sequence.
 
-Please see the :ref:`tutorial <sec_tutorial_stats>` for examples of the
+Note that ``tskit`` provides a unified interface for computing so-called
+"single site statistics" that are summaries across sites in windows of the genome, as
+well as a standard method for specifying "multi-way" statistics that are calculated
+over many combinations of sets of samples simultaneously.
+
+Please see the :ref:`tutorial <tutorials:sec_tutorial_stats>` for examples of the
 statistics API in use.
 
 .. warning:: :ref:`sec_data_model_missing_data` is not currently
@@ -34,88 +33,61 @@ Available statistics
 ********************
 
 Here are the statistics that can be computed using ``tskit``,
-grouped by basic classification and type.
+grouped by basic classification and type. Single-site statistics are ones that are
+averages across sites in windows of the genome, returning numpy arrays whose
+dimensions are determined by the parameters (see :ref:`sec_stats_output_dimensions`).
 
-++++++++++++++++++++++
-Single site statistics
-++++++++++++++++++++++
-
-- :meth:`TreeSequence.diversity`
-- :meth:`TreeSequence.divergence`
-- :meth:`TreeSequence.segregating_sites`
-- :meth:`TreeSequence.allele_frequency_spectrum`
-- :meth:`TreeSequence.genetic_relatedness`
-
-------------------------
-Patterson's f statistics
-------------------------
-
-These are the `f` statistics (also called `F` statistics) introduced in
-`Reich et al (2009) <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/>`_.
-See the documentation (link below) for the definition,
-and `Peter (2016) <https://www.genetics.org/content/202/4/1485>`_ for readable
-discussion of their use.
-
-- :meth:`TreeSequence.f4`
-- :meth:`TreeSequence.f3`
-- :meth:`TreeSequence.f2`
-
-------------
-Y statistics
-------------
-
-These are the `Y` statistics introduced by
-`Ashander et al (2018) <https://www.biorxiv.org/content/10.1101/354530v1>`_
-as a three-sample intermediate between diversity/divergence (which are
-pairwise) and Patterson's f statistics (which are four-way).
-
-- :meth:`TreeSequence.Y3`
-- :meth:`TreeSequence.Y2`
-
-------------------
-Trait correlations
-------------------
-
-These methods compute correlations and covariances of traits (i.e., an
-arbitrary vector) with allelic state, possibly in the context of a multivariate
-linear model with other covariates (as in GWAS).
-
-- :meth:`TreeSequence.trait_covariance`
-- :meth:`TreeSequence.trait_correlation`
-- :meth:`TreeSequence.trait_linear_model`
-
-------------------
-Derived statistics
-------------------
-
-The other statistics above all have the property that `mode="branch"` and
-`mode="site"` are "dual" in the sense that they are equal, on average, under
-a high neutral mutation rate. The following statistics do not have this
-property (since both are ratios of statistics that do have this property).
-
-- :meth:`TreeSequence.Fst`
-- :meth:`TreeSequence.Tajimas_D`
-
----------------
-General methods
----------------
-
-These methods allow access to the general method of computing statistics,
-using weights or sample counts, and summary functions. See the documentation
-for more details. The pre-implemented statistics above will be faster than
-using these methods directly, so they should be preferred.
-
-- :meth:`TreeSequence.general_stat`
-- :meth:`TreeSequence.sample_count_stat`
+:ref:`sec_stats_sample_sets_one_way` are defined over a single sample set, 
+whereas :ref:`sec_stats_sample_sets_multi_way` compare 2 or more sets of samples.
 
 
-.. _sec_stats_afs:
+* Single site
+    * One-way
+        * :meth:`~TreeSequence.allele_frequency_spectrum` (see :ref:`sec_stats_notes_afs`)
+        * :meth:`~TreeSequence.diversity`
+        * :meth:`~TreeSequence.segregating_sites`
+        * :meth:`~TreeSequence.trait_covariance`
+          :meth:`~TreeSequence.trait_correlation`
+          :meth:`~TreeSequence.trait_linear_model`
+          (see :ref:`sec_stats_notes_trait`)
+        * :meth:`~TreeSequence.Tajimas_D` (see :ref:`sec_stats_notes_derived`)
+    * Multi-way
+        * :meth:`~TreeSequence.divergence`
+        * :meth:`~TreeSequence.genetic_relatedness`
+        * :meth:`~TreeSequence.f4`
+          :meth:`~TreeSequence.f3`
+          :meth:`~TreeSequence.f2`
+          (see :ref:`sec_stats_notes_f`)
+        * :meth:`~TreeSequence.Y3`
+          :meth:`~TreeSequence.Y2`
+          (see :ref:`sec_stats_notes_y`)
+        * :meth:`~TreeSequence.genealogical_nearest_neighbours` (see :ref:`sec_stats_notes_gnn`)
+        * :meth:`~TreeSequence.Fst` (see :ref:`sec_stats_notes_derived`)
+* Multi site
+    * :meth:`~LdCalculator` (note this is soon to be deprecated)
+
+.. todo::
+    Add information about the new IBD stats.
+     
+.. note::
+    There is a general framework provided for calculating additional single site
+    statistics (see the :ref:`sec_stats_general_api` section). However, the
+    pre-implemented statistics in the table above will be faster than rederiving
+    them using the general framework directly, so the versions above should be preferred.
+
+
+=====
+Notes
+=====
+
+.. _sec_stats_notes_afs:
 
 +++++++++++++++++++++++++
 Allele frequency spectrum
 +++++++++++++++++++++++++
 
-We compute allele frequency spectra (AFS), including windowed and joint spectra,
+Most single site statistics are based on the summaries of the allele frequency spectra
+(AFS). The ``tskit`` AFS interface includes windowed and joint spectra,
 using the same general pattern as other statistics,
 but some of the details about how it is defined,
 especially in the presence of multiple alleles per site, need to be explained.
@@ -171,12 +143,76 @@ allele had instead produced an *a* allele,
 so that the site had only two alleles, with frequencies 7 and 3.
 Then, we would have added 0.5 to ``AFS[3]`` *twice*.
 
+.. _sec_stats_notes_trait:
+
+++++++++++++++++++
+Trait correlations
+++++++++++++++++++
+
+:meth:`~TreeSequence.trait_covariance`, :meth:`~TreeSequence.trait_correlation`, and
+:meth:`~TreeSequence.trait_linear_model` compute correlations and covariances of traits
+(i.e., an arbitrary vector) with allelic state, possibly in the context of a multivariate
+linear model with other covariates (as in GWAS).
+
+.. _sec_stats_notes_f:
+
+++++++++++++++++++++++++
+Patterson's f statistics
+++++++++++++++++++++++++
+
+:meth:`~TreeSequence.f4`, :meth:`~TreeSequence.f3`, and :meth:`~TreeSequence.f2`
+are the `f` statistics (also called `F` statistics) introduced in
+`Reich et al (2009) <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/>`_.
+See the documentation (link below) for the definition,
+and `Peter (2016) <https://www.genetics.org/content/202/4/1485>`_ for readable
+discussion of their use.
+
+.. _sec_stats_notes_y:
+
+++++++++++++
+Y statistics
+++++++++++++
+
+:meth:`~TreeSequence.Y3` and :meth:`~TreeSequence.Y2` are the `Y` statistics introduced
+by `Ashander et al (2018) <https://www.biorxiv.org/content/10.1101/354530v1>`_
+as a three-sample intermediate between diversity/divergence (which are
+pairwise) and Patterson's f statistics (which are four-way).
+
+
+.. _sec_stats_notes_derived:
+
+++++++++++++++++++
+Derived statistics
+++++++++++++++++++
+
+Most statistics have the property that `mode="branch"` and
+`mode="site"` are "dual" in the sense that they are equal, on average, under
+a high neutral mutation rate. :meth:`~TreeSequence.Fst` and :meth:`~TreeSequence.Tajimas_D`
+do not have this property (since both are ratios of statistics that do have this property).
+
+
+.. _sec_stats_notes_gnn:
+
++++++++++++++++++++++++++++++++
+Genealogical nearest neighbours
++++++++++++++++++++++++++++++++
+
+The genealogical nearest neighbours statistic is not based on branch lengths, but on
+topologies. therefore it currently has a slightly different interface to the other
+single site statistics. This may be revised in the future.
+
+
+.. _sec_stats_single_site:
+
+**********************
+Single site statistics
+**********************
 
 .. _sec_stats_interface:
 
-*********
+=========
 Interface
-*********
+=========
 
 Tskit offers a powerful and flexible interface for computing population genetic
 statistics. Consequently, the interface is a little complicated and there are a
@@ -511,9 +547,9 @@ various output dimension options.
 
 .. _sec_stats_general_api:
 
-***********
+===========
 General API
-***********
+===========
 
 The methods :meth:`TreeSequence.general_stat` and :meth:`TreeSequence.sample_count_stat`
 provide access to the general-purpose algorithm for computing statistics.
@@ -624,3 +660,15 @@ and boolean expressions (e.g., :math:`(x > 0)`) are interpreted as 0/1.
    where :math:`w` and :math:`x` are as before,
    :math:`z_j` is the sum of the j-th normalised covariate values below the node,
    and :math:`v_j` is the covariance of the trait with the j-th covariate.
+
+
+*********************
+Multi site statistics
+*********************
+
+.. todo::
+    Document statistics that use informnation about correlation between sites, such as
+    LdCalculator and the IBD interface. Note that if we have a general
+    framework which has the same calling conventions as the single site stats,
+    we can rework the sections above.
+    
