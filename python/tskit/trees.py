@@ -5330,7 +5330,7 @@ class TreeSequence:
         which both parent and child are in ``nodes```, only mutations whose
         node is in ``nodes``, and only individuals that are referred to by one
         of the retained nodes.  Note that this does *not* retain
-        the ancestry of these nodes - for that, see ::meth::`.simplify`.
+        the ancestry of these nodes - for that, see :meth:`.simplify`.
 
         This has the side effect of reordering the nodes, individuals, and
         populations in the tree sequence: the nodes in the new tree sequence
