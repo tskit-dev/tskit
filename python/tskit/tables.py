@@ -341,7 +341,8 @@ class BaseTable:
         If passed a slice, iterable or array return a new table containing the specified
         rows. Similar to numpy fancy indexing, if the array or iterables contains
         booleans then the index acts as a mask, returning those rows for which the mask
-        is True.
+        is True. Note that as the result is a new table, the row ids will change as tskit
+        row ids are row indexes.
 
         :param index: the zero-index of a desired row, a slice of the desired rows, an
             iterable or array of the desired row numbers, or a boolean array to use as
