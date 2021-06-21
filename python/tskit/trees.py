@@ -5525,6 +5525,19 @@ class TreeSequence:
         )
         return tables.tree_sequence()
 
+    def split_edges(self, mode="leaf"):
+        """
+        Returns a tree sequence where edges are split by various rules.
+
+        This
+
+        :param str mode: The criteria by which edges should be split. Must be
+            ``leaf``, ``node``, or ``tree``. If ``leaf``, edges are split  when they
+            have different leaves in different trees. If ``node``, edges
+            are split when they have different nodes in different trees. If ``tree``,
+            edges which straddle tree breakpoints are split.
+        """
+
     def draw_svg(
         self,
         path=None,
