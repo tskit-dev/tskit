@@ -701,11 +701,12 @@ tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "tsk_individual_tbl: %p:\n", (const void *) self);
-    fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "metadata_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     /* We duplicate the dump_text code here because we want to output
      * the offset columns. */
@@ -715,8 +716,8 @@ tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
     fprintf(out, "parents_offset\tparents\n");
     fprintf(out, "metadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
-        fprintf(out, "%d\t%d\t", (int) j, self->flags[j]);
-        fprintf(out, "%d\t", self->location_offset[j]);
+        fprintf(out, "%lld\t%lld\t", (long long) j, (long long) self->flags[j]);
+        fprintf(out, "%lld\t", (long long) self->location_offset[j]);
         for (k = self->location_offset[j]; k < self->location_offset[j + 1]; k++) {
             fprintf(out, "%f", self->location[k]);
             if (k + 1 < self->location_offset[j + 1]) {
@@ -724,15 +725,15 @@ tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
             }
         }
         fprintf(out, "\t");
-        fprintf(out, "%d\t", self->parents_offset[j]);
+        fprintf(out, "%lld\t", (long long) self->parents_offset[j]);
         for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
-            fprintf(out, "%d", self->parents[k]);
+            fprintf(out, "%lld", (long long) self->parents[k]);
             if (k + 1 < self->parents_offset[j + 1]) {
                 fprintf(out, ",");
             }
         }
         fprintf(out, "\t");
-        fprintf(out, "%d\t", self->metadata_offset[j]);
+        fprintf(out, "%lld\t", (long long) self->metadata_offset[j]);
         for (k = self->metadata_offset[j]; k < self->metadata_offset[j + 1]; k++) {
             fprintf(out, "%c", self->metadata[k]);
         }
@@ -802,7 +803,7 @@ tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
     }
     for (j = 0; j < self->num_rows; j++) {
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%d\t%d\t", (int) j, (int) self->flags[j]);
+        err = fprintf(out, "%lld\t%lld\t", (long long) j, (long long) self->flags[j]);
         if (err < 0) {
             goto out;
         }
@@ -819,7 +820,7 @@ tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
             }
         }
         for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
-            err = fprintf(out, "%d", self->parents[k]);
+            err = fprintf(out, "%lld", (long long) self->parents[k]);
             if (err < 0) {
                 goto out;
             }
@@ -1302,11 +1303,12 @@ tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "tsk_node_tbl: %p:\n", (const void *) self);
-    fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "metadata_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     /* We duplicate the dump_text code here for simplicity because we want to output
      * the flags column directly. */
@@ -1314,8 +1316,9 @@ tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out)
         out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "id\tflags\ttime\tpopulation\tindividual\tmetadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
-        fprintf(out, "%d\t%d\t%f\t%d\t%d\t%d\t", (int) j, self->flags[j], self->time[j],
-            (int) self->population[j], self->individual[j], self->metadata_offset[j]);
+        fprintf(out, "%lld\t%lld\t%f\t%lld\t%lld\t%lld\t", (long long) j,
+            (long long) self->flags[j], self->time[j], (long long) self->population[j],
+            (long long) self->individual[j], (long long) self->metadata_offset[j]);
         for (k = self->metadata_offset[j]; k < self->metadata_offset[j + 1]; k++) {
             fprintf(out, "%c", self->metadata[k]);
         }
@@ -1352,10 +1355,10 @@ tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out)
     }
     for (j = 0; j < self->num_rows; j++) {
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%d\t%d\t%f\t%d\t%d\t%.*s\n", (int) j,
-            (int) (self->flags[j] & TSK_NODE_IS_SAMPLE), self->time[j],
-            self->population[j], self->individual[j], metadata_len,
-            self->metadata + self->metadata_offset[j]);
+        err = fprintf(out, "%lld\t%lld\t%f\t%lld\t%lld\t%.*s\n", (long long) j,
+            (long long) (self->flags[j] & TSK_NODE_IS_SAMPLE), self->time[j],
+            (long long) self->population[j], (long long) self->individual[j],
+            metadata_len, self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -1884,11 +1887,12 @@ tsk_edge_table_print_state(const tsk_edge_table_t *self, FILE *out)
     fprintf(out, TABLE_SEP);
     fprintf(out, "edge_table: %p:\n", (const void *) self);
     fprintf(out, "options         = 0x%X\n", self->options);
-    fprintf(out, "num_rows        = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows        = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "metadata_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_edge_table_dump_text(self, out);
     tsk_bug_assert(ret == 0);
@@ -1921,8 +1925,9 @@ tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out)
     }
     for (j = 0; j < (tsk_id_t) self->num_rows; j++) {
         tsk_edge_table_get_row_unsafe(self, j, &row);
-        err = fprintf(out, "%d\t%.3f\t%.3f\t%d\t%d\t%.*s\n", j, row.left, row.right,
-            row.parent, row.child, row.metadata_length, row.metadata);
+        err = fprintf(out, "%lld\t%.3f\t%.3f\t%lld\t%lld\t%.*s\n", (long long) j,
+            row.left, row.right, (long long) row.parent, (long long) row.child,
+            row.metadata_length, row.metadata);
         if (err < 0) {
             goto out;
         }
@@ -2520,14 +2525,16 @@ tsk_site_table_print_state(const tsk_site_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "site_table: %p:\n", (const void *) self);
-    fprintf(out, "num_rows = %d\t(max= %d\tincrement = %d)\n", (int) self->num_rows,
-        (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "ancestral_state_length = %d\t(max= %d\tincrement = %d)\n",
-        (int) self->ancestral_state_length, (int) self->max_ancestral_state_length,
-        (int) self->max_ancestral_state_length_increment);
-    fprintf(out, "metadata_length = %d(\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows = %lld\t(max= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "ancestral_state_length = %lld\t(max= %lld\tincrement = %lld)\n",
+        (long long) self->ancestral_state_length,
+        (long long) self->max_ancestral_state_length,
+        (long long) self->max_ancestral_state_length_increment);
+    fprintf(out, "metadata_length = %lld(\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_site_table_dump_text(self, out);
     tsk_bug_assert(ret == 0);
@@ -2600,7 +2607,7 @@ tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
         ancestral_state_len
             = self->ancestral_state_offset[j + 1] - self->ancestral_state_offset[j];
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%d\t%f\t%.*s\t%.*s\n", (int) j, self->position[j],
+        err = fprintf(out, "%lld\t%f\t%.*s\t%.*s\n", (long long) j, self->position[j],
             ancestral_state_len, self->ancestral_state + self->ancestral_state_offset[j],
             metadata_len, self->metadata + self->metadata_offset[j]);
         if (err < 0) {
@@ -3143,14 +3150,16 @@ tsk_mutation_table_print_state(const tsk_mutation_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "mutation_table: %p:\n", (const void *) self);
-    fprintf(out, "num_rows = %d\tmax= %d\tincrement = %d)\n", (int) self->num_rows,
-        (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "derived_state_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->derived_state_length, (int) self->max_derived_state_length,
-        (int) self->max_derived_state_length_increment);
-    fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "derived_state_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->derived_state_length,
+        (long long) self->max_derived_state_length,
+        (long long) self->max_derived_state_length_increment);
+    fprintf(out, "metadata_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_mutation_table_dump_text(self, out);
     tsk_bug_assert(ret == 0);
@@ -3221,8 +3230,9 @@ tsk_mutation_table_dump_text(const tsk_mutation_table_t *self, FILE *out)
         derived_state_len
             = self->derived_state_offset[j + 1] - self->derived_state_offset[j];
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%d\t%d\t%d\t%d\t%f\t%.*s\t%.*s\n", (int) j, self->site[j],
-            self->node[j], self->parent[j], self->time[j], derived_state_len,
+        err = fprintf(out, "%lld\t%lld\t%lld\t%lld\t%f\t%.*s\t%.*s\n", (long long) j,
+            (long long) self->site[j], (long long) self->node[j],
+            (long long) self->parent[j], self->time[j], derived_state_len,
             self->derived_state + self->derived_state_offset[j], metadata_len,
             self->metadata + self->metadata_offset[j]);
         if (err < 0) {
@@ -3658,11 +3668,12 @@ tsk_migration_table_print_state(const tsk_migration_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "migration_table: %p:\n", (const void *) self);
-    fprintf(out, "num_rows = %d\tmax= %d\tincrement = %d)\n", (int) self->num_rows,
-        (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "metadata_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "metadata_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     ret = tsk_migration_table_dump_text(self, out);
     tsk_bug_assert(ret == 0);
@@ -3726,9 +3737,10 @@ tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out)
     }
     for (j = 0; j < self->num_rows; j++) {
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(out, "%.3f\t%.3f\t%d\t%d\t%d\t%f\t%.*s\n", self->left[j],
-            self->right[j], self->node[j], self->source[j], self->dest[j], self->time[j],
-            metadata_len, self->metadata + self->metadata_offset[j]);
+        err = fprintf(out, "%.3f\t%.3f\t%lld\t%lld\t%lld\t%f\t%.*s\n", self->left[j],
+            self->right[j], (long long) self->node[j], (long long) self->source[j],
+            (long long) self->dest[j], self->time[j], metadata_len,
+            self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -4130,17 +4142,19 @@ tsk_population_table_print_state(const tsk_population_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "population_table: %p:\n", (const void *) self);
-    fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "metadata_length  = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->metadata_length, (int) self->max_metadata_length,
-        (int) self->max_metadata_length_increment);
+    fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "metadata_length  = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->metadata_length, (long long) self->max_metadata_length,
+        (long long) self->max_metadata_length_increment);
     fprintf(out, TABLE_SEP);
     write_metadata_schema_header(
         out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "index\tmetadata_offset\tmetadata\n");
     for (j = 0; j < self->num_rows; j++) {
-        fprintf(out, "%d\t%d\t", (int) j, self->metadata_offset[j]);
+        fprintf(
+            out, "%lld\t%lld\t", (long long) j, (long long) self->metadata_offset[j]);
         for (k = self->metadata_offset[j]; k < self->metadata_offset[j + 1]; k++) {
             fprintf(out, "%c", self->metadata[k]);
         }
@@ -4652,22 +4666,24 @@ tsk_provenance_table_print_state(const tsk_provenance_table_t *self, FILE *out)
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "provenance_table: %p:\n", (const void *) self);
-    fprintf(out, "num_rows          = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->num_rows, (int) self->max_rows, (int) self->max_rows_increment);
-    fprintf(out, "timestamp_length  = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->timestamp_length, (int) self->max_timestamp_length,
-        (int) self->max_timestamp_length_increment);
-    fprintf(out, "record_length = %d\tmax= %d\tincrement = %d)\n",
-        (int) self->record_length, (int) self->max_record_length,
-        (int) self->max_record_length_increment);
+    fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->num_rows, (long long) self->max_rows,
+        (long long) self->max_rows_increment);
+    fprintf(out, "timestamp_length  = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->timestamp_length, (long long) self->max_timestamp_length,
+        (long long) self->max_timestamp_length_increment);
+    fprintf(out, "record_length = %lld\tmax= %lld\tincrement = %lld)\n",
+        (long long) self->record_length, (long long) self->max_record_length,
+        (long long) self->max_record_length_increment);
     fprintf(out, TABLE_SEP);
     fprintf(out, "index\ttimestamp_offset\ttimestamp\trecord_offset\tprovenance\n");
     for (j = 0; j < self->num_rows; j++) {
-        fprintf(out, "%d\t%d\t", (int) j, self->timestamp_offset[j]);
+        fprintf(
+            out, "%lld\t%lld\t", (long long) j, (long long) self->timestamp_offset[j]);
         for (k = self->timestamp_offset[j]; k < self->timestamp_offset[j + 1]; k++) {
             fprintf(out, "%c", self->timestamp[k]);
         }
-        fprintf(out, "\t%d\t", self->record_offset[j]);
+        fprintf(out, "\t%lld\t", (long long) self->record_offset[j]);
         for (k = self->record_offset[j]; k < self->record_offset[j + 1]; k++) {
             fprintf(out, "%c", self->record[k]);
         }
@@ -6764,14 +6780,14 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     fprintf(out, "--ibd-finder stats--\n");
     fprintf(out, "===\nEdge table\n==\n");
     for (j = 0; j < self->tables->edges.num_rows; j++) {
-        fprintf(out, "L:%f, R:%f, P:%d, C:%d\n", self->tables->edges.left[j],
-            self->tables->edges.right[j], self->tables->edges.parent[j],
-            self->tables->edges.child[j]);
+        fprintf(out, "L:%f, R:%f, P:%lld, C:%lld\n", self->tables->edges.left[j],
+            self->tables->edges.right[j], (long long) self->tables->edges.parent[j],
+            (long long) self->tables->edges.child[j]);
     }
     fprintf(out, "===\nNode table\n==\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
-        fprintf(out, "ID:%f, Time:%f, Flag:%d\n", (double) j,
-            self->tables->nodes.time[j], self->tables->nodes.flags[j]);
+        fprintf(out, "ID:%f, Time:%f, Flag:%lld\n", (double) j,
+            self->tables->nodes.time[j], (long long) self->tables->nodes.flags[j]);
     }
     fprintf(out, "==\nSample pairs\n==\n");
     for (j = 0; j < 2 * self->num_pairs; j++) {
@@ -6782,9 +6798,9 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     }
     fprintf(out, "===\nAncestral map\n==\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
-        fprintf(out, "Node %d: ", (int) j);
+        fprintf(out, "Node %lld: ", (long long) j);
         for (u = self->ancestor_map_head[j]; u != NULL; u = u->next) {
-            fprintf(out, "(%f,%f->%d)", u->left, u->right, u->node);
+            fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
         }
         fprintf(out, "\n");
     }
@@ -6793,7 +6809,7 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
         fprintf(out, "Pair (%i, %i)\n", (int) self->pairs[2 * j],
             (int) self->pairs[2 * j + 1]);
         for (u = self->ibd_segments_head[j]; u != NULL; u = u->next) {
-            fprintf(out, "(%f,%f->%d)", u->left, u->right, u->node);
+            fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
         }
         fprintf(out, "\n");
     }
@@ -6982,7 +6998,7 @@ print_segment_chain(tsk_segment_t *head, FILE *out)
     tsk_segment_t *u;
 
     for (u = head; u != NULL; u = u->next) {
-        fprintf(out, "(%f,%f->%d)", u->left, u->right, u->node);
+        fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
     }
 }
 
@@ -7018,26 +7034,27 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     tsk_blkalloc_print_state(&self->interval_list_heap, out);
     fprintf(out, "===\nancestors\n==\n");
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
-        fprintf(out, "%d:\t", (int) j);
+        fprintf(out, "%lld:\t", (long long) j);
         print_segment_chain(self->ancestor_map_head[j], out);
         fprintf(out, "\n");
     }
     fprintf(out, "===\nnode_id map (input->output)\n==\n");
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
         if (self->node_id_map[j] != TSK_NULL) {
-            fprintf(out, "%d->%d\n", (int) j, self->node_id_map[j]);
+            fprintf(
+                out, "%lld->%lld\n", (long long) j, (long long) self->node_id_map[j]);
         }
     }
     fprintf(out, "===\nsegment queue\n==\n");
     for (j = 0; j < self->segment_queue_size; j++) {
         u = &self->segment_queue[j];
-        fprintf(out, "(%f,%f->%d)", u->left, u->right, u->node);
+        fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
         fprintf(out, "\n");
     }
     fprintf(out, "===\nbuffered children\n==\n");
     for (j = 0; j < self->num_buffered_children; j++) {
         child = self->buffered_children[j];
-        fprintf(out, "%d -> ", (int) j);
+        fprintf(out, "%lld -> ", (long long) j);
         for (int_list = self->child_edge_map_head[child]; int_list != NULL;
              int_list = int_list->next) {
             fprintf(out, "(%f, %f), ", int_list->left, int_list->right);
@@ -7046,15 +7063,16 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     }
     fprintf(out, "===\nmutation node map\n==\n");
     for (j = 0; j < self->input_tables.mutations.num_rows; j++) {
-        fprintf(out, "%d\t-> %d\n", (int) j, self->mutation_node_map[j]);
+        fprintf(out, "%lld\t-> %lld\n", (long long) j,
+            (long long) self->mutation_node_map[j]);
     }
     fprintf(out, "===\nnode mutation id list map\n==\n");
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
         if (self->node_mutation_list_map_head[j] != NULL) {
-            fprintf(out, "%d\t-> [", (int) j);
+            fprintf(out, "%lld\t-> [", (long long) j);
             for (list_node = self->node_mutation_list_map_head[j]; list_node != NULL;
                  list_node = list_node->next) {
-                fprintf(out, "%d,", list_node->mutation);
+                fprintf(out, "%lld,", (long long) list_node->mutation);
             }
             fprintf(out, "]\n");
         }
@@ -7062,7 +7080,7 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     if (!!(self->options & TSK_REDUCE_TO_SITE_TOPOLOGY)) {
         fprintf(out, "===\nposition_lookup\n==\n");
         for (j = 0; j < self->input_tables.sites.num_rows + 2; j++) {
-            fprintf(out, "%d\t-> %f\n", (int) j, self->position_lookup[j]);
+            fprintf(out, "%lld\t-> %f\n", (long long) j, self->position_lookup[j]);
         }
     }
     simplifier_check_state(self);

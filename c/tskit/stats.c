@@ -51,10 +51,10 @@ void
 tsk_ld_calc_print_state(const tsk_ld_calc_t *self, FILE *out)
 {
     fprintf(out, "tree_sequence = %p\n", (const void *) self->tree_sequence);
-    fprintf(out, "outer tree index = %d\n", (int) self->outer_tree->index);
+    fprintf(out, "outer tree index = %lld\n", (long long) self->outer_tree->index);
     fprintf(out, "outer tree interval = (%f, %f)\n", self->outer_tree->left,
         self->outer_tree->right);
-    fprintf(out, "inner tree index = %d\n", (int) self->inner_tree->index);
+    fprintf(out, "inner tree index = %lld\n", (long long) self->inner_tree->index);
     fprintf(out, "inner tree interval = (%f, %f)\n", self->inner_tree->left,
         self->inner_tree->right);
     tsk_ld_calc_check_state(self);

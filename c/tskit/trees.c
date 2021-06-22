@@ -64,27 +64,28 @@ tsk_treeseq_print_state(const tsk_treeseq_t *self, FILE *out)
     tsk_site_t site;
 
     fprintf(out, "tree_sequence state\n");
-    fprintf(out, "num_trees = %d\n", (int) self->num_trees);
-    fprintf(out, "samples = (%d)\n", (int) self->num_samples);
+    fprintf(out, "num_trees = %lld\n", (long long) self->num_trees);
+    fprintf(out, "samples = (%lld)\n", (long long) self->num_samples);
     for (j = 0; j < self->num_samples; j++) {
-        fprintf(out, "\t%d\n", (int) self->samples[j]);
+        fprintf(out, "\t%lld\n", (long long) self->samples[j]);
     }
     tsk_table_collection_print_state(self->tables, out);
     fprintf(out, "tree_sites = \n");
     for (j = 0; j < self->num_trees; j++) {
-        fprintf(out, "tree %d\t%d sites\n", (int) j, self->tree_sites_length[j]);
+        fprintf(out, "tree %lld\t%lld sites\n", (long long) j,
+            (long long) self->tree_sites_length[j]);
         for (k = 0; k < self->tree_sites_length[j]; k++) {
             site = self->tree_sites[j][k];
-            fprintf(
-                out, "\tsite %d pos = %f ancestral state = ", site.id, site.position);
+            fprintf(out, "\tsite %lld pos = %f ancestral state = ", (long long) site.id,
+                site.position);
             for (l = 0; l < site.ancestral_state_length; l++) {
                 fprintf(out, "%c", site.ancestral_state[l]);
             }
-            fprintf(out, " %d mutations\n", site.mutations_length);
+            fprintf(out, " %lld mutations\n", (long long) site.mutations_length);
             for (l = 0; l < site.mutations_length; l++) {
-                fprintf(out,
-                    "\t\tmutation %d node = %d derived_state = ", site.mutations[l].id,
-                    site.mutations[l].node);
+                fprintf(out, "\t\tmutation %lld node = %lld derived_state = ",
+                    (long long) site.mutations[l].id,
+                    (long long) site.mutations[l].node);
                 for (m = 0; m < site.mutations[l].derived_state_length; m++) {
                     fprintf(out, "%c", site.mutations[l].derived_state[m]);
                 }
@@ -3797,11 +3798,11 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
 
     fprintf(out, "Tree state:\n");
     fprintf(out, "options = %d\n", self->options);
-    fprintf(out, "root_threshold = %d\n", self->root_threshold);
+    fprintf(out, "root_threshold = %lld\n", (long long) self->root_threshold);
     fprintf(out, "left = %f\n", self->left);
     fprintf(out, "right = %f\n", self->right);
-    fprintf(out, "left_root = %d\n", (int) self->left_root);
-    fprintf(out, "index = %d\n", (int) self->index);
+    fprintf(out, "left_root = %lld\n", (long long) self->left_root);
+    fprintf(out, "index = %lld\n", (long long) self->index);
     fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib");
     if (self->options & TSK_SAMPLE_LISTS) {
         fprintf(out, "\thead\ttail");
@@ -3809,22 +3810,24 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
     fprintf(out, "\n");
 
     for (j = 0; j < self->num_nodes; j++) {
-        fprintf(out, "%d\t%d\t%d\t%d\t%d\t%d", (int) j, self->parent[j],
-            self->left_child[j], self->right_child[j], self->left_sib[j],
-            self->right_sib[j]);
+        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) j,
+            (long long) self->parent[j], (long long) self->left_child[j],
+            (long long) self->right_child[j], (long long) self->left_sib[j],
+            (long long) self->right_sib[j]);
         if (self->options & TSK_SAMPLE_LISTS) {
-            fprintf(out, "\t%d\t%d\t", self->left_sample[j], self->right_sample[j]);
+            fprintf(out, "\t%lld\t%lld\t", (long long) self->left_sample[j],
+                (long long) self->right_sample[j]);
         }
         if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-            fprintf(out, "\t%d\t%d\t%d", (int) self->num_samples[j],
-                (int) self->num_tracked_samples[j], self->marked[j]);
+            fprintf(out, "\t%lld\t%lld\t%lld", (long long) self->num_samples[j],
+                (long long) self->num_tracked_samples[j], (long long) self->marked[j]);
         }
         fprintf(out, "\n");
     }
     fprintf(out, "sites = \n");
     for (j = 0; j < self->sites_length; j++) {
         site = self->sites[j];
-        fprintf(out, "\t%d\t%f\n", site.id, site.position);
+        fprintf(out, "\t%lld\t%f\n", (long long) site.id, site.position);
     }
     tsk_tree_check_state(self);
 }
@@ -4482,11 +4485,11 @@ void
 tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out)
 {
     fprintf(out, "tree_diff_iterator state\n");
-    fprintf(out, "num_edges = %d\n", (int) self->num_edges);
-    fprintf(out, "insertion_index = %d\n", (int) self->insertion_index);
-    fprintf(out, "removal_index = %d\n", (int) self->removal_index);
+    fprintf(out, "num_edges = %lld\n", (long long) self->num_edges);
+    fprintf(out, "insertion_index = %lld\n", (long long) self->insertion_index);
+    fprintf(out, "removal_index = %lld\n", (long long) self->removal_index);
     fprintf(out, "tree_left = %f\n", self->tree_left);
-    fprintf(out, "tree_index = %d\n", (int) self->tree_index);
+    fprintf(out, "tree_index = %lld\n", (long long) self->tree_index);
 }
 
 int TSK_WARN_UNUSED
