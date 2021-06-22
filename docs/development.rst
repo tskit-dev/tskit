@@ -31,7 +31,7 @@ structure:
 - The ``python`` directory contains the Python library and command line interface,
   which is what most contributors are likely to be interested in. Please
   see the :ref:`sec_development_python` section for details. The
-  low-level :ref:`sec_development_python_c` interface is also defined here.
+  low-level :ref:`sec_development_python_c` is also defined here.
 
 - The ``c`` directory contains the high-performance C library code. Please
   see the :ref:`sec_development_c` for details on how to contribute.
@@ -80,13 +80,8 @@ For OSX and Windows users we recommending using
 `conda <https://docs.conda.io/projects/conda/en/latest/>`__,
 and isolating development in a dedicated environment as follows::
 
-    $ conda create -q -n tskit-dev
-    $ source activate tskit-dev
-    $ conda install -c conda-forge --yes --file=python/requirements/conda-minimal.txt
-    $ conda install -c conda-forge doxygen
-    $ conda install -c bioconda --yes pysam
-    $ pip install -r python/requirements/development.txt
-
+    $ conda env create -f python/requirements/development.yml
+    $ conda activate tskit-dev
 
 On macOS, conda builds are generally done using ``clang`` packages that are kept up to date:
 
@@ -100,14 +95,20 @@ on versions of macOS older than "Mojave":
 
 .. code-block:: bash
 
+    $ cd python
     $ CONDA_BUILD_SYSROOT=/ python3 setup.py build_ext -i
 
 On more recent macOS releases, you may omit the ``CONDA_BUILD_SYSROOT`` prefix.
 
+If you run into issues with the conda compiler, be sure that your command line tools are installed
+and up to date (you should also reboot your system after installing CLI tools). Note that you may
+also have to install a `specific version of the Xcode command line tools
+<https://stackoverflow.com/a/64416852/2752221>`_.
+
 .. note::
 
    The use of the C toolchain on macOS is a moving target.  The above advice
-   was written on 23 January, 2020 and was validated by a few ``tskit`` contributors.
+   was updated on 22 June, 2021 and was validated by a few ``tskit`` contributors.
    Caveat emptor, etc..
 
 
@@ -651,9 +652,7 @@ On Debian/Ubuntu, these can be installed using
     if so, you can install it instead with ``pip`` by running
     ``pip3 install clang-format==6.0.1 && ln -s clang-format $(which clang-format)-6.0``.
 
-Conda users can install the basic requirements as follows::
-
-    $ conda install -c conda-forge ninja meson cunit
+Conda users can install the basic requirements from `python/requirements/development.txt`.
 
 Unfortunately clang-format is not available on conda, but it is not essential.
 
