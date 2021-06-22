@@ -213,7 +213,7 @@ write_metadata_schema_header(
     const char *fmt = "#metadata_schema#\n"
                       "%.*s\n"
                       "#end#metadata_schema\n";
-    return fprintf(out, fmt, metadata_schema_length, metadata_schema);
+    return fprintf(out, fmt, (int) metadata_schema_length, metadata_schema);
 }
 
 /*************************
@@ -831,8 +831,8 @@ tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
                 }
             }
         }
-        err = fprintf(
-            out, "\t%.*s\n", metadata_len, self->metadata + self->metadata_offset[j]);
+        err = fprintf(out, "\t%.*s\n", (int) metadata_len,
+            self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -1358,7 +1358,7 @@ tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out)
         err = fprintf(out, "%lld\t%lld\t%f\t%lld\t%lld\t%.*s\n", (long long) j,
             (long long) (self->flags[j] & TSK_NODE_IS_SAMPLE), self->time[j],
             (long long) self->population[j], (long long) self->individual[j],
-            metadata_len, self->metadata + self->metadata_offset[j]);
+            (int) metadata_len, self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -1927,7 +1927,7 @@ tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out)
         tsk_edge_table_get_row_unsafe(self, j, &row);
         err = fprintf(out, "%lld\t%.3f\t%.3f\t%lld\t%lld\t%.*s\n", (long long) j,
             row.left, row.right, (long long) row.parent, (long long) row.child,
-            row.metadata_length, row.metadata);
+            (int) row.metadata_length, row.metadata);
         if (err < 0) {
             goto out;
         }
@@ -2609,7 +2609,7 @@ tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
         err = fprintf(out, "%lld\t%f\t%.*s\t%.*s\n", (long long) j, self->position[j],
             ancestral_state_len, self->ancestral_state + self->ancestral_state_offset[j],
-            metadata_len, self->metadata + self->metadata_offset[j]);
+            (int) metadata_len, self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -3232,8 +3232,8 @@ tsk_mutation_table_dump_text(const tsk_mutation_table_t *self, FILE *out)
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
         err = fprintf(out, "%lld\t%lld\t%lld\t%lld\t%f\t%.*s\t%.*s\n", (long long) j,
             (long long) self->site[j], (long long) self->node[j],
-            (long long) self->parent[j], self->time[j], derived_state_len,
-            self->derived_state + self->derived_state_offset[j], metadata_len,
+            (long long) self->parent[j], self->time[j], (int) derived_state_len,
+            self->derived_state + self->derived_state_offset[j], (int) metadata_len,
             self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
@@ -3739,7 +3739,7 @@ tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out)
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
         err = fprintf(out, "%.3f\t%.3f\t%lld\t%lld\t%lld\t%f\t%.*s\n", self->left[j],
             self->right[j], (long long) self->node[j], (long long) self->source[j],
-            (long long) self->dest[j], self->time[j], metadata_len,
+            (long long) self->dest[j], self->time[j], (int) metadata_len,
             self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
@@ -4216,8 +4216,8 @@ tsk_population_table_dump_text(const tsk_population_table_t *self, FILE *out)
     }
     for (j = 0; j < self->num_rows; j++) {
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
-        err = fprintf(
-            out, "%.*s\n", metadata_len, self->metadata + self->metadata_offset[j]);
+        err = fprintf(out, "%.*s\n", (int) metadata_len,
+            self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }
@@ -4736,8 +4736,8 @@ tsk_provenance_table_dump_text(const tsk_provenance_table_t *self, FILE *out)
     for (j = 0; j < self->num_rows; j++) {
         record_len = self->record_offset[j + 1] - self->record_offset[j];
         timestamp_len = self->timestamp_offset[j + 1] - self->timestamp_offset[j];
-        err = fprintf(out, "%.*s\t%.*s\n", record_len,
-            self->record + self->record_offset[j], timestamp_len,
+        err = fprintf(out, "%.*s\t%.*s\n", (int) record_len,
+            self->record + self->record_offset[j], (int) timestamp_len,
             self->timestamp + self->timestamp_offset[j]);
         if (err < 0) {
             goto out;
@@ -8770,7 +8770,7 @@ tsk_table_collection_print_state(const tsk_table_collection_t *self, FILE *out)
     write_metadata_schema_header(
         out, self->metadata_schema, self->metadata_schema_length);
     fprintf(out, "#metadata#\n");
-    fprintf(out, "%.*s\n", self->metadata_length, self->metadata);
+    fprintf(out, "%.*s\n", (int) self->metadata_length, self->metadata);
     fprintf(out, "#end#metadata\n");
     tsk_individual_table_print_state(&self->individuals, out);
     tsk_node_table_print_state(&self->nodes, out);

@@ -46,8 +46,8 @@ tsk_vargen_print_state(const tsk_vargen_t *self, FILE *out)
     fprintf(out, "num_alleles = %lld\n", (long long) self->variant.num_alleles);
     for (j = 0; j < self->variant.num_alleles; j++) {
         fprintf(out, "\tlen = %lld, '%.*s'\n",
-            (long long) self->variant.allele_lengths[j], self->variant.allele_lengths[j],
-            self->variant.alleles[j]);
+            (long long) self->variant.allele_lengths[j],
+            (int) self->variant.allele_lengths[j], self->variant.alleles[j]);
     }
     fprintf(out, "num_samples = %lld\n", (long long) self->num_samples);
     for (j = 0; j < tsk_treeseq_get_num_nodes(self->tree_sequence); j++) {
