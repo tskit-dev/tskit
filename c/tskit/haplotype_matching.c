@@ -377,7 +377,7 @@ tsk_ls_hmm_get_allele_index(tsk_ls_hmm_t *self, tsk_id_t site, const char *allel
             break;
         }
         if (strncmp(alleles[j], allele_state, allele_length) == 0) {
-            ret = j;
+            ret = (int) j;
             break;
         }
     }
@@ -1575,7 +1575,7 @@ tsk_viterbi_matrix_traceback(
         if (current_node == TSK_NULL) {
             current_node = tsk_viterbi_matrix_choose_sample(self, site.id, &tree);
             if (current_node < 0) {
-                ret = current_node;
+                ret = (int) current_node;
                 goto out;
             }
         }

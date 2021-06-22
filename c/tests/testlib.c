@@ -379,7 +379,7 @@ const char *empty_ex_edges = "";
 void
 parse_nodes(const char *text, tsk_node_table_t *node_table)
 {
-    int ret;
+    tsk_id_t ret_id;
     size_t c, k;
     size_t MAX_LINE = 1024;
     char line[MAX_LINE];
@@ -424,16 +424,16 @@ parse_nodes(const char *text, tsk_node_table_t *node_table)
         } else {
             name = p;
         }
-        ret = tsk_node_table_add_row(
+        ret_id = tsk_node_table_add_row(
             node_table, flags, time, population, individual, name, strlen(name));
-        CU_ASSERT_FATAL(ret >= 0);
+        CU_ASSERT_FATAL(ret_id >= 0);
     }
 }
 
 void
 parse_edges(const char *text, tsk_edge_table_t *edge_table)
 {
-    int ret;
+    tsk_id_t ret_id;
     size_t c, k;
     size_t MAX_LINE = 1024;
     char line[MAX_LINE], sub_line[MAX_LINE];
@@ -484,9 +484,9 @@ parse_edges(const char *text, tsk_edge_table_t *edge_table)
         for (k = 0; k < num_children; k++) {
             CU_ASSERT_FATAL(q != NULL);
             child = atoi(q);
-            ret = tsk_edge_table_add_row(
+            ret_id = tsk_edge_table_add_row(
                 edge_table, left, right, parent, child, NULL, 0);
-            CU_ASSERT_FATAL(ret >= 0);
+            CU_ASSERT_FATAL(ret_id >= 0);
             q = strtok(NULL, ",");
         }
         CU_ASSERT_FATAL(q == NULL);
@@ -496,7 +496,7 @@ parse_edges(const char *text, tsk_edge_table_t *edge_table)
 void
 parse_sites(const char *text, tsk_site_table_t *site_table)
 {
-    int ret;
+    tsk_id_t ret_id;
     size_t c, k;
     size_t MAX_LINE = 1024;
     char line[MAX_LINE];
@@ -525,16 +525,16 @@ parse_sites(const char *text, tsk_site_table_t *site_table)
         p = strtok(NULL, whitespace);
         CU_ASSERT_FATAL(p != NULL);
         strncpy(ancestral_state, p, MAX_LINE);
-        ret = tsk_site_table_add_row(
+        ret_id = tsk_site_table_add_row(
             site_table, position, ancestral_state, strlen(ancestral_state), NULL, 0);
-        CU_ASSERT_FATAL(ret >= 0);
+        CU_ASSERT_FATAL(ret_id >= 0);
     }
 }
 
 void
 parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
 {
-    int ret;
+    tsk_id_t ret_id;
     size_t c, k;
     size_t MAX_LINE = 1024;
     char line[MAX_LINE];
@@ -578,16 +578,16 @@ parse_mutations(const char *text, tsk_mutation_table_t *mutation_table)
         if (p != NULL) {
             time = atof(p);
         }
-        ret = tsk_mutation_table_add_row(mutation_table, site, node, parent, time,
+        ret_id = tsk_mutation_table_add_row(mutation_table, site, node, parent, time,
             derived_state, strlen(derived_state), NULL, 0);
-        CU_ASSERT_FATAL(ret >= 0);
+        CU_ASSERT_FATAL(ret_id >= 0);
     }
 }
 
 void
 parse_individuals(const char *text, tsk_individual_table_t *individual_table)
 {
-    int ret;
+    tsk_id_t ret_id;
     size_t c, k;
     size_t MAX_LINE = 1024;
     char line[MAX_LINE];
@@ -669,9 +669,9 @@ parse_individuals(const char *text, tsk_individual_table_t *individual_table)
                 name = p;
             }
         }
-        ret = tsk_individual_table_add_row(individual_table, flags, location,
+        ret_id = tsk_individual_table_add_row(individual_table, flags, location,
             location_len, parents, parents_len, name, strlen(name));
-        CU_ASSERT_FATAL(ret >= 0);
+        CU_ASSERT_FATAL(ret_id >= 0);
     }
 }
 
@@ -681,6 +681,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
     const char *individuals, const char *provenance, tsk_flags_t tc_options)
 {
     int ret;
+    tsk_id_t ret_id;
     tsk_table_collection_t tables;
     tsk_id_t max_population_id;
     tsk_size_t j;
@@ -712,8 +713,8 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
     }
     if (max_population_id >= 0) {
         for (j = 0; j <= (tsk_size_t) max_population_id; j++) {
-            ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-            CU_ASSERT_EQUAL_FATAL(ret, j);
+            ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+            CU_ASSERT_EQUAL_FATAL(ret_id, j);
         }
     }
 
@@ -731,6 +732,7 @@ tsk_treeseq_t *
 caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
 {
     int ret;
+    tsk_id_t ret_id;
     tsk_treeseq_t *ts = malloc(sizeof(tsk_treeseq_t));
     tsk_table_collection_t tables;
     tsk_id_t j, k, last_node, u;
@@ -776,58 +778,58 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
         position[0] = j;
         position[1] = j;
         m = j % num_metadatas;
-        ret = tsk_population_table_add_row(
+        ret_id = tsk_population_table_add_row(
             &tables.populations, metadata[m], strlen(metadata[m]));
-        CU_ASSERT_EQUAL_FATAL(ret, j);
-        ret = tsk_individual_table_add_row(&tables.individuals, 0, position, 2, parents,
-            2, metadata[m], strlen(metadata[m]));
-        CU_ASSERT_EQUAL_FATAL(ret, j);
-        ret = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0, j, j,
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+        ret_id = tsk_individual_table_add_row(&tables.individuals, 0, position, 2,
+            parents, 2, metadata[m], strlen(metadata[m]));
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+        ret_id = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0, j, j,
             metadata[m], strlen(metadata[m]));
-        CU_ASSERT_EQUAL_FATAL(ret, j);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
     }
     last_node = 0;
     for (j = 0; j < n - 1; j++) {
         m = j % num_metadatas;
-        ret = tsk_node_table_add_row(
+        ret_id = tsk_node_table_add_row(
             &tables.nodes, 0, j + 1, j % n, TSK_NULL, metadata[m], strlen(metadata[m]));
-        CU_ASSERT_FATAL(ret >= 0);
-        u = ret;
-        ret = tsk_edge_table_add_row(
+        CU_ASSERT_FATAL(ret_id >= 0);
+        u = ret_id;
+        ret_id = tsk_edge_table_add_row(
             &tables.edges, 0, 1, u, last_node, metadata[m], strlen(metadata[m]));
-        CU_ASSERT_FATAL(ret >= 0);
-        ret = tsk_edge_table_add_row(
+        CU_ASSERT_FATAL(ret_id >= 0);
+        ret_id = tsk_edge_table_add_row(
             &tables.edges, 0, 1, u, j + 1, metadata[m], strlen(metadata[m]));
-        CU_ASSERT_FATAL(ret >= 0);
+        CU_ASSERT_FATAL(ret_id >= 0);
         last_node = u;
     }
     for (j = 0; j < num_sites; j++) {
         m = j % num_metadatas;
-        ret = tsk_site_table_add_row(&tables.sites, (j + 1) / (double) n, states[0],
+        ret_id = tsk_site_table_add_row(&tables.sites, (j + 1) / (double) n, states[0],
             strlen(states[0]), metadata[m], strlen(metadata[m]));
-        CU_ASSERT_FATAL(ret >= 0);
+        CU_ASSERT_FATAL(ret_id >= 0);
         u = 2 * n - 3;
         state = 0;
         for (k = 0; k < num_mutations; k++) {
             m = k % num_metadatas;
             state = (state + 1) % 2;
-            ret = tsk_mutation_table_add_row(&tables.mutations, j, u, TSK_NULL,
+            ret_id = tsk_mutation_table_add_row(&tables.mutations, j, u, TSK_NULL,
                 tables.nodes.time[u], states[state], strlen(states[state]), metadata[m],
                 strlen(metadata[m]));
-            CU_ASSERT_FATAL(ret >= 0);
+            CU_ASSERT_FATAL(ret_id >= 0);
             u--;
         }
     }
-    ret = tsk_provenance_table_add_row(&tables.provenances, prov_timestamp,
+    ret_id = tsk_provenance_table_add_row(&tables.provenances, prov_timestamp,
         strlen(prov_timestamp), prov_record, strlen(prov_record));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* TODO make these consistent with the caterpillar tree topology. */
     for (j = 0; j < n - 1; j++) {
         m = j % num_metadatas;
-        ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, j, j, j + 1, j + 1.5,
-            metadata[m], strlen(metadata[m]));
-        CU_ASSERT_FATAL(ret >= 0);
+        ret_id = tsk_migration_table_add_row(&tables.migrations, 0, 1, j, j, j + 1,
+            j + 1.5, metadata[m], strlen(metadata[m]));
+        CU_ASSERT_FATAL(ret_id >= 0);
     }
 
     ret = tsk_table_collection_sort(&tables, 0, 0);
