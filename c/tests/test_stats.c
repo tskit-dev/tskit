@@ -672,7 +672,7 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
                     /* printf("u = %d v= %d s = %d bl = %f \n", u, v,
                      * tree.num_samples[v], */
                     /*         branch_length); */
-                    s += branch_length * tree.num_samples[v];
+                    s += branch_length * (double) tree.num_samples[v];
                     stack_top++;
                     stack[stack_top] = v;
                 }

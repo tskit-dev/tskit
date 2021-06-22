@@ -2608,8 +2608,9 @@ tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
             = self->ancestral_state_offset[j + 1] - self->ancestral_state_offset[j];
         metadata_len = self->metadata_offset[j + 1] - self->metadata_offset[j];
         err = fprintf(out, "%lld\t%f\t%.*s\t%.*s\n", (long long) j, self->position[j],
-            ancestral_state_len, self->ancestral_state + self->ancestral_state_offset[j],
-            (int) metadata_len, self->metadata + self->metadata_offset[j]);
+            (int) ancestral_state_len,
+            self->ancestral_state + self->ancestral_state_offset[j], (int) metadata_len,
+            self->metadata + self->metadata_offset[j]);
         if (err < 0) {
             goto out;
         }

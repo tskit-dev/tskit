@@ -224,7 +224,7 @@ static int
 tsk_ls_hmm_reset(tsk_ls_hmm_t *self)
 {
     int ret = 0;
-    double n = self->num_samples;
+    double n = (double) self->num_samples;
     tsk_size_t j;
     tsk_id_t u;
     const tsk_id_t *samples;
@@ -1022,7 +1022,7 @@ tsk_ls_hmm_compute_normalisation_factor_forward(tsk_ls_hmm_t *self)
     /* Compute the normalising constant used to avoid underflow */
     normalisation_factor = 0;
     for (j = 0; j < num_transitions; j++) {
-        normalisation_factor += N[j] * T[j].value;
+        normalisation_factor += (double) N[j] * T[j].value;
     }
     return normalisation_factor;
 }
@@ -1033,7 +1033,7 @@ tsk_ls_hmm_next_probability_forward(tsk_ls_hmm_t *self, tsk_id_t site_id, double
 {
     const double rho = self->recombination_rate[site_id];
     const double mu = self->mutation_rate[site_id];
-    const double n = self->num_samples;
+    const double n = (double) self->num_samples;
     const double num_alleles = self->num_alleles[site_id];
     double p_t, p_e;
 
@@ -1107,7 +1107,7 @@ tsk_ls_hmm_next_probability_viterbi(tsk_ls_hmm_t *self, tsk_id_t site, double p_
     const double rho = self->recombination_rate[site];
     const double mu = self->mutation_rate[site];
     const double num_alleles = self->num_alleles[site];
-    const double n = self->num_samples;
+    const double n = (double) self->num_samples;
     double p_recomb, p_no_recomb, p_t, p_e;
     bool recombination_required = false;
 

@@ -1914,7 +1914,7 @@ fold(tsk_size_t *restrict coordinate, const tsk_size_t *restrict dims,
 
     for (k = 0; k < num_dims; k++) {
         tsk_bug_assert(coordinate[k] < dims[k]);
-        n += dims[k] - 1;
+        n += (double) dims[k] - 1;
         s += (int) coordinate[k];
     }
     n /= 2;
@@ -2015,9 +2015,9 @@ tsk_treeseq_site_allele_frequency_spectrum(const tsk_treeseq_t *self,
     memset(parent, 0xff, num_nodes * sizeof(*parent));
 
     for (j = 0; j < num_sample_sets; j++) {
-        total_counts[j] = sample_set_sizes[j];
+        total_counts[j] = (double) sample_set_sizes[j];
     }
-    total_counts[num_sample_sets] = self->num_samples;
+    total_counts[num_sample_sets] = (double) self->num_samples;
 
     /* Iterate over the trees */
     tj = 0;
@@ -2670,7 +2670,7 @@ Y1_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result
     size_t i;
 
     for (i = 0; i < result_dim; i++) {
-        ni = args.sample_set_sizes[i];
+        ni = (double) args.sample_set_sizes[i];
         denom = ni * (ni - 1) * (ni - 2);
         numer = x[i] * (ni - x[i]) * (ni - x[i] - 1);
         result[i] = numer / denom;
@@ -2728,8 +2728,8 @@ divergence_summary_func(size_t TSK_UNUSED(state_dim), const double *state,
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
         denom = ni * (nj - (i == j));
         result[k] = x[i] * (nj - x[j]) / denom;
     }
@@ -2768,15 +2768,15 @@ genetic_relatedness_summary_func(size_t state_dim, const double *state,
 
     for (k = 0; k < state_dim; k++) {
         sumx += x[k];
-        sumn += args.sample_set_sizes[k];
+        sumn += (double) args.sample_set_sizes[k];
     }
 
     meanx = sumx / sumn;
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
         result[k] = (x[i] - ni * meanx) * (x[j] - nj * meanx) / 2;
     }
     return 0;
@@ -2813,8 +2813,8 @@ Y2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
         denom = ni * nj * (nj - 1);
         result[k] = x[i] * (nj - x[j]) * (nj - x[j] - 1) / denom;
     }
@@ -2852,8 +2852,8 @@ f2_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
         denom = ni * (ni - 1) * nj * (nj - 1);
         numer = x[i] * (x[i] - 1) * (nj - x[j]) * (nj - x[j] - 1)
                 - x[i] * (ni - x[i]) * (nj - x[j]) * x[j];
@@ -2898,9 +2898,9 @@ Y3_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result
         i = args.set_indexes[3 * tuple_index];
         j = args.set_indexes[3 * tuple_index + 1];
         k = args.set_indexes[3 * tuple_index + 2];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
-        nk = args.sample_set_sizes[k];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
+        nk = (double) args.sample_set_sizes[k];
         denom = ni * nj * nk;
         numer = x[i] * (nj - x[j]) * (nk - x[k]);
         result[tuple_index] = numer / denom;
@@ -2940,9 +2940,9 @@ f3_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result
         i = args.set_indexes[3 * tuple_index];
         j = args.set_indexes[3 * tuple_index + 1];
         k = args.set_indexes[3 * tuple_index + 2];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
-        nk = args.sample_set_sizes[k];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
+        nk = (double) args.sample_set_sizes[k];
         denom = ni * (ni - 1) * nj * nk;
         numer = x[i] * (x[i] - 1) * (nj - x[j]) * (nk - x[k])
                 - x[i] * (ni - x[i]) * (nj - x[j]) * x[k];
@@ -2988,10 +2988,10 @@ f4_summary_func(size_t TSK_UNUSED(state_dim), const double *state, size_t result
         j = args.set_indexes[4 * tuple_index + 1];
         k = args.set_indexes[4 * tuple_index + 2];
         l = args.set_indexes[4 * tuple_index + 3];
-        ni = args.sample_set_sizes[i];
-        nj = args.sample_set_sizes[j];
-        nk = args.sample_set_sizes[k];
-        nl = args.sample_set_sizes[l];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
+        nk = (double) args.sample_set_sizes[k];
+        nl = (double) args.sample_set_sizes[l];
         denom = ni * nj * nk * nl;
         numer = x[i] * x[k] * (nj - x[j]) * (nl - x[l])
                 - x[i] * x[l] * (nj - x[j]) * (nk - x[k]);
@@ -4753,8 +4753,8 @@ norm_kc_vectors(kc_vectors *self, kc_vectors *other, double lambda)
 
     distance_sum = 0;
     for (i = 0; i < self->n + self->N; i++) {
-        vT1 = (self->m[i] * (1 - lambda)) + (lambda * self->M[i]);
-        vT2 = (other->m[i] * (1 - lambda)) + (lambda * other->M[i]);
+        vT1 = ((double) self->m[i] * (1 - lambda)) + (lambda * self->M[i]);
+        vT2 = ((double) other->m[i] * (1 - lambda)) + (lambda * other->M[i]);
         distance_sum += (vT1 - vT2) * (vT1 - vT2);
     }
 

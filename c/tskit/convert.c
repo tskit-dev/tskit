@@ -98,7 +98,7 @@ tsk_newick_converter_run(
                 }
                 /* We do this for ms-compatability. This should be a configurable option
                  * via the flags attribute */
-                label = v + 1;
+                label = (int) v + 1;
                 r = snprintf(buffer + s, buffer_size - s, "%d", label);
                 if (r < 0) {
                     ret = TSK_ERR_IO;
