@@ -463,7 +463,7 @@ class SvgPlot:
         ".background path {fill: #808080; fill-opacity: 0}"
         ".background path:nth-child(odd) {fill-opacity: .1}"
         ".axes {font-size: 14px}"
-        ".x-axis .tick .lab {font-weight: bold}"
+        ".x-axis .tick .lab {font-weight: bold; dominant-baseline: hanging}"
         ".axes, .tree {font-size: 14px; text-anchor: middle}"
         ".axes line, .edge {stroke: black; fill: none}"
         ".y-axis .grid {stroke: #FAFAFA}"
@@ -606,7 +606,7 @@ class SvgPlot:
                 self.x_label,
                 x_axis,
                 pos=((self.plotbox.left + self.plotbox.right) / 2, self.plotbox.max_y),
-                group_class="lab",
+                class_="lab",
                 transform="translate(0 -11)",
                 text_anchor="middle",
             )
@@ -622,8 +622,9 @@ class SvgPlot:
                     tick_labels = create_tick_labels(tick_labels)  # format integers
 
                 upper_length = -tick_length_upper if site_muts is None else 0
+                ticks_group = x_axis.add(dwg.g(class_="ticks"))
                 for pos, lab in itertools.zip_longest(tick_positions, tick_labels):
-                    tick = x_axis.add(
+                    tick = ticks_group.add(
                         dwg.g(
                             class_="tick",
                             transform=f"translate({rnd(self.x_transform(pos))} {y})",
@@ -635,9 +636,9 @@ class SvgPlot:
                     self.add_text_in_group(
                         lab,
                         tick,
-                        group_class="lab",
-                        pos=(0, tick_length_lower),  # pos + transform allows sensible
-                        transform="translate(0 8)",  # rotation via css transforms
+                        class_="lab",
+                        # place origin at the bottom of the tick plus a single px space
+                        pos=(0, tick_length_lower + 1),
                     )
             if site_muts is not None:
                 # Add sites as vertical lines with overlaid mutations as upper chevrons
@@ -695,14 +696,15 @@ class SvgPlot:
                 self.y_label,
                 y_axis,
                 pos=(0, (upper + lower) / 2),
-                group_class="lab",
+                class_="lab",
                 text_anchor="middle",
                 transform="translate(11) rotate(-90)",
             )
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper))))
+            ticks_group = y_axis.add(dwg.g(class_="ticks"))
             for pos, label in ticks.items():
-                tick = y_axis.add(
+                tick = ticks_group.add(
                     dwg.g(
                         class_="tick",
                         transform=f"translate({x} {rnd(self.y_transform(pos))})",
@@ -714,10 +716,14 @@ class SvgPlot:
                             (0, 0), (rnd(self.plotbox.right - x), 0), class_="grid"
                         )
                     )
-                xypos = (rnd(-tick_length_left), 0)
-                tick.add(dwg.line((0, 0), xypos))
+                tick.add(dwg.line((0, 0), (rnd(-tick_length_left), 0)))
                 self.add_text_in_group(
-                    label, tick, pos=xypos, group_class="lab", text_anchor="end"
+                    # place the origin at the left of the tickmark plus a single px space
+                    label,
+                    tick,
+                    pos=(rnd(-tick_length_left - 1), 0),
+                    class_="lab",
+                    text_anchor="end",
                 )
 
     def shade_background(
@@ -1370,9 +1376,12 @@ class SvgTree(SvgPlot):
         """
         For a focal node id, return a set of classes that encode this useful information:
             "a<X>" or "root": where <X> == id of immediate ancestor (parent) node
+            "i<I>":           where <I> == individual id
+            "p<P>":           where <P> == population id
             "n<Y>":           where <Y> == focal node id
             "m<A>":           where <A> == mutation id
             "s<B>":           where <B> == site id of all mutations
+            "c<N>" or "leaf": where <N> == number of direct children of this node
         """
         # Add a new group for each node, and give it classes for css targetting
         focal_node = self.ts.node(focal_node_id)
@@ -1391,6 +1400,8 @@ class SvgTree(SvgPlot):
             classes.add("sample")
         if self.tree.is_leaf(focal_node_id):
             classes.add("leaf")
+        else:
+            classes.add(f"c{self.tree.num_children(focal_node_id)}")
         for mutation in self.node_mutations[focal_node_id]:
             # Adding mutations and sites above this node allows identification
             # of the tree under any specific mutation

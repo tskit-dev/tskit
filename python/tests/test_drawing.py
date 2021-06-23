@@ -2008,7 +2008,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             assert svg_no_css.count("axes") == 1
             assert svg_no_css.count("x-axis") == 0
             assert svg_no_css.count("y-axis") == 1
-            assert svg_no_css.count("tick") == len({tree.time(u) for u in tree.nodes()})
+            assert svg_no_css.count("ticks") == 1
+            assert svg_no_css.count('class="tick"') == len(
+                {tree.time(u) for u in tree.nodes()}
+            )
 
     def test_y_axis_noticks(self):
         tree = msprime.simulate(4, random_seed=2).first()
@@ -2085,13 +2088,13 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         degree_2_ts = ts.keep_intervals([[0.2, 0.8]])
         svg = degree_2_ts.draw_svg(y_axis=False)
         assert svg.count('class="tick"') == 3
-        assert svg.count("<text>0.2") == 1
-        assert svg.count("<text>0.8") == 1
+        assert svg.count('<text class="lab">0.2') == 1
+        assert svg.count('<text class="lab">0.8') == 1
         degree_1_ts = ts.keep_intervals([[0.05, 0.15]])
         svg = degree_1_ts.draw_svg(y_axis=False)
         assert svg.count('class="tick"') == 2
-        assert svg.count("<text>0.05") == 1
-        assert svg.count("<text>0.15") == 1
+        assert svg.count('<text class="lab">0.05') == 1
+        assert svg.count('<text class="lab">0.15') == 1
 
     def test_bad_xlim(self):
         ts = msprime.simulate(10, random_seed=2)
