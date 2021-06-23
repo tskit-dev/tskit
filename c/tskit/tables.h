@@ -52,9 +52,9 @@ when manipulating these ID values. The reserved value ``TSK_NULL`` (-1) defines
 missing data.
 @endrst
 */
-typedef int32_t tsk_id_t;
-#define TSK_MAX_ID INT32_MAX
-#define TSK_ID_STORAGE_TYPE KAS_INT32
+typedef int64_t tsk_id_t;
+#define TSK_MAX_ID INT64_MAX
+#define TSK_ID_STORAGE_TYPE KAS_INT64
 
 /**
 @brief Tskit sizes.
@@ -63,9 +63,9 @@ typedef int32_t tsk_id_t;
 Sizes in tskit are defined by the ``tsk_size_t`` type.
 @endrst
 */
-typedef uint32_t tsk_size_t;
-#define TSK_MAX_SIZE (tsk_size_t) UINT32_MAX
-#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
+typedef uint64_t tsk_size_t;
+#define TSK_MAX_SIZE (tsk_size_t) UINT64_MAX
+#define TSK_SIZE_STORAGE_TYPE KAS_UINT64
 
 /**
 @brief Container for bitwise flags.

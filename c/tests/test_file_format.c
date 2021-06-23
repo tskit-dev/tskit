@@ -368,7 +368,7 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     ret = kastore_open(&store, _tmp_file_name, "r", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = kastore_gets_uint32(&store, offset_col, &offset_array, &offset_len);
+    ret = kastore_gets_uint64(&store, offset_col, &offset_array, &offset_len);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     offset_copy = malloc(offset_len * sizeof(*offset_array));
     CU_ASSERT_FATAL(offset_copy != NULL);
