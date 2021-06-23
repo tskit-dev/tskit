@@ -26,17 +26,17 @@ main(int argc, char **argv)
 
     printf("Iterate forwards\n");
     for (iter = tsk_tree_first(&tree); iter == 1; iter = tsk_tree_next(&tree)) {
-        printf("\ttree %d has %d roots\n",
-            tsk_tree_get_index(&tree),
-            tsk_tree_get_num_roots(&tree));
+        printf("\ttree %lld has %lld roots\n",
+            (long long)tsk_tree_get_index(&tree),
+            (long long)tsk_tree_get_num_roots(&tree));
     }
     check_tsk_error(iter);
 
     printf("Iterate backwards\n");
     for (iter = tsk_tree_last(&tree); iter == 1; iter = tsk_tree_prev(&tree)) {
-        printf("\ttree %d has %d roots\n",
-            tsk_tree_get_index(&tree),
-            tsk_tree_get_num_roots(&tree));
+        printf("\ttree %lld has %lld roots\n",
+            (long long)tsk_tree_get_index(&tree),
+            (long long)tsk_tree_get_num_roots(&tree));
     }
     check_tsk_error(iter);
 

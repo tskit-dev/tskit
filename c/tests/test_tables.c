@@ -126,7 +126,7 @@ insert_edge_metadata(tsk_table_collection_t *tables)
     for (j = 0; j < (tsk_id_t) tables->edges.num_rows; j++) {
         ret = tsk_edge_table_get_row(&tables->edges, j, &edge);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        snprintf(metadata, sizeof(metadata), "md_%d\n", j);
+        snprintf(metadata, sizeof(metadata), "md_%lld\n", (long long) j);
         ret_id = tsk_edge_table_add_row(&edges, edge.left, edge.right, edge.parent,
             edge.child, metadata, (tsk_size_t) strlen(metadata));
         CU_ASSERT_FATAL(ret_id >= 0);
@@ -434,8 +434,8 @@ test_node_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
-        ret_id = tsk_node_table_add_row(
-            &table, (tsk_flags_t) j, j, j, j, test_metadata, test_metadata_length);
+        ret_id = tsk_node_table_add_row(&table, (tsk_flags_t) j, (double) j, j, j,
+            test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret_id, j);
         CU_ASSERT_EQUAL(table.flags[j], (tsk_flags_t) j);
         CU_ASSERT_EQUAL(table.time[j], j);
@@ -1775,7 +1775,7 @@ test_mutation_table(void)
     len = 0;
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         k = TSK_MIN((tsk_size_t) j + 1, max_len);
-        ret_id = tsk_mutation_table_add_row(&table, j, j, j, j, c, k, c, k);
+        ret_id = tsk_mutation_table_add_row(&table, j, j, j, (double) j, c, k, c, k);
         CU_ASSERT_EQUAL_FATAL(ret_id, j);
         CU_ASSERT_EQUAL(table.site[j], j);
         CU_ASSERT_EQUAL(table.node[j], j);
@@ -1830,7 +1830,7 @@ test_mutation_table(void)
         node[j] = j;
         site[j] = j + 1;
         parent[j] = j + 2;
-        time[j] = j + 3;
+        time[j] = (double) (j + 3);
         derived_state[j] = 'Y';
         derived_state_offset[j] = (tsk_size_t) j;
         metadata[j] = 'M';
@@ -2004,7 +2004,7 @@ test_mutation_table(void)
     /* Test extend method */
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
         parent[j] = j + 2;
-        time[j] = j + 3;
+        time[j] = (double) (j + 3);
         metadata[j] = (char) ('A' + j);
         metadata_offset[j] = (tsk_size_t) j;
     }
@@ -2166,8 +2166,8 @@ test_migration_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
-        ret_id = tsk_migration_table_add_row(
-            &table, j, j, j, j, j, j, test_metadata, test_metadata_length);
+        ret_id = tsk_migration_table_add_row(&table, (double) j, (double) j, j, j, j,
+            (double) j, test_metadata, test_metadata_length);
         CU_ASSERT_EQUAL_FATAL(ret_id, j);
         CU_ASSERT_EQUAL(table.left[j], j);
         CU_ASSERT_EQUAL(table.right[j], j);
@@ -2608,12 +2608,12 @@ test_individual_table(void)
     flags = malloc(num_rows * sizeof(tsk_flags_t));
     CU_ASSERT_FATAL(flags != NULL);
     for (k = 0; k < num_rows; k++) {
-        flags[k] = k + num_rows;
+        flags[k] = (tsk_flags_t)(k + num_rows);
     }
     location = malloc(spatial_dimension * num_rows * sizeof(double));
     CU_ASSERT_FATAL(location != NULL);
     for (k = 0; k < spatial_dimension * num_rows; k++) {
-        location[k] = k + (num_rows * 2);
+        location[k] = (double) (k + (num_rows * 2));
     }
     location_offset = malloc((num_rows + 1) * sizeof(tsk_size_t));
     CU_ASSERT_FATAL(location_offset != NULL);
