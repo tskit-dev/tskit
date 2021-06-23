@@ -2285,6 +2285,7 @@ test_simplest_bad_indexes(void)
     tsk_id_t bad_indexes[] = { -1, 3, 4, 1000 };
     size_t j;
     tsk_id_t ret_id;
+    tsk_id_t ret_num_trees;
     int ret;
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -2299,32 +2300,32 @@ test_simplest_bad_indexes(void)
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* Make sure we have a good set of records */
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDEXES);
+    ret = (int) tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLES_NOT_INDEXED);
     ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    ret_num_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
     /* TSK_CHECK_TREES returns the number of trees */
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_num_trees, 1);
 
     for (j = 0; j < sizeof(bad_indexes) / sizeof(*bad_indexes); j++) {
         tables.indexes.edge_insertion_order[0] = bad_indexes[j];
-        ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
-        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+        ret_num_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+        CU_ASSERT_EQUAL_FATAL(ret_num_trees, TSK_ERR_EDGE_OUT_OF_BOUNDS);
         tables.indexes.edge_insertion_order[0] = 0;
 
         tables.indexes.edge_removal_order[0] = bad_indexes[j];
-        ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
-        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+        ret_num_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+        CU_ASSERT_EQUAL_FATAL(ret_num_trees, TSK_ERR_EDGE_OUT_OF_BOUNDS);
         tables.indexes.edge_removal_order[0] = 0;
     }
 
     ret = tsk_table_collection_drop_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDEXES);
+    ret = (int) tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLES_NOT_INDEXED);
 
     tsk_table_collection_free(&tables);
@@ -2354,91 +2355,91 @@ test_simplest_bad_migrations(void)
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* We only need basic intregity checks for migrations */
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Bad node reference */
     tables.migrations.node[0] = -1;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tables.migrations.node[0] = 0;
 
     /* Bad node reference */
     tables.migrations.node[0] = 1;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tables.migrations.node[0] = 0;
 
     /* Bad population reference */
     tables.migrations.source[0] = -1;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     tables.migrations.source[0] = 0;
 
     /* Bad population reference */
     tables.migrations.source[0] = 2;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     tables.migrations.source[0] = 0;
 
     /* Bad population reference */
     tables.migrations.dest[0] = -1;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     tables.migrations.dest[0] = 1;
 
     /* Bad population reference */
     tables.migrations.dest[0] = 2;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
     tables.migrations.dest[0] = 1;
 
     /* Bad time values */
     tables.migrations.time[0] = NAN;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_TIME_NONFINITE);
     tables.migrations.time[0] = 1.0;
 
     tables.migrations.time[0] = INFINITY;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_TIME_NONFINITE);
     tables.migrations.time[0] = 1.0;
 
     /* Bad left coordinate */
     tables.migrations.left[0] = -1;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_LEFT_LESS_ZERO);
     tables.migrations.left[0] = 0;
 
     tables.migrations.left[0] = NAN;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
     tables.migrations.left[0] = 0;
 
     tables.migrations.left[0] = -INFINITY;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
     tables.migrations.left[0] = 0;
 
     /* Bad right coordinate */
     tables.migrations.right[0] = 2;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_RIGHT_GREATER_SEQ_LENGTH);
     tables.migrations.right[0] = 1;
 
     tables.migrations.right[0] = NAN;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
     tables.migrations.right[0] = 1;
 
     tables.migrations.right[0] = INFINITY;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
     tables.migrations.right[0] = 1;
 
     /* Bad interval coordinate */
     tables.migrations.right[0] = 0;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
     tables.migrations.right[0] = 1;
 

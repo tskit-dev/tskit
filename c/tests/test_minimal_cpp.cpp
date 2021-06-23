@@ -168,7 +168,9 @@ test_edge_sorting()
     assert(tables.edges.num_rows == (tsk_size_t) n - 1);
 
     /* Make sure the edges are unsorted */
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_EDGE_ORDERING);
+    /* Not calling TSK_CHECK_TREES so casting is safe */
+    ret = (tsk_id_t) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_EDGE_ORDERING);
     assert(ret == TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 
     /* Sort the tables */
@@ -183,7 +185,8 @@ test_edge_sorting()
     tsk_table_sorter_free(&sorter);
 
     /* Make sure the edges are now sorted */
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_EDGE_ORDERING);
+    ret = (tsk_id_t) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_EDGE_ORDERING);
     assert(ret == 0);
 
     tsk_table_collection_free(&tables);
