@@ -296,7 +296,7 @@ tsk_treeseq_init_nodes(tsk_treeseq_t *self)
 {
     size_t j, k;
     size_t num_nodes = self->tables->nodes.num_rows;
-    const uint32_t *restrict node_flags = self->tables->nodes.flags;
+    const tsk_flags_t *restrict node_flags = self->tables->nodes.flags;
     int ret = 0;
 
     /* Determine the sample size */

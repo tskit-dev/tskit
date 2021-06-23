@@ -56,13 +56,12 @@ typedef struct {
 } write_table_col_t;
 
 /* Returns true if adding the specified number of rows would result in overflow.
- * Tables can support indexes from 0 to INT32_MAX, and therefore have at most
- * INT32_MAX + 1 rows */
+ * Tables can support indexes from 0 to TSK_MAX_ID, and therefore have at most
+ * TSK_MAX_ID + 1 rows */
 static bool
 check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
-    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_rows;
-    return new_size > ((uint64_t) INT32_MAX) + 1;
+    return additional_rows > 0 && current_size > TSK_MAX_ID - (additional_rows - 1);
 }
 
 /* Returns true if adding the specified number of elements would result in overflow
@@ -71,8 +70,7 @@ check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 static bool
 check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
 {
-    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_elements;
-    return new_size > UINT32_MAX;
+    return additional_elements > 0 && current_size > TSK_MAX_SIZE - additional_elements;
 }
 
 static int
@@ -884,19 +882,20 @@ static int
 tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
-        { "individuals/flags", (void *) self->flags, self->num_rows, KAS_UINT32 },
+        { "individuals/flags", (void *) self->flags, self->num_rows,
+            TSK_FLAG_STORAGE_TYPE },
         { "individuals/location", (void *) self->location, self->location_length,
             KAS_FLOAT64 },
         { "individuals/location_offset", (void *) self->location_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "individuals/parents", (void *) self->parents, self->parents_length,
-            KAS_INT32 },
+            TSK_ID_STORAGE_TYPE },
         { "individuals/parents_offset", (void *) self->parents_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "individuals/metadata", (void *) self->metadata, self->metadata_length,
             KAS_UINT8 },
         { "individuals/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "individuals/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
     };
@@ -919,19 +918,20 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
         metadata_schema_length;
 
     read_table_col_t read_cols[] = {
-        { "individuals/flags", (void **) &flags, &num_rows, 0, KAS_UINT32, 0 },
+        { "individuals/flags", (void **) &flags, &num_rows, 0, TSK_FLAG_STORAGE_TYPE,
+            0 },
         { "individuals/location", (void **) &location, &location_length, 0, KAS_FLOAT64,
             0 },
         { "individuals/location_offset", (void **) &location_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
-        { "individuals/parents", (void **) &parents, &parents_length, 0, KAS_INT32,
-            TSK_COL_OPTIONAL },
+            TSK_SIZE_STORAGE_TYPE, 0 },
+        { "individuals/parents", (void **) &parents, &parents_length, 0,
+            TSK_ID_STORAGE_TYPE, TSK_COL_OPTIONAL },
         { "individuals/parents_offset", (void **) &parents_offset, &num_rows, 1,
-            KAS_UINT32, TSK_COL_OPTIONAL },
+            TSK_SIZE_STORAGE_TYPE, TSK_COL_OPTIONAL },
         { "individuals/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8,
             0 },
         { "individuals/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
+            TSK_SIZE_STORAGE_TYPE, 0 },
         { "individuals/metadata_schema", (void **) &metadata_schema,
             &metadata_schema_length, 0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -1435,12 +1435,14 @@ tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
         { "nodes/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
-        { "nodes/flags", (void *) self->flags, self->num_rows, KAS_UINT32 },
-        { "nodes/population", (void *) self->population, self->num_rows, KAS_INT32 },
-        { "nodes/individual", (void *) self->individual, self->num_rows, KAS_INT32 },
+        { "nodes/flags", (void *) self->flags, self->num_rows, TSK_FLAG_STORAGE_TYPE },
+        { "nodes/population", (void *) self->population, self->num_rows,
+            TSK_ID_STORAGE_TYPE },
+        { "nodes/individual", (void *) self->individual, self->num_rows,
+            TSK_ID_STORAGE_TYPE },
         { "nodes/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
         { "nodes/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            KAS_UINT32 },
+            TSK_SIZE_STORAGE_TYPE },
         { "nodes/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
 
@@ -1463,12 +1465,14 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
 
     read_table_col_t read_cols[] = {
         { "nodes/time", (void **) &time, &num_rows, 0, KAS_FLOAT64, 0 },
-        { "nodes/flags", (void **) &flags, &num_rows, 0, KAS_UINT32, 0 },
-        { "nodes/population", (void **) &population, &num_rows, 0, KAS_INT32, 0 },
-        { "nodes/individual", (void **) &individual, &num_rows, 0, KAS_INT32, 0 },
-        { "nodes/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8, 0 },
-        { "nodes/metadata_offset", (void **) &metadata_offset, &num_rows, 1, KAS_UINT32,
+        { "nodes/flags", (void **) &flags, &num_rows, 0, TSK_FLAG_STORAGE_TYPE, 0 },
+        { "nodes/population", (void **) &population, &num_rows, 0, TSK_ID_STORAGE_TYPE,
             0 },
+        { "nodes/individual", (void **) &individual, &num_rows, 0, TSK_ID_STORAGE_TYPE,
+            0 },
+        { "nodes/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8, 0 },
+        { "nodes/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
+            TSK_SIZE_STORAGE_TYPE, 0 },
         { "nodes/metadata_schema", (void **) &metadata_schema, &metadata_schema_length,
             0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -1991,15 +1995,15 @@ tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store)
     write_table_col_t write_cols[] = {
         { "edges/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
         { "edges/right", (void *) self->right, self->num_rows, KAS_FLOAT64 },
-        { "edges/parent", (void *) self->parent, self->num_rows, KAS_INT32 },
-        { "edges/child", (void *) self->child, self->num_rows, KAS_INT32 },
+        { "edges/parent", (void *) self->parent, self->num_rows, TSK_ID_STORAGE_TYPE },
+        { "edges/child", (void *) self->child, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "edges/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
     };
     write_table_col_t write_cols_metadata[] = {
         { "edges/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
         { "edges/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            KAS_UINT32 },
+            TSK_SIZE_STORAGE_TYPE },
     };
 
     ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
@@ -2033,12 +2037,12 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
     read_table_col_t read_cols[] = {
         { "edges/left", (void **) &left, &num_rows, 0, KAS_FLOAT64, 0 },
         { "edges/right", (void **) &right, &num_rows, 0, KAS_FLOAT64, 0 },
-        { "edges/parent", (void **) &parent, &num_rows, 0, KAS_INT32, 0 },
-        { "edges/child", (void **) &child, &num_rows, 0, KAS_INT32, 0 },
+        { "edges/parent", (void **) &parent, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
+        { "edges/child", (void **) &child, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
         { "edges/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8,
             TSK_COL_OPTIONAL },
-        { "edges/metadata_offset", (void **) &metadata_offset, &num_rows, 1, KAS_UINT32,
-            TSK_COL_OPTIONAL },
+        { "edges/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
+            TSK_SIZE_STORAGE_TYPE, TSK_COL_OPTIONAL },
         { "edges/metadata_schema", (void **) &metadata_schema, &metadata_schema_length,
             0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -2636,10 +2640,10 @@ tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store)
         { "sites/ancestral_state", (void *) self->ancestral_state,
             self->ancestral_state_length, KAS_UINT8 },
         { "sites/ancestral_state_offset", (void *) self->ancestral_state_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "sites/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
         { "sites/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            KAS_UINT32 },
+            TSK_SIZE_STORAGE_TYPE },
         { "sites/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
     };
@@ -2664,10 +2668,10 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
         { "sites/ancestral_state", (void **) &ancestral_state, &ancestral_state_length,
             0, KAS_UINT8, 0 },
         { "sites/ancestral_state_offset", (void **) &ancestral_state_offset, &num_rows,
-            1, KAS_UINT32, 0 },
+            1, TSK_SIZE_STORAGE_TYPE, 0 },
         { "sites/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8, 0 },
-        { "sites/metadata_offset", (void **) &metadata_offset, &num_rows, 1, KAS_UINT32,
-            0 },
+        { "sites/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
+            TSK_SIZE_STORAGE_TYPE, 0 },
         { "sites/metadata_schema", (void **) &metadata_schema, &metadata_schema_length,
             0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -3259,18 +3263,19 @@ static int
 tsk_mutation_table_dump(const tsk_mutation_table_t *self, kastore_t *store)
 {
     write_table_col_t write_cols[] = {
-        { "mutations/site", (void *) self->site, self->num_rows, KAS_INT32 },
-        { "mutations/node", (void *) self->node, self->num_rows, KAS_INT32 },
-        { "mutations/parent", (void *) self->parent, self->num_rows, KAS_INT32 },
+        { "mutations/site", (void *) self->site, self->num_rows, TSK_ID_STORAGE_TYPE },
+        { "mutations/node", (void *) self->node, self->num_rows, TSK_ID_STORAGE_TYPE },
+        { "mutations/parent", (void *) self->parent, self->num_rows,
+            TSK_ID_STORAGE_TYPE },
         { "mutations/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
         { "mutations/derived_state", (void *) self->derived_state,
             self->derived_state_length, KAS_UINT8 },
         { "mutations/derived_state_offset", (void *) self->derived_state_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "mutations/metadata", (void *) self->metadata, self->metadata_length,
             KAS_UINT8 },
         { "mutations/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "mutations/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
 
@@ -3294,18 +3299,18 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     tsk_size_t num_rows, derived_state_length, metadata_length, metadata_schema_length;
 
     read_table_col_t read_cols[] = {
-        { "mutations/site", (void **) &site, &num_rows, 0, KAS_INT32, 0 },
-        { "mutations/node", (void **) &node, &num_rows, 0, KAS_INT32, 0 },
-        { "mutations/parent", (void **) &parent, &num_rows, 0, KAS_INT32, 0 },
+        { "mutations/site", (void **) &site, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
+        { "mutations/node", (void **) &node, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
+        { "mutations/parent", (void **) &parent, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
         { "mutations/time", (void **) &time, &num_rows, 0, KAS_FLOAT64,
             TSK_COL_OPTIONAL },
         { "mutations/derived_state", (void **) &derived_state, &derived_state_length, 0,
             KAS_UINT8, 0 },
         { "mutations/derived_state_offset", (void **) &derived_state_offset, &num_rows,
-            1, KAS_UINT32, 0 },
+            1, TSK_SIZE_STORAGE_TYPE, 0 },
         { "mutations/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8, 0 },
         { "mutations/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
+            TSK_SIZE_STORAGE_TYPE, 0 },
         { "mutations/metadata_schema", (void **) &metadata_schema,
             &metadata_schema_length, 0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -3797,14 +3802,15 @@ tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
     write_table_col_t write_cols[] = {
         { "migrations/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
         { "migrations/right", (void *) self->right, self->num_rows, KAS_FLOAT64 },
-        { "migrations/node", (void *) self->node, self->num_rows, KAS_INT32 },
-        { "migrations/source", (void *) self->source, self->num_rows, KAS_INT32 },
-        { "migrations/dest", (void *) self->dest, self->num_rows, KAS_INT32 },
+        { "migrations/node", (void *) self->node, self->num_rows, TSK_ID_STORAGE_TYPE },
+        { "migrations/source", (void *) self->source, self->num_rows,
+            TSK_ID_STORAGE_TYPE },
+        { "migrations/dest", (void *) self->dest, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "migrations/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
         { "migrations/metadata", (void *) self->metadata, self->metadata_length,
             KAS_UINT8 },
         { "migrations/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "migrations/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
     };
@@ -3830,14 +3836,14 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
     read_table_col_t read_cols[] = {
         { "migrations/left", (void **) &left, &num_rows, 0, KAS_FLOAT64, 0 },
         { "migrations/right", (void **) &right, &num_rows, 0, KAS_FLOAT64, 0 },
-        { "migrations/node", (void **) &node, &num_rows, 0, KAS_INT32, 0 },
-        { "migrations/source", (void **) &source, &num_rows, 0, KAS_INT32, 0 },
-        { "migrations/dest", (void **) &dest, &num_rows, 0, KAS_INT32, 0 },
+        { "migrations/node", (void **) &node, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
+        { "migrations/source", (void **) &source, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
+        { "migrations/dest", (void **) &dest, &num_rows, 0, TSK_ID_STORAGE_TYPE, 0 },
         { "migrations/time", (void **) &time, &num_rows, 0, KAS_FLOAT64, 0 },
         { "migrations/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8,
             TSK_COL_OPTIONAL },
         { "migrations/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
-            KAS_UINT32, TSK_COL_OPTIONAL },
+            TSK_SIZE_STORAGE_TYPE, TSK_COL_OPTIONAL },
         { "migrations/metadata_schema", (void **) &metadata_schema,
             &metadata_schema_length, 0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -4273,7 +4279,7 @@ tsk_population_table_dump(const tsk_population_table_t *self, kastore_t *store)
         { "populations/metadata", (void *) self->metadata, self->metadata_length,
             KAS_UINT8 },
         { "populations/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "populations/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
     };
@@ -4294,7 +4300,7 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
         { "populations/metadata", (void **) &metadata, &metadata_length, 0, KAS_UINT8,
             0 },
         { "populations/metadata_offset", (void **) &metadata_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
+            TSK_SIZE_STORAGE_TYPE, 0 },
         { "populations/metadata_schema", (void **) &metadata_schema,
             &metadata_schema_length, 0, KAS_UINT8, TSK_COL_OPTIONAL },
     };
@@ -4795,10 +4801,10 @@ tsk_provenance_table_dump(const tsk_provenance_table_t *self, kastore_t *store)
         { "provenances/timestamp", (void *) self->timestamp, self->timestamp_length,
             KAS_UINT8 },
         { "provenances/timestamp_offset", (void *) self->timestamp_offset,
-            self->num_rows + 1, KAS_UINT32 },
+            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "provenances/record", (void *) self->record, self->record_length, KAS_UINT8 },
         { "provenances/record_offset", (void *) self->record_offset, self->num_rows + 1,
-            KAS_UINT32 },
+            TSK_SIZE_STORAGE_TYPE },
     };
     return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
 }
@@ -4817,10 +4823,10 @@ tsk_provenance_table_load(tsk_provenance_table_t *self, kastore_t *store)
         { "provenances/timestamp", (void **) &timestamp, &timestamp_length, 0, KAS_UINT8,
             0 },
         { "provenances/timestamp_offset", (void **) &timestamp_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
+            TSK_SIZE_STORAGE_TYPE, 0 },
         { "provenances/record", (void **) &record, &record_length, 0, KAS_UINT8, 0 },
         { "provenances/record_offset", (void **) &record_offset, &num_rows, 1,
-            KAS_UINT32, 0 },
+            TSK_SIZE_STORAGE_TYPE, 0 },
     };
 
     ret = read_table_cols(store, read_cols, sizeof(read_cols) / sizeof(*read_cols));
@@ -8693,7 +8699,7 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
         /* This is technically possible; if we have 2**31 edges each defining
          * a single tree, and there's a gap between each of these edges we
          * would overflow this counter. */
-        if (num_trees == INT32_MAX) {
+        if (num_trees == TSK_MAX_ID) {
             ret = TSK_ERR_TREE_OVERFLOW;
             goto out;
         }
@@ -9243,8 +9249,10 @@ tsk_table_collection_dump_indexes(const tsk_table_collection_t *self, kastore_t 
 {
     int ret = 0;
     write_table_col_t write_cols[] = {
-        { "indexes/edge_insertion_order", NULL, self->indexes.num_edges, KAS_INT32 },
-        { "indexes/edge_removal_order", NULL, self->indexes.num_edges, KAS_INT32 },
+        { "indexes/edge_insertion_order", NULL, self->indexes.num_edges,
+            TSK_ID_STORAGE_TYPE },
+        { "indexes/edge_removal_order", NULL, self->indexes.num_edges,
+            TSK_ID_STORAGE_TYPE },
     };
 
     if (tsk_table_collection_has_index(self, 0)) {
@@ -9266,9 +9274,9 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self, kastore_t *store
 
     read_table_col_t read_cols[] = {
         { "indexes/edge_insertion_order", (void **) &edge_insertion_order, &num_rows, 0,
-            KAS_INT32, TSK_COL_OPTIONAL },
+            TSK_ID_STORAGE_TYPE, TSK_COL_OPTIONAL },
         { "indexes/edge_removal_order", (void **) &edge_removal_order, &num_rows, 0,
-            KAS_INT32, TSK_COL_OPTIONAL },
+            TSK_ID_STORAGE_TYPE, TSK_COL_OPTIONAL },
     };
 
     ret = read_table_cols(store, read_cols, sizeof(read_cols) / sizeof(*read_cols));
