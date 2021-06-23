@@ -40,17 +40,19 @@ tsk_vargen_print_state(const tsk_vargen_t *self, FILE *out)
     tsk_size_t j;
 
     fprintf(out, "tsk_vargen state\n");
-    fprintf(out, "tree_index = %d\n", self->tree.index);
-    fprintf(out, "tree_site_index = %d\n", (int) self->tree_site_index);
-    fprintf(out, "user_alleles = %d\n", self->user_alleles);
-    fprintf(out, "num_alleles = %d\n", self->variant.num_alleles);
+    fprintf(out, "tree_index = %lld\n", (long long) self->tree.index);
+    fprintf(out, "tree_site_index = %lld\n", (long long) self->tree_site_index);
+    fprintf(out, "user_alleles = %lld\n", (long long) self->user_alleles);
+    fprintf(out, "num_alleles = %lld\n", (long long) self->variant.num_alleles);
     for (j = 0; j < self->variant.num_alleles; j++) {
-        fprintf(out, "\tlen = %d, '%.*s'\n", self->variant.allele_lengths[j],
-            self->variant.allele_lengths[j], self->variant.alleles[j]);
+        fprintf(out, "\tlen = %lld, '%.*s'\n",
+            (long long) self->variant.allele_lengths[j],
+            (int) self->variant.allele_lengths[j], self->variant.alleles[j]);
     }
-    fprintf(out, "num_samples = %d\n", (int) self->num_samples);
+    fprintf(out, "num_samples = %lld\n", (long long) self->num_samples);
     for (j = 0; j < tsk_treeseq_get_num_nodes(self->tree_sequence); j++) {
-        fprintf(out, "\t%d -> %d\n", (int) j, (int) self->sample_index_map[j]);
+        fprintf(out, "\t%lld -> %lld\n", (long long) j,
+            (long long) self->sample_index_map[j]);
     }
 }
 

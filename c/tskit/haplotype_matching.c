@@ -85,32 +85,32 @@ tsk_ls_hmm_print_state(tsk_ls_hmm_t *self, FILE *out)
     tsk_size_t j, l;
 
     fprintf(out, "tree_sequence   = %p\n", (void *) self->tree_sequence);
-    fprintf(out, "num_sites       = %d\n", self->num_sites);
-    fprintf(out, "num_samples     = %d\n", self->num_samples);
-    fprintf(out, "num_values      = %d\n", (int) self->num_values);
-    fprintf(out, "max_values      = %d\n", (int) self->max_values);
-    fprintf(out, "num_optimal_value_set_words = %d\n",
-        (int) self->num_optimal_value_set_words);
+    fprintf(out, "num_sites       = %lld\n", (long long) self->num_sites);
+    fprintf(out, "num_samples     = %lld\n", (long long) self->num_samples);
+    fprintf(out, "num_values      = %lld\n", (long long) self->num_values);
+    fprintf(out, "max_values      = %lld\n", (long long) self->max_values);
+    fprintf(out, "num_optimal_value_set_words = %lld\n",
+        (long long) self->num_optimal_value_set_words);
 
     fprintf(out, "sites::\n");
     for (l = 0; l < self->num_sites; l++) {
-        fprintf(out, "%d\t%d\t[", l, self->num_alleles[l]);
+        fprintf(out, "%lld\t%lld\t[", (long long) l, (long long) self->num_alleles[l]);
         for (j = 0; j < self->num_alleles[l]; j++) {
             fprintf(out, "%s,", self->alleles[l][j]);
         }
         fprintf(out, "]\n");
     }
-    fprintf(out, "transitions::%d\n", (int) self->num_transitions);
+    fprintf(out, "transitions::%lld\n", (long long) self->num_transitions);
     for (j = 0; j < self->num_transitions; j++) {
-        fprintf(out, "tree_node=%d\tvalue=%.14f\tvalue_index=%d\n",
-            self->transitions[j].tree_node, self->transitions[j].value,
-            self->transitions[j].value_index);
+        fprintf(out, "tree_node=%lld\tvalue=%.14f\tvalue_index=%lld\n",
+            (long long) self->transitions[j].tree_node, self->transitions[j].value,
+            (long long) self->transitions[j].value_index);
     }
     if (self->num_transitions > 0) {
-        fprintf(out, "tree::%d\n", (int) self->num_nodes);
+        fprintf(out, "tree::%lld\n", (long long) self->num_nodes);
         for (j = 0; j < self->num_nodes; j++) {
-            fprintf(out, "%d\tparent=%d\ttransition=%d\n", j, self->parent[j],
-                self->transition_index[j]);
+            fprintf(out, "%lld\tparent=%lld\ttransition=%lld\n", (long long) j,
+                (long long) self->parent[j], (long long) self->transition_index[j]);
         }
     }
     tsk_ls_hmm_check_state(self);
@@ -224,7 +224,7 @@ static int
 tsk_ls_hmm_reset(tsk_ls_hmm_t *self)
 {
     int ret = 0;
-    double n = self->num_samples;
+    double n = (double) self->num_samples;
     tsk_size_t j;
     tsk_id_t u;
     const tsk_id_t *samples;
@@ -1022,7 +1022,7 @@ tsk_ls_hmm_compute_normalisation_factor_forward(tsk_ls_hmm_t *self)
     /* Compute the normalising constant used to avoid underflow */
     normalisation_factor = 0;
     for (j = 0; j < num_transitions; j++) {
-        normalisation_factor += N[j] * T[j].value;
+        normalisation_factor += (double) N[j] * T[j].value;
     }
     return normalisation_factor;
 }
@@ -1033,7 +1033,7 @@ tsk_ls_hmm_next_probability_forward(tsk_ls_hmm_t *self, tsk_id_t site_id, double
 {
     const double rho = self->recombination_rate[site_id];
     const double mu = self->mutation_rate[site_id];
-    const double n = self->num_samples;
+    const double n = (double) self->num_samples;
     const double num_alleles = self->num_alleles[site_id];
     double p_t, p_e;
 
@@ -1107,7 +1107,7 @@ tsk_ls_hmm_next_probability_viterbi(tsk_ls_hmm_t *self, tsk_id_t site, double p_
     const double rho = self->recombination_rate[site];
     const double mu = self->mutation_rate[site];
     const double num_alleles = self->num_alleles[site];
-    const double n = self->num_samples;
+    const double n = (double) self->num_samples;
     double p_recomb, p_no_recomb, p_t, p_e;
     bool recombination_required = false;
 
@@ -1223,13 +1223,14 @@ tsk_compressed_matrix_print_state(tsk_compressed_matrix_t *self, FILE *out)
     tsk_size_t l, j;
 
     fprintf(out, "Compressed matrix for %p\n", (void *) self->tree_sequence);
-    fprintf(out, "num_sites = %d\n", self->num_sites);
-    fprintf(out, "num_samples = %d\n", self->num_samples);
+    fprintf(out, "num_sites = %lld\n", (long long) self->num_sites);
+    fprintf(out, "num_samples = %lld\n", (long long) self->num_samples);
     for (l = 0; l < self->num_sites; l++) {
-        fprintf(out, "%d\ts=%f\tv=%d [", l, self->normalisation_factor[l],
-            self->num_transitions[l]);
+        fprintf(out, "%lld\ts=%f\tv=%lld [", (long long) l,
+            self->normalisation_factor[l], (long long) self->num_transitions[l]);
         for (j = 0; j < self->num_transitions[l]; j++) {
-            fprintf(out, "(%d, %f)", self->nodes[l][j], self->values[l][j]);
+            fprintf(
+                out, "(%lld, %f)", (long long) self->nodes[l][j], self->values[l][j]);
             if (j < self->num_transitions[l] - 1) {
                 fprintf(out, ",");
             } else {
@@ -1427,15 +1428,15 @@ tsk_viterbi_matrix_print_state(tsk_viterbi_matrix_t *self, FILE *out)
     tsk_id_t l, j;
 
     fprintf(out, "viterbi_matrix\n");
-    fprintf(out, "num_recomb_records = %d\n", (int) self->num_recomb_records);
-    fprintf(out, "max_recomb_records = %d\n", (int) self->max_recomb_records);
+    fprintf(out, "num_recomb_records = %lld\n", (long long) self->num_recomb_records);
+    fprintf(out, "max_recomb_records = %lld\n", (long long) self->max_recomb_records);
 
     j = 1;
     for (l = 0; l < (tsk_id_t) self->matrix.num_sites; l++) {
-        fprintf(out, "%d\t[", l);
+        fprintf(out, "%lld\t[", (long long) l);
         while (j < (tsk_id_t) self->num_recomb_records
                && self->recombination_required[j].site == l) {
-            fprintf(out, "(%d, %d) ", self->recombination_required[j].node,
+            fprintf(out, "(%lld, %d) ", (long long) self->recombination_required[j].node,
                 self->recombination_required[j].required);
             j++;
         }

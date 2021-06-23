@@ -541,11 +541,11 @@ void
 tsk_blkalloc_print_state(tsk_blkalloc_t *self, FILE *out)
 {
     fprintf(out, "Block allocator%p::\n", (void *) self);
-    fprintf(out, "\ttop = %d\n", (int) self->top);
-    fprintf(out, "\tchunk_size = %d\n", (int) self->chunk_size);
-    fprintf(out, "\tnum_chunks = %d\n", (int) self->num_chunks);
-    fprintf(out, "\ttotal_allocated = %d\n", (int) self->total_allocated);
-    fprintf(out, "\ttotal_size = %d\n", (int) self->total_size);
+    fprintf(out, "\ttop = %lld\n", (long long) self->top);
+    fprintf(out, "\tchunk_size = %lld\n", (long long) self->chunk_size);
+    fprintf(out, "\tnum_chunks = %lld\n", (long long) self->num_chunks);
+    fprintf(out, "\ttotal_allocated = %lld\n", (long long) self->total_allocated);
+    fprintf(out, "\ttotal_size = %lld\n", (long long) self->total_size);
 }
 
 int TSK_WARN_UNUSED
