@@ -53,6 +53,8 @@ missing data.
 @endrst
 */
 typedef int32_t tsk_id_t;
+#define TSK_MAX_ID INT32_MAX
+#define TSK_ID_STORAGE_TYPE KAS_INT32
 
 /**
 @brief Tskit sizes.
@@ -62,6 +64,8 @@ Sizes in tskit are defined by the ``tsk_size_t`` type.
 @endrst
 */
 typedef uint32_t tsk_size_t;
+#define TSK_MAX_SIZE UINT32_MAX
+#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
 
 /**
 @brief Container for bitwise flags.
@@ -72,6 +76,7 @@ specify options to API functions.
 @endrst
 */
 typedef uint32_t tsk_flags_t;
+#define TSK_FLAGS_STORAGE_TYPE KAS_UINT32
 
 /****************************************************************************/
 /* Definitions for the basic objects */
