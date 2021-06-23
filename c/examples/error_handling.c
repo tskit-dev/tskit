@@ -19,9 +19,9 @@ main(int argc, char **argv)
         fprintf(stderr, "%s", tsk_strerror(ret));
         exit(EXIT_FAILURE);
     }
-    printf("Loaded tree sequence with %d nodes and %d edges from %s\n",
-        tsk_treeseq_get_num_nodes(&ts),
-        tsk_treeseq_get_num_edges(&ts),
+    printf("Loaded tree sequence with %lld nodes and %lld edges from %s\n",
+        (long long) tsk_treeseq_get_num_nodes(&ts),
+        (long long) tsk_treeseq_get_num_edges(&ts),
         argv[1]);
     tsk_treeseq_free(&ts);
 

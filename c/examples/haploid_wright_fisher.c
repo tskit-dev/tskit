@@ -58,19 +58,19 @@ simulate(
             children[j] = child;
         }
         if (t % simplify_interval == 0) {
-            printf("Simplify at generation %d: (%d nodes %d edges)",
-                t,
-                tables->nodes.num_rows,
-                tables->edges.num_rows);
+            printf("Simplify at generation %lld: (%lld nodes %lld edges)",
+                (long long) t,
+                (long long) tables->nodes.num_rows,
+                (long long) tables->edges.num_rows);
             /* Note: Edges must be sorted for simplify to work, and we use a brute force
              * approach of sorting each time here for simplicity. This is inefficient. */
             ret = tsk_table_collection_sort(tables, NULL, 0);
             check_tsk_error(ret);
             ret = tsk_table_collection_simplify(tables, children, N, 0, NULL);
             check_tsk_error(ret);
-            printf(" -> (%d nodes %d edges)\n",
-                tables->nodes.num_rows,
-                tables->edges.num_rows);
+            printf(" -> (%lld nodes %lld edges)\n",
+                (long long) tables->nodes.num_rows,
+                (long long) tables->edges.num_rows);
             for (j = 0; j < N; j++) {
                 children[j] = j;
             }
