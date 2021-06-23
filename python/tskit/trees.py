@@ -610,7 +610,7 @@ class Provenance(util.Dataclass):
 class Tree:
     """
     A single tree in a :class:`TreeSequence`. Please see the
-    :ref:`sec_tutorial_moving_along_a_tree_sequence` section for information
+    :ref:`tutorials:sec_processing_trees` section for information
     on how efficiently access trees sequentially or obtain a list
     of individual trees in a tree sequence.
 
@@ -2489,8 +2489,8 @@ class Tree:
             will result in these missing observations being imputed to the
             most parsimonious state.
 
-        See the :ref:`sec_tutorial_parsimony` section in the tutorial for examples
-        of how to use this method.
+        See the :ref:`tutorials:sec_analysing_trees_parsimony` section in the tutorial
+        for examples of how to use this method.
 
         :param array_like genotypes: The input observations for the samples in this tree.
         :param tuple(str) alleles: The alleles for the specified ``genotypes``. Each
