@@ -3693,7 +3693,7 @@ out:
     return ret;
 }
 
-static int
+static tsk_id_t
 tsk_tree_node_root(tsk_tree_t *self, tsk_id_t u)
 {
     tsk_id_t v = u;

@@ -1381,14 +1381,14 @@ test_simplest_tree_mrca(void)
     tsk_table_collection_t tables;
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    tsk_id_t mrca;
+    tsk_id_t mrca, ret_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
-    ret = tsk_node_table_add_row(
+    ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1998,6 +1998,7 @@ test_simplest_bad_individuals(void)
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_id_t ret_id;
     int ret;
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -2008,8 +2009,8 @@ test_simplest_bad_individuals(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 5);
     parse_edges(edges, &tables.edges);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 3);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* Make sure we have a good set of records */
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
@@ -2089,6 +2090,7 @@ test_simplest_bad_edges(void)
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     int ret;
+    tsk_id_t ret_id;
     tsk_flags_t load_flags = TSK_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -2099,8 +2101,8 @@ test_simplest_bad_edges(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 5);
     parse_edges(edges, &tables.edges);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 3);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* Make sure we have a good set of records */
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
@@ -2282,6 +2284,7 @@ test_simplest_bad_indexes(void)
     tsk_table_collection_t tables;
     tsk_id_t bad_indexes[] = { -1, 3, 4, 1000 };
     size_t j;
+    tsk_id_t ret_id;
     int ret;
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -2292,8 +2295,8 @@ test_simplest_bad_indexes(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 5);
     parse_edges(edges, &tables.edges);
     CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 3);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* Make sure we have a good set of records */
     ret = tsk_table_collection_check_integrity(&tables, 0);
@@ -2332,21 +2335,23 @@ test_simplest_bad_migrations(void)
 {
     tsk_table_collection_t tables;
     int ret;
+    tsk_id_t ret_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
     /* insert two populations and one node to refer to. */
-    ret = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
     /* One migration, node 0 goes from population 0 to 1. */
-    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id
+        = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* We only need basic intregity checks for migrations */
     ret = tsk_table_collection_check_integrity(&tables, 0);
@@ -2445,6 +2450,7 @@ test_simplest_migration_simplify(void)
 {
     tsk_table_collection_t tables;
     int ret;
+    tsk_id_t ret_id;
     tsk_id_t samples[] = { 0, 1 };
 
     ret = tsk_table_collection_init(&tables, 0);
@@ -2452,19 +2458,20 @@ test_simplest_migration_simplify(void)
     tables.sequence_length = 1;
 
     /* insert two populations and one node to refer to. */
-    ret = tsk_node_table_add_row(
+    ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_node_table_add_row(
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
     /* One migration, node 0 goes from population 0 to 1. */
-    ret = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id
+        = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED);
@@ -3837,7 +3844,7 @@ test_single_tree_iter_depths(void)
                         "0  6   5   2,3\n"
                         "0  6   6   4,5\n";
     unsigned int depths[] = { 2, 2, 2, 2, 1, 1, 0 };
-    unsigned int depth;
+    tsk_size_t depth;
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     tsk_id_t u;
@@ -5847,20 +5854,21 @@ static void
 test_deduplicate_sites_errors(void)
 {
     int ret;
+    tsk_id_t ret_id;
     tsk_table_collection_t tables;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 10;
-    ret = tsk_site_table_add_row(&tables.sites, 2, "A", 1, "m", 1);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_site_table_add_row(&tables.sites, 2, "TT", 2, "MM", 2);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_mutation_table_add_row(&tables.mutations, 0, 0, -1, 0, "T", 1, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_node_table_add_row(&tables.nodes, 0, 0, TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_site_table_add_row(&tables.sites, 2, "A", 1, "m", 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_site_table_add_row(&tables.sites, 2, "TT", 2, "MM", 2);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 0, -1, 0, "T", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     /* Negative position */
     tables.sites.position[0] = -1;
@@ -5938,20 +5946,21 @@ static void
 test_deduplicate_sites_multichar(void)
 {
     int ret;
+    tsk_id_t ret_id;
     tsk_table_collection_t tables;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tables.sequence_length = 10;
-    ret = tsk_site_table_add_row(&tables.sites, 0, "AA", 1, "M", 1);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_site_table_add_row(&tables.sites, 0, "0", 1, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_site_table_add_row(&tables.sites, 1, "BBBBB", 5, "NNNNN", 5);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
-    ret = tsk_site_table_add_row(&tables.sites, 1, "0", 1, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 3);
+    ret_id = tsk_site_table_add_row(&tables.sites, 0, "AA", 1, "M", 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_site_table_add_row(&tables.sites, 0, "0", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_site_table_add_row(&tables.sites, 1, "BBBBB", 5, "NNNNN", 5);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
+    ret_id = tsk_site_table_add_row(&tables.sites, 1, "0", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 3);
 
     ret = tsk_table_collection_deduplicate_sites(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
