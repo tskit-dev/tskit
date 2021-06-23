@@ -118,6 +118,7 @@ TypedField.make_field = patched_make_field
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx_autodoc_typehints",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx.ext.todo",
@@ -307,6 +308,8 @@ nitpick_ignore = [
     ("c:type", "int32_t"),
     ("c:type", "uint32_t"),
     ("c:type", "bool"),
+    ("py:class", "tskit.metadata.MetadataSchema"),
+    ("py:class", "tskit.trees.TreeSequence._TableMetadataSchemas"),
     ("py:class", "tskit.metadata.AbstractMetadataCodec"),
     ("py:class", "tskit.trees.Site"),
     # TODO these have been triaged here to make the docs compile, but we should

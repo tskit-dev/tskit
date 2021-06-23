@@ -34,8 +34,11 @@ import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import Any
+from typing import List
+from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -1589,51 +1592,55 @@ class Tree:
             )
         return str(text_tree)
 
+    # TODO when mimimum supported python version is 3.8, replace Optional[str] values
+    # with literals, e.g. SvgMaxTime = Union[Literal["tree", "ts"], int, None] = None
+
+    SvgMaxTime = Union[int, str, None]
+
     def draw_svg(
         self,
-        path=None,
+        path: Optional[str] = None,
         *,
-        size=None,
-        time_scale=None,
-        tree_height_scale=None,
-        max_time=None,
-        max_tree_height=None,
-        node_labels=None,
-        mutation_labels=None,
-        root_svg_attributes=None,
-        style=None,
-        order=None,
-        force_root_branch=None,
-        symbol_size=None,
-        x_axis=None,
-        x_label=None,
-        y_axis=None,
-        y_label=None,
-        y_ticks=None,
-        y_gridlines=None,
-        all_edge_mutations=None,
+        size: Optional[Tuple[int, int]] = None,
+        time_scale: "TreeSequence.SvgTimeScale" = None,
+        tree_height_scale: "TreeSequence.SvgTimeScale" = None,
+        max_time: SvgMaxTime = None,
+        max_tree_height: SvgMaxTime = None,
+        node_labels: Optional[Mapping[int, str]] = None,
+        mutation_labels: Optional[Mapping[int, str]] = None,
+        root_svg_attributes: Optional[Mapping[str, str]] = None,
+        style: Optional[str] = None,
+        order: "TreeSequence.SvgOrder" = None,
+        force_root_branch: Optional[bool] = None,
+        symbol_size: Optional[float] = None,
+        x_axis: Optional[bool] = None,
+        x_label: Optional[str] = None,
+        y_axis: Optional[bool] = None,
+        y_label: Optional[str] = None,
+        y_ticks: Union[Mapping, List, None] = None,
+        y_gridlines: Optional[bool] = None,
+        all_edge_mutations: Optional[bool] = None,
         **kwargs,
-    ):
+    ) -> str:
         """
         Return an SVG representation of a single tree. By default, numeric
         labels are drawn beside nodes and mutations: these can be altered using the
         ``node_labels`` and ``mutation_labels`` parameters. See the
         :ref:`visualization tutorial<tutorials:sec_tskit_viz>` for more details.
 
-        :param str path: The path to the file to write the output. If None, do not
+        :param path: The path to the file to write the output. If None, do not
             write to file.
         :param size: A tuple of (width, height) giving the width and height of the
             produced SVG drawing in abstract user units (usually interpreted as pixels on
             initial display).
-        :type size: tuple(int, int)
-        :param str time_scale: Control how height values for nodes are computed.
+        :param time_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"`` (the default), node heights are proportional
             to their time values. If this is equal to ``"log_time"``, node heights are
             proportional to their log(time) values. If it is equal to ``"rank"``, node
             heights are spaced equally according to their ranked times.
-        :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
+        :param tree_height_scale: Deprecated alias for time_scale. (Deprecated in
                 0.3.6)
-        :param str,float max_time: The maximum time value in the current
+        :param max_time: The maximum time value in the current
             scaling system (see ``time_scale``). Can be either a string or a
             numeric value. If equal to ``"tree"`` (the default), the maximum time
             is set to be that of the oldest root in the tree. If equal to ``"ts"`` the
@@ -1641,49 +1648,48 @@ class Tree:
             sequence; this is useful when drawing trees from the same tree sequence as it
             ensures that node heights are consistent. If a numeric value, this is used as
             the maximum time by which to scale other nodes.
-        :param str,float max_tree_height: Deprecated alias for max_time. (Deprecated in
+        :param max_tree_height: Deprecated alias for max_time. (Deprecated in
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
             not have a label.
-        :type node_labels: dict(int, str)
         :param mutation_labels: If specified, show custom labels for the
             mutations (specified by ID) that are present in the map; any mutations
             not present will not have a label.
-        :type mutation_labels: dict(int, str)
-        :param dict root_svg_attributes: Additional attributes, such as an id, that will
+        :param root_svg_attributes: Additional attributes, such as an id, that will
             be embedded in the root ``<svg>`` tag of the generated drawing.
-        :param str style: A
+        :param style: A
             `css style string <https://www.w3.org/TR/CSS22/syndata.html>`_ that will be
             included in the ``<style>`` tag of the generated svg.
-        :param str order: The left-to-right ordering of child nodes in the drawn tree.
+        :param order: The left-to-right ordering of child nodes in the drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
             order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.
-        :param bool force_root_branch: If ``True`` always plot a branch (edge) above the
+        :param force_root_branch: If ``True`` always plot a branch (edge) above the
             root(s) in the tree. If ``None`` (default) then only plot such root branches
             if there is a mutation above a root of the tree.
-        :param float symbol_size: Change the default size of the node and mutation
+        :param symbol_size: Change the default size of the node and mutation
             plotting symbols. If ``None`` (default) use a standard size.
-        :param bool x_axis: Should the plot have an X axis line, showing the start and
+        :param x_axis: Should the plot have an X axis line, showing the start and
             end position of this tree along the genome. If ``None`` (default) do not
             plot an X axis.
-        :param str x_label: Place a label under the plot. If ``None`` (default) and
+        :param x_label: Place a label under the plot. If ``None`` (default) and
             there is an X axis, create and place an appropriate label.
-        :param bool y_axis: Should the plot have an Y axis line, showing time (or
+        :param y_axis: Should the plot have an Y axis line, showing time (or
             ranked node time if ``time_scale="rank"``). If ``None`` (default)
             do not plot a Y axis.
-        :param str y_label: Place a label to the left of the plot. If ``None`` (default)
-            and there is a Y axis,  create and place an appropriate label.
-        :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
-            gives no tickmarks). If ``None``, plot one tickmark for each unique
-            node value.
-        :param bool y_gridlines: Whether to plot horizontal lines behind the tree
+        :param y_label: Place a label to the left of the plot. If ``None`` (default)
+            and there is a Y axis, create and place an appropriate label.
+        :param y_ticks: A mapping of numbers to strings, specifying tick labels to plot
+            at a set of y tickmark values. As a shorthand, a list of y values can
+            be given and numerical labels will be plotted at those values (``[]`` gives
+            no tickmarks). If ``None``, plot one tickmark for each unique node value.
+        :param y_gridlines: Whether to plot horizontal lines behind the tree
             at each y tickmark.
-        :param bool all_edge_mutations: The edge on which a mutation occurs may span
+        :param all_edge_mutations: The edge on which a mutation occurs may span
             multiple trees. If ``False`` or ``None`` (default) mutations are only drawn
             on an edge if their site position exists within the genomic interval covered
             by this tree. If ``True``, all mutations on each edge of the tree are drawn,
@@ -1692,7 +1698,6 @@ class Tree:
             from the same tree sequence may share some plotted mutations.
 
         :return: An SVG representation of a tree.
-        :rtype: str
         """
         draw = drawing.SvgTree(
             self,
@@ -3761,7 +3766,7 @@ class TreeSequence:
         return self._ll_tree_sequence.get_num_samples()
 
     @property
-    def table_metadata_schemas(self) -> "_TableMetadataSchemas":
+    def table_metadata_schemas(self) -> "TreeSequence._TableMetadataSchemas":
         """
         The set of metadata schemas for the tables in this tree sequence.
         """
@@ -5430,41 +5435,49 @@ class TreeSequence:
         )
         return tables.tree_sequence()
 
+    # TODO when mimimum supported python version is 3.8, replace Optional[str] values
+    # with literals, e.g. SvgTimeScale = Literal["time", "log_time", "rank", None] ,
+    # SvgOrder = Literal["minlex", "tree", None] = None and
+    # SvgXScale = Literal["physical", "treewise", None]
+
+    SvgOrder = Optional[str]
+    SvgTimeScale = Optional[str]
+    SvgXScale = Optional[str]
+
     def draw_svg(
         self,
-        path=None,
+        path: Optional[str] = None,
         *,
-        size=None,
-        x_scale=None,
-        time_scale=None,
-        tree_height_scale=None,
-        node_labels=None,
-        mutation_labels=None,
-        root_svg_attributes=None,
-        style=None,
-        order=None,
-        force_root_branch=None,
-        symbol_size=None,
-        x_axis=None,
-        x_label=None,
-        x_lim=None,
-        y_axis=None,
-        y_label=None,
-        y_ticks=None,
-        y_gridlines=None,
+        size: Optional[Tuple[int, int]] = None,
+        x_scale: SvgXScale = None,
+        time_scale: SvgTimeScale = None,
+        tree_height_scale: SvgTimeScale = None,
+        node_labels: Optional[Mapping[int, str]] = None,
+        mutation_labels: Optional[Mapping[int, str]] = None,
+        root_svg_attributes: Optional[Mapping[str, str]] = None,
+        style: Optional[str] = None,
+        order: SvgOrder = None,
+        force_root_branch: Optional[bool] = None,
+        symbol_size: Optional[float] = None,
+        x_axis: Optional[bool] = None,
+        x_label: Optional[str] = None,
+        x_lim: Optional[Tuple[Optional[float], Optional[float]]] = None,
+        y_axis: Optional[bool] = None,
+        y_label: Optional[str] = None,
+        y_ticks: Union[Mapping, List, None] = None,
+        y_gridlines: Optional[bool] = None,
         **kwargs,
-    ):
+    ) -> str:
         """
         Return an SVG representation of a tree sequence. See the
         :ref:`visualization tutorial<tutorials:sec_tskit_viz>` for more details.
 
-        :param str path: The path to the file to write the output. If None, do not write
+        :param path: The path to the file to write the output. If None, do not write
             to file.
         :param size: A tuple of (width, height) giving the width and height of the
             produced SVG drawing in abstract user units (usually interpreted as pixels on
             display).
-        :type size: tuple(int, int)
-        :param str x_scale: Control how the X axis is drawn. If "physical" (the default)
+        :param x_scale: Control how the X axis is drawn. If "physical" (the default)
             the axis scales linearly with physical distance along the sequence,
             background shading is used to indicate the position of the trees along the
             X axis, and sites (with associated mutations) are marked at the
@@ -5472,43 +5485,41 @@ class TreeSequence:
             corresponds to a tree boundary, which are positioned evenly along the axis,
             so that the X axis is of variable scale, no background scaling is required,
             and site positions are not marked on the axis.
-        :param str time_scale: Control how height values for nodes are computed.
+        :param time_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"``, node heights are proportional to their time
             values (this is the default). If this is equal to ``"log_time"``, node
             heights are proportional to their log(time) values. If it is equal to
             ``"rank"``, node heights are spaced equally according to their ranked times.
-        :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
+        :param tree_height_scale: Deprecated alias for time_scale. (Deprecated in
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
             not have a label.
-        :type node_labels: dict(int, str)
         :param mutation_labels: If specified, show custom labels for the
             mutations (specified by ID) that are present in the map; any mutations
             not present will not have a label.
-        :type mutation_labels: dict(int, str)
-        :param dict root_svg_attributes: Additional attributes, such as an id, that will
+        :param root_svg_attributes: Additional attributes, such as an id, that will
             be embedded in the root ``<svg>`` tag of the generated drawing.
-        :param str style: A `css string <https://www.w3.org/TR/CSS21/syndata.htm>`_
+        :param style: A `css string <https://www.w3.org/TR/CSS21/syndata.htm>`_
             that will be included in the ``<style>`` tag of the generated svg.
-        :param str order: The left-to-right ordering of child nodes in each drawn tree.
+        :param order: The left-to-right ordering of child nodes in each drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
             order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.
-        :param bool force_root_branch: If ``True`` plot a branch (edge) above every tree
+        :param force_root_branch: If ``True`` plot a branch (edge) above every tree
             root in the tree sequence. If ``None`` (default) then only plot such
             root branches if any root in the tree sequence has a mutation above it.
-        :param float symbol_size: Change the default size of the node and mutation
+        :param symbol_size: Change the default size of the node and mutation
             plotting symbols. If ``None`` (default) use a standard size.
-        :param bool x_axis: Should the plot have an X axis line, showing the positions
+        :param x_axis: Should the plot have an X axis line, showing the positions
             of trees along the genome. The scale used is determined by the ``x_scale``
             parameter. If ``None`` (default) plot an X axis.
-        :param str x_label: Place a label under the plot. If ``None`` (default) and
+        :param x_label: Place a label under the plot. If ``None`` (default) and
             there is an X axis, create and place an appropriate label.
-        :param list x_lim: A list of size two giving the genomic positions between which
+        :param x_lim: A list of size two giving the genomic positions between which
             trees should be plotted. If the first is ``None``, then plot from the first
             non-empty region of the tree sequence. If the second is ``None``, then plot
             up to the end of the last non-empty region of the tree sequence. The default
@@ -5517,19 +5528,19 @@ class TreeSequence:
             information discarded: this means that mutations outside the interval will
             not be shown. To force display of the entire tree sequence, including empty
             flanking regions, specify ``x_lim=[0, ts.sequence_length]``.
-        :param bool y_axis: Should the plot have an Y axis line, showing time (or
+        :param y_axis: Should the plot have an Y axis line, showing time (or
             ranked node time if ``time_scale="rank"``. If ``None`` (default)
             do not plot a Y axis.
-        :param str y_label: Place a label to the left of the plot. If ``None`` (default)
+        :param y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis, create and place an appropriate label.
-        :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
-            gives no tickmarks). If ``None``, plot one tickmark for each unique
-            node value.
-        :param bool y_gridlines: Whether to plot horizontal lines behind the tree
+        :param y_ticks: A mapping of numbers to strings, specifying tick labels to plot
+            at a set of y tickmark values. As a shorthand, a list of y values can
+            be given and numerical labels will be plotted at those values (``[]`` gives
+            no tickmarks). If ``None``, plot one tickmark for each unique node value.
+        :param y_gridlines: Whether to plot horizontal lines behind the tree
             at each y tickmark.
 
         :return: An SVG representation of a tree sequence.
-        :rtype: str
 
         .. note::
             Technically, x_lim[0] specifies a *minimum* value for the start of the X

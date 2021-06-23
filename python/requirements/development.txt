@@ -27,5 +27,6 @@ sphinx
 sphinx-argparse
 sphinx-issues
 sphinx_rtd_theme
+sphinx-autodoc-typehints
 svgwrite>=1.1.10
 xmlunittest
