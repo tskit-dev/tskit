@@ -63,9 +63,9 @@ typedef int32_t tsk_id_t;
 Sizes in tskit are defined by the ``tsk_size_t`` type.
 @endrst
 */
-typedef uint32_t tsk_size_t;
-#define TSK_MAX_SIZE UINT32_MAX
-#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
+typedef uint64_t tsk_size_t;
+#define TSK_MAX_SIZE UINT64_MAX
+#define TSK_SIZE_STORAGE_TYPE KAS_UINT64
 
 /**
 @brief Container for bitwise flags.

@@ -71,8 +71,7 @@ check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 static bool
 check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
 {
-    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_elements;
-    return new_size > TSK_MAX_SIZE;
+    return additional_elements > 0 && current_size > TSK_MAX_SIZE - additional_elements;
 }
 
 static int
