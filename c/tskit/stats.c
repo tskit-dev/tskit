@@ -33,8 +33,8 @@
 static void
 tsk_ld_calc_check_state(const tsk_ld_calc_t *self)
 {
-    uint32_t u;
-    uint32_t num_nodes = (uint32_t) tsk_treeseq_get_num_nodes(self->tree_sequence);
+    tsk_size_t u;
+    tsk_size_t num_nodes = tsk_treeseq_get_num_nodes(self->tree_sequence);
     tsk_tree_t *tA = self->outer_tree;
     tsk_tree_t *tB = self->inner_tree;
 
