@@ -5025,12 +5025,15 @@ test_sort_tables_individuals(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1.0;
     parse_individuals(individuals, &tables.individuals);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    /* Not calling with TSK_CHECK_TREES so casting is safe */
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
 
     ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check that the sort is stable */
@@ -5219,7 +5222,7 @@ test_dump_load_unsorted_with_options(tsk_flags_t tc_options)
     CU_ASSERT_EQUAL_FATAL(ret_id, 3);
 
     /* Verify that it's unsorted */
-    ret = tsk_table_collection_check_integrity(&t1, TSK_CHECK_EDGE_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(&t1, TSK_CHECK_EDGE_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 
     ret = tsk_table_collection_dump(&t1, _tmp_file_name, 0);
@@ -5314,7 +5317,7 @@ test_dump_fail_no_file(void)
     CU_ASSERT_EQUAL_FATAL(ret_id, 3);
 
     /* Verify that it's unsorted */
-    ret = tsk_table_collection_check_integrity(&t1, TSK_CHECK_EDGE_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(&t1, TSK_CHECK_EDGE_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 
     /* Make sure the file doesn't exist beforehand. */
@@ -5510,7 +5513,8 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, INFINITY, TSK_NULL, TSK_NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, ret_id);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    /* Not calling with TSK_CHECK_TREES so casting is safe */
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
 
     ret = tsk_node_table_clear(&tables.nodes);
@@ -5518,9 +5522,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, TSK_NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, ret_id);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
 
     ret = tsk_node_table_clear(&tables.nodes);
@@ -5528,7 +5533,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, ret_id);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
 
     ret = tsk_node_table_clear(&tables.nodes);
@@ -5539,69 +5544,69 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* edges */
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, TSK_NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_PARENT);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 2, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, TSK_NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_CHILD);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, 2, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, INFINITY, 1, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, -1.0, 1.0, 1, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_LEFT_LESS_ZERO);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.1, 1, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_RIGHT_GREATER_SEQ_LENGTH);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.5, 0.1, 1, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
 
     ret = tsk_edge_table_clear(&tables.edges);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 0.5, 0, 1, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
 
     ret = tsk_edge_table_clear(&tables.edges);
@@ -5610,21 +5615,21 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     /* sites */
     ret_id = tsk_site_table_add_row(&tables.sites, INFINITY, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
 
     ret = tsk_site_table_clear(&tables.sites);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_site_table_add_row(&tables.sites, -0.5, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
 
     ret = tsk_site_table_clear(&tables.sites);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_site_table_add_row(&tables.sites, 1.5, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
 
     ret = tsk_site_table_clear(&tables.sites);
@@ -5633,9 +5638,9 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     CU_ASSERT_FATAL(ret_id >= 0);
     ret_id = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_SITE_DUPLICATES);
+    ret = (int) tsk_table_collection_check_integrity(&tables, TSK_CHECK_SITE_DUPLICATES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SITE_POSITION);
 
     ret = tsk_site_table_clear(&tables.sites);
@@ -5644,9 +5649,9 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     CU_ASSERT_FATAL(ret_id >= 0);
     ret_id = tsk_site_table_add_row(&tables.sites, 0.4, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_SITE_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(&tables, TSK_CHECK_SITE_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_SITES);
 
     ret = tsk_site_table_clear(&tables.sites);
@@ -5660,7 +5665,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 2, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5668,7 +5673,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 2, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     /* A mixture of known and unknown times on a site fails */
@@ -5680,7 +5685,8 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN);
 
     /* But on different sites, passes */
@@ -5692,21 +5698,23 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 1, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 2, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 1, 0, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_EQUAL);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5716,11 +5724,12 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5731,11 +5740,12 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 1, 1, 0, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5746,9 +5756,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 1, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
 
     /* Unknown times pass */
@@ -5760,9 +5771,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Correctly ordered times pass */
@@ -5777,9 +5789,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Incorrectly ordered times fail */
@@ -5791,9 +5804,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_MUTATIONS);
 
     /* Putting incorrectly ordered times on diff sites passes */
@@ -5811,9 +5825,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 1, 0, TSK_NULL, 1, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5821,7 +5836,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, NAN, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5829,7 +5844,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, TSK_NULL, INFINITY, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5837,9 +5852,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 1, 1, TSK_NULL, 0, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE);
 
     ret = tsk_mutation_table_clear(&tables.mutations);
@@ -5849,9 +5865,10 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     CU_ASSERT_FATAL(ret_id >= 0);
     ret_id = tsk_mutation_table_add_row(&tables.mutations, 1, 1, 0, 2, NULL, 0, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_MUTATION_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
 
     /* migrations */
@@ -5865,7 +5882,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.0, 0.5, 2, 0, 1, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5873,7 +5890,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.0, 0.5, 1, 2, 1, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5881,7 +5898,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.0, 0.5, 1, 0, 2, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5889,7 +5906,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.0, 0.5, 1, 0, 1, INFINITY, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5897,7 +5914,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.0, INFINITY, 1, 0, 1, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_GENOME_COORDS_NONFINITE);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5905,7 +5922,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, -0.3, 0.5, 1, 0, 1, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_LEFT_LESS_ZERO);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5913,7 +5930,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.0, 1.5, 1, 0, 1, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_RIGHT_GREATER_SEQ_LENGTH);
 
     ret = tsk_migration_table_clear(&tables.migrations);
@@ -5921,27 +5938,28 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.6, 0.5, 1, 0, 1, 1.5, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_EDGE_INTERVAL);
     ret = tsk_migration_table_clear(&tables.migrations);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     parse_individuals(individuals, &tables.individuals);
     CU_ASSERT_EQUAL_FATAL(tables.individuals.num_rows, 3);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_INDIVIDUAL_ORDERING);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check that an individual can't be its own parent */
     tables.individuals.parents[0] = 0;
     tables.individuals.parents[1] = 1;
     tables.individuals.parents[2] = 2;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_SELF_PARENT);
 
     tables.individuals.parents[0] = -2;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
 
     tsk_table_collection_free(&tables);
@@ -5952,6 +5970,7 @@ test_table_collection_check_integrity_no_populations(void)
 {
     int ret;
     tsk_id_t ret_id;
+    tsk_id_t ret_num_trees;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
 
@@ -5963,32 +5982,35 @@ test_table_collection_check_integrity_no_populations(void)
     /* Add in some bad population references and check that we can use
      * TSK_NO_CHECK_POPULATION_REFS with TSK_CHECK_TREES */
     tables.nodes.population[0] = 10;
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    /* Not calling with TSK_CHECK_TREES so casting is safe */
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
+    ret_num_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_num_trees, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(
+    ret_num_trees = tsk_table_collection_check_integrity(
         &tables, TSK_CHECK_TREES | TSK_NO_CHECK_POPULATION_REFS);
     /* CHECK_TREES returns the number of trees */
-    CU_ASSERT_EQUAL_FATAL(ret, 3);
+    CU_ASSERT_EQUAL_FATAL(ret_num_trees, 3);
     tables.nodes.population[0] = TSK_NULL;
 
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_migration_table_add_row(
         &tables.migrations, 0.4, 0.5, 1, 0, 1, 1.5, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
-    ret = tsk_table_collection_check_integrity(&tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_NO_CHECK_POPULATION_REFS);
+    ret_num_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_num_trees, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    ret = (int) tsk_table_collection_check_integrity(
+        &tables, TSK_NO_CHECK_POPULATION_REFS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(
+    ret_num_trees = tsk_table_collection_check_integrity(
         &tables, TSK_CHECK_TREES | TSK_NO_CHECK_POPULATION_REFS);
-    CU_ASSERT_EQUAL_FATAL(ret, 3);
+    CU_ASSERT_EQUAL_FATAL(ret_num_trees, 3);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -6139,7 +6161,7 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_subset(&tables_copy, nodes, 4, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables_copy, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables_copy, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_node_table_equals(&tables.nodes, &tables_copy.nodes, 0));
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 2);
@@ -6158,7 +6180,7 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_check_integrity(&tables_copy, 0);
+    ret = (int) tsk_table_collection_check_integrity(&tables_copy, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
