@@ -18,7 +18,7 @@ _traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
     for (j = 0; j < depth; j++) {
         printf("    ");
     }
-    printf("Visit recursive %d\n", u);
+    printf("Visit recursive %lld\n", (long long) u);
     for (v = tree->left_child[u]; v != TSK_NULL; v = tree->right_sib[v]) {
         _traverse(tree, v, depth + 1);
     }
@@ -51,7 +51,7 @@ traverse_stack(tsk_tree_t *tree)
         while (stack_top >= 0) {
             u = stack[stack_top];
             stack_top--;
-            printf("Visit stack %d\n", u);
+            printf("Visit stack %lld\n", (long long) u);
             /* Put nodes on the stack right-to-left, so we visit in left-to-right */
             for (v = tree->right_child[u]; v != TSK_NULL; v = tree->left_sib[v]) {
                 stack_top++;
@@ -73,7 +73,7 @@ traverse_upwards(tsk_tree_t *tree)
     for (j = 0; j < num_samples; j++) {
         u = samples[j];
         while (u != TSK_NULL) {
-            printf("Visit upwards: %d\n", u);
+            printf("Visit upwards: %lld\n", (long long) u);
             u = tree->parent[u];
         }
     }

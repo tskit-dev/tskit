@@ -24,8 +24,8 @@ main(int argc, char **argv)
             break;
         }
         check_tsk_error(ret);
-        fprintf(stderr, "Tree sequence %d had %d mutations\n", j,
-            (int) tables.mutations.num_rows);
+        fprintf(stderr, "Tree sequence %d had %lld mutations\n", j,
+            (long long) tables.mutations.num_rows);
         ret = tsk_mutation_table_truncate(&tables.mutations, 0);
         check_tsk_error(ret);
         ret = tsk_table_collection_dumpf(&tables, stdout, 0);
