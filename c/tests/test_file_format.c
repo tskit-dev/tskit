@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -340,7 +340,7 @@ test_missing_required_column_pairs(void)
         drop_cols[0] = required_cols[j][1];
         copy_store_drop_columns(ts, 1, drop_cols, _tmp_file_name);
         ret = tsk_table_collection_load(&t, _tmp_file_name, 0);
-        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_REQUIRED_COL_NOT_FOUND);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BOTH_COLUMNS_REQUIRED);
         tsk_table_collection_free(&t);
 
         copy_store_drop_columns(ts, 2, required_cols[j], _tmp_file_name);
@@ -428,6 +428,17 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_FILE_FORMAT);
     tsk_table_collection_free(&tables);
 
+    copy_store_drop_columns(ts, 1, &offset_col, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, offset_col, offset_copy, offset_len, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_table_collection_free(&tables);
+
     free(offset_copy);
 }
 
@@ -436,6 +447,9 @@ test_bad_offset_columns(void)
 {
     size_t j;
     tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
+    /* We exclude "provenances/timestamp_offset" here because there are no
+     * non-ragged columns in the provenances table, so this doesn't quite
+     * fit into the same pattern as the other tables */
     const char *cols[] = {
         "edges/metadata_offset",
         "migrations/metadata_offset",
@@ -447,7 +461,6 @@ test_bad_offset_columns(void)
         "nodes/metadata_offset",
         "populations/metadata_offset",
         "provenances/record_offset",
-        "provenances/timestamp_offset",
         "sites/ancestral_state_offset",
         "sites/metadata_offset",
     };
@@ -556,8 +569,86 @@ test_malformed_indexes(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
     tsk_treeseq_free(&ts2);
 
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, cols[0], bad_index, num_edges, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_load(&ts2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_treeseq_free(&ts2);
+
     free(good_index);
     free(bad_index);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
+test_bad_column_types(void)
+{
+    int ret;
+    tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
+    tsk_table_collection_t tables;
+    tsk_size_t num_edges = tsk_treeseq_get_num_edges(ts);
+    /* make sure we have enough memory in all cases */
+    tsk_id_t *col_memory = calloc(num_edges + 1, sizeof(double));
+    kastore_t store;
+    const char *cols[1];
+
+    CU_ASSERT_FATAL(col_memory != NULL);
+
+    cols[0] = "edges/left";
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, cols[0], col_memory, num_edges, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_table_collection_free(&tables);
+
+    cols[0] = "edges/metadata_offset";
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, cols[0], col_memory, num_edges + 1, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_table_collection_free(&tables);
+
+    cols[0] = "edges/metadata";
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, cols[0], NULL, 0, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_table_collection_free(&tables);
+
+    cols[0] = "edges/metadata_schema";
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, cols[0], NULL, 0, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_table_collection_free(&tables);
+
+    free(col_memory);
     tsk_treeseq_free(ts);
     free(ts);
 }
@@ -889,7 +980,7 @@ test_load_node_table_errors(void)
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_FILE_FORMAT);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
     ret = tsk_table_collection_free(&tables);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     write_cols[0].type = KAS_FLOAT64;
@@ -1073,6 +1164,7 @@ main(int argc, char **argv)
         { "test_format_data_load_errors", test_format_data_load_errors },
         { "test_missing_indexes", test_missing_indexes },
         { "test_malformed_indexes", test_malformed_indexes },
+        { "test_bad_column_types", test_bad_column_types },
         { "test_missing_required_columns", test_missing_required_columns },
         { "test_missing_optional_column_pairs", test_missing_optional_column_pairs },
         { "test_missing_required_column_pairs", test_missing_required_column_pairs },
