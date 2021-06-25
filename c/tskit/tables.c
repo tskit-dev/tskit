@@ -23,6 +23,7 @@
  * SOFTWARE.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
@@ -54,6 +55,15 @@ typedef struct {
     tsk_size_t len;
     int type;
 } write_table_col_t;
+
+typedef struct {
+    const char *name;
+    const void *data_array;
+    tsk_size_t data_len;
+    int data_type;
+    const tsk_size_t *offset_array;
+    tsk_size_t num_rows;
+} write_table_ragged_col_t;
 
 /* Returns true if adding the specified number of rows would result in overflow.
  * Tables can support indexes from 0 to TSK_MAX_ID, and therefore have at most
@@ -129,18 +139,65 @@ out:
 }
 
 static int
-write_table_cols(kastore_t *store, write_table_col_t *write_cols, size_t num_cols)
+write_table_ragged_cols(kastore_t *store, const write_table_ragged_col_t *write_cols,
+    tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
-    size_t j;
+    const write_table_ragged_col_t *col;
+    char offset_col_name[256];
 
-    for (j = 0; j < num_cols; j++) {
-        ret = kastore_puts(store, write_cols[j].name, write_cols[j].array,
-            write_cols[j].len, write_cols[j].type, 0);
+    for (col = write_cols; col->name != NULL; col++) {
+        ret = kastore_puts(
+            store, col->name, col->data_array, col->data_len, col->data_type, 0);
         if (ret != 0) {
             ret = tsk_set_kas_error(ret);
             goto out;
         }
+        assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
+        strcpy(offset_col_name, col->name);
+        strcat(offset_col_name, "_offset");
+
+        ret = kastore_puts(store, offset_col_name, col->offset_array, col->num_rows + 1,
+            TSK_SIZE_STORAGE_TYPE, 0);
+        if (ret != 0) {
+            ret = tsk_set_kas_error(ret);
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
+write_table_cols(kastore_t *store, const write_table_col_t *write_cols,
+    tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    const write_table_col_t *col;
+
+    for (col = write_cols; col->name != NULL; col++) {
+        ret = kastore_puts(store, col->name, col->array, col->len, col->type, 0);
+        if (ret != 0) {
+            ret = tsk_set_kas_error(ret);
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
+write_table(kastore_t *store, const write_table_col_t *cols,
+    const write_table_ragged_col_t *ragged_cols, tsk_flags_t options)
+{
+    int ret = write_table_cols(store, cols, options);
+
+    if (ret != 0) {
+        goto out;
+    }
+    ret = write_table_ragged_cols(store, ragged_cols, options);
+    if (ret != 0) {
+        goto out;
     }
 out:
     return ret;
@@ -883,25 +940,24 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
 static int
 tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
+    const write_table_col_t write_cols[] = {
         { "individuals/flags", (void *) self->flags, self->num_rows,
             TSK_FLAGS_STORAGE_TYPE },
-        { "individuals/location", (void *) self->location, self->location_length,
-            KAS_FLOAT64 },
-        { "individuals/location_offset", (void *) self->location_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
-        { "individuals/parents", (void *) self->parents, self->parents_length,
-            TSK_ID_STORAGE_TYPE },
-        { "individuals/parents_offset", (void *) self->parents_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
-        { "individuals/metadata", (void *) self->metadata, self->metadata_length,
-            KAS_UINT8 },
-        { "individuals/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "individuals/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
+        { NULL },
     };
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "individuals/location", (void *) self->location, self->location_length,
+            KAS_FLOAT64, self->location_offset, self->num_rows },
+        { "individuals/parents", (void *) self->parents, self->parents_length,
+            TSK_ID_STORAGE_TYPE, self->parents_offset, self->num_rows },
+        { "individuals/metadata", (void *) self->metadata, self->metadata_length,
+            KAS_UINT8, self->metadata_offset, self->num_rows },
+        { NULL },
+    };
+
+    return write_table(store, write_cols, ragged_cols, 0);
 }
 
 static int
@@ -1435,21 +1491,24 @@ out:
 static int
 tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
+    const write_table_col_t cols[] = {
         { "nodes/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
         { "nodes/flags", (void *) self->flags, self->num_rows, TSK_FLAGS_STORAGE_TYPE },
         { "nodes/population", (void *) self->population, self->num_rows,
             TSK_ID_STORAGE_TYPE },
         { "nodes/individual", (void *) self->individual, self->num_rows,
             TSK_ID_STORAGE_TYPE },
-        { "nodes/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
-        { "nodes/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            TSK_SIZE_STORAGE_TYPE },
         { "nodes/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
-
+        { NULL },
     };
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "nodes/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8,
+            self->metadata_offset, self->num_rows },
+        { NULL },
+    };
+
+    return write_table(store, cols, ragged_cols, 0);
 }
 
 static int
@@ -1992,29 +2051,31 @@ tsk_edge_table_equals(
 static int
 tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store)
 {
-    int ret = TSK_ERR_IO;
-
-    write_table_col_t write_cols[] = {
+    int ret = 0;
+    const write_table_col_t write_cols[] = {
         { "edges/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
         { "edges/right", (void *) self->right, self->num_rows, KAS_FLOAT64 },
         { "edges/parent", (void *) self->parent, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "edges/child", (void *) self->child, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "edges/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
+        { NULL },
     };
-    write_table_col_t write_cols_metadata[] = {
-        { "edges/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
-        { "edges/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            TSK_SIZE_STORAGE_TYPE },
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "edges/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8,
+            self->metadata_offset, self->num_rows },
+        { NULL },
     };
 
-    ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    /* TODO when the general code has been updated to only write out the
+     * column when the lenght of ragged columns is > 0 we can get rid of
+     * this special case here and use write_table. */
+    ret = write_table_cols(store, write_cols, 0);
     if (ret != 0) {
         goto out;
     }
     if (tsk_edge_table_has_metadata(self)) {
-        ret = write_table_cols(store, write_cols_metadata,
-            sizeof(write_cols_metadata) / sizeof(*write_cols_metadata));
+        ret = write_table_ragged_cols(store, ragged_cols, 0);
         if (ret != 0) {
             goto out;
         }
@@ -2637,20 +2698,22 @@ out:
 static int
 tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
+    const write_table_col_t cols[] = {
         { "sites/position", (void *) self->position, self->num_rows, KAS_FLOAT64 },
-        { "sites/ancestral_state", (void *) self->ancestral_state,
-            self->ancestral_state_length, KAS_UINT8 },
-        { "sites/ancestral_state_offset", (void *) self->ancestral_state_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
-        { "sites/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8 },
-        { "sites/metadata_offset", (void *) self->metadata_offset, self->num_rows + 1,
-            TSK_SIZE_STORAGE_TYPE },
         { "sites/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
+        { NULL },
+    };
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "sites/ancestral_state", (void *) self->ancestral_state,
+            self->ancestral_state_length, KAS_UINT8, self->ancestral_state_offset,
+            self->num_rows },
+        { "sites/metadata", (void *) self->metadata, self->metadata_length, KAS_UINT8,
+            self->metadata_offset, self->num_rows },
+        { NULL },
     };
 
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    return write_table(store, cols, ragged_cols, 0);
 }
 
 static int
@@ -3264,25 +3327,26 @@ out:
 static int
 tsk_mutation_table_dump(const tsk_mutation_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
+    const write_table_col_t cols[] = {
         { "mutations/site", (void *) self->site, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "mutations/node", (void *) self->node, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "mutations/parent", (void *) self->parent, self->num_rows,
             TSK_ID_STORAGE_TYPE },
         { "mutations/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
-        { "mutations/derived_state", (void *) self->derived_state,
-            self->derived_state_length, KAS_UINT8 },
-        { "mutations/derived_state_offset", (void *) self->derived_state_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
-        { "mutations/metadata", (void *) self->metadata, self->metadata_length,
-            KAS_UINT8 },
-        { "mutations/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "mutations/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
-
+        { NULL },
     };
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "mutations/derived_state", (void *) self->derived_state,
+            self->derived_state_length, KAS_UINT8, self->derived_state_offset,
+            self->num_rows },
+        { "mutations/metadata", (void *) self->metadata, self->metadata_length,
+            KAS_UINT8, self->metadata_offset, self->num_rows },
+        { NULL },
+    };
+
+    return write_table(store, cols, ragged_cols, 0);
 }
 
 static int
@@ -3801,7 +3865,7 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
 static int
 tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
+    const write_table_col_t cols[] = {
         { "migrations/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
         { "migrations/right", (void *) self->right, self->num_rows, KAS_FLOAT64 },
         { "migrations/node", (void *) self->node, self->num_rows, TSK_ID_STORAGE_TYPE },
@@ -3809,15 +3873,17 @@ tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
             TSK_ID_STORAGE_TYPE },
         { "migrations/dest", (void *) self->dest, self->num_rows, TSK_ID_STORAGE_TYPE },
         { "migrations/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
-        { "migrations/metadata", (void *) self->metadata, self->metadata_length,
-            KAS_UINT8 },
-        { "migrations/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
         { "migrations/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
+        { NULL },
+    };
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "migrations/metadata", (void *) self->metadata, self->metadata_length,
+            KAS_UINT8, self->metadata_offset, self->num_rows },
+        { NULL },
     };
 
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    return write_table(store, cols, ragged_cols, 0);
 }
 
 static int
@@ -4277,16 +4343,18 @@ tsk_population_table_equals(const tsk_population_table_t *self,
 static int
 tsk_population_table_dump(const tsk_population_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
-        { "populations/metadata", (void *) self->metadata, self->metadata_length,
-            KAS_UINT8 },
-        { "populations/metadata_offset", (void *) self->metadata_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
+    const write_table_col_t cols[] = {
         { "populations/metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_UINT8 },
+        { NULL },
+    };
+    const write_table_ragged_col_t ragged_cols[] = {
+        { "populations/metadata", (void *) self->metadata, self->metadata_length,
+            KAS_UINT8, self->metadata_offset, self->num_rows },
+        { NULL },
     };
 
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    return write_table(store, cols, ragged_cols, 0);
 }
 
 static int
@@ -4799,16 +4867,22 @@ tsk_provenance_table_equals(const tsk_provenance_table_t *self,
 static int
 tsk_provenance_table_dump(const tsk_provenance_table_t *self, kastore_t *store)
 {
-    write_table_col_t write_cols[] = {
+    int ret = 0;
+    write_table_ragged_col_t ragged_cols[] = {
         { "provenances/timestamp", (void *) self->timestamp, self->timestamp_length,
-            KAS_UINT8 },
-        { "provenances/timestamp_offset", (void *) self->timestamp_offset,
-            self->num_rows + 1, TSK_SIZE_STORAGE_TYPE },
-        { "provenances/record", (void *) self->record, self->record_length, KAS_UINT8 },
-        { "provenances/record_offset", (void *) self->record_offset, self->num_rows + 1,
-            TSK_SIZE_STORAGE_TYPE },
+            KAS_UINT8, self->timestamp_offset, self->num_rows },
+        { "provenances/record", (void *) self->record, self->record_length, KAS_UINT8,
+            self->record_offset, self->num_rows },
+        { NULL },
     };
-    return write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+
+    ret = write_table_ragged_cols(
+        store, ragged_cols, sizeof(ragged_cols) / sizeof(*ragged_cols));
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
 }
 
 static int
@@ -9250,18 +9324,18 @@ static int TSK_WARN_UNUSED
 tsk_table_collection_dump_indexes(const tsk_table_collection_t *self, kastore_t *store)
 {
     int ret = 0;
-    write_table_col_t write_cols[] = {
+    write_table_col_t cols[] = {
         { "indexes/edge_insertion_order", NULL, self->indexes.num_edges,
             TSK_ID_STORAGE_TYPE },
         { "indexes/edge_removal_order", NULL, self->indexes.num_edges,
             TSK_ID_STORAGE_TYPE },
+        { NULL },
     };
 
     if (tsk_table_collection_has_index(self, 0)) {
-        write_cols[0].array = self->indexes.edge_insertion_order;
-        write_cols[1].array = self->indexes.edge_removal_order;
-        ret = write_table_cols(
-            store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+        cols[0].array = self->indexes.edge_insertion_order;
+        cols[1].array = self->indexes.edge_removal_order;
+        ret = write_table_cols(store, cols, 0);
     }
     return ret;
 }
@@ -9447,6 +9521,7 @@ tsk_table_collection_write_format_data(
         { "metadata", (void *) self->metadata, self->metadata_length, KAS_INT8 },
         { "metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_INT8 },
+        { NULL },
     };
 
     ret = tsk_generate_uuid(uuid, 0);
@@ -9456,7 +9531,7 @@ tsk_table_collection_write_format_data(
     /* This stupid dance is to workaround the fact that compilers won't allow
      * casts to discard the 'const' qualifier. */
     memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
-    ret = write_table_cols(store, write_cols, sizeof(write_cols) / sizeof(*write_cols));
+    ret = write_table_cols(store, write_cols, 0);
 out:
     return ret;
 }
