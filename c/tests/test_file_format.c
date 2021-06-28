@@ -361,6 +361,7 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     tsk_table_collection_t tables;
     tsk_size_t *offset_array, *offset_copy;
     size_t offset_len;
+    int type;
     tsk_size_t data_len;
 
     ret = tsk_treeseq_dump(ts, _tmp_file_name, 0);
@@ -368,8 +369,9 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     ret = kastore_open(&store, _tmp_file_name, "r", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = kastore_gets_uint32(&store, offset_col, &offset_array, &offset_len);
+    ret = kastore_gets(&store, offset_col, (void **) &offset_array, &offset_len, &type);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(type, TSK_SIZE_STORAGE_TYPE);
     offset_copy = malloc(offset_len * sizeof(*offset_array));
     CU_ASSERT_FATAL(offset_copy != NULL);
     memcpy(offset_copy, offset_array, offset_len * sizeof(*offset_array));

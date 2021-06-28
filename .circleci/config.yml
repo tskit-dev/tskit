@@ -51,6 +51,12 @@ jobs:
             ninja -C build-clang
 
       - run:
+          name: Compile C with gcc in 64 bit mode
+          command: |
+            CFLAGS=-D_TSK_BIG_TABLES CPPFLAGS=-D_TSK_BIG_TABLES meson build-gcc-64 c
+            ninja -C build-gcc-64
+
+      - run:
           name: Run C tests
           command: |
             ninja -C build-gcc test
@@ -75,6 +81,19 @@ jobs:
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_haplotype_matching
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_file_format
             valgrind --leak-check=full --error-exitcode=1 ./build-gcc/test_minimal_cpp
+
+      - run:
+          name: Valgrind for 64 bit C tests.
+          command: |
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_core
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_tables
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_trees
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_genotypes
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_convert
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_stats
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_haplotype_matching
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_file_format
+            valgrind --leak-check=full --error-exitcode=1 ./build-gcc-64/test_minimal_cpp
 
       - run:
           name: Run clang-compiled C tests

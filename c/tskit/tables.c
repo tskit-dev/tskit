@@ -86,8 +86,8 @@ typedef struct {
 static bool
 check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
-    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_rows;
-    return new_size > ((uint64_t) TSK_MAX_ID) + 1;
+    tsk_size_t max_val = TSK_MAX_ID + (tsk_size_t) 1;
+    return current_size > (max_val - additional_rows);
 }
 
 /* Returns true if adding the specified number of elements would result in overflow
@@ -96,8 +96,7 @@ check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 static bool
 check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
 {
-    uint64_t new_size = (uint64_t) current_size + (uint64_t) additional_elements;
-    return new_size > TSK_MAX_SIZE;
+    return current_size > (TSK_MAX_SIZE - additional_elements);
 }
 
 #define TSK_NUM_ROWS_UNSET ((tsk_size_t) -1)
