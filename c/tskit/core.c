@@ -175,6 +175,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BOTH_COLUMNS_REQUIRED:
             ret = "Both columns in a related pair must be provided";
             break;
+        case TSK_ERR_BAD_COLUMN_TYPE:
+            ret = "An incompatible type for a column was found in the file";
+            break;
 
         /* Out of bounds errors */
         case TSK_ERR_BAD_OFFSET:

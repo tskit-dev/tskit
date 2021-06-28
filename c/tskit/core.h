@@ -208,6 +208,12 @@ not found in the file.
 */
 #define TSK_ERR_BOTH_COLUMNS_REQUIRED                               -104
 
+/**
+An unsupported type was provided for a column in the file.
+*/
+#define TSK_ERR_BAD_COLUMN_TYPE                                     -105
+
+
 /* Out of bounds errors */
 #define TSK_ERR_BAD_OFFSET                                          -200
 #define TSK_ERR_OUT_OF_BOUNDS                                       -201
