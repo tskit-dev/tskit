@@ -52,9 +52,26 @@ when manipulating these ID values. The reserved value ``TSK_NULL`` (-1) defines
 missing data.
 @endrst
 */
+#ifdef _TSK_BIG_TABLES
+/* Allow tables to have more than 2^31 rows. This is an EXPERIMENTAL feature
+ * and is not supported in any way. This typedef is only included for
+ * future-proofing purposes, so that we can be sure that we don't make any
+ * design decisions that are incompatible with big tables by building the
+ * library in 64 bit mode in CI. See the discussion here for more background:
+
+ * https://github.com/tskit-dev/tskit/issues/343
+ *
+ * If you need big tables, please open an issue on GitHub to discuss, or comment
+ * on the thread above.
+ */
+typedef int64_t tsk_id_t;
+#define TSK_MAX_ID INT64_MAX
+#define TSK_ID_STORAGE_TYPE KAS_INT64
+#else
 typedef int32_t tsk_id_t;
 #define TSK_MAX_ID INT32_MAX
 #define TSK_ID_STORAGE_TYPE KAS_INT32
+#endif
 
 /**
 @brief Tskit sizes.
@@ -63,9 +80,16 @@ typedef int32_t tsk_id_t;
 Sizes in tskit are defined by the ``tsk_size_t`` type.
 @endrst
 */
+#ifdef _TSK_BIG_TABLES
+/* TODO get rid of this typdef once we move to 64 bit sizes */
+typedef uint64_t tsk_size_t;
+#define TSK_MAX_SIZE UINT64_MAX
+#define TSK_SIZE_STORAGE_TYPE KAS_UINT64
+#else
 typedef uint32_t tsk_size_t;
 #define TSK_MAX_SIZE UINT32_MAX
 #define TSK_SIZE_STORAGE_TYPE KAS_UINT32
+#endif
 
 /**
 @brief Container for bitwise flags.
