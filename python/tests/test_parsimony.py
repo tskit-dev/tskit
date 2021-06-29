@@ -1172,6 +1172,84 @@ class TestParsimonyExamplesBalancedTernary(TestParsimonyBase):
         assert len(transitions) == 18
 
 
+class TestParsimonyExamplesUnary(TestParsimonyBase):
+    """
+    Some examples on a tree with unary nodes. The mutation should be placed
+    on the highest node along the lineage compatible with the parsimonious placement
+    """
+
+    #        9
+    #      ┏━┻━┓
+    #      8   ┃
+    #    ┏━┻━┓ ┃
+    #    6   7 ┃
+    #    ┃   ┃ ┃
+    #    5   ┃ ┃
+    #  ┏━╋━┓ ┃ ┃
+    #  0 2 3 1 4
+
+    nodes = io.StringIO(
+        """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       1           0
+    3       1           0
+    4       1           0
+    5       0           1
+    6       0           2
+    7       0           2
+    8       0           3
+    9       0           4
+    """
+    )
+    edges = io.StringIO(
+        """\
+    left    right   parent  child
+    0       1       5       0,2,3
+    0       1       6       5
+    0       1       7       1
+    0       1       8       6
+    0       1       8       7
+    0       1       9       8
+    0       1       9       4
+    """
+    )
+
+    tree = tskit.load_text(
+        nodes=nodes,
+        edges=edges,
+        strict=False,
+    ).first()
+
+    def test_all_zeros(self):
+        genotypes = [0, 0, 0, 0, 0]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 0
+
+    def test_mutation_over_6(self):
+        genotypes = [1, 0, 1, 1, 0]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=6, derived_state="1")
+
+    def test_mutation_over_7(self):
+        genotypes = [0, 1, 0, 0, 0]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "0"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=7, derived_state="1")
+
+    def test_reversed_mutation_over_7(self):
+        genotypes = [1, 0, 1, 1, 1]
+        ancestral_state, transitions = self.do_map_mutations(self.tree, genotypes)
+        assert ancestral_state == "1"
+        assert len(transitions) == 1
+        assert transitions[0] == tskit.Mutation(node=7, derived_state="0")
+
+
 class TestReconstructAllTuples:
     """
     Tests that the parsimony algorithm correctly round-trips all possible
