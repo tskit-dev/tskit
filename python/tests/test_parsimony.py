@@ -743,6 +743,8 @@ class TestParsimonyMissingData(TestParsimonyBase):
         alleles = ["0", "1"]
         with pytest.raises(ValueError):
             fitch_map_mutations(tree, genotypes, alleles)
+        with pytest.raises(ValueError):
+            hartigan_map_mutations(tree, genotypes, alleles)
         with pytest.raises(tskit.LibraryError):
             tree.map_mutations(genotypes, alleles)
 
