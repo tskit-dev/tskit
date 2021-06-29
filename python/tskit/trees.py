@@ -2473,10 +2473,12 @@ class Tree:
         mutations)``, where ``ancestral_state`` is the allele assigned to the
         tree root(s) and ``mutations`` is a list of :class:`Mutation` objects,
         ordered as :ref:`required in a mutation table<sec_mutation_requirements>`.
-        For each mutation, ``node`` is the tree node at the bottom of the branch
-        on which the transition occurred, and ``derived_state`` is the new state
-        after this mutation. The ``parent`` property contains the index in the
-        returned list of the previous mutation on the path to root, or ``tskit.NULL``
+        For each mutation, ``derived_state`` is the new state after this mutation and
+        ``node`` is the tree node immediately beneath the mutation (if there are unary
+        nodes between two branch points, hence multiple nodes above which the
+        mutation could be parsimoniously placed, the oldest node is used). The
+        ``parent`` property contains the index in the returned list of the previous
+        mutation on the path to root, or ``tskit.NULL``
         if there are no previous mutations (see the :ref:`sec_mutation_table_definition`
         for more information on the concept of mutation parents). All other attributes
         of the :class:`Mutation` object are undefined and should not be used.
