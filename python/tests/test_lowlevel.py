@@ -2606,6 +2606,16 @@ class TestTree(LowLevelTestCase):
         assert ancestral_state == 0
         assert len(transitions) == 0
 
+    def test_map_mutations_fixed_ancestral_state(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        tree.next()
+        n = ts.get_num_samples()
+        genotypes = np.ones(n, dtype=np.int8)
+        ancestral_state, transitions = tree.map_mutations(genotypes, 0)
+        assert ancestral_state == 0
+        assert len(transitions) == 1
+
     def test_map_mutations_errors(self):
         ts = self.get_example_tree_sequence()
         tree = _tskit.Tree(ts)
@@ -2628,6 +2638,15 @@ class TestTree(LowLevelTestCase):
             genotypes[0] = bad_value
             with pytest.raises(_tskit.LibraryError):
                 tree.map_mutations(genotypes)
+
+        genotypes = np.zeros(n, dtype=np.int8)
+        tree.map_mutations(genotypes)
+        for bad_type in ["d", []]:
+            with pytest.raises(TypeError):
+                tree.map_mutations(genotypes, bad_type)
+        for bad_state in [-2, -1, 127, 255]:
+            with pytest.raises(_tskit.LibraryError, match="Bad ancestral"):
+                tree.map_mutations(genotypes, bad_state)
 
     @pytest.mark.parametrize("array", ARRAY_NAMES)
     def test_array_read_only(self, array):

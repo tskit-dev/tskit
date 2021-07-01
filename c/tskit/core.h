@@ -297,6 +297,7 @@ An unsupported type was provided for a column in the file.
 /* Mutation mapping errors */
 #define TSK_ERR_GENOTYPES_ALL_MISSING                              -1000
 #define TSK_ERR_BAD_GENOTYPE                                       -1001
+#define TSK_ERR_BAD_ANCESTRAL_STATE                                -1002
 
 /* Genotype decoding errors */
 #define TSK_ERR_MUST_IMPUTE_NON_SAMPLES                            -1100

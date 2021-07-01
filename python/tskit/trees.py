@@ -2447,7 +2447,7 @@ class Tree:
         """
         return util.tree_html(self)
 
-    def map_mutations(self, genotypes, alleles):
+    def map_mutations(self, genotypes, alleles, ancestral_state=None):
         """
         Given observations for the samples in this tree described by the specified
         set of genotypes and alleles, return a parsimonious set of state transitions
@@ -2498,14 +2498,35 @@ class Tree:
         :param tuple(str) alleles: The alleles for the specified ``genotypes``. Each
             positive value in the ``genotypes`` array is treated as an index into this
             list of alleles.
+        :param ancestral_state: A fixed ancestral state, specified either as a
+            non-negative integer less than the number of alleles, or a string which
+            must be one of the ``alleles`` provided above. If ``None`` (default) then
+            an ancestral state is chosen arbitrarily from among those that provide
+            the most parsimonious placement of mutations. Note that if the ancestral
+            state is specified, the placement of mutations may not be as parsimonious
+            as that which could be achieved by leaving the ancestral state unspecified;
+            additionally it may lead to mutations being placed above the root node(s) of
+            the tree (for example if all the samples have a genotype of 1 but the
+            ancestral state is fixed to be 0).
+        :type ancestral_state: Union[int, str]
         :return: The inferred ancestral state and list of mutations on this tree
             that encode the specified observations.
         :rtype: (str, list(tskit.Mutation))
         """
         genotypes = util.safe_np_int_cast(genotypes, np.int8)
-        if np.max(genotypes) >= 64:
+        max_alleles = np.max(genotypes)
+        if ancestral_state is not None:
+            if isinstance(ancestral_state, str):
+                # Will raise a ValueError if not in the list
+                ancestral_state = alleles.index(ancestral_state)
+            if ancestral_state < 0 or ancestral_state >= len(alleles):
+                raise ValueError("ancestral_state not between 0 and (num_alleles-1)")
+            max_alleles = max(ancestral_state, max_alleles)
+        if max_alleles >= 64:
             raise ValueError("A maximum of 64 states is supported")
-        ancestral_state, transitions = self._ll_tree.map_mutations(genotypes)
+        ancestral_state, transitions = self._ll_tree.map_mutations(
+            genotypes, ancestral_state
+        )
         # Translate back into string alleles
         ancestral_state = alleles[ancestral_state]
         mutations = [

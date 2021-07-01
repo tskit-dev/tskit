@@ -8936,18 +8936,21 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
     PyObject *ret = NULL;
     PyObject *genotypes = NULL;
     PyObject *py_transitions = NULL;
+    PyObject *py_ancestral_state = Py_None;
     PyArrayObject *genotypes_array = NULL;
-    static char *kwlist[] = { "genotypes", NULL };
+    static char *kwlist[] = { "genotypes", "ancestral_state", NULL };
     int8_t ancestral_state;
     tsk_state_transition_t *transitions = NULL;
     tsk_size_t num_transitions;
     npy_intp *shape;
+    tsk_flags_t options = 0;
     int err;
 
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &genotypes)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "O|O", kwlist, &genotypes, &py_ancestral_state)) {
         goto out;
     }
     genotypes_array = (PyArrayObject *) PyArray_FROMANY(
@@ -8961,9 +8964,19 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
             PyExc_ValueError, "Genotypes array must have 1D (num_samples,) array");
         goto out;
     }
+    if (py_ancestral_state != Py_None) {
+        options = TSK_MM_FIXED_ANCESTRAL_STATE;
+        if (!PyNumber_Check(py_ancestral_state)) {
+            PyErr_SetString(PyExc_TypeError, "ancestral_state must be a number");
+            goto out;
+        }
+        /* Note this does allow large numbers to overflow, but higher levels
+         * should be checking for these error anyway. */
+        ancestral_state = (int8_t) PyLong_AsLong(py_ancestral_state);
+    }
 
     err = tsk_tree_map_mutations(self->tree, (int8_t *) PyArray_DATA(genotypes_array),
-        NULL, 0, &ancestral_state, &num_transitions, &transitions);
+        NULL, options, &ancestral_state, &num_transitions, &transitions);
     if (err != 0) {
         handle_library_error(err);
         goto out;

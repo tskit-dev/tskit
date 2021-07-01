@@ -54,6 +54,9 @@ extern "C" {
 #define TSK_STAT_POLARISED          (1 << 10)
 #define TSK_STAT_SPAN_NORMALISE     (1 << 11)
 
+/* Options for map_mutations */
+#define TSK_MM_FIXED_ANCESTRAL_STATE (1 << 0)
+
 #define TSK_DIR_FORWARD 1
 #define TSK_DIR_REVERSE -1
 
