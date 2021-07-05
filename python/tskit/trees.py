@@ -7149,6 +7149,20 @@ class TreeSequence:
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
+    def copy(self, *, modifier=None):
+        """
+        Returns a copy of this tree sequence, optionally applying the "modifier" function
+        to the underlying tables of the copy.
+
+        :param modifier: A function which is called with the tables of this
+            tree sequence as a single argument. [optional, keyword-only]
+        :rtype: a new (:class:`tskit.TreeSequence`)
+        """
+        tables = self.dump_tables()
+        if modifier is not None:
+            modifier(tables)
+        return tables.tree_sequence()
+
     ############################################
     #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a

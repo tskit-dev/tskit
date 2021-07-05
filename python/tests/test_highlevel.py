@@ -1637,6 +1637,21 @@ class TestTreeSequence(HighLevelTestCase):
                         assert edge.right >= tree.interval.right
             assert np.all(edge_visited)
 
+    def test_copy(self, ts_fixture):
+        # No modifier results in a pure copy
+        assert ts_fixture.copy() == ts_fixture
+        # No-op modifier results in a pure copy
+        assert ts_fixture.copy(modifier=lambda tables: tables) == ts_fixture
+        # Changing a table works
+        diff_ts = ts_fixture.copy(
+            modifier=lambda tables: tables.provenances.add_row(record="TEST")
+        )
+        assert diff_ts != ts_fixture
+        assert diff_ts.equals(ts_fixture, ignore_provenance=True)
+        # modifier is keyword only
+        with pytest.raises(TypeError):
+            ts_fixture.copy(lambda tables: tables)
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)
