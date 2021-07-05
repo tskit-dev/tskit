@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -846,6 +846,46 @@ tsk_id_t tsk_individual_table_add_row(tsk_individual_table_t *self, tsk_flags_t 
     tsk_size_t parents_length, const char *metadata, tsk_size_t metadata_length);
 
 /**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. Copies of the ``location``, ``parents`` and ``metadata``
+parameters are taken immediately. See the :ref:`table definition
+<sec_individual_table_definition>` for details of the columns in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param index The row to update.
+@param flags The bitwise flags for the individual.
+@param location A pointer to a double array representing the spatial location
+    of the new individual. Can be ``NULL`` if ``location_length`` is 0.
+@param location_length The number of dimensions in the locations position.
+    Note this the number of elements in the corresponding double array
+    not the number of bytes.
+@param parents A pointer to a ``tsk_id`` array representing the parents
+    of the new individual. Can be ``NULL`` if ``parents_length`` is 0.
+@param parents_length The number of parents.
+    Note this the number of elements in the corresponding ``tsk_id`` array
+    not the number of bytes.
+@param metadata The metadata to be associated with the new individual. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_update_row(tsk_individual_table_t *self, tsk_id_t index,
+    tsk_flags_t flags, const double *location, tsk_size_t location_length,
+    const tsk_id_t *parents, tsk_size_t parents_length, const char *metadata,
+    tsk_size_t metadata_length);
+
+/**
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
@@ -1062,6 +1102,38 @@ tsk_id_t tsk_node_table_add_row(tsk_node_table_t *self, tsk_flags_t flags, doubl
     tsk_size_t metadata_length);
 
 /**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. A copy of the ``metadata`` parameter is taken immediately. See the
+:ref:`table definition <sec_node_table_definition>` for details of the columns
+in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_node_table_t object.
+@param index The row to update.
+@param flags The bitwise flags for the node.
+@param time The time for the node.
+@param population The population for the node. Set to TSK_NULL if not known.
+@param individual The individual for the node. Set to TSK_NULL if not known.
+@param metadata The metadata to be associated with the node. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_node_table_update_row(tsk_node_table_t *self, tsk_id_t index, tsk_flags_t flags,
+    double time, tsk_id_t population, tsk_id_t individual, const char *metadata,
+    tsk_size_t metadata_length);
+
+/**
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
@@ -1275,6 +1347,38 @@ tsk_id_t tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double righ
     tsk_id_t parent, tsk_id_t child, const char *metadata, tsk_size_t metadata_length);
 
 /**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. A copy of the ``metadata`` parameter is taken immediately. See the
+:ref:`table definition <sec_edge_table_definition>` for details of the columns
+in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_edge_table_t object.
+@param index The row to update.
+@param left The left coordinate for the edge.
+@param right The right coordinate for the edge.
+@param parent The parent node for the edge.
+@param child The child node for the edge.
+@param metadata The metadata to be associated with the edge. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_edge_table_update_row(tsk_edge_table_t *self, tsk_id_t index, double left,
+    double right, tsk_id_t parent, tsk_id_t child, const char *metadata,
+    tsk_size_t metadata_length);
+
+/**
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
@@ -1484,6 +1588,40 @@ tsk_id_t tsk_migration_table_add_row(tsk_migration_table_t *self, double left,
     const char *metadata, tsk_size_t metadata_length);
 
 /**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. A copy of the ``metadata`` parameter is taken immediately. See the
+:ref:`table definition <sec_migration_table_definition>` for details of the columns
+in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_migration_table_t object.
+@param index The row to update.
+@param left The left coordinate for the migration.
+@param right The right coordinate for the migration.
+@param node The node ID for the migration.
+@param source The source population ID for the migration.
+@param dest The destination population ID for the migration.
+@param time The time for the migration.
+@param metadata The metadata to be associated with the migration. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_migration_table_update_row(tsk_migration_table_t *self, tsk_id_t index,
+    double left, double right, tsk_id_t node, tsk_id_t source, tsk_id_t dest,
+    double time, const char *metadata, tsk_size_t metadata_length);
+
+/**
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
@@ -1687,6 +1825,37 @@ for details of the columns in this table.
     or a negative value on failure.
 */
 tsk_id_t tsk_site_table_add_row(tsk_site_table_t *self, double position,
+    const char *ancestral_state, tsk_size_t ancestral_state_length, const char *metadata,
+    tsk_size_t metadata_length);
+
+/**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. Copies of the ``ancestral_state`` and ``metadata`` parameters are taken
+immediately. See the :ref:`table definition <sec_site_table_definition>` for
+details of the columns in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_site_table_t object.
+@param index The row to update.
+@param position The position coordinate for the site.
+@param ancestral_state The ancestral_state for the site.
+@param ancestral_state_length The length of the ancestral_state in bytes.
+@param metadata The metadata to be associated with the site. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_site_table_update_row(tsk_site_table_t *self, tsk_id_t index, double position,
     const char *ancestral_state, tsk_size_t ancestral_state_length, const char *metadata,
     tsk_size_t metadata_length);
 
@@ -1901,6 +2070,41 @@ tsk_id_t tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site,
     tsk_size_t derived_state_length, const char *metadata, tsk_size_t metadata_length);
 
 /**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. Copies of the ``derived_state`` and ``metadata`` parameters are taken
+immediately. See the :ref:`table definition <sec_mutation_table_definition>` for
+details of the columns in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_mutation_table_t object.
+@param index The row to update.
+@param site The site ID for the mutation.
+@param node The ID of the node this mutation occurs over.
+@param parent The ID of the parent mutation.
+@param time The time of the mutation.
+@param derived_state The derived_state for the mutation.
+@param derived_state_length The length of the derived_state in bytes.
+@param metadata The metadata to be associated with the mutation. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_update_row(tsk_mutation_table_t *self, tsk_id_t index,
+    tsk_id_t site, tsk_id_t node, tsk_id_t parent, double time,
+    const char *derived_state, tsk_size_t derived_state_length, const char *metadata,
+    tsk_size_t metadata_length);
+
+/**
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
@@ -2106,6 +2310,33 @@ tsk_id_t tsk_population_table_add_row(
     tsk_population_table_t *self, const char *metadata, tsk_size_t metadata_length);
 
 /**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. A copy of the ``metadata`` parameter is taken immediately. See the
+:ref:`table definition <sec_population_table_definition>` for details of the
+columns in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_population_table_t object.
+@param index The row to update.
+@param metadata The metadata to be associated with the population. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``metadata_length`` is 0.
+@param metadata_length The size of the metadata array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_population_table_update_row(tsk_population_table_t *self, tsk_id_t index,
+    const char *metadata, tsk_size_t metadata_length);
+
+/**
 @brief Clears this table, setting the number of rows to zero.
 
 @rst
@@ -2306,6 +2537,37 @@ for details of the columns in this table.
     or a negative value on failure.
 */
 tsk_id_t tsk_provenance_table_add_row(tsk_provenance_table_t *self,
+    const char *timestamp, tsk_size_t timestamp_length, const char *record,
+    tsk_size_t record_length);
+
+/**
+@brief Updates the row at the specified index.
+
+@rst
+Rewrite the row at the specified index in this table to use the specified
+values. Copies of the ``timestamp`` and ``record`` parameters are taken
+immediately. See the :ref:`table definition <sec_provenance_table_definition>`
+for details of the columns in this table.
+
+.. warning::
+    Because of the way that ragged columns are encoded, this method requires a
+    full rewrite of the internal column memory in worst case, and would
+    therefore be inefficient for bulk updates for such columns. However, if the
+    sizes of all ragged column values are unchanged in the updated row, this
+    method is guaranteed to only update the memory for the row in question.
+@endrst
+
+@param self A pointer to a tsk_provenance_table_t object.
+@param index The row to update.
+@param timestamp The timestamp to be associated with new provenance. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``timestamp_length`` is 0.
+@param timestamp_length The size of the timestamp array in bytes.
+@param record The record to be associated with the provenance. This
+    is a pointer to arbitrary memory. Can be ``NULL`` if ``record_length`` is 0.
+@param record_length The size of the record array in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_provenance_table_update_row(tsk_provenance_table_t *self, tsk_id_t index,
     const char *timestamp, tsk_size_t timestamp_length, const char *record,
     tsk_size_t record_length);
 
