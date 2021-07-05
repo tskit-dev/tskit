@@ -406,6 +406,38 @@ out:
 }
 
 static int
+expand_ragged_column(tsk_size_t current_length, tsk_size_t additional_length,
+    tsk_size_t max_length_increment, tsk_size_t *max_length, void **column,
+    size_t element_size)
+{
+    int ret = 0;
+    tsk_size_t increment = TSK_MAX(additional_length, max_length_increment);
+
+    if (check_offset_overflow(current_length, additional_length)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
+    if ((current_length + additional_length) > *max_length) {
+        if (check_offset_overflow(*max_length, increment)) {
+            /* Here we could allocate to the maximum size.
+             * Instead we are erroring out as this is much easier to test.
+             * The cost is that (at most) the last "max_length_increment"-1
+             * bytes of the possible array space can't be used. */
+            ret = TSK_ERR_COLUMN_OVERFLOW;
+            goto out;
+        }
+
+        ret = expand_column(column, *max_length + increment, element_size);
+        if (ret != 0) {
+            goto out;
+        }
+        *max_length += increment;
+    }
+out:
+    return ret;
+}
+
+static int
 replace_string(
     char **str, tsk_size_t *len, const char *new_str, const tsk_size_t new_len)
 {
@@ -481,72 +513,27 @@ static int
 tsk_individual_table_expand_location(
     tsk_individual_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_location_length_increment);
-    tsk_size_t new_size = self->max_location_length + increment;
-
-    if (check_offset_overflow(self->location_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->location_length + additional_length) > self->max_location_length) {
-        ret = expand_column((void **) &self->location, new_size, sizeof(double));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_location_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->location_length, additional_length,
+        self->max_location_length_increment, &self->max_location_length,
+        (void **) &self->location, sizeof(*self->location));
 }
 
 static int
 tsk_individual_table_expand_parents(
     tsk_individual_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_parents_length_increment);
-    tsk_size_t new_size = self->max_parents_length + increment;
-
-    if (check_offset_overflow(self->parents_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->parents_length + additional_length) > self->max_parents_length) {
-        ret = expand_column((void **) &self->parents, new_size, sizeof(tsk_id_t));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_parents_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->parents_length, additional_length,
+        self->max_parents_length_increment, &self->max_parents_length,
+        (void **) &self->parents, sizeof(*self->parents));
 }
 
 static int
 tsk_individual_table_expand_metadata(
     tsk_individual_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -1222,24 +1209,9 @@ out:
 static int
 tsk_node_table_expand_metadata(tsk_node_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -1762,24 +1734,9 @@ out:
 static int
 tsk_edge_table_expand_metadata(tsk_edge_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -2362,50 +2319,20 @@ out:
 }
 
 static int
-tsk_site_table_expand_ancestral_state(tsk_site_table_t *self, size_t additional_length)
+tsk_site_table_expand_ancestral_state(
+    tsk_site_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment = (tsk_size_t) TSK_MAX(
-        additional_length, self->max_ancestral_state_length_increment);
-    tsk_size_t new_size = self->max_ancestral_state_length + increment;
-
-    if (check_offset_overflow(self->ancestral_state_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->ancestral_state_length + additional_length)
-        > self->max_ancestral_state_length) {
-        ret = expand_column((void **) &self->ancestral_state, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_ancestral_state_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->ancestral_state_length, additional_length,
+        self->max_ancestral_state_length_increment, &self->max_ancestral_state_length,
+        (void **) &self->ancestral_state, sizeof(*self->ancestral_state));
 }
 
 static int
-tsk_site_table_expand_metadata(tsk_site_table_t *self, size_t additional_length)
+tsk_site_table_expand_metadata(tsk_site_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = (tsk_size_t) TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -2959,50 +2886,20 @@ out:
 
 static int
 tsk_mutation_table_expand_derived_state(
-    tsk_mutation_table_t *self, size_t additional_length)
+    tsk_mutation_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment = (tsk_size_t) TSK_MAX(
-        additional_length, self->max_derived_state_length_increment);
-    tsk_size_t new_size = self->max_derived_state_length + increment;
-
-    if (check_offset_overflow(self->derived_state_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->derived_state_length + additional_length)
-        > self->max_derived_state_length) {
-        ret = expand_column((void **) &self->derived_state, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_derived_state_length = (tsk_size_t) new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->derived_state_length, additional_length,
+        self->max_derived_state_length_increment, &self->max_derived_state_length,
+        (void **) &self->derived_state, sizeof(*self->derived_state));
 }
 
 static int
-tsk_mutation_table_expand_metadata(tsk_mutation_table_t *self, size_t additional_length)
+tsk_mutation_table_expand_metadata(
+    tsk_mutation_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = (tsk_size_t) TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -3600,24 +3497,9 @@ static int
 tsk_migration_table_expand_metadata(
     tsk_migration_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -4106,24 +3988,9 @@ static int
 tsk_population_table_expand_metadata(
     tsk_population_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_metadata_length_increment);
-    tsk_size_t new_size = self->max_metadata_length + increment;
-
-    if (check_offset_overflow(self->metadata_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->metadata_length + additional_length) > self->max_metadata_length) {
-        ret = expand_column((void **) &self->metadata, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_metadata_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->metadata_length, additional_length,
+        self->max_metadata_length_increment, &self->max_metadata_length,
+        (void **) &self->metadata, sizeof(*self->metadata));
 }
 
 int
@@ -4563,47 +4430,18 @@ static int
 tsk_provenance_table_expand_timestamp(
     tsk_provenance_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment
-        = TSK_MAX(additional_length, self->max_timestamp_length_increment);
-    tsk_size_t new_size = self->max_timestamp_length + increment;
-
-    if (check_offset_overflow(self->timestamp_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->timestamp_length + additional_length) > self->max_timestamp_length) {
-        ret = expand_column((void **) &self->timestamp, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_timestamp_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->timestamp_length, additional_length,
+        self->max_timestamp_length_increment, &self->max_timestamp_length,
+        (void **) &self->timestamp, sizeof(*self->timestamp));
 }
 
 static int
-tsk_provenance_table_expand_provenance(
+tsk_provenance_table_expand_record(
     tsk_provenance_table_t *self, tsk_size_t additional_length)
 {
-    int ret = 0;
-    tsk_size_t increment = TSK_MAX(additional_length, self->max_record_length_increment);
-    tsk_size_t new_size = self->max_record_length + increment;
-
-    if (check_offset_overflow(self->record_length, increment)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
-        goto out;
-    }
-    if ((self->record_length + additional_length) > self->max_record_length) {
-        ret = expand_column((void **) &self->record, new_size, sizeof(char));
-        if (ret != 0) {
-            goto out;
-        }
-        self->max_record_length = new_size;
-    }
-out:
-    return ret;
+    return expand_ragged_column(self->record_length, additional_length,
+        self->max_record_length_increment, &self->max_record_length,
+        (void **) &self->record, sizeof(*self->record));
 }
 
 int
@@ -4659,7 +4497,7 @@ tsk_provenance_table_init(tsk_provenance_table_t *self, tsk_flags_t TSK_UNUSED(o
         goto out;
     }
     self->timestamp_offset[0] = 0;
-    ret = tsk_provenance_table_expand_provenance(self, 1);
+    ret = tsk_provenance_table_expand_record(self, 1);
     if (ret != 0) {
         goto out;
     }
@@ -4749,7 +4587,7 @@ tsk_provenance_table_append_columns(tsk_provenance_table_t *self, tsk_size_t num
         self->record_offset[self->num_rows + j] = self->record_length + record_offset[j];
     }
     record_length = record_offset[num_rows];
-    ret = tsk_provenance_table_expand_provenance(self, record_length);
+    ret = tsk_provenance_table_expand_record(self, record_length);
     if (ret != 0) {
         goto out;
     }
@@ -4800,7 +4638,7 @@ tsk_provenance_table_add_row(tsk_provenance_table_t *self, const char *timestamp
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_provenance_table_expand_provenance(self, record_length);
+    ret = tsk_provenance_table_expand_record(self, record_length);
     if (ret != 0) {
         goto out;
     }

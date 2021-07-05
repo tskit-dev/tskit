@@ -8,6 +8,9 @@
 
 **Fixes**
 
+- Fix segfault when very large columns overflow 
+  (:user:`bhaller`, :user:`benjeffery`, :issue:`1509`, :pr:`1511`).
+
 ----------------------
 [0.99.12] - 2021-05-14
 ----------------------

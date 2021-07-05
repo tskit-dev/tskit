@@ -5441,59 +5441,146 @@ test_column_overflow(void)
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    // location
     /* We can't trigger a column overflow with one element because the parameter
      * value is 32 bit */
     ret_id = tsk_individual_table_add_row(
         &tables.individuals, 0, &zero, 1, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    // Check normal overflow from additional length
     ret_id = tsk_individual_table_add_row(
         &tables.individuals, 0, NULL, too_big, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    // Check overflow from minimum increment
+    ret = tsk_individual_table_set_max_location_length_increment(
+        &tables.individuals, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 1, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    // parents
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, id_zeros, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, too_big, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_individual_table_set_max_parents_length_increment(
+        &tables.individuals, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    // metadata
     ret_id = tsk_individual_table_add_row(
         &tables.individuals, 0, NULL, 0, NULL, 0, zeros, 1);
-    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
     ret_id = tsk_individual_table_add_row(
         &tables.individuals, 0, NULL, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_individual_table_set_max_metadata_length_increment(
+        &tables.individuals, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret_id = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, id_zeros, 1, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
-    ret_id = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, too_big, NULL, 0);
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
 
     ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
     ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_node_table_set_max_metadata_length_increment(&tables.nodes, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, NULL, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 0, 0, 0, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 0, 0, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_edge_table_set_max_metadata_length_increment(&tables.edges, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 0, 0, 0, NULL, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
 
     ret_id = tsk_site_table_add_row(&tables.sites, 0, zeros, 1, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    // ancestral state
     ret_id = tsk_site_table_add_row(&tables.sites, 0, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_site_table_set_max_ancestral_state_length_increment(
+        &tables.sites, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_site_table_add_row(&tables.sites, 0, NULL, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    // metadata
     ret_id = tsk_site_table_add_row(&tables.sites, 0, NULL, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_site_table_set_max_metadata_length_increment(&tables.sites, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_site_table_add_row(&tables.sites, 0, NULL, 0, NULL, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
 
     ret_id
         = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, zeros, 1, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    // derived state
+    ret_id = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, 0, 0, NULL, too_big, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_mutation_table_set_max_derived_state_length_increment(
+        &tables.mutations, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, NULL, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    // metadata
     ret_id = tsk_mutation_table_add_row(
         &tables.mutations, 0, 0, 0, 0, NULL, 0, NULL, too_big);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
-    ret_id = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, 0, 0, NULL, too_big, NULL, 0);
+    ret = tsk_mutation_table_set_max_metadata_length_increment(
+        &tables.mutations, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, NULL, 0, NULL, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
 
     ret_id = tsk_provenance_table_add_row(&tables.provenances, zeros, 1, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0)
+    // timestamp
     ret_id = tsk_provenance_table_add_row(&tables.provenances, NULL, too_big, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_provenance_table_set_max_timestamp_length_increment(
+        &tables.provenances, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_provenance_table_add_row(&tables.provenances, NULL, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    // record
     ret_id = tsk_provenance_table_add_row(&tables.provenances, NULL, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_provenance_table_set_max_record_length_increment(
+        &tables.provenances, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_provenance_table_add_row(&tables.provenances, NULL, 0, NULL, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
 
     ret_id = tsk_population_table_add_row(&tables.populations, zeros, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
     ret_id = tsk_population_table_add_row(&tables.populations, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_population_table_set_max_metadata_length_increment(
+        &tables.populations, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+
+    ret_id = tsk_migration_table_add_row(&tables.migrations, 0, 0, 0, 0, 0, 0, zeros, 1);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_migration_table_add_row(
+        &tables.migrations, 0, 0, 0, 0, 0, 0, NULL, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
+    ret = tsk_migration_table_set_max_metadata_length_increment(
+        &tables.migrations, too_big);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_migration_table_add_row(&tables.migrations, 0, 0, 0, 0, 0, 0, NULL, 1);
     CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_COLUMN_OVERFLOW);
 
     tsk_table_collection_free(&tables);
