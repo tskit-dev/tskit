@@ -4276,9 +4276,8 @@ get_smallest_set_bit(uint64_t v)
  */
 int TSK_WARN_UNUSED
 tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
-    double *TSK_UNUSED(cost_matrix), tsk_flags_t TSK_UNUSED(options),
-    int8_t *r_ancestral_state, tsk_size_t *r_num_transitions,
-    tsk_state_transition_t **r_transitions)
+    double *TSK_UNUSED(cost_matrix), tsk_flags_t options, int8_t *r_ancestral_state,
+    tsk_size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
 {
     int ret = 0;
     struct stack_elem {
@@ -4335,6 +4334,17 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
     }
     num_alleles++;
 
+    ancestral_state = 0; /* keep compiler happy */
+    if (options & TSK_MM_FIXED_ANCESTRAL_STATE) {
+        ancestral_state = *r_ancestral_state;
+        if ((ancestral_state < 0) || (ancestral_state >= HARTIGAN_MAX_ALLELES)) {
+            ret = TSK_ERR_BAD_ANCESTRAL_STATE;
+            goto out;
+        } else if (ancestral_state >= num_alleles) {
+            num_alleles = (int8_t)(ancestral_state + 1);
+        }
+    }
+
     for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
         /* Do a post order traversal */
         postorder_stack[0] = root;
@@ -4374,27 +4384,29 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         }
     }
 
-    optimal_root_set = 0;
-    /* TODO it's annoying that this is essentially the same as the
-     * visit function above. It would be nice if we had an extra
-     * node that was the parent of all roots, then the algorithm
-     * would work as-is */
-    memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
-    for (root = self->left_root; root != TSK_NULL; root = right_sib[root]) {
+    if (!(options & TSK_MM_FIXED_ANCESTRAL_STATE)) {
+        optimal_root_set = 0;
+        /* TODO it's annoying that this is essentially the same as the
+         * visit function above. It would be nice if we had an extra
+         * node that was the parent of all roots, then the algorithm
+         * would work as-is */
+        memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+        for (root = self->left_root; root != TSK_NULL; root = right_sib[root]) {
+            for (allele = 0; allele < num_alleles; allele++) {
+                allele_count[allele] += bit_is_set(optimal_set[root], allele);
+            }
+        }
+        max_allele_count = 0;
         for (allele = 0; allele < num_alleles; allele++) {
-            allele_count[allele] += bit_is_set(optimal_set[root], allele);
+            max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
         }
-    }
-    max_allele_count = 0;
-    for (allele = 0; allele < num_alleles; allele++) {
-        max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
-    }
-    for (allele = 0; allele < num_alleles; allele++) {
-        if (allele_count[allele] == max_allele_count) {
-            optimal_root_set = set_bit(optimal_root_set, allele);
+        for (allele = 0; allele < num_alleles; allele++) {
+            if (allele_count[allele] == max_allele_count) {
+                optimal_root_set = set_bit(optimal_root_set, allele);
+            }
         }
+        ancestral_state = get_smallest_set_bit(optimal_root_set);
     }
-    ancestral_state = get_smallest_set_bit(optimal_root_set);
 
     num_transitions = 0;
     for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {

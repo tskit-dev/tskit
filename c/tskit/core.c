@@ -403,6 +403,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_GENOTYPE:
             ret = "Bad genotype value provided";
             break;
+        case TSK_ERR_BAD_ANCESTRAL_STATE:
+            ret = "Bad ancestral state specified";
+            break;
 
         /* Genotype decoding errors */
         case TSK_ERR_TOO_MANY_ALLELES:

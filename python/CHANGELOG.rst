@@ -6,6 +6,9 @@
 
 **Features**
 
+- ``map_mutations`` now allows the ancestral state to be specified
+  (:user:`hyanwong`, :user:`jeromekelleher`, :issue:`1542`, :pr:`1550`)
+
 **Fixes**
 
 --------------------
