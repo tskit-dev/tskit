@@ -3423,7 +3423,7 @@ class TreeSequence:
         return self.dump_tables()
 
     def __setstate__(self, tc):
-        self.__init__(tc.tree_sequence().ll_tree_sequence)
+        TreeSequence.__init__(self, tc.tree_sequence().ll_tree_sequence)
 
     def __eq__(self, other):
         return self.tables == other.tables
