@@ -2924,7 +2924,7 @@ class TableCollection:
         are not affected. This parameter is provided to allow for efficient sorting
         when the user knows that the edges up to a given index are already sorted.
 
-        The individual, node, population and provenance tables are not affected
+        The node, population and provenance tables are not affected
         by this method.
 
         Edges are sorted as follows:
@@ -2939,6 +2939,9 @@ class TableCollection:
         tree sequence. For a valid tree sequence, we require that all edges for a
         given parent ID are adjacent, but we do not require that they be listed in
         sorted order.
+
+        Individuals are sorted so that parents come before children, and the
+        parent column remapped as required.
 
         Sites are sorted by position, and sites with the same position retain
         their relative ordering.
