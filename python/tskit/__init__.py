@@ -46,7 +46,8 @@ ALLELES_01 = ("0", "1")
 #: the genotype integers 0, 1, 2, and 3, respectively.
 ALLELES_ACGT = ("A", "C", "G", "T")
 
-#: Special NAN value used to indicate unknown mutation times
+#: Special NAN value used to indicate unknown mutation times. Since this is a
+#: NAN value, you cannot use `==` to test for it. Use :func:`is_unknown_time` instead.
 UNKNOWN_TIME = _tskit.UNKNOWN_TIME
 
 #: Options for printing to strings and HTML, modify with tskit.set_print_options.

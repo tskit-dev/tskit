@@ -54,28 +54,6 @@ about particular nodes in the tree.
     :members:
     :autosummary:
 
-+++++++++
-Constants
-+++++++++
-
-.. autodata:: NULL
-    :annotation: = -1
-
-.. autodata:: NODE_IS_SAMPLE
-    :annotation: = 1
-
-.. autodata:: MISSING_DATA
-    :annotation: = -1
-
-.. autodata:: FORWARD
-    :annotation: = 1
-
-.. autodata:: REVERSE
-    :annotation: = -1
-
-.. autodata:: ALLELES_ACGT
-
-
 ++++++++++++++++++++++++
 Simple container classes
 ++++++++++++++++++++++++
@@ -493,6 +471,36 @@ Table functions
 
 .. autofunction:: unpack_bytes
 
+
+.. _sec_constants_api:
+
+*********
+Constants
+*********
+
+The following constants are used throughout the ``tskit`` API.
+
+.. autodata:: NULL
+    :annotation: = -1
+
+.. autodata:: NODE_IS_SAMPLE
+    :annotation: = 1
+
+.. autodata:: MISSING_DATA
+    :annotation: = -1
+
+.. autodata:: FORWARD
+    :annotation: = 1
+
+.. autodata:: REVERSE
+    :annotation: = -1
+
+.. autodata:: ALLELES_ACGT
+
+.. autodata:: UNKNOWN_TIME
+    :annotation:
+
+
 .. _sec_metadata_api:
 
 ************
@@ -557,3 +565,13 @@ information is planned for future versions.
 
 .. autoexception:: ProvenanceValidationError
 
+
+.. _sec_utility_api:
+
+*****************
+Utility functions
+*****************
+
+Some top-level utility functions.
+
+.. autofunction:: is_unknown_time
