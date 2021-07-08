@@ -75,6 +75,9 @@ Constants
 
 .. autodata:: ALLELES_ACGT
 
+.. autodata:: UNKNOWN_TIME
+    :annotation:
+
 
 ++++++++++++++++++++++++
 Simple container classes
@@ -557,3 +560,13 @@ information is planned for future versions.
 
 .. autoexception:: ProvenanceValidationError
 
+
+.. _sec_utility_api:
+
+*****************
+Utility functions
+*****************
+
+Some top-level utility functions.
+
+.. autofunction:: is_unknown_time

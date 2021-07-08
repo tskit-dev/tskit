@@ -58,13 +58,14 @@ def canonical_json(obj):
 
 def is_unknown_time(time):
     """
-    As the default unknown mutation time is NAN equality always fails. This
-    method compares the bitfield such that unknown times can be detected.
-    Either single floats can be passed or lists/arrays.
+    As the default unknown mutation time (:const:`UNKNOWN_TIME`) is a specific NAN value,
+    equality always fails. This method compares the bitfield such that unknown times can
+    be detected. Either single floats can be passed or lists/arrays.
 
-    :param float or array-like time: Value or array to check.
+    :param time: Value or array to check.
+    :type time: Union[float, array-like]
     :return: A single boolean or array of booleans the same shape as ``time``.
-    :rtype: bool or np.array(dtype=bool)
+    :rtype: Union[bool, numpy.ndarray[bool]]
     """
     return np.asarray(time, dtype=np.float64).view(np.uint64) == np.float64(
         UNKNOWN_TIME
