@@ -59,8 +59,17 @@ def canonical_json(obj):
 def is_unknown_time(time):
     """
     As the default unknown mutation time (:const:`UNKNOWN_TIME`) is a specific NAN value,
-    equality always fails. This method compares the bitfield such that unknown times can
-    be detected. Either single floats can be passed or lists/arrays.
+    equality always fails (A NAN value is not equal to itself by definition).
+    This method compares the bitfield such that unknown times can be detected. Either
+    single floats can be passed or lists/arrays.
+
+    Note that NANs are a set of floating-point values. `tskit.UNKNOWN_TIME` is a specific
+    value in this set. `np.nan` is a differing value, but both are NAN.
+    See https://en.wikipedia.org/wiki/NaN
+
+    This function only returns true for ``tskit.is_unknown_time(tskit.UNKNOWN_TIME)``
+    and will return false for ``tskit.is_unknown_time(np.nan)`` or any other NAN or
+    non-NAN value.
 
     :param time: Value or array to check.
     :type time: Union[float, array-like]
