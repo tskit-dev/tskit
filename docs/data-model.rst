@@ -570,8 +570,8 @@ respect to any other tables. Individuals can have a reference to their parent
 individuals, if present these references must be valid or null (-1).
 
 Individuals must be sorted such that parents are before children.
-Sorting a set of tables using :meth:`TableCollection.sort` has
-no effect on the individuals.
+Sorting a set of tables using :meth:`TableCollection.sort` will ensure that
+this requirement is fulfilled.
 
 
 .. _sec_node_requirements:
