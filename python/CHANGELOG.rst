@@ -1,15 +1,11 @@
-----------------------
-[0.3.7] - 2021-0X-XX
-----------------------
-
-**Breaking changes**
+--------------------
+[0.3.7] - 2021-07-08
+--------------------
 
 **Features**
 
 - ``map_mutations`` now allows the ancestral state to be specified
   (:user:`hyanwong`, :user:`jeromekelleher`, :issue:`1542`, :pr:`1550`)
-
-**Fixes**
 
 --------------------
 [0.3.6] - 2021-05-14
