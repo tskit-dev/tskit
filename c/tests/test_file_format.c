@@ -480,6 +480,7 @@ test_force_offset_64(void)
     int ret;
     tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
     tsk_table_collection_t t1;
+    tsk_table_collection_t t2;
     kastore_t store;
     kaitem_t *item;
     const char *suffix;
@@ -509,7 +510,15 @@ test_force_offset_64(void)
 
     ret = tsk_table_collection_load(&t1, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_copy_tables(ts, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
+
     tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+    tsk_treeseq_free(ts);
+    free(ts);
 }
 
 static void
