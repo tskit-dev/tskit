@@ -2693,28 +2693,9 @@ int tsk_table_collection_loadf(
 
 @rst
 Writes the data from this table collection to the specified file.
-Usually we expect that data written to a file will be in a form that
-can be read directly and used to create a tree sequence; that is, we
-assume that by default the tables are :ref:`sorted <sec_table_sorting>`
-and :ref:`indexed <sec_table_indexes>`. Following these
-assumptions, if the tables are not already indexed, we index the tables
-before writing to file to save the cost of building these indexes at
-load time. This behaviour requires that the tables are sorted.
-If this automatic indexing is not desired, it can be disabled using
-the `TSK_NO_BUILD_INDEXES` option.
 
 If an error occurs the file path is deleted, ensuring that only complete
 and well formed files will be written.
-
-**Options**
-
-Options can be specified by providing one or more of the following bitwise
-flags:
-
-TSK_NO_BUILD_INDEXES
-    Do not build indexes for this table before writing to file. This is useful
-    if you wish to write unsorted tables to file, as building the indexes
-    will raise an error if the table is unsorted.
 
 **Examples**
 
@@ -2749,16 +2730,6 @@ Semantics are identical to :c:func:`tsk_table_collection_dump`.
 
 Please see the :ref:`sec_c_api_examples_file_streaming` section for an example
 of how to sequentially dump and load tree sequences from a stream.
-
-**Options**
-
-Options can be specified by providing one or more of the following bitwise
-flags:
-
-TSK_NO_BUILD_INDEXES
-    Do not build indexes for this table before writing to file. This is useful
-    if you wish to write unsorted tables to file, as building the indexes
-    will raise an error if the table is unsorted.
 
 @endrst
 
