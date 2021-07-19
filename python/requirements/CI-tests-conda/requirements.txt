@@ -1,2 +1,2 @@
-numpy<1.20.4 #Pinned as we get compatibility warnings.
+numpy<1.21.2 #Pinned as we get compatibility warnings.
 msprime==1.0.1
