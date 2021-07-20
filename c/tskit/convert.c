@@ -42,7 +42,7 @@
  * pointless. */
 
 typedef struct {
-    size_t precision;
+    unsigned int precision;
     tsk_flags_t options;
     char *newick;
     tsk_id_t *traversal_stack;
@@ -145,7 +145,7 @@ out:
 
 static int
 tsk_newick_converter_init(tsk_newick_converter_t *self, const tsk_tree_t *tree,
-    size_t precision, tsk_flags_t options)
+    unsigned int precision, tsk_flags_t options)
 {
     int ret = 0;
 
@@ -171,7 +171,7 @@ tsk_newick_converter_free(tsk_newick_converter_t *self)
 }
 
 int
-tsk_convert_newick(const tsk_tree_t *tree, tsk_id_t root, size_t precision,
+tsk_convert_newick(const tsk_tree_t *tree, tsk_id_t root, unsigned int precision,
     tsk_flags_t options, size_t buffer_size, char *buffer)
 {
     int ret = 0;

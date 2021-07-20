@@ -42,66 +42,6 @@ extern "C" {
 
 #include <tskit/core.h>
 
-/**
-@brief Tskit Object IDs.
-
-@rst
-All objects in tskit are referred to by integer IDs corresponding to the
-row they occupy in the relevant table. The ``tsk_id_t`` type should be used
-when manipulating these ID values. The reserved value ``TSK_NULL`` (-1) defines
-missing data.
-@endrst
-*/
-#ifdef _TSK_BIG_TABLES
-/* Allow tables to have more than 2^31 rows. This is an EXPERIMENTAL feature
- * and is not supported in any way. This typedef is only included for
- * future-proofing purposes, so that we can be sure that we don't make any
- * design decisions that are incompatible with big tables by building the
- * library in 64 bit mode in CI. See the discussion here for more background:
-
- * https://github.com/tskit-dev/tskit/issues/343
- *
- * If you need big tables, please open an issue on GitHub to discuss, or comment
- * on the thread above.
- */
-typedef int64_t tsk_id_t;
-#define TSK_MAX_ID INT64_MAX
-#define TSK_ID_STORAGE_TYPE KAS_INT64
-#else
-typedef int32_t tsk_id_t;
-#define TSK_MAX_ID INT32_MAX
-#define TSK_ID_STORAGE_TYPE KAS_INT32
-#endif
-
-/**
-@brief Tskit sizes.
-
-@rst
-Sizes in tskit are defined by the ``tsk_size_t`` type.
-@endrst
-*/
-#ifdef _TSK_BIG_TABLES
-/* TODO get rid of this typdef once we move to 64 bit sizes */
-typedef uint64_t tsk_size_t;
-#define TSK_MAX_SIZE UINT64_MAX
-#define TSK_SIZE_STORAGE_TYPE KAS_UINT64
-#else
-typedef uint32_t tsk_size_t;
-#define TSK_MAX_SIZE UINT32_MAX
-#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
-#endif
-
-/**
-@brief Container for bitwise flags.
-
-@rst
-Bitwise flags are used in tskit as a column type and also as a way to
-specify options to API functions.
-@endrst
-*/
-typedef uint32_t tsk_flags_t;
-#define TSK_FLAGS_STORAGE_TYPE KAS_UINT32
-
 /****************************************************************************/
 /* Definitions for the basic objects */
 /****************************************************************************/
@@ -687,9 +627,9 @@ typedef struct _tsk_segment_t {
 
 typedef struct {
     tsk_id_t *pairs;
-    size_t num_pairs;
-    size_t num_nodes;
-    size_t num_unique_nodes_in_pair;
+    tsk_size_t num_pairs;
+    tsk_size_t num_nodes;
+    tsk_size_t num_unique_nodes_in_pair;
     int64_t *pair_map;
     double sequence_length;
     tsk_table_collection_t *tables;
@@ -703,8 +643,8 @@ typedef struct {
     tsk_segment_t **ancestor_map_head;
     tsk_segment_t **ancestor_map_tail;
     tsk_segment_t *segment_queue;
-    size_t segment_queue_size;
-    size_t max_segment_queue_size;
+    tsk_size_t segment_queue_size;
+    tsk_size_t max_segment_queue_size;
 } tsk_ibd_finder_t;
 
 /****************************************************************************/

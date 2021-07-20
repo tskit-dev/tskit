@@ -109,6 +109,66 @@ __tsk_nan_f(void)
 }
 #define TSK_UNKNOWN_TIME __tsk_nan_f()
 
+/**
+@brief Tskit Object IDs.
+
+@rst
+All objects in tskit are referred to by integer IDs corresponding to the
+row they occupy in the relevant table. The ``tsk_id_t`` type should be used
+when manipulating these ID values. The reserved value ``TSK_NULL`` (-1) defines
+missing data.
+@endrst
+*/
+#ifdef _TSK_BIG_TABLES
+/* Allow tables to have more than 2^31 rows. This is an EXPERIMENTAL feature
+ * and is not supported in any way. This typedef is only included for
+ * future-proofing purposes, so that we can be sure that we don't make any
+ * design decisions that are incompatible with big tables by building the
+ * library in 64 bit mode in CI. See the discussion here for more background:
+
+ * https://github.com/tskit-dev/tskit/issues/343
+ *
+ * If you need big tables, please open an issue on GitHub to discuss, or comment
+ * on the thread above.
+ */
+typedef int64_t tsk_id_t;
+#define TSK_MAX_ID INT64_MAX
+#define TSK_ID_STORAGE_TYPE KAS_INT64
+#else
+typedef int32_t tsk_id_t;
+#define TSK_MAX_ID INT32_MAX
+#define TSK_ID_STORAGE_TYPE KAS_INT32
+#endif
+
+/**
+@brief Tskit sizes.
+
+@rst
+The ``tsk_size_t`` type is an unsigned integer used for any size or count value.
+@endrst
+*/
+#ifdef _TSK_BIG_TABLES
+/* TODO get rid of this typdef once we move to 64 bit sizes */
+typedef uint64_t tsk_size_t;
+#define TSK_MAX_SIZE UINT64_MAX
+#define TSK_SIZE_STORAGE_TYPE KAS_UINT64
+#else
+typedef uint32_t tsk_size_t;
+#define TSK_MAX_SIZE UINT32_MAX
+#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
+#endif
+
+/**
+@brief Container for bitwise flags.
+
+@rst
+Bitwise flags are used in tskit as a column type and also as a way to
+specify options to API functions.
+@endrst
+*/
+typedef uint32_t tsk_flags_t;
+#define TSK_FLAGS_STORAGE_TYPE KAS_UINT32
+
 // clang-format off
 /**
 @defgroup API_VERSION_GROUP API version macros.
@@ -409,7 +469,7 @@ extern int tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size);
 extern void *tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size);
 extern void tsk_blkalloc_free(tsk_blkalloc_t *self);
 
-size_t tsk_search_sorted(const double *array, size_t size, double value);
+tsk_size_t tsk_search_sorted(const double *array, tsk_size_t size, double value);
 double tsk_round(double x, unsigned int ndigits);
 
 bool tsk_is_unknown_time(double val);

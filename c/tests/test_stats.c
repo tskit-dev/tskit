@@ -219,8 +219,8 @@ verify_genealogical_nearest_neighbours(tsk_treeseq_t *ts)
     int ret;
     const tsk_id_t *samples;
     const tsk_id_t *sample_sets[2];
-    size_t sample_set_size[2];
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t sample_set_size[2];
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *A = malloc(2 * num_samples * sizeof(double));
     CU_ASSERT_FATAL(A != NULL);
 
@@ -258,8 +258,8 @@ verify_mean_descendants(tsk_treeseq_t *ts)
     int ret;
     tsk_id_t *samples;
     const tsk_id_t *sample_sets[2];
-    size_t sample_set_size[2];
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t sample_set_size[2];
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *C = malloc(2 * tsk_treeseq_get_num_nodes(ts) * sizeof(double));
     CU_ASSERT_FATAL(C != NULL);
 
@@ -295,8 +295,8 @@ typedef struct {
 } general_stat_error_params_t;
 
 static int
-general_stat_error(
-    size_t TSK_UNUSED(K), const double *TSK_UNUSED(X), size_t M, double *Y, void *params)
+general_stat_error(tsk_size_t TSK_UNUSED(K), const double *TSK_UNUSED(X), tsk_size_t M,
+    double *Y, void *params)
 {
     int ret = 0;
     CU_ASSERT_FATAL(M == 1);
@@ -313,7 +313,7 @@ static void
 verify_window_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
 {
     int ret;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = calloc(num_samples, sizeof(double));
     /* node mode requires this much space at least */
     double *sigma = calloc(tsk_treeseq_get_num_nodes(ts), sizeof(double));
@@ -355,7 +355,7 @@ static void
 verify_summary_func_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
 {
     int ret;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = calloc(num_samples, sizeof(double));
     /* We need this much space for NODE mode */
     double *sigma = calloc(tsk_treeseq_get_num_nodes(ts), sizeof(double));
@@ -428,7 +428,7 @@ verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *
     tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *weights = malloc(num_samples * sizeof(double));
     double result;
-    size_t j;
+    tsk_size_t j;
 
     for (j = 0; j < num_samples; j++) {
         weights[j] = 1.0;
@@ -451,7 +451,7 @@ verify_one_way_weighted_covariate_func_errors(
     double *weights = malloc(num_samples * sizeof(double));
     double *covariates = NULL;
     double result;
-    size_t j;
+    tsk_size_t j;
 
     for (j = 0; j < num_samples; j++) {
         weights[j] = 1.0;
@@ -615,9 +615,9 @@ verify_four_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *
 
 static int
 general_stat_identity(
-    size_t K, const double *restrict X, size_t M, double *Y, void *params)
+    tsk_size_t K, const double *restrict X, tsk_size_t M, double *Y, void *params)
 {
-    size_t k;
+    tsk_size_t k;
     CU_ASSERT_FATAL(M == K);
     CU_ASSERT_FATAL(params == NULL);
 
@@ -633,7 +633,7 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     CU_ASSERT_FATAL(ts != NULL);
 
     int ret;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(num_samples * sizeof(double));
     tsk_id_t *stack = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(*stack));
     tsk_id_t root, u, v;
@@ -641,7 +641,7 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     double s, branch_length;
     double *sigma = malloc(tsk_treeseq_get_num_trees(ts) * sizeof(*sigma));
     tsk_tree_t tree;
-    size_t j;
+    tsk_size_t j;
     CU_ASSERT_FATAL(W != NULL);
     CU_ASSERT_FATAL(stack != NULL);
 
@@ -688,9 +688,10 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
 }
 
 static int
-general_stat_sum(size_t K, const double *restrict X, size_t M, double *Y, void *params)
+general_stat_sum(
+    tsk_size_t K, const double *restrict X, tsk_size_t M, double *Y, void *params)
 {
-    size_t k, m;
+    tsk_size_t k, m;
     double s = 0;
     CU_ASSERT_FATAL(params == NULL);
 
@@ -705,14 +706,15 @@ general_stat_sum(size_t K, const double *restrict X, size_t M, double *Y, void *
 }
 
 static void
-verify_general_stat_dims(tsk_treeseq_t *ts, size_t K, size_t M, tsk_flags_t options)
+verify_general_stat_dims(
+    tsk_treeseq_t *ts, tsk_size_t K, tsk_size_t M, tsk_flags_t options)
 {
     int ret;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(K * num_samples * sizeof(double));
     /* We need this much space for NODE mode; no harm for other modes. */
     double *sigma = calloc(tsk_treeseq_get_num_nodes(ts) * M, sizeof(double));
-    size_t j, k;
+    tsk_size_t j, k;
     CU_ASSERT_FATAL(W != NULL);
 
     for (j = 0; j < num_samples; j++) {
@@ -729,18 +731,19 @@ verify_general_stat_dims(tsk_treeseq_t *ts, size_t K, size_t M, tsk_flags_t opti
 }
 
 static void
-verify_general_stat_windows(tsk_treeseq_t *ts, size_t num_windows, tsk_flags_t options)
+verify_general_stat_windows(
+    tsk_treeseq_t *ts, tsk_size_t num_windows, tsk_flags_t options)
 {
     int ret;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(num_samples * sizeof(double));
-    size_t M = 5;
+    tsk_size_t M = 5;
     /* We need this much space for NODE mode; no harm for other modes. */
     double *sigma
         = calloc(M * tsk_treeseq_get_num_nodes(ts) * num_windows, sizeof(double));
     double *windows = malloc((num_windows + 1) * sizeof(*windows));
     double L = tsk_treeseq_get_sequence_length(ts);
-    size_t j;
+    tsk_size_t j;
     CU_ASSERT_FATAL(W != NULL);
     CU_ASSERT_FATAL(sigma != NULL);
     CU_ASSERT_FATAL(windows != NULL);
@@ -766,12 +769,12 @@ static void
 verify_default_general_stat(tsk_treeseq_t *ts)
 {
     int ret;
-    size_t K = 2;
-    size_t M = 1;
-    size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    tsk_size_t K = 2;
+    tsk_size_t M = 1;
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = malloc(K * num_samples * sizeof(double));
     double sigma1, sigma2;
-    size_t j, k;
+    tsk_size_t j, k;
     CU_ASSERT_FATAL(W != NULL);
 
     for (j = 0; j < num_samples; j++) {
@@ -1121,7 +1124,7 @@ test_paper_ex_trait_covariance(void)
     tsk_treeseq_t ts;
     double result;
     double *weights;
-    size_t j;
+    tsk_size_t j;
     int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,

@@ -692,7 +692,7 @@ static void
 verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *tests)
 {
     int ret;
-    size_t j, num_samples, n, k;
+    tsk_size_t j, num_samples, n, k;
     tsk_id_t stop, sample_index;
     tsk_tree_t tree;
     const tsk_id_t *samples;
@@ -820,7 +820,7 @@ verify_sample_sets_for_tree(tsk_tree_t *tree)
 {
     int ret, stack_top, j;
     tsk_id_t u, v;
-    size_t tmp, n, num_nodes, num_samples;
+    tsk_size_t tmp, n, num_nodes, num_samples;
     tsk_id_t *stack, *samples;
     const tsk_treeseq_t *ts = tree->tree_sequence;
     tsk_id_t *sample_index_map = ts->sample_index_map;
@@ -3604,8 +3604,8 @@ test_single_tree_iter(void)
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     tsk_id_t u, v, w;
-    size_t num_samples;
-    uint32_t num_nodes = 7;
+    tsk_size_t num_samples;
+    tsk_size_t num_nodes = 7;
 
     tsk_treeseq_from_text(&ts, 6, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     ret = tsk_tree_init(&tree, &ts, 0);
@@ -3666,9 +3666,9 @@ test_single_nonbinary_tree_iter(void)
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     tsk_id_t u, v, w;
-    size_t num_samples;
-    size_t num_nodes = 10;
-    size_t total_samples = 7;
+    tsk_size_t num_samples;
+    tsk_size_t num_nodes = 10;
+    tsk_size_t total_samples = 7;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     ret = tsk_tree_init(&tree, &ts, 0);
@@ -3755,8 +3755,8 @@ test_single_tree_general_samples_iter(void)
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     tsk_id_t u, v, w;
-    size_t num_samples;
-    uint32_t num_nodes = 7;
+    tsk_size_t num_samples;
+    tsk_size_t num_nodes = 7;
 
     tsk_treeseq_from_text(&ts, 6, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     samples = tsk_treeseq_get_samples(&ts);
@@ -5575,8 +5575,8 @@ test_genealogical_nearest_neighbours_errors(void)
     const tsk_id_t *reference_sets[2];
     tsk_id_t reference_set_0[4], reference_set_1[4];
     tsk_id_t focal[] = { 0, 1, 2, 3 };
-    size_t reference_set_size[2];
-    size_t num_focal = 4;
+    tsk_size_t reference_set_size[2];
+    tsk_size_t num_focal = 4;
     double *A = malloc(2 * num_focal * sizeof(double));
     CU_ASSERT_FATAL(A != NULL);
 

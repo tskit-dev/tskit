@@ -106,12 +106,12 @@ out:
 
 static int
 vargen_init_samples_and_index_map(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
-    const tsk_id_t *samples, size_t num_samples, size_t num_samples_alloc,
+    const tsk_id_t *samples, tsk_size_t num_samples, size_t num_samples_alloc,
     tsk_flags_t options)
 {
     int ret = 0;
     const tsk_flags_t *flags = tree_sequence->tables->nodes.flags;
-    size_t j, num_nodes;
+    tsk_size_t j, num_nodes;
     bool impute_missing = !!(options & TSK_ISOLATED_NOT_MISSING);
     tsk_id_t u;
 
@@ -149,12 +149,12 @@ out:
 
 int
 tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
-    const tsk_id_t *samples, size_t num_samples, const char **alleles,
+    const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
     tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
     tsk_flags_t tree_options;
-    size_t num_samples_alloc, max_alleles_limit;
+    tsk_size_t num_samples_alloc, max_alleles_limit;
     tsk_size_t max_alleles;
 
     tsk_bug_assert(tree_sequence != NULL);

@@ -880,8 +880,8 @@ test_single_tree_silent_mutations_i16(void)
     tsk_flags_t options[] = { 0, TSK_16_BIT_GENOTYPES };
     tsk_id_t all_samples[] = { 0, 1, 2, 3 };
     tsk_id_t *samples[] = { NULL, all_samples };
-    size_t num_samples = 4;
-    size_t s, f;
+    tsk_size_t num_samples = 4;
+    tsk_size_t s, f;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,

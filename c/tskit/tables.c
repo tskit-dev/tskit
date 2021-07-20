@@ -453,10 +453,10 @@ out:
 /* Checks that the specified list of offsets is well-formed. */
 static int
 check_offsets(
-    size_t num_rows, const tsk_size_t *offsets, tsk_size_t length, bool check_length)
+    tsk_size_t num_rows, const tsk_size_t *offsets, tsk_size_t length, bool check_length)
 {
     int ret = TSK_ERR_BAD_OFFSET;
-    size_t j;
+    tsk_size_t j;
 
     if (offsets[0] != 0) {
         goto out;
@@ -475,7 +475,7 @@ out:
 }
 
 static int
-expand_column(void **column, size_t new_max_rows, size_t element_size)
+expand_column(void **column, tsk_size_t new_max_rows, size_t element_size)
 {
     int ret = 0;
     void *tmp;
@@ -1721,7 +1721,7 @@ tsk_node_table_free(tsk_node_table_t *self)
 void
 tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out)
 {
-    size_t j, k;
+    tsk_size_t j, k;
 
     fprintf(out, TABLE_SEP);
     fprintf(out, "tsk_node_tbl: %p:\n", (const void *) self);
@@ -1762,7 +1762,7 @@ int
 tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out)
 {
     int ret = TSK_ERR_IO;
-    size_t j;
+    tsk_size_t j;
     tsk_size_t metadata_len;
     int err;
 
@@ -1933,7 +1933,7 @@ tsk_edge_table_has_metadata(const tsk_edge_table_t *self)
 }
 
 static int
-tsk_edge_table_expand_main_columns(tsk_edge_table_t *self, size_t additional_rows)
+tsk_edge_table_expand_main_columns(tsk_edge_table_t *self, tsk_size_t additional_rows)
 {
     int ret = 0;
     tsk_size_t increment
@@ -3131,7 +3131,7 @@ tsk_site_table_set_metadata_schema(tsk_site_table_t *self, const char *metadata_
 int
 tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
 {
-    size_t j;
+    tsk_size_t j;
     int ret = TSK_ERR_IO;
     int err;
     tsk_size_t ancestral_state_len, metadata_len;
@@ -3239,7 +3239,7 @@ out:
 
 static int
 tsk_mutation_table_expand_main_columns(
-    tsk_mutation_table_t *self, size_t additional_rows)
+    tsk_mutation_table_t *self, tsk_size_t additional_rows)
 {
     int ret = 0;
     tsk_size_t increment
@@ -3926,7 +3926,7 @@ out:
 
 static int
 tsk_migration_table_expand_main_columns(
-    tsk_migration_table_t *self, size_t additional_rows)
+    tsk_migration_table_t *self, tsk_size_t additional_rows)
 {
     int ret = 0;
     tsk_size_t increment
@@ -4379,7 +4379,7 @@ tsk_migration_table_set_metadata_schema(tsk_migration_table_t *self,
 int
 tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out)
 {
-    size_t j;
+    tsk_size_t j;
     int ret = TSK_ERR_IO;
     tsk_size_t metadata_len;
     int err;
@@ -6426,19 +6426,19 @@ typedef struct {
     /* The input segments. This buffer is sorted by the algorithm and we also
      * assume that there is space for an extra element at the end */
     tsk_segment_t *segments;
-    size_t num_segments;
-    size_t index;
-    size_t num_overlapping;
+    tsk_size_t num_segments;
+    tsk_size_t index;
+    tsk_size_t num_overlapping;
     double left;
     double right;
     /* Output buffer */
-    size_t max_overlapping;
+    tsk_size_t max_overlapping;
     tsk_segment_t **overlapping;
 } segment_overlapper_t;
 
 typedef struct {
     tsk_id_t *samples;
-    size_t num_samples;
+    tsk_size_t num_samples;
     tsk_flags_t options;
     tsk_table_collection_t *tables;
     /* Keep a copy of the input tables */
@@ -6450,8 +6450,8 @@ typedef struct {
     bool *is_sample;
     /* Segments for a particular parent that are processed together */
     tsk_segment_t *segment_queue;
-    size_t segment_queue_size;
-    size_t max_segment_queue_size;
+    tsk_size_t segment_queue_size;
+    tsk_size_t max_segment_queue_size;
     segment_overlapper_t segment_overlapper;
     tsk_blkalloc_t segment_heap;
     /* Buffer for output edges. For each child we keep a linked list of
@@ -6460,7 +6460,7 @@ typedef struct {
     interval_list_t **child_edge_map_head;
     interval_list_t **child_edge_map_tail;
     tsk_id_t *buffered_children;
-    size_t num_buffered_children;
+    tsk_size_t num_buffered_children;
     /* For each mutation, map its output node. */
     tsk_id_t *mutation_node_map;
     /* Map of input mutation IDs to output mutation IDs. */
@@ -6516,7 +6516,7 @@ segment_overlapper_free(segment_overlapper_t *self)
  */
 static int TSK_WARN_UNUSED
 segment_overlapper_start(
-    segment_overlapper_t *self, tsk_segment_t *segments, size_t num_segments)
+    segment_overlapper_t *self, tsk_segment_t *segments, tsk_size_t num_segments)
 {
     int ret = 0;
     tsk_segment_t *sentinel;
@@ -6551,11 +6551,11 @@ out:
 
 static int TSK_WARN_UNUSED
 segment_overlapper_next(segment_overlapper_t *self, double *left, double *right,
-    tsk_segment_t ***overlapping, size_t *num_overlapping)
+    tsk_segment_t ***overlapping, tsk_size_t *num_overlapping)
 {
     int ret = 0;
-    size_t j, k;
-    size_t n = self->num_segments;
+    tsk_size_t j, k;
+    tsk_size_t n = self->num_segments;
     tsk_segment_t *S = self->segments;
 
     if (self->index < n) {
@@ -6629,9 +6629,9 @@ cmp_node_id(const void *a, const void *b)
  */
 typedef struct {
     tsk_id_t *samples;
-    size_t num_samples;
+    tsk_size_t num_samples;
     tsk_id_t *ancestors;
-    size_t num_ancestors;
+    tsk_size_t num_ancestors;
     tsk_table_collection_t *tables;
     tsk_edge_table_t *result;
     tsk_segment_t **ancestor_map_head;
@@ -6639,15 +6639,15 @@ typedef struct {
     bool *is_sample;
     bool *is_ancestor;
     tsk_segment_t *segment_queue;
-    size_t segment_queue_size;
-    size_t max_segment_queue_size;
+    tsk_size_t segment_queue_size;
+    tsk_size_t max_segment_queue_size;
     segment_overlapper_t segment_overlapper;
     tsk_blkalloc_t segment_heap;
     tsk_blkalloc_t interval_list_heap;
     interval_list_t **child_edge_map_head;
     interval_list_t **child_edge_map_tail;
     tsk_id_t *buffered_children;
-    size_t num_buffered_children;
+    tsk_size_t num_buffered_children;
     double sequence_length;
 } ancestor_mapper_t;
 
@@ -6687,14 +6687,14 @@ out:
 
 static int
 ancestor_mapper_flush_edges(
-    ancestor_mapper_t *self, tsk_id_t parent, size_t *ret_num_edges)
+    ancestor_mapper_t *self, tsk_id_t parent, tsk_size_t *ret_num_edges)
 {
     int ret = 0;
     tsk_id_t ret_id;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t child;
     interval_list_t *x;
-    size_t num_edges = 0;
+    tsk_size_t num_edges = 0;
 
     qsort(self->buffered_children, self->num_buffered_children, sizeof(tsk_id_t),
         cmp_node_id);
@@ -6793,7 +6793,7 @@ static int
 ancestor_mapper_init_samples(ancestor_mapper_t *self, tsk_id_t *samples)
 {
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_samples; j++) {
@@ -6820,7 +6820,7 @@ static int
 ancestor_mapper_init_ancestors(ancestor_mapper_t *self, tsk_id_t *ancestors)
 {
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_ancestors; j++) {
@@ -6839,8 +6839,8 @@ out:
 }
 
 static int
-ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, size_t num_samples,
-    tsk_id_t *ancestors, size_t num_ancestors, tsk_table_collection_t *tables,
+ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_id_t *ancestors, tsk_size_t num_ancestors, tsk_table_collection_t *tables,
     tsk_edge_table_t *result)
 {
     int ret = 0;
@@ -6963,7 +6963,7 @@ ancestor_mapper_merge_ancestors(ancestor_mapper_t *self, tsk_id_t input_id)
 {
     int ret = 0;
     tsk_segment_t **X, *x;
-    size_t j, num_overlapping, num_flushed_edges;
+    tsk_size_t j, num_overlapping, num_flushed_edges;
     double left, right, prev_right;
     bool is_sample = self->is_sample[input_id];
     bool is_ancestor = self->is_ancestor[input_id];
@@ -7037,10 +7037,10 @@ out:
 
 static int TSK_WARN_UNUSED
 ancestor_mapper_process_parent_edges(
-    ancestor_mapper_t *self, tsk_id_t parent, size_t start, size_t end)
+    ancestor_mapper_t *self, tsk_id_t parent, tsk_size_t start, tsk_size_t end)
 {
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
     tsk_segment_t *x;
     const tsk_edge_table_t *input_edges = &self->tables->edges;
     tsk_id_t child;
@@ -7078,10 +7078,10 @@ static int TSK_WARN_UNUSED
 ancestor_mapper_run(ancestor_mapper_t *self)
 {
     int ret = 0;
-    size_t j, start;
+    tsk_size_t j, start;
     tsk_id_t parent, current_parent;
     const tsk_edge_table_t *input_edges = &self->tables->edges;
-    size_t num_edges = input_edges->num_rows;
+    tsk_size_t num_edges = input_edges->num_rows;
 
     if (num_edges > 0) {
         start = 0;
@@ -7195,7 +7195,7 @@ static int
 tsk_ibd_finder_init_samples(tsk_ibd_finder_t *self)
 {
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t u;
 
     /* Go through the sample pairs to define samples. */
@@ -7225,7 +7225,7 @@ static int
 tsk_ibd_finder_index_samples(tsk_ibd_finder_t *self)
 {
     int ret = 0;
-    size_t i;
+    tsk_size_t i;
     tsk_id_t idx;
 
     self->paired_nodes_index
@@ -7267,7 +7267,7 @@ static int
 tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
 {
     int ret = 0;
-    size_t i;
+    tsk_size_t i, index;
     tsk_id_t sample0, sample1;
     tsk_id_t row, col;
     size_t matrix_size = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
@@ -7294,14 +7294,12 @@ tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
         tsk_bug_assert(row >= 0);
         tsk_bug_assert(col >= 0);
 
-        if (self->pair_map[(size_t) row * self->num_unique_nodes_in_pair + (size_t) col]
-            != -1) {
+        index = ((tsk_size_t) row) * self->num_unique_nodes_in_pair + (tsk_size_t) col;
+        if (self->pair_map[index] != -1) {
             ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
             goto out;
         }
-
-        self->pair_map[(size_t) row * self->num_unique_nodes_in_pair + (size_t) col]
-            = (int64_t) i;
+        self->pair_map[index] = (int64_t) i;
     }
 
 out:
@@ -7432,7 +7430,7 @@ tsk_ibd_finder_find_sample_pair_index2(
 {
     int ret = -1;
     tsk_id_t s0, s1;
-    size_t row, col;
+    tsk_size_t row, col;
 
     s0 = self->paired_nodes_index[sample0];
     s1 = self->paired_nodes_index[sample1];
@@ -7441,8 +7439,8 @@ tsk_ibd_finder_find_sample_pair_index2(
         goto out;
     }
 
-    row = TSK_MIN((size_t) s0, (size_t) s1);
-    col = TSK_MAX((size_t) s0, (size_t) s1);
+    row = TSK_MIN((tsk_size_t) s0, (tsk_size_t) s1);
+    col = TSK_MAX((tsk_size_t) s0, (tsk_size_t) s1);
 
     ret = (int) self->pair_map[row * self->num_unique_nodes_in_pair + col];
 out:
@@ -7540,7 +7538,7 @@ out:
 void
 tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
 {
-    size_t j;
+    tsk_size_t j;
     tsk_segment_t *u = NULL;
 
     fprintf(out, "--ibd-finder stats--\n");
@@ -7586,10 +7584,10 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
 {
     const tsk_edge_table_t *input_edges = &self->tables->edges;
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t u;
     tsk_id_t current_parent = -1;
-    size_t num_edges = input_edges->num_rows;
+    tsk_size_t num_edges = input_edges->num_rows;
     tsk_segment_t *seg;
     tsk_segment_t *s;
     double intvl_l, intvl_r, current_time;
@@ -7681,7 +7679,7 @@ tsk_ibd_finder_free(tsk_ibd_finder_t *self)
 static void
 simplifier_check_state(simplifier_t *self)
 {
-    size_t j, k;
+    tsk_size_t j, k;
     tsk_segment_t *u;
     mutation_id_list_t *list_node;
     tsk_id_t site;
@@ -7689,7 +7687,7 @@ simplifier_check_state(simplifier_t *self)
     tsk_id_t child;
     double position, last_position;
     bool found;
-    size_t num_intervals;
+    tsk_size_t num_intervals;
 
     for (j = 0; j < self->input_tables.nodes.num_rows; j++) {
         tsk_bug_assert((self->ancestor_map_head[j] == NULL)
@@ -7771,7 +7769,7 @@ print_segment_chain(tsk_segment_t *head, FILE *out)
 static void
 simplifier_print_state(simplifier_t *self, FILE *out)
 {
-    size_t j;
+    tsk_size_t j;
     tsk_segment_t *u;
     mutation_id_list_t *list_node;
     interval_list_t *int_list;
@@ -7913,14 +7911,14 @@ simplifier_rewind_node(simplifier_t *self, tsk_id_t input_id, tsk_id_t output_id
 }
 
 static int
-simplifier_flush_edges(simplifier_t *self, tsk_id_t parent, size_t *ret_num_edges)
+simplifier_flush_edges(simplifier_t *self, tsk_id_t parent, tsk_size_t *ret_num_edges)
 {
     int ret = 0;
     tsk_id_t ret_id;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t child;
     interval_list_t *x;
-    size_t num_edges = 0;
+    tsk_size_t num_edges = 0;
 
     qsort(self->buffered_children, self->num_buffered_children, sizeof(tsk_id_t),
         cmp_node_id);
@@ -7976,8 +7974,8 @@ static bool
 simplifier_map_reduced_coordinates(simplifier_t *self, double *left, double *right)
 {
     double *X = self->position_lookup;
-    size_t N = self->input_tables.sites.num_rows + 2;
-    size_t left_index, right_index;
+    tsk_size_t N = self->input_tables.sites.num_rows + 2;
+    tsk_size_t left_index, right_index;
     bool skip = false;
 
     left_index = tsk_search_sorted(X, N, *left);
@@ -8047,7 +8045,7 @@ simplifier_init_sites(simplifier_t *self)
     int ret = 0;
     tsk_id_t node;
     mutation_id_list_t *list_node;
-    size_t j;
+    tsk_size_t j;
 
     self->mutation_id_map
         = calloc(self->input_tables.mutations.num_rows, sizeof(tsk_id_t));
@@ -8146,7 +8144,7 @@ simplifier_init_samples(simplifier_t *self, const tsk_id_t *samples)
 {
     int ret = 0;
     tsk_id_t node_id;
-    size_t j;
+    tsk_size_t j;
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_samples; j++) {
@@ -8176,7 +8174,7 @@ out:
 }
 
 static int
-simplifier_init(simplifier_t *self, const tsk_id_t *samples, size_t num_samples,
+simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samples,
     tsk_table_collection_t *tables, tsk_flags_t options)
 {
     int ret = 0;
@@ -8331,7 +8329,7 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
 {
     int ret = 0;
     tsk_segment_t **X, *x;
-    size_t j, num_overlapping, num_flushed_edges;
+    tsk_size_t j, num_overlapping, num_flushed_edges;
     double left, right, prev_right;
     tsk_id_t ancestry_node;
     tsk_id_t output_id = self->node_id_map[input_id];
@@ -8507,10 +8505,10 @@ out:
 
 static int TSK_WARN_UNUSED
 simplifier_process_parent_edges(
-    simplifier_t *self, tsk_id_t parent, size_t start, size_t end)
+    simplifier_t *self, tsk_id_t parent, tsk_size_t start, tsk_size_t end)
 {
     int ret = 0;
-    size_t j;
+    tsk_size_t j;
     const tsk_edge_table_t *input_edges = &self->input_tables.edges;
     tsk_id_t child;
     double left, right;
@@ -8584,8 +8582,9 @@ simplifier_output_sites(simplifier_t *self)
             for (input_mutation = site_start; input_mutation < site_end;
                  input_mutation++) {
                 if (self->mutation_id_map[input_mutation] != TSK_NULL) {
-                    tsk_bug_assert(self->tables->mutations.num_rows
-                                   == (size_t) self->mutation_id_map[input_mutation]);
+                    tsk_bug_assert(
+                        self->tables->mutations.num_rows
+                        == (tsk_size_t) self->mutation_id_map[input_mutation]);
                     mapped_node = self->mutation_node_map[input_mutation];
                     tsk_bug_assert(mapped_node != TSK_NULL);
                     mapped_parent = self->input_tables.mutations.parent[input_mutation];
@@ -8782,7 +8781,7 @@ simplifier_insert_input_roots(simplifier_t *self)
     int ret = 0;
     tsk_id_t input_id, output_id;
     tsk_segment_t *x;
-    size_t num_flushed_edges;
+    tsk_size_t num_flushed_edges;
     double youngest_root_time = DBL_MAX;
     const double *node_time = self->tables->nodes.time;
 
@@ -8827,10 +8826,10 @@ static int TSK_WARN_UNUSED
 simplifier_run(simplifier_t *self, tsk_id_t *node_map)
 {
     int ret = 0;
-    size_t j, start;
+    tsk_size_t j, start;
     tsk_id_t parent, current_parent;
     const tsk_edge_table_t *input_edges = &self->input_tables.edges;
-    size_t num_edges = input_edges->num_rows;
+    tsk_size_t num_edges = input_edges->num_rows;
 
     if (num_edges > 0) {
         start = 0;
@@ -9358,13 +9357,13 @@ static tsk_id_t TSK_WARN_UNUSED
 tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
 {
     tsk_id_t ret = 0;
-    size_t j, k;
+    tsk_size_t j, k;
     tsk_id_t u, site, mutation;
     double tree_left, tree_right;
     const double sequence_length = self->sequence_length;
     const tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
     const tsk_id_t num_mutations = (tsk_id_t) self->mutations.num_rows;
-    const size_t num_edges = self->edges.num_rows;
+    const tsk_size_t num_edges = self->edges.num_rows;
     const double *restrict site_position = self->sites.position;
     const tsk_id_t *restrict mutation_site = self->mutations.site;
     const tsk_id_t *restrict mutation_node = self->mutations.node;
@@ -9727,7 +9726,7 @@ tsk_table_collection_build_index(
 {
     int ret = TSK_ERR_GENERIC;
     tsk_id_t ret_id;
-    size_t j;
+    tsk_size_t j;
     double *time = self->nodes.time;
     index_sort_t *sort_buff = NULL;
     tsk_id_t parent;
@@ -9940,7 +9939,7 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
     }
     if (ret == 1) {
         ret = kastore_gets_int8(
-            store, "metadata", (int8_t **) &metadata, (size_t *) &metadata_length);
+            store, "metadata", (int8_t **) &metadata, &metadata_length);
         if (ret != 0) {
             ret = tsk_set_kas_error(ret);
             goto out;
@@ -10341,7 +10340,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
         samples = local_samples;
     }
 
-    ret = simplifier_init(&simplifier, samples, (size_t) num_samples, self, options);
+    ret = simplifier_init(&simplifier, samples, num_samples, self, options);
     if (ret != 0) {
         goto out;
     }
@@ -10375,8 +10374,8 @@ tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samp
         goto out;
     }
 
-    ret = ancestor_mapper_init(&ancestor_mapper, samples, (size_t) num_samples,
-        ancestors, (size_t) num_ancestors, self, result);
+    ret = ancestor_mapper_init(
+        &ancestor_mapper, samples, num_samples, ancestors, num_ancestors, self, result);
     if (ret != 0) {
         goto out;
     }
@@ -11462,7 +11461,7 @@ int TSK_WARN_UNUSED
 tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges)
 {
     int ret = 0;
-    size_t j, k, l;
+    tsk_size_t j, k, l;
 
     if (num_edges < 2) {
         *num_output_edges = num_edges;

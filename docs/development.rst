@@ -235,9 +235,9 @@ Then, continuing from above:
 
 3. Fetch the pull request, and store it as a local branch.
    For instance, to name the local branch ``my_pr_copy``::
-    
+
        $ git fetch upstream pull/854/head:my_pr_copy
-   
+
    You should probably call the branch something more descriptive,
    though. (Also note that you might need to put ``origin`` instead
    of ``upstream`` for the remote repository name: see ``git remote -v``
@@ -826,8 +826,10 @@ Type conventions
 ----------------
 
 - ``tsk_id_t`` is an ID for any entity in a table.
-- ``tsk_size_t`` refers to the size of a table or entity that can be stored in a table.
-- ``size_t`` is an OS size, e.g. the result of ``sizeof``.
+- ``tsk_size_t`` refers to any size or count values in tskit.
+- ``size_t`` is a standard C type and refers to the size of a memory block.
+  This should only be used when computing memory block sizes for functions
+  like ``malloc`` or passing the size of a memory buffer as a parameter.
 - Error indicators (the return type of most functions) are ``int``.
 - ``uint32_t`` etc should be avoided (any that exist are a leftover from older
   code that didn't use ``tsk_size_t`` etc.)
@@ -1096,7 +1098,7 @@ uninstalling and reinstalling the pre-commit hooks fixed the problem:
    > git commit -a -m 'wrote the docs'
    [main 79b81ff] fixed all the things
     1 file changed, 42 insertions(+)
-      
+
 
 ***********************
 Releasing a new version

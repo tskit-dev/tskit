@@ -648,8 +648,8 @@ tsk_blkalloc_free(tsk_blkalloc_t *self)
 
 /* Mirrors the semantics of numpy's searchsorted function. Uses binary
  * search to find the index of the closest value in the array. */
-size_t
-tsk_search_sorted(const double *restrict array, size_t size, double value)
+tsk_size_t
+tsk_search_sorted(const double *restrict array, tsk_size_t size, double value)
 {
     int64_t upper = (int64_t) size;
     int64_t lower = 0;
@@ -669,7 +669,7 @@ tsk_search_sorted(const double *restrict array, size_t size, double value)
         }
     }
     offset = (int64_t)(array[lower] < value);
-    return (size_t)(lower + offset);
+    return (tsk_size_t)(lower + offset);
 }
 
 /* Rounds the specified double to the closest multiple of 10**-num_digits. If
