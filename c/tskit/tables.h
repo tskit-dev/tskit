@@ -759,6 +759,11 @@ typedef struct {
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES (1 << 0)
 
+/* Flags for dump tables */
+/* We may not want to document this flag, but it's useful for testing
+ * so we put it high up in the bit space */
+#define TSK_DUMP_FORCE_OFFSET_64 (1 << 30)
+
 /* Flags for table collection init */
 #define TSK_NO_EDGE_METADATA (1 << 0)
 

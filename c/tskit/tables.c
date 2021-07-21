@@ -54,6 +54,7 @@ typedef struct {
     int data_type;
     tsk_size_t **offset_array_dest;
     tsk_flags_t options;
+    tsk_size_t *offset_array_mem;
 } read_table_ragged_col_t;
 
 typedef struct {
@@ -145,6 +146,29 @@ out:
 }
 
 static int
+cast_offset_array(read_table_ragged_col_t *col, uint64_t *source, tsk_size_t num_rows)
+{
+    int ret = 0;
+    tsk_size_t len = num_rows + 1;
+    tsk_size_t j;
+    uint32_t *dest = malloc(len * sizeof(*dest));
+
+    if (dest == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    col->offset_array_mem = dest;
+    *col->offset_array_dest = dest;
+    for (j = 0; j < len; j++) {
+        /* We don't bother catching errors here because we'll be switching this
+         * to casting up to 64 bit soon; current version is temporary. */
+        dest[j] = (uint32_t) source[j];
+    }
+out:
+    return ret;
+}
+
+static int
 read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
     read_table_ragged_col_t *cols, tsk_flags_t TSK_UNUSED(flags))
 {
@@ -154,6 +178,7 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
     read_table_ragged_col_t *col;
     char offset_col_name[TSK_MAX_COL_NAME_LEN];
     bool data_col_present, offset_col_present;
+    void *store_offset_array;
     tsk_size_t *offset_array;
 
     for (col = cols; col->name != NULL; col++) {
@@ -197,8 +222,8 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
             goto out;
         }
         if (offset_col_present) {
-            ret = kastore_gets(store, offset_col_name, (void **) col->offset_array_dest,
-                &offset_len, &type);
+            ret = kastore_gets(
+                store, offset_col_name, &store_offset_array, &offset_len, &type);
             if (ret != 0) {
                 ret = tsk_set_kas_error(ret);
                 goto out;
@@ -218,7 +243,14 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
                     goto out;
                 }
             }
-            if (type != TSK_SIZE_STORAGE_TYPE) {
+            if (type == KAS_UINT32) {
+                *col->offset_array_dest = (uint32_t *) store_offset_array;
+            } else if (type == KAS_UINT64) {
+                ret = cast_offset_array(col, (uint64_t *) store_offset_array, *num_rows);
+                if (ret != 0) {
+                    goto out;
+                }
+            } else {
                 ret = TSK_ERR_BAD_COLUMN_TYPE;
                 goto out;
             }
@@ -300,13 +332,72 @@ out:
     return ret;
 }
 
+static void
+free_read_table_mem(read_table_col_t *TSK_UNUSED(cols),
+    read_table_ragged_col_t *ragged_cols, read_table_property_t *TSK_UNUSED(properties))
+{
+    read_table_ragged_col_t *ragged_col;
+
+    if (ragged_cols != NULL) {
+        for (ragged_col = ragged_cols; ragged_col->name != NULL; ragged_col++) {
+            tsk_safe_free(ragged_col->offset_array_mem);
+        }
+    }
+}
+
 static int
-write_table_ragged_cols(kastore_t *store, const write_table_ragged_col_t *write_cols,
-    tsk_flags_t TSK_UNUSED(options))
+write_offset_col(
+    kastore_t *store, const write_table_ragged_col_t *col, tsk_flags_t options)
+{
+    int ret = 0;
+    char offset_col_name[TSK_MAX_COL_NAME_LEN];
+    int64_t *offset64 = NULL;
+    tsk_size_t len = col->num_rows + 1;
+    tsk_size_t j;
+    int type;
+    const void *data;
+
+    assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
+    strcpy(offset_col_name, col->name);
+    strcat(offset_col_name, "_offset");
+
+    /* Note: this is a temporary implementation while we're getting some infrastructure
+     * in place for the change to 64 bit offsets. Ultimately we'll be doing the cast
+     * in the other direction, if the size of small enough. The TSK_DUMP_FORCE_OFFSET_64
+     * option will still be useful for testing though, because that means we don't have
+     * to force huge arrays to test all the code paths.
+     */
+    if (options & TSK_DUMP_FORCE_OFFSET_64) {
+        offset64 = malloc(len * sizeof(*offset64));
+        if (offset64 == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        for (j = 0; j < len; j++) {
+            offset64[j] = col->offset_array[j];
+        }
+        type = KAS_UINT64;
+        data = offset64;
+    } else {
+        type = KAS_UINT32;
+        data = col->offset_array;
+    }
+    ret = kastore_puts(store, offset_col_name, data, len, type, 0);
+    if (ret != 0) {
+        ret = tsk_set_kas_error(ret);
+        goto out;
+    }
+out:
+    tsk_safe_free(offset64);
+    return ret;
+}
+
+static int
+write_table_ragged_cols(
+    kastore_t *store, const write_table_ragged_col_t *write_cols, tsk_flags_t options)
 {
     int ret = 0;
     const write_table_ragged_col_t *col;
-    char offset_col_name[TSK_MAX_COL_NAME_LEN];
 
     for (col = write_cols; col->name != NULL; col++) {
         ret = kastore_puts(
@@ -315,14 +406,8 @@ write_table_ragged_cols(kastore_t *store, const write_table_ragged_col_t *write_
             ret = tsk_set_kas_error(ret);
             goto out;
         }
-        assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
-        strcpy(offset_col_name, col->name);
-        strcat(offset_col_name, "_offset");
-
-        ret = kastore_puts(store, offset_col_name, col->offset_array, col->num_rows + 1,
-            TSK_SIZE_STORAGE_TYPE, 0);
+        ret = write_offset_col(store, col, options);
         if (ret != 0) {
-            ret = tsk_set_kas_error(ret);
             goto out;
         }
     }
@@ -1166,7 +1251,8 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
 }
 
 static int
-tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
+tsk_individual_table_dump(
+    const tsk_individual_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     const write_table_col_t write_cols[] = {
         { "individuals/flags", (void *) self->flags, self->num_rows,
@@ -1185,7 +1271,7 @@ tsk_individual_table_dump(const tsk_individual_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table(store, write_cols, ragged_cols, 0);
+    return write_table(store, write_cols, ragged_cols, options);
 }
 
 static int
@@ -1209,11 +1295,11 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "individuals/location", (void **) &location, &location_length, KAS_FLOAT64,
-            &location_offset, 0 },
+            &location_offset, 0, NULL },
         { "individuals/parents", (void **) &parents, &parents_length,
-            TSK_ID_STORAGE_TYPE, &parents_offset, TSK_COL_OPTIONAL },
+            TSK_ID_STORAGE_TYPE, &parents_offset, TSK_COL_OPTIONAL, NULL },
         { "individuals/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0 },
+            &metadata_offset, 0, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -1239,6 +1325,7 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(cols, ragged_cols, properties);
     return ret;
 }
 
@@ -1762,7 +1849,7 @@ out:
 }
 
 static int
-tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store)
+tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     const write_table_col_t cols[] = {
         { "nodes/time", (void *) self->time, self->num_rows, KAS_FLOAT64 },
@@ -1781,7 +1868,7 @@ tsk_node_table_dump(const tsk_node_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table(store, cols, ragged_cols, 0);
+    return write_table(store, cols, ragged_cols, options);
 }
 
 static int
@@ -1805,7 +1892,7 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "nodes/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0 },
+            &metadata_offset, 0, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -1831,6 +1918,7 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(cols, ragged_cols, properties);
     return ret;
 }
 
@@ -2384,7 +2472,7 @@ tsk_edge_table_equals(
 }
 
 static int
-tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store)
+tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     int ret = 0;
     const write_table_col_t write_cols[] = {
@@ -2405,12 +2493,12 @@ tsk_edge_table_dump(const tsk_edge_table_t *self, kastore_t *store)
     /* TODO when the general code has been updated to only write out the
      * column when the lenght of ragged columns is > 0 we can get rid of
      * this special case here and use write_table. */
-    ret = write_table_cols(store, write_cols, 0);
+    ret = write_table_cols(store, write_cols, options);
     if (ret != 0) {
         goto out;
     }
     if (tsk_edge_table_has_metadata(self)) {
-        ret = write_table_ragged_cols(store, ragged_cols, 0);
+        ret = write_table_ragged_cols(store, ragged_cols, options);
         if (ret != 0) {
             goto out;
         }
@@ -2441,7 +2529,7 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "edges/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, TSK_COL_OPTIONAL },
+            &metadata_offset, TSK_COL_OPTIONAL, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -2467,6 +2555,7 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(cols, ragged_cols, properties);
     return ret;
 }
 
@@ -3074,7 +3163,7 @@ out:
 }
 
 static int
-tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store)
+tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     const write_table_col_t cols[] = {
         { "sites/position", (void *) self->position, self->num_rows, KAS_FLOAT64 },
@@ -3091,7 +3180,7 @@ tsk_site_table_dump(const tsk_site_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table(store, cols, ragged_cols, 0);
+    return write_table(store, cols, ragged_cols, options);
 }
 
 static int
@@ -3112,9 +3201,9 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "sites/ancestral_state", (void **) &ancestral_state, &ancestral_state_length,
-            KAS_UINT8, &ancestral_state_offset, 0 },
+            KAS_UINT8, &ancestral_state_offset, 0, NULL },
         { "sites/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0 },
+            &metadata_offset, 0, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -3140,6 +3229,7 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(cols, ragged_cols, properties);
     return ret;
 }
 
@@ -3749,7 +3839,8 @@ out:
 }
 
 static int
-tsk_mutation_table_dump(const tsk_mutation_table_t *self, kastore_t *store)
+tsk_mutation_table_dump(
+    const tsk_mutation_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     const write_table_col_t cols[] = {
         { "mutations/site", (void *) self->site, self->num_rows, TSK_ID_STORAGE_TYPE },
@@ -3770,7 +3861,7 @@ tsk_mutation_table_dump(const tsk_mutation_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table(store, cols, ragged_cols, 0);
+    return write_table(store, cols, ragged_cols, options);
 }
 
 static int
@@ -3797,9 +3888,9 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "mutations/derived_state", (void **) &derived_state, &derived_state_length,
-            KAS_UINT8, &derived_state_offset, 0 },
+            KAS_UINT8, &derived_state_offset, 0, NULL },
         { "mutations/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0 },
+            &metadata_offset, 0, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -3825,6 +3916,7 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(cols, ragged_cols, properties);
     return ret;
 }
 
@@ -4345,7 +4437,8 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
 }
 
 static int
-tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
+tsk_migration_table_dump(
+    const tsk_migration_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     const write_table_col_t cols[] = {
         { "migrations/left", (void *) self->left, self->num_rows, KAS_FLOAT64 },
@@ -4365,7 +4458,7 @@ tsk_migration_table_dump(const tsk_migration_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table(store, cols, ragged_cols, 0);
+    return write_table(store, cols, ragged_cols, options);
 }
 
 static int
@@ -4394,7 +4487,7 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "migrations/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, TSK_COL_OPTIONAL },
+            &metadata_offset, TSK_COL_OPTIONAL, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -4420,6 +4513,7 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(cols, ragged_cols, properties);
     return ret;
 }
 
@@ -4874,7 +4968,8 @@ tsk_population_table_equals(const tsk_population_table_t *self,
 }
 
 static int
-tsk_population_table_dump(const tsk_population_table_t *self, kastore_t *store)
+tsk_population_table_dump(
+    const tsk_population_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     const write_table_col_t cols[] = {
         { "populations/metadata_schema", (void *) self->metadata_schema,
@@ -4887,7 +4982,7 @@ tsk_population_table_dump(const tsk_population_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table(store, cols, ragged_cols, 0);
+    return write_table(store, cols, ragged_cols, options);
 }
 
 static int
@@ -4901,7 +4996,7 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
 
     read_table_ragged_col_t ragged_cols[] = {
         { "populations/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0 },
+            &metadata_offset, 0, NULL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -4926,6 +5021,7 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
         }
     }
 out:
+    free_read_table_mem(NULL, ragged_cols, properties);
     return ret;
 }
 
@@ -5442,7 +5538,8 @@ tsk_provenance_table_equals(const tsk_provenance_table_t *self,
 }
 
 static int
-tsk_provenance_table_dump(const tsk_provenance_table_t *self, kastore_t *store)
+tsk_provenance_table_dump(
+    const tsk_provenance_table_t *self, kastore_t *store, tsk_flags_t options)
 {
     write_table_ragged_col_t ragged_cols[] = {
         { "provenances/timestamp", (void *) self->timestamp, self->timestamp_length,
@@ -5452,7 +5549,7 @@ tsk_provenance_table_dump(const tsk_provenance_table_t *self, kastore_t *store)
         { .name = NULL },
     };
 
-    return write_table_ragged_cols(store, ragged_cols, 0);
+    return write_table_ragged_cols(store, ragged_cols, options);
 }
 
 static int
@@ -5467,9 +5564,9 @@ tsk_provenance_table_load(tsk_provenance_table_t *self, kastore_t *store)
 
     read_table_ragged_col_t ragged_cols[] = {
         { "provenances/timestamp", (void **) &timestamp, &timestamp_length, KAS_UINT8,
-            &timestamp_offset, 0 },
+            &timestamp_offset, 0, NULL },
         { "provenances/record", (void **) &record, &record_length, KAS_UINT8,
-            &record_offset, 0 },
+            &record_offset, 0, NULL },
         { .name = NULL },
     };
 
@@ -5483,6 +5580,7 @@ tsk_provenance_table_load(tsk_provenance_table_t *self, kastore_t *store)
         goto out;
     }
 out:
+    free_read_table_mem(NULL, ragged_cols, NULL);
     return ret;
 }
 
@@ -9881,7 +9979,8 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_dump_indexes(const tsk_table_collection_t *self, kastore_t *store)
+tsk_table_collection_dump_indexes(const tsk_table_collection_t *self, kastore_t *store,
+    tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     write_table_col_t cols[] = {
@@ -10068,8 +10167,8 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_write_format_data(
-    const tsk_table_collection_t *self, kastore_t *store)
+tsk_table_collection_write_format_data(const tsk_table_collection_t *self,
+    kastore_t *store, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     char format_name[TSK_FILE_FORMAT_NAME_LENGTH];
@@ -10132,7 +10231,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_table_collection_dumpf(
-    const tsk_table_collection_t *self, FILE *file, tsk_flags_t TSK_UNUSED(options))
+    const tsk_table_collection_t *self, FILE *file, tsk_flags_t options)
 {
     int ret = 0;
     kastore_t store;
@@ -10147,43 +10246,43 @@ tsk_table_collection_dumpf(
 
     /* All of these functions will set the kas_error internally, so we don't have
      * to modify the return value. */
-    ret = tsk_table_collection_write_format_data(self, &store);
+    ret = tsk_table_collection_write_format_data(self, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_node_table_dump(&self->nodes, &store);
+    ret = tsk_node_table_dump(&self->nodes, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_dump(&self->edges, &store);
+    ret = tsk_edge_table_dump(&self->edges, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_site_table_dump(&self->sites, &store);
+    ret = tsk_site_table_dump(&self->sites, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_migration_table_dump(&self->migrations, &store);
+    ret = tsk_migration_table_dump(&self->migrations, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_mutation_table_dump(&self->mutations, &store);
+    ret = tsk_mutation_table_dump(&self->mutations, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_individual_table_dump(&self->individuals, &store);
+    ret = tsk_individual_table_dump(&self->individuals, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_population_table_dump(&self->populations, &store);
+    ret = tsk_population_table_dump(&self->populations, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_provenance_table_dump(&self->provenances, &store);
+    ret = tsk_provenance_table_dump(&self->provenances, &store, options);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_dump_indexes(self, &store);
+    ret = tsk_table_collection_dump_indexes(self, &store, options);
     if (ret != 0) {
         goto out;
     }

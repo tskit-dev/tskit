@@ -475,6 +475,53 @@ test_bad_offset_columns(void)
 }
 
 static void
+test_force_offset_64(void)
+{
+    int ret;
+    tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
+    tsk_table_collection_t t1;
+    tsk_table_collection_t t2;
+    kastore_t store;
+    kaitem_t *item;
+    const char *suffix;
+    const char *offset_str = "_offset";
+    int num_found = 0;
+    size_t j;
+
+    ret = tsk_treeseq_dump(ts, _tmp_file_name, TSK_DUMP_FORCE_OFFSET_64);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = kastore_open(&store, _tmp_file_name, "r", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 0; j < store.num_items; j++) {
+        item = &store.items[j];
+        /* Does the key end in "_offset"? */
+        if (item->key_len > strlen(offset_str)) {
+            suffix = item->key + (item->key_len - strlen(offset_str));
+            if (strncmp(suffix, offset_str, strlen(offset_str)) == 0) {
+                CU_ASSERT_EQUAL(item->type, KAS_UINT64);
+                num_found++;
+            }
+        }
+    }
+    CU_ASSERT_TRUE(num_found > 0);
+    kastore_close(&store);
+
+    ret = tsk_table_collection_load(&t1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_copy_tables(ts, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
 test_missing_indexes(void)
 {
     int ret;
@@ -1171,6 +1218,7 @@ main(int argc, char **argv)
         { "test_missing_optional_column_pairs", test_missing_optional_column_pairs },
         { "test_missing_required_column_pairs", test_missing_required_column_pairs },
         { "test_bad_offset_columns", test_bad_offset_columns },
+        { "test_force_offset_64", test_force_offset_64 },
         { "test_metadata_schemas_optional", test_metadata_schemas_optional },
         { "test_load_node_table_errors", test_load_node_table_errors },
         { "test_load_bad_file_formats", test_load_bad_file_formats },
