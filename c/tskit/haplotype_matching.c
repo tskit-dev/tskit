@@ -1338,7 +1338,7 @@ tsk_compressed_matrix_decode(tsk_compressed_matrix_t *self, double *values)
             site_id = sites[j].id;
             site_array = values + ((tsk_size_t) site_id) * self->num_samples;
             if (self->num_transitions[site_id] == 0) {
-                memset(site_array, 0, self->num_samples * sizeof(site_array));
+                memset(site_array, 0, self->num_samples * sizeof(*site_array));
             } else {
                 ret = tsk_compressed_matrix_decode_site(
                     self, &tree, site_id, site_array);

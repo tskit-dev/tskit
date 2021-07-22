@@ -1,17 +1,8 @@
 version: 2.1
-jobs:
-  build:
-    docker:
-      - image: circleci/python:3.7-buster
-    working_directory: /home/circleci/tskit
+
+commands:
+  setup:
     steps:
-      - checkout
-      - run: sudo chown -R circleci:circleci *
-      - restore_cache:
-          # It's sometimes necessary to nuke the cache, and the simplest
-          # way to do it is to change the key. We can increment this
-          # version number when we want to do this.
-          key: tskit-{{ .Branch }}-v5
       - run:
           name: Checkout submodules
           command: |
@@ -19,7 +10,7 @@ jobs:
       - run:
           name: Install dependencies and set path
           command: |
-            sudo apt-get install ninja-build libcunit1-dev valgrind clang doxygen
+            sudo apt-get install -y ninja-build libcunit1-dev valgrind clang doxygen
             # Install meson to the system packages so we can run it as root
             sudo pip install meson==0.55
             pip install numpy==1.18.5
@@ -28,11 +19,9 @@ jobs:
             # Remove tskit installed by msprime
             pip uninstall tskit -y
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
-      - save_cache:
-          key: tskit-{{ .Branch }}-v1
-          paths:
-            - "/home/circleci/.local"
 
+  compile_and_test:
+    steps:
       - run:
           name: Compile Python
           command: |
@@ -158,7 +147,6 @@ jobs:
             bash <(curl -s https://codecov.io/bash) -f coverage.xml -F python-tests
             rm -f coverage.xml
             bash <(curl -s https://codecov.io/bash) -X gcov -F python-c-tests
-
       - run:
           name: Build Python package
           command: |
@@ -175,3 +163,47 @@ jobs:
             python setup.py bdist_wheel
             pip install dist/*.tar.gz
             tskit --help
+
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.7-buster
+    working_directory: /home/circleci/tskit
+    steps:
+      - checkout
+      - run: sudo chown -R circleci:circleci *
+      - restore_cache:
+          # It's sometimes necessary to nuke the cache, and the simplest
+          # way to do it is to change the key. We can increment this
+          # version number when we want to do this.
+          key: tskit-{{ .Branch }}-v6
+      - setup
+      - save_cache:
+          key: tskit-{{ .Branch }}-v6
+          paths:
+            - "/home/circleci/.local"
+      - compile_and_test
+
+  build-32:
+    docker:
+      - image: tskitimages/testing-32bit:1.0
+    working_directory: /home/circleci/tskit
+    steps:
+      - checkout
+      - run: sudo chown -R circleci:circleci *
+      - restore_cache:
+          key: tskit-32-{{ .Branch }}-v6
+      - setup
+      - save_cache:
+          key: tskit-32-{{ .Branch }}-v6
+          paths:
+            - "/home/circleci/.local"
+      - compile_and_test
+
+workflows:
+  test:
+    jobs:
+      - build
+      - build-32
+
+

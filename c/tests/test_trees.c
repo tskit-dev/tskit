@@ -1889,7 +1889,7 @@ test_simplest_individuals(void)
 {
     const char *individuals = "1      0.25     -1,-1\n"
                               "2      0.5,0.25 -1,-1\n"
-                              "3      0.3      0,1\n";
+                              "3      0.75     0,1\n";
     const char *nodes = "1  0   -1  -1\n"
                         "1  0   -1  1\n"
                         "0  0   -1  -1\n"
@@ -1958,7 +1958,7 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL_FATAL(individual.id, 2);
     CU_ASSERT_EQUAL_FATAL(individual.flags, 3);
     CU_ASSERT_EQUAL_FATAL(individual.location_length, 1);
-    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.3);
+    CU_ASSERT_EQUAL_FATAL(individual.location[0], 0.75);
     CU_ASSERT_EQUAL_FATAL(individual.parents_length, 2);
     CU_ASSERT_EQUAL_FATAL(individual.parents[0], pat_id);
     CU_ASSERT_EQUAL_FATAL(individual.parents[1], mat_id);

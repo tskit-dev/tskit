@@ -7259,7 +7259,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     w_shape = PyArray_DIMS(weights_array);
-    if (w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+    if ((tsk_size_t) w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
         PyErr_SetString(PyExc_ValueError, "First dimension must be num_samples");
         goto out;
     }
@@ -7381,7 +7381,7 @@ TreeSequence_one_way_weighted_method(
         goto out;
     }
     w_shape = PyArray_DIMS(weights_array);
-    if (w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+    if ((tsk_size_t) w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
         PyErr_SetString(PyExc_ValueError, "First dimension must be num_samples");
         goto out;
     }
@@ -7456,7 +7456,7 @@ TreeSequence_one_way_covariates_method(TreeSequence *self, PyObject *args,
         goto out;
     }
     w_shape = PyArray_DIMS(weights_array);
-    if (w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+    if ((tsk_size_t) w_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
         PyErr_SetString(
             PyExc_ValueError, "First dimension of weights must be num_samples");
         goto out;
@@ -7467,7 +7467,7 @@ TreeSequence_one_way_covariates_method(TreeSequence *self, PyObject *args,
         goto out;
     }
     z_shape = PyArray_DIMS(covariates_array);
-    if (z_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
+    if ((tsk_size_t) z_shape[0] != tsk_treeseq_get_num_samples(self->tree_sequence)) {
         PyErr_SetString(
             PyExc_ValueError, "First dimension of covariates must be num_samples");
         goto out;
@@ -8962,7 +8962,8 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     shape = PyArray_DIMS(genotypes_array);
-    if (shape[0] != tsk_treeseq_get_num_samples(self->tree->tree_sequence)) {
+    if ((tsk_size_t) shape[0]
+        != tsk_treeseq_get_num_samples(self->tree->tree_sequence)) {
         PyErr_SetString(
             PyExc_ValueError, "Genotypes array must have 1D (num_samples,) array");
         goto out;
