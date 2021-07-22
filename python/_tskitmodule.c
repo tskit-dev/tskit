@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -237,12 +237,12 @@ handle_library_error(int err)
 }
 
 static PyObject *
-convert_node_id_list(tsk_id_t *children, size_t num_children)
+convert_node_id_list(tsk_id_t *children, tsk_size_t num_children)
 {
     PyObject *ret = NULL;
     PyObject *t;
     PyObject *py_int;
-    size_t j;
+    tsk_size_t j;
 
     t = PyTuple_New(num_children);
     if (t == NULL) {
@@ -287,12 +287,12 @@ out:
 }
 
 static PyObject *
-make_mutation_id_list(const tsk_mutation_t *mutations, size_t length)
+make_mutation_id_list(const tsk_mutation_t *mutations, tsk_size_t length)
 {
     PyObject *ret = NULL;
     PyObject *t;
     PyObject *item;
-    size_t j;
+    tsk_size_t j;
 
     t = PyTuple_New(length);
     if (t == NULL) {
@@ -498,7 +498,7 @@ make_alleles(tsk_variant_t *variant)
 {
     PyObject *ret = NULL;
     PyObject *item, *t;
-    size_t j;
+    tsk_size_t j;
 
     t = PyTuple_New(variant->num_alleles + variant->has_missing_data);
     if (t == NULL) {
@@ -526,7 +526,7 @@ out:
 }
 
 static PyObject *
-make_variant(tsk_variant_t *variant, size_t num_samples)
+make_variant(tsk_variant_t *variant, tsk_size_t num_samples)
 {
     PyObject *ret = NULL;
     npy_intp dims = num_samples;
@@ -547,12 +547,12 @@ out:
 }
 
 static PyObject *
-convert_sites(const tsk_site_t *sites, size_t num_sites)
+convert_sites(const tsk_site_t *sites, tsk_size_t num_sites)
 {
     PyObject *ret = NULL;
     PyObject *l = NULL;
     PyObject *py_site = NULL;
-    size_t j;
+    tsk_size_t j;
 
     l = PyList_New(num_sites);
     if (l == NULL) {
@@ -572,12 +572,12 @@ out:
 }
 
 static PyObject *
-convert_transitions(tsk_state_transition_t *transitions, size_t num_transitions)
+convert_transitions(tsk_state_transition_t *transitions, tsk_size_t num_transitions)
 {
     PyObject *ret = NULL;
     PyObject *l = NULL;
     PyObject *py_transition = NULL;
-    size_t j;
+    tsk_size_t j;
 
     l = PyList_New(num_transitions);
     if (l == NULL) {
@@ -604,7 +604,7 @@ convert_compressed_matrix_site(tsk_compressed_matrix_t *matrix, unsigned int sit
     PyObject *ret = NULL;
     PyObject *list = NULL;
     PyObject *item = NULL;
-    size_t j, num_values;
+    tsk_size_t j, num_values;
 
     if (site >= matrix->num_sites) {
         PyErr_SetString(PyExc_ValueError, "Site index out of bounds");
@@ -710,7 +710,8 @@ out:
 }
 
 static PyObject *
-table_get_column_array(size_t num_rows, void *data, int npy_type, size_t element_size)
+table_get_column_array(
+    tsk_size_t num_rows, void *data, int npy_type, size_t element_size)
 {
     PyObject *ret = NULL;
     PyArrayObject *array;
@@ -5269,7 +5270,7 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     PyArrayObject *samples_array = NULL;
     PyArrayObject *node_map_array = NULL;
     npy_intp *shape, dims;
-    size_t num_samples;
+    tsk_size_t num_samples;
     tsk_flags_t options = 0;
     int filter_sites = true;
     int filter_individuals = false;
@@ -5297,7 +5298,7 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     shape = PyArray_DIMS(samples_array);
-    num_samples = shape[0];
+    num_samples = (tsk_size_t) shape[0];
     if (filter_sites) {
         options |= TSK_FILTER_SITES;
     }
@@ -5350,7 +5351,7 @@ TableCollection_link_ancestors(TableCollection *self, PyObject *args, PyObject *
     PyArrayObject *samples_array = NULL;
     PyArrayObject *ancestors_array = NULL;
     npy_intp *shape;
-    size_t num_samples, num_ancestors;
+    tsk_size_t num_samples, num_ancestors;
     static char *kwlist[] = { "samples", "ancestors", NULL };
     EdgeTable *result = NULL;
     PyObject *result_args = NULL;
@@ -5368,7 +5369,7 @@ TableCollection_link_ancestors(TableCollection *self, PyObject *args, PyObject *
         goto out;
     }
     shape = PyArray_DIMS(samples_array);
-    num_samples = shape[0];
+    num_samples = (tsk_size_t) shape[0];
 
     ancestors_array = (PyArrayObject *) PyArray_FROMANY(
         ancestors, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
@@ -5376,7 +5377,7 @@ TableCollection_link_ancestors(TableCollection *self, PyObject *args, PyObject *
         goto out;
     }
     shape = PyArray_DIMS(ancestors_array);
-    num_ancestors = shape[0];
+    num_ancestors = (tsk_size_t) shape[0];
 
     result_args = PyTuple_New(0);
     if (result_args == NULL) {
@@ -5413,7 +5414,7 @@ TableCollection_subset(TableCollection *self, PyObject *args, PyObject *kwds)
     tsk_flags_t options = 0;
     int reorder_populations = true;
     int remove_unreferenced = true;
-    size_t num_nodes;
+    tsk_size_t num_nodes;
     static char *kwlist[]
         = { "nodes", "reorder_populations", "remove_unreferenced", NULL };
 
@@ -5430,7 +5431,7 @@ TableCollection_subset(TableCollection *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     shape = PyArray_DIMS(nodes_array);
-    num_nodes = shape[0];
+    num_nodes = (tsk_size_t) shape[0];
     if (!reorder_populations) {
         options |= TSK_NO_CHANGE_POPULATIONS;
     }
@@ -6377,7 +6378,7 @@ TreeSequence_get_node(TreeSequence *self, PyObject *args)
         PyErr_SetString(PyExc_IndexError, "record index out of bounds");
         goto out;
     }
-    err = tsk_treeseq_get_node(self->tree_sequence, (size_t) record_index, &record);
+    err = tsk_treeseq_get_node(self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6406,7 +6407,7 @@ TreeSequence_get_edge(TreeSequence *self, PyObject *args)
         PyErr_SetString(PyExc_IndexError, "record index out of bounds");
         goto out;
     }
-    err = tsk_treeseq_get_edge(self->tree_sequence, (size_t) record_index, &record);
+    err = tsk_treeseq_get_edge(self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6435,7 +6436,8 @@ TreeSequence_get_migration(TreeSequence *self, PyObject *args)
         PyErr_SetString(PyExc_IndexError, "record index out of bounds");
         goto out;
     }
-    err = tsk_treeseq_get_migration(self->tree_sequence, (size_t) record_index, &record);
+    err = tsk_treeseq_get_migration(
+        self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6509,7 +6511,7 @@ TreeSequence_get_table_metadata_schemas(TreeSequence *self)
     PyObject *ret = NULL;
     PyObject *value = NULL;
     PyObject *schema = NULL;
-    size_t j;
+    tsk_size_t j;
     tsk_table_collection_t *tables;
     struct schema_pair {
         const char *schema;
@@ -6570,7 +6572,8 @@ TreeSequence_get_mutation(TreeSequence *self, PyObject *args)
         PyErr_SetString(PyExc_IndexError, "record index out of bounds");
         goto out;
     }
-    err = tsk_treeseq_get_mutation(self->tree_sequence, (size_t) record_index, &record);
+    err = tsk_treeseq_get_mutation(
+        self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6600,7 +6603,7 @@ TreeSequence_get_individual(TreeSequence *self, PyObject *args)
         goto out;
     }
     err = tsk_treeseq_get_individual(
-        self->tree_sequence, (size_t) record_index, &record);
+        self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6630,7 +6633,7 @@ TreeSequence_get_population(TreeSequence *self, PyObject *args)
         goto out;
     }
     err = tsk_treeseq_get_population(
-        self->tree_sequence, (size_t) record_index, &record);
+        self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6660,7 +6663,7 @@ TreeSequence_get_provenance(TreeSequence *self, PyObject *args)
         goto out;
     }
     err = tsk_treeseq_get_provenance(
-        self->tree_sequence, (size_t) record_index, &record);
+        self->tree_sequence, (tsk_id_t) record_index, &record);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6674,7 +6677,7 @@ static PyObject *
 TreeSequence_get_num_edges(TreeSequence *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_records;
+    tsk_size_t num_records;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6689,7 +6692,7 @@ static PyObject *
 TreeSequence_get_num_migrations(TreeSequence *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_records;
+    tsk_size_t num_records;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6704,7 +6707,7 @@ static PyObject *
 TreeSequence_get_num_individuals(TreeSequence *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_records;
+    tsk_size_t num_records;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6719,7 +6722,7 @@ static PyObject *
 TreeSequence_get_num_populations(TreeSequence *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_records;
+    tsk_size_t num_records;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6734,7 +6737,7 @@ static PyObject *
 TreeSequence_get_num_trees(TreeSequence *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_trees;
+    tsk_size_t num_trees;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6800,7 +6803,7 @@ static PyObject *
 TreeSequence_get_num_samples(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    size_t num_samples;
+    tsk_size_t num_samples;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6815,7 +6818,7 @@ static PyObject *
 TreeSequence_get_num_nodes(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    size_t num_nodes;
+    tsk_size_t num_nodes;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -6862,16 +6865,16 @@ TreeSequence_genealogical_nearest_neighbours(
     PyObject *ret = NULL;
     static char *kwlist[] = { "focal", "reference_sets", NULL };
     const tsk_id_t **reference_sets = NULL;
-    size_t *reference_set_size = NULL;
+    tsk_size_t *reference_set_size = NULL;
     PyObject *focal = NULL;
     PyObject *reference_sets_list = NULL;
     PyArrayObject *focal_array = NULL;
     PyArrayObject **reference_set_arrays = NULL;
     PyArrayObject *ret_array = NULL;
     npy_intp *shape, dims[2];
-    size_t num_focal = 0;
-    size_t num_reference_sets = 0;
-    size_t j;
+    tsk_size_t num_focal = 0;
+    tsk_size_t num_reference_sets = 0;
+    tsk_size_t j;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
@@ -6992,13 +6995,13 @@ TreeSequence_mean_descendants(TreeSequence *self, PyObject *args, PyObject *kwds
     PyObject *ret = NULL;
     static char *kwlist[] = { "reference_sets", NULL };
     const tsk_id_t **reference_sets = NULL;
-    size_t *reference_set_size = NULL;
+    tsk_size_t *reference_set_size = NULL;
     PyObject *reference_sets_list = NULL;
     PyArrayObject **reference_set_arrays = NULL;
     PyArrayObject *ret_array = NULL;
     npy_intp *shape, dims[2];
-    size_t num_reference_sets = 0;
-    size_t j;
+    tsk_size_t num_reference_sets = 0;
+    tsk_size_t j;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
@@ -7082,7 +7085,7 @@ out:
 /* Run the Python callable that takes X as parameter and must return a
  * 1D array of length M that we copy in to the Y array */
 static int
-general_stat_func(size_t K, const double *X, size_t M, double *Y, void *params)
+general_stat_func(tsk_size_t K, const double *X, tsk_size_t M, double *Y, void *params)
 {
     int ret = TSK_PYTHON_CALLBACK_ERROR;
     PyObject *callable = (PyObject *) params;
@@ -7815,7 +7818,7 @@ static PyObject *
 TreeSequence_get_num_mutations(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    size_t num_mutations;
+    tsk_size_t num_mutations;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -7830,7 +7833,7 @@ static PyObject *
 TreeSequence_get_num_sites(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    size_t num_sites;
+    tsk_size_t num_sites;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -7845,7 +7848,7 @@ static PyObject *
 TreeSequence_get_num_provenances(TreeSequence *self)
 {
     PyObject *ret = NULL;
-    size_t num_provenances;
+    tsk_size_t num_provenances;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -7862,15 +7865,15 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     PyObject *ret = NULL;
     static char *kwlist[] = { "isolated_as_missing", "alleles", NULL };
     int err;
-    size_t num_sites;
-    size_t num_samples;
+    tsk_size_t num_sites;
+    tsk_size_t num_samples;
     npy_intp dims[2];
     PyObject *py_alleles = Py_None;
     PyArrayObject *genotype_matrix = NULL;
     tsk_vargen_t *vg = NULL;
     char *V;
     tsk_variant_t *variant;
-    size_t j;
+    tsk_size_t j;
     int isolated_as_missing = 1;
     const char **alleles = NULL;
     tsk_flags_t options = 0;
@@ -8196,7 +8199,7 @@ Tree_init(Tree *self, PyObject *args, PyObject *kwds)
     TreeSequence *tree_sequence = NULL;
     tsk_id_t *tracked_samples = NULL;
     unsigned int options = 0;
-    size_t j, num_tracked_samples, num_nodes;
+    tsk_size_t j, num_tracked_samples, num_nodes;
     PyObject *item;
 
     self->tree = NULL;
@@ -8643,7 +8646,7 @@ Tree_get_children(Tree *self, PyObject *args)
     PyObject *ret = NULL;
     int node;
     tsk_id_t u;
-    size_t j, num_children;
+    tsk_size_t j, num_children;
     tsk_id_t *children = NULL;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
@@ -8821,7 +8824,7 @@ static PyObject *
 Tree_get_num_samples(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_samples;
+    tsk_size_t num_samples;
     int err, node;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
@@ -8841,7 +8844,7 @@ static PyObject *
 Tree_get_num_tracked_samples(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    size_t num_tracked_samples;
+    tsk_size_t num_tracked_samples;
     int err, node;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
@@ -9609,7 +9612,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
     PyObject *py_alleles = Py_None;
     PyArrayObject *samples_array = NULL;
     tsk_id_t *samples = NULL;
-    size_t num_samples = 0;
+    tsk_size_t num_samples = 0;
     int isolated_as_missing = 1;
     const char **alleles = NULL;
     npy_intp *shape;
@@ -9637,7 +9640,7 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
             goto out;
         }
         shape = PyArray_DIMS(samples_array);
-        num_samples = (size_t) shape[0];
+        num_samples = (tsk_size_t) shape[0];
         samples = PyArray_DATA(samples_array);
     }
     if (py_alleles != Py_None) {
@@ -9782,7 +9785,7 @@ LdCalculator_get_r2(LdCalculator *self, PyObject *args)
         goto out;
     }
     Py_BEGIN_ALLOW_THREADS err
-        = tsk_ld_calc_get_r2(self->ld_calc, (size_t) a, (size_t) b, &r2);
+        = tsk_ld_calc_get_r2(self->ld_calc, (tsk_id_t) a, (tsk_id_t) b, &r2);
     Py_END_ALLOW_THREADS if (err != 0)
     {
         handle_library_error(err);
@@ -9972,7 +9975,7 @@ CompressedMatrix_get_normalisation_factor(CompressedMatrix *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *array;
-    size_t num_sites;
+    tsk_size_t num_sites;
     npy_intp dims;
 
     if (CompressedMatrix_check_state(self) != 0) {
@@ -9996,7 +9999,7 @@ CompressedMatrix_get_num_transitions(CompressedMatrix *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *array;
-    size_t num_sites;
+    tsk_size_t num_sites;
     npy_intp dims;
 
     if (CompressedMatrix_check_state(self) != 0) {
@@ -10207,7 +10210,7 @@ ViterbiMatrix_get_normalisation_factor(ViterbiMatrix *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *array;
-    size_t num_sites;
+    tsk_size_t num_sites;
     npy_intp dims;
 
     if (ViterbiMatrix_check_state(self) != 0) {
@@ -10231,7 +10234,7 @@ ViterbiMatrix_get_num_transitions(ViterbiMatrix *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *array;
-    size_t num_sites;
+    tsk_size_t num_sites;
     npy_intp dims;
 
     if (ViterbiMatrix_check_state(self) != 0) {
