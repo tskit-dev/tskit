@@ -268,7 +268,7 @@ tsk_ls_hmm_remove_dead_roots(tsk_ls_hmm_t *self)
     const tsk_id_t left_root = self->tree.left_root;
     const tsk_id_t *restrict parent = self->parent;
     tsk_id_t root, u;
-    size_t j;
+    tsk_size_t j;
     const tsk_id_t root_marker = -2;
 
     for (root = left_root; root != TSK_NULL; root = right_sib[root]) {
@@ -364,7 +364,7 @@ out:
 
 static int
 tsk_ls_hmm_get_allele_index(tsk_ls_hmm_t *self, tsk_id_t site, const char *allele_state,
-    const size_t allele_length)
+    const tsk_size_t allele_length)
 {
     int ret = TSK_ERR_ALLELE_NOT_FOUND;
     const char **alleles = self->alleles[site];
@@ -469,7 +469,7 @@ tsk_ls_hmm_discretise_values(tsk_ls_hmm_t *self)
     int ret = 0;
     tsk_value_transition_t *T = self->transitions;
     double *values = self->values;
-    size_t j, k, num_values;
+    tsk_size_t j, k, num_values;
 
     num_values = 0;
     for (j = 0; j < self->num_transitions; j++) {
@@ -539,7 +539,7 @@ bit_is_set(uint64_t value, uint8_t bit)
 }
 
 static inline tsk_id_t
-get_smallest_element(const uint64_t *restrict A, size_t u, size_t num_words)
+get_smallest_element(const uint64_t *restrict A, tsk_size_t u, tsk_size_t num_words)
 {
     size_t base = (size_t) u * num_words;
     const uint64_t *restrict a = A + base;
@@ -738,9 +738,9 @@ tsk_ls_hmm_build_optimal_value_sets(tsk_ls_hmm_t *self)
     const tsk_value_transition_t *restrict T = self->transitions;
     const tsk_id_t *restrict T_index = self->transition_index;
     tsk_argsort_t *restrict order = self->transition_time_order;
-    const size_t num_optimal_value_set_words = self->num_optimal_value_set_words;
+    const tsk_size_t num_optimal_value_set_words = self->num_optimal_value_set_words;
     uint64_t *restrict A = self->optimal_value_sets;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t u, v, state, parent_state;
 
     /* argsort the transitions by node time so we can visit them in the
@@ -798,11 +798,11 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
     tsk_value_transition_t *restrict T_old = self->transitions_copy;
     tsk_transition_stack_t *stack = self->transition_stack;
     uint64_t *restrict A = self->optimal_value_sets;
-    const size_t num_optimal_value_set_words = self->num_optimal_value_set_words;
+    const tsk_size_t num_optimal_value_set_words = self->num_optimal_value_set_words;
     tsk_transition_stack_t s, child_s;
     tsk_id_t root, u, v;
     int stack_top = 0;
-    size_t j, old_num_transitions;
+    tsk_size_t j, old_num_transitions;
 
     memcpy(T_old, T, self->num_transitions * sizeof(*T));
     old_num_transitions = self->num_transitions;
@@ -812,7 +812,7 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
         stack[0].tree_node = root;
         stack[0].old_state = T_old[T_index[root]].value_index;
         stack[0].new_state
-            = get_smallest_element(A, (size_t) root, num_optimal_value_set_words);
+            = get_smallest_element(A, (tsk_size_t) root, num_optimal_value_set_words);
         stack[0].transition_parent = 0;
         stack_top = 0;
 
@@ -831,11 +831,11 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
                 if (T_index[v] != TSK_NULL) {
                     child_s.old_state = T_old[T_index[v]].value_index;
                 }
-                if (!all_zero(A, (size_t) v, num_optimal_value_set_words)) {
-                    if (!element_in(
-                            A, (size_t) v, s.new_state, num_optimal_value_set_words)) {
+                if (!all_zero(A, (tsk_size_t) v, num_optimal_value_set_words)) {
+                    if (!element_in(A, (tsk_size_t) v, s.new_state,
+                            num_optimal_value_set_words)) {
                         child_s.new_state = get_smallest_element(
-                            A, (size_t) v, num_optimal_value_set_words);
+                            A, (tsk_size_t) v, num_optimal_value_set_words);
                         child_s.transition_parent = (tsk_id_t) self->num_transitions;
                         /* Add a new transition */
                         tsk_bug_assert(self->num_transitions < self->max_transitions);
@@ -865,9 +865,9 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
         u = T_old[j].tree_node;
         if (u != TSK_NULL) {
             T_index[u] = TSK_NULL;
-            while (
-                u != TSK_NULL && !all_zero(A, (size_t) u, num_optimal_value_set_words)) {
-                memset(A + ((size_t) u) * num_optimal_value_set_words, 0,
+            while (u != TSK_NULL
+                   && !all_zero(A, (tsk_size_t) u, num_optimal_value_set_words)) {
+                memset(A + ((tsk_size_t) u) * num_optimal_value_set_words, 0,
                     num_optimal_value_set_words * sizeof(uint64_t));
                 u = parent[u];
             }
@@ -1164,10 +1164,10 @@ out:
 
 int
 tsk_compressed_matrix_init(tsk_compressed_matrix_t *self, tsk_treeseq_t *tree_sequence,
-    size_t block_size, tsk_flags_t options)
+    tsk_size_t block_size, tsk_flags_t options)
 {
     int ret = 0;
-    size_t num_sites;
+    tsk_size_t num_sites;
 
     memset(self, 0, sizeof(*self));
     self->tree_sequence = tree_sequence;
@@ -1336,7 +1336,7 @@ tsk_compressed_matrix_decode(tsk_compressed_matrix_t *self, double *values)
         }
         for (j = 0; j < num_tree_sites; j++) {
             site_id = sites[j].id;
-            site_array = values + ((size_t) site_id) * self->num_samples;
+            site_array = values + ((tsk_size_t) site_id) * self->num_samples;
             if (self->num_transitions[site_id] == 0) {
                 memset(site_array, 0, self->num_samples * sizeof(site_array));
             } else {
@@ -1379,7 +1379,7 @@ out:
 
 int
 tsk_viterbi_matrix_init(tsk_viterbi_matrix_t *self, tsk_treeseq_t *tree_sequence,
-    size_t block_size, tsk_flags_t options)
+    tsk_size_t block_size, tsk_flags_t options)
 {
     int ret = 0;
 
