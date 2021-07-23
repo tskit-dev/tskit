@@ -116,10 +116,10 @@ table_read_offset_array(
     PyArrayObject *ret = NULL;
     PyArrayObject *array = NULL;
     npy_intp *shape;
-    uint32_t *data;
+    uint64_t *data;
 
     array
-        = (PyArrayObject *) PyArray_FROMANY(input, NPY_UINT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+        = (PyArrayObject *) PyArray_FROMANY(input, NPY_UINT64, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (array == NULL) {
         goto out;
     }
@@ -138,7 +138,7 @@ table_read_offset_array(
         goto out;
     }
     data = PyArray_DATA(array);
-    if (data[*num_rows] != (uint32_t) length) {
+    if (data[*num_rows] != (uint64_t) length) {
         PyErr_SetString(PyExc_ValueError, "Bad offset column encoding");
         goto out;
     }
@@ -177,9 +177,9 @@ parse_individual_table_dict(
     char *metadata_data = NULL;
     double *location_data = NULL;
     tsk_id_t *parents_data = NULL;
-    uint32_t *metadata_offset_data = NULL;
-    uint32_t *location_offset_data = NULL;
-    uint32_t *parents_offset_data = NULL;
+    uint64_t *metadata_offset_data = NULL;
+    uint64_t *location_offset_data = NULL;
+    uint64_t *parents_offset_data = NULL;
     PyObject *flags_input = NULL;
     PyArrayObject *flags_array = NULL;
     PyObject *location_input = NULL;
@@ -342,7 +342,7 @@ parse_node_table_dict(tsk_node_table_t *table, PyObject *dict, bool clear_table)
     int ret = -1;
     size_t num_rows, metadata_length;
     char *metadata_data = NULL;
-    uint32_t *metadata_offset_data = NULL;
+    uint64_t *metadata_offset_data = NULL;
     void *population_data = NULL;
     void *individual_data = NULL;
     PyObject *time_input = NULL;
@@ -482,7 +482,7 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     size_t num_rows = 0;
     size_t metadata_length;
     char *metadata_data = NULL;
-    uint32_t *metadata_offset_data = NULL;
+    uint64_t *metadata_offset_data = NULL;
     PyObject *left_input = NULL;
     PyArrayObject *left_array = NULL;
     PyObject *right_input = NULL;
@@ -613,7 +613,7 @@ parse_migration_table_dict(
     size_t num_rows;
     size_t metadata_length;
     char *metadata_data = NULL;
-    uint32_t *metadata_offset_data = NULL;
+    uint64_t *metadata_offset_data = NULL;
     PyObject *left_input = NULL;
     PyArrayObject *left_array = NULL;
     PyObject *right_input = NULL;
@@ -776,7 +776,7 @@ parse_site_table_dict(tsk_site_table_t *table, PyObject *dict, bool clear_table)
     PyObject *metadata_offset_input = NULL;
     PyArrayObject *metadata_offset_array = NULL;
     char *metadata_data;
-    uint32_t *metadata_offset_data;
+    uint64_t *metadata_offset_data;
     PyObject *metadata_schema_input = NULL;
     const char *metadata_schema = NULL;
     Py_ssize_t metadata_schema_length = 0;
@@ -911,7 +911,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     PyObject *metadata_offset_input = NULL;
     PyArrayObject *metadata_offset_array = NULL;
     char *metadata_data;
-    uint32_t *metadata_offset_data;
+    uint64_t *metadata_offset_data;
     PyObject *metadata_schema_input = NULL;
     const char *metadata_schema = NULL;
     Py_ssize_t metadata_schema_length = 0;
@@ -1511,10 +1511,9 @@ write_ragged_col(
     npy_intp offset_len = col->num_rows + 1;
     PyArrayObject *data_array = NULL;
     PyArrayObject *offset_array = NULL;
-    bool offset_64 = force_offset_64; // || col->offset[col->num_rows] > UINT32_MAX
+    bool offset_64 = force_offset_64 || col->offset[col->num_rows] > UINT32_MAX;
     int offset_type = offset_64 ? NPY_UINT64 : NPY_UINT32;
-    /* TODO change this to 32 bit when we flip tsk_size_t over */
-    uint64_t *dest;
+    uint32_t *dest;
     npy_intp j;
 
     data_array = (PyArrayObject *) PyArray_EMPTY(1, &col->data_len, col->type, 0);
@@ -1526,13 +1525,13 @@ write_ragged_col(
     memcpy(PyArray_DATA(data_array), col->data,
         col->data_len * PyArray_ITEMSIZE(data_array));
     if (offset_64) {
-        dest = (uint64_t *) PyArray_DATA(offset_array);
+        memcpy(PyArray_DATA(offset_array), col->offset,
+            offset_len * PyArray_ITEMSIZE(offset_array));
+    } else {
+        dest = (uint32_t *) PyArray_DATA(offset_array);
         for (j = 0; j < offset_len; j++) {
             dest[j] = col->offset[j];
         }
-    } else {
-        memcpy(PyArray_DATA(offset_array), col->offset,
-            offset_len * PyArray_ITEMSIZE(offset_array));
     }
 
     assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));

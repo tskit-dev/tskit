@@ -147,16 +147,9 @@ typedef int32_t tsk_id_t;
 The ``tsk_size_t`` type is an unsigned integer used for any size or count value.
 @endrst
 */
-#ifdef _TSK_BIG_TABLES
-/* TODO get rid of this typdef once we move to 64 bit sizes */
 typedef uint64_t tsk_size_t;
 #define TSK_MAX_SIZE UINT64_MAX
 #define TSK_SIZE_STORAGE_TYPE KAS_UINT64
-#else
-typedef uint32_t tsk_size_t;
-#define TSK_MAX_SIZE UINT32_MAX
-#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
-#endif
 
 /**
 @brief Container for bitwise flags.

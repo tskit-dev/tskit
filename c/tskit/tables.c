@@ -146,12 +146,12 @@ out:
 }
 
 static int
-cast_offset_array(read_table_ragged_col_t *col, uint64_t *source, tsk_size_t num_rows)
+cast_offset_array(read_table_ragged_col_t *col, uint32_t *source, tsk_size_t num_rows)
 {
     int ret = 0;
     tsk_size_t len = num_rows + 1;
     tsk_size_t j;
-    uint32_t *dest = tsk_malloc(len * sizeof(*dest));
+    uint64_t *dest = tsk_malloc(len * sizeof(*dest));
 
     if (dest == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -160,9 +160,7 @@ cast_offset_array(read_table_ragged_col_t *col, uint64_t *source, tsk_size_t num
     col->offset_array_mem = dest;
     *col->offset_array_dest = dest;
     for (j = 0; j < len; j++) {
-        /* We don't bother catching errors here because we'll be switching this
-         * to casting up to 64 bit soon; current version is temporary. */
-        dest[j] = (uint32_t) source[j];
+        dest[j] = source[j];
     }
 out:
     return ret;
@@ -243,10 +241,10 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
                     goto out;
                 }
             }
-            if (type == KAS_UINT32) {
-                *col->offset_array_dest = (uint32_t *) store_offset_array;
-            } else if (type == KAS_UINT64) {
-                ret = cast_offset_array(col, (uint64_t *) store_offset_array, *num_rows);
+            if (type == KAS_UINT64) {
+                *col->offset_array_dest = (uint64_t *) store_offset_array;
+            } else if (type == KAS_UINT32) {
+                ret = cast_offset_array(col, (uint32_t *) store_offset_array, *num_rows);
                 if (ret != 0) {
                     goto out;
                 }
@@ -351,36 +349,31 @@ write_offset_col(
 {
     int ret = 0;
     char offset_col_name[TSK_MAX_COL_NAME_LEN];
-    int64_t *offset64 = NULL;
+    uint32_t *offset32 = NULL;
     tsk_size_t len = col->num_rows + 1;
     tsk_size_t j;
     int type;
     const void *data;
+    bool needs_64 = col->offset_array[col->num_rows] > UINT32_MAX;
 
     assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
     strcpy(offset_col_name, col->name);
     strcat(offset_col_name, "_offset");
 
-    /* Note: this is a temporary implementation while we're getting some infrastructure
-     * in place for the change to 64 bit offsets. Ultimately we'll be doing the cast
-     * in the other direction, if the size of small enough. The TSK_DUMP_FORCE_OFFSET_64
-     * option will still be useful for testing though, because that means we don't have
-     * to force huge arrays to test all the code paths.
-     */
-    if (options & TSK_DUMP_FORCE_OFFSET_64) {
-        offset64 = tsk_malloc(len * sizeof(*offset64));
-        if (offset64 == NULL) {
+    if (options & TSK_DUMP_FORCE_OFFSET_64 || needs_64) {
+        type = KAS_UINT64;
+        data = col->offset_array;
+    } else {
+        offset32 = tsk_malloc(len * sizeof(*offset32));
+        if (offset32 == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
         }
         for (j = 0; j < len; j++) {
-            offset64[j] = col->offset_array[j];
+            offset32[j] = (uint32_t) col->offset_array[j];
         }
-        type = KAS_UINT64;
-        data = offset64;
-    } else {
         type = KAS_UINT32;
-        data = col->offset_array;
+        data = offset32;
     }
     ret = kastore_puts(store, offset_col_name, data, len, type, 0);
     if (ret != 0) {
@@ -388,7 +381,7 @@ write_offset_col(
         goto out;
     }
 out:
-    tsk_safe_free(offset64);
+    tsk_safe_free(offset32);
     return ret;
 }
 
