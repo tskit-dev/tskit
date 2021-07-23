@@ -733,7 +733,7 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
 {
     int ret;
     tsk_id_t ret_id;
-    tsk_treeseq_t *ts = malloc(sizeof(tsk_treeseq_t));
+    tsk_treeseq_t *ts = tsk_malloc(sizeof(tsk_treeseq_t));
     tsk_table_collection_t tables;
     tsk_id_t j, k, last_node, u;
     int state, m;
@@ -849,7 +849,7 @@ unsort_edges(tsk_edge_table_t *edges, size_t start)
 {
     size_t j, k;
     size_t n = edges->num_rows - start;
-    tsk_edge_t *buff = malloc(n * sizeof(tsk_edge_t));
+    tsk_edge_t *buff = tsk_malloc(n * sizeof(tsk_edge_t));
     CU_ASSERT_FATAL(buff != NULL);
 
     for (j = 0; j < n; j++) {
@@ -878,7 +878,7 @@ tskit_suite_init(void)
     _tmp_file_name = NULL;
     _devnull = NULL;
 
-    _tmp_file_name = malloc(sizeof(template));
+    _tmp_file_name = tsk_malloc(sizeof(template));
     if (_tmp_file_name == NULL) {
         return CUE_NOMEMORY;
     }

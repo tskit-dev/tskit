@@ -727,6 +727,38 @@ out:
     return ret;
 }
 
+static PyObject *
+table_get_offset_array(tsk_size_t num_rows, tsk_size_t *data)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array;
+    npy_intp dims = (npy_intp) num_rows + 1;
+
+    /* npy_intp j; */
+    /* uint32_t *offset32; */
+    /* /1* TODO make this conditional on the size of the data *1/ */
+    /* /1* Actually, this should probably always return a uint64. Let's get */
+    /*  * other stuff working first and see how much it breaks if we always */
+    /*  * return 64 bit. *1/ */
+    /* array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0); */
+    /* if (array == NULL) { */
+    /*     goto out; */
+    /* } */
+    /* offset32 = PyArray_DATA(array); */
+    /* for (j = 0; j < dims; j++) { */
+    /*     offset32[j] = (uint32_t) data[j]; */
+    /* } */
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT64, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), data, dims * sizeof(*data));
+
+    ret = (PyObject *) array;
+out:
+    return ret;
+}
+
 static FILE *
 make_file(PyObject *fileobj, const char *mode)
 {
@@ -1267,8 +1299,7 @@ IndividualTable_get_location_offset(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->location_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->location_offset);
 out:
     return ret;
 }
@@ -1295,8 +1326,7 @@ IndividualTable_get_parents_offset(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->parents_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->parents_offset);
 out:
     return ret;
 }
@@ -1323,8 +1353,7 @@ IndividualTable_get_metadata_offset(IndividualTable *self, void *closure)
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -1891,8 +1920,7 @@ NodeTable_get_metadata_offset(NodeTable *self, void *closure)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -2463,8 +2491,7 @@ EdgeTable_get_metadata_offset(EdgeTable *self, void *closure)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -2994,7 +3021,7 @@ MigrationTable_get_node(MigrationTable *self, void *closure)
         goto out;
     }
     ret = table_get_column_array(
-        self->table->num_rows, self->table->node, NPY_INT32, sizeof(uint32_t));
+        self->table->num_rows, self->table->node, NPY_INT32, sizeof(int32_t));
 out:
     return ret;
 }
@@ -3008,7 +3035,7 @@ MigrationTable_get_source(MigrationTable *self, void *closure)
         goto out;
     }
     ret = table_get_column_array(
-        self->table->num_rows, self->table->source, NPY_INT32, sizeof(uint32_t));
+        self->table->num_rows, self->table->source, NPY_INT32, sizeof(int32_t));
 out:
     return ret;
 }
@@ -3022,7 +3049,7 @@ MigrationTable_get_dest(MigrationTable *self, void *closure)
         goto out;
     }
     ret = table_get_column_array(
-        self->table->num_rows, self->table->dest, NPY_INT32, sizeof(uint32_t));
+        self->table->num_rows, self->table->dest, NPY_INT32, sizeof(int32_t));
 out:
     return ret;
 }
@@ -3049,8 +3076,7 @@ MigrationTable_get_metadata_offset(MigrationTable *self, void *closure)
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -3564,8 +3590,8 @@ SiteTable_get_ancestral_state_offset(SiteTable *self, void *closure)
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1,
-        self->table->ancestral_state_offset, NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(
+        self->table->num_rows, self->table->ancestral_state_offset);
 out:
     return ret;
 }
@@ -3592,8 +3618,7 @@ SiteTable_get_metadata_offset(SiteTable *self, void *closure)
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -4157,8 +4182,8 @@ MutationTable_get_derived_state_offset(MutationTable *self, void *closure)
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1,
-        self->table->derived_state_offset, NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(
+        self->table->num_rows, self->table->derived_state_offset);
 out:
     return ret;
 }
@@ -4185,8 +4210,7 @@ MutationTable_get_metadata_offset(MutationTable *self, void *closure)
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -4683,8 +4707,7 @@ PopulationTable_get_metadata_offset(PopulationTable *self, void *closure)
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->metadata_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
 out:
     return ret;
 }
@@ -5161,8 +5184,7 @@ ProvenanceTable_get_timestamp_offset(ProvenanceTable *self, void *closure)
     if (ProvenanceTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1,
-        self->table->timestamp_offset, NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->timestamp_offset);
 out:
     return ret;
 }
@@ -5189,8 +5211,7 @@ ProvenanceTable_get_record_offset(ProvenanceTable *self, void *closure)
     if (ProvenanceTable_check_state(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(self->table->num_rows + 1, self->table->record_offset,
-        NPY_UINT32, sizeof(uint32_t));
+    ret = table_get_offset_array(self->table->num_rows, self->table->record_offset);
 out:
     return ret;
 }
@@ -7740,10 +7761,10 @@ parse_sample_sets(PyObject *sample_set_sizes, PyArrayObject **ret_sample_set_siz
     npy_intp *shape;
     tsk_size_t num_sample_sets = 0;
     tsk_size_t j, sum;
-    uint32_t *a;
+    uint64_t *a;
 
     sample_set_sizes_array = (PyArrayObject *) PyArray_FROMANY(
-        sample_set_sizes, NPY_UINT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+        sample_set_sizes, NPY_UINT64, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (sample_set_sizes_array == NULL) {
         goto out;
     }
@@ -7763,7 +7784,7 @@ parse_sample_sets(PyObject *sample_set_sizes, PyArrayObject **ret_sample_set_siz
         goto out;
     }
     shape = PyArray_DIMS(sample_sets_array);
-    if (sum != (uint32_t) shape[0]) {
+    if (sum != (tsk_size_t) shape[0]) {
         PyErr_SetString(PyExc_ValueError,
             "Sum of sample_set_sizes must equal length of sample_sets array");
         goto out;
@@ -10449,7 +10470,7 @@ CompressedMatrix_get_num_transitions(CompressedMatrix *self, void *closure)
     }
     num_sites = self->compressed_matrix->num_sites;
     dims = (npy_intp) num_sites;
-    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0);
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT64, 0);
     if (array == NULL) {
         goto out;
     }
@@ -10685,7 +10706,7 @@ ViterbiMatrix_get_num_transitions(ViterbiMatrix *self, void *closure)
     num_sites = self->viterbi_matrix->matrix.num_sites;
     dims = (npy_intp) num_sites;
 
-    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0);
+    array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT64, 0);
     if (array == NULL) {
         goto out;
     }

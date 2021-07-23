@@ -242,7 +242,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
-    size_t num_trees_alloc = self->num_trees + 1;
+    tsk_size_t num_trees_alloc = self->num_trees + 1;
 
     self->tree_sites_length
         = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
@@ -621,7 +621,8 @@ static inline double *
 GET_3D_ROW(double *base, tsk_size_t num_nodes, tsk_size_t output_dim,
     tsk_size_t window_index, tsk_id_t u)
 {
-    size_t offset = window_index * num_nodes * output_dim + ((size_t) u) * output_dim;
+    tsk_size_t offset
+        = window_index * num_nodes * output_dim + ((tsk_size_t) u) * output_dim;
     return base + offset;
 }
 
@@ -631,8 +632,8 @@ static inline void
 increment_nd_array_value(double *array, tsk_size_t n, const tsk_size_t *shape,
     const tsk_size_t *coordinate, double value)
 {
-    size_t offset = 0;
-    size_t product = 1;
+    tsk_size_t offset = 0;
+    tsk_size_t product = 1;
     int k;
 
     for (k = (int) n - 1; k >= 0; k--) {
@@ -672,7 +673,7 @@ tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
     tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
     double *restrict length = tsk_calloc(num_focal, sizeof(*length));
     uint32_t *restrict ref_count
-        = tsk_calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
+        = tsk_calloc(((tsk_size_t) K) * num_nodes, sizeof(*ref_count));
     int16_t *restrict reference_set_map
         = tsk_malloc(num_nodes * sizeof(*reference_set_map));
     uint32_t *restrict row = NULL;

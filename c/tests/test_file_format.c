@@ -40,7 +40,7 @@ write_table_cols(kastore_t *store, write_table_col_t *write_cols, size_t num_col
 
     for (j = 0; j < num_cols; j++) {
         ret = kastore_puts(store, write_cols[j].name, write_cols[j].array,
-            write_cols[j].len, write_cols[j].type, 0);
+            (size_t) write_cols[j].len, write_cols[j].type, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
     }
 }
@@ -120,9 +120,9 @@ test_format_data_load_errors(void)
 
     L[0] = 1;
     L[1] = 0;
-    memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
+    tsk_memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
     /* Note: this will fail if we ever start parsing the form of the UUID */
-    memset(uuid, 0, uuid_size);
+    tsk_memset(uuid, 0, uuid_size);
 
     ret = kastore_open(&store, _tmp_file_name, "w", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -359,10 +359,10 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     int ret = 0;
     kastore_t store;
     tsk_table_collection_t tables;
-    tsk_size_t *offset_array, *offset_copy;
+    uint32_t *offset_array, *offset_copy;
     size_t offset_len;
     int type;
-    tsk_size_t data_len;
+    uint32_t data_len;
 
     ret = tsk_treeseq_dump(ts, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -371,10 +371,10 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
 
     ret = kastore_gets(&store, offset_col, (void **) &offset_array, &offset_len, &type);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(type, TSK_SIZE_STORAGE_TYPE);
+    CU_ASSERT_EQUAL_FATAL(type, KAS_UINT32);
     offset_copy = malloc(offset_len * sizeof(*offset_array));
     CU_ASSERT_FATAL(offset_copy != NULL);
-    memcpy(offset_copy, offset_array, offset_len * sizeof(*offset_array));
+    tsk_memcpy(offset_copy, offset_array, offset_len * sizeof(*offset_array));
     data_len = offset_array[offset_len - 1];
     CU_ASSERT_TRUE(data_len > 0);
     kastore_close(&store);
@@ -383,8 +383,7 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     copy_store_drop_columns(ts, 1, &offset_col, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(
-        &store, offset_col, offset_copy, offset_len, TSK_SIZE_STORAGE_TYPE, 0);
+    ret = kastore_puts(&store, offset_col, offset_copy, offset_len, KAS_UINT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -397,8 +396,7 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     copy_store_drop_columns(ts, 1, &offset_col, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(
-        &store, offset_col, offset_copy, offset_len, TSK_SIZE_STORAGE_TYPE, 0);
+    ret = kastore_puts(&store, offset_col, offset_copy, offset_len, KAS_UINT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -410,8 +408,7 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     copy_store_drop_columns(ts, 1, &offset_col, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(
-        &store, offset_col, offset_copy, offset_len, TSK_SIZE_STORAGE_TYPE, 0);
+    ret = kastore_puts(&store, offset_col, offset_copy, offset_len, KAS_UINT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -422,7 +419,7 @@ verify_bad_offset_columns(tsk_treeseq_t *ts, const char *offset_col)
     copy_store_drop_columns(ts, 1, &offset_col, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, offset_col, NULL, 0, TSK_SIZE_STORAGE_TYPE, 0);
+    ret = kastore_puts(&store, offset_col, NULL, 0, KAS_UINT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -566,8 +563,8 @@ test_malformed_indexes(void)
     tsk_table_collection_t tables;
     tsk_treeseq_t ts2;
     tsk_size_t num_edges = tsk_treeseq_get_num_edges(ts);
-    tsk_id_t *bad_index = calloc(num_edges, sizeof(tsk_id_t));
-    tsk_id_t *good_index = calloc(num_edges, sizeof(tsk_id_t));
+    tsk_id_t *bad_index = tsk_calloc(num_edges, sizeof(tsk_id_t));
+    tsk_id_t *good_index = tsk_calloc(num_edges, sizeof(tsk_id_t));
     kastore_t store;
     const char *cols[]
         = { "indexes/edge_insertion_order", "indexes/edge_removal_order" };
@@ -595,9 +592,11 @@ test_malformed_indexes(void)
     copy_store_drop_columns(ts, 2, cols, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[0], good_index, num_edges, TSK_ID_STORAGE_TYPE, 0);
+    ret = kastore_puts(
+        &store, cols[0], good_index, (size_t) num_edges, TSK_ID_STORAGE_TYPE, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[1], bad_index, num_edges, TSK_ID_STORAGE_TYPE, 0);
+    ret = kastore_puts(
+        &store, cols[1], bad_index, (size_t) num_edges, TSK_ID_STORAGE_TYPE, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -608,9 +607,11 @@ test_malformed_indexes(void)
     copy_store_drop_columns(ts, 2, cols, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[0], bad_index, num_edges, TSK_ID_STORAGE_TYPE, 0);
+    ret = kastore_puts(
+        &store, cols[0], bad_index, (size_t) num_edges, TSK_ID_STORAGE_TYPE, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[1], good_index, num_edges, TSK_ID_STORAGE_TYPE, 0);
+    ret = kastore_puts(
+        &store, cols[1], good_index, (size_t) num_edges, TSK_ID_STORAGE_TYPE, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -621,7 +622,7 @@ test_malformed_indexes(void)
     copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[0], bad_index, num_edges, KAS_FLOAT32, 0);
+    ret = kastore_puts(&store, cols[0], bad_index, (size_t) num_edges, KAS_FLOAT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -643,7 +644,7 @@ test_bad_column_types(void)
     tsk_table_collection_t tables;
     tsk_size_t num_edges = tsk_treeseq_get_num_edges(ts);
     /* make sure we have enough memory in all cases */
-    tsk_id_t *col_memory = calloc(num_edges + 1, sizeof(double));
+    tsk_id_t *col_memory = tsk_calloc(num_edges + 1, sizeof(double));
     kastore_t store;
     const char *cols[1];
 
@@ -653,7 +654,7 @@ test_bad_column_types(void)
     copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[0], col_memory, num_edges, KAS_FLOAT32, 0);
+    ret = kastore_puts(&store, cols[0], col_memory, (size_t) num_edges, KAS_FLOAT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -665,7 +666,8 @@ test_bad_column_types(void)
     copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = kastore_puts(&store, cols[0], col_memory, num_edges + 1, KAS_FLOAT32, 0);
+    ret = kastore_puts(
+        &store, cols[0], col_memory, (size_t) num_edges + 1, KAS_FLOAT32, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = kastore_close(&store);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -977,7 +979,7 @@ static void
 test_load_node_table_errors(void)
 {
     char format_name[TSK_FILE_FORMAT_NAME_LENGTH];
-    tsk_size_t uuid_size = 36;
+    size_t uuid_size = 36;
     char uuid[uuid_size];
     double L = 1;
     double time = 0;
@@ -985,8 +987,8 @@ test_load_node_table_errors(void)
     tsk_id_t population = 0;
     tsk_id_t individual = 0;
     int8_t metadata = 0;
-    tsk_size_t metadata_offset[] = { 0, 1 };
-    tsk_size_t version[2]
+    uint32_t metadata_offset[] = { 0, 1 };
+    uint32_t version[2]
         = { TSK_FILE_FORMAT_VERSION_MAJOR, TSK_FILE_FORMAT_VERSION_MINOR };
     write_table_col_t write_cols[] = {
         { "nodes/time", (void *) &time, 1, KAS_FLOAT64 },
@@ -994,7 +996,7 @@ test_load_node_table_errors(void)
         { "nodes/population", (void *) &population, 1, TSK_ID_STORAGE_TYPE },
         { "nodes/individual", (void *) &individual, 1, TSK_ID_STORAGE_TYPE },
         { "nodes/metadata", (void *) &metadata, 1, KAS_UINT8 },
-        { "nodes/metadata_offset", (void *) metadata_offset, 2, TSK_SIZE_STORAGE_TYPE },
+        { "nodes/metadata_offset", (void *) metadata_offset, 2, KAS_UINT32 },
         { "format/name", (void *) format_name, sizeof(format_name), KAS_INT8 },
         { "format/version", (void *) version, 2, KAS_UINT32 },
         { "uuid", (void *) uuid, uuid_size, KAS_INT8 },
@@ -1004,9 +1006,9 @@ test_load_node_table_errors(void)
     kastore_t store;
     int ret;
 
-    memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
+    tsk_memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
     /* Note: this will fail if we ever start parsing the form of the UUID */
-    memset(uuid, 0, uuid_size);
+    tsk_memset(uuid, 0, uuid_size);
 
     ret = kastore_open(&store, _tmp_file_name, "w", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);

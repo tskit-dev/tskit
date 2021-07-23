@@ -147,16 +147,9 @@ typedef int32_t tsk_id_t;
 The ``tsk_size_t`` type is an unsigned integer used for any size or count value.
 @endrst
 */
-#ifdef _TSK_BIG_TABLES
-/* TODO get rid of this typdef once we move to 64 bit sizes */
 typedef uint64_t tsk_size_t;
 #define TSK_MAX_SIZE UINT64_MAX
 #define TSK_SIZE_STORAGE_TYPE KAS_UINT64
-#else
-typedef uint32_t tsk_size_t;
-#define TSK_MAX_SIZE UINT32_MAX
-#define TSK_SIZE_STORAGE_TYPE KAS_UINT32
-#endif
 
 /**
 @brief Container for bitwise flags.
@@ -479,14 +472,13 @@ int tsk_generate_uuid(char *dest, int flags);
 
 /* TODO most of these can probably be macros so they compile out as no-ops.
  * Lets do the 64 bit tsk_size_t switch first though. */
-/* TODO most of these sizes get changed to tsk_size_t when we do the 64 bit switch */
-void *tsk_malloc(size_t size);
-void *tsk_realloc(void *ptr, size_t size);
-void *tsk_calloc(size_t n, size_t size);
-void *tsk_memset(void *ptr, int fill, size_t size);
-void *tsk_memcpy(void *dest, const void *src, size_t size);
-void *tsk_memmove(void *dest, const void *src, size_t size);
-int tsk_memcmp(const void *s1, const void *s2, size_t size);
+void *tsk_malloc(tsk_size_t size);
+void *tsk_realloc(void *ptr, tsk_size_t size);
+void *tsk_calloc(tsk_size_t n, size_t size);
+void *tsk_memset(void *ptr, int fill, tsk_size_t size);
+void *tsk_memcpy(void *dest, const void *src, tsk_size_t size);
+void *tsk_memmove(void *dest, const void *src, tsk_size_t size);
+int tsk_memcmp(const void *s1, const void *s2, tsk_size_t size);
 
 #ifdef __cplusplus
 }

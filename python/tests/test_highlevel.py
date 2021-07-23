@@ -1513,6 +1513,7 @@ class TestTreeSequence(HighLevelTestCase):
             for table in ts.tables.name_map:
                 assert re.search(rf"║{table.capitalize()} *│", s)
 
+    @pytest.mark.skip("FIXME nbytes")
     def test_nbytes(self, tmp_path, ts_fixture):
         ts_fixture.dump(tmp_path / "tables")
         store = kastore.load(tmp_path / "tables")

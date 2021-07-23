@@ -300,7 +300,7 @@ test_blkalloc(void)
             mem = tsk_blkalloc_get(&alloc, block_size);
             CU_ASSERT_TRUE(mem != NULL);
             CU_ASSERT_EQUAL(alloc.num_chunks, j + 1);
-            memset(mem, 0, block_size);
+            tsk_memset(mem, 0, block_size);
         }
 
         mem = tsk_blkalloc_get(&alloc, block_size + 1);
@@ -317,18 +317,18 @@ test_blkalloc(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     mem = tsk_blkalloc_get(&alloc, 90);
     CU_ASSERT_FATAL(mem != NULL);
-    memset(mem, 0, 90);
+    tsk_memset(mem, 0, 90);
     mem = tsk_blkalloc_get(&alloc, 10);
     CU_ASSERT_FATAL(mem != NULL);
-    memset(mem, 0, 10);
+    tsk_memset(mem, 0, 10);
     CU_ASSERT_EQUAL(alloc.num_chunks, 1);
     mem = tsk_blkalloc_get(&alloc, 90);
     CU_ASSERT_FATAL(mem != NULL);
-    memset(mem, 0, 90);
+    tsk_memset(mem, 0, 90);
     CU_ASSERT_EQUAL(alloc.num_chunks, 2);
     mem = tsk_blkalloc_get(&alloc, 11);
     CU_ASSERT_FATAL(mem != NULL);
-    memset(mem, 0, 11);
+    tsk_memset(mem, 0, 11);
     CU_ASSERT_EQUAL(alloc.num_chunks, 3);
 
     tsk_blkalloc_free(&alloc);
