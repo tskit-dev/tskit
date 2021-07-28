@@ -24,6 +24,7 @@
 Test cases for stats calculations in tskit.
 """
 import io
+import sys
 import unittest
 
 import msprime
@@ -190,6 +191,8 @@ class TestLdCalculator(unittest.TestCase):
         self.verify_matrix(ts)
         self.verify_max_distance(ts)
 
+    # https://github.com/tskit-dev/tskit/issues/1591
+    @pytest.mark.skipif(sys.maxsize <= 2 ** 32, reason="Skipping on 32 bit")
     def test_tree_sequence_simulated_mutations(self):
         ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10)
         assert ts.get_num_trees() > 10
