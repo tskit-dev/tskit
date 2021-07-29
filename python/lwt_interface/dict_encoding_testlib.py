@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -633,3 +633,52 @@ class TestLifecycle:
         tables2 = tables.copy()
         del tables
         assert tskit.TableCollection.fromdict(lwt_dict) == tables2
+
+
+class TestForceOffset64:
+    def get_offset_columns(self, dict_encoding):
+        for table_name, table in dict_encoding.items():
+            if isinstance(table, dict):
+                for name, array in table.items():
+                    if name.endswith("_offset"):
+                        yield f"{table_name}/{name}", array
+
+    def test_bad_args(self, tables):
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        for bad_type in [None, {}, "sdf"]:
+            with pytest.raises(TypeError):
+                lwt.asdict(bad_type)
+
+    def test_off_by_default(self, tables):
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        d = lwt.asdict()
+        for _, array in self.get_offset_columns(d):
+            assert array.dtype == np.uint32
+
+    def test_types_64(self, tables):
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        d = lwt.asdict(force_offset_64=True)
+        for _, array in self.get_offset_columns(d):
+            assert array.dtype == np.uint64
+
+    def test_types_32(self, tables):
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        d = lwt.asdict(force_offset_64=False)
+        for _, array in self.get_offset_columns(d):
+            assert array.dtype == np.uint32
+
+    def test_values_equal(self, tables):
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(tables.asdict())
+        d64 = lwt.asdict(force_offset_64=True)
+        d32 = lwt.asdict(force_offset_64=False)
+        offsets_64 = dict(self.get_offset_columns(d64))
+        offsets_32 = dict(self.get_offset_columns(d32))
+        for col_name, col_32 in offsets_32.items():
+            col_64 = offsets_64[col_name]
+            assert col_64.shape == col_32.shape
+            assert np.all(col_64 == col_32)

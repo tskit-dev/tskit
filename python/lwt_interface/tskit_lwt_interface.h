@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1458,72 +1458,205 @@ out:
     return ret;
 }
 
+typedef struct _tsklwt_table_col_t {
+    const char *name;
+    void *data;
+    npy_intp num_rows;
+    int type;
+} tsklwt_table_col_t;
+
+typedef struct _tsklwt_ragged_col_t {
+    const char *name;
+    void *data;
+    tsk_size_t *offset;
+    npy_intp num_rows;
+    npy_intp data_len;
+    int type;
+} tsklwt_ragged_col_t;
+
+typedef struct _tsklwt_table_desc_t {
+    const char *name;
+    tsklwt_table_col_t *cols;
+    tsklwt_ragged_col_t *ragged_cols;
+    char *metadata_schema;
+    tsk_size_t metadata_schema_length;
+} tsklwt_table_desc_t;
+
 static int
-write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
+write_table_col(const tsklwt_table_col_t *col, PyObject *table_dict)
 {
-    struct table_col {
-        const char *name;
-        void *data;
-        npy_intp num_rows;
-        int type;
-    };
-    struct table_desc {
-        const char *name;
-        struct table_col *cols;
-        char *metadata_schema;
-        tsk_size_t metadata_schema_length;
-    };
     int ret = -1;
-    PyObject *array = NULL;
+
+    PyArrayObject *array
+        = (PyArrayObject *) PyArray_EMPTY(1, &col->num_rows, col->type, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(array), col->data, col->num_rows * PyArray_ITEMSIZE(array));
+    if (PyDict_SetItemString(table_dict, col->name, (PyObject *) array) != 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    Py_XDECREF(array);
+    return ret;
+}
+
+static int
+write_ragged_col(
+    const tsklwt_ragged_col_t *col, PyObject *table_dict, bool force_offset_64)
+{
+    int ret = -1;
+    char offset_col_name[128];
+    npy_intp offset_len = col->num_rows + 1;
+    PyArrayObject *data_array = NULL;
+    PyArrayObject *offset_array = NULL;
+    bool offset_64 = force_offset_64; // || col->offset[col->num_rows] > UINT32_MAX
+    int offset_type = offset_64 ? NPY_UINT64 : NPY_UINT32;
+    /* TODO change this to 32 bit when we flip tsk_size_t over */
+    uint64_t *dest;
+    npy_intp j;
+
+    data_array = (PyArrayObject *) PyArray_EMPTY(1, &col->data_len, col->type, 0);
+    offset_array = (PyArrayObject *) PyArray_EMPTY(1, &offset_len, offset_type, 0);
+    if (data_array == NULL || offset_array == NULL) {
+        goto out;
+    }
+
+    memcpy(PyArray_DATA(data_array), col->data,
+        col->data_len * PyArray_ITEMSIZE(data_array));
+    if (offset_64) {
+        dest = (uint64_t *) PyArray_DATA(offset_array);
+        for (j = 0; j < offset_len; j++) {
+            dest[j] = col->offset[j];
+        }
+    } else {
+        memcpy(PyArray_DATA(offset_array), col->offset,
+            offset_len * PyArray_ITEMSIZE(offset_array));
+    }
+
+    assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
+    strcpy(offset_col_name, col->name);
+    strcat(offset_col_name, "_offset");
+
+    if (PyDict_SetItemString(table_dict, col->name, (PyObject *) data_array) != 0) {
+        goto out;
+    }
+    if (PyDict_SetItemString(table_dict, offset_col_name, (PyObject *) offset_array)
+        != 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    Py_XDECREF(data_array);
+    Py_XDECREF(offset_array);
+    return ret;
+}
+
+static PyObject *
+write_table_dict(const tsklwt_table_desc_t *table_desc, bool force_offset_64)
+{
+    PyObject *ret = NULL;
+    PyObject *str = NULL;
+    PyObject *table_dict = NULL;
+    tsklwt_table_col_t *col;
+    tsklwt_ragged_col_t *ragged_col;
+
+    table_dict = PyDict_New();
+    if (table_dict == NULL) {
+        goto out;
+    }
+    if (table_desc->cols != NULL) {
+        for (col = table_desc->cols; col->name != NULL; col++) {
+            if (write_table_col(col, table_dict) != 0) {
+                goto out;
+            }
+        }
+    }
+    if (table_desc->ragged_cols != NULL) {
+        for (ragged_col = table_desc->ragged_cols; ragged_col->name != NULL;
+             ragged_col++) {
+            if (write_ragged_col(ragged_col, table_dict, force_offset_64) != 0) {
+                goto out;
+            }
+        }
+    }
+    if (table_desc->metadata_schema_length > 0) {
+        str = make_Py_Unicode_FromStringAndLength(
+            table_desc->metadata_schema, table_desc->metadata_schema_length);
+        if (str == NULL) {
+            goto out;
+        }
+        if (PyDict_SetItemString(table_dict, "metadata_schema", str) != 0) {
+            goto out;
+        }
+    }
+    ret = table_dict;
+    table_dict = NULL;
+out:
+    Py_XDECREF(str);
+    Py_XDECREF(table_dict);
+    return ret;
+}
+
+static int
+write_table_arrays(
+    const tsk_table_collection_t *tables, PyObject *dict, bool force_offset_64)
+{
+    int ret = -1;
     PyObject *table_dict = NULL;
     size_t j;
-    struct table_col *col;
 
-    struct table_col individual_cols[] = {
+    tsklwt_table_col_t individual_cols[] = {
         { "flags", (void *) tables->individuals.flags, tables->individuals.num_rows,
             NPY_UINT32 },
-        { "location", (void *) tables->individuals.location,
-            tables->individuals.location_length, NPY_FLOAT64 },
-        { "location_offset", (void *) tables->individuals.location_offset,
-            tables->individuals.num_rows + 1, NPY_UINT32 },
-        { "parents", (void *) tables->individuals.parents,
-            tables->individuals.parents_length, NPY_INT32 },
-        { "parents_offset", (void *) tables->individuals.parents_offset,
-            tables->individuals.num_rows + 1, NPY_UINT32 },
-        { "metadata", (void *) tables->individuals.metadata,
-            tables->individuals.metadata_length, NPY_INT8 },
-        { "metadata_offset", (void *) tables->individuals.metadata_offset,
-            tables->individuals.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col node_cols[] = {
+    tsklwt_ragged_col_t individual_ragged_cols[] = {
+        { "location", (void *) tables->individuals.location,
+            tables->individuals.location_offset, tables->individuals.num_rows,
+            tables->individuals.location_length, NPY_FLOAT64 },
+        { "parents", (void *) tables->individuals.parents,
+            tables->individuals.parents_offset, tables->individuals.num_rows,
+            tables->individuals.parents_length, NPY_INT32 },
+        { "metadata", (void *) tables->individuals.metadata,
+            tables->individuals.metadata_offset, tables->individuals.num_rows,
+            tables->individuals.metadata_length, NPY_INT8 },
+        { NULL },
+    };
+
+    tsklwt_table_col_t node_cols[] = {
         { "time", (void *) tables->nodes.time, tables->nodes.num_rows, NPY_FLOAT64 },
         { "flags", (void *) tables->nodes.flags, tables->nodes.num_rows, NPY_UINT32 },
         { "population", (void *) tables->nodes.population, tables->nodes.num_rows,
             NPY_INT32 },
         { "individual", (void *) tables->nodes.individual, tables->nodes.num_rows,
             NPY_INT32 },
-        { "metadata", (void *) tables->nodes.metadata, tables->nodes.metadata_length,
-            NPY_INT8 },
-        { "metadata_offset", (void *) tables->nodes.metadata_offset,
-            tables->nodes.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col edge_cols[] = {
+    tsklwt_ragged_col_t node_ragged_cols[] = {
+        { "metadata", (void *) tables->nodes.metadata, tables->nodes.metadata_offset,
+            tables->nodes.num_rows, tables->nodes.metadata_length, NPY_INT8 },
+        { NULL },
+    };
+
+    tsklwt_table_col_t edge_cols[] = {
         { "left", (void *) tables->edges.left, tables->edges.num_rows, NPY_FLOAT64 },
         { "right", (void *) tables->edges.right, tables->edges.num_rows, NPY_FLOAT64 },
         { "parent", (void *) tables->edges.parent, tables->edges.num_rows, NPY_INT32 },
         { "child", (void *) tables->edges.child, tables->edges.num_rows, NPY_INT32 },
-        { "metadata", (void *) tables->edges.metadata, tables->edges.metadata_length,
-            NPY_INT8 },
-        { "metadata_offset", (void *) tables->edges.metadata_offset,
-            tables->edges.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col migration_cols[] = {
+    tsklwt_ragged_col_t edge_ragged_cols[] = {
+        { "metadata", (void *) tables->edges.metadata, tables->edges.metadata_offset,
+            tables->edges.num_rows, tables->edges.metadata_length, NPY_INT8 },
+        { NULL },
+    };
+
+    tsklwt_table_col_t migration_cols[] = {
         { "left", (void *) tables->migrations.left, tables->migrations.num_rows,
             NPY_FLOAT64 },
         { "right", (void *) tables->migrations.right, tables->migrations.num_rows,
@@ -1536,29 +1669,32 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
             NPY_INT32 },
         { "time", (void *) tables->migrations.time, tables->migrations.num_rows,
             NPY_FLOAT64 },
-        { "metadata", (void *) tables->migrations.metadata,
-            tables->migrations.metadata_length, NPY_INT8 },
-        { "metadata_offset", (void *) tables->migrations.metadata_offset,
-            tables->migrations.num_rows + 1, NPY_UINT32 },
-
         { NULL },
     };
 
-    struct table_col site_cols[] = {
+    tsklwt_ragged_col_t migration_ragged_cols[] = {
+        { "metadata", (void *) tables->migrations.metadata,
+            tables->migrations.metadata_offset, tables->migrations.num_rows,
+            tables->migrations.metadata_length, NPY_INT8 },
+        { NULL },
+    };
+
+    tsklwt_table_col_t site_cols[] = {
         { "position", (void *) tables->sites.position, tables->sites.num_rows,
             NPY_FLOAT64 },
-        { "ancestral_state", (void *) tables->sites.ancestral_state,
-            tables->sites.ancestral_state_length, NPY_INT8 },
-        { "ancestral_state_offset", (void *) tables->sites.ancestral_state_offset,
-            tables->sites.num_rows + 1, NPY_UINT32 },
-        { "metadata", (void *) tables->sites.metadata, tables->sites.metadata_length,
-            NPY_INT8 },
-        { "metadata_offset", (void *) tables->sites.metadata_offset,
-            tables->sites.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col mutation_cols[] = {
+    tsklwt_ragged_col_t site_ragged_cols[] = {
+        { "ancestral_state", (void *) tables->sites.ancestral_state,
+            tables->sites.ancestral_state_offset, tables->sites.num_rows,
+            tables->sites.ancestral_state_length, NPY_INT8 },
+        { "metadata", (void *) tables->sites.metadata, tables->sites.metadata_offset,
+            tables->sites.num_rows, tables->sites.metadata_length, NPY_INT8 },
+        { NULL },
+    };
+
+    tsklwt_table_col_t mutation_cols[] = {
         { "site", (void *) tables->mutations.site, tables->mutations.num_rows,
             NPY_INT32 },
         { "node", (void *) tables->mutations.node, tables->mutations.num_rows,
@@ -1567,38 +1703,37 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
             NPY_FLOAT64 },
         { "parent", (void *) tables->mutations.parent, tables->mutations.num_rows,
             NPY_INT32 },
+        { NULL },
+    };
+
+    tsklwt_ragged_col_t mutation_ragged_cols[] = {
         { "derived_state", (void *) tables->mutations.derived_state,
+            tables->mutations.derived_state_offset, tables->mutations.num_rows,
             tables->mutations.derived_state_length, NPY_INT8 },
-        { "derived_state_offset", (void *) tables->mutations.derived_state_offset,
-            tables->mutations.num_rows + 1, NPY_UINT32 },
         { "metadata", (void *) tables->mutations.metadata,
+            tables->mutations.metadata_offset, tables->mutations.num_rows,
             tables->mutations.metadata_length, NPY_INT8 },
-        { "metadata_offset", (void *) tables->mutations.metadata_offset,
-            tables->mutations.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col population_cols[] = {
+    tsklwt_ragged_col_t population_ragged_cols[] = {
         { "metadata", (void *) tables->populations.metadata,
+            tables->populations.metadata_offset, tables->populations.num_rows,
             tables->populations.metadata_length, NPY_INT8 },
-        { "metadata_offset", (void *) tables->populations.metadata_offset,
-            tables->populations.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col provenance_cols[] = {
+    tsklwt_ragged_col_t provenance_ragged_cols[] = {
         { "timestamp", (void *) tables->provenances.timestamp,
+            tables->provenances.timestamp_offset, tables->provenances.num_rows,
             tables->provenances.timestamp_length, NPY_INT8 },
-        { "timestamp_offset", (void *) tables->provenances.timestamp_offset,
-            tables->provenances.num_rows + 1, NPY_UINT32 },
         { "record", (void *) tables->provenances.record,
+            tables->provenances.record_offset, tables->provenances.num_rows,
             tables->provenances.record_length, NPY_INT8 },
-        { "record_offset", (void *) tables->provenances.record_offset,
-            tables->provenances.num_rows + 1, NPY_UINT32 },
         { NULL },
     };
 
-    struct table_col indexes_cols[] = {
+    tsklwt_table_col_t indexes_cols[] = {
         { "edge_insertion_order", (void *) tables->indexes.edge_insertion_order,
             tables->indexes.num_edges, NPY_INT32 },
         { "edge_removal_order", (void *) tables->indexes.edge_removal_order,
@@ -1606,83 +1741,56 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
         { NULL },
     };
 
-    struct table_col no_indexes_cols[] = {
+    tsklwt_table_col_t no_indexes_cols[] = {
         { NULL },
     };
 
-    struct table_desc table_descs[] = {
-        { "individuals", individual_cols, tables->individuals.metadata_schema,
+    tsklwt_table_desc_t table_descs[] = {
+        { "individuals", individual_cols, individual_ragged_cols,
+            tables->individuals.metadata_schema,
             tables->individuals.metadata_schema_length },
-        { "nodes", node_cols, tables->nodes.metadata_schema,
+        { "nodes", node_cols, node_ragged_cols, tables->nodes.metadata_schema,
             tables->nodes.metadata_schema_length },
-        { "edges", edge_cols, tables->edges.metadata_schema,
+        { "edges", edge_cols, edge_ragged_cols, tables->edges.metadata_schema,
             tables->edges.metadata_schema_length },
-        { "migrations", migration_cols, tables->migrations.metadata_schema,
+        { "migrations", migration_cols, migration_ragged_cols,
+            tables->migrations.metadata_schema,
             tables->migrations.metadata_schema_length },
-        { "sites", site_cols, tables->sites.metadata_schema,
+        { "sites", site_cols, site_ragged_cols, tables->sites.metadata_schema,
             tables->sites.metadata_schema_length },
-        { "mutations", mutation_cols, tables->mutations.metadata_schema,
+        { "mutations", mutation_cols, mutation_ragged_cols,
+            tables->mutations.metadata_schema,
             tables->mutations.metadata_schema_length },
-        { "populations", population_cols, tables->populations.metadata_schema,
+        { "populations", NULL, population_ragged_cols,
+            tables->populations.metadata_schema,
             tables->populations.metadata_schema_length },
-        { "provenances", provenance_cols, NULL, 0 },
+        { "provenances", NULL, provenance_ragged_cols, NULL, 0 },
         /* We don't want to insert empty indexes, return an empty dict if there are none
          */
         { "indexes",
             tsk_table_collection_has_index(tables, 0) ? indexes_cols : no_indexes_cols,
-            NULL, 0 },
+            NULL, NULL, 0 },
     };
 
     for (j = 0; j < sizeof(table_descs) / sizeof(*table_descs); j++) {
-        table_dict = PyDict_New();
+        table_dict = write_table_dict(&table_descs[j], force_offset_64);
         if (table_dict == NULL) {
             goto out;
         }
-        col = table_descs[j].cols;
-        while (col->name != NULL) {
-            array = (PyObject *) PyArray_EMPTY(1, &col->num_rows, col->type, 0);
-            if (array == NULL) {
-                goto out;
-            }
-            memcpy(PyArray_DATA((PyArrayObject *) array), col->data,
-                col->num_rows * PyArray_ITEMSIZE((PyArrayObject *) array));
-            if (PyDict_SetItemString(table_dict, col->name, array) != 0) {
-                goto out;
-            }
-            Py_DECREF(array);
-            array = NULL;
-            col++;
-        }
-        if (table_descs[j].metadata_schema_length > 0) {
-            array = make_Py_Unicode_FromStringAndLength(
-                table_descs[j].metadata_schema, table_descs[j].metadata_schema_length);
-            if (array == NULL) {
-                goto out;
-            }
-            if (PyDict_SetItemString(table_dict, "metadata_schema", array) != 0) {
-                goto out;
-            }
-            Py_DECREF(array);
-            array = NULL;
-        }
-
         if (PyDict_SetItemString(dict, table_descs[j].name, table_dict) != 0) {
             goto out;
         }
         Py_DECREF(table_dict);
-        table_dict = NULL;
     }
 
     ret = 0;
 out:
-    Py_XDECREF(array);
-    Py_XDECREF(table_dict);
     return ret;
 }
 
 /* Returns a dictionary encoding of the specified table collection */
 static PyObject *
-dump_tables_dict(tsk_table_collection_t *tables)
+dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
 {
     PyObject *ret = NULL;
     PyObject *dict = NULL;
@@ -1740,7 +1848,7 @@ dump_tables_dict(tsk_table_collection_t *tables)
         val = NULL;
     }
 
-    err = write_table_arrays(tables, dict);
+    err = write_table_arrays(tables, dict, force_offset_64);
     if (err != 0) {
         goto out;
     }
@@ -1809,14 +1917,20 @@ out:
 }
 
 static PyObject *
-LightweightTableCollection_asdict(LightweightTableCollection *self)
+LightweightTableCollection_asdict(
+    LightweightTableCollection *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
+    static char *kwlist[] = { "force_offset_64", NULL };
+    int force_offset_64 = 0;
 
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &force_offset_64)) {
+        goto out;
+    }
     if (LightweightTableCollection_check_state(self) != 0) {
         goto out;
     }
-    ret = dump_tables_dict(self->tables);
+    ret = dump_tables_dict(self->tables, force_offset_64);
 out:
     return ret;
 }
@@ -1846,7 +1960,7 @@ out:
 static PyMethodDef LightweightTableCollection_methods[] = {
     { .ml_name = "asdict",
         .ml_meth = (PyCFunction) LightweightTableCollection_asdict,
-        .ml_flags = METH_NOARGS,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Returns the tables encoded as a dictionary." },
     { .ml_name = "fromdict",
         .ml_meth = (PyCFunction) LightweightTableCollection_fromdict,
