@@ -1503,24 +1503,37 @@ out:
 }
 
 static int
-write_ragged_col(const tsklwt_ragged_col_t *col, PyObject *table_dict)
+write_ragged_col(
+    const tsklwt_ragged_col_t *col, PyObject *table_dict, bool force_offset_64)
 {
     int ret = -1;
     char offset_col_name[128];
     npy_intp offset_len = col->num_rows + 1;
-    PyArrayObject *data_array
-        = (PyArrayObject *) PyArray_EMPTY(1, &col->data_len, col->type, 0);
-    PyArrayObject *offset_array
-        = (PyArrayObject *) PyArray_EMPTY(1, &offset_len, NPY_UINT32, 0);
+    PyArrayObject *data_array = NULL;
+    PyArrayObject *offset_array = NULL;
+    bool offset_64 = force_offset_64; // || col->offset[col->num_rows] > UINT32_MAX
+    int offset_type = offset_64 ? NPY_UINT64 : NPY_UINT32;
+    /* TODO change this to 32 bit when we flip tsk_size_t over */
+    uint64_t *dest;
+    npy_intp j;
 
+    data_array = (PyArrayObject *) PyArray_EMPTY(1, &col->data_len, col->type, 0);
+    offset_array = (PyArrayObject *) PyArray_EMPTY(1, &offset_len, offset_type, 0);
     if (data_array == NULL || offset_array == NULL) {
         goto out;
     }
 
     memcpy(PyArray_DATA(data_array), col->data,
         col->data_len * PyArray_ITEMSIZE(data_array));
-    memcpy(PyArray_DATA(offset_array), col->offset,
-        offset_len * PyArray_ITEMSIZE(offset_array));
+    if (offset_64) {
+        dest = (uint64_t *) PyArray_DATA(offset_array);
+        for (j = 0; j < offset_len; j++) {
+            dest[j] = col->offset[j];
+        }
+    } else {
+        memcpy(PyArray_DATA(offset_array), col->offset,
+            offset_len * PyArray_ITEMSIZE(offset_array));
+    }
 
     assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
     strcpy(offset_col_name, col->name);
@@ -1541,7 +1554,7 @@ out:
 }
 
 static PyObject *
-write_table_dict(const tsklwt_table_desc_t *table_desc)
+write_table_dict(const tsklwt_table_desc_t *table_desc, bool force_offset_64)
 {
     PyObject *ret = NULL;
     PyObject *str = NULL;
@@ -1563,7 +1576,7 @@ write_table_dict(const tsklwt_table_desc_t *table_desc)
     if (table_desc->ragged_cols != NULL) {
         for (ragged_col = table_desc->ragged_cols; ragged_col->name != NULL;
              ragged_col++) {
-            if (write_ragged_col(ragged_col, table_dict) != 0) {
+            if (write_ragged_col(ragged_col, table_dict, force_offset_64) != 0) {
                 goto out;
             }
         }
@@ -1587,7 +1600,8 @@ out:
 }
 
 static int
-write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
+write_table_arrays(
+    const tsk_table_collection_t *tables, PyObject *dict, bool force_offset_64)
 {
     int ret = -1;
     PyObject *table_dict = NULL;
@@ -1759,7 +1773,7 @@ write_table_arrays(tsk_table_collection_t *tables, PyObject *dict)
     };
 
     for (j = 0; j < sizeof(table_descs) / sizeof(*table_descs); j++) {
-        table_dict = write_table_dict(&table_descs[j]);
+        table_dict = write_table_dict(&table_descs[j], force_offset_64);
         if (table_dict == NULL) {
             goto out;
         }
@@ -1776,7 +1790,7 @@ out:
 
 /* Returns a dictionary encoding of the specified table collection */
 static PyObject *
-dump_tables_dict(tsk_table_collection_t *tables)
+dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
 {
     PyObject *ret = NULL;
     PyObject *dict = NULL;
@@ -1834,7 +1848,7 @@ dump_tables_dict(tsk_table_collection_t *tables)
         val = NULL;
     }
 
-    err = write_table_arrays(tables, dict);
+    err = write_table_arrays(tables, dict, force_offset_64);
     if (err != 0) {
         goto out;
     }
@@ -1903,14 +1917,20 @@ out:
 }
 
 static PyObject *
-LightweightTableCollection_asdict(LightweightTableCollection *self)
+LightweightTableCollection_asdict(
+    LightweightTableCollection *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
+    static char *kwlist[] = { "force_offset_64", NULL };
+    int force_offset_64 = 0;
 
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &force_offset_64)) {
+        goto out;
+    }
     if (LightweightTableCollection_check_state(self) != 0) {
         goto out;
     }
-    ret = dump_tables_dict(self->tables);
+    ret = dump_tables_dict(self->tables, force_offset_64);
 out:
     return ret;
 }
@@ -1940,7 +1960,7 @@ out:
 static PyMethodDef LightweightTableCollection_methods[] = {
     { .ml_name = "asdict",
         .ml_meth = (PyCFunction) LightweightTableCollection_asdict,
-        .ml_flags = METH_NOARGS,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Returns the tables encoded as a dictionary." },
     { .ml_name = "fromdict",
         .ml_meth = (PyCFunction) LightweightTableCollection_fromdict,
