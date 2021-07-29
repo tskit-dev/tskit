@@ -456,6 +456,173 @@ class TestTableMethods:
         for i, expected_row in enumerate(expected_rows):
             assert table[len(table_copy) + i] == table_copy[expected_row]
 
+    @pytest.mark.parametrize(
+        ["table_name", "column_name"],
+        [
+            (t, c)
+            for t in tskit.TABLE_NAMES
+            for c in getattr(tskit, f"{t[:-1].capitalize()}Table").column_names
+            if c[-7:] != "_offset"
+        ],
+    )
+    def test_table_update(self, ts_fixture, table_name, column_name):
+        table = getattr(ts_fixture.tables, table_name)
+        copy = table.copy()
+        ll_table = table.ll_table
+
+        # Find the first row where this column differs to get a value to swap in
+        other_row_index = -1
+        for i, row in enumerate(table):
+            if not np.array_equal(
+                getattr(table[0], column_name), getattr(row, column_name)
+            ):
+                other_row_index = i
+        assert other_row_index != -1
+
+        # No-op update should not create a change
+        args = ll_table.get_row(0)
+        ll_table.update_row(0, *args)
+        table.assert_equals(copy)
+
+        # Modify the column under test in the first row
+        new_args = list(ll_table.get_row(0))
+        arg_index = list(inspect.signature(table.add_row).parameters.keys()).index(
+            column_name
+        )
+        new_args[arg_index] = ll_table.get_row(other_row_index)[arg_index]
+        ll_table.update_row(0, *new_args)
+        for a, b in zip(ll_table.get_row(0), new_args):
+            np.array_equal(a, b)
+
+    def test_update_defaults(self):
+        t = tskit.IndividualTable()
+        assert t.add_row(flags=1, location=[1, 2], parents=[3, 4], metadata=b"FOO") == 0
+        t.ll_table.update_row(0)
+        assert t.flags[0] == 0
+        assert len(t.location) == 0
+        assert t.location_offset[0] == 0
+        assert len(t.parents) == 0
+        assert t.parents_offset[0] == 0
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+
+        t = tskit.NodeTable()
+        assert (
+            t.add_row(flags=1, time=2, population=3, individual=4, metadata=b"FOO") == 0
+        )
+        t.ll_table.update_row(0)
+        assert t.time[0] == 0
+        assert t.flags[0] == 0
+        assert t.population[0] == tskit.NULL
+        assert t.individual[0] == tskit.NULL
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+
+        t = tskit.EdgeTable()
+        assert t.add_row(1, 2, 3, 4, metadata=b"FOO") == 0
+        t.ll_table.update_row(0, 1, 2, 3, 4)
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+
+        t = tskit.MigrationTable()
+        assert t.add_row(1, 2, 3, 4, 5, 6, b"FOO") == 0
+        t.ll_table.update_row(0, 1, 2, 3, 4, 5, 6)
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+
+        t = tskit.MutationTable()
+        assert t.add_row(1, 2, "A", 3, b"FOO", 4) == 0
+        t.ll_table.update_row(0, 1, 2, "A", 3)
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+        assert tskit.is_unknown_time(t.time[0])
+
+        t = tskit.PopulationTable()
+        assert t.add_row(b"FOO") == 0
+        t.ll_table.update_row(0)
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+
+    def test_update_bad_data(self):
+        t = tskit.IndividualTable()
+        t.add_row()
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, flags="x")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, metadata=123)
+        with pytest.raises(ValueError):
+            t.ll_table.update_row(0, location="1234")
+        with pytest.raises(ValueError):
+            t.ll_table.update_row(0, parents="forty-two")
+
+        t = tskit.NodeTable()
+        t.add_row()
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, flags="x")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, time="x")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, individual="x")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, population="x")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, metadata=123)
+
+        t = tskit.EdgeTable()
+        t.add_row(1, 2, 3, 4)
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, left="x", right=0, parent=0, child=0)
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(
+                0,
+            )
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, 0, 0, 0, metadata=123)
+
+        t = tskit.SiteTable()
+        t.add_row(0, "A")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, "x", "A")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, 0)
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, "A", metadata=[0, 1, 2])
+
+        t = tskit.MutationTable()
+        t.add_row(0, 0, "A")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, "0", 0, "A")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, "0", "A")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, 0, "A", parent=None)
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, 0, "A", metadata=[0])
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, 0, "A", time="A")
+
+        t = tskit.MigrationTable()
+        with pytest.raises(TypeError):
+            t.add_row(left="x", right=0, node=0, source=0, dest=0, time=0)
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(
+                0,
+            )
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, 0, 0, 0, 0, 0, metadata=123)
+
+        t = tskit.ProvenanceTable()
+        t.add_row("a", "b")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, 0, "b")
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, "a", 0)
+
+        t = tskit.PopulationTable()
+        t.add_row()
+        with pytest.raises(TypeError):
+            t.ll_table.update_row(0, metadata=[0])
+
 
 class TestTableMethodsErrors:
     """
@@ -501,6 +668,24 @@ class TestTableMethodsErrors:
         for dtype in [np.uint32, np.int64, np.uint64, np.float32, np.float64]:
             with pytest.raises(TypeError, match="Cannot cast"):
                 ll_table.extend(ll_table_copy, row_indexes=np.array([0], dtype=dtype))
+
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    def test_update_bad_row_index(self, ts_fixture, table_name):
+        table = getattr(ts_fixture.tables, table_name)
+        ll_table = table.ll_table
+        row_data = ll_table.get_row(0)
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            ll_table.update_row(-1, *row_data)
+        with pytest.raises(ValueError, match="tskit ids must be"):
+            ll_table.update_row(-42, *row_data)
+        with pytest.raises(TypeError):
+            ll_table.update_row([], *row_data)
+        with pytest.raises(TypeError):
+            ll_table.update_row("abc", *row_data)
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            ll_table.update_row(10000, *row_data)
+        with pytest.raises(OverflowError, match="Value too large for tskit id type"):
+            ll_table.update_row(2 ** 62, *row_data)
 
     def test_equals_bad_args(self, ts_fixture):
         for ll_table in self.yield_tables(ts_fixture):

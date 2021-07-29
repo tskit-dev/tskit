@@ -24,7 +24,7 @@ Configuration and fixtures for pytest. Only put test-suite wide fixtures in here
 specific fixtures should live in their modules.
 
 To use a fixture in a test simply refer to it by name as an argument. This is called
-dependancy injection. Note that all fixtures should have the suffix "_fixture" to make
+dependency injection. Note that all fixtures should have the suffix "_fixture" to make
 it clear in test code.
 
 For example to use the `ts` fixture (a tree sequence with data in all fields) in a test:
@@ -120,6 +120,7 @@ def ts_fixture():
         demography=demography,
         sequence_length=5,
         random_seed=42,
+        recombination_rate=1,
         record_migrations=True,
         record_provenance=True,
     )
@@ -130,8 +131,23 @@ def ts_fixture():
     tables.individuals.clear()
     for i, individual in enumerate(individuals_copy):
         tables.individuals.append(
-            individual.replace(location=[i, i + 1], parents=[i - 1, i - 1])
+            individual.replace(flags=i, location=[i, i + 1], parents=[i - 1, i - 1])
         )
+    # Ensure all columns have unique values
+    nodes_copy = tables.nodes.copy()
+    tables.nodes.clear()
+    for i, node in enumerate(nodes_copy):
+        tables.nodes.append(
+            node.replace(
+                flags=i,
+                time=node.time + 0.00001 * i,
+                individual=i % len(tables.individuals),
+                population=i % len(tables.populations),
+            )
+        )
+    tables.migrations.add_row(left=0, right=1, node=21, source=1, dest=3, time=1001)
+
+    # Add metadata
     for name, table in tables.name_map.items():
         if name != "provenances":
             table.metadata_schema = tskit.MetadataSchema({"codec": "json"})

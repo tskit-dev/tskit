@@ -1721,6 +1721,13 @@ class TestMutationTable(*common_tests):
         with pytest.raises(IndexError):
             t.__getitem__(-4)
 
+    def test_add_row_defaults(self):
+        t = tskit.MutationTable()
+        assert t.add_row(0, 0, "A", 0) == 0
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
+        assert tskit.is_unknown_time(t.time[0])
+
     def test_add_row_bad_data(self):
         t = tskit.MutationTable()
         t.add_row(0, 0, "A")
@@ -1871,6 +1878,12 @@ class TestPopulationTable(*common_tests):
         assert dataclasses.astuple(t[1]) == (b"1",)
         with pytest.raises(IndexError):
             t.__getitem__(-3)
+
+    def test_add_row_defaults(self):
+        t = tskit.PopulationTable()
+        assert t.add_row() == 0
+        assert len(t.metadata) == 0
+        assert t.metadata_offset[0] == 0
 
     def test_add_row_bad_data(self):
         t = tskit.PopulationTable()
@@ -2409,7 +2422,7 @@ class TestSortMutations:
         1       0       1               -2
         """
         )
-        with pytest.raises(_tskit.LibraryError):
+        with pytest.raises(ValueError):
             tskit.load_text(
                 nodes=nodes,
                 edges=edges,
@@ -3447,11 +3460,12 @@ class TestTableCollection:
         tables.sequence_length = 20
         ts = tables.tree_sequence()
         assert ts.sequence_length == 20
-        assert ts.num_trees == 2
+        assert ts.num_trees == 6
         trees = ts.trees()
         tree = next(trees)
         assert len(tree.parent_dict) > 0
-        tree = next(trees)
+        for _ in range(5):
+            tree = next(trees)
         assert len(tree.parent_dict) == 0
 
     def test_indexes(self, simple_degree1_ts_fixture):
