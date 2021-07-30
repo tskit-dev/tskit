@@ -448,6 +448,64 @@ class CommonTestsMixin:
         with pytest.raises(AttributeError, match="'NotADuck' object has no attribute"):
             self.table_class().append(NotADuck())
 
+    def test_setitem(self):
+        table = self.table_class()
+        for row in self.make_transposed_input_data(10):
+            table.append(table.row_class(**row))
+        table2 = self.table_class()
+        for row in self.make_transposed_input_data(20)[10:]:
+            table2.append(table.row_class(**row))
+        assert table != table2
+
+        copy = table.copy()
+        for j in range(10):
+            table[j] = table[j]
+        table.assert_equals(copy)
+
+        for j in range(10):
+            table[j] = table2[j]
+        table.assert_equals(table2)
+
+    def test_setitem_duck_type(self):
+        class Duck:
+            pass
+
+        table = self.table_class()
+        for row in self.make_transposed_input_data(10):
+            table.append(table.row_class(**row))
+        table2 = self.table_class()
+        for row in self.make_transposed_input_data(20)[10:]:
+            table2.append(table.row_class(**row))
+        assert table != table2
+
+        for j in range(10):
+            duck = Duck()
+            for k, v in dataclasses.asdict(table2[j]).items():
+                setattr(duck, k, v)
+            table[j] = duck
+        table.assert_equals(table2)
+
+    def test_setitem_error(self):
+        class NotADuck:
+            pass
+
+        table = self.table_class()
+        table.append(table.row_class(**self.make_transposed_input_data(1)[0]))
+        with pytest.raises(AttributeError, match="'NotADuck' object has no attribute"):
+            table[0] = NotADuck()
+
+        with pytest.raises(IndexError, match="Index out of bounds"):
+            self.table_class()[0] = table[0]
+        with pytest.raises(IndexError, match="Index out of bounds"):
+            self.table_class()[-1] = table[0]
+
+        with pytest.raises(TypeError, match="Index must be integer"):
+            self.table_class()[0.5] = table[0]
+        with pytest.raises(TypeError, match="Index must be integer"):
+            self.table_class()[None] = table[0]
+        with pytest.raises(TypeError, match="Index must be integer"):
+            self.table_class()[[1]] = table[0]
+
     def test_set_columns_data(self):
         for num_rows in [0, 10, 100, 1000]:
             input_data = {col.name: col.get_input(num_rows) for col in self.columns}
@@ -1346,12 +1404,6 @@ class FancyIndexingMixin:
             table[None]
         with pytest.raises(TypeError, match="not supported between instances"):
             table["foobar"]
-
-    def test_not_writable(self, table):
-        with pytest.raises(TypeError, match="object does not support item assignment"):
-            table[5] = 5
-        with pytest.raises(TypeError, match="object does not support item assignment"):
-            table[[5]] = 5
 
 
 common_tests = [
@@ -4665,3 +4717,14 @@ class TestSubsetUnion:
         tables.compute_mutation_times()
         ts = tables.tree_sequence()
         self.verify_subset_union(ts)
+
+
+class TestTableSetitemMetadata:
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    def test_setitem_metadata(self, ts_fixture, table_name):
+        table = getattr(ts_fixture.tables, table_name)
+        if hasattr(table, "metadata_schema"):
+            assert table.metadata_schema == tskit.MetadataSchema({"codec": "json"})
+            assert table[0].metadata != table[1].metadata
+            table[0] = table[1]
+            assert table[0] == table[1]

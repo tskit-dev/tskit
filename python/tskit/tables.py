@@ -344,7 +344,7 @@ class BaseTable:
         is True. Note that as the result is a new table, the row ids will change as tskit
         row ids are row indexes.
 
-        :param index: the zero-index of a desired row, a slice of the desired rows, an
+        :param index: the index of a desired row, a slice of the desired rows, an
             iterable or array of the desired row numbers, or a boolean array to use as
             a mask.
         """
@@ -373,6 +373,43 @@ class BaseTable:
         ret.ll_table.extend(self.ll_table, row_indexes=index)
 
         return ret
+
+    def __setitem__(self, index, new_row):
+        """
+        Replaces a row of this table at the specified index with information from a
+        row-like object. Metadata, will be validated and encoded according to the table's
+        :attr:`metadata_schema<tskit.IndividualTable.metadata_schema>`.
+
+        :param index: the index of the row to change
+        :param row-like new_row: An object that has attributes corresponding to the
+            properties of the new row. Both the objects returned from ``table[i]`` and
+            e.g. ``ts.individual(i)`` work for this purpose, along with any other
+            object with the correct attributes.
+        """
+        if isinstance(index, numbers.Integral):
+            # Single row by integer
+            if index < 0:
+                index += len(self)
+            if index < 0 or index >= len(self):
+                raise IndexError("Index out of bounds")
+        else:
+            raise TypeError("Index must be integer")
+
+        row_data = {
+            column: getattr(new_row, column)
+            for column in self.column_names
+            if "_offset" not in column
+        }
+
+        # Encode the metadata - note that if this becomes a perf bottleneck it is
+        # possible to use the cached, encoded metadata in the row object, rather than
+        # decode and reencode
+        if "metadata" in row_data:
+            row_data["metadata"] = self.metadata_schema.validate_and_encode_row(
+                row_data["metadata"]
+            )
+
+        self.ll_table.update_row(row_index=index, **row_data)
 
     def append(self, row):
         """
