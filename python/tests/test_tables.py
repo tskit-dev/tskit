@@ -3229,6 +3229,26 @@ class TestTableCollection:
         assert t1.has_index()
         assert t2.has_index()
 
+    @pytest.mark.parametrize("force_offset_64", [True, False])
+    def test_asdict_force_offset_64(self, ts_fixture, force_offset_64):
+        tables = ts_fixture.dump_tables()
+        d = tables.asdict(force_offset_64=force_offset_64)
+        for table in tables.name_map:
+            for name, column in d[table].items():
+                if name.endswith("_offset"):
+                    if force_offset_64:
+                        assert column.dtype == np.uint64
+                    else:
+                        assert column.dtype == np.uint32
+
+    def test_asdict_force_offset_64_default(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        d = tables.asdict()
+        for table in tables.name_map:
+            for name, column in d[table].items():
+                if name.endswith("_offset"):
+                    assert column.dtype == np.uint32
+
     def test_asdict_lifecycle(self, ts_fixture):
         tables = ts_fixture.dump_tables()
         tables_dict = tables.asdict()
