@@ -3076,13 +3076,15 @@ class TestTableCollection:
         for table in tskit.TABLE_NAMES:
             t = getattr(tc, table)
             if hasattr(t, "metadata_schema"):
-                t.packset_metadata([f"{table}-{i}".encode() for i in range(t.num_rows)])
+                t.packset_metadata(
+                    [f"{table}-{i:10}".encode() for i in range(t.num_rows)]
+                )
                 t.metadata_schema = tskit.MetadataSchema(
                     {
                         "codec": "struct",
                         "type": "object",
                         "properties": {
-                            table: {"type": "string", "binaryFormat": "50p"}
+                            table: {"type": "string", "binaryFormat": "16p"}
                         },
                     }
                 )
