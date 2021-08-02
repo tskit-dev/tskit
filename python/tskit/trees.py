@@ -808,6 +808,14 @@ class Tree:
         index in the parent tree sequence. Negative indexes following the
         standard Python conventions are allowed, i.e., ``index=-1`` will
         seek to the last tree in the sequence.
+        |LinearTraversalWarning|
+
+        .. |LinearTraversalWarning| replace:: warning::
+           The current implementation of this operation is linear in the number of
+           trees, so may be inefficient for large tree sequences. See
+           <this issue <https://github.com/tskit-dev/tskit/issues/684>_ for more
+           information.
+
 
         :param int index: The tree index to seek to.
         :raises IndexError: If an index outside the acceptable range is provided.
@@ -830,6 +838,7 @@ class Tree:
         position in the parent tree sequence. After a successful return
         of this method we have ``tree.interval.left`` <= ``position``
         < ``tree.interval.right``.
+        |LinearTraversalWarning|
 
         :param float position: The position along the sequence length to
             seek to.
@@ -4186,6 +4195,7 @@ class TreeSequence:
         Returns the tree covering the specified genomic location. The returned tree
         will have ``tree.interval.left`` <= ``position`` < ``tree.interval.right``.
         See also :meth:`Tree.seek`.
+        |LinearTraversalWarning|
 
         :param float position: A genomic location.
         :param \\**kwargs: Further arguments used as parameters when constructing the
@@ -4202,6 +4212,7 @@ class TreeSequence:
     def at_index(self, index, **kwargs):
         """
         Returns the tree at the specified index. See also :meth:`Tree.seek_index`.
+        |LinearTraversalWarning|
 
         :param int index: The index of the required tree.
         :param \\**kwargs: Further arguments used as parameters when constructing the
