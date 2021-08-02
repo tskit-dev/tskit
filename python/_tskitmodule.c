@@ -780,6 +780,31 @@ out:
 }
 
 static int
+tsk_id_converter(PyObject *py_obj, tsk_id_t *id_out)
+{
+    long long temp_long;
+    int ret = 0;
+
+    if (!PyArg_Parse(py_obj, "L", &temp_long)) {
+        goto out;
+    }
+    if (temp_long > TSK_MAX_ID) {
+        PyErr_SetString(PyExc_OverflowError, "Value too large for tskit id type");
+        goto out;
+    }
+    if (temp_long < TSK_NULL) {
+        PyErr_SetString(
+            PyExc_ValueError, "tskit ids must be NULL(-1), 0 or a positive number");
+        goto out;
+    }
+
+    id_out[0] = (tsk_id_t) temp_long;
+    ret = 1;
+out:
+    return ret;
+}
+
+static int
 int32_array_converter(PyObject *py_obj, PyArrayObject **array_out)
 {
     int ret = 0;
@@ -919,12 +944,84 @@ IndividualTable_add_row(IndividualTable *self, PyObject *args, PyObject *kwds)
         parents_data = PyArray_DATA(parents_array);
     }
     err = tsk_individual_table_add_row(self->table, (tsk_flags_t) flags, location_data,
-        location_length, parents_data, parents_length, metadata, metadata_length);
+        location_length, parents_data, parents_length, metadata,
+        (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    Py_XDECREF(location_array);
+    Py_XDECREF(parents_array);
+    return ret;
+}
+
+static PyObject *
+IndividualTable_update_row(IndividualTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    unsigned int flags = 0;
+    PyObject *py_metadata = Py_None;
+    PyObject *py_location = Py_None;
+    PyObject *py_parents = Py_None;
+    PyArrayObject *location_array = NULL;
+    double *location_data = NULL;
+    tsk_size_t location_length = 0;
+    PyArrayObject *parents_array = NULL;
+    tsk_id_t *parents_data = NULL;
+    tsk_size_t parents_length = 0;
+    char *metadata = "";
+    Py_ssize_t metadata_length = 0;
+    npy_intp *shape;
+    static char *kwlist[]
+        = { "row_index", "flags", "location", "parents", "metadata", NULL };
+
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&|O&OOO", kwlist, &tsk_id_converter,
+            &row_index, &uint32_converter, &flags, &py_location, &py_parents,
+            &py_metadata)) {
+        goto out;
+    }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    if (py_location != Py_None) {
+        /* This ensures that only 1D arrays are accepted. */
+        location_array = (PyArrayObject *) PyArray_FromAny(py_location,
+            PyArray_DescrFromType(NPY_FLOAT64), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+        if (location_array == NULL) {
+            goto out;
+        }
+        shape = PyArray_DIMS(location_array);
+        location_length = (tsk_size_t) shape[0];
+        location_data = PyArray_DATA(location_array);
+    }
+    if (py_parents != Py_None) {
+        /* This ensures that only 1D arrays are accepted. */
+        parents_array = (PyArrayObject *) PyArray_FromAny(py_parents,
+            PyArray_DescrFromType(NPY_INT32), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+        if (parents_array == NULL) {
+            goto out;
+        }
+        shape = PyArray_DIMS(parents_array);
+        parents_length = (tsk_size_t) shape[0];
+        parents_data = PyArray_DATA(parents_array);
+    }
+    err = tsk_individual_table_update_row(self->table, row_index, (tsk_flags_t) flags,
+        location_data, location_length, parents_data, parents_length, metadata,
+        (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     Py_XDECREF(location_array);
     Py_XDECREF(parents_array);
@@ -1315,6 +1412,10 @@ static PyMethodDef IndividualTable_methods[] = {
         .ml_meth = (PyCFunction) IndividualTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) IndividualTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "get_row",
         .ml_meth = (PyCFunction) IndividualTable_get_row,
         .ml_flags = METH_VARARGS,
@@ -1437,8 +1538,8 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
     int err;
     unsigned int flags = 0;
     double time = 0;
-    int population = -1;
-    int individual = -1;
+    tsk_id_t population = TSK_NULL;
+    tsk_id_t individual = TSK_NULL;
     PyObject *py_metadata = Py_None;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
@@ -1448,8 +1549,9 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&diiO", kwlist, &uint32_converter,
-            &flags, &time, &population, &individual, &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&dO&O&O", kwlist, &uint32_converter,
+            &flags, &time, &tsk_id_converter, &population, &tsk_id_converter,
+            &individual, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -1457,13 +1559,54 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_node_table_add_row(self->table, (tsk_flags_t) flags, time,
-        (tsk_id_t) population, individual, metadata, metadata_length);
+    err = tsk_node_table_add_row(self->table, (tsk_flags_t) flags, time, population,
+        individual, metadata, (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+NodeTable_update_row(NodeTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    unsigned int flags = 0;
+    double time = 0;
+    tsk_id_t population = -1;
+    tsk_id_t individual = -1;
+    PyObject *py_metadata = Py_None;
+    char *metadata = "";
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[]
+        = { "row_index", "flags", "time", "population", "individual", "metadata", NULL };
+
+    if (NodeTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&|O&dO&O&O", kwlist,
+            &tsk_id_converter, &row_index, &uint32_converter, &flags, &time,
+            &tsk_id_converter, &population, &tsk_id_converter, &individual,
+            &py_metadata)) {
+        goto out;
+    }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_node_table_update_row(self->table, row_index, (tsk_flags_t) flags, time,
+        population, individual, metadata, (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -1830,6 +1973,10 @@ static PyMethodDef NodeTable_methods[] = {
         .ml_meth = (PyCFunction) NodeTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) NodeTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) NodeTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -1949,10 +2096,8 @@ EdgeTable_add_row(EdgeTable *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     int err;
-    double left = 0.0;
-    double right = 1.0;
-    int parent;
-    int child;
+    double left, right;
+    tsk_id_t parent, child;
     PyObject *py_metadata = Py_None;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
@@ -1961,8 +2106,8 @@ EdgeTable_add_row(EdgeTable *self, PyObject *args, PyObject *kwds)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddii|O", kwlist, &left, &right,
-            &parent, &child, &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddO&O&|O", kwlist, &left, &right,
+            &tsk_id_converter, &parent, &tsk_id_converter, &child, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -1971,12 +2116,50 @@ EdgeTable_add_row(EdgeTable *self, PyObject *args, PyObject *kwds)
         }
     }
     err = tsk_edge_table_add_row(
-        self->table, left, right, parent, child, metadata, metadata_length);
+        self->table, left, right, parent, child, metadata, (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+EdgeTable_update_row(EdgeTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    double left, right;
+    tsk_id_t parent, child;
+    PyObject *py_metadata = Py_None;
+    char *metadata = "";
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[]
+        = { "row_index", "left", "right", "parent", "child", "metadata", NULL };
+
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&ddO&O&|O", kwlist, &tsk_id_converter,
+            &row_index, &left, &right, &tsk_id_converter, &parent, &tsk_id_converter,
+            &child, &py_metadata)) {
+        goto out;
+    }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_edge_table_update_row(self->table, row_index, left, right, parent, child,
+        metadata, (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -2360,6 +2543,10 @@ static PyMethodDef EdgeTable_methods[] = {
         .ml_meth = (PyCFunction) EdgeTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) EdgeTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) EdgeTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -2484,7 +2671,7 @@ MigrationTable_add_row(MigrationTable *self, PyObject *args, PyObject *kwds)
     PyObject *ret = NULL;
     int err;
     double left, right, time;
-    int node, source, dest;
+    tsk_id_t node, source, dest;
     PyObject *py_metadata = Py_None;
     char *metadata = "";
     Py_ssize_t metadata_length = 0;
@@ -2494,8 +2681,9 @@ MigrationTable_add_row(MigrationTable *self, PyObject *args, PyObject *kwds)
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddiiid|O", kwlist, &left, &right,
-            &node, &source, &dest, &time, &py_metadata)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddO&O&O&d|O", kwlist, &left, &right,
+            &tsk_id_converter, &node, &tsk_id_converter, &source, &tsk_id_converter,
+            &dest, &time, &py_metadata)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -2503,13 +2691,51 @@ MigrationTable_add_row(MigrationTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_migration_table_add_row(
-        self->table, left, right, node, source, dest, time, metadata, metadata_length);
+    err = tsk_migration_table_add_row(self->table, left, right, node, source, dest, time,
+        metadata, (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+MigrationTable_update_row(MigrationTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    double left, right, time;
+    tsk_id_t node, source, dest;
+    PyObject *py_metadata = Py_None;
+    char *metadata = "";
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[] = { "row_index", "left", "right", "node", "source", "dest",
+        "time", "metadata", NULL };
+
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&ddO&O&O&d|O", kwlist,
+            &tsk_id_converter, &row_index, &left, &right, &tsk_id_converter, &node,
+            &tsk_id_converter, &source, &tsk_id_converter, &dest, &time, &py_metadata)) {
+        goto out;
+    }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_migration_table_update_row(self->table, row_index, left, right, node,
+        source, dest, time, metadata, (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -2907,6 +3133,10 @@ static PyMethodDef MigrationTable_methods[] = {
         .ml_meth = (PyCFunction) MigrationTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) MigrationTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) MigrationTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -3047,12 +3277,51 @@ SiteTable_add_row(SiteTable *self, PyObject *args, PyObject *kwds)
         }
     }
     err = tsk_site_table_add_row(self->table, position, ancestral_state,
-        ancestral_state_length, metadata, metadata_length);
+        (tsk_size_t) ancestral_state_length, metadata, (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+SiteTable_update_row(SiteTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    double position;
+    char *ancestral_state = NULL;
+    Py_ssize_t ancestral_state_length = 0;
+    PyObject *py_metadata = Py_None;
+    char *metadata = NULL;
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[]
+        = { "row_index", "position", "ancestral_state", "metadata", NULL };
+
+    if (SiteTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&ds#|O", kwlist, &tsk_id_converter,
+            &row_index, &position, &ancestral_state, &ancestral_state_length,
+            &py_metadata)) {
+        goto out;
+    }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_site_table_update_row(self->table, row_index, position, ancestral_state,
+        (tsk_size_t) ancestral_state_length, metadata, (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -3406,6 +3675,10 @@ static PyMethodDef SiteTable_methods[] = {
         .ml_meth = (PyCFunction) SiteTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) SiteTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) SiteTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -3525,9 +3798,8 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
     int err;
-    int site;
-    int node;
-    int parent = TSK_NULL;
+    tsk_id_t site, node;
+    tsk_id_t parent = TSK_NULL;
     double time = TSK_UNKNOWN_TIME;
     char *derived_state;
     Py_ssize_t derived_state_length;
@@ -3540,8 +3812,9 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "iis#|iOd", kwlist, &site, &node,
-            &derived_state, &derived_state_length, &parent, &py_metadata, &time)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&O&s#|O&Od", kwlist,
+            &tsk_id_converter, &site, &tsk_id_converter, &node, &derived_state,
+            &derived_state_length, &tsk_id_converter, &parent, &py_metadata, &time)) {
         goto out;
     }
     if (py_metadata != Py_None) {
@@ -3549,14 +3822,56 @@ MutationTable_add_row(MutationTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_mutation_table_add_row(self->table, (tsk_id_t) site, (tsk_id_t) node,
-        (tsk_id_t) parent, time, derived_state, derived_state_length, metadata,
-        metadata_length);
+    err = tsk_mutation_table_add_row(self->table, site, node, parent, time,
+        derived_state, (tsk_size_t) derived_state_length, metadata,
+        (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+MutationTable_update_row(MutationTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index, site, node;
+    tsk_id_t parent = TSK_NULL;
+    double time = TSK_UNKNOWN_TIME;
+    char *derived_state;
+    Py_ssize_t derived_state_length;
+    PyObject *py_metadata = Py_None;
+    char *metadata = NULL;
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[] = { "row_index", "site", "node", "derived_state", "parent",
+        "metadata", "time", NULL };
+
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&O&O&s#|O&Od", kwlist,
+            &tsk_id_converter, &row_index, &tsk_id_converter, &site, &tsk_id_converter,
+            &node, &derived_state, &derived_state_length, &tsk_id_converter, &parent,
+            &py_metadata, &time)) {
+        goto out;
+    }
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_mutation_table_update_row(self->table, row_index, site, node, parent, time,
+        derived_state, (tsk_size_t) derived_state_length, metadata,
+        (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -3956,6 +4271,10 @@ static PyMethodDef MutationTable_methods[] = {
         .ml_meth = (PyCFunction) MutationTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) MutationTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) MutationTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -4093,12 +4412,48 @@ PopulationTable_add_row(PopulationTable *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    err = tsk_population_table_add_row(self->table, metadata, metadata_length);
+    err = tsk_population_table_add_row(
+        self->table, metadata, (tsk_size_t) metadata_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+PopulationTable_update_row(PopulationTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    PyObject *py_metadata = Py_None;
+    char *metadata = NULL;
+    Py_ssize_t metadata_length = 0;
+    static char *kwlist[] = { "row_index", "metadata", NULL };
+
+    if (PopulationTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "O&|O", kwlist, &tsk_id_converter, &row_index, &py_metadata)) {
+        goto out;
+    }
+
+    if (py_metadata != Py_None) {
+        if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+            goto out;
+        }
+    }
+    err = tsk_population_table_update_row(
+        self->table, row_index, metadata, (tsk_size_t) metadata_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -4402,6 +4757,10 @@ static PyMethodDef PopulationTable_methods[] = {
         .ml_meth = (PyCFunction) PopulationTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) PopulationTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) PopulationTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -4536,13 +4895,43 @@ ProvenanceTable_add_row(ProvenanceTable *self, PyObject *args, PyObject *kwds)
             &timestamp_length, &record, &record_length)) {
         goto out;
     }
-    err = tsk_provenance_table_add_row(
-        self->table, timestamp, timestamp_length, record, record_length);
+    err = tsk_provenance_table_add_row(self->table, timestamp,
+        (tsk_size_t) timestamp_length, record, (tsk_size_t) record_length);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = Py_BuildValue("i", err);
+out:
+    return ret;
+}
+
+static PyObject *
+ProvenanceTable_update_row(ProvenanceTable *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_id_t row_index = -1;
+    char *timestamp = "";
+    Py_ssize_t timestamp_length = 0;
+    char *record = "";
+    Py_ssize_t record_length = 0;
+    static char *kwlist[] = { "row_index", "timestamp", "record", NULL };
+
+    if (ProvenanceTable_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&s#s#", kwlist, &tsk_id_converter,
+            &row_index, &timestamp, &timestamp_length, &record, &record_length)) {
+        goto out;
+    }
+    err = tsk_provenance_table_update_row(self->table, row_index, timestamp,
+        (tsk_size_t) timestamp_length, record, (tsk_size_t) record_length);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
 out:
     return ret;
 }
@@ -4836,6 +5225,10 @@ static PyMethodDef ProvenanceTable_methods[] = {
         .ml_meth = (PyCFunction) ProvenanceTable_add_row,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Adds a new row to this table." },
+    { .ml_name = "update_row",
+        .ml_meth = (PyCFunction) ProvenanceTable_update_row,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Updates an existing row in this table." },
     { .ml_name = "equals",
         .ml_meth = (PyCFunction) ProvenanceTable_equals,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
