@@ -1,7 +1,15 @@
 ----------------------
-[0.99.13] - 2021-07-08
+[0.99.14] - 2021-0X-XX
 ----------------------
 
+**Features**
+
+- Add `tsk_X_table_update_row` methods which allow modifying single rows of tables
+  (:user:`jeromekelleher`, :issue:`1545`, :pr:`1552`).
+
+----------------------
+[0.99.13] - 2021-07-08
+----------------------
 **Fixes**
 
 - Fix segfault when very large columns overflow 

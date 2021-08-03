@@ -1,4 +1,14 @@
 --------------------
+[0.3.8] - 2021-0X-XX
+--------------------
+
+**Features**
+
+- Add `__setitem__` to all tables allowing single rows to be updated. For example
+  `tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)`
+  (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`1545`, :pr:`1600`).
+
+--------------------
 [0.3.7] - 2021-07-08
 --------------------
 
