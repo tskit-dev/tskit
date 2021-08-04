@@ -2183,6 +2183,14 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             ts_ids = re.findall(fr"{identifier}\d+", ts_svg)
             assert tree_ids != ts_ids
 
+    def test_xlim_with_ranks(self):
+        ts = self.get_simple_ts()
+        xlim = ts.breakpoints(as_array=True)[:2]  # plot first tree only
+        svg = ts.draw_svg(x_lim=xlim, time_scale="rank", y_axis=True, y_gridlines=True)
+        # excluding ".grid" in the stylesheet, there should be only 4 y-axis steps
+        # for a 4 tip tree with all samples at 0: simplest check is to count gridlines
+        assert len(re.findall(r"[^.]grid", svg)) == 4
+
     def test_half_truncated(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = ts.delete_intervals([[0.4, 0.6]])

@@ -39,6 +39,7 @@ import numpy as np
 import svgwrite
 
 import tskit.util as util
+from _tskit import NODE_IS_SAMPLE
 from _tskit import NULL
 
 LEFT = "left"
@@ -275,6 +276,22 @@ def rnd(x):
     if int(x) == x:
         return int(x)
     return x
+
+
+def referenced_nodes(ts):
+    """
+    Return the ids of nodes which are actually plotted in this tree sequence
+    (i.e. do not include nodes which are not samples and not in any edge: this
+    happens extensively in plotting tree sequences with x_lim specified)
+    """
+    ids = np.concatenate(
+        (
+            ts.tables.edges.child,
+            ts.tables.edges.parent,
+            np.where(ts.tables.nodes.flags & NODE_IS_SAMPLE)[0],
+        )
+    )
+    return np.unique(ids)
 
 
 def draw_tree(
@@ -911,7 +928,7 @@ class SvgTreeSequence(SvgPlot):
                     )
             y_low = self.y_transform(0)  # if poss use zero point for lowest axis value
             if y_ticks is None:
-                y_ticks = np.unique(ts.tables.nodes.time)
+                y_ticks = np.unique(ts.tables.nodes.time[referenced_nodes(ts)])
                 if self.time_scale == "rank":
                     # Ticks labelled by time not rank
                     y_ticks = dict(enumerate(y_ticks))
@@ -1255,12 +1272,17 @@ class SvgTree(SvgPlot):
         mut_time = self.ts.tables.mutations.time
         root_branch_length = 0
         if self.time_scale == "rank":
+            t = np.zeros_like(node_time)
             if max_time == "tree":
                 # We only rank the times within the tree in this case.
-                t = np.zeros_like(node_time)
                 for u in self.tree.nodes():
                     t[u] = node_time[u]
-                node_time = t
+            else:
+                # only rank the nodes that are actually referenced in the edge table
+                # (non-referenced nodes could occur if the user specifies x_lim values)
+                use_time = referenced_nodes(self.ts)
+                t[use_time] = node_time[use_time]
+            node_time = t
             times = np.unique(node_time[node_time <= self.ts.max_root_time])
             max_node_height = len(times)
             depth = {t: j for j, t in enumerate(times)}
