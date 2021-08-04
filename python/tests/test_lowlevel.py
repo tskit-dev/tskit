@@ -408,6 +408,37 @@ class TestTableCollection(LowLevelTestCase):
         with pytest.raises(TypeError):
             tc.equals(tc, ignore_timestamps=bad_bool)
 
+    def test_asdict(self):
+        for ts in self.get_example_tree_sequences():
+            tc = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts.dump_tables(tc)
+            d = tc.asdict()
+            # Method is tested extensively elsewhere, just basic sanity check here
+            assert isinstance(d, dict)
+            assert len(d) > 0
+
+    def test_fromdict(self):
+        for ts in self.get_example_tree_sequences():
+            tc1 = _tskit.TableCollection(sequence_length=ts.get_sequence_length())
+            ts.dump_tables(tc1)
+            d = tc1.asdict()
+            tc2 = _tskit.TableCollection(sequence_length=0)
+            tc2.fromdict(d)
+            assert tc1.equals(tc2)
+
+    def test_asdict_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1242)
+        tc = ts.tables._ll_tables
+        for bad_type in [None, 0.1, "str"]:
+            with pytest.raises(TypeError):
+                tc.asdict(force_offset_64=bad_type)
+
+    def test_fromdict_bad_args(self):
+        tc = _tskit.TableCollection(0)
+        for bad_type in [None, 0.1, "str"]:
+            with pytest.raises(TypeError):
+                tc.fromdict(bad_type)
+
 
 class TestTableMethods:
     """

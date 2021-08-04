@@ -6428,6 +6428,46 @@ out:
     return ret;
 }
 
+static PyObject *
+TableCollection_asdict(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    int force_offset_64 = 0;
+    static char *kwlist[] = { "force_offset_64", NULL };
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &force_offset_64)) {
+        goto out;
+    }
+    /* Use the LWT tables code */
+    ret = dump_tables_dict(self->tables, force_offset_64);
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_fromdict(TableCollection *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    PyObject *dict = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "O!", &PyDict_Type, &dict)) {
+        goto out;
+    }
+    /* Use the LWT tables code */
+    if (parse_table_collection_dict(self->tables, dict) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
 static PyGetSetDef TableCollection_getsetters[] = {
     { .name = "individuals",
         .get = (getter) TableCollection_get_individuals,
@@ -6548,6 +6588,14 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_meth = (PyCFunction) TableCollection_load,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Loads the table collection out to the specified file." },
+    { .ml_name = "asdict",
+        .ml_meth = (PyCFunction) TableCollection_asdict,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns the table collection in dictionary encoding. " },
+    { .ml_name = "fromdict",
+        .ml_meth = (PyCFunction) TableCollection_fromdict,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Sets the state of this table collection from the specified dict" },
     { NULL } /* Sentinel */
 };
 

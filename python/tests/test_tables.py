@@ -3129,31 +3129,6 @@ class TestTableCollection:
     Tests for the convenience wrapper around a collection of related tables.
     """
 
-    def add_metadata(self, tc):
-        tc.metadata_schema = tskit.MetadataSchema(
-            {
-                "codec": "struct",
-                "type": "object",
-                "properties": {"top-level": {"type": "string", "binaryFormat": "50p"}},
-            }
-        )
-        tc.metadata = {"top-level": "top-level-metadata"}
-        for table in tskit.TABLE_NAMES:
-            t = getattr(tc, table)
-            if hasattr(t, "metadata_schema"):
-                t.packset_metadata(
-                    [f"{table}-{i:10}".encode() for i in range(t.num_rows)]
-                )
-                t.metadata_schema = tskit.MetadataSchema(
-                    {
-                        "codec": "struct",
-                        "type": "object",
-                        "properties": {
-                            table: {"type": "string", "binaryFormat": "16p"}
-                        },
-                    }
-                )
-
     def test_table_references(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=1)
         tables = ts.tables
@@ -3228,6 +3203,26 @@ class TestTableCollection:
         t1.assert_equals(t2)
         assert t1.has_index()
         assert t2.has_index()
+
+    @pytest.mark.parametrize("force_offset_64", [True, False])
+    def test_asdict_force_offset_64(self, ts_fixture, force_offset_64):
+        tables = ts_fixture.dump_tables()
+        d = tables.asdict(force_offset_64=force_offset_64)
+        for table in tables.name_map:
+            for name, column in d[table].items():
+                if name.endswith("_offset"):
+                    if force_offset_64:
+                        assert column.dtype == np.uint64
+                    else:
+                        assert column.dtype == np.uint32
+
+    def test_asdict_force_offset_64_default(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        d = tables.asdict()
+        for table in tables.name_map:
+            for name, column in d[table].items():
+                if name.endswith("_offset"):
+                    assert column.dtype == np.uint32
 
     def test_asdict_lifecycle(self, ts_fixture):
         tables = ts_fixture.dump_tables()
@@ -3945,13 +3940,35 @@ class TestTableCollectionMetadata:
         assert tc._ll_tables.metadata == b""
 
 
-class TestTableCollectionPickle(TestTableCollection):
+def add_table_collection_metadata(tc):
+    tc.metadata_schema = tskit.MetadataSchema(
+        {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"top-level": {"type": "string", "binaryFormat": "50p"}},
+        }
+    )
+    tc.metadata = {"top-level": "top-level-metadata"}
+    for table in tskit.TABLE_NAMES:
+        t = getattr(tc, table)
+        if hasattr(t, "metadata_schema"):
+            t.packset_metadata([f"{table}-{i:10}".encode() for i in range(t.num_rows)])
+            t.metadata_schema = tskit.MetadataSchema(
+                {
+                    "codec": "struct",
+                    "type": "object",
+                    "properties": {table: {"type": "string", "binaryFormat": "16p"}},
+                }
+            )
+
+
+class TestTableCollectionPickle:
     """
     Tests that we can round-trip table collections through pickle.
     """
 
     def verify(self, tables):
-        self.add_metadata(tables)
+        add_table_collection_metadata(tables)
         other_tables = pickle.loads(pickle.dumps(tables))
         tables.assert_equals(other_tables)
 

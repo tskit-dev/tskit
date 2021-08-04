@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2461,29 +2461,22 @@ class TableCollection:
         """
         return self._ll_tables.metadata
 
-    def asdict(self):
+    def asdict(self, force_offset_64=False):
         """
-        Returns a dictionary representation of this TableCollection.
+        Returns the nested dictionary representation of this TableCollection
+        used for interchange.
 
         Note: the semantics of this method changed at tskit 0.1.0. Previously a
         map of table names to the tables themselves was returned.
+
+        :param bool force_offset_64: If True, all offset columns will have dtype
+            np.uint64. If False (the default) the offset array columns will have
+            a dtype of either np.uint32 or np.uint64, depending on the size of the
+            corresponding data array.
+        :return: The dictionary representation of this table collection.
+        :rtype: dict
         """
-        ret = {
-            "encoding_version": (1, 3),
-            "sequence_length": self.sequence_length,
-            "metadata_schema": repr(self.metadata_schema),
-            "metadata": self.metadata_schema.encode_row(self.metadata),
-            "individuals": self.individuals.asdict(),
-            "nodes": self.nodes.asdict(),
-            "edges": self.edges.asdict(),
-            "migrations": self.migrations.asdict(),
-            "sites": self.sites.asdict(),
-            "mutations": self.mutations.asdict(),
-            "populations": self.populations.asdict(),
-            "provenances": self.provenances.asdict(),
-            "indexes": self.indexes.asdict(),
-        }
-        return ret
+        return self._ll_tables.asdict(force_offset_64)
 
     @property
     def name_map(self):
@@ -2701,45 +2694,13 @@ class TableCollection:
 
     # Unpickle support
     def __setstate__(self, state):
-        self.__init__(state["sequence_length"])
-        self.metadata_schema = tskit.parse_metadata_schema(state["metadata_schema"])
-        self.metadata = self.metadata_schema.decode_row(state["metadata"])
-        self.individuals.set_columns(**state["individuals"])
-        self.nodes.set_columns(**state["nodes"])
-        self.edges.set_columns(**state["edges"])
-        self.migrations.set_columns(**state["migrations"])
-        self.sites.set_columns(**state["sites"])
-        self.mutations.set_columns(**state["mutations"])
-        self.populations.set_columns(**state["populations"])
-        self.provenances.set_columns(**state["provenances"])
+        self.__init__()
+        self._ll_tables.fromdict(state)
 
     @classmethod
     def fromdict(self, tables_dict):
-        tables = TableCollection(tables_dict["sequence_length"])
-        try:
-            tables.metadata_schema = tskit.parse_metadata_schema(
-                tables_dict["metadata_schema"]
-            )
-        except KeyError:
-            pass
-        try:
-            tables.metadata = tables.metadata_schema.decode_row(tables_dict["metadata"])
-        except KeyError:
-            pass
-        tables.individuals.set_columns(**tables_dict["individuals"])
-        tables.nodes.set_columns(**tables_dict["nodes"])
-        tables.edges.set_columns(**tables_dict["edges"])
-        tables.migrations.set_columns(**tables_dict["migrations"])
-        tables.sites.set_columns(**tables_dict["sites"])
-        tables.mutations.set_columns(**tables_dict["mutations"])
-        tables.populations.set_columns(**tables_dict["populations"])
-        tables.provenances.set_columns(**tables_dict["provenances"])
-
-        # Indexes must be last as other wise the check for their consistency will fail
-        try:
-            tables.indexes = TableCollectionIndexes(**tables_dict["indexes"])
-        except KeyError:
-            pass
+        tables = TableCollection()
+        tables._ll_tables.fromdict(tables_dict)
         return tables
 
     def copy(self):
