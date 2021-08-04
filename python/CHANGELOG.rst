@@ -2,6 +2,11 @@
 [0.3.8] - 2021-0X-XX
 --------------------
 
+**Breaking changes**
+
+- The CLI `info` command now gives more detailed information on the tree sequence
+  (:user:`benjeffery`, :pr:`1611`)
+
 **Features**
 
 - Add `__setitem__` to all tables allowing single rows to be updated. For example

@@ -51,18 +51,7 @@ def load_tree_sequence(path):
 
 
 def run_info(args):
-    ts = load_tree_sequence(args.tree_sequence)
-    print("sequence_length: ", ts.sequence_length)
-    print("trees:           ", ts.num_trees)
-    print("samples:         ", ts.num_samples)
-    print("individuals:     ", ts.num_individuals)
-    print("nodes:           ", ts.num_nodes)
-    print("edges:           ", ts.num_edges)
-    print("sites:           ", ts.num_sites)
-    print("mutations:       ", ts.num_mutations)
-    print("migrations:      ", ts.num_migrations)
-    print("populations:     ", ts.num_populations)
-    print("provenances:     ", ts.num_provenances)
+    print(load_tree_sequence(args.tree_sequence))
 
 
 def run_trees(args):
