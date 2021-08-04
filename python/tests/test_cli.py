@@ -506,31 +506,14 @@ class TestTskitConversionOutput(unittest.TestCase):
         self.verify_vcf(stdout)
 
     def verify_info(self, ts, output_info):
-        info = {
-            "sequence_length": ts.sequence_length,
-            "edges": ts.num_edges,
-            "nodes": ts.num_nodes,
-            "individuals": ts.num_individuals,
-            "migrations": ts.num_migrations,
-            "sites": ts.num_sites,
-            "mutations": ts.num_mutations,
-            "populations": ts.num_populations,
-            "provenances": ts.num_provenances,
-            "trees": ts.num_trees,
-            "samples": ts.num_samples,
-        }
-        assert {k: str(v) for k, v in info.items()} == output_info
+        assert str(ts) == output_info
 
     def test_info(self):
         cmd = "info"
         stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
         assert len(stderr) == 0
-        output_provenances = {}
-        for row in stdout.splitlines():
-            name, value = [tok.strip() for tok in row.split(":")]
-            output_provenances[name] = value
         ts = tskit.load(self._tree_sequence_file)
-        self.verify_info(ts, output_provenances)
+        self.verify_info(ts, stdout[:-1])
 
     def test_trees_no_draw(self):
         cmd = "trees"
